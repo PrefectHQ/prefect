@@ -1,50 +1,53 @@
 from pathlib import PosixPath
 from uuid import uuid4
-from fastapi import Response, status
+from fastapi import Response, status, Body
+from typing import TypeVar
+import base64
 
-from prefect.orion.data import (
+from prefect.orion.schemas.data import (
+    OrionDataDocument,
+    FileSystemDataDocument,
     get_instance_data_location,
-    resolve_orion_datadoc,
-    write_blob,
+    Base64String,
 )
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
 
-@router.post("/put")
-async def create_orion_datadoc(
-    datadoc: DataDocument,
+@router.post("/persist")
+async def create_datadoc(
+    data: Base64String,
     response: Response,
 ) -> DataDocument:
     """
-    Exchange a data document for an Orion data document
+    Exchange data for an orion data document
     """
-    # Retrieve the configured data location
+    data_bytes = data.to_bytes()
+
+    # Get the configured data location
     dataloc = get_instance_data_location()
 
     # Generate a path to write the data
-    path = str(PosixPath(dataloc.base_path).joinpath(uuid4().hex).absolute())
+    path = PosixPath(dataloc.base_path).joinpath(uuid4().hex).absolute()
+    path = f"{dataloc.scheme}://{path}"
 
-    # Write the datadoc as a blob to `path`
-    await write_blob(datadoc.json().encode(), dataloc.scheme, path)
-
-    # Generate a new datadoc with the location
-    loc_datadoc = DataDocument(encoding=dataloc.scheme, blob=path.encode())
+    # Write the data to the path and create a file system document
+    fs_datadoc = FileSystemDataDocument.create(
+        (path, data_bytes), encoding=dataloc.scheme
+    )
 
     # Return an Orion datadoc to show that it should be resolved by GET /data
-    orion_datadoc = DataDocument(encoding="orion", blob=loc_datadoc.json().encode())
+    orion_datadoc = OrionDataDocument.create(fs_datadoc)
 
     response.status_code = status.HTTP_201_CREATED
     return orion_datadoc
 
 
-@router.post("/get")
-async def get_user_datadoc(datadoc: DataDocument) -> DataDocument:
+@router.post("/retrieve")
+async def read_datadoc(datadoc: OrionDataDocument) -> Base64String:
     """
-    Resolve a data document that Orion is responsible for into the original data
-    document provided by the user
+    Exchange an orion data document for the data previously persisted
     """
     if datadoc.encoding != "orion":
         raise ValueError(
@@ -52,4 +55,8 @@ async def get_user_datadoc(datadoc: DataDocument) -> DataDocument:
             "be retrieved from the Orion API."
         )
 
-    return await resolve_orion_datadoc(datadoc)
+    fs_datadoc = datadoc.read()
+    # Unpack the path, bytes tuple returned by `FileSystemDataDocument`
+    _, data_bytes = fs_datadoc.read()
+
+    return Base64String.from_bytes(data_bytes)

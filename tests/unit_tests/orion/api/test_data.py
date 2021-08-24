@@ -1,9 +1,15 @@
 import pytest
 import os
+import base64
 
 from prefect import settings
 from prefect.utilities.settings import DataLocationSettings, Settings
-from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.data import (
+    DataDocument,
+    OrionDataDocument,
+    FileSystemDataDocument,
+    Base64String,
+)
 
 
 @pytest.fixture
@@ -17,47 +23,61 @@ def tmpdir_dataloc_settings(tmpdir, monkeypatch):
     yield settings.orion.data
 
 
-class TestPutData:
-    async def test_orion_datadoc_is_returned(self, client, tmpdir_dataloc_settings):
-        datadoc = DataDocument(encoding="text", blob=b"foo")
+class TestPersistData:
+    @pytest.mark.parametrize(
+        "user_data",
+        [
+            # Test a couple forms of bytes
+            DataDocument(encoding="foo", blob=b"hello").json().encode(),
+            b"test!",
+            bytes([0, 1, 2]),
+        ],
+    )
+    async def test_orion_datadoc_is_returned(
+        self, client, tmpdir_dataloc_settings, user_data
+    ):
+
         response = await client.post(
-            "/data/put", json=datadoc.dict(json_compatible=True)
+            "/data/persist", json=Base64String.from_bytes(user_data).dict()
         )
         assert response.status_code == 201
 
         # We have received an orion document
-        orion_datadoc = DataDocument.parse_obj(response.json())
-        assert isinstance(orion_datadoc, DataDocument)
-        assert orion_datadoc.encoding == "orion"
-        assert orion_datadoc.blob is not None
+        orion_datadoc = OrionDataDocument.parse_obj(response.json())
 
-        # The blob contains a location document
-        loc_datadoc = DataDocument.parse_raw(orion_datadoc.blob)
-        assert loc_datadoc.encoding == "file"
-        assert loc_datadoc.blob.decode().startswith(tmpdir_dataloc_settings.base_path)
+        # The blob contains a file system document
+        fs_datadoc = orion_datadoc.read()
+
+        # The fs datadoc can be read into our data
+        path, data = fs_datadoc.read()
+        assert path.startswith(
+            f"{tmpdir_dataloc_settings.scheme}://{tmpdir_dataloc_settings.base_path}"
+        )
+        assert data == user_data
 
 
-class TestGetDataDoc:
-    async def test_user_datadoc_is_returned(self, client, tmpdir_dataloc_settings):
-        # Write a user data document to disk
-        user_datadoc = DataDocument(encoding="foo", blob=b"hello")
-        path = os.path.join(tmpdir_dataloc_settings.base_path, "test.data")
-        with open(path, "wt") as f:
-            f.write(user_datadoc.json())
+class TestRetrieveData:
+    @pytest.mark.parametrize(
+        "user_data",
+        [
+            # Test a couple forms of bytes
+            DataDocument(encoding="foo", blob=b"hello").json().encode(),
+            b"test!",
+            bytes([0, 1, 2]),
+        ],
+    )
+    async def test_retrieve_data(self, client, tmpdir, user_data):
+        path = str(tmpdir.join("data"))
 
-        # Create a full Orion data document describing the data
-        orion_datadoc = DataDocument(
-            encoding="orion",
-            blob=DataDocument(
-                encoding="file",
-                blob=path.encode(),
-            ).json(),
+        # Create a full Orion data document describing the data and write to disk
+        orion_datadoc = OrionDataDocument.create(
+            FileSystemDataDocument.create((path, user_data), encoding="file")
         )
 
         # The user data document should be returned
         response = await client.post(
-            "/data/get", json=orion_datadoc.dict(json_compatible=True)
+            "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )
         assert response.status_code == 200
-        returned_datadoc = DataDocument.parse_obj(response.json())
-        assert returned_datadoc == user_datadoc
+        returned_data = Base64String.parse_obj(response.json()).to_bytes()
+        assert returned_data == user_data
