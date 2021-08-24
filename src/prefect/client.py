@@ -13,6 +13,13 @@ import cloudpickle
 
 import prefect
 from prefect.orion import schemas
+from prefect.orion.schemas.data import (
+    OrionDataDocument,
+    create_datadoc,
+    Base64String,
+    get_datadoc_subclass,
+    DataDocument,
+)
 from prefect.orion.api.server import app as orion_app
 
 if TYPE_CHECKING:
@@ -108,45 +115,29 @@ class OrionClient:
         response = self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
 
-    def put_object(
-        self, obj: Any, serializer=cloudpickle, name: str = None, tags: Set[str] = None
-    ) -> schemas.data.DataDocument:
-
-        try:
-            obj_bytes = serializer.dumps(obj)
-        except pickle.PicklingError:
-            # Patch for https://github.com/cloudpipe/cloudpickle/issues/408
-            obj_bytes = pickle.dumps(obj)
-
-        user_datadoc = schemas.data.DataDocument(
-            blob=base64.encodebytes(obj_bytes),
-            encoding=serializer.__name__,
-        )
-
-        response = self.post(
-            f"/data/put",
-            json=user_datadoc.dict(json_compatible=True),
-        )
-        return schemas.data.DataDocument.parse_obj(response.json())
-
-    def get_object(
+    def persist_data(
         self,
-        orion_datadoc: schemas.data.DataDocument,
-    ) -> Any:
+        data: bytes,
+    ) -> OrionDataDocument:
+        response = self.post("/data/persist", json=Base64String.from_bytes(data).dict())
+        return OrionDataDocument.parse_obj(response.json())
 
+    def retrieve_data(
+        self,
+        orion_datadoc: OrionDataDocument,
+    ) -> bytes:
         response = self.post(
-            f"/data/get",
-            json=orion_datadoc.dict(json_compatible=True),
+            "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )
-        user_datadoc = schemas.data.DataDocument.parse_obj(response.json())
+        return Base64String.parse_obj(response.json()).to_bytes()
 
-        # TODO: Actually resolve the serializer from the datadoc
-        if user_datadoc.encoding == "cloudpickle":
-            serializer = cloudpickle
-        else:
-            raise ValueError(f"Unknown datadoc encoding {user_datadoc.encoding!r}")
+    def persist_object(self, obj: Any, encoder: str = "cloudpickle"):
+        datadoc = create_datadoc(encoding=encoder, data=obj)
+        return self.persist_data(datadoc.json().encode())
 
-        return serializer.loads(base64.decodebytes(user_datadoc.blob))
+    def retrieve_object(self, orion_datadoc: OrionDataDocument) -> Any:
+        datadoc = DataDocument.parse_raw(self.retrieve_data(orion_datadoc))
+        return datadoc.to_subtype().read()
 
     def set_flow_run_state(
         self,
