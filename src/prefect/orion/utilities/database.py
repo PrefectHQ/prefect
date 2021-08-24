@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import (
     async_scoped_session,
     create_async_engine,
 )
+from sqlalchemy.schema import MetaData
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.sql.functions import FunctionElement
@@ -287,7 +288,29 @@ def now(element, compiler, **kwargs):
     return "CURRENT_TIMESTAMP"
 
 
-@as_declarative()
+# define naming conventions for our Base class to use
+# sqlalchemy will use the following templated strings
+# to generate the names of indices, constraints, and keys
+#
+# more information on this templating and available
+# customization can be found here
+# https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
+#
+# this also allows us to avoid having to specify names explicitly
+# when using sa.ForeignKey.use_alter = True
+# https://docs.sqlalchemy.org/en/14/core/constraints.html
+base_metadata = MetaData(
+    naming_convention={
+        "ix": "ix_%(column_0_N_label)s",
+        "uq": "uq_%(table_name)s_%(column_0_N_name)s",
+        "ck": "ck_%(table_name)s_%(constraint_name)s",
+        "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+        "pk": "pk_%(table_name)s",
+    }
+)
+
+
+@as_declarative(metadata=base_metadata)
 class Base(object):
     """
     Base SQLAlchemy model that automatically infers the table name

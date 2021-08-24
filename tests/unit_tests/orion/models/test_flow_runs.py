@@ -1,7 +1,7 @@
-import sqlalchemy as sa
-import pytest
+import datetime
 from uuid import uuid4
 
+import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -12,7 +12,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, session):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
         assert flow_run.flow_id == flow.id
 
@@ -48,12 +48,12 @@ class TestCreateFlowRun:
     async def test_create_multiple_flow_runs(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
 
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
 
         assert flow_run_1.id != flow_run_2.id
@@ -70,7 +70,7 @@ class TestCreateFlowRun:
     ):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
 
         with pytest.raises(sa.exc.IntegrityError):
@@ -82,25 +82,19 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_idempotency_key(self, flow, session):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
-                flow_id=flow.id, idempotency_key="test"
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
         )
         assert flow_run.idempotency_key == "test"
 
     async def test_create_flow_run_with_existing_idempotency_key(self, flow, session):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
-                flow_id=flow.id, idempotency_key="test"
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
         )
         with pytest.raises(sa.exc.IntegrityError):
             await models.flow_runs.create_flow_run(
                 session=session,
-                flow_run=schemas.actions.FlowRunCreate(
-                    flow_id=flow.id, idempotency_key="test"
-                ),
+                flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
             )
 
     async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
@@ -112,15 +106,11 @@ class TestCreateFlowRun:
 
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
-                flow_id=flow.id, idempotency_key="test"
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
-                flow_id=flow2.id, idempotency_key="test"
-            ),
+            flow_run=schemas.core.FlowRun(flow_id=flow2.id, idempotency_key="test"),
         )
 
         assert flow_run.id != flow_run_2.id
@@ -144,7 +134,7 @@ class TestReadFlowRun:
         # create a flow run to read
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
 
         read_flow_run = await models.flow_runs.read_flow_run(
@@ -166,20 +156,20 @@ class TestReadFlowRuns:
 
         flow_2 = await models.flows.create_flow(
             session=session,
-            flow=schemas.actions.FlowCreate(name="another-test"),
+            flow=schemas.core.Flow(name="another-test"),
         )
 
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_2.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow_2.id),
         )
         return [flow_run_1, flow_run_2, flow_run_3]
 
@@ -208,7 +198,7 @@ class TestDeleteFlowRun:
         # create a flow run to delete
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
 
         assert await models.flow_runs.delete_flow_run(
