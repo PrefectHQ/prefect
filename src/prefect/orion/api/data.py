@@ -1,8 +1,6 @@
 from pathlib import PosixPath
 from uuid import uuid4
-from fastapi import Response, status, Body
-from typing import TypeVar
-import base64
+from fastapi import Response, status
 
 from prefect.orion.schemas.data import (
     OrionDataDocument,
@@ -19,7 +17,7 @@ router = OrionRouter(prefix="/data", tags=["Data Documents"])
 async def create_datadoc(
     data: Base64String,
     response: Response,
-) -> DataDocument:
+) -> OrionDataDocument:
     """
     Exchange data for an orion data document
     """
