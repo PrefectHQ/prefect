@@ -2,9 +2,8 @@ import contextlib
 import pytest
 import pendulum
 import random
-from itertools import permutations
+from itertools import product
 from unittest.mock import MagicMock
-from uuid import UUID
 
 from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
@@ -18,6 +17,8 @@ from prefect.orion.schemas import states
 async def create_task_run_state(
     session, task_run, state_type: schemas.actions.StateCreate, state_details=None
 ):
+    if state_type is None:
+        return None
     state_details = dict() if state_details is None else state_details
     new_state = schemas.actions.StateCreate(
         type=state_type,
@@ -25,11 +26,13 @@ async def create_task_run_state(
         state_details=state_details,
     )
 
-    return await models.task_run_states.create_task_run_state(
-        session=session,
-        task_run_id=task_run.id,
-        state=new_state,
-    )
+    return (
+        await models.task_run_states.create_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=new_state,
+        )
+    ).as_state()
 
 
 class TestBaseOrchestrationRule:
@@ -63,16 +66,17 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -108,16 +112,17 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -153,16 +158,17 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (states.StateType.SCHEDULED, states.StateType.COMPLETED)
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -215,16 +221,17 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -283,16 +290,17 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -310,8 +318,8 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        random.choices(list(permutations(states.StateType, 2)), k=3),
-        ids=lambda args: f"rand: {args[0].name} => {args[1].name}",
+        list(product([*states.StateType, None], states.StateType)),
+        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_nested_valid_rules_fire_hooks(
         self, session, task_run, intended_transition
@@ -361,16 +369,17 @@ class TestBaseOrchestrationRule:
 
         # both rules are valid
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -419,8 +428,8 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        random.choices(list(permutations(states.StateType, 2)), k=3),
-        ids=lambda args: f"rand: {args[0].name} => {args[1].name}",
+        list(product([*states.StateType, None], states.StateType)),
+        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_complex_nested_rules_interact_sensibly(
         self, session, task_run, intended_transition
@@ -464,7 +473,7 @@ class TestBaseOrchestrationRule:
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
-                        - {initial_state.type, proposed_state.type}
+                        - {initial_state.type if initial_state else None, proposed_state.type}
                     )
                 )
                 mutator_before_hook()
@@ -495,16 +504,17 @@ class TestBaseOrchestrationRule:
 
         # all rules start valid
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -594,16 +604,17 @@ class TestBaseUniversalRule:
 
         intended_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
@@ -620,8 +631,8 @@ class TestBaseUniversalRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        random.choices(list(permutations(states.StateType, 2)), k=3),
-        ids=lambda args: f"rand: {args[0].name} => {args[1].name}",
+        list(product([*states.StateType, None], states.StateType)),
+        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_universal_rules_always_fire(
         self, session, task_run, intended_transition
@@ -643,16 +654,17 @@ class TestBaseUniversalRule:
                 after_hook()
 
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = (
-            await create_task_run_state(session, task_run, initial_state_type)
-        ).as_state()
-        proposed_state = initial_state.copy()
-        proposed_state.type = proposed_state_type
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
 
         ctx = OrchestrationContext(
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=MagicMock(),
+            session=session,
             run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
