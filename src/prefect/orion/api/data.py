@@ -13,10 +13,9 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
 
-@router.post("/persist")
+@router.post("/persist", status_code=status.HTTP_201_CREATED)
 async def create_datadoc(
     data: Base64String,
-    response: Response,
 ) -> OrionDataDocument:
     """
     Exchange data for an orion data document
@@ -38,7 +37,6 @@ async def create_datadoc(
     # Return an Orion datadoc to show that it should be resolved by GET /data
     orion_datadoc = OrionDataDocument.create(fs_datadoc)
 
-    response.status_code = status.HTTP_201_CREATED
     return orion_datadoc
 
 
