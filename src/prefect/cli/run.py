@@ -617,12 +617,8 @@ def run(
 
     # Backend flow run -----------------------------------------------------------------
 
-    if schedule and (flow_or_group_id or name):
-        raise ClickException(
-            "Received a local only flag for a non-local flow; "
-            "cannot specify both `--schedule` and `--id`"
-        )
-
+    if schedule:
+        raise ClickException("`--schedule` can only be specified for local flow runs")
     client = Client()
 
     # Validate the flow look up options we've been given and get the flow from the
