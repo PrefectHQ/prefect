@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy import select
 from types import TracebackType
-from typing import Optional, Iterable, List, Any, Union
+from typing import Optional, Iterable, List, Union, Type
 from uuid import UUID
 
 from prefect.orion.models import orm
@@ -85,7 +85,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[BaseException]],
+        exc_type: Optional[Type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
