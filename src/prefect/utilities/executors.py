@@ -1,6 +1,8 @@
-import copy
 import cloudpickle
+import contextlib
+import copy
 import itertools
+import logging
 import multiprocessing
 import os
 import signal
@@ -10,13 +12,27 @@ import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
+from contextlib import contextmanager
 from functools import wraps
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union, Sequence, Mapping
 
 import prefect
+from prefect import config
+from prefect.client import Client
+from prefect.configuration import to_environment_variables
 from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.logging import get_logger
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Union,
+    Sequence,
+    Mapping,
+    Iterator,
+)
 
 if TYPE_CHECKING:
     import prefect.engine.runner
@@ -39,50 +55,151 @@ def run_with_heartbeat(
 
     @wraps(runner_method)
     def inner(
-        self: "prefect.engine.runner.Runner", *args: Any, **kwargs: Any
+        self: "prefect.engine.cloud.CloudFlowRunner", *args: Any, **kwargs: Any
     ) -> "prefect.engine.state.State":
+
         try:
-            p = None
-            try:
-                if self._heartbeat():
-                    # we use Popen + a prefect CLI for a few reasons:
-                    # - using threads would interfere with the task; for example, a task
-                    #   which does not release the GIL would prevent the heartbeat thread from
-                    #   firing
-                    # - using multiprocessing.Process would release the GIL but a subprocess
-                    #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
-                    #   submit tasks to run within daemonic subprocesses
-                    current_env = dict(os.environ).copy()
-                    auth_token = prefect.context.config.cloud.get("auth_token")
-                    api_key = prefect.context.config.cloud.get("api_key")
-                    tenant_id = prefect.context.config.cloud.get("tenant_id")
-                    api_url = prefect.context.config.cloud.get("api")
-                    current_env.setdefault("PREFECT__CLOUD__AUTH_TOKEN", auth_token)
-                    current_env.setdefault("PREFECT__CLOUD__API_KEY", api_key)
-                    current_env.setdefault("PREFECT__CLOUD__TENANT_ID", tenant_id)
-                    current_env.setdefault("PREFECT__CLOUD__API", api_url)
-                    clean_env = {k: v for k, v in current_env.items() if v is not None}
-                    p = subprocess.Popen(
-                        self.heartbeat_cmd,
-                        env=clean_env,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-            except Exception:
-                self.logger.exception(
-                    "Heartbeat failed to start.  This could result in a zombie run."
-                )
+            use_heartbeat = self._heartbeat()
+        except Exception:
+            use_heartbeat = False
+            logger = self.logger
+            logger.exception(
+                "Heartbeat process is misconfigured.  This could result in a zombie run.",
+                exc_info=True,
+            )
+
+        if not use_heartbeat or (prefect.context.config.cloud.heartbeat_mode == "off"):
+            configured_heartbeat = no_heartbeat()
+        elif prefect.context.config.cloud.heartbeat_mode == "thread":
+            configured_heartbeat = threaded_heartbeat(self.flow_run_id)
+        elif prefect.context.config.cloud.heartbeat_mode == "process":
+            configured_heartbeat = subprocess_heartbeat(self.heartbeat_cmd, self.logger)
+        # because the threaded heartbeat mode is experimental and may change in the future,
+        # let's not catch configuration error with `else` -- stale configuration should break tests
+
+        with configured_heartbeat:
             return runner_method(self, *args, **kwargs)
-        finally:
-            if p is not None:
-                exit_code = p.poll()
-                if exit_code is not None:
-                    msg = "Heartbeat process died with exit code {}".format(exit_code)
-                    self.logger.error(msg)
-                p.kill()
-                p.wait()
 
     return inner
+
+
+@contextlib.contextmanager
+def no_heartbeat() -> Iterator[None]:
+    # contextlib.nullcontext was introduced in 3.7
+    yield
+
+
+@contextlib.contextmanager
+def threaded_heartbeat(flow_run_id: str, num: int = None) -> Iterator[None]:
+    try:
+        HEARTBEAT_STOP_EVENT = threading.Event()
+        heartbeat = HeartbeatThread(HEARTBEAT_STOP_EVENT, flow_run_id, num=None)
+        heartbeat.start()
+        yield
+    finally:
+        HEARTBEAT_STOP_EVENT.set()
+
+
+@contextlib.contextmanager
+def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[None]:
+    p = None
+    try:
+        # we use Popen + a prefect CLI for a few reasons:
+        # - using threads would interfere with the task; for example, a task
+        #   which does not release the GIL would prevent the heartbeat thread from
+        #   firing
+        # - using multiprocessing.Process would release the GIL but a subprocess
+        #   cannot be spawned from a daemonic subprocess, and Dask sometimes will
+        #   submit tasks to run within daemonic subprocesses
+        current_env = dict(os.environ).copy()
+        current_env.update(
+            to_environment_variables(
+                prefect.context.config,
+                include={
+                    "cloud.auth_token",
+                    "cloud.api_key",
+                    "cloud.tenant_id",
+                    "cloud.api",
+                },
+            )
+        )
+        clean_env = {k: v for k, v in current_env.items() if v is not None}
+        p = subprocess.Popen(
+            heartbeat_cmd,
+            env=clean_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        yield
+
+    except Exception:
+        logger.exception(
+            "Heartbeat process failed to start.  This could result in a zombie run."
+        )
+
+    finally:
+        if p is not None:
+            exit_code = p.poll()
+            if exit_code is not None:
+                logger.error(f"Heartbeat process died with exit code {exit_code}")
+            p.kill()
+            p.wait()
+
+
+class HeartbeatThread(threading.Thread):
+    def __init__(
+        self: "HeartbeatThread",
+        stop_event: "threading.Event",
+        flow_run_id: str,
+        num: int = None,
+    ) -> None:
+        threading.Thread.__init__(self)
+        # 'daemonizes' the thread, so it will terminate when all non-daemonized threads have finished
+        self.daemon = True
+        self.flow_run_id = flow_run_id
+        self.num = num
+        self.stop_event = stop_event
+
+    def run(self) -> None:
+        logger = get_logger("threaded_heartbeat")
+        client = Client()
+        iter_count = 0
+        with prefect.context(
+            {"flow_run_id": self.flow_run_id, "running_with_backend": True}
+        ):
+            with log_heartbeat_failure(logger):
+                while iter_count < (self.num or 1) and (
+                    self.stop_event.is_set() is False
+                ):
+                    send_heartbeat(self.flow_run_id, client, logger)
+                    iter_count += 1 if self.num else 0
+                    self.stop_event.wait(timeout=config.cloud.heartbeat_interval)
+
+
+def send_heartbeat(
+    flow_run_id: str, client: "prefect.client.Client", logger: "logging.Logger"
+) -> None:
+    try:  # Ignore (but log) client exceptions
+        client.update_flow_run_heartbeat(flow_run_id)
+    except Exception as exc:
+        logger.error(
+            f"Failed to send heartbeat with exception: {exc!r}",
+            exc_info=True,
+        )
+
+
+@contextmanager
+def log_heartbeat_failure(
+    logger: "logging.Logger",
+) -> Iterator[None]:
+    try:
+        yield
+    except BaseException as exc:
+        logger.error(
+            f"Heartbeat process encountered terminal exception: {exc!r}",
+            exc_info=True,
+        )
+        raise
 
 
 def run_with_thread_timeout(

@@ -42,6 +42,10 @@ class Git(Storage):
             an access token for the repo. Defaults to None
         - git_token_username (str, optional): the username associated with git access token,
             if not provided it will default to repo owner
+        - git_clone_url_secret_name (str, optional): the name of the Prefect Secret specifying
+            the exact git url to clone, if provided it will override repo, repo_host,
+            git_token_secret_name, `git_token_username`, `use_ssh`, and `format_access_token`
+            parameters
         - branch_name (str, optional): branch name, if not specified and `tag` and `commit_sha`
             not specified, repo default branch latest commit will be used
         - tag (str, optional): tag name, if not specified and `branch_name` and `commit_sha`
@@ -64,6 +68,7 @@ class Git(Storage):
         flow_name: str = None,
         git_token_secret_name: str = None,
         git_token_username: str = None,
+        git_clone_url_secret_name: str = None,
         branch_name: str = None,
         tag: str = None,
         commit: str = None,
@@ -83,16 +88,36 @@ class Git(Storage):
                 "SSH will be used to clone the repository. `git_token_secret_name` will be ignored"
             )
 
+        if git_clone_url_secret_name and any(
+            [
+                repo,
+                repo_host,
+                git_token_secret_name,
+                git_token_username,
+                use_ssh,
+                format_access_token,
+            ]
+        ):
+            self.logger.warning(
+                "Git storage initialized with a `git_clone_url_secret_name`. The value of this Secret "
+                "will be used to clone the repository, ignoring `repo`, `repo_host`, "
+                "`git_token_secret_name`,  `git_token_username`, `use_ssh`, and "
+                "`format_access_token`."
+            )
+
         self.flow_path = flow_path
         self.repo = repo
         self.repo_host = repo_host
         self.flow_name = flow_name
         self.git_token_secret_name = git_token_secret_name
+        self.git_clone_url_secret_name = git_clone_url_secret_name
 
         # if not provided, assume the username associated with the token
         # is the organization that owns the repo
         self.git_token_username = (
-            git_token_username if git_token_username else repo.split("/")[0]
+            git_token_username
+            if git_token_username
+            else (repo.split("/")[0] if repo else None)
         )
 
         self.branch_name = branch_name
@@ -166,6 +191,9 @@ class Git(Storage):
         """
         Build the git url to clone
         """
+        if self.git_clone_url_secret_name:
+            return Secret(self.git_clone_url_secret_name).get()  # type: ignore
+
         if self.use_ssh:
             return f"git@{self.repo_host}:{self.repo}.git"
         return f"https://{self.git_token_secret}@{self.repo_host}/{self.repo}.git"

@@ -12,10 +12,14 @@ class GCPSecret(SecretBase):
     Note that all initialization arguments can optionally be provided or overwritten at runtime.
 
     For authentication, there are three options: you can set the `GCP_CREDENTIALS` Prefect Secret
-    containing your GCP access keys, or [explicitly provide a credentials dictionary]
-    (https://googleapis.dev/python/google-api-core/latest/auth.html#explicit-credentials),
-    or otherwise it will use [default Google client logic]
-    (https://googleapis.dev/python/google-api-core/latest/auth.html).
+    containing your GCP access keys, or [explicitly provide a credentials dictionary],
+    or otherwise it will use [default Google client logic].
+
+    [explicitly provide a credentials dictionary]
+    https://googleapis.dev/python/google-api-core/latest/auth.html#explicit-credentials
+
+    [default Google client logic]
+    https://googleapis.dev/python/google-api-core/latest/auth.html
 
     Args:
         - project_id (Union[str, int], optional): the name of the project where the Secret is saved
@@ -58,8 +62,7 @@ class GCPSecret(SecretBase):
             - version_id (Union[str, int], optional): the version number of the secret to use;
                 defaults to "latest"
             - credentials (dict, optional): your GCP credentials passed from an upstream Secret task.
-                If not provided here [default Google client logic]
-                (https://googleapis.dev/python/google-api-core/latest/auth.html) will be used.
+                If not provided here default Google client logic will be used.
 
         Returns:
             - str: the contents of this secret

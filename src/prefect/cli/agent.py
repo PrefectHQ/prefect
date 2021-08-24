@@ -118,6 +118,10 @@ COMMON_INSTALL_OPTIONS = [
         "-t",
         help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
     ),
+    click.option(
+        "--agent-config-id",
+        help="An agent ID to link this agent instance with",
+    ),
 ]
 
 

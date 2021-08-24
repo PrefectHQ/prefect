@@ -34,7 +34,7 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 20_000_000  # 20 MB - max total batch size for log messages
+MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
 
 
 class LogManager:
@@ -121,7 +121,12 @@ class LogManager:
                 except Exception as exc:
                     # An error occurred on upload, warn and exit the loop (will
                     # retry later)
-                    warnings.warn(f"Failed to write logs with error: {exc!r}")
+                    warnings.warn(
+                        f"Failed to write logs with error: {exc!r}, "
+                        f"Pending log length: {self.pending_length:,}, "
+                        f"Max batch log length: {MAX_BATCH_LOG_LENGTH:,}, "
+                        f"Queue size: {self.queue.qsize():,}"
+                    )
                     cont = False
 
     def enqueue(self, message: dict) -> None:

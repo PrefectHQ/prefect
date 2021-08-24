@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix `create_flow_run` compatibility with auth tokens - [#4801](https://github.com/PrefectHQ/prefect/pull/4801)"

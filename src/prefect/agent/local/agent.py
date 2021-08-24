@@ -242,6 +242,7 @@ class LocalAgent(Agent):
         show_flow_logs: bool = False,
         key: str = None,
         tenant_id: str = None,
+        agent_config_id: str = None,
     ) -> str:
         """
         Generate and output an installable supervisorctl configuration file for the agent.
@@ -262,6 +263,8 @@ class LocalAgent(Agent):
                 with Prefect Cloud
             - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
                 set, the default tenant associated with the API key will be used.
+            - agent_config_id (str, optional): An agent config id to link to for health
+                check automations
 
         Returns:
             - str: A string representation of the generated configuration file
@@ -295,6 +298,8 @@ class LocalAgent(Agent):
             add_opts += f"-k {key} "
         if tenant_id:
             add_opts += f"--tenant-id {tenant_id} "
+        if agent_config_id:
+            add_opts += f"--agent-config-id {agent_config_id}"
 
         # Tokens are deprecated
         if token:

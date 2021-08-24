@@ -2,13 +2,9 @@
 sidebarDepth: 0
 ---
 
-# First Steps
+# Thinking Prefectly
 
-Welcome to Prefect! These docs will give you a gentle introduction to Prefect's core concepts. 
-
-We also have a [full tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
-
-## Thinking Prefectly
+This page will give you a gentle introduction to Prefect's core concepts. If you are keen to get started we have a [Getting Started guide](/core/getting_started/quick-start.html) and [ETL tutorial](/core/tutorial/01-etl-before-prefect.html) on building real-world data applications with Prefect.
 
 Prefect is a tool for building **data workflows**. A workflow is a series of steps that are performed in a certain order.
 
@@ -184,7 +180,7 @@ Prefect Core ships with an open source, lightweight version of our highly-availa
 
 Let's take a very quick look into what a flow orchestrated with Prefect Core's server looks like; for more information, see the [documentation on Orchestration](/orchestration/README.md).
 
-After [starting and configuring Core's server](installation.html#running-the-local-server-and-ui), navigate to `http://localhost:8080` to see the Prefect UI:
+After [starting and configuring Core's server](/orchestration/server/deploy-local.md), navigate to `http://localhost:8080` to see the Prefect UI:
 
 ![](/orchestration/server/new-server-dashboard.png)
 

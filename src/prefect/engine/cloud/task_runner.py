@@ -334,7 +334,7 @@ class CloudTaskRunner(TaskRunner):
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
         `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
         state which allow this Task to run.  Additionally, this method will wait and perform
-        Task retries which are scheduled for <= 1 minute in the future.
+        Task retries which are scheduled for <= 10 minutes in the future.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;
@@ -364,20 +364,9 @@ class CloudTaskRunner(TaskRunner):
                 naptime = max(
                     (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
                 )
-                for _ in range(int(naptime) // 30):
-                    # send heartbeat every 30 seconds to let API know task run is still alive
-                    self.client.update_task_run_heartbeat(
-                        task_run_id=prefect.context.get("task_run_id")
-                    )
-                    naptime -= 30
-                    time.sleep(30)
 
                 if naptime > 0:
                     time.sleep(naptime)  # ensures we don't start too early
-
-                self.client.update_task_run_heartbeat(
-                    task_run_id=prefect.context.get("task_run_id")
-                )
 
                 end_state = super().run(
                     state=end_state,

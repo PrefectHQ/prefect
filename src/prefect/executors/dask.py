@@ -238,6 +238,20 @@ class DaskExecutor(Executor):
         finally:
             self.client = None
 
+    async def on_worker_status_changed(self, op: str, message: dict) -> None:
+        """
+        This method is triggered when a worker is added or removed from the cluster.
+
+        Args:
+            - op (str): Either "add" or "remove"
+            - message (dict): Information about the event that the scheduler has sent
+        """
+        if op == "add":
+            for worker in message.get("workers", ()):
+                self.logger.debug("Worker %s added", worker)
+        elif op == "remove":
+            self.logger.debug("Worker %s removed", message)
+
     async def _watch_dask_events(self) -> None:
         scheduler_comm = None
         comm = None
@@ -260,11 +274,7 @@ class DaskExecutor(Executor):
                 except OSError:
                     break
                 for op, msg in msgs:
-                    if op == "add":
-                        for worker in msg.get("workers", ()):
-                            self.logger.debug("Worker %s added", worker)
-                    elif op == "remove":
-                        self.logger.debug("Worker %s removed", msg)
+                    await self.on_worker_status_changed(op, msg)
         except asyncio.CancelledError:
             pass
         except Exception:

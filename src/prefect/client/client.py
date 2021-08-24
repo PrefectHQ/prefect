@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import random
 import re
 import time
 import uuid
@@ -572,6 +573,7 @@ class Client:
         url: str,
         params: Dict[str, JSONLike] = None,
         headers: dict = None,
+        rate_limit_counter: int = 1,
     ) -> "requests.models.Response":
         import requests
 
@@ -613,6 +615,27 @@ class Client:
             self.logger.debug(f"Response: {response.json()}")
             self.logger.debug(
                 f"Request duration: {round(end_time - start_time, 4)} seconds"
+            )
+
+        # custom logic when encountering an API rate limit:
+        # each time we encounter a rate limit, we sleep for
+        # 3 minutes + random amount, where the random amount
+        # is uniformly sampled from (0, 10 * 2 ** rate_limit_counter)
+        # up to (0, 640), at which point an error is raised if the limit
+        # is still being hit
+        rate_limited = response.status_code == 429
+        if rate_limited and rate_limit_counter <= 6:
+            jitter = random.random() * 10 * (2 ** rate_limit_counter)
+            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
+            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
+            time.sleep(naptime)
+            response = self._send_request(
+                session=session,
+                method=method,
+                url=url,
+                params=params,
+                headers=headers,
+                rate_limit_counter=rate_limit_counter + 1,
             )
 
         # Check if request returned a successful status
@@ -703,14 +726,13 @@ class Client:
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
+            status_forcelist=[500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
             session=session, method=method, url=url, params=params, headers=headers
         )
-
         # parse the response
         try:
             json_resp = response.json()
@@ -1515,26 +1537,11 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=True)
-
-    def update_task_run_heartbeat(self, task_run_id: str) -> None:
-        """
-        Convenience method for heartbeating a task run.
-
-        Does NOT raise an error if the update fails.
-
-        Args:
-            - task_run_id (str): the task run ID to heartbeat
-
-        """
-        mutation = {
-            "mutation": {
-                with_args(
-                    "update_task_run_heartbeat", {"input": {"task_run_id": task_run_id}}
-                ): {"success"}
-            }
-        }
-        self.graphql(mutation, raise_on_error=True)
+        self.graphql(
+            mutation,
+            raise_on_error=True,
+            headers={"X-PREFECT-HEARTBEAT-ID": flow_run_id},
+        )
 
     def set_flow_run_name(self, flow_run_id: str, name: str) -> bool:
         """

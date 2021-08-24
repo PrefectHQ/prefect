@@ -38,7 +38,6 @@ from prefect.engine.state import (
 )
 from prefect.utilities.executors import (
     RecursiveCall,
-    run_with_heartbeat,
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
@@ -815,7 +814,6 @@ class TaskRunner(Runner):
         new_state = Running(message="Starting task run.")
         return new_state
 
-    @run_with_heartbeat
     @call_state_handlers
     def get_task_run_state(self, state: State, inputs: Dict[str, Result]) -> State:
         """

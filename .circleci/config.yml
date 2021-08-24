@@ -605,6 +605,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_docker_image:
+          python_version: '3.9'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
           filters:
             branches:
@@ -612,7 +620,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
-          python_version: '3.8'
+          python_version: '3.9'
           tag_latest: true
           filters:
             branches:
