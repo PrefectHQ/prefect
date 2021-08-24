@@ -10,6 +10,7 @@ backend = "cloud"
 host = "http://localhost"
 port = "4200"
 host_port = "4200"
+host_ip = "127.0.0.1"
 endpoint = "${server.host}:${server.port}"
 
     [server.database]
@@ -44,6 +45,7 @@ endpoint = "${server.host}:${server.port}"
     host = "http://localhost"
     port = "8080"
     host_port = "8080"
+    host_ip = "127.0.0.1"
     endpoint = "${server.ui.host}:${server.ui.port}"
     apollo_url = "http://localhost:4200/graphql"
 

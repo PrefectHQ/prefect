@@ -9,7 +9,7 @@ services:
   postgres:
     image: "postgres:11"
     ports:
-      - "${POSTGRES_HOST_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -35,7 +35,7 @@ services:
   hasura:
     image: "hasura/graphql-engine:v1.3.3"
     ports:
-      - "${HASURA_HOST_PORT:-3000}:3000"
+      - "127.0.0.1:${HASURA_HOST_PORT:-3000}:3000"
     command: "graphql-engine serve"
     environment:
       HASURA_GRAPHQL_DATABASE_URL: ${DB_CONNECTION_URL}
@@ -59,7 +59,7 @@ services:
   graphql:
     image: "prefecthq/server:${PREFECT_SERVER_TAG:-latest}"
     ports:
-      - "${GRAPHQL_HOST_PORT:-4201}:4201"
+      - "127.0.0.1:${GRAPHQL_HOST_PORT:-4201}:4201"
     command: bash -c "${PREFECT_SERVER_DB_CMD} && python src/prefect_server/services/graphql/server.py"
     environment:
       PREFECT_SERVER_DB_CMD: ${PREFECT_SERVER_DB_CMD:-"echo 'DATABASE MIGRATIONS SKIPPED'"}
@@ -96,7 +96,7 @@ services:
   apollo:
     image: "prefecthq/apollo:${PREFECT_SERVER_TAG:-latest}"
     ports:
-      - "${APOLLO_HOST_PORT:-4200}:4200"
+      - "${APOLLO_HOST_IP:-127.0.0.1}:${APOLLO_HOST_PORT:-4200}:4200"
     command: bash -c "./post-start.sh && npm run serve"
     environment:
       HASURA_API_URL: ${HASURA_API_URL:-http://hasura:3000/v1alpha1/graphql}
@@ -124,7 +124,7 @@ services:
   ui:
     image: "prefecthq/ui:${PREFECT_UI_TAG:-latest}"
     ports:
-      - "${UI_HOST_PORT:-8080}:8080"
+      - "${UI_HOST_IP:-127.0.0.1}:${UI_HOST_PORT:-8080}:8080"
     command: "/intercept.sh"
     environment:
       PREFECT_SERVER__APOLLO_URL: ${APOLLO_URL:-http://localhost:4200/graphql}

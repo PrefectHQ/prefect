@@ -113,6 +113,12 @@ COMMON_SERVER_OPTIONS = [
         hidden=True,
     ),
     click.option(
+        "--expose",
+        help="Make the UI and Core server listen on all interfaces",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
         "--server-port",
         help="The port used to serve the Core server",
         default=config.server.host_port,
@@ -245,6 +251,7 @@ def setup_compose_env(
     hasura_port=None,
     graphql_port=None,
     ui_port=None,
+    expose=False,
     server_port=None,
     volume_path=None,
 ):
@@ -273,6 +280,7 @@ def setup_compose_env(
         DB_CONNECTION_URL=db_connection_url,
         GRAPHQL_HOST_PORT=str(graphql_port),
         UI_HOST_PORT=str(ui_port),
+        UI_HOST_IP="0.0.0.0" if expose else config.server.ui.host_ip,
         # Pass the Core version so the Server API can return it
         PREFECT_CORE_VERSION=prefect.__version__,
         # Set the server image tag
@@ -285,6 +293,7 @@ def setup_compose_env(
         PREFECT_API_URL=f"http://graphql:{graphql_port}{config.server.graphql.path}",
         PREFECT_API_HEALTH_URL=f"http://graphql:{graphql_port}/health",
         APOLLO_HOST_PORT=str(server_port),
+        APOLLO_HOST_IP="0.0.0.0" if expose else config.server.host_ip,
         PREFECT_SERVER__TELEMETRY__ENABLED=(
             "true" if config.server.telemetry.enabled is True else "false"
         ),
@@ -387,6 +396,7 @@ def config_cmd(
     hasura_port,
     graphql_port,
     ui_port,
+    expose,
     server_port,
     no_postgres_port,
     no_hasura_port,
@@ -473,6 +483,7 @@ def config_cmd(
         hasura_port=hasura_port,
         graphql_port=graphql_port,
         ui_port=ui_port,
+        expose=expose,
         server_port=server_port,
         volume_path=volume_path,
     )
@@ -508,6 +519,7 @@ def start(
     hasura_port,
     graphql_port,
     ui_port,
+    expose,
     server_port,
     no_postgres_port,
     no_hasura_port,
@@ -598,6 +610,7 @@ def start(
         hasura_port=hasura_port,
         graphql_port=graphql_port,
         ui_port=ui_port,
+        expose=expose,
         server_port=server_port,
         volume_path=volume_path,
     )
