@@ -4,7 +4,7 @@ import sqlalchemy as sa
 from pydantic import Field
 from sqlalchemy import select
 from types import TracebackType
-from typing import Optional, Iterable, List, Any
+from typing import Optional, Iterable, List, Any, Union
 from uuid import UUID
 
 from prefect.orion.models import orm
@@ -22,7 +22,7 @@ class OrchestrationContext(PrefectBaseModel):
     initial_state: Optional[states.State]
     proposed_state: states.State
     validated_state: Optional[states.State]
-    session: Any
+    session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
     run: Optional[core.TaskRun]
     task_run_id: UUID
     rule_signature: List[str] = Field(default_factory=list)
