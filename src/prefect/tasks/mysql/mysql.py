@@ -100,12 +100,12 @@ class MySQLExecute(Task):
             raise ValueError("A query string must be provided")
 
         conn = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            db=self.db_name,
-            charset=self.charset,
-            port=self.port,
+            host=host,
+            user=user,
+            password=password,
+            db=db_name,
+            charset=charset,
+            port=port,
             ssl=ssl,
         )
 
@@ -270,12 +270,12 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            db=self.db_name,
-            charset=self.charset,
-            port=self.port,
+            host=host,
+            user=user,
+            password=password,
+            db=db_name,
+            charset=charset,
+            port=port,
             cursorclass=cursor_class,
             ssl=ssl,
         )
