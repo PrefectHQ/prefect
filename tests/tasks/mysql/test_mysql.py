@@ -1,5 +1,6 @@
 import pytest
 import pymysql
+from unittest.mock import MagicMock
 
 from prefect.tasks.mysql.mysql import MySQLExecute, MySQLFetch
 
@@ -13,6 +14,17 @@ class TestMySQLExecute:
         task = MySQLExecute(db_name="test", user="test", password="test", host="test")
         with pytest.raises(ValueError, match="A query string must be provided"):
             task.run()
+
+    def test_run_args_used_over_init_args(self, monkeypatch):
+        mock_connect = MagicMock()
+
+        monkeypatch.setattr("pymysql.connect", mock_connect)
+        task = MySQLExecute(
+            db_name="test", user="test", password="initpassword", host="test"
+        )
+        task.run(query="select * from users", password="password_from_secret")
+
+        assert mock_connect.call_args[1]["password"] == "password_from_secret"
 
 
 class TestMySQLFetch:
@@ -70,3 +82,14 @@ class TestMySQLFetch:
             match=f"'cursor_type' should be one of \['cursor', 'dictcursor', 'sscursor', 'ssdictcursor'\] or a full cursor class, got \['cursor'\]",
         ):
             task.run(query="SELECT * FROM some_table", cursor_type=["cursor"])
+
+    def test_run_args_used_over_init_args(self, monkeypatch):
+        mock_connect = MagicMock()
+
+        monkeypatch.setattr("pymysql.connect", mock_connect)
+        task = MySQLFetch(
+            db_name="test", user="test", password="initpassword", host="test"
+        )
+        task.run(query="select * from users", password="password_from_secret")
+
+        assert mock_connect.call_args[1]["password"] == "password_from_secret"
