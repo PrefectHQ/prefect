@@ -137,7 +137,7 @@ class OrionClient:
 
     def retrieve_object(self, orion_datadoc: OrionDataDocument) -> Any:
         datadoc = DataDocument.parse_raw(self.retrieve_data(orion_datadoc))
-        return datadoc.to_subtype().read()
+        return datadoc.read()
 
     def set_flow_run_state(
         self,
