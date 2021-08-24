@@ -96,20 +96,12 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         inst._cache_data(data)
         return inst
 
-    def to_subtype(self) -> "DataDocument[D]":
-        # Check if already a subtype
-        if not type(self) == DataDocument:
-            return self
-
-        # Otherwise, lookup the subtype based on the encoding and return an instance
-        subtype = get_datadoc_subclass(self.encoding)
-        return subtype.parse_obj(self)
-
     def read(self) -> D:
         if hasattr(self, "_data_cache"):
             return self._data_cache
 
-        data = self.decode(self.blob)
+        # Dispatch to the child class for decoding
+        data = get_datadoc_subclass(self.encoding).decode(self.blob)
         self._cache_data(data)
         return data
 
