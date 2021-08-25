@@ -21,7 +21,7 @@ class HttpxCompatibleTestClient(TestClient):
         # `data` is deprecated in favor of `content` in httpx but not starlette
         if "content" in kwargs:
             kwargs["data"] = kwargs.pop("content")
-        super().request(*args, **kwargs)
+        return super().request(*args, **kwargs)
 
 
 @pytest.fixture(scope="package", autouse=True)
