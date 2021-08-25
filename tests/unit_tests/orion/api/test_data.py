@@ -1,6 +1,4 @@
 import pytest
-import os
-import base64
 
 from prefect import settings
 from prefect.utilities.settings import DataLocationSettings, Settings
@@ -8,7 +6,6 @@ from prefect.orion.schemas.data import (
     DataDocument,
     OrionDataDocument,
     FileSystemDataDocument,
-    Base64String,
 )
 
 
@@ -37,9 +34,7 @@ class TestPersistData:
         self, client, tmpdir_dataloc_settings, user_data
     ):
 
-        response = await client.post(
-            "/data/persist", json=Base64String.from_bytes(user_data).dict()
-        )
+        response = await client.post("/data/persist", content=user_data)
         assert response.status_code == 201
 
         # We have received an orion document
@@ -79,5 +74,5 @@ class TestRetrieveData:
             "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )
         assert response.status_code == 200
-        returned_data = Base64String.parse_obj(response.json()).to_bytes()
+        returned_data = response.content
         assert returned_data == user_data
