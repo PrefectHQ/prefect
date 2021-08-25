@@ -30,26 +30,6 @@ def get_instance_data_location() -> DataLocation:
     )
 
 
-def create_datadoc(encoding: str, data: D) -> "DataDocument[D]":
-    """
-    Create an encoded data document given an object
-    """
-    return get_datadoc_subclass(encoding).create(data, encoding=encoding)
-
-
-def get_datadoc_subclass(encoding: str) -> Type["DataDocument"]:
-    encoding_to_cls = {
-        subclass.supported_encodings(): subclass
-        for subclass in DataDocument.__subclasses__()
-    }
-
-    for cls_encodings, cls in encoding_to_cls.items():
-        if encoding in cls_encodings:
-            return cls
-
-    raise ValueError(f"Unknown document encoding {encoding!r}")
-
-
 class DataDocument(PrefectBaseModel, Generic[D]):
     """
     A data document includes an encoding string and a blob of encoded data
@@ -69,27 +49,36 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     __slots__ = ["_data_cache"]
 
     @classmethod
-    def create(cls: Type[T], data: D, encoding: str = None) -> T:
+    def create(cls: Type[T], data: D, encoding: str = None, cast: bool = False) -> T:
         if encoding is None:
             encoding = cls.__fields__["encoding"].get_default()
-            # It is still possible for this to be null if there is no default
+            # Note, it is still possible for encoding to be null if there is no default
 
-        if encoding not in cls.supported_encodings():
-            raise ValueError(f"Unsupported encoding for {cls.__name__!r}: {encoding!r}")
+        # Dispatch encoding to a subclass implementation if this is the base class
+        encoding_cls = cls.get_subclass(encoding) if cls.isbaseclass() else cls
+        blob = encoding_cls.encode(data)
 
-        # Get an encoded blob
-        blob = cls.encode(data)
+        # Create a new `DataDocument` instance
+        if cast:
+            cls = encoding_cls
 
         inst = cls(blob=blob, encoding=encoding)
         inst._cache_data(data)
         return inst
 
-    def read(self) -> D:
+    def read(self, safe: bool = False) -> D:
         if hasattr(self, "_data_cache"):
             return self._data_cache
 
-        # Dispatch to the child class for decoding
-        data = get_datadoc_subclass(self.encoding).decode(self.blob)
+        # Dispatch decoding to a subclass implementation
+        decode = (
+            self.get_subclass(self.encoding).decode
+            if self.isbaseclass()
+            else self.decode
+        )
+
+        data = decode(self.blob)
+
         self._cache_data(data)
         return data
 
@@ -97,6 +86,8 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         # Use object's setattr to avoid a pydantic 'field does not exist' error
         # See https://github.com/samuelcolvin/pydantic/issues/655
         object.__setattr__(self, "_data_cache", data)
+
+    # Dispatch helpers -----------------------------------------------------------------
 
     @classmethod
     def supported_encodings(cls) -> Tuple[str, ...]:
@@ -111,6 +102,28 @@ class DataDocument(PrefectBaseModel, Generic[D]):
             return annotation.__args__
 
         return tuple()
+
+    @classmethod
+    def get_subclass(cls, encoding: str) -> Type["DataDocument"]:
+        """
+        Returns the first subclass that supports `encoding`
+        """
+        encoding_to_cls = {
+            subclass.supported_encodings(): subclass
+            for subclass in DataDocument.__subclasses__()
+        }
+
+        for cls_encodings, cls in encoding_to_cls.items():
+            if encoding in cls_encodings:
+                return cls
+
+        raise ValueError(f"Unknown document encoding {encoding!r}")
+
+    @classmethod
+    def isbaseclass(cls):
+        return cls == DataDocument
+
+    # Abstract methods -----------------------------------------------------------------
 
     @staticmethod
     def decode(blob: bytes) -> D:
@@ -149,14 +162,12 @@ class FileSystemDataDocument(DataDocument[Tuple[str, bytes]]):
     def write_blob(blob: bytes, path: str) -> bool:
         with fsspec.open(path, mode="wb") as fp:
             fp.write(blob)
-
         return True
 
     @staticmethod
     def read_blob(path: str) -> bytes:
         with fsspec.open(path, mode="rb") as fp:
             blob = fp.read()
-
         return blob
 
 
@@ -170,3 +181,6 @@ class OrionDataDocument(DataDocument[FileSystemDataDocument]):
     @staticmethod
     def encode(data: FileSystemDataDocument) -> bytes:
         return data.json().encode()
+
+
+SAFE_TYPES = [FileSystemDataDocument, OrionDataDocument]
