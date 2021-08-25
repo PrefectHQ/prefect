@@ -28,7 +28,7 @@ async def create_datadoc(request: Request) -> OrionDataDocument:
     path = f"{dataloc.scheme}://{path}"
 
     # Write the data to the path and create a file system document
-    fs_datadoc = FileSystemDataDocument.create((path, data), encoding=dataloc.scheme)
+    fs_datadoc = FileSystemDataDocument.create(data, encoding=dataloc.scheme, path=path)
 
     # Return an Orion datadoc to show that it should be resolved by GET /data
     orion_datadoc = OrionDataDocument.create(fs_datadoc)
@@ -49,7 +49,7 @@ async def read_datadoc(datadoc: OrionDataDocument):
 
     fs_datadoc = datadoc.read()
 
-    # Unpack the path, bytes tuple returned by `FileSystemDataDocument`
-    _, data = fs_datadoc.read()
+    # Read from the file system
+    data = fs_datadoc.read()
 
     return Response(content=data, media_type="application/octet-stream")

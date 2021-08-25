@@ -111,7 +111,7 @@ def test_datadoc_supported_encodings(encodings):
 class TestFileSystemDataDocument:
     def test_create_writes_to_local_fs(self, tmpdir):
         path = str(tmpdir.join("test"))
-        FileSystemDataDocument.create((path, b"data"), encoding="file")
+        FileSystemDataDocument.create(b"data", encoding="file", path=path)
 
         with open(tmpdir.join("test"), "rb") as fp:
             assert fp.read() == b"data"
@@ -122,14 +122,18 @@ class TestFileSystemDataDocument:
             fp.write(b"data")
 
         doc = FileSystemDataDocument(encoding="file", blob=path.encode())
-        docpath, data = doc.read()
+        data = doc.read()
         assert data == b"data"
-        assert docpath == path
 
     def test_requires_bytes(self):
         with pytest.raises(TypeError):
             # Raises in fsspec -- might be worth an explicit type check earlier
-            FileSystemDataDocument.create(("test", "data"), encoding="file")
+            FileSystemDataDocument.create("data", encoding="file", path="foo")
+
+    def test_requires_path(self):
+        with pytest.raises(TypeError):
+            # `path` kwarg not provided
+            FileSystemDataDocument.create("data", encoding="file")
 
 
 class TestOrionDataDocument:
