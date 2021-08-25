@@ -619,6 +619,7 @@ def run(
 
     if schedule:
         raise ClickException("`--schedule` can only be specified for local flow runs")
+
     client = Client()
 
     # Validate the flow look up options we've been given and get the flow from the
