@@ -1,6 +1,6 @@
 import ntpath
 import posixpath
-import packaging.version
+from packaging.version import parse as parse_version
 
 import multiprocessing
 import re
@@ -402,10 +402,10 @@ class DockerAgent(Agent):
         # By default, auto-remove containers
         host_config: Dict[str, Any] = {"auto_remove": True}
 
-        # Set up a host gateway for local communication
-        raw_version = self.docker_client.version()["Version"]
-        docker_engine_version = packaging.version.parse(raw_version)
-        host_gateway_version = packaging.version.Version("20.10.0")
+        # Set up a host gateway for local communication; check the docker version since
+        # this is not supported by older versions
+        docker_engine_version = parse_version(self.docker_client.version()["Version"])
+        host_gateway_version = parse_version("20.10.0")
 
         if docker_engine_version < host_gateway_version:
             warnings.warn(
