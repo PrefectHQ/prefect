@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
+from prefect.utilities.compatibility import nullcontext
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
@@ -29,6 +30,7 @@ def api(monkeypatch):
     client.ping.return_value = True
     client.create_container.return_value = {"Id": "container_id"}
     client.create_host_config.return_value = {"AutoRemove": True}
+    client.version.return_value = {"Version": "20.10.0"}  # Our recommend min version
     monkeypatch.setattr(
         "prefect.agent.docker.agent.DockerAgent._get_docker_client",
         MagicMock(return_value=client),
@@ -497,25 +499,35 @@ def test_docker_agent_deploy_flow_run_config(
 
     if docker_engine_version == "20.10.0":
         exp_host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
+        warns_on_old_version = nullcontext()
+    else:
+        warns_on_old_version = pytest.warns(
+            UserWarning,
+            match=(
+                "`host.docker.internal` could not be automatically resolved.*"
+                f"feature is not supported on Docker Engine v{docker_engine_version}"
+            ),
+        )
 
     agent = DockerAgent()
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": storage.serialize(),
-                        "core_version": "0.13.11",
-                    }
-                ),
-                "run_config": run.serialize() if run else None,
-                "id": "id",
-                "name": "name",
-            }
+    with warns_on_old_version:
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "id": "foo",
+                            "name": "flow-name",
+                            "storage": storage.serialize(),
+                            "core_version": "0.13.11",
+                        }
+                    ),
+                    "run_config": run.serialize() if run else None,
+                    "id": "id",
+                    "name": "name",
+                }
+            )
         )
-    )
 
     assert api.create_container.called
     assert api.create_container.call_args[0][0] == image

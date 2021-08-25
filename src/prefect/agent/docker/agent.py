@@ -1,5 +1,6 @@
 import ntpath
 import posixpath
+import packaging.version
 
 import multiprocessing
 import re
@@ -401,13 +402,21 @@ class DockerAgent(Agent):
         # By default, auto-remove containers
         host_config: Dict[str, Any] = {"auto_remove": True}
 
-        docker_engine_version = tuple(
-            int(i) for i in self.docker_client.version()["Version"].split(".")
-        )
-        if docker_engine_version >= (20, 10, 0):
+        # Set up a host gateway for local communication
+        raw_version = self.docker_client.version()["Version"]
+        docker_engine_version = packaging.version.parse(raw_version)
+        host_gateway_version = packaging.version.Version("20.10.0")
+
+        if docker_engine_version < host_gateway_version:
+            warnings.warn(
+                "`host.docker.internal` could not be automatically resolved to your "
+                "local host. This feature is not supported on Docker Engine "
+                f"v{docker_engine_version}, upgrade to v{host_gateway_version}+ if you "
+                "encounter issues."
+            )
+        else:
             # Compatibility for linux -- https://github.com/docker/cli/issues/2290
             # Only supported by Docker v20.10.0+ which is our minimum recommend version
-            # but if provided in earlier versions an exception will be thrown
             host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
         container_mount_paths = self.container_mount_paths
