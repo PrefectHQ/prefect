@@ -1,7 +1,6 @@
 from typing import Any, Generic, Tuple, Type, TypeVar
 
 import fsspec
-import base64
 from typing_extensions import Literal
 
 from prefect import settings
@@ -12,17 +11,6 @@ FileSystemScheme = Literal["s3", "file"]
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
-
-
-class Base64String(PrefectBaseModel):
-    data: str
-
-    def to_bytes(self) -> bytes:
-        return base64.decodebytes(self.data.encode())
-
-    @classmethod
-    def from_bytes(cls, raw_data: bytes) -> "Base64String":
-        return Base64String(data=base64.encodebytes(raw_data).decode())
 
 
 class DataLocation(PrefectBaseModel):

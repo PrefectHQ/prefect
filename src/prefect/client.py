@@ -1,25 +1,16 @@
 import asyncio
 import threading
-import base64
-import pickle
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List, Set
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
 from uuid import UUID
 from contextlib import contextmanager
 from multiprocessing import current_process
 
 import pydantic
 import httpx
-import cloudpickle
 
 import prefect
 from prefect.orion import schemas
-from prefect.orion.schemas.data import (
-    OrionDataDocument,
-    create_datadoc,
-    Base64String,
-    get_datadoc_subclass,
-    DataDocument,
-)
+from prefect.orion.schemas.data import OrionDataDocument, DataDocument
 from prefect.orion.api.server import app as orion_app
 
 if TYPE_CHECKING:
@@ -119,7 +110,7 @@ class OrionClient:
         self,
         data: bytes,
     ) -> OrionDataDocument:
-        response = self.post("/data/persist", json=Base64String.from_bytes(data).dict())
+        response = self.post("/data/persist", content=data)
         return OrionDataDocument.parse_obj(response.json())
 
     def retrieve_data(
@@ -129,10 +120,10 @@ class OrionClient:
         response = self.post(
             "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )
-        return Base64String.parse_obj(response.json()).to_bytes()
+        return response.content
 
     def persist_object(self, obj: Any, encoder: str = "cloudpickle"):
-        datadoc = create_datadoc(encoding=encoder, data=obj)
+        datadoc = DataDocument.create(encoding=encoder, data=obj)
         return self.persist_data(datadoc.json().encode())
 
     def retrieve_object(self, orion_datadoc: OrionDataDocument) -> Any:
