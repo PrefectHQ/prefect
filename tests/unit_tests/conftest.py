@@ -17,7 +17,7 @@ class HttpxCompatibleTestClient(TestClient):
     to worry about what kind of client they receieve
     """
 
-    def request(*args, **kwargs):
+    def request(self, *args, **kwargs):
         # `data` is deprecated in favor of `content` in httpx but not starlette
         if "content" in kwargs:
             kwargs["data"] = kwargs.pop("content")
