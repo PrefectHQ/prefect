@@ -2,6 +2,7 @@ aiosqlite==0.17.0
 asyncpg >= 0.23, <0.24
 croniter >= 1.0, <2.0
 fastapi == 0.66
+fsspec
 httpx == 0.18
 pendulum >= 2.0, < 3.0
 pydantic >= 1.8, < 2.0

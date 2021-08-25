@@ -1,9 +1,14 @@
+from dataclasses import dataclass
 from uuid import UUID
+
+import pytest
+from pydantic import BaseModel
 
 import prefect
 from prefect import flow
-from prefect.tasks import task
 from prefect.orion import schemas
+from prefect.tasks import task
+from prefect.persistence import CloudpickleDataDocument, JSONDataDocument
 
 
 def test_create_then_read_flow():
@@ -140,3 +145,31 @@ def test_set_then_read_task_run_state():
     assert isinstance(run.state, schemas.states.State)
     assert run.state.type == schemas.states.StateType.COMPLETED
     assert run.state.message == "Test!"
+
+
+@dataclass
+class ExDataClass:
+    x: int
+
+
+class ExPydanticModel(BaseModel):
+    x: int
+
+
+@pytest.mark.parametrize(
+    "put_obj",
+    [
+        "hello",
+        7,
+        ExDataClass(x=1),
+        ExPydanticModel(x=0),
+    ],
+)
+def test_put_then_retrieve_object(put_obj):
+    client = prefect.client.OrionClient()
+    datadoc = client.persist_object(put_obj)
+
+    assert isinstance(datadoc, schemas.data.OrionDataDocument)
+
+    retrieved_obj = client.retrieve_object(datadoc)
+    assert retrieved_obj == put_obj

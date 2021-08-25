@@ -4,11 +4,17 @@ Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
 from pathlib import Path
-from typing import Optional
-
-import sqlalchemy
 from pydantic import BaseSettings, Field, SecretStr
-from typing_extensions import Literal
+
+
+class DataLocationSettings(BaseSettings):
+    class Config:
+        env_prefix = "PREFECT_ORION_DATA_"
+        frozen = True
+
+    name: str = "default"
+    scheme: str = "file"
+    base_path: str = "/tmp"
 
 
 class DatabaseSettings(BaseSettings):
@@ -29,6 +35,8 @@ class OrionSettings(BaseSettings):
     # using `default_factory` avoids instantiating the default value until the parent
     # settings class is instantiated
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
+
+    data: DataLocationSettings = Field(default_factory=DataLocationSettings)
 
 
 class LoggingSettings(BaseSettings):
