@@ -438,6 +438,17 @@ See `prefect run --help` for more details on the options.
     ),
     is_flag=True,
 )
+@click.option(
+    "--schedule",
+    "-s",
+    help=(
+        "Execute the flow run according to the schedule attached to the flow. If this "
+        "flag is set, this command will wait between scheduled flow runs. If the flow "
+        "has no schedule, this flag will be ignored. If used with a non-local run, an "
+        "exception will be thrown."
+    ),
+    is_flag=True,
+)
 # Display settings ---------------------------------------------------------------------
 @click.option(
     "--quiet",
@@ -473,6 +484,7 @@ def run(
     context_vars,
     params,
     execute,
+    schedule,
     log_level,
     param_file,
     run_name,
@@ -587,7 +599,9 @@ def run(
         ):
             with prefect.context(**context_dict):
                 try:
-                    result_state = flow.run(parameters=params_dict)
+                    result_state = flow.run(
+                        parameters=params_dict, run_on_schedule=schedule
+                    )
                 except Exception as exc:
                     quiet_echo("Flow runner encountered an exception!")
                     log_exception(exc, indent=2)
@@ -602,6 +616,9 @@ def run(
         return
 
     # Backend flow run -----------------------------------------------------------------
+
+    if schedule:
+        raise ClickException("`--schedule` can only be specified for local flow runs")
 
     client = Client()
 
