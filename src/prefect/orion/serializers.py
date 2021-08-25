@@ -7,12 +7,10 @@ from prefect.orion.utilities.filesystem import (
 )
 
 if TYPE_CHECKING:
-    # `DataDocument` is required for the OrionSerializer but is a circular import
+    # `DataDocument` is required for the `OrionSerializer` but is a circular import
     from prefect.orion.schemas.data import DataDocument
 
 _SERIALIZERS: Dict[str, "Serializer"] = {}
-
-
 D = TypeVar("D")
 
 
@@ -30,7 +28,9 @@ class Serializer(Protocol[D]):
         raise NotImplementedError
 
 
-def register_serializer(encoding: str, serializer: Serializer = None):
+def register_serializer(
+    encoding: Union[str, Tuple[str, ...]], serializer: Serializer = None
+):
     """Register dispatch of `func` on arguments of encoding `encoding`"""
 
     def wrapper(serializer):
