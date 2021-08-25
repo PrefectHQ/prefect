@@ -2,11 +2,7 @@ import pytest
 
 from prefect import settings
 from prefect.utilities.settings import DataLocationSettings, Settings
-from prefect.orion.schemas.data import (
-    DataDocument,
-    OrionDataDocument,
-    FileSystemDataDocument,
-)
+from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture
@@ -38,10 +34,10 @@ class TestPersistData:
         assert response.status_code == 201
 
         # We have received an orion document
-        orion_datadoc = OrionDataDocument.parse_obj(response.json())
+        orion_datadoc = DataDocument.parse_obj(response.json())
 
         # The blob contains a file system document
-        fs_datadoc = orion_datadoc.read()
+        fs_datadoc = orion_datadoc.decode()
 
         # It saved it to a path respecting our dataloc
         path = fs_datadoc.blob.decode()
@@ -49,8 +45,8 @@ class TestPersistData:
             f"{tmpdir_dataloc_settings.scheme}://{tmpdir_dataloc_settings.base_path}"
         )
 
-        # The fs datadoc can be read into our data
-        data = fs_datadoc.read()
+        # The fs datadoc can be decode into our data
+        data = fs_datadoc.decode()
         assert data == user_data
 
 
@@ -68,8 +64,9 @@ class TestRetrieveData:
         path = str(tmpdir.join("data"))
 
         # Create a full Orion data document describing the data and write to disk
-        orion_datadoc = OrionDataDocument.create(
-            FileSystemDataDocument.create(user_data, encoding="file", path=path)
+        orion_datadoc = DataDocument.encode(
+            encoding="orion",
+            data=DataDocument.encode(encoding="file", data=user_data, path=path),
         )
 
         # The user data document should be returned
