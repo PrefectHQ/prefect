@@ -6,7 +6,7 @@ from prefect.orion.schemas.data import (
     DataDocument,
     get_instance_data_location,
 )
-from prefect.orion.serializers import lookup_serializer, FileSerializer
+from prefect.orion.serializers import lookup_serializer, FileSerializer, OrionSerializer
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.utilities.asyncio import run_in_threadpool
 
@@ -49,13 +49,10 @@ async def read_datadoc(orion_datadoc: DataDocument):
             "be retrieved from the Orion API."
         )
 
-    file_datadoc = orion_datadoc.decode()
+    # Explicitly use the `OrionSerializer` instead of the dispatcher for safety
+    inner_datadoc = OrionSerializer.loads(orion_datadoc.blob)
 
-    # Ensure we are not going to decode something dangerously
-    if lookup_serializer(file_datadoc.encoding) != FileSerializer:
-        raise ValueError("Bad document encoding")
-
-    # Read from the file system
-    data = await run_in_threadpool(file_datadoc.decode)
+    # Read data from the file system; once again do not use the dispatcher
+    data = await run_in_threadpool(FileSerializer.loads, inner_datadoc.blob)
 
     return Response(content=data, media_type="application/octet-stream")
