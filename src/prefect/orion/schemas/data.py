@@ -30,7 +30,9 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     __slots__ = ["_data"]
 
     @classmethod
-    def encode(cls: Type[T], encoding: str, data: D, **kwargs: Any) -> T:
+    def encode(
+        cls: Type["DataDocument"], encoding: str, data: D, **kwargs: Any
+    ) -> "DataDocument[D]":
         """
         Create a new data document
 
