@@ -109,7 +109,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     async def after_transition(
         self,
         initial_state: states.State,
-        proposed_state: states.State,
+        validated_state: states.State,
         context: OrchestrationContext,
     ) -> None:
         pass
