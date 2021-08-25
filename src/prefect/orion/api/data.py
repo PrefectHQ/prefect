@@ -1,7 +1,6 @@
 from pathlib import PosixPath
 from uuid import uuid4
 from fastapi import status, Request, Response
-from typing import Any
 
 from prefect.orion.schemas.data import (
     OrionDataDocument,
@@ -9,6 +8,7 @@ from prefect.orion.schemas.data import (
     get_instance_data_location,
 )
 from prefect.orion.utilities.server import OrionRouter
+from prefect.orion.utilities.asyncio import run_in_threadpool
 
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
@@ -28,7 +28,9 @@ async def create_datadoc(request: Request) -> OrionDataDocument:
     path = f"{dataloc.scheme}://{path}"
 
     # Write the data to the path and create a file system document
-    fs_datadoc = FileSystemDataDocument.create(data, encoding=dataloc.scheme, path=path)
+    fs_datadoc = await run_in_threadpool(
+        FileSystemDataDocument.create, data, encoding=dataloc.scheme, path=path
+    )
 
     # Return an Orion datadoc to show that it should be resolved by GET /data
     orion_datadoc = OrionDataDocument.create(fs_datadoc)
@@ -50,6 +52,6 @@ async def read_datadoc(datadoc: OrionDataDocument):
     fs_datadoc = datadoc.read()
 
     # Read from the file system
-    data = fs_datadoc.read()
+    data = await run_in_threadpool(fs_datadoc.read)
 
     return Response(content=data, media_type="application/octet-stream")
