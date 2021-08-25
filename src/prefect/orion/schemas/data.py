@@ -66,7 +66,8 @@ class DataDocument(PrefectBaseModel, Generic[D]):
 
 class DataLocation(PrefectBaseModel):
     name: str
-    scheme: Literal[FILE_SYSTEM_SCHEMES] = "file"
+    # TODO: Consider using `FILE_SYSTEM_SCHEMES` which would need to be an Enum
+    scheme: Literal["file", "s3"] = "file"
     base_path: str = "/tmp"
 
 
