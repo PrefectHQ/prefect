@@ -6,7 +6,7 @@ from prefect.orion.schemas.data import (
     DataDocument,
     get_instance_data_location,
 )
-from prefect.orion.serializers import lookup_serializer, FileSerializer, OrionSerializer
+from prefect.orion.serializers import FileSerializer, OrionSerializer
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.utilities.asyncio import run_in_threadpool
 
