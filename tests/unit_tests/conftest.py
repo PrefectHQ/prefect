@@ -10,6 +10,20 @@ from prefect.orion.utilities.database import Base, get_session_factory, get_engi
 from fastapi.testclient import TestClient
 
 
+class HttpxCompatibleTestClient(TestClient):
+    """
+    We sometimes need the starlette test client instead of an httpx client but there
+    are minor incompatibilities that this thin wrapper resolves so tests do not need
+    to worry about what kind of client they receieve
+    """
+
+    def request(*args, **kwargs):
+        # `data` is deprecated in favor of `content` in httpx but not starlette
+        if "content" in kwargs:
+            kwargs["data"] = kwargs.pop("content")
+        super().request(*args, **kwargs)
+
+
 @pytest.fixture(scope="package", autouse=True)
 async def setup_db(database_engine):
     """Unit tests run against a shared, rolled-back database session,
@@ -69,9 +83,11 @@ def mock_asgi_client(monkeypatch, database_engine):
     of the ASGIClient that exposes ASGI applications but doesn't require a
     separate event loop.
     """
+
     if database_engine.dialect.name == "postgresql":
         monkeypatch.setattr(
-            "prefect.client._ASGIClient", lambda app, **kw: TestClient(app)
+            "prefect.client._ASGIClient",
+            lambda app, **kw: HttpxCompatibleTestClient(app),
         )
 
 
