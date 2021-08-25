@@ -88,11 +88,11 @@ class TestDataDocumentSubclass:
 
     def test_datadoc_caches_on_creation(self):
         doc = UnicodeDataDocument.create("test")
-        assert doc._data_cache == "test"
+        assert doc._data == "test"
 
     def test_datadoc_cache_is_not_persisted(self):
         doc = UnicodeDataDocument.create("test")
-        assert "_data_cache" not in doc.dict()
+        assert "_data" not in doc.dict()
 
 
 @pytest.mark.parametrize("encodings", ["foo", ("foo", "bar")])
