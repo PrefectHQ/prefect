@@ -90,7 +90,7 @@ class TaskRunState(Base):
         default=states.RunDetails,
         nullable=False,
     )
-    data = Column(JSON)
+    data = Column(JSON, nullable=True)
 
     __table_args__ = (
         sa.Index(
