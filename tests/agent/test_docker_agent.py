@@ -466,11 +466,7 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
 
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
-@pytest.mark.parametrize("docker_engine_version", ["20.10.0", "19.1.1"])
-def test_docker_agent_deploy_flow_run_config(
-    api, run_kind, has_docker_storage, docker_engine_version
-):
-    api.version.return_value = {"Version": docker_engine_version}
+def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
 
     if has_docker_storage:
         storage = Docker(
@@ -497,20 +493,54 @@ def test_docker_agent_deploy_flow_run_config(
         }
         run = None if run_kind == "missing" else UniversalRun()
 
-    if docker_engine_version == "20.10.0":
-        exp_host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
-        warns_on_old_version = nullcontext()
-    else:
-        warns_on_old_version = pytest.warns(
-            UserWarning,
-            match=(
-                "`host.docker.internal` could not be automatically resolved.*"
-                f"feature is not supported on Docker Engine v{docker_engine_version}"
-            ),
-        )
+    exp_host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
     agent = DockerAgent()
-    with warns_on_old_version:
+    agent.deploy_flow(
+        flow_run=GraphQLResult(
+            {
+                "flow": GraphQLResult(
+                    {
+                        "id": "foo",
+                        "name": "flow-name",
+                        "storage": storage.serialize(),
+                        "core_version": "0.13.11",
+                    }
+                ),
+                "run_config": run.serialize() if run else None,
+                "id": "id",
+                "name": "name",
+            }
+        )
+    )
+
+    assert api.create_container.called
+    assert api.create_container.call_args[0][0] == image
+    res_env = api.create_container.call_args[1]["environment"]
+    for k, v in env.items():
+        assert res_env[k] == v
+    res_host_config = api.create_host_config.call_args[1]
+    for k, v in exp_host_config.items():
+        assert res_host_config[k] == v
+
+
+@pytest.mark.parametrize("docker_engine_version", ["0.25.10", "19.1.1"])
+def test_docker_agent_deploy_flow_does_not_include_host_gateway_for_old_engine_versions(
+    api, docker_engine_version
+):
+    api.version.return_value = {"Version": docker_engine_version}
+
+    run = UniversalRun()
+    storage = Local()
+
+    agent = DockerAgent()
+    with pytest.warns(
+        UserWarning,
+        match=(
+            "`host.docker.internal` could not be automatically resolved.*"
+            f"feature is not supported on Docker Engine v{docker_engine_version}"
+        ),
+    ):
         agent.deploy_flow(
             flow_run=GraphQLResult(
                 {
@@ -529,14 +559,7 @@ def test_docker_agent_deploy_flow_run_config(
             )
         )
 
-    assert api.create_container.called
-    assert api.create_container.call_args[0][0] == image
-    res_env = api.create_container.call_args[1]["environment"]
-    for k, v in env.items():
-        assert res_env[k] == v
-    res_host_config = api.create_host_config.call_args[1]
-    for k, v in exp_host_config.items():
-        assert res_host_config[k] == v
+    assert "extra_hosts" not in api.create_host_config.call_args[1]
 
 
 def test_docker_agent_deploy_flow_unsupported_run_config(api):
