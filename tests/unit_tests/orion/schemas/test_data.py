@@ -35,14 +35,34 @@ class TestDataDocument:
 
     def test_encode_serializes_data_using_dispatcher(self):
         @register_serializer("foo")
-        class StringSerializer(DataDocument):
+        class FooSerializer(DataDocument):
             @staticmethod
             def dumps(data):
-                return data.encode()
+                return (data + "foo").encode()
 
         result = DataDocument.encode(encoding="foo", data="test")
         assert result.encoding == "foo"
-        assert result.blob == b"test"
+        assert result.blob == b"testfoo"
+
+    def test_decode_requires_serializer_to_implement_loads(self):
+        @register_serializer("foo")
+        class BadSerializer(Serializer):
+            pass
+
+        datadoc = DataDocument(encoding="foo", blob=b"test")
+
+        with pytest.raises(NotImplementedError):
+            datadoc.decode()
+
+    def test_encode_deserializes_data_using_dispatcher(self):
+        @register_serializer("foo")
+        class FooSerializer(DataDocument):
+            @staticmethod
+            def loads(blob):
+                return blob.decode() + "foo"
+
+        datadoc = DataDocument(encoding="foo", blob=b"test")
+        assert datadoc.decode() == "testfoo"
 
     @pytest.mark.parametrize(
         "encoding,serializer",
