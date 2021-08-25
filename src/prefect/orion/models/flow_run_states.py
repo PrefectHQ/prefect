@@ -1,12 +1,13 @@
-from uuid import UUID
-from typing import List
+import contextlib
 import sqlalchemy as sa
 from sqlalchemy import select, delete
-from sqlalchemy.sql.functions import mode
+from typing import List
+from uuid import UUID
 
-from prefect.orion.models import orm
 from prefect.orion import schemas, models
-from prefect.orion.schemas import states
+from prefect.orion.models import orm
+from prefect.orion.orchestration import global_policy
+from prefect.orion.orchestration.rules import OrchestrationContext
 
 
 async def create_flow_run_state(
@@ -33,24 +34,37 @@ async def create_flow_run_state(
     if not run:
         raise ValueError(f"Invalid flow run: {flow_run_id}")
 
-    from_state = run.state.as_state() if run.state else None
+    initial_state = run.state.as_state() if run.state else None
+    intended_transition = (initial_state.type if initial_state else None), state.type
 
-    # update the state details
-    state.run_details = states.update_run_details(from_state=from_state, to_state=state)
-    state.state_details.flow_run_id = flow_run_id
+    global_rules = global_policy.get_transition_rules(*intended_transition)
 
-    # create the new flow run state
-    new_flow_run_state = orm.FlowRunState(
+    context = OrchestrationContext(
+        initial_state=initial_state,
+        proposed_state=state,
+        session=session,
+        run=run,
         flow_run_id=flow_run_id,
-        **state.dict(shallow=True),
     )
-    session.add(new_flow_run_state)
-    await session.flush()
+
+    # apply orchestration rules and create the new flow run state
+    async with contextlib.AsyncExitStack() as stack:
+        for rule in global_rules:
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
+
+        validated_state = orm.FlowRunState(
+            flow_run_id=flow_run_id,
+            **state.dict(shallow=True),
+        )
+        session.add(validated_state)
+        await session.flush()
 
     # update the ORM model state
-    run.state = new_flow_run_state
-
-    return new_flow_run_state
+    if run is not None:
+        run.state = validated_state
+    return validated_state
 
 
 async def read_flow_run_state(
