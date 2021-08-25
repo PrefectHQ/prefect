@@ -43,11 +43,14 @@ class TestPersistData:
         # The blob contains a file system document
         fs_datadoc = orion_datadoc.read()
 
-        # The fs datadoc can be read into our data
-        path, data = fs_datadoc.read()
+        # It saved it to a path respecting our dataloc
+        path = fs_datadoc.blob.decode()
         assert path.startswith(
             f"{tmpdir_dataloc_settings.scheme}://{tmpdir_dataloc_settings.base_path}"
         )
+
+        # The fs datadoc can be read into our data
+        data = fs_datadoc.read()
         assert data == user_data
 
 
@@ -66,7 +69,7 @@ class TestRetrieveData:
 
         # Create a full Orion data document describing the data and write to disk
         orion_datadoc = OrionDataDocument.create(
-            FileSystemDataDocument.create((path, user_data), encoding="file")
+            FileSystemDataDocument.create(user_data, encoding="file", path=path)
         )
 
         # The user data document should be returned

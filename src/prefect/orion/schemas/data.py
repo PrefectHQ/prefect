@@ -49,14 +49,16 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     __slots__ = ["_data"]
 
     @classmethod
-    def create(cls: Type[T], data: D, encoding: str = None, cast: bool = False) -> T:
+    def create(
+        cls: Type[T], data: D, encoding: str = None, cast: bool = False, **kwargs: Any
+    ) -> T:
         if encoding is None:
             encoding = cls.__fields__["encoding"].get_default()
             # Note, it is still possible for encoding to be null if there is no default
 
         # Dispatch encoding to a subclass implementation if this is the base class
         encoding_cls = cls.get_subclass(encoding) if cls.isbaseclass() else cls
-        blob = encoding_cls.encode(data)
+        blob = encoding_cls.encode(data, **kwargs)
 
         # Create a new `DataDocument` instance
         if cast:
@@ -66,7 +68,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         inst._cache_data(data)
         return inst
 
-    def read(self, safe: bool = False) -> D:
+    def read(self, **kwargs: Any) -> D:
         if hasattr(self, "_data"):
             return self._data
 
@@ -77,7 +79,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
             else self.decode
         )
 
-        data = decode(self.blob)
+        data = decode(self.blob, **kwargs)
 
         self._cache_data(data)
         return data
@@ -134,7 +136,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         raise NotImplementedError
 
 
-class FileSystemDataDocument(DataDocument[Tuple[str, bytes]]):
+class FileSystemDataDocument(DataDocument[bytes]):
     """
     Persists bytes to a file system and creates a data document with the path to the
     data
@@ -143,17 +145,15 @@ class FileSystemDataDocument(DataDocument[Tuple[str, bytes]]):
     encoding: FileSystemScheme
 
     @staticmethod
-    def decode(blob: bytes) -> Tuple[str, bytes]:
+    def decode(blob: bytes) -> bytes:
         path = blob.decode()
         # Read the file bytes
-        return (path, FileSystemDataDocument.read_blob(path))
+        return FileSystemDataDocument.read_blob(path)
 
     @staticmethod
-    def encode(data: Tuple[str, bytes]) -> bytes:
-        path, file_blob = data
-
+    def encode(data: bytes, path: str) -> bytes:
         # Write the bytes to `path`
-        FileSystemDataDocument.write_blob(file_blob, path)
+        FileSystemDataDocument.write_blob(data, path)
 
         # Save the path as bytes to conform to the spec
         return path.encode()
