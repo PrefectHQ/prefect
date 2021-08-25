@@ -1,4 +1,4 @@
-from typing import Dict, TypeVar, Any, TYPE_CHECKING
+from typing import Dict, TypeVar, Any, TYPE_CHECKING, Union, Tuple
 from typing_extensions import Protocol
 from prefect.orion.utilities.filesystem import (
     write_blob,
