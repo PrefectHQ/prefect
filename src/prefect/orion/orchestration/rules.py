@@ -23,10 +23,15 @@ class OrchestrationContext(PrefectBaseModel):
     proposed_state: states.State
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
-    run: Optional[core.TaskRun]
-    task_run_id: UUID
+    run: Optional[Union[core.TaskRun, core.FlowRun]]
+    task_run_id: Optional[UUID]
+    flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
+
+    def __post_init__(self, **kwargs):
+        if self.flow_run_id is None and self.run is not None:
+            self.flow_run_id = self.run.flow_run_id
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -42,10 +47,6 @@ class OrchestrationContext(PrefectBaseModel):
             return self.run.state.run_details
         except AttributeError:
             return None
-
-    @property
-    def flow_run_id(self):
-        self.run.flow_run_id
 
     @property
     def run_settings(self):
