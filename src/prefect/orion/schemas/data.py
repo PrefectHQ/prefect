@@ -68,7 +68,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         inst._cache_data(data)
         return inst
 
-    def read(self, **kwargs: Any) -> D:
+    def read(self) -> D:
         if hasattr(self, "_data"):
             return self._data
 
@@ -79,7 +79,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
             else self.decode
         )
 
-        data = decode(self.blob, **kwargs)
+        data = decode(self.blob)
 
         self._cache_data(data)
         return data
@@ -128,11 +128,15 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     # Abstract methods -----------------------------------------------------------------
 
     @staticmethod
-    def decode(blob: bytes) -> D:
+    def encode(data: D, **kwargs: Any) -> bytes:
+        """
+        If kwargs given for encoding are required decoding, the document is responsible
+        for storing the parameters in the blob.
+        """
         raise NotImplementedError
 
     @staticmethod
-    def encode(data: D) -> bytes:
+    def decode(blob: bytes) -> D:
         raise NotImplementedError
 
 
