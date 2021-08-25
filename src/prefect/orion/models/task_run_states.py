@@ -1,14 +1,13 @@
-import datetime
-import pendulum
-from uuid import UUID
-from typing import List, Optional
+import contextlib
 import sqlalchemy as sa
 from sqlalchemy import select, delete
-from sqlalchemy.sql.functions import mode
+from typing import List
+from uuid import UUID
 
-from prefect.orion.models import orm
 from prefect.orion import schemas, models
-from prefect.orion.schemas import states
+from prefect.orion.orchestration import global_policy, core_policy
+from prefect.orion.orchestration.rules import OrchestrationContext
+from prefect.orion.models import orm
 
 
 async def create_task_run_state(
@@ -29,62 +28,52 @@ async def create_task_run_state(
     """
 
     # load the task run
-    run = await models.task_runs.read_task_run(
-        session=session,
-        task_run_id=task_run_id,
-    )
+    run = await models.task_runs.read_task_run(session=session, task_run_id=task_run_id)
 
     if not run:
         raise ValueError(f"Invalid task run: {task_run_id}")
 
-    from_state = run.state.as_state() if run.state else None
+    initial_state = run.state.as_state() if run.state else None
+    intended_transition = (initial_state.type if initial_state else None), state.type
 
-    # --- apply retry logic
     if apply_orchestration_rules:
-        if (
-            from_state
-            and from_state.type == states.StateType.RUNNING
-            and state.type == states.StateType.FAILED
-            and run.state.run_details.run_count <= run.empirical_policy.max_retries
-        ):
-            state = states.AwaitingRetry(
-                scheduled_time=pendulum.now("UTC").add(
-                    seconds=run.empirical_policy.retry_delay_seconds
-                ),
-                message=state.message,
-                data=state.data,
-            )
+        orchestration_rules = core_policy.get_transition_rules(*intended_transition)
+    else:
+        orchestration_rules = []
 
-        if state.type == states.StateType.RUNNING and state.state_details.cache_key:
-            # Check for cached states matching the cache key
-            cached_state = await get_cached_task_run_state(
-                session, state.state_details.cache_key
-            )
-            if cached_state:
-                state = cached_state.as_state().copy()
-                state.name = "Cached"
+    global_rules = global_policy.get_transition_rules(*intended_transition)
 
-    # update the state details
-    state.run_details = states.update_run_details(from_state=from_state, to_state=state)
-    state.state_details.flow_run_id = run.flow_run_id
-    state.state_details.task_run_id = task_run_id
-
-    # create the new task run state
-    new_task_run_state = orm.TaskRunState(
+    context = OrchestrationContext(
+        initial_state=initial_state,
+        proposed_state=state,
+        session=session,
+        run=run,
         task_run_id=task_run_id,
-        **state.dict(shallow=True),
     )
-    session.add(new_task_run_state)
-    await session.flush()
 
-    # Add the new task state to the cache if a key was provided
-    if state.type == states.StateType.COMPLETED and state.state_details.cache_key:
-        await cache_task_run_state(session, new_task_run_state)
+    # apply orchestration rules and create the new task run state
+    async with contextlib.AsyncExitStack() as stack:
+        for rule in orchestration_rules:
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
 
-    # update the ORM model state
-    run.state = new_task_run_state
+        for rule in global_rules:
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
 
-    return new_task_run_state
+        validated_state = orm.TaskRunState(
+            task_run_id=context.task_run_id,
+            **context.proposed_state.dict(shallow=True),
+        )
+        session.add(validated_state)
+        await session.flush()
+        context.validated_state = validated_state
+
+    if run is not None:
+        run.state = validated_state
+    return validated_state
 
 
 async def read_task_run_state(
@@ -139,38 +128,3 @@ async def delete_task_run_state(
         delete(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
     )
     return result.rowcount > 0
-
-
-async def get_cached_task_run_state(
-    session: sa.orm.Session, cache_key: str
-) -> Optional[orm.TaskRunState]:
-    task_run_state_id = (
-        select(orm.TaskRunStateCache.task_run_state_id)
-        .filter(
-            sa.and_(
-                orm.TaskRunStateCache.cache_key == cache_key,
-                sa.or_(
-                    orm.TaskRunStateCache.cache_expiration.is_(None),
-                    orm.TaskRunStateCache.cache_expiration > pendulum.now("utc"),
-                ),
-            ),
-        )
-        .order_by(orm.TaskRunStateCache.created.desc())
-        .limit(1)
-    ).scalar_subquery()
-    query = select(orm.TaskRunState).filter(orm.TaskRunState.id == task_run_state_id)
-    result = await session.execute(query)
-    return result.scalar()
-
-
-async def cache_task_run_state(
-    session: sa.orm.Session, state: orm.TaskRunState
-) -> None:
-    # create the new task run state
-    new_cache_item = orm.TaskRunStateCache(
-        cache_key=state.state_details.cache_key,
-        cache_expiration=state.state_details.cache_expiration,
-        task_run_state_id=state.id,
-    )
-    session.add(new_cache_item)
-    await session.flush()
