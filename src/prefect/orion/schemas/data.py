@@ -45,8 +45,8 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     blob: bytes
 
     # A cache for the decoded data, see `DataDocument.read`
-    _data_cache: D
-    __slots__ = ["_data_cache"]
+    _data: D
+    __slots__ = ["_data"]
 
     @classmethod
     def create(cls: Type[T], data: D, encoding: str = None, cast: bool = False) -> T:
@@ -67,8 +67,8 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         return inst
 
     def read(self, safe: bool = False) -> D:
-        if hasattr(self, "_data_cache"):
-            return self._data_cache
+        if hasattr(self, "_data"):
+            return self._data
 
         # Dispatch decoding to a subclass implementation
         decode = (
@@ -85,7 +85,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     def _cache_data(self, data) -> None:
         # Use object's setattr to avoid a pydantic 'field does not exist' error
         # See https://github.com/samuelcolvin/pydantic/issues/655
-        object.__setattr__(self, "_data_cache", data)
+        object.__setattr__(self, "_data", data)
 
     # Dispatch helpers -----------------------------------------------------------------
 
