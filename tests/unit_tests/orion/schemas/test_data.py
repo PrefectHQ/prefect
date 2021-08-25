@@ -7,23 +7,22 @@ from prefect.orion.schemas.data import (
     DataDocument,
     FileSystemDataDocument,
     OrionDataDocument,
-    create_datadoc,
 )
 
 
-class TestCreateDataDoc:
-    def test_create_datadoc_does_not_allow_unknown_encoding(self):
+class TestDataDocument:
+    def test_create_does_not_allow_unknown_encoding(self):
         with pytest.raises(ValueError, match="Unknown document encoding"):
-            create_datadoc(encoding="foo", data="test")
+            DataDocument.create(encoding="foo", data="test")
 
-    def test_create_datadoc_requires_subclass_encode(self):
+    def test_create_requires_dispatch_subclass_to_implement_encode(self):
         class TestDataDocument(DataDocument):
             encoding: Literal["foo"] = "foo"
 
         with pytest.raises(NotImplementedError):
-            create_datadoc(encoding="foo", data="test")
+            DataDocument.create(encoding="foo", data="test")
 
-    def test_create_datadoc_creates_subclass(self):
+    def test_create_encodes_data_using_dispatcher(self):
         class TestDataDocument(DataDocument):
             encoding: Literal["foo"] = "foo"
 
@@ -31,9 +30,21 @@ class TestCreateDataDoc:
             def encode(data):
                 return data.encode()
 
-        result = create_datadoc(encoding="foo", data="test")
-        assert isinstance(result, TestDataDocument)
+        result = DataDocument.create(encoding="foo", data="test")
+        assert result.encoding == "foo"
         assert result.blob == b"test"
+
+    @pytest.mark.parametrize("cast", [True, False])
+    def test_create_returns_class_or_subclass_depending_on_cast(self, cast):
+        class TestDataDocument(DataDocument):
+            encoding: Literal["foo"] = "foo"
+
+            @staticmethod
+            def encode(data):
+                return data.encode()
+
+        result = DataDocument.create(encoding="foo", data="test", cast=cast)
+        assert isinstance(result, TestDataDocument if cast else DataDocument)
 
     @pytest.mark.parametrize(
         "encoding,expected",
@@ -48,9 +59,10 @@ class TestCreateDataDoc:
         mock = MagicMock(return_value=b"data")
         monkeypatch.setattr(expected, "encode", mock)
 
-        # Create
-        result = create_datadoc(encoding=encoding, data="data")
+        result = DataDocument.create(encoding=encoding, data="data", cast=True)
         assert isinstance(result, expected)
+        assert result.encoding == encoding
+        assert result.blob == b"data"
 
 
 class UnicodeDataDocument(DataDocument[str]):
@@ -65,12 +77,12 @@ class UnicodeDataDocument(DataDocument[str]):
         return blob.decode()
 
 
-class TestDataDoc:
-    def test_datadoc_create(self):
+class TestDataDocumentSubclass:
+    def test_create_from_subclass(self):
         doc = UnicodeDataDocument.create("test")
         assert doc.blob == b"test"
 
-    def test_datadoc_read(self):
+    def test_datadoc_read_from_subclass(self):
         doc = UnicodeDataDocument.create("test")
         assert doc.read() == "test"
 
