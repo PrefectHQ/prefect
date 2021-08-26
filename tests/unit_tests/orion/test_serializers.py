@@ -23,13 +23,15 @@ class TestFileSerializer:
 
         assert FileSerializer.loads(path.encode()) == b"data"
 
-    def test_roundtrip_data_is_unchanged(self):
-        assert serialize_deserialize(b"test", FileSerializer, path="foo") == b"test"
+    def test_roundtrip_data_is_unchanged(self, tmpdir):
+        tmp_path = str(tmpdir.join("test"))
+        assert serialize_deserialize(b"test", FileSerializer, path=tmp_path) == b"test"
 
-    def test_requires_bytes(self):
+    def test_requires_bytes(self, tmpdir):
         with pytest.raises(TypeError):
             # Raises in fsspec -- might be worth an explicit type check earlier
-            FileSerializer.dumps("data", path="foo")
+            tmp_path = str(tmpdir.join("test"))
+            FileSerializer.dumps("data", path=tmp_path)
 
     def test_requires_path(self):
         with pytest.raises(TypeError):
