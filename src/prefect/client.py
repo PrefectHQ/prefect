@@ -10,7 +10,7 @@ import httpx
 
 import prefect
 from prefect.orion import schemas
-from prefect.orion.schemas.data import OrionDataDocument, DataDocument
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.api.server import app as orion_app
 
 if TYPE_CHECKING:
@@ -109,13 +109,13 @@ class OrionClient:
     def persist_data(
         self,
         data: bytes,
-    ) -> OrionDataDocument:
+    ) -> DataDocument:
         response = self.post("/data/persist", content=data)
-        return OrionDataDocument.parse_obj(response.json())
+        return DataDocument.parse_obj(response.json())
 
     def retrieve_data(
         self,
-        orion_datadoc: OrionDataDocument,
+        orion_datadoc: DataDocument,
     ) -> bytes:
         response = self.post(
             "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
@@ -123,12 +123,12 @@ class OrionClient:
         return response.content
 
     def persist_object(self, obj: Any, encoder: str = "cloudpickle"):
-        datadoc = DataDocument.create(encoding=encoder, data=obj)
+        datadoc = DataDocument.encode(encoding=encoder, data=obj)
         return self.persist_data(datadoc.json().encode())
 
-    def retrieve_object(self, orion_datadoc: OrionDataDocument) -> Any:
+    def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
         datadoc = DataDocument.parse_raw(self.retrieve_data(orion_datadoc))
-        return datadoc.read()
+        return datadoc.decode()
 
     def set_flow_run_state(
         self,

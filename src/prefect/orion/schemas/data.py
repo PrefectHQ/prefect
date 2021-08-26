@@ -1,33 +1,14 @@
-from typing import Any, Generic, Tuple, Type, TypeVar
+from typing import Any, Generic, Type, TypeVar
 
-import fsspec
 from typing_extensions import Literal
 
 from prefect import settings
+from prefect.orion.serializers import lookup_serializer
+from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-
-# File storage schemes for `DataLocation` and `FileSystemDataDocument`
-FileSystemScheme = Literal["s3", "file"]
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
-
-
-class DataLocation(PrefectBaseModel):
-    name: str
-    scheme: FileSystemScheme = "file"
-    base_path: str = "/tmp"
-
-
-def get_instance_data_location() -> DataLocation:
-    """
-    Return the current data location configured for this Orion instance
-    """
-    return DataLocation(
-        name=settings.orion.data.name,
-        base_path=settings.orion.data.base_path,
-        scheme=settings.orion.data.scheme.lower(),
-    )
 
 
 class DataDocument(PrefectBaseModel, Generic[D]):
@@ -44,42 +25,37 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     encoding: str
     blob: bytes
 
-    # A cache for the decoded data, see `DataDocument.read`
+    # A cache for the decoded data, see `DataDocument.decode`
     _data: D
     __slots__ = ["_data"]
 
     @classmethod
-    def create(
-        cls: Type[T], data: D, encoding: str = None, cast: bool = False, **kwargs: Any
-    ) -> T:
-        if encoding is None:
-            encoding = cls.__fields__["encoding"].get_default()
-            # Note, it is still possible for encoding to be null if there is no default
+    def encode(
+        cls: Type["DataDocument"], encoding: str, data: D, **kwargs: Any
+    ) -> "DataDocument[D]":
+        """
+        Create a new data document
 
-        # Dispatch encoding to a subclass implementation if this is the base class
-        encoding_cls = cls.get_subclass(encoding) if cls.isbaseclass() else cls
-        blob = encoding_cls.encode(data, **kwargs)
-
-        # Create a new `DataDocument` instance
-        if cast:
-            cls = encoding_cls
+        A serializer must be registered for the given `encoding`
+        """
+        # Dispatch encoding
+        blob = lookup_serializer(encoding).dumps(data, **kwargs)
 
         inst = cls(blob=blob, encoding=encoding)
         inst._cache_data(data)
         return inst
 
-    def read(self) -> D:
+    def decode(self) -> D:
+        """
+        Get the data from a data document
+
+        A serializer must be registered for the document's encoding
+        """
         if hasattr(self, "_data"):
             return self._data
 
-        # Dispatch decoding to a subclass implementation
-        decode = (
-            self.get_subclass(self.encoding).decode
-            if self.isbaseclass()
-            else self.decode
-        )
-
-        data = decode(self.blob)
+        # Dispatch decoding
+        data = lookup_serializer(self.encoding).loads(self.blob)
 
         self._cache_data(data)
         return data
@@ -89,102 +65,20 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         # See https://github.com/samuelcolvin/pydantic/issues/655
         object.__setattr__(self, "_data", data)
 
-    # Dispatch helpers -----------------------------------------------------------------
 
-    @classmethod
-    def supported_encodings(cls) -> Tuple[str, ...]:
-        """
-        Determine which encodings are supported by a data document subtype
-        by examining the `Literal` type annotation on `encoding`
-        """
-        annotation = cls.__fields__["encoding"].type_
-
-        # Only supports `Literal` right now
-        if hasattr(annotation, "__origin__") and annotation.__origin__ == Literal:
-            return annotation.__args__
-
-        return tuple()
-
-    @classmethod
-    def get_subclass(cls, encoding: str) -> Type["DataDocument"]:
-        """
-        Returns the first subclass that supports `encoding`
-        """
-        encoding_to_cls = {
-            subclass.supported_encodings(): subclass
-            for subclass in DataDocument.__subclasses__()
-        }
-
-        for cls_encodings, cls in encoding_to_cls.items():
-            if encoding in cls_encodings:
-                return cls
-
-        raise ValueError(f"Unknown document encoding {encoding!r}")
-
-    @classmethod
-    def isbaseclass(cls):
-        return cls == DataDocument
-
-    # Abstract methods -----------------------------------------------------------------
-
-    @staticmethod
-    def encode(data: D, **kwargs: Any) -> bytes:
-        """
-        If kwargs given for encoding are required decoding, the document is responsible
-        for storing the parameters in the blob.
-        """
-        raise NotImplementedError
-
-    @staticmethod
-    def decode(blob: bytes) -> D:
-        raise NotImplementedError
+class DataLocation(PrefectBaseModel):
+    name: str
+    # TODO: Consider using `FILE_SYSTEM_SCHEMES` which would need to be an Enum
+    scheme: Literal["file", "s3"] = "file"
+    base_path: str = "/tmp"
 
 
-class FileSystemDataDocument(DataDocument[bytes]):
+def get_instance_data_location() -> DataLocation:
     """
-    Persists bytes to a file system and creates a data document with the path to the
-    data
+    Return the current data location configured for this Orion instance
     """
-
-    encoding: FileSystemScheme
-
-    @staticmethod
-    def decode(blob: bytes) -> bytes:
-        path = blob.decode()
-        # Read the file bytes
-        return FileSystemDataDocument.read_blob(path)
-
-    @staticmethod
-    def encode(data: bytes, path: str) -> bytes:
-        # Write the bytes to `path`
-        FileSystemDataDocument.write_blob(data, path)
-
-        # Save the path as bytes to conform to the spec
-        return path.encode()
-
-    @staticmethod
-    def write_blob(blob: bytes, path: str) -> bool:
-        with fsspec.open(path, mode="wb") as fp:
-            fp.write(blob)
-        return True
-
-    @staticmethod
-    def read_blob(path: str) -> bytes:
-        with fsspec.open(path, mode="rb") as fp:
-            blob = fp.read()
-        return blob
-
-
-class OrionDataDocument(DataDocument[FileSystemDataDocument]):
-    encoding: Literal["orion"] = "orion"
-
-    @staticmethod
-    def decode(blob: bytes) -> FileSystemDataDocument:
-        return FileSystemDataDocument.parse_raw(blob)
-
-    @staticmethod
-    def encode(data: FileSystemDataDocument) -> bytes:
-        return data.json().encode()
-
-
-SAFE_TYPES = [FileSystemDataDocument, OrionDataDocument]
+    return DataLocation(
+        name=settings.orion.data.name,
+        base_path=settings.orion.data.base_path,
+        scheme=settings.orion.data.scheme.lower(),
+    )

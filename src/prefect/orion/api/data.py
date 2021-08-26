@@ -3,10 +3,10 @@ from uuid import uuid4
 from fastapi import status, Request, Response
 
 from prefect.orion.schemas.data import (
-    OrionDataDocument,
-    FileSystemDataDocument,
+    DataDocument,
     get_instance_data_location,
 )
+from prefect.orion.serializers import FileSerializer, OrionSerializer
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.utilities.asyncio import run_in_threadpool
 
@@ -14,7 +14,7 @@ router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
 
 @router.post("/persist", status_code=status.HTTP_201_CREATED)
-async def create_datadoc(request: Request) -> OrionDataDocument:
+async def create_datadoc(request: Request) -> DataDocument:
     """
     Exchange data for an orion data document
     """
@@ -28,30 +28,31 @@ async def create_datadoc(request: Request) -> OrionDataDocument:
     path = f"{dataloc.scheme}://{path}"
 
     # Write the data to the path and create a file system document
-    fs_datadoc = await run_in_threadpool(
-        FileSystemDataDocument.create, data, encoding=dataloc.scheme, path=path
+    file_datadoc = await run_in_threadpool(
+        DataDocument.encode, encoding=dataloc.scheme, data=data, path=path
     )
 
     # Return an Orion datadoc to show that it should be resolved by GET /data
-    orion_datadoc = OrionDataDocument.create(fs_datadoc)
+    orion_datadoc = DataDocument.encode(encoding="orion", data=file_datadoc)
 
     return orion_datadoc
 
 
 @router.post("/retrieve")
-async def read_datadoc(datadoc: OrionDataDocument):
+async def read_datadoc(orion_datadoc: DataDocument):
     """
     Exchange an orion data document for the data previously persisted
     """
-    if datadoc.encoding != "orion":
+    if orion_datadoc.encoding != "orion":
         raise ValueError(
-            f"Invalid encoding: {datadoc.encoding!r}. Only 'orion' data documents can "
+            f"Invalid encoding: {orion_datadoc.encoding!r}. Only 'orion' data documents can "
             "be retrieved from the Orion API."
         )
 
-    fs_datadoc = datadoc.read()
+    # Explicitly use the `OrionSerializer` instead of the dispatcher for safety
+    inner_datadoc = OrionSerializer.loads(orion_datadoc.blob)
 
-    # Read from the file system
-    data = await run_in_threadpool(fs_datadoc.read)
+    # Read data from the file system; once again do not use the dispatcher
+    data = await run_in_threadpool(FileSerializer.loads, inner_datadoc.blob)
 
     return Response(content=data, media_type="application/octet-stream")
