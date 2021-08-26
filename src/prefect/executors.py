@@ -102,80 +102,6 @@ class SynchronousExecutor(BaseExecutor):
         return self._results[prefect_future.run_id]
 
 
-class LocalPoolExecutor(BaseExecutor):
-    """
-    A parallel executor that submits calls to a thread or process pool
-    """
-
-    def __init__(self, processes: bool = False) -> None:
-        super().__init__()
-        self._pool_type = (
-            concurrent.futures.ProcessPoolExecutor
-            if processes
-            else concurrent.futures.ThreadPoolExecutor
-        )
-        self._pool: concurrent.futures.Executor = None
-        self._futures: Dict[UUID, concurrent.futures.Future] = {}
-        self.processes = processes
-
-    async def submit(
-        self,
-        run_id: str,
-        run_fn: Callable[..., State],
-        *args: Any,
-        **kwargs: Dict[str, Any],
-    ) -> PrefectFuture:
-        if not self._pool:
-            raise RuntimeError("The executor must be started before submitting work.")
-
-        if self.processes:
-            # Resolve `PrefectFutures` in args/kwargs into values which will block but
-            # futures not serializable; in the future we can rely on Orion to roundtrip
-            # the data instead
-            args, kwargs = await resolve_futures((args, kwargs))
-            # Use `cloudpickle` to serialize the call instead of the builtin pickle
-            # since it supports more function types
-            payload = _serialize_call(run_fn, *args, **kwargs)
-            future = self._pool.submit(_run_serialized_call, payload)
-        else:
-            # Submit a function that resolves input futures then calls the task run
-            # function. Delegating future resolution to the pool stops `submit` from
-            # blocking parallelism.
-            future = self._pool.submit(
-                _resolve_futures_then_run, run_fn, *args, **kwargs
-            )
-
-        self._futures[run_id] = future
-
-        return PrefectFuture(
-            task_run_id=run_id,
-            flow_run_id=self.flow_run_id,
-            client=self.orion_client,
-            executor=self,
-        )
-
-    async def wait(
-        self,
-        prefect_future: PrefectFuture,
-        timeout: float = None,
-    ) -> Optional[State]:
-        future = self._futures[prefect_future.run_id]
-        try:
-            return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            return None
-
-    @contextmanager
-    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
-        with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
-            self._pool = self._pool_type()
-            yield self
-
-    def shutdown(self) -> None:
-        self._pool.shutdown(wait=True)
-        self._pool = None
-
-
 class DaskExecutor(BaseExecutor):
     """
     A parallel executor that submits calls to a dask cluster
@@ -250,17 +176,3 @@ class DaskExecutor(BaseExecutor):
 
     def shutdown(self) -> None:
         self._client.close()
-
-
-def _serialize_call(fn, *args, **kwargs):
-    return cloudpickle.dumps((fn, args, kwargs))
-
-
-def _run_serialized_call(payload):
-    fn, args, kwargs = cloudpickle.loads(payload)
-    return fn(*args, **kwargs)
-
-
-def _resolve_futures_then_run(fn, *args, **kwargs):
-    args, kwargs = resolve_futures((args, kwargs))
-    return fn(*args, **kwargs)
