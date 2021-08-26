@@ -10,7 +10,7 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.utilities.collections import ensure_iterable
-from prefect.utilities.asyncio import get_process_event_loop, isasyncfn
+from prefect.utilities.asyncio import get_prefect_event_loop, isasyncfn
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -45,7 +45,7 @@ class PrefectFuture:
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        self._result = get_process_event_loop().run_coro(
+        self._result = get_prefect_event_loop("futures").run_coro(
             self._executor.wait(self, timeout)
         )
         return self._result
@@ -56,7 +56,7 @@ class PrefectFuture:
             if self.task_run_id
             else self._client.read_flow_run
         )
-        run = get_process_event_loop().run_coro(method(self.run_id))
+        run = get_prefect_event_loop("futures").run_coro(method(self.run_id))
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")

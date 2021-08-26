@@ -60,7 +60,7 @@ class ThreadedEventLoop:
 EVENT_LOOPS: Dict[Tuple[Hashable, int], ThreadedEventLoop] = {}
 
 
-def get_process_event_loop(key: Hashable = None):
+def get_prefect_event_loop(key: Hashable = None):
     """
     Get or create a `ThreadedEventLoop` for the current process; multiple event loops
     per process can be managed by providing a hashable 'key'

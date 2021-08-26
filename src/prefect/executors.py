@@ -12,7 +12,7 @@ import distributed
 from prefect.orion.schemas.states import State
 from prefect.futures import resolve_futures, PrefectFuture
 from prefect.client import OrionClient
-from prefect.utilities.asyncio import isasyncfn, get_process_event_loop
+from prefect.utilities.asyncio import isasyncfn, get_prefect_event_loop
 
 T = TypeVar("T", bound="BaseExecutor")
 

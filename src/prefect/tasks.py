@@ -4,7 +4,7 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
 
 from prefect.futures import PrefectFuture
-from prefect.utilities.asyncio import get_process_event_loop
+from prefect.utilities.asyncio import get_prefect_event_loop
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class Task:
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.engine import create_and_submit_task_run
 
-        loop = get_process_event_loop("tasks")
+        loop = get_prefect_event_loop("tasks")
         return loop.run_coro(create_and_submit_task_run(self, *args, **kwargs))
 
 
