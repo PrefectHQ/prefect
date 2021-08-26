@@ -8,7 +8,7 @@ import prefect
 from prefect import flow
 from prefect.orion import schemas
 from prefect.tasks import task
-from prefect.persistence import CloudpickleDataDocument, JSONDataDocument
+from prefect.serializers import PickleSerializer, JSONSerializer
 
 
 def test_create_then_read_flow():
@@ -168,8 +168,6 @@ class ExPydanticModel(BaseModel):
 def test_put_then_retrieve_object(put_obj):
     client = prefect.client.OrionClient()
     datadoc = client.persist_object(put_obj)
-
-    assert isinstance(datadoc, schemas.data.OrionDataDocument)
-
+    assert datadoc.encoding == "orion"
     retrieved_obj = client.retrieve_object(datadoc)
     assert retrieved_obj == put_obj
