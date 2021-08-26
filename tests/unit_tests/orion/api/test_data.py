@@ -6,11 +6,11 @@ from prefect.orion.schemas.data import DataDocument
 
 
 @pytest.fixture
-def tmpdir_dataloc_settings(tmpdir, monkeypatch):
+def tmpdir_dataloc_settings(tmp_path, monkeypatch):
     new_settings = settings.copy(deep=True).dict()
     new_settings["orion"]["data"] = DataLocationSettings(
         scheme="file",
-        base_path=str(tmpdir),
+        base_path=str(tmp_path),
     )
     monkeypatch.setattr("prefect.settings", Settings.parse_obj(new_settings))
     yield settings.orion.data
@@ -60,8 +60,8 @@ class TestRetrieveData:
             bytes([0, 1, 2]),
         ],
     )
-    async def test_retrieve_data(self, client, tmpdir, user_data):
-        path = str(tmpdir.join("data"))
+    async def test_retrieve_data(self, client, tmp_path, user_data):
+        path = str(tmp_path.joinpath("data"))
 
         # Create a full Orion data document describing the data and write to disk
         orion_datadoc = DataDocument.encode(
