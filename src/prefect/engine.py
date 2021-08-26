@@ -9,7 +9,7 @@ from uuid import UUID
 import pendulum
 from pydantic import validate_arguments
 
-from prefect.client import OrionClient
+from prefect.client import inject_client, OrionClient
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
@@ -18,12 +18,12 @@ from prefect.tasks import Task
 from prefect.utilities.callables import get_call_parameters
 
 
-def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
+async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
     """
     TODO: Consider rolling this behavior into the `Client` state update method once we
           understand how we want to handle ABORT cases
     """
-    response = client.set_task_run_state(
+    response = await client.set_task_run_state(
         task_run_id,
         state=state,
     )
@@ -40,7 +40,8 @@ def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State
     return server_state
 
 
-async def run_flow(flow, *args, **kwargs):
+@inject_client
+async def run_flow(flow, call_args, call_kwargs, client):
     flow_run_context = FlowRunContext.get()
     is_subflow_run = flow_run_context is not None
     parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
@@ -53,19 +54,17 @@ async def run_flow(flow, *args, **kwargs):
         )
 
     # Generate dict of passed parameters
-    parameters = get_call_parameters(flow.fn, args, kwargs)
-
-    client = OrionClient()
+    parameters = get_call_parameters(flow.fn, call_args, call_kwargs)
 
     parent_task_run_id: Optional[UUID] = None
     if is_subflow_run:
         # Generate a task in the parent flow run to represent the result of the subflow run
-        parent_task_run_id = client.create_task_run(
+        parent_task_run_id = await client.create_task_run(
             task=Task(name=flow.name, fn=lambda _: ...),
             flow_run_id=parent_flow_run_id,
         )
 
-    flow_run_id = client.create_flow_run(
+    flow_run_id = await client.create_flow_run(
         flow,
         parameters=parameters,
         parent_task_run_id=parent_task_run_id,
@@ -87,17 +86,17 @@ async def run_flow(flow, *args, **kwargs):
             executor=executor,
         ) as context:
             terminal_state = await orchestrate_flow_function(
-                flow.fn, context=context, call_args=args, call_kwargs=kwargs
+                flow.fn, context=context, call_args=call_args, call_kwargs=call_kwargs
             )
 
     if is_subflow_run and terminal_state.is_completed():
         # Since a subflow run does not wait for all of its futures before exiting, we
         # wait for any returned futures to complete before setting the final state
         # of the flow
-        terminal_state.data = resolve_futures(terminal_state.data)
+        terminal_state.data = await resolve_futures(terminal_state.data)
 
     # Update the flow to the terminal state
-    client.set_flow_run_state(
+    await client.set_flow_run_state(
         context.flow_run_id,
         state=terminal_state,
     )
@@ -126,7 +125,7 @@ async def orchestrate_flow_function(
           work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
-    context.client.set_flow_run_state(
+    await context.client.set_flow_run_state(
         context.flow_run_id, State(type=StateType.RUNNING)
     )
 
@@ -139,7 +138,7 @@ async def orchestrate_flow_function(
             data=exc,
         )
     else:
-        state = return_val_to_state(result)
+        state = await return_val_to_state(result)
 
     return state
 
@@ -155,13 +154,13 @@ async def create_and_submit_task_run(task, *args, **kwargs):
             "task in a flow?"
         )
 
-    task_run_id = flow_run_context.client.create_task_run(
+    task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=State(type=StateType.PENDING),
     )
 
-    future = flow_run_context.executor.submit(
+    future = await flow_run_context.executor.submit(
         task_run_id,
         orchestrate_task_function,
         task=task,
@@ -178,16 +177,17 @@ async def create_and_submit_task_run(task, *args, **kwargs):
     return future
 
 
+@inject_client
 async def orchestrate_task_function(
     task,
     task_run_id: UUID,
     flow_run_id: UUID,
     call_args: Tuple[Any, ...],
     call_kwargs: Dict[str, Any],
+    client: OrionClient,
 ) -> None:
     from prefect.context import TaskRunContext
 
-    client = OrionClient()
     context = TaskRunContext(
         task_run_id=task_run_id,
         flow_run_id=flow_run_id,
@@ -201,7 +201,7 @@ async def orchestrate_task_function(
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
     # Transition from `PENDING` -> `RUNNING`
-    state = propose_state(
+    state = await propose_state(
         client,
         task_run_id,
         State(
@@ -230,7 +230,7 @@ async def orchestrate_task_function(
                 data=exc,
             )
         else:
-            terminal_state = return_val_to_state(result)
+            terminal_state = await return_val_to_state(result)
 
             # for COMPLETED tasks, add the cache key and expiration
             if terminal_state.is_completed():
@@ -241,7 +241,7 @@ async def orchestrate_task_function(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = propose_state(client, task_run_id, terminal_state)
+        state = await propose_state(client, task_run_id, terminal_state)
 
         if state.is_scheduled():  # Received a retry from the backend
             start_time = pendulum.instance(state.state_details.scheduled_time)
@@ -251,6 +251,8 @@ async def orchestrate_task_function(
                 print(f"Sleeping for {wait_time}s...")
                 time.sleep(wait_time)
 
-            state = propose_state(client, task_run_id, State(type=StateType.RUNNING))
+            state = await propose_state(
+                client, task_run_id, State(type=StateType.RUNNING)
+            )
 
     return state

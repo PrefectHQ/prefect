@@ -48,7 +48,7 @@ class Flow:
         from prefect.engine import run_flow
 
         loop = get_process_event_loop(id(self))
-        return loop.run_coro(run_flow(self, *args, **kwargs))
+        return loop.run_coro(run_flow(flow=self, call_args=args, call_kwargs=kwargs))
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
