@@ -10,6 +10,7 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.utilities.collections import ensure_iterable
+from prefect.utilities.asyncio import get_process_event_loop, isasyncfn
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -44,7 +45,9 @@ class PrefectFuture:
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        self._result = self._executor.wait(self, timeout)
+        self._result = get_process_event_loop().run_coro(
+            self._executor.wait(self, timeout)
+        )
         return self._result
 
     def get_state(self) -> State:
@@ -53,7 +56,7 @@ class PrefectFuture:
             if self.task_run_id
             else self._client.read_flow_run
         )
-        run = method(self.run_id)
+        run = get_process_event_loop().run_coro(method(self.run_id))
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")
@@ -63,15 +66,17 @@ class PrefectFuture:
         return hash(self.run_id)
 
 
-def future_to_data(future: PrefectFuture) -> Any:
+async def future_to_data(future: PrefectFuture) -> Any:
     return future.result().data
 
 
-def future_to_state(future: PrefectFuture) -> Any:
+async def future_to_state(future: PrefectFuture) -> Any:
     return future.result()
 
 
-def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to_data):
+async def resolve_futures(
+    expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to_data
+):
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved by `resolve_fn`.
@@ -86,7 +91,10 @@ def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to
     recurse = partial(resolve_futures, resolve_fn=resolve_fn)
 
     if isinstance(expr, PrefectFuture):
-        return resolve_fn(expr)
+        if isasyncfn(resolve_fn):
+            return await resolve_fn(expr)
+        else:
+            return resolve_fn(expr)
 
     if isinstance(expr, Mock):
         # Explicitly do not coerce mock objects
@@ -99,21 +107,21 @@ def resolve_futures(expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to
     # resolved futures
 
     if typ in (list, tuple, set):
-        return typ([recurse(o) for o in expr])
+        return typ([await recurse(o) for o in expr])
 
     if typ in (dict, OrderedDict):
-        return typ([[recurse(k), recurse(v)] for k, v in expr.items()])
+        return typ([[await recurse(k), await recurse(v)] for k, v in expr.items()])
 
     if is_dataclass(expr) and not isinstance(expr, type):
         return typ(
-            **{f.name: recurse(getattr(expr, f.name)) for f in fields(expr)},
+            **{f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)},
         )
 
     # If not a supported type, just return it
     return expr
 
 
-def return_val_to_state(result: Any) -> State:
+async def return_val_to_state(result: Any) -> State:
     """
     Given a return value from a user-function, create a `State` the run should
     be placed in.
@@ -140,7 +148,7 @@ def return_val_to_state(result: Any) -> State:
         return result
 
     # Ensure any futures are resolved
-    result = resolve_futures(result, resolve_fn=future_to_state)
+    result = await resolve_futures(result, resolve_fn=future_to_state)
 
     # If we resolved a task future or futures into states, we will determine a new state
     # from their aggregate

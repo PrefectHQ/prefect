@@ -72,7 +72,7 @@ class TestTaskCall:
         assert task_state.data is True
         assert task_state.message == "Test returned state"
 
-    def test_task_runs_correctly_populate_dynamic_keys(self):
+    async def test_task_runs_correctly_populate_dynamic_keys(self):
         @task
         def bar():
             return "foo"
@@ -84,8 +84,8 @@ class TestTaskCall:
         flow_future = foo()
         task_run_ids = flow_future.result().data
 
-        orion_client = OrionClient()
-        task_runs = [orion_client.read_task_run(run_id) for run_id in task_run_ids]
+        async with OrionClient() as client:
+            task_runs = [await client.read_task_run(run_id) for run_id in task_run_ids]
 
         # Assert dynamic key is set correctly
         assert task_runs[0].dynamic_key == "0"
@@ -111,7 +111,7 @@ class TestTaskCall:
 
 class TestTaskRetries:
     @pytest.mark.parametrize("always_fail", [True, False])
-    def test_task_respects_retry_count(self, always_fail):
+    async def test_task_respects_retry_count(self, always_fail):
         mock = MagicMock()
         exc = ValueError()
 
@@ -143,8 +143,9 @@ class TestTaskRetries:
             assert task_run_state.data is True
             assert mock.call_count == 4
 
-        client = OrionClient()
-        states = client.read_task_run_states(task_run_id)
+        async with OrionClient() as client:
+            states = await client.read_task_run_states(task_run_id)
+
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -158,7 +159,7 @@ class TestTaskRetries:
             "Failed" if always_fail else "Completed",
         ]
 
-    def test_task_only_uses_necessary_retries(self):
+    async def test_task_only_uses_necessary_retries(self):
         mock = MagicMock()
         exc = ValueError()
 
@@ -181,8 +182,8 @@ class TestTaskRetries:
         assert task_run_state.data is True
         assert mock.call_count == 2
 
-        client = OrionClient()
-        states = client.read_task_run_states(task_run_id)
+        async with OrionClient() as client:
+            states = await client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -192,7 +193,7 @@ class TestTaskRetries:
             "Completed",
         ]
 
-    def test_task_respects_retry_delay(self, monkeypatch):
+    async def test_task_respects_retry_delay(self, monkeypatch):
         mock = MagicMock()
         sleep = MagicMock()  # Mock sleep for fast testing
         monkeypatch.setattr("time.sleep", sleep)
@@ -219,8 +220,8 @@ class TestTaskRetries:
         # we test for a 3-second window to account for delays in CI
         assert 40 < sleep.call_args[0][0] < 43
 
-        client = OrionClient()
-        states = client.read_task_run_states(task_run_id)
+        async with OrionClient() as client:
+            states = await client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",

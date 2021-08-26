@@ -23,7 +23,7 @@ class BaseExecutor:
         self.flow_run_id: str = None
         self.orion_client: OrionClient = None
 
-    def submit(
+    async def submit(
         self,
         run_id: str,
         run_fn: Callable[..., State],
@@ -56,7 +56,7 @@ class BaseExecutor:
         """
         pass
 
-    def wait(
+    async def wait(
         self, prefect_future: PrefectFuture, timeout: float = None
     ) -> Optional[State]:
         """
@@ -75,7 +75,7 @@ class SynchronousExecutor(BaseExecutor):
         super().__init__()
         self._results: Dict[UUID, State] = {}
 
-    def submit(
+    async def submit(
         self,
         run_id: str,
         run_fn: Callable[..., State],
@@ -86,14 +86,10 @@ class SynchronousExecutor(BaseExecutor):
             raise RuntimeError("The executor must be started before submitting work.")
 
         # Block until all upstreams are resolved
-        args, kwargs = resolve_futures((args, kwargs))
+        args, kwargs = await resolve_futures((args, kwargs))
 
         # Run the function immediately and store the result in memory
-        result = run_fn(*args, **kwargs)
-        if isasyncfn(run_fn):
-            result = get_process_event_loop("executors").run_coro(result)
-
-        self._results[run_id] = result
+        self._results[run_id] = await run_fn(*args, **kwargs)
 
         return PrefectFuture(
             task_run_id=run_id,
@@ -102,7 +98,7 @@ class SynchronousExecutor(BaseExecutor):
             executor=self,
         )
 
-    def wait(self, prefect_future: PrefectFuture, timeout: float = None) -> State:
+    async def wait(self, prefect_future: PrefectFuture, timeout: float = None) -> State:
         return self._results[prefect_future.run_id]
 
 
@@ -122,7 +118,7 @@ class LocalPoolExecutor(BaseExecutor):
         self._futures: Dict[UUID, concurrent.futures.Future] = {}
         self.processes = processes
 
-    def submit(
+    async def submit(
         self,
         run_id: str,
         run_fn: Callable[..., State],
@@ -136,7 +132,7 @@ class LocalPoolExecutor(BaseExecutor):
             # Resolve `PrefectFutures` in args/kwargs into values which will block but
             # futures not serializable; in the future we can rely on Orion to roundtrip
             # the data instead
-            args, kwargs = resolve_futures((args, kwargs))
+            args, kwargs = await resolve_futures((args, kwargs))
             # Use `cloudpickle` to serialize the call instead of the builtin pickle
             # since it supports more function types
             payload = _serialize_call(run_fn, *args, **kwargs)
@@ -158,7 +154,7 @@ class LocalPoolExecutor(BaseExecutor):
             executor=self,
         )
 
-    def wait(
+    async def wait(
         self,
         prefect_future: PrefectFuture,
         timeout: float = None,
@@ -193,7 +189,7 @@ class DaskExecutor(BaseExecutor):
         self._client: "distributed.Client" = None
         self._futures: Dict[UUID, "distributed.Future"] = {}
 
-    def submit(
+    async def submit(
         self,
         run_id: str,
         run_fn: Callable[..., State],
@@ -203,7 +199,7 @@ class DaskExecutor(BaseExecutor):
         if not self._client:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        args, kwargs = resolve_futures(
+        args, kwargs = await resolve_futures(
             (args, kwargs), resolve_fn=self._get_data_from_future
         )
 
@@ -235,7 +231,7 @@ class DaskExecutor(BaseExecutor):
         data_future = self._client.submit(getattr, dask_state_future, "data")
         return data_future
 
-    def wait(
+    async def wait(
         self,
         prefect_future: PrefectFuture,
         timeout: float = None,
