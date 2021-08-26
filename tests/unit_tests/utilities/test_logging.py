@@ -30,10 +30,9 @@ def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
 
 
 def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
-    config_path = tmp_path.joinpath("exists.yaml")
-    with open(config_path, "w") as config_file:
-        config_file.write(DEFAULT_LOGGING_SETTINGS_PATH.read_text())
-    fake_settings = Settings(logging=LoggingSettings(settings_path=config_path))
+    config_file = tmp_path.joinpath("exists.yaml")
+    config_file.write_text(DEFAULT_LOGGING_SETTINGS_PATH.read_text())
+    fake_settings = Settings(logging=LoggingSettings(settings_path=config_file))
 
     setup_logging(fake_settings)
 
