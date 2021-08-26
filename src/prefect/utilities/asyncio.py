@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import threading
+import inspect
 from multiprocessing import current_process
 from typing import Any, Callable, Tuple, Dict, Hashable
 
@@ -69,3 +70,7 @@ def get_process_event_loop(key: Hashable = None):
         EVENT_LOOPS[(key, pid)] = ThreadedEventLoop()
 
     return EVENT_LOOPS[(key, pid)]
+
+
+def isasyncfn(fn: Callable) -> bool:
+    return inspect.iscoroutinefunction(fn)

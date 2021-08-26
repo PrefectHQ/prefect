@@ -12,6 +12,7 @@ import distributed
 from prefect.orion.schemas.states import State
 from prefect.futures import resolve_futures, PrefectFuture
 from prefect.client import OrionClient
+from prefect.utilities.asyncio import isasyncfn, get_process_event_loop
 
 T = TypeVar("T", bound="BaseExecutor")
 
@@ -88,7 +89,11 @@ class SynchronousExecutor(BaseExecutor):
         args, kwargs = resolve_futures((args, kwargs))
 
         # Run the function immediately and store the result in memory
-        self._results[run_id] = run_fn(*args, **kwargs)
+        result = run_fn(*args, **kwargs)
+        if isasyncfn(run_fn):
+            result = get_process_event_loop("executors").run_coro(result)
+
+        self._results[run_id] = result
 
         return PrefectFuture(
             task_run_id=run_id,
