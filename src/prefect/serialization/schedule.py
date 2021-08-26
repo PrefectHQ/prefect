@@ -96,11 +96,40 @@ class RRuleSchema(ObjectSchema):
 
     _freq = fields.Integer(required=True)
     _dtstart = DateTimeTZ(allow_none=True)
+    _interval = fields.Integer(allow_none=True)
+    _wkst = fields.Integer(allow_none=True)
+    _count = fields.Integer(allow_none=True)
+    _until = DateTimeTZ(allow_none=True)
+
+    _bysetpos = fields.List(fields.Integer, allow_none=True)
+    _bymonth = fields.List(fields.Integer, allow_none=True)
+    _bymonthday = fields.List(fields.Integer, allow_none=True)
+    _byyearday = fields.List(fields.Integer, allow_none=True)
+    _byeaster = fields.List(fields.Integer, allow_none=True)
+    _byweekno = fields.List(fields.Integer, allow_none=True)
+    # _byweekno = ???
+    _byhour = fields.List(fields.Integer, allow_none=True)
+    _byminute = fields.List(fields.Integer, allow_none=True)
+    _bysecond = fields.List(fields.Integer, allow_none=True)
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> rrule.rrule:
         data["freq"] = data.pop("_freq")
         data["dtstart"] = data.pop("_dtstart")
+        data["interval"] = data.pop("_interval")
+        data["wkst"] = data.pop("_wkst")
+        data["count"] = data.pop("_count")
+        data["until"] = data.pop("_until")
+
+        data["bysetpos"] = data.pop("_bysetpos")
+        data["bymonth"] = data.pop("_bymonth")
+        data["bymonthday"] = data.pop("_bymonthday")
+        data["byyearday"] = data.pop("_byyearday")
+        data["byeaster"] = data.pop("_byeaster")
+        data["byweekno"] = data.pop("_byweekno")
+        data["byhour"] = data.pop("_byhour")
+        data["byminute"] = data.pop("_byminute")
+        data["bysecond"] = data.pop("_bysecond")
         base_obj = super().create_object(data, **kwargs)
         return base_obj
 

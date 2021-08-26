@@ -747,9 +747,9 @@ class TestRRuleClock:
         assert all(e.parameter_defaults == params for e in output)
         assert all(e.labels == labels for e in output)
         assert output == [
-            start,
             start.add(days=1),
             start.add(days=2),
+            start.add(days=3),
         ]
 
     def test_rrule_clock_events_with_after_argument(self):
@@ -768,7 +768,7 @@ class TestRRuleClock:
         c = clocks.RRuleClock(
             rrule.rrule(freq=rrule.HOURLY, dtstart=dtstart), start_date=start_date
         )
-        assert islice(c.events(), 3) == [
+        assert islice(c.events(after=pendulum.datetime(2000, 1, 1)), 3) == [
             start_date,
             start_date.add(hours=1),
             start_date.add(hours=2),

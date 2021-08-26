@@ -53,6 +53,9 @@ class ClockEvent:
         else:
             return self.start_time < other
 
+    def __repr__(self) -> str:
+        return "<%s,%s,%s>" % (self.start_time, self.labels, self.parameter_defaults)
+
 
 class Clock:
     """
@@ -438,7 +441,7 @@ class RRuleClock(Clock):
             # rrule requires a start date to be passed in, but it's optional in this method.
             # So if we don't have one passed in we use the first item in the rrule.
             # If the rrule is empty we use 1/1/2020 which won't matter b/c rrule won't return anything
-            after = next(iter(self.rrule_obj), datetime(2020, 1, 1))
+            after = pendulum.now("UTC")
             include_after = True
 
         if self.start_date is not None and after < self.start_date:  # type: ignore[operator]
@@ -448,6 +451,9 @@ class RRuleClock(Clock):
         for dt in self.rrule_obj.xafter(after, inc=include_after):
             if self.end_date and dt > self.end_date:
                 break
+            next_date = pendulum.instance(dt)
             yield ClockEvent(
-                dt, parameter_defaults=self.parameter_defaults, labels=self.labels
+                next_date,
+                parameter_defaults=self.parameter_defaults,
+                labels=self.labels,
             )
