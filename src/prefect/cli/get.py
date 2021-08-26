@@ -381,7 +381,25 @@ def tasks(name, flow_name, flow_version, project, limit):
 @click.option(
     "--info", "-i", is_flag=True, help="Retrieve detailed logging info", hidden=True
 )
-def logs(name, id, info):
+@click.option(
+    "--limit",
+    "-l",
+    required=False,
+    help="A limit amount of log lines to query",
+    hidden=True,
+    default=None,
+    type=int,
+)
+@click.option(
+    "--offset",
+    "-o",
+    required=False,
+    help="An offset at which to start retrieving log lines from",
+    hidden=True,
+    default=None,
+    type=int,
+)
+def logs(name, id, info, limit, offset):
     """
     Query logs for a flow run.
 
@@ -394,13 +412,22 @@ def logs(name, id, info):
         --name, -n      TEXT    A flow run name to query
         --id            TEXT    A flow run ID to query
         --info, -i              Retrieve detailed logging info
+        --limit, -l     INTEGER A limit amount of log lines to query
+        --offset, -o    INTEGER An offset at which to start retrieving log lines from
     """
     if not name and not id:
         click.secho("Either --name or --id must be provided", fg="red")
         return
 
     log_query = {
-        with_args("logs", {"order_by": {EnumValue("timestamp"): EnumValue("asc")}}): {
+        with_args(
+            "logs",
+            {
+                "order_by": {EnumValue("timestamp"): EnumValue("asc")},
+                "limit": limit,
+                "offset": offset,
+            },
+        ): {
             "timestamp": True,
             "message": True,
             "level": True,
