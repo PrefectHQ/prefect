@@ -9,7 +9,6 @@ import prefect
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.api.server import app as orion_app
-from prefect.utilities.asyncio import get_process_event_loop
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -17,6 +16,13 @@ if TYPE_CHECKING:
 
 
 def inject_client(fn):
+    """
+    Simple helper to provide a context managed client to a function
+
+    The decorated function _must_ take a `client` kwarg and _cannot_ be passed a client
+    when called
+    """
+
     @wraps(fn)
     async def wrapper(*args, **kwargs):
         client = OrionClient()
@@ -260,5 +266,6 @@ class OrionClient:
 
     def __enter__(self):
         raise RuntimeError(
-            "The Orion client is async and must be entered with 'async with ...'"
+            "The Orion client is only usable from an async context and must be entered "
+            "with 'async with ...'"
         )

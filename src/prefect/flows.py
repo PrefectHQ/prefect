@@ -5,7 +5,7 @@ from prefect.executors import BaseExecutor, SynchronousExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.asyncio import get_process_event_loop
+from prefect.utilities.asyncio import get_prefect_event_loop
 
 
 class Flow:
@@ -47,7 +47,7 @@ class Flow:
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.engine import run_flow
 
-        loop = get_process_event_loop(id(self))
+        loop = get_prefect_event_loop(("flows", id(self)))
         return loop.run_coro(run_flow(flow=self, call_args=args, call_kwargs=kwargs))
 
 
