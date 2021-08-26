@@ -12,6 +12,7 @@ import prefect
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.api.server import app as orion_app
+from prefect.utilities.asyncio import get_process_event_loop
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -227,66 +228,6 @@ class OrionClient:
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
 
-class _ThreadedEventLoop:
-    """
-    Spawns an event loop in a daemonic thread.
-
-    Creating a new event loop that runs in a child thread prevents us from throwing
-    exceptions when there is already an event loop in the main thread and prevents
-    synchronous code in the main thread from blocking the event loop from executing.
-
-    These _cannot_ be shared across processes. We use an `EVENT_LOOPS` global to ensure
-    that there is a single instance available per process.
-    """
-
-    def __init__(self) -> None:
-        self._thread, self._loop = self._create_threaded_event_loop()
-
-    def _create_threaded_event_loop(
-        self,
-    ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
-        def start_loop(loop):
-            asyncio.set_event_loop(loop)
-            loop.run_forever()
-
-        loop = asyncio.new_event_loop()
-
-        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
-        t.start()
-
-        return t, loop
-
-    def run_coro(self, coro):
-        if not self._loop:
-            raise ValueError("Event loop has not been created.")
-        if not self._loop.is_running():
-            raise ValueError("Event loop is not running.")
-
-        future = asyncio.run_coroutine_threadsafe(coro, loop=self._loop)
-        result = future.result()
-
-        return result
-
-    def __del__(self):
-        if self._loop and self._loop.is_running():
-            self._loop.stop()
-
-
-# Mapping of PID to a lazily instantiated shared event-loop per process
-EVENT_LOOPS: Dict[int, _ThreadedEventLoop] = {}
-
-
-def _get_process_event_loop():
-    """
-    Get or create a `_ThreadedEventLoop` for the current process
-    """
-    pid = current_process().pid
-    if pid not in EVENT_LOOPS:
-        EVENT_LOOPS[pid] = _ThreadedEventLoop()
-
-    return EVENT_LOOPS[pid]
-
-
 class _ASGIClient:
     """
     Creates a synchronous wrapper for calling an ASGI application's routes using
@@ -297,7 +238,7 @@ class _ASGIClient:
     """
 
     def __init__(self, app, httpx_settings: dict) -> None:
-        self._event_loop = _get_process_event_loop()
+        self._event_loop = get_process_event_loop("client")
         self.app = app
         self.httpx_settings = httpx_settings
 
