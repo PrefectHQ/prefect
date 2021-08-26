@@ -1,9 +1,8 @@
 import asyncio
 import functools
 import threading
-from contextlib import contextmanager
 from multiprocessing import current_process
-from typing import Any, Callable, Tuple, Dict
+from typing import Any, Callable, Tuple, Dict, Hashable
 
 
 async def run_in_threadpool(fn: Callable, *args, **kwargs) -> Any:
@@ -57,12 +56,13 @@ class ThreadedEventLoop:
 
 
 # Mapping of KEY, PID to a lazily instantiated shared event-loop per process
-EVENT_LOOPS: Dict[Tuple[str, int], ThreadedEventLoop] = {}
+EVENT_LOOPS: Dict[Tuple[Hashable, int], ThreadedEventLoop] = {}
 
 
-def get_process_event_loop(key: str = ""):
+def get_process_event_loop(key: Hashable = None):
     """
-    Get or create a `ThreadedEventLoop` for the current process
+    Get or create a `ThreadedEventLoop` for the current process; multiple event loops
+    per process can be managed by providing a hashable 'key'
     """
     pid = current_process().pid
     if (key, pid) not in EVENT_LOOPS:
