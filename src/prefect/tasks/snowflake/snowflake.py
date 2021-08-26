@@ -279,11 +279,11 @@ class SnowflakeQueriesFromFile(Task):
             - DatabaseError: if exception occurs when executing the query
             - FileNotFoundError: if File does not exist
         """
-        if not account:
+        if account is None:
             raise ValueError("An account must be provided")
-        if not user:
+        if user is None:
             raise ValueError("A user must be provided")
-        if not file_path:
+        if file_path is None:
             raise ValueError("A file path must be provided")
 
         # build the connection parameter dictionary
@@ -323,10 +323,12 @@ class SnowflakeQueriesFromFile(Task):
                 for cursor in cursor_list:
                     result.append(cursor.fetchall())
                     # return fetch for each cursor
-            conn.close()
             return result
 
-        # pass through error, and ensure connection is closed
+        # pass through error
         except Exception as error:
-            conn.close()
             raise error
+
+        # ensure connection is closed
+        finally:
+            conn.close()
