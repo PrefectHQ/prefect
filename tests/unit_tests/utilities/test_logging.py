@@ -1,6 +1,4 @@
 import yaml
-import os
-from pathlib import Path
 from unittest.mock import MagicMock
 import pytest
 
@@ -19,9 +17,9 @@ def dictConfigMock(monkeypatch):
     return mock
 
 
-def test_setup_logging_uses_default_path(tmpdir, dictConfigMock):
+def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
     fake_settings = Settings(
-        logging=LoggingSettings(settings_path=tmpdir.join("does-not-exist.yaml"))
+        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
     )
 
     setup_logging(fake_settings)
@@ -31,10 +29,10 @@ def test_setup_logging_uses_default_path(tmpdir, dictConfigMock):
     )
 
 
-def test_setup_logging_uses_settings_path_if_exists(tmpdir, dictConfigMock):
-    config_path = tmpdir.join("exists.yaml")
-    config_path.write(DEFAULT_LOGGING_SETTINGS_PATH.read_text())
-    fake_settings = Settings(logging=LoggingSettings(settings_path=config_path))
+def test_setup_logging_uses_settings_path_if_exists(tmp_path, dictConfigMock):
+    config_file = tmp_path.joinpath("exists.yaml")
+    config_file.write_text(DEFAULT_LOGGING_SETTINGS_PATH.read_text())
+    fake_settings = Settings(logging=LoggingSettings(settings_path=config_file))
 
     setup_logging(fake_settings)
 
@@ -43,9 +41,9 @@ def test_setup_logging_uses_settings_path_if_exists(tmpdir, dictConfigMock):
     )
 
 
-def test_setup_logging_uses_env_var_overrides(tmpdir, dictConfigMock, monkeypatch):
+def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypatch):
     fake_settings = Settings(
-        logging=LoggingSettings(settings_path=tmpdir.join("does-not-exist.yaml"))
+        logging=LoggingSettings(settings_path=tmp_path.joinpath("does-not-exist.yaml"))
     )
     expected_config = yaml.safe_load(DEFAULT_LOGGING_SETTINGS_PATH.read_text())
 
