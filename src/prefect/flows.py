@@ -2,7 +2,7 @@ import inspect
 from functools import update_wrapper
 from typing import Any, Callable, Iterable
 
-from prefect.executors import BaseExecutor, SynchronousExecutor
+from prefect.executors import BaseExecutor, LocalExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import get_prefect_event_loop
@@ -34,7 +34,7 @@ class Flow:
         self.name = name or fn.__name__
 
         self.tags = set(tags if tags else [])
-        self.executor = executor or SynchronousExecutor()
+        self.executor = executor or LocalExecutor()
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)

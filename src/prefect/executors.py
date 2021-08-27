@@ -61,9 +61,12 @@ class BaseExecutor:
         raise NotImplementedError()
 
 
-class SynchronousExecutor(BaseExecutor):
+class LocalExecutor(BaseExecutor):
     """
-    A simple synchronous executor that executes calls as they are submitted
+    A simple executor that executes calls as they are submitted
+
+    If writing synchronous tasks, this executor will display no concurrency.
+    If writing async tasks, they will run concurrently as if using asyncio directly.
     """
 
     def __init__(self) -> None:
