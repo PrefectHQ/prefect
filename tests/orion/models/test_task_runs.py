@@ -74,6 +74,7 @@ class TestReadTaskRuns:
         task_run_1 = await models.task_runs.create_task_run(
             session=session, task_run=fake_task_run_1
         )
+        await session.commit()
         return [task_run_0, task_run_1]
 
     async def test_read_task_runs(self, task_runs, flow_run, session):
