@@ -10,6 +10,7 @@ import pendulum
 from pydantic import validate_arguments
 
 from prefect.client import inject_client, OrionClient
+from prefect.executors import BaseExecutor
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
@@ -52,8 +53,7 @@ async def begin_flow_run(
     When flows are called, they
     - create a flow run
     - start an executor
-    - create and enter a global flow run context
-    - orchestrate the flow run / call the underlying user function to generate task runs
+    - orchestrate the flow run (run the user-function and generate tasks)
     - wait for tasks to complete / shutdown the executor
     - set a terminal state for the flow run
 
@@ -88,15 +88,13 @@ async def begin_flow_run(
     )
 
     with executor_context:
-        with FlowRunContext(
+        terminal_state = await orchestrate_flow_run(
+            flow,
             flow_run_id=flow_run_id,
-            flow=flow,
-            client=client,
+            parameters=parameters,
             executor=executor,
-        ) as context:
-            terminal_state = await orchestrate_flow_run(
-                flow, context=context, parameters=parameters
-            )
+            client=client,
+        )
 
     if is_subflow_run and terminal_state.is_completed():
         # Since a subflow run does not wait for all of its futures before exiting, we
@@ -106,7 +104,7 @@ async def begin_flow_run(
 
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.set_flow_run_state(
-        context.flow_run_id,
+        flow_run_id,
         state=terminal_state,
     )
 
@@ -121,8 +119,10 @@ async def begin_flow_run(
 
 async def orchestrate_flow_run(
     flow: Flow,
-    context: FlowRunContext,
+    flow_run_id: UUID,
     parameters: Dict[str, Any],
+    executor: BaseExecutor,
+    client: OrionClient,
 ) -> State:
     """
     TODO: Note that pydantic will now coerce parameter types into the correct type
@@ -133,14 +133,18 @@ async def orchestrate_flow_run(
           work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
-    await context.client.set_flow_run_state(
-        context.flow_run_id, State(type=StateType.RUNNING)
-    )
+    await client.set_flow_run_state(flow_run_id, State(type=StateType.RUNNING))
 
     try:
-        result = validate_arguments(flow.fn)(**parameters)
-        if flow.isasync:
-            result = await result
+        with FlowRunContext(
+            flow_run_id=flow_run_id,
+            flow=flow,
+            client=client,
+            executor=executor,
+        ):
+            result = validate_arguments(flow.fn)(**parameters)
+            if flow.isasync:
+                result = await result
 
     except Exception as exc:
         state = State(
