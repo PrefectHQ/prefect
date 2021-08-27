@@ -41,7 +41,7 @@ async def propose_state(client: OrionClient, task_run_id: UUID, state: State) ->
 
 
 @inject_client
-async def run_flow(flow, call_args, call_kwargs, client):
+async def flow_call(flow, call_args, call_kwargs, client):
     flow_run_context = FlowRunContext.get()
     is_subflow_run = flow_run_context is not None
     parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
@@ -85,7 +85,7 @@ async def run_flow(flow, call_args, call_kwargs, client):
             client=client,
             executor=executor,
         ) as context:
-            terminal_state = await orchestrate_flow_function(
+            terminal_state = await orchestrate_flow_run(
                 flow.fn, context=context, call_args=call_args, call_kwargs=call_kwargs
             )
 
@@ -110,7 +110,7 @@ async def run_flow(flow, call_args, call_kwargs, client):
     )
 
 
-async def orchestrate_flow_function(
+async def orchestrate_flow_run(
     flow_fn: Callable,
     context: FlowRunContext,
     call_args: Tuple[Any, ...],
@@ -143,7 +143,13 @@ async def orchestrate_flow_function(
     return state
 
 
-async def create_and_submit_task_run(task, *args, **kwargs):
+async def task_call(task, *args, **kwargs):
+    """
+    Entrypoint for task calls
+
+    Tasks must be called within a flow. When tasks are called, they create a task run
+    and submit orchestration of the run to the flow run's executor.
+    """
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError("Tasks cannot be called outside of a flow.")
@@ -162,7 +168,7 @@ async def create_and_submit_task_run(task, *args, **kwargs):
 
     future = await flow_run_context.executor.submit(
         task_run_id,
-        orchestrate_task_function,
+        orchestrate_task_run,
         task=task,
         task_run_id=task_run_id,
         flow_run_id=flow_run_context.flow_run_id,
@@ -178,7 +184,7 @@ async def create_and_submit_task_run(task, *args, **kwargs):
 
 
 @inject_client
-async def orchestrate_task_function(
+async def orchestrate_task_run(
     task,
     task_run_id: UUID,
     flow_run_id: UUID,
