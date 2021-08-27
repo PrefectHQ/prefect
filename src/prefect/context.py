@@ -6,6 +6,7 @@ from typing import Optional, TypeVar, Union
 from uuid import UUID
 
 import pendulum
+from anyio.abc import BlockingPortal
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
@@ -54,6 +55,7 @@ class FlowRunContext(RunContext):
     flow_run_id: UUID
     client: OrionClient
     executor: BaseExecutor
+    task_run_portal: BlockingPortal = None
 
     __var__ = ContextVar("flow_run")
 

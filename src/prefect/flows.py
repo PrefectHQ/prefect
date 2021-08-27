@@ -2,6 +2,8 @@ import inspect
 from functools import update_wrapper
 from typing import Any, Callable, Iterable
 
+from anyio import start_blocking_portal
+
 from prefect.executors import BaseExecutor, LocalExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
@@ -49,7 +51,7 @@ class Flow:
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext
-        from prefect.engine import begin_flow_run
+        from prefect.engine import begin_flow_run, begin_subflow_run
 
         if TaskRunContext.get():
             raise RuntimeError(
@@ -57,30 +59,19 @@ class Flow:
                 "flow in a flow?"
             )
 
-        flow_run_context = FlowRunContext.get()
-        is_subflow_run = flow_run_context is not None
-        parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
-        executor = flow_run_context.executor if is_subflow_run else self.executor
+        is_subflow_run = FlowRunContext.get() is not None
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        coro = begin_flow_run(
-            flow=self,
-            parameters=parameters,
-            parent_flow_run_id=parent_flow_run_id,
-            executor=executor,
-        )
+        begin_fn = begin_subflow_run if is_subflow_run else begin_flow_run
+        begin_coro = begin_fn(self, parameters)
 
         if self.isasync:
-            return coro
+            return begin_coro
         else:
-            # Create an event loop with the `parent_flow_run_id` as the key which
-            # ensures that we have a new event loop _per_ level of flow run nesting
-            # If flow calls are not nested, i.e. one flow calls several flows, they can
-            # safely share an event loop.
-            loop = get_prefect_event_loop(("flows", parent_flow_run_id))
-            return loop.run_coro(coro)
+            with start_blocking_portal() as portal:
+                return portal.call(lambda: begin_coro)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
