@@ -4,6 +4,8 @@ from typing import Any, Callable, Iterable, Union, Awaitable
 
 from anyio import start_blocking_portal
 
+from anyio import start_blocking_portal
+
 from prefect.executors import BaseExecutor, LocalExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema

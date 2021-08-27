@@ -9,6 +9,8 @@ from contextlib import nullcontext
 
 
 import pendulum
+from anyio import start_blocking_portal
+from anyio.abc import BlockingPortal
 from pydantic import validate_arguments
 from anyio.from_thread import BlockingPortal
 from anyio import start_blocking_portal
