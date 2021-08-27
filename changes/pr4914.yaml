@@ -1,0 +1,5 @@
+fix:
+  - "Fix client instantiation to properly use the api server defined in the prefect context."
+
+contributor:
+  - "[Vincent Xue](https://github.com/xuevin)"
