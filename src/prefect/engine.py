@@ -3,7 +3,7 @@ Client-side execution of flows and tasks
 """
 import time
 from contextlib import nullcontext
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 import pendulum
@@ -16,7 +16,6 @@ from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType, StateDetails
 from prefect.tasks import Task
 from prefect.flows import Flow
-from prefect.utilities.callables import get_call_parameters
 
 
 async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -53,6 +52,7 @@ async def begin_flow_run(
     When flows are called, they
     - create a flow run
     - start an executor
+    - create and enter a global flow run context
     - orchestrate the flow run / call the underlying user function to generate task runs
     - wait for tasks to complete / shutdown the executor
     - set a terminal state for the flow run
@@ -188,14 +188,12 @@ async def begin_task_run(
 
 @inject_client
 async def orchestrate_task_run(
-    task,
+    task: Task,
     task_run_id: UUID,
     flow_run_id: UUID,
     parameters: Dict[str, Any],
     client: OrionClient,
-) -> None:
-    from prefect.context import TaskRunContext
-
+) -> State:
     context = TaskRunContext(
         task_run_id=task_run_id,
         flow_run_id=flow_run_id,
