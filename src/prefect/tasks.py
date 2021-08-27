@@ -67,10 +67,10 @@ class Task:
         self.retry_delay_seconds = retry_delay_seconds
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.engine import create_and_submit_task_run
+        from prefect.engine import task_call
 
         loop = get_prefect_event_loop("tasks")
-        return loop.run_coro(create_and_submit_task_run(self, *args, **kwargs))
+        return loop.run_coro(task_call(self, *args, **kwargs))
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):

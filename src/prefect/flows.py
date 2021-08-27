@@ -45,10 +45,10 @@ class Flow:
         self.parameters = parameter_schema(self.fn)
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.engine import run_flow
+        from prefect.engine import flow_call
 
         loop = get_prefect_event_loop(("flows", id(self)))
-        return loop.run_coro(run_flow(flow=self, call_args=args, call_kwargs=kwargs))
+        return loop.run_coro(flow_call(flow=self, call_args=args, call_kwargs=kwargs))
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
