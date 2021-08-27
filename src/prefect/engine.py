@@ -46,6 +46,8 @@ async def begin_flow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
+    executor: BaseExecutor,
+    parent_flow_run_id: UUID = None,  # Indicates that this is a subflow
 ) -> PrefectFuture:
     """
     Async entrypoint for flow calls
@@ -60,10 +62,7 @@ async def begin_flow_run(
     This function then returns a fake future containing the terminal state.
     # TODO: Flow calls should not return futures since they block.
     """
-    flow_run_context = FlowRunContext.get()
-    is_subflow_run = flow_run_context is not None
-    parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
-    executor = flow_run_context.executor if is_subflow_run else flow.executor
+    is_subflow_run = parent_flow_run_id is not None
 
     parent_task_run_id: Optional[UUID] = None
     if is_subflow_run:
