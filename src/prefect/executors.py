@@ -1,10 +1,6 @@
-import concurrent.futures
-from functools import partial
 from uuid import UUID
 from typing import Any, Callable, Dict, Optional, TypeVar
 from contextlib import contextmanager
-
-import cloudpickle
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
@@ -12,7 +8,6 @@ import distributed
 from prefect.orion.schemas.states import State
 from prefect.futures import resolve_futures, PrefectFuture
 from prefect.client import OrionClient
-from prefect.utilities.asyncio import isasyncfn, get_prefect_event_loop
 
 T = TypeVar("T", bound="BaseExecutor")
 
@@ -146,7 +141,7 @@ class DaskExecutor(BaseExecutor):
         """
         return self._futures[prefect_future.run_id]
 
-    def _get_data_from_future(
+    async def _get_data_from_future(
         self, prefect_future: PrefectFuture
     ) -> "distributed.Future":
         """

@@ -3,7 +3,7 @@ Client-side execution of flows and tasks
 """
 import time
 from contextlib import nullcontext
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from uuid import UUID
 
 import pendulum
@@ -17,7 +17,6 @@ from prefect.orion.schemas.states import State, StateType, StateDetails
 from prefect.tasks import Task
 from prefect.flows import Flow
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.asyncio import isasyncfn
 
 
 async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -106,7 +105,7 @@ async def flow_call(
             executor=executor,
         ) as context:
             terminal_state = await orchestrate_flow_run(
-                flow.fn, context=context, parameters=parameters
+                flow, context=context, parameters=parameters
             )
 
     if is_subflow_run and terminal_state.is_completed():
@@ -131,7 +130,7 @@ async def flow_call(
 
 
 async def orchestrate_flow_run(
-    flow_fn: Callable,
+    flow: Flow,
     context: FlowRunContext,
     parameters: Dict[str, Any],
 ) -> State:
@@ -149,8 +148,8 @@ async def orchestrate_flow_run(
     )
 
     try:
-        result = validate_arguments(flow_fn)(**parameters)
-        if isasyncfn(flow_fn):
+        result = validate_arguments(flow.fn)(**parameters)
+        if flow.isasync:
             result = await result
 
     except Exception as exc:
@@ -251,7 +250,7 @@ async def orchestrate_task_run(
                 client=client,
             ):
                 result = task.fn(**parameters)
-                if isasyncfn(task.fn):
+                if task.isasync:
                     result = await result
         except Exception as exc:
             terminal_state = State(
