@@ -1,5 +1,5 @@
 aiosqlite==0.17.0
-asyncpg >= 0.23, <0.24
+asyncpg >= 0.23, < 0.25
 cloudpickle >= 1.0, < 2.0
 croniter >= 1.0, <2.0
 distributed >= 2021.7.2
