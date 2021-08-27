@@ -1,11 +1,12 @@
 import inspect
 from functools import update_wrapper
 from typing import Any, Callable, Iterable
+
 from prefect.executors import BaseExecutor, SynchronousExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
+from prefect.utilities.asyncio import get_prefect_event_loop
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.asyncio import get_prefect_event_loop, isasyncfn
 
 
 class Flow:
@@ -37,6 +38,7 @@ class Flow:
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
+        self.isasync = inspect.iscoroutinefunction(self.fn)
 
         # Version defaults to a hash of the function's file
         flow_file = fn.__globals__.get("__file__")  # type: ignore
@@ -49,7 +51,7 @@ class Flow:
 
         coro = flow_call(flow=self, call_args=args, call_kwargs=kwargs)
 
-        if isasyncfn(self.fn):
+        if self.isasync:
             return coro
         else:
             loop = get_prefect_event_loop(("flows", id(self)))

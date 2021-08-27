@@ -10,7 +10,7 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.utilities.collections import ensure_iterable
-from prefect.utilities.asyncio import get_prefect_event_loop, isasyncfn
+from prefect.utilities.asyncio import get_prefect_event_loop
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -91,10 +91,7 @@ async def resolve_futures(
     recurse = partial(resolve_futures, resolve_fn=resolve_fn)
 
     if isinstance(expr, PrefectFuture):
-        if isasyncfn(resolve_fn):
-            return await resolve_fn(expr)
-        else:
-            return resolve_fn(expr)
+        return await resolve_fn(expr)
 
     if isinstance(expr, Mock):
         # Explicitly do not coerce mock objects

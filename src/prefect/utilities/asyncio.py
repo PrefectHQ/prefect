@@ -70,7 +70,3 @@ def get_prefect_event_loop(key: Hashable = None):
         EVENT_LOOPS[(key, pid)] = ThreadedEventLoop()
 
     return EVENT_LOOPS[(key, pid)]
-
-
-def isasyncfn(fn: Callable) -> bool:
-    return inspect.iscoroutinefunction(fn)
