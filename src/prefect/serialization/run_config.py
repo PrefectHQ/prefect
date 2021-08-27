@@ -6,7 +6,14 @@ from prefect.utilities.serialization import (
     ObjectSchema,
     SortedList,
 )
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun, UniversalRun
+from prefect.run_configs import (
+    KubernetesRun,
+    LocalRun,
+    DockerRun,
+    ECSRun,
+    VertexRun,
+    UniversalRun,
+)
 
 
 class RunConfigSchemaBase(ObjectSchema):
@@ -65,6 +72,20 @@ class DockerRunSchema(RunConfigSchemaBase):
     host_config = fields.Dict(keys=fields.String(), allow_none=True)
 
 
+class VertexRunSchema(RunConfigSchemaBase):
+    class Meta:
+        object_class = VertexRun
+
+    image = fields.String(allow_none=True)
+    machine_type = fields.String(allow_none=True)
+    scheduling = fields.Dict(keys=fields.String(), allow_none=True)
+    service_account = fields.String(allow_none=True)
+    network = fields.String(allow_none=True)
+    worker_pool_specs = fields.List(
+        fields.Dict(keys=fields.String(), allow_none=True), allow_none=True
+    )
+
+
 class RunConfigSchema(OneOfSchema):
     type_schemas = {
         "KubernetesRun": KubernetesRunSchema,
@@ -72,4 +93,5 @@ class RunConfigSchema(OneOfSchema):
         "LocalRun": LocalRunSchema,
         "DockerRun": DockerRunSchema,
         "UniversalRun": UniversalRunSchema,
+        "VertexRun": VertexRunSchema,
     }

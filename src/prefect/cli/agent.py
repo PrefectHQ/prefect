@@ -450,3 +450,34 @@ def start(**kwargs):
     from prefect.agent.ecs import ECSAgent
 
     start_agent(ECSAgent, **kwargs)
+
+
+#############
+# Vertex Agent #
+#############
+
+
+@agent.group()
+def vertex():
+    """Manage Prefect Vertex agents."""
+
+
+@vertex.command()
+@add_options(COMMON_START_OPTIONS)
+@click.option(
+    "--project",
+    help="The Google cloud project where flow runs will be launched in vertex.",
+)
+@click.option(
+    "--region-name",
+    help="The region where flow runs will be launched in vertex.",
+)
+@click.option(
+    "--service-account",
+    help="The service account that flow runs will act as in vertex.",
+)
+def start(**kwargs):
+    """Start a Vertex agent"""
+    from prefect.agent.vertex.agent import VertexAgent
+
+    start_agent(VertexAgent, **kwargs)

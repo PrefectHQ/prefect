@@ -240,6 +240,7 @@ module.exports = {
             'agents/local',
             'agents/docker',
             'agents/kubernetes',
+            'agents/vertex',
             'agents/ecs',
             'agents/fargate'
           ]
