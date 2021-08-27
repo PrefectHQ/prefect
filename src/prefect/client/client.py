@@ -153,7 +153,7 @@ class Client:
 
         self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
 
-        if not self.api_key and not api_server:
+        if not self.api_key and not self.api_server:
             # The default value for the `api_server` changed for API keys but we want
             # to load API tokens from the correct backwards-compatible location on disk
             self.api_server = prefect.config.cloud.graphql
