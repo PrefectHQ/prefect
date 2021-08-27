@@ -28,7 +28,7 @@ class TestClientConfig:
     def test_client_initializes_from_config(self):
         with set_temporary_config(
             {
-                "cloud.graphql": "api_server",
+                "cloud.api": "api_server",
                 "cloud.auth_token": "token",
                 "backend": "cloud",
             }
@@ -40,7 +40,7 @@ class TestClientConfig:
     def test_client_initializes_and_prioritizes_kwargs(self):
         with set_temporary_config(
             {
-                "cloud.graphql": "api_server",
+                "cloud.api": "api_server",
                 "cloud.auth_token": "token",
                 "backend": "cloud",
             }
@@ -74,7 +74,7 @@ class TestClientConfig:
 
     def test_client_token_initializes_from_file(selfmonkeypatch, cloud_api):
         with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
+            with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
                 path.parent.mkdir(parents=True)
                 with path.open("w") as f:
@@ -108,7 +108,7 @@ class TestClientConfig:
 
     def test_save_local_settings(self, cloud_api):
         with tempfile.TemporaryDirectory() as tmp:
-            with set_temporary_config({"home_dir": tmp, "cloud.graphql": "xyz"}):
+            with set_temporary_config({"home_dir": tmp, "cloud.api": "xyz"}):
                 path = Path(tmp) / "client" / "xyz" / "settings.toml"
 
                 client = Client(api_token="a")
