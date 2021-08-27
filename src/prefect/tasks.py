@@ -98,8 +98,7 @@ class Task:
         if self.isasync:
             return coro
         else:
-            loop = get_prefect_event_loop("tasks")
-            return loop.run_coro(coro)
+            return flow_run_context.task_run_portal.call(lambda: coro)
 
     def update_dynamic_key(self):
         """

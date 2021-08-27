@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 import pendulum
+from anyio import start_blocking_portal
+from anyio.abc import BlockingPortal
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
@@ -46,8 +48,6 @@ async def begin_flow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
-    executor: BaseExecutor,
-    parent_flow_run_id: UUID = None,  # Indicates that this is a subflow
 ) -> PrefectFuture:
     """
     Async entrypoint for flow calls
@@ -62,15 +62,62 @@ async def begin_flow_run(
     This function then returns a fake future containing the terminal state.
     # TODO: Flow calls should not return futures since they block.
     """
-    is_subflow_run = parent_flow_run_id is not None
+    flow_run_id = await client.create_flow_run(
+        flow,
+        parameters=parameters,
+        state=State(type=StateType.PENDING),
+    )
 
-    parent_task_run_id: Optional[UUID] = None
-    if is_subflow_run:
-        # Generate a task in the parent flow run to represent the result of the subflow run
-        parent_task_run_id = await client.create_task_run(
-            task=Task(name=flow.name, fn=lambda _: ...),
-            flow_run_id=parent_flow_run_id,
-        )
+    with flow.executor.start(flow_run_id=flow_run_id, orion_client=client) as executor:
+        with start_blocking_portal() as task_run_portal:
+            terminal_state = await orchestrate_flow_run(
+                flow,
+                flow_run_id=flow_run_id,
+                parameters=parameters,
+                executor=executor,
+                client=client,
+                task_run_portal=task_run_portal,
+            )
+
+    # Update the flow to the terminal state _after_ the executor has shut down
+    await client.set_flow_run_state(
+        flow_run_id,
+        state=terminal_state,
+    )
+
+    # Return a fake future that is already resolved to the terminal state
+    return PrefectFuture(
+        flow_run_id=flow_run_id,
+        client=client,
+        executor=flow.executor,
+        _result=terminal_state,
+    )
+
+
+@inject_client
+async def begin_subflow_run(
+    flow: Flow,
+    parameters: Dict[str, Any],
+    client: OrionClient,
+) -> PrefectFuture:
+    """
+    Async entrypoint for flows calls within a flow run
+
+    Subflows differ from parent flows in that they
+    - use the existing parent flow executor
+    - do not create a new task run portal
+    - create a dummy task for representation in the parent flow
+
+    This function then returns a fake future containing the terminal state.
+    # TODO: Flow calls should not return futures since they block.
+    """
+    parent_flow_run_context = FlowRunContext.get()
+
+    # Generate a task in the parent flow run to represent the result of the subflow run
+    parent_task_run_id = await client.create_task_run(
+        task=Task(name=flow.name, fn=lambda _: ...),
+        flow_run_id=parent_flow_run_context.flow_run_id,
+    )
 
     flow_run_id = await client.create_flow_run(
         flow,
@@ -79,23 +126,16 @@ async def begin_flow_run(
         state=State(type=StateType.PENDING),
     )
 
-    executor_context = (
-        executor.start(flow_run_id=flow_run_id, orion_client=client)
-        # The executor is already started if this is a subflow run
-        if not is_subflow_run
-        else nullcontext()
+    terminal_state = await orchestrate_flow_run(
+        flow,
+        flow_run_id=flow_run_id,
+        parameters=parameters,
+        executor=parent_flow_run_context.executor,
+        client=client,
+        task_run_portal=parent_flow_run_context.task_run_portal,
     )
 
-    with executor_context:
-        terminal_state = await orchestrate_flow_run(
-            flow,
-            flow_run_id=flow_run_id,
-            parameters=parameters,
-            executor=executor,
-            client=client,
-        )
-
-    if is_subflow_run and terminal_state.is_completed():
+    if terminal_state.is_completed():
         # Since a subflow run does not wait for all of its futures before exiting, we
         # wait for any returned futures to complete before setting the final state
         # of the flow
@@ -111,7 +151,7 @@ async def begin_flow_run(
     return PrefectFuture(
         flow_run_id=flow_run_id,
         client=client,
-        executor=executor,
+        executor=parent_flow_run_context.executor,
         _result=terminal_state,
     )
 
@@ -123,6 +163,7 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     executor: BaseExecutor,
     client: OrionClient,
+    task_run_portal: BlockingPortal,
 ) -> State:
     """
     TODO: Note that pydantic will now coerce parameter types into the correct type
@@ -141,6 +182,7 @@ async def orchestrate_flow_run(
             flow=flow,
             client=client,
             executor=executor,
+            task_run_portal=task_run_portal,
         ):
             result = validate_arguments(flow.fn)(**parameters)
             if flow.isasync:
