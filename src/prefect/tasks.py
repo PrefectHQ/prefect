@@ -68,8 +68,8 @@ class Task:
         self.retry_delay_seconds = retry_delay_seconds
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.engine import task_call
         from prefect.context import FlowRunContext
+        from prefect.engine import task_call
 
         # Provide a helpful error if this task is async in a sync flow.
         # This cannot happen in `task_call` because the coroutine will only be entered
