@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from unittest.mock import Mock
 from uuid import UUID
 
+from anyio import start_blocking_portal
+
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
-from prefect.utilities.asyncio import get_prefect_event_loop
 from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
@@ -45,18 +46,17 @@ class PrefectFuture:
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        self._result = get_prefect_event_loop("futures").run_coro(
-            self._executor.wait(self, timeout)
-        )
+        with start_blocking_portal() as portal:
+            self._result = portal.call(self._executor.wait, self, timeout)
+
         return self._result
 
     def get_state(self) -> State:
-        method = (
-            self._client.read_task_run
-            if self.task_run_id
-            else self._client.read_flow_run
-        )
-        run = get_prefect_event_loop("futures").run_coro(method(self.run_id))
+        with start_blocking_portal() as portal:
+            if self.task_run_id:
+                run = portal.call(self._client.read_task_run, self.task_run_id)
+            else:
+                run = portal.call(self._client.read_flow_run, self.flow_run_id)
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")
