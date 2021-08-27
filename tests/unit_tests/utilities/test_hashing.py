@@ -47,17 +47,17 @@ class TestFileHash:
         with pytest.raises(TypeError, match="path"):
             file_hash()
 
-    def test_file_hash_raises_if_path_doesnt_exist(self, tmpdir):
-        fake_path = str(tmpdir / "foobar.txt")
+    def test_file_hash_raises_if_path_doesnt_exist(self, tmp_path):
+        fake_path = tmp_path.joinpath("foobar.txt")
 
-        with pytest.raises(FileNotFoundError, match=fake_path):
+        with pytest.raises(FileNotFoundError):
             file_hash(path=fake_path)
 
-    def test_file_hash_hashes(self, tmpdir):
-        with open(tmpdir / "test.py", "w") as f:
+    def test_file_hash_hashes(self, tmp_path):
+        with open(tmp_path.joinpath("test.py"), "w") as f:
             f.write("0")
 
-        val = file_hash(tmpdir / "test.py")
+        val = file_hash(tmp_path.joinpath("test.py"))
         assert val == hashlib.md5(b"0").hexdigest()
         # Check if the hash is stable
         assert val == "cfcd208495d565ef66e7dff9f98764da"
