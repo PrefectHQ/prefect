@@ -72,6 +72,14 @@ class Task:
         loop = get_prefect_event_loop("tasks")
         return loop.run_coro(task_call(self, *args, **kwargs))
 
+    def update_dynamic_key(self):
+        """
+        Callback after task calls complete submission so this task will have a
+        different dynamic key for future task runs
+        """
+        # Increment the key
+        self.dynamic_key += 1
+
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):
     # TODO: See notes on decorator cleanup in `prefect.flows.flow`

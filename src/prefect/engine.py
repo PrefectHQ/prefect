@@ -176,9 +176,8 @@ async def task_call(task, *args, **kwargs):
         call_kwargs=kwargs,
     )
 
-    # Increment the dynamic_key so future task calls are distinguishable from this
-    # task run
-    task.dynamic_key += 1
+    # Update the dynamic key so future task calls are distinguishable from this task run
+    task.update_dynamic_key()
 
     return future
 
