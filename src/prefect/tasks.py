@@ -4,6 +4,7 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
 
 from prefect.futures import PrefectFuture
+from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.asyncio import get_prefect_event_loop
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
@@ -68,20 +69,31 @@ class Task:
         self.retry_delay_seconds = retry_delay_seconds
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import FlowRunContext
-        from prefect.engine import task_call
+        from prefect.context import FlowRunContext, TaskRunContext
+        from prefect.engine import begin_task_run
 
-        # Provide a helpful error if this task is async in a sync flow.
-        # This cannot happen in `task_call` because the coroutine will only be entered
-        # if awaited and that would throw a syntax error in a sync flow.
         flow_run_context = FlowRunContext.get()
-        flow_isasync = flow_run_context and flow_run_context.flow.isasync
-        if self.isasync and not flow_isasync:
+        if not flow_run_context:
+            raise RuntimeError("Tasks cannot be called outside of a flow.")
+
+        if TaskRunContext.get():
+            raise RuntimeError(
+                "Tasks cannot be called from within tasks. Did you mean to call this "
+                "task in a flow?"
+            )
+
+        # Provide a helpful error if this task is async in a sync flow
+        if self.isasync and not flow_run_context.flow.isasync:
             raise RuntimeError(
                 "Asynchronous tasks may not be called from synchronous flows."
             )
 
-        coro = task_call(self, call_args=args, call_kwargs=kwargs)
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        coro = begin_task_run(
+            task=self, flow_run_context=flow_run_context, parameters=parameters
+        )
 
         if self.isasync:
             return coro
