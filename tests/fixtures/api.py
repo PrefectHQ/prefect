@@ -1,7 +1,6 @@
 import pathlib
 
 import pytest
-from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
 from prefect.orion.api.server import app
