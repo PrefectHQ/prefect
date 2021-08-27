@@ -1,94 +1,64 @@
 import datetime
+
 import pendulum
 import pytest
 
 from prefect import settings
 from prefect.orion import models, schemas
-from prefect.orion.api.dependencies import get_session
-from prefect.orion.api.server import app
-from prefect.orion.utilities.database import Base, get_session_factory, get_engine
-from fastapi.testclient import TestClient
+from prefect.orion.utilities.database import (
+    ENGINES,
+    Base,
+    get_engine,
+    get_session_factory,
+)
 
 
-class HttpxCompatibleTestClient(TestClient):
-    """
-    We sometimes need the starlette test client instead of an httpx client but there
-    are minor incompatibilities that this thin wrapper resolves so tests do not need
-    to worry about what kind of client they receieve
-    """
-
-    def request(self, *args, **kwargs):
-        # `data` is deprecated in favor of `content` in httpx but not starlette
-        if "content" in kwargs:
-            kwargs["data"] = kwargs.pop("content")
-        return super().request(*args, **kwargs)
-
-
-@pytest.fixture(scope="package", autouse=True)
-async def setup_db(database_engine):
-    """Unit tests run against a shared, rolled-back database session,
-    so the database only needs to be set up and torn down once, at the start
-    and end of all tests."""
+@pytest.fixture(scope="session", autouse=True)
+async def database_engine():
+    """Produce a database engine"""
+    engine = get_engine()
     try:
-        # reset database before integration tests run
+        yield engine
+    finally:
+        await engine.dispose()
+        ENGINES.clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def setup_db(database_engine):
+    """Create all database objects prior to running tests, and drop them when tests are done."""
+
+    try:
+        # build the database
         async with database_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+
         yield
 
     finally:
-        # clear database tables
+        # tear down the databse
         async with database_engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture(autouse=True)
-async def session(database_engine):
-    """Test database session. All unit tests share this session. At the end of
-    each test, the session is rolled back to restore the original database
-    condition and avoid carrying over state.
+async def clear_db(database_engine):
+    """Clear the database by
+
+    Args:
+        database_engine ([type]): [description]
     """
+    yield
+    async with database_engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+
+
+@pytest.fixture
+async def session(database_engine):
     session_factory = get_session_factory(bind=database_engine)
     async with session_factory() as session:
-
-        async def get_nested_shared_session():
-            """Create a nested session that can safely be rolled back inside a
-            unit test
-            """
-            nested = await session.begin_nested()
-            try:
-                yield session
-            except Exception as exc:
-                await nested.rollback()
-                raise exc
-
-        app.dependency_overrides[get_session] = get_nested_shared_session
-
-        try:
-            yield session
-        finally:
-            # reset the dependencies
-            app.dependency_overrides = {}
-            # rollback all changes
-            await session.rollback()
-
-
-@pytest.fixture(autouse=True)
-def mock_asgi_client(monkeypatch, database_engine):
-    """
-    The ASGIClient runs in a different event loop, which means it can't easily
-    access the shared database session when running against postgresql (sqlite
-    works fine), because the postgresql connections can't be shared across
-    loops. To work around this, we replace it with the fastapi TestClient for
-    postgres unit tests only. The TestClient is a (much slower) implementation
-    of the ASGIClient that exposes ASGI applications but doesn't require a
-    separate event loop.
-    """
-
-    if database_engine.dialect.name == "postgresql":
-        monkeypatch.setattr(
-            "prefect.client._ASGIClient",
-            lambda app, **kw: HttpxCompatibleTestClient(app),
-        )
+        yield session
 
 
 @pytest.fixture
@@ -96,6 +66,7 @@ async def flow(session):
     model = await models.flows.create_flow(
         session=session, flow=schemas.actions.FlowCreate(name="my-flow")
     )
+    await session.commit()
     return model
 
 
@@ -105,6 +76,7 @@ async def flow_run(session, flow):
         session=session,
         flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
     )
+    await session.commit()
     return model
 
 
@@ -117,7 +89,7 @@ async def task_run(session, flow_run):
         session=session,
         task_run=fake_task_run,
     )
-    await session.flush()
+    await session.commit()
     return model
 
 
@@ -139,6 +111,7 @@ async def flow_run_states(session, flow_run):
         flow_run_id=flow_run.id,
         state=running_state,
     )
+    await session.commit()
     return [scheduled_flow_run_state, running_flow_run_state]
 
 
@@ -159,6 +132,7 @@ async def task_run_states(session, task_run):
         task_run_id=task_run.id,
         state=running_state,
     )
+    await session.commit()
     return [scheduled_task_run_state, running_task_run_state]
 
 
@@ -173,4 +147,5 @@ async def deployment(session, flow):
             name="My Deployment", flow_id=flow.id, schedules=[schedule]
         ),
     )
+    await session.commit()
     return deployment

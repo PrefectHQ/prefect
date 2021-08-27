@@ -473,7 +473,10 @@ class TestBaseOrchestrationRule:
                 mutated_state.type = random.choice(
                     list(
                         set(states.StateType)
-                        - {initial_state.type if initial_state else None, proposed_state.type}
+                        - {
+                            initial_state.type if initial_state else None,
+                            proposed_state.type,
+                        }
                     )
                 )
                 mutator_before_hook()
