@@ -258,7 +258,7 @@ def test_client_posts_to_api_server(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "cloud.api": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
             "backend": "cloud",
             "backend": "cloud",
@@ -330,7 +330,7 @@ def test_client_posts_graphql_to_api_server(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
+            "cloud.api": "http://my-cloud.foo",
             "cloud.auth_token": "secret_token",
             "backend": "cloud",
         }
