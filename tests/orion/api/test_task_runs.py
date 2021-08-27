@@ -102,11 +102,13 @@ class TestDeleteTaskRuns:
         assert response.status_code == 204
 
         # make sure it's deleted
+        task_run_id = task_run.id
+        session.expire_all()
         run = await models.task_runs.read_task_run(
-            session=session, task_run_id=task_run.id
+            session=session, task_run_id=task_run_id
         )
         assert run is None
-        response = await client.get(f"/task_runs/{task_run.id}")
+        response = await client.get(f"/task_runs/{task_run_id}")
         assert response.status_code == 404
 
     async def test_delete_task_run_returns_404_if_does_not_exist(self, client):
@@ -126,8 +128,10 @@ class TestSetTaskRunState:
         assert api_response.status == responses.SetStateStatus.ACCEPT
         assert api_response.details.run_details.run_count == 1
 
+        task_run_id = task_run.id
+        session.expire_all()
         run = await models.task_runs.read_task_run(
-            session=session, task_run_id=task_run.id
+            session=session, task_run_id=task_run_id
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
@@ -144,6 +148,7 @@ class TestSetTaskRunState:
             task_run_id=task_run.id,
             state=states.State(type="RUNNING"),
         )
+        await session.commit()
 
         # fail the running task run
         response = await client.post(

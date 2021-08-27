@@ -49,7 +49,7 @@ class TestCreateFlowRun:
     ):
         flow2 = models.orm.Flow(name="another flow")
         session.add(flow2)
-        await session.flush()
+        await session.commit()
 
         response1 = await client.post(
             "/flow_runs/", json={"flow_id": str(flow.id), "idempotency_key": "test-key"}
@@ -107,6 +107,7 @@ class TestCreateFlowRun:
             session=session,
             deployment=core.Deployment(name="", flow_id=flow.id),
         )
+        await session.commit()
 
         response = await client.post(
             "/flow_runs/",
@@ -162,6 +163,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=actions.FlowRunCreate(flow_id=flow_2.id),
         )
+        await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
 
     async def test_read_flow_runs(self, flow_runs, client):
@@ -191,12 +193,15 @@ class TestDeleteFlowRuns:
         response = await client.delete(f"/flow_runs/{flow_run.id}")
         assert response.status_code == 204
 
-        # make sure it's deleted
+        # make sure it's deleted (first grab its ID)
+        flow_run_id = flow_run.id
+        session.expire_all()
+
         run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=flow_run.id
+            session=session, flow_run_id=flow_run_id
         )
         assert run is None
-        response = await client.get(f"/flow_runs/{flow_run.id}")
+        response = await client.get(f"/flow_runs/{flow_run_id}")
         assert response.status_code == 404
 
     async def test_delete_flow_run_returns_404_if_does_not_exist(self, client):
@@ -215,8 +220,11 @@ class TestSetFlowRunState:
         api_response = responses.SetStateResponse.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
+        flow_run_id = flow_run.id
+        session.expire(flow_run)
+
         run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=flow_run.id
+            session=session, flow_run_id=flow_run_id
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
