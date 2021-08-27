@@ -82,6 +82,7 @@ class TestReadDeployments:
             session=session,
             deployment=schemas.core.Deployment(name="My Deployment-2", flow_id=flow.id),
         )
+        await session.commit()
         return [deployment_1, deployment_2]
 
     async def test_read_deployments(self, deployments, session):
