@@ -70,7 +70,7 @@ class Task:
         from prefect.engine import task_call
 
         loop = get_prefect_event_loop("tasks")
-        return loop.run_coro(task_call(self, *args, **kwargs))
+        return loop.run_coro(task_call(self, call_args=args, call_kwargs=kwargs))
 
     def update_dynamic_key(self):
         """

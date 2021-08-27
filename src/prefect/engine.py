@@ -15,6 +15,7 @@ from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateType, StateDetails
 from prefect.tasks import Task
+from prefect.flows import Flow
 from prefect.utilities.callables import get_call_parameters
 
 
@@ -41,7 +42,25 @@ async def propose_state(client: OrionClient, task_run_id: UUID, state: State) ->
 
 
 @inject_client
-async def flow_call(flow, call_args, call_kwargs, client):
+async def flow_call(
+    flow: Flow,
+    call_args: Tuple[Any, ...],
+    call_kwargs: Dict[str, Any],
+    client: OrionClient,
+) -> PrefectFuture:
+    """
+    Entrypoint for flow calls
+
+    When flows are called, they
+    - create a flow run
+    - start an executor
+    - orchestrate the flow run / call the underlying user function to generate task runs
+    - wait for tasks to complete / shutdown the executor
+    - set a terminal state for the flow run
+
+    This function then returns a fake future containing the terminal state.
+    # TODO: Flow calls should not return futures since they block.
+    """
     flow_run_context = FlowRunContext.get()
     is_subflow_run = flow_run_context is not None
     parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
@@ -86,7 +105,7 @@ async def flow_call(flow, call_args, call_kwargs, client):
             executor=executor,
         ) as context:
             terminal_state = await orchestrate_flow_run(
-                flow.fn, context=context, call_args=call_args, call_kwargs=call_kwargs
+                flow.fn, context=context, parameters=parameters
             )
 
     if is_subflow_run and terminal_state.is_completed():
@@ -95,13 +114,13 @@ async def flow_call(flow, call_args, call_kwargs, client):
         # of the flow
         terminal_state.data = await resolve_futures(terminal_state.data)
 
-    # Update the flow to the terminal state
+    # Update the flow to the terminal state _after_ the executor has shut down
     await client.set_flow_run_state(
         context.flow_run_id,
         state=terminal_state,
     )
 
-    # Return a fake future that is already resolved to `state`
+    # Return a fake future that is already resolved to the terminal state
     return PrefectFuture(
         flow_run_id=flow_run_id,
         client=client,
@@ -113,8 +132,7 @@ async def flow_call(flow, call_args, call_kwargs, client):
 async def orchestrate_flow_run(
     flow_fn: Callable,
     context: FlowRunContext,
-    call_args: Tuple[Any, ...],
-    call_kwargs: Dict[str, Any],
+    parameters: Dict[str, Any],
 ) -> State:
     """
     TODO: Note that pydantic will now coerce parameter types into the correct type
@@ -130,7 +148,7 @@ async def orchestrate_flow_run(
     )
 
     try:
-        result = validate_arguments(flow_fn)(*call_args, **call_kwargs)
+        result = validate_arguments(flow_fn)(**parameters)
     except Exception as exc:
         state = State(
             type=StateType.FAILED,
@@ -143,12 +161,15 @@ async def orchestrate_flow_run(
     return state
 
 
-async def task_call(task, *args, **kwargs):
+async def task_call(
+    task: Task, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
+) -> PrefectFuture:
     """
     Entrypoint for task calls
 
     Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's executor.
+    and submit orchestration of the run to the flow run's executor. The executor returns
+    a future that is returned immediately.
     """
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
@@ -166,14 +187,16 @@ async def task_call(task, *args, **kwargs):
         state=State(type=StateType.PENDING),
     )
 
+    # Get a dict of arg -> value for generating the cache key
+    parameters = get_call_parameters(task.fn, call_args, call_kwargs)
+
     future = await flow_run_context.executor.submit(
         task_run_id,
         orchestrate_task_run,
         task=task,
         task_run_id=task_run_id,
         flow_run_id=flow_run_context.flow_run_id,
-        call_args=args,
-        call_kwargs=kwargs,
+        parameters=parameters,
     )
 
     # Update the dynamic key so future task calls are distinguishable from this task run
@@ -187,8 +210,7 @@ async def orchestrate_task_run(
     task,
     task_run_id: UUID,
     flow_run_id: UUID,
-    call_args: Tuple[Any, ...],
-    call_kwargs: Dict[str, Any],
+    parameters: Dict[str, Any],
     client: OrionClient,
 ) -> None:
     from prefect.context import TaskRunContext
@@ -199,9 +221,6 @@ async def orchestrate_task_run(
         task=task,
         client=client,
     )
-
-    # Get a dict of arg -> value for generating the cache key
-    parameters = get_call_parameters(task.fn, call_args, call_kwargs)
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
@@ -227,7 +246,7 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
-                result = task.fn(*call_args, **call_kwargs)
+                result = task.fn(**parameters)
         except Exception as exc:
             terminal_state = State(
                 type=StateType.FAILED,
