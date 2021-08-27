@@ -17,6 +17,7 @@ from prefect.orion.schemas.states import State, StateType, StateDetails
 from prefect.tasks import Task
 from prefect.flows import Flow
 from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.asyncio import isasyncfn
 
 
 async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -49,7 +50,7 @@ async def flow_call(
     client: OrionClient,
 ) -> PrefectFuture:
     """
-    Entrypoint for flow calls
+    Async entrypoint for flow calls
 
     When flows are called, they
     - create a flow run
@@ -149,6 +150,9 @@ async def orchestrate_flow_run(
 
     try:
         result = validate_arguments(flow_fn)(**parameters)
+        if isasyncfn(flow_fn):
+            result = await result
+
     except Exception as exc:
         state = State(
             type=StateType.FAILED,
@@ -165,7 +169,7 @@ async def task_call(
     task: Task, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
 ) -> PrefectFuture:
     """
-    Entrypoint for task calls
+    Async entrypoint for task calls
 
     Tasks must be called within a flow. When tasks are called, they create a task run
     and submit orchestration of the run to the flow run's executor. The executor returns
@@ -247,6 +251,8 @@ async def orchestrate_task_run(
                 client=client,
             ):
                 result = task.fn(**parameters)
+                if isasyncfn(task.fn):
+                    result = await result
         except Exception as exc:
             terminal_state = State(
                 type=StateType.FAILED,

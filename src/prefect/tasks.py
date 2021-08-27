@@ -4,7 +4,7 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
 
 from prefect.futures import PrefectFuture
-from prefect.utilities.asyncio import get_prefect_event_loop
+from prefect.utilities.asyncio import get_prefect_event_loop, isasyncfn
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
 if TYPE_CHECKING:
@@ -68,9 +68,29 @@ class Task:
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.engine import task_call
+        from prefect.context import FlowRunContext
 
-        loop = get_prefect_event_loop("tasks")
-        return loop.run_coro(task_call(self, call_args=args, call_kwargs=kwargs))
+        flow_run_context = FlowRunContext.get()
+
+        # Provide a helpful error if this task is async in a sync flow.
+        # This cannot happen in `task_call` because the coroutine will only be entered
+        # if awaited and that would throw a syntax error in a sync flow.
+        if (
+            flow_run_context
+            and isasyncfn(self.fn)
+            and not isasyncfn(flow_run_context.flow.fn)
+        ):
+            raise RuntimeError(
+                "Asynchronous tasks may not be called from synchronous flows."
+            )
+
+        coro = task_call(self, call_args=args, call_kwargs=kwargs)
+
+        if isasyncfn(self.fn):
+            return coro
+        else:
+            loop = get_prefect_event_loop("tasks")
+            return loop.run_coro(coro)
 
     def update_dynamic_key(self):
         """
