@@ -1,4 +1,5 @@
 aiosqlite>=0.17.0, < 0.18
+anyio >=3.0, <4.0
 asyncpg >= 0.23, < 0.25
 cloudpickle >= 1.0, < 2.0
 croniter >= 1.0, <2.0
