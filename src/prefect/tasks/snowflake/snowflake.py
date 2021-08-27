@@ -325,10 +325,6 @@ class SnowflakeQueriesFromFile(Task):
                     # return fetch for each cursor
             return result
 
-        # pass through error
-        except Exception as error:
-            raise error
-
         # ensure connection is closed
         finally:
             conn.close()
