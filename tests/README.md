@@ -1,5 +1,24 @@
-Prefect distinguishes between different types of tests and sets up testing differently depending on the test. For convenience, tests should be placed in the appropriate directory to benefit from automatic setup.
+# Tests
+Tests are run against SQLite and Postgres.
 
-**Unit tests** are run in a single process against an in-memory database with a shared database session that is rolled back after each test. This means that any database operations performed in that session are *not* visible to any other session, even against the same database. Therefore, users must use the shared `session` fixture whenever possible. In addition, a number of helpful database fixtures - like `flow`, `flow_run`, etc. - are available to prepopulate the database for simple operations.
+## Database Fixtures
+Database fixtures (found at `./fixtures/database.py`) manipulate database state before tests run. They are most commonly used to populate the database with useful information so that tests don't need to create every object they need manually. 
 
-**Integration tests** are run against a shared database and can be accessed from multiple sessions. The database is completely recreated for every test. Any test that involves multiple threads, processes, or even event loops may need to be placed in the integration test directory.
+When writing a database fixture, consider these best practices:
+- use the global `session` fixture
+- use any internal means of creating or manipulating a database object (for example, the internal `models` functions)
+- commit the session (this makes any changes visible to other actors)
+- return any relevant database objects
+
+Consider this example:
+
+```python
+@pytest.fixture
+async def flow(session):
+    model = await models.flows.create_flow(
+        session=session, 
+        flow=schemas.actions.FlowCreate(name="my-flow"),
+    )
+    await session.commit()
+    return model
+```
