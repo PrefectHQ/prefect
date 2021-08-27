@@ -48,7 +48,7 @@ class Flow:
         self.parameters = parameter_schema(self.fn)
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import TaskRunContext
+        from prefect.context import FlowRunContext, TaskRunContext
         from prefect.engine import begin_flow_run
 
         if TaskRunContext.get():
@@ -57,15 +57,29 @@ class Flow:
                 "flow in a flow?"
             )
 
+        flow_run_context = FlowRunContext.get()
+        is_subflow_run = flow_run_context is not None
+        parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
+        executor = flow_run_context.executor if is_subflow_run else self.executor
+
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        coro = begin_flow_run(flow=self, parameters=parameters)
+        coro = begin_flow_run(
+            flow=self,
+            parameters=parameters,
+            parent_flow_run_id=parent_flow_run_id,
+            executor=executor,
+        )
 
         if self.isasync:
             return coro
         else:
-            loop = get_prefect_event_loop(("flows", id(self)))
+            # Create an event loop with the `parent_flow_run_id` as the key which
+            # ensures that we have a new event loop _per_ level of flow run nesting
+            # If flow calls are not nested, i.e. one flow calls several flows, they can
+            # safely share an event loop.
+            loop = get_prefect_event_loop(("flows", parent_flow_run_id))
             return loop.run_coro(coro)
 
 
