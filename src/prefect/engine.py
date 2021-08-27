@@ -42,10 +42,9 @@ async def propose_state(client: OrionClient, task_run_id: UUID, state: State) ->
 
 
 @inject_client
-async def flow_call(
+async def begin_flow_run(
     flow: Flow,
-    call_args: Tuple[Any, ...],
-    call_kwargs: Dict[str, Any],
+    parameters: Dict[str, Any],
     client: OrionClient,
 ) -> PrefectFuture:
     """
@@ -65,15 +64,6 @@ async def flow_call(
     is_subflow_run = flow_run_context is not None
     parent_flow_run_id = flow_run_context.flow_run_id if is_subflow_run else None
     executor = flow_run_context.executor if is_subflow_run else flow.executor
-
-    if TaskRunContext.get():
-        raise RuntimeError(
-            "Flows cannot be called from within tasks. Did you mean to call this "
-            "flow in a flow?"
-        )
-
-    # Generate dict of passed parameters
-    parameters = get_call_parameters(flow.fn, call_args, call_kwargs)
 
     parent_task_run_id: Optional[UUID] = None
     if is_subflow_run:
@@ -164,8 +154,8 @@ async def orchestrate_flow_run(
     return state
 
 
-async def task_call(
-    task: Task, call_args: Tuple[Any, ...], call_kwargs: Dict[str, Any]
+async def begin_task_run(
+    task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
 ) -> PrefectFuture:
     """
     Async entrypoint for task calls
@@ -174,24 +164,12 @@ async def task_call(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
-    flow_run_context = FlowRunContext.get()
-    if not flow_run_context:
-        raise RuntimeError("Tasks cannot be called outside of a flow.")
-
-    if TaskRunContext.get():
-        raise RuntimeError(
-            "Tasks cannot be called from within tasks. Did you mean to call this "
-            "task in a flow?"
-        )
 
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=State(type=StateType.PENDING),
     )
-
-    # Get a dict of arg -> value for generating the cache key
-    parameters = get_call_parameters(task.fn, call_args, call_kwargs)
 
     future = await flow_run_context.executor.submit(
         task_run_id,

@@ -7,6 +7,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import get_prefect_event_loop
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.callables import get_call_parameters
 
 
 class Flow:
@@ -47,9 +48,19 @@ class Flow:
         self.parameters = parameter_schema(self.fn)
 
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.engine import flow_call
+        from prefect.context import TaskRunContext
+        from prefect.engine import begin_flow_run
 
-        coro = flow_call(flow=self, call_args=args, call_kwargs=kwargs)
+        if TaskRunContext.get():
+            raise RuntimeError(
+                "Flows cannot be called from within tasks. Did you mean to call this "
+                "flow in a flow?"
+            )
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        coro = begin_flow_run(flow=self, parameters=parameters)
 
         if self.isasync:
             return coro
