@@ -33,7 +33,7 @@ async def many_flow_run_states(flow, session):
         ]
 
         session.add_all(states)
-    await session.flush()
+    await session.commit()
 
 
 @pytest.fixture
@@ -65,7 +65,8 @@ async def many_task_run_states(flow_run, session):
         ]
 
         session.add_all(states)
-    await session.flush()
+
+    await session.commit()
 
 
 class TestFlowRun:

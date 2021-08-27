@@ -78,6 +78,7 @@ class TestReadFlows:
         flow_2 = await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2")
         )
+        await session.commit()
         return [flow_1, flow_2]
 
     async def test_read_flows(self, flows, session):
