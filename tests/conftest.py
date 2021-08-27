@@ -4,11 +4,9 @@ import logging
 import pathlib
 
 import pytest
-from httpx import AsyncClient
 
-import prefect
-from prefect.orion.api.server import app
-from prefect.orion.utilities.database import get_engine, ENGINES
+from .fixtures.database import *
+from .fixtures.api import *
 
 
 def pytest_collection_modifyitems(session, config, items):
@@ -42,26 +40,6 @@ def event_loop(request):
         yield loop
     finally:
         loop.close()
-
-
-@pytest.fixture
-async def client():
-    """
-    Yield a test client for testing the api
-    """
-
-    async with AsyncClient(app=app, base_url="https://test") as async_client:
-        yield async_client
-
-
-@pytest.fixture(scope="session", autouse=True)
-async def database_engine():
-    engine = get_engine()
-    try:
-        yield engine
-    finally:
-        await engine.dispose()
-        ENGINES.clear()
 
 
 @pytest.fixture

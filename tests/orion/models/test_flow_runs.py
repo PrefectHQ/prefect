@@ -171,6 +171,7 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow_2.id),
         )
+        await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
 
     async def test_read_flow_runs(self, flow_runs, session):
