@@ -90,14 +90,14 @@ class Task:
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        coro = begin_task_run(
+        begin_run_coro = begin_task_run(
             task=self, flow_run_context=flow_run_context, parameters=parameters
         )
 
         if self.isasync:
-            return coro
+            return begin_run_coro
         else:
-            return flow_run_context.task_run_portal.call(lambda: coro)
+            return flow_run_context.task_run_portal.call(lambda: begin_run_coro)
 
     def update_dynamic_key(self):
         """
