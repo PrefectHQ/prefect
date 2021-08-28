@@ -19,15 +19,19 @@ def inject_client(fn):
     """
     Simple helper to provide a context managed client to a function
 
-    The decorated function _must_ take a `client` kwarg and _cannot_ be passed a client
-    when called
+    The decorated function _must_ take a `client` kwarg and if a client is passed when
+    called it will be used instead of creating a new one, but it will not be context
+    managed as it is assumed that the caller is managing the context.
     """
 
     @wraps(fn)
     async def wrapper(*args, **kwargs):
-        client = OrionClient()
-        async with client:
-            return await fn(*args, client=client, **kwargs)
+        if "client" in kwargs:
+            return await fn(*args, **kwargs)
+        else:
+            client = OrionClient()
+            async with client:
+                return await fn(*args, client=client, **kwargs)
 
     return wrapper
 
