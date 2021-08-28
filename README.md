@@ -41,7 +41,7 @@ import prefect, asyncio
 asyncio.run(prefect.orion.utilities.database.create_db())
 ```
 
-Note that for SQLite in-memory databases, models are created automatically.
+Note that for SQLite databases, models are created automatically if the database is in-memory or is being created for the first time.
 
 ### Step 3: Running the server
 
