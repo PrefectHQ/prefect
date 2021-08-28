@@ -1,7 +1,16 @@
 import datetime
 import inspect
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Optional,
+    Union,
+    Awaitable,
+)
 
 from prefect.futures import PrefectFuture
 from prefect.utilities.callables import get_call_parameters
@@ -67,7 +76,9 @@ class Task:
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
-    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
+    def __call__(
+        self, *args: Any, **kwargs: Any
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         from prefect.context import FlowRunContext, TaskRunContext
         from prefect.engine import begin_task_run
 

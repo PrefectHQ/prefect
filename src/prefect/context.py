@@ -2,7 +2,7 @@
 This module contains async and thread safe variables for passing runtime context data
 """
 from contextvars import ContextVar
-from typing import Optional, TypeVar, Union
+from typing import Optional, TypeVar, Union, Type
 from uuid import UUID
 
 import pendulum
@@ -42,7 +42,7 @@ class ContextModel(BaseModel):
         self.__var__.reset(getattr(self, "__token"))
 
     @classmethod
-    def get(cls: T) -> Optional[T]:
+    def get(cls: Type[T]) -> Optional[T]:
         return cls.__var__.get(None)
 
 
