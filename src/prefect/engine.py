@@ -116,6 +116,7 @@ async def begin_flow_run(
     )
 
 
+@inject_client
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run_id: UUID,
