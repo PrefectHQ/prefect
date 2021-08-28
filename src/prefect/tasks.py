@@ -1,41 +1,12 @@
-import inspect
-import time
 import datetime
+import inspect
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Tuple, Union
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
 
-import pendulum
-
-from prefect.client import OrionClient
-from prefect.futures import PrefectFuture, return_val_to_state
-from prefect.orion.schemas.responses import SetStateStatus
-from prefect.orion.schemas.states import State, StateType, StateDetails
-from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
+from prefect.futures import PrefectFuture
 from prefect.utilities.callables import get_call_parameters
-
-
-def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
-    """
-    TODO: Consider rolling this behavior into the `Client` state update method once we
-          understand how we want to handle ABORT cases
-    """
-    response = client.set_task_run_state(
-        task_run_id,
-        state=state,
-    )
-    if response.status == SetStateStatus.ACCEPT:
-        if response.details.state_details:
-            state.state_details = response.details.state_details
-        return state
-
-    if response.status == SetStateStatus.ABORT:
-        raise RuntimeError("ABORT is not yet handled")
-
-    server_state = response.details.state
-
-    return server_state
-
+from prefect.utilities.asyncio import get_prefect_event_loop
+from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -73,6 +44,7 @@ class Task:
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
         self.fn = fn
+        self.isasync = inspect.iscoroutinefunction(self.fn)
 
         self.tags = set(tags if tags else [])
 
@@ -96,89 +68,9 @@ class Task:
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
-    def _run(
-        self,
-        task_run_id: UUID,
-        flow_run_id: UUID,
-        call_args: Tuple[Any, ...],
-        call_kwargs: Dict[str, Any],
-    ) -> None:
-        from prefect.context import TaskRunContext
-
-        client = OrionClient()
-        context = TaskRunContext(
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
-            task=self,
-            client=client,
-        )
-
-        # Get a dict of arg -> value for generating the cache key
-        parameters = get_call_parameters(self.fn, call_args, call_kwargs)
-
-        cache_key = (
-            self.cache_key_fn(context, parameters) if self.cache_key_fn else None
-        )
-
-        # Transition from `PENDING` -> `RUNNING`
-        state = propose_state(
-            client,
-            task_run_id,
-            State(
-                type=StateType.RUNNING,
-                state_details=StateDetails(
-                    cache_key=cache_key,
-                ),
-            ),
-        )
-
-        # Only run the task if we enter a `RUNNING` state
-        while state.is_running():
-
-            try:
-                with TaskRunContext(
-                    task_run_id=task_run_id,
-                    flow_run_id=flow_run_id,
-                    task=self,
-                    client=client,
-                ):
-                    result = self.fn(*call_args, **call_kwargs)
-            except Exception as exc:
-                terminal_state = State(
-                    type=StateType.FAILED,
-                    message="Task run encountered an exception.",
-                    data=exc,
-                )
-            else:
-                terminal_state = return_val_to_state(result)
-
-                # for COMPLETED tasks, add the cache key and expiration
-                if terminal_state.is_completed():
-                    terminal_state.state_details.cache_expiration = (
-                        (pendulum.now("utc") + self.cache_expiration)
-                        if self.cache_expiration
-                        else None
-                    )
-                    terminal_state.state_details.cache_key = cache_key
-
-            state = propose_state(client, task_run_id, terminal_state)
-
-            if state.is_scheduled():  # Received a retry from the backend
-                start_time = pendulum.instance(state.state_details.scheduled_time)
-                wait_time = start_time.diff(abs=False).in_seconds() * -1
-                print(f"Task is scheduled to run again {start_time.diff_for_humans()}")
-                if wait_time > 0:
-                    print(f"Sleeping for {wait_time}s...")
-                    time.sleep(wait_time)
-
-                state = propose_state(
-                    client, task_run_id, State(type=StateType.RUNNING)
-                )
-
-        return state
-
     def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
         from prefect.context import FlowRunContext, TaskRunContext
+        from prefect.engine import begin_task_run
 
         flow_run_context = FlowRunContext.get()
         if not flow_run_context:
@@ -190,30 +82,36 @@ class Task:
                 "task in a flow?"
             )
 
-        task_run_id = flow_run_context.client.create_task_run(
-            task=self,
-            flow_run_id=flow_run_context.flow_run_id,
-            state=State(type=StateType.PENDING),
+        # Provide a helpful error if this task is async in a sync flow
+        if self.isasync and not flow_run_context.flow.isasync:
+            raise RuntimeError(
+                "Asynchronous tasks may not be called from synchronous flows."
+            )
+
+        # Convert the call args/kwargs to a parameter dict
+        parameters = get_call_parameters(self.fn, args, kwargs)
+
+        coro = begin_task_run(
+            task=self, flow_run_context=flow_run_context, parameters=parameters
         )
 
-        future = flow_run_context.executor.submit(
-            task_run_id,
-            self._run,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_context.flow_run_id,
-            call_args=args,
-            call_kwargs=kwargs,
-        )
+        if self.isasync:
+            return coro
+        else:
+            loop = get_prefect_event_loop("tasks")
+            return loop.run_coro(coro)
 
-        # Increment the dynamic_key so future task calls are distinguishable from this
-        # task run
+    def update_dynamic_key(self):
+        """
+        Callback after task calls complete submission so this task will have a
+        different dynamic key for future task runs
+        """
+        # Increment the key
         self.dynamic_key += 1
-
-        return future
 
 
 def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):
-    # TOOD: See notes on decorator cleanup in `prefect.flows.flow`
+    # TODO: See notes on decorator cleanup in `prefect.flows.flow`
     if _fn is None:
         return lambda _fn: Task(fn=_fn, name=name, **task_init_kwargs)
     return Task(fn=_fn, name=name, **task_init_kwargs)

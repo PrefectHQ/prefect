@@ -1,9 +1,6 @@
-import asyncio
-import threading
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Tuple, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List
 from uuid import UUID
-from contextlib import contextmanager
-from multiprocessing import current_process
+from functools import wraps
 
 import pydantic
 import httpx
@@ -18,6 +15,27 @@ if TYPE_CHECKING:
     from prefect.tasks import Task
 
 
+def inject_client(fn):
+    """
+    Simple helper to provide a context managed client to a function
+
+    The decorated function _must_ take a `client` kwarg and if a client is passed when
+    called it will be used instead of creating a new one, but it will not be context
+    managed as it is assumed that the caller is managing the context.
+    """
+
+    @wraps(fn)
+    async def wrapper(*args, **kwargs):
+        if "client" in kwargs:
+            return await fn(*args, **kwargs)
+        else:
+            client = OrionClient()
+            async with client:
+                return await fn(*args, client=client, **kwargs)
+
+    return wrapper
+
+
 class OrionClient:
     def __init__(
         self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
@@ -25,36 +43,45 @@ class OrionClient:
         httpx_settings = httpx_settings or {}
 
         if host:
-            self._client = httpx.Client(base_url=host, **httpx_settings)
+            # Connect to an existing instance
+            if "app" in httpx_settings:
+                raise ValueError(
+                    "Invalid httpx settings: `app` cannot be set with `host`, "
+                    "`app` is only for use with ephemeral instances."
+                )
+            httpx_settings.setdefault("base_url", host)
         else:
-            # Create an ephemeral app client
-            self._client = _ASGIClient(app=orion_app, httpx_settings=httpx_settings)
+            # Connect to an ephemeral app
+            httpx_settings.setdefault("app", orion_app)
+            httpx_settings.setdefault("base_url", "http://orion")
 
-    def post(self, route: str, **kwargs) -> httpx.Response:
-        response = self._client.post(route, **kwargs)
+        self._client = httpx.AsyncClient(**httpx_settings)
+
+    async def post(self, route: str, **kwargs) -> httpx.Response:
+        response = await self._client.post(route, **kwargs)
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
         #       development
         response.raise_for_status()
         return response
 
-    def get(self, route: str, **kwargs) -> httpx.Response:
-        response = self._client.get(route, **kwargs)
+    async def get(self, route: str, **kwargs) -> httpx.Response:
+        response = await self._client.get(route, **kwargs)
         response.raise_for_status()
         return response
 
     # API methods ----------------------------------------------------------------------
 
-    def hello(self) -> httpx.Response:
-        return self.post("/hello")
+    async def hello(self) -> httpx.Response:
+        return await self.post("/hello")
 
-    def create_flow(self, flow: "Flow") -> UUID:
+    async def create_flow(self, flow: "Flow") -> UUID:
         flow_data = schemas.actions.FlowCreate(
             name=flow.name,
             tags=flow.tags,
             parameters=flow.parameters,
         )
-        response = self.post("/flows/", json=flow_data.dict(json_compatible=True))
+        response = await self.post("/flows/", json=flow_data.dict(json_compatible=True))
 
         flow_id = response.json().get("id")
         if not flow_id:
@@ -63,11 +90,11 @@ class OrionClient:
         # Return the id of the created flow
         return UUID(flow_id)
 
-    def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
-        response = self.get(f"/flows/{flow_id}")
+    async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
+        response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
 
-    def create_flow_run(
+    async def create_flow_run(
         self,
         flow: "Flow",
         parameters: Dict[str, Any] = None,
@@ -81,7 +108,7 @@ class OrionClient:
         context = context or {}
 
         # Retrieve the flow id
-        flow_id = self.create_flow(flow)
+        flow_id = await self.create_flow(flow)
 
         flow_run_data = schemas.actions.FlowRunCreate(
             flow_id=flow_id,
@@ -93,7 +120,7 @@ class OrionClient:
             state=state,
         )
 
-        response = self.post(
+        response = await self.post(
             "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
         )
         flow_run_id = response.json().get("id")
@@ -102,35 +129,35 @@ class OrionClient:
 
         return UUID(flow_run_id)
 
-    def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
-        response = self.get(f"/flow_runs/{flow_run_id}")
+    async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
+        response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
 
-    def persist_data(
+    async def persist_data(
         self,
         data: bytes,
     ) -> DataDocument:
-        response = self.post("/data/persist", content=data)
+        response = await self.post("/data/persist", content=data)
         return DataDocument.parse_obj(response.json())
 
-    def retrieve_data(
+    async def retrieve_data(
         self,
         orion_datadoc: DataDocument,
     ) -> bytes:
-        response = self.post(
+        response = await self.post(
             "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )
         return response.content
 
-    def persist_object(self, obj: Any, encoder: str = "cloudpickle"):
+    async def persist_object(self, obj: Any, encoder: str = "cloudpickle"):
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
-        return self.persist_data(datadoc.json().encode())
+        return await self.persist_data(datadoc.json().encode())
 
-    def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
-        datadoc = DataDocument.parse_raw(self.retrieve_data(orion_datadoc))
+    async def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
+        datadoc = DataDocument.parse_raw(await self.retrieve_data(orion_datadoc))
         return datadoc.decode()
 
-    def set_flow_run_state(
+    async def set_flow_run_state(
         self,
         flow_run_id: UUID,
         state: schemas.states.State,
@@ -151,17 +178,21 @@ class OrionClient:
             state_data.data = None
             state_data_json = state_data.dict(json_compatible=True)
 
-        response = self.post(
+        response = await self.post(
             f"/flow_runs/{flow_run_id}/set_state",
             json=state_data_json,
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
-    def read_flow_run_states(self, flow_run_id: UUID) -> List[schemas.states.State]:
-        response = self.get("/flow_run_states/", params=dict(flow_run_id=flow_run_id))
+    async def read_flow_run_states(
+        self, flow_run_id: UUID
+    ) -> List[schemas.states.State]:
+        response = await self.get(
+            "/flow_run_states/", params=dict(flow_run_id=flow_run_id)
+        )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
-    def create_task_run(
+    async def create_task_run(
         self,
         task: "Task",
         flow_run_id: UUID,
@@ -182,7 +213,7 @@ class OrionClient:
             state=state,
         )
 
-        response = self.post(
+        response = await self.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
         )
         task_run_id = response.json().get("id")
@@ -191,11 +222,11 @@ class OrionClient:
 
         return UUID(task_run_id)
 
-    def read_task_run(self, task_run_id: UUID) -> schemas.core.TaskRun:
-        response = self.get(f"/task_runs/{task_run_id}")
+    async def read_task_run(self, task_run_id: UUID) -> schemas.core.TaskRun:
+        response = await self.get(f"/task_runs/{task_run_id}")
         return schemas.core.TaskRun.parse_obj(response.json())
 
-    def set_task_run_state(
+    async def set_task_run_state(
         self,
         task_run_id: UUID,
         state: schemas.states.State,
@@ -216,116 +247,29 @@ class OrionClient:
             state_data.data = None
             state_data_json = state_data.dict(json_compatible=True)
 
-        response = self.post(
+        response = await self.post(
             f"/task_runs/{task_run_id}/set_state",
             json=state_data_json,
         )
         return schemas.responses.SetStateResponse.parse_obj(response.json())
 
-    def read_task_run_states(self, task_run_id: UUID) -> List[schemas.states.State]:
-        response = self.get("/task_run_states/", params=dict(task_run_id=task_run_id))
+    async def read_task_run_states(
+        self, task_run_id: UUID
+    ) -> List[schemas.states.State]:
+        response = await self.get(
+            "/task_run_states/", params=dict(task_run_id=task_run_id)
+        )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
+    async def __aenter__(self):
+        await self._client.__aenter__()
+        return self
 
-class _ThreadedEventLoop:
-    """
-    Spawns an event loop in a daemonic thread.
+    async def __aexit__(self, *exc_info):
+        return await self._client.__aexit__(*exc_info)
 
-    Creating a new event loop that runs in a child thread prevents us from throwing
-    exceptions when there is already an event loop in the main thread and prevents
-    synchronous code in the main thread from blocking the event loop from executing.
-
-    These _cannot_ be shared across processes. We use an `EVENT_LOOPS` global to ensure
-    that there is a single instance available per process.
-    """
-
-    def __init__(self) -> None:
-        self._thread, self._loop = self._create_threaded_event_loop()
-
-    def _create_threaded_event_loop(
-        self,
-    ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
-        def start_loop(loop):
-            asyncio.set_event_loop(loop)
-            loop.run_forever()
-
-        loop = asyncio.new_event_loop()
-
-        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
-        t.start()
-
-        return t, loop
-
-    def run_coro(self, coro):
-        if not self._loop:
-            raise ValueError("Event loop has not been created.")
-        if not self._loop.is_running():
-            raise ValueError("Event loop is not running.")
-
-        future = asyncio.run_coroutine_threadsafe(coro, loop=self._loop)
-        result = future.result()
-
-        return result
-
-    def __del__(self):
-        if self._loop and self._loop.is_running():
-            self._loop.stop()
-
-
-# Mapping of PID to a lazily instantiated shared event-loop per process
-EVENT_LOOPS: Dict[int, _ThreadedEventLoop] = {}
-
-
-def _get_process_event_loop():
-    """
-    Get or create a `_ThreadedEventLoop` for the current process
-    """
-    pid = current_process().pid
-    if pid not in EVENT_LOOPS:
-        EVENT_LOOPS[pid] = _ThreadedEventLoop()
-
-    return EVENT_LOOPS[pid]
-
-
-class _ASGIClient:
-    """
-    Creates a synchronous wrapper for calling an ASGI application's routes using
-    temporary `httpx.AsyncClient` instances.
-
-    Requires a `_ThreadedEventLoop` to submit async work without blocking the main
-    thread.
-    """
-
-    def __init__(self, app, httpx_settings: dict) -> None:
-        self._event_loop = _get_process_event_loop()
-        self.app = app
-        self.httpx_settings = httpx_settings
-
-    @contextmanager
-    def _httpx_client(self):
-        """
-        Creates a temporary httpx.AsyncClient and cleans up on exit by explicitly
-        running `aclose()` since we cannot use `async with` in a synchronous context.
-
-        Since this client is created per request, we are forfeiting the benefits of
-        a long-lived HTTP session. However, since this is only intended to be used with
-        an ASGI application running in-process, there should not be a meaningful change
-        in performance.
-        """
-        client = httpx.AsyncClient(
-            app=self.app, base_url="http://ephemeral", **self.httpx_settings
+    def __enter__(self):
+        raise RuntimeError(
+            "The Orion client is only usable from an async context and must be entered "
+            "with 'async with ...'"
         )
-        try:
-            yield client
-        finally:
-            self._event_loop.run_coro(client.aclose())
-
-    # httpx.Client methods -------------------------------------------------------------
-
-    def get(self, route: str, **kwargs: Any) -> httpx.Response:
-        with self._httpx_client() as client:
-            return self._event_loop.run_coro(client.get(route, **kwargs))
-
-    def post(self, route: str, **kwargs: Any) -> httpx.Response:
-        with self._httpx_client() as client:
-            return self._event_loop.run_coro(client.post(route, **kwargs))
