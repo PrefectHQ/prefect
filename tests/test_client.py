@@ -6,63 +6,66 @@ from pydantic import BaseModel
 
 import prefect
 from prefect import flow
+from prefect.client import OrionClient
 from prefect.orion import schemas
 from prefect.tasks import task
 from prefect.serializers import PickleSerializer, JSONSerializer
 
 
-def test_create_then_read_flow():
+@pytest.fixture
+async def orion_client():
+    async with OrionClient() as client:
+        yield client
+
+
+async def test_create_then_read_flow(orion_client):
     @flow
     def foo():
         pass
 
-    client = prefect.client.OrionClient()
-    flow_id = client.create_flow(foo)
+    flow_id = await orion_client.create_flow(foo)
     assert isinstance(flow_id, UUID)
 
-    lookup = client.read_flow(flow_id)
+    lookup = await orion_client.read_flow(flow_id)
     assert isinstance(lookup, schemas.core.Flow)
     assert lookup.name == foo.name
     assert lookup.tags == list(foo.tags)
     assert lookup.parameters == foo.parameters
 
 
-def test_create_then_read_flow_run():
+async def test_create_then_read_flow_run(orion_client):
     @flow(tags=["a", "b"])
     def foo():
         pass
 
-    client = prefect.client.OrionClient()
-    flow_run_id = client.create_flow_run(foo)
+    flow_run_id = await orion_client.create_flow_run(foo)
     assert isinstance(flow_run_id, UUID)
 
-    lookup = client.read_flow_run(flow_run_id)
+    lookup = await orion_client.read_flow_run(flow_run_id)
     assert isinstance(lookup, schemas.core.FlowRun)
     assert lookup.tags == list(foo.tags)
     assert lookup.state is None
 
 
-def test_create_then_read_flow_run_with_state():
+async def test_create_then_read_flow_run_with_state(orion_client):
     @flow(tags=["a", "b"])
     def foo():
         pass
 
-    client = prefect.client.OrionClient()
-    flow_run_id = client.create_flow_run(
+    flow_run_id = await orion_client.create_flow_run(
         foo, state=schemas.states.State(type="RUNNING")
     )
-    lookup = client.read_flow_run(flow_run_id)
+    lookup = await orion_client.read_flow_run(flow_run_id)
     assert lookup.state.is_running()
 
 
-def test_set_then_read_flow_run_state():
+async def test_set_then_read_flow_run_state(orion_client):
     @flow
     def foo():
         pass
 
-    client = prefect.client.OrionClient()
-    flow_run_id = client.create_flow_run(foo)
-    response = client.set_flow_run_state(
+    flow_run_id = await orion_client.create_flow_run(foo)
+    response = await orion_client.set_flow_run_state(
         flow_run_id,
         state=schemas.states.State(
             type=schemas.states.StateType.COMPLETED, message="Test!"
@@ -71,7 +74,7 @@ def test_set_then_read_flow_run_state():
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
-    states = client.read_flow_run_states(flow_run_id)
+    states = await orion_client.read_flow_run_states(flow_run_id)
     assert len(states) == 1
     state = states[-1]
     assert isinstance(state, schemas.states.State)
@@ -79,21 +82,20 @@ def test_set_then_read_flow_run_state():
     assert state.message == "Test!"
 
 
-def test_create_then_read_task_run():
+async def test_create_then_read_task_run(orion_client):
     @flow
     def foo():
         pass
 
     @task(tags=["a", "b"], retries=3)
-    def bar():
+    def bar(orion_client):
         pass
 
-    client = prefect.client.OrionClient()
-    flow_run_id = client.create_flow_run(foo)
-    task_run_id = client.create_task_run(bar, flow_run_id=flow_run_id)
+    flow_run_id = await orion_client.create_flow_run(foo)
+    task_run_id = await orion_client.create_task_run(bar, flow_run_id=flow_run_id)
     assert isinstance(task_run_id, UUID)
 
-    lookup = client.read_task_run(task_run_id)
+    lookup = await orion_client.read_task_run(task_run_id)
     assert isinstance(lookup, schemas.core.TaskRun)
     assert lookup.tags == list(bar.tags)
     assert lookup.task_key == bar.task_key
@@ -101,39 +103,37 @@ def test_create_then_read_task_run():
     assert lookup.state is None
 
 
-def test_create_then_read_task_run_with_state():
+async def test_create_then_read_task_run_with_state(orion_client):
     @flow
     def foo():
         pass
 
     @task(tags=["a", "b"], retries=3)
-    def bar():
+    def bar(orion_client):
         pass
 
-    client = prefect.client.OrionClient()
-    flow_run_id = client.create_flow_run(foo)
-    task_run_id = client.create_task_run(
+    flow_run_id = await orion_client.create_flow_run(foo)
+    task_run_id = await orion_client.create_task_run(
         bar, flow_run_id=flow_run_id, state=schemas.states.State(type="RUNNING")
     )
 
-    lookup = client.read_task_run(task_run_id)
+    lookup = await orion_client.read_task_run(task_run_id)
     assert lookup.state.is_running()
 
 
-def test_set_then_read_task_run_state():
+async def test_set_then_read_task_run_state(orion_client):
     @flow
     def foo():
         pass
 
     @task
-    def bar():
+    def bar(orion_client):
         pass
 
-    client = prefect.client.OrionClient()
-    flow_run_id = client.create_flow_run(foo)
-    task_run_id = client.create_task_run(bar, flow_run_id=flow_run_id)
+    flow_run_id = await orion_client.create_flow_run(foo)
+    task_run_id = await orion_client.create_task_run(bar, flow_run_id=flow_run_id)
 
-    response = client.set_task_run_state(
+    response = await orion_client.set_task_run_state(
         task_run_id,
         schemas.states.State(type=schemas.states.StateType.COMPLETED, message="Test!"),
     )
@@ -141,7 +141,7 @@ def test_set_then_read_task_run_state():
     assert isinstance(response, schemas.responses.SetStateResponse)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
-    run = client.read_task_run(task_run_id)
+    run = await orion_client.read_task_run(task_run_id)
     assert isinstance(run.state, schemas.states.State)
     assert run.state.type == schemas.states.StateType.COMPLETED
     assert run.state.message == "Test!"
@@ -165,9 +165,8 @@ class ExPydanticModel(BaseModel):
         ExPydanticModel(x=0),
     ],
 )
-def test_put_then_retrieve_object(put_obj):
-    client = prefect.client.OrionClient()
-    datadoc = client.persist_object(put_obj)
+async def test_put_then_retrieve_object(put_obj, orion_client):
+    datadoc = await orion_client.persist_object(put_obj)
     assert datadoc.encoding == "orion"
-    retrieved_obj = client.retrieve_object(datadoc)
+    retrieved_obj = await orion_client.retrieve_object(datadoc)
     assert retrieved_obj == put_obj
