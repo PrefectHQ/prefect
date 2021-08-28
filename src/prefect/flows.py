@@ -64,14 +64,14 @@ class Flow:
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        begin_fn = begin_subflow_run if is_subflow_run else begin_flow_run
-        begin_coro = begin_fn(self, parameters)
+        begin_run_fn = begin_subflow_run if is_subflow_run else begin_flow_run
+        begin_run_coro = begin_run_fn(self, parameters)
 
         if self.isasync:
-            return begin_coro
+            return begin_run_coro
         else:
             with start_blocking_portal() as portal:
-                return portal.call(lambda: begin_coro)
+                return portal.call(lambda: begin_run_coro)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
