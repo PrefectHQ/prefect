@@ -1,6 +1,6 @@
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Union, Awaitable
 
 from anyio import start_blocking_portal
 
@@ -49,7 +49,9 @@ class Flow:
 
         self.parameters = parameter_schema(self.fn)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
+    def __call__(
+        self, *args: Any, **kwargs: Any
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         from prefect.context import FlowRunContext, TaskRunContext
         from prefect.engine import begin_flow_run, begin_subflow_run
 
