@@ -46,17 +46,19 @@ class PrefectFuture:
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        with start_blocking_portal() as portal:
-            self._result = portal.call(self._executor.wait, self, timeout)
+        self._result = self._executor.portal.call(self._executor.wait, self, timeout)
 
         return self._result
 
     def get_state(self) -> State:
-        with start_blocking_portal() as portal:
-            if self.task_run_id:
-                run = portal.call(self._client.read_task_run, self.task_run_id)
-            else:
-                run = portal.call(self._client.read_flow_run, self.flow_run_id)
+        if self.task_run_id:
+            run = self._executor.portal.call(
+                self._client.read_task_run, self.task_run_id
+            )
+        else:
+            run = self._executor.portal.call(
+                self._client.read_flow_run, self.flow_run_id
+            )
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")
