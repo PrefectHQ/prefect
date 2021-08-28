@@ -4,6 +4,8 @@ from uuid import UUID
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
+from anyio import start_blocking_portal
+from anyio.abc import BlockingPortal
 
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures
@@ -17,6 +19,7 @@ class BaseExecutor:
         # Set on `start`
         self.flow_run_id: str = None
         self.orion_client: OrionClient = None
+        self.portal: BlockingPortal = None
 
     async def submit(
         self,
@@ -41,11 +44,13 @@ class BaseExecutor:
         self.flow_run_id = flow_run_id
         self.orion_client = orion_client
         try:
-            yield self
+            with start_blocking_portal() as self.portal:
+                yield self
         finally:
             self.shutdown()
             self.flow_run_id = None
             self.orion_client = None
+            self.portal = None
 
     def shutdown(self) -> None:
         """
