@@ -1,4 +1,7 @@
+import warnings
+import sqlite3
 import json
+import os
 import re
 import uuid
 from asyncio import current_task, get_event_loop
@@ -16,9 +19,9 @@ from sqlalchemy.ext.asyncio import (
     async_scoped_session,
     create_async_engine,
 )
-from sqlalchemy.schema import MetaData
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
+from sqlalchemy.schema import MetaData
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.types import CHAR, JSON, TypeDecorator
 
@@ -30,11 +33,14 @@ ENGINES = {}
 SESSION_FACTORIES = {}
 
 
-def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine.Engine:
+async def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine.Engine:
     """Retrieves an async SQLAlchemy engine.
 
-    A new engine is created for each event loop and cached, so that
-    engines are not shared across loops.
+    A new engine is created for each event loop and cached, so that engines are
+    not shared across loops.
+
+    If a sqlite in-memory database OR a non-existant sqlite file-based database
+    is provided, it is automatically populated with database objects.
 
     Args:
         connection_url ([type], optional): The database connection string.
@@ -50,14 +56,32 @@ def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine.Engin
     if echo is None:
         echo = settings.orion.database.echo
 
+    kwargs = {}
+
     loop = get_event_loop()
     cache_key = (loop, connection_url, echo)
     if cache_key not in ENGINES:
-        ENGINES[cache_key] = create_async_engine(connection_url, echo=echo)
+
+        # ensure a long-lasting pool is used with in-memory databases
+        # because they disappear when the last connection closes
+        if connection_url.startswith("sqlite") and ":memory:" in connection_url:
+            kwargs.update(poolclass=sa.pool.SingletonThreadPool)
+
+        engine = create_async_engine(connection_url, echo=echo, **kwargs)
+
+        # if this is a new sqlite database create all database objects
+        if engine.dialect.name == "sqlite" and (
+            ":memory:" in engine.url.database
+            or "mode=memory" in engine.url.database
+            or not os.path.exists(engine.url.database)
+        ):
+            await create_db(engine)
+
+        ENGINES[cache_key] = engine
     return ENGINES[cache_key]
 
 
-def get_session_factory(
+async def get_session_factory(
     bind: Union[sa.engine.Engine, sa.engine.Connection] = None,
 ) -> sa.ext.asyncio.scoping.async_scoped_session:
     """Retrieves a SQLAlchemy session factory for the provided bind.
@@ -72,7 +96,7 @@ def get_session_factory(
         sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
     """
     if bind is None:
-        bind = get_engine()
+        bind = await get_engine()
 
     loop = get_event_loop()
     cache_key = (loop, bind)
@@ -95,20 +119,12 @@ def get_session_factory(
 
 @listens_for(sa.engine.Engine, "engine_connect", once=True)
 def setup_sqlite(conn, named=True):
-    """The first time a connection is made to a sqlite engine:
-    - we check if it's an in-memory sqlite database and create all Orion tables
-      as a convenience
-    - we enable sqlite foreign keys
-    to the user."""
+    """The first time a connection is made to a sqlite engine, we enable sqlite foreign keys"""
     if conn.engine.url.get_backend_name() == "sqlite":
         # enable foreign keys
         cursor = conn.connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
-
-        # create tables
-        if conn.engine.url.database in (":memory:", None):
-            Base.metadata.create_all(conn.engine)
 
 
 @compiles(sa.JSON, "postgresql")
@@ -359,12 +375,12 @@ class Base(object):
 
 
 async def create_db(engine=None):
-    engine = engine or get_engine()
+    engine = engine or await get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def drop_db(engine=None):
-    engine = engine or get_engine()
+    engine = engine or await get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
