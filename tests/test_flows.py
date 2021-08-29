@@ -268,7 +268,7 @@ class TestFlowCall:
         child_task_state = child_state.data
         assert child_task_state.data == 6
 
-    async def test_async_flow_with_async_subflow_and_with_async_tasks(self):
+    async def test_async_flow_with_async_subflow_and_async_task(self):
         @task
         async def compute_async(x, y, z):
             return x + y + z
@@ -290,7 +290,7 @@ class TestFlowCall:
         task_state = child_state.data
         assert task_state.data == 6
 
-    async def test_async_flow_with_async_subflow_and_sync_tasks(self):
+    async def test_async_flow_with_async_subflow_and_sync_task(self):
         @task
         def compute(x, y, z):
             return x + y + z
@@ -312,7 +312,7 @@ class TestFlowCall:
         task_state = child_state.data
         assert task_state.data == 6
 
-    async def test_async_flow_with_sync_subflow_and_tasks(self):
+    async def test_async_flow_with_sync_subflow_and_sync_task(self):
         @task
         def compute(x, y, z):
             return x + y + z
