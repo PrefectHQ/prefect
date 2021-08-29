@@ -6,9 +6,9 @@ import pydantic
 import pytest
 
 from prefect.orion.utilities.schemas import (
+    IDBaseModel,
     ORMBaseModel,
     PrefectBaseModel,
-    IDBaseModel,
     pydantic_subclass,
 )
 

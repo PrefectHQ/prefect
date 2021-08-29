@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Dict
+from typing import Dict, List
 from uuid import UUID
 
 from pydantic import Field
@@ -7,7 +7,7 @@ from pydantic import Field
 from prefect.orion import schemas
 from prefect.orion.schemas import states
 from prefect.orion.utilities.functions import ParameterSchema
-from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
+from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
 class Flow(ORMBaseModel):

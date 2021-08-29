@@ -2,9 +2,9 @@
 Contains methods for working with `State` objects defined by the Orion schema at
 `prefect.orion.schemas.states`
 """
-from typing import Iterable, Dict, Any
-from collections.abc import Iterable as IterableABC
 from collections import Counter
+from collections.abc import Iterable as IterableABC
+from typing import Any, Dict, Iterable
 
 from prefect.orion.schemas.states import State, StateType
 

@@ -1,10 +1,10 @@
-from prefect.orion.schemas import states
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
     BaseUniversalRule,
     OrchestrationContext,
-    ALL_ORCHESTRATION_STATES,
 )
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
+from prefect.orion.schemas import states
 
 
 class GlobalPolicy(BaseOrchestrationPolicy):

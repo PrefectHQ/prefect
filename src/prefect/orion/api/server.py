@@ -1,6 +1,5 @@
 # import prefect
 from fastapi import FastAPI
-
 from fastapi.middleware.cors import CORSMiddleware
 
 from prefect.orion import api

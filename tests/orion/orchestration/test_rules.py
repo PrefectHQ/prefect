@@ -1,16 +1,17 @@
 import contextlib
-import pytest
-import pendulum
 import random
 from itertools import product
 from unittest.mock import MagicMock
 
+import pendulum
+import pytest
+
+from prefect.orion import models, schemas
 from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
     BaseUniversalRule,
     OrchestrationContext,
 )
-from prefect.orion import schemas, models
 from prefect.orion.schemas import states
 
 

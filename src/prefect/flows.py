@@ -6,8 +6,8 @@ from prefect.executors import BaseExecutor, LocalExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import get_prefect_event_loop
-from prefect.utilities.hashing import file_hash
 from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.hashing import file_hash
 
 
 class Flow:

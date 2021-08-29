@@ -1,7 +1,7 @@
 import pytest
 
-from prefect.orion.serializers import FileSerializer, OrionSerializer
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.serializers import FileSerializer, OrionSerializer
 
 
 def serialize_deserialize(obj, serializer, **dump_kwargs):

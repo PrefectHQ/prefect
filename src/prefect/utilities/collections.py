@@ -1,6 +1,7 @@
 from collections.abc import Sequence, Set
+from typing import Any, Iterable, Mapping, Tuple, TypeVar, Union
+
 from pydantic import BaseModel
-from typing import TypeVar, Mapping, Tuple, Any, Union, Iterable
 
 T = TypeVar("T")
 

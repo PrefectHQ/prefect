@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")

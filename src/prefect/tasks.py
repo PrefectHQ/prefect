@@ -4,8 +4,8 @@ from functools import update_wrapper
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
 
 from prefect.futures import PrefectFuture
-from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.asyncio import get_prefect_event_loop
+from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
 if TYPE_CHECKING:

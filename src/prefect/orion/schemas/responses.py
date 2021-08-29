@@ -1,6 +1,6 @@
 from typing import Union
 
-from prefect.orion.schemas.states import State, RunDetails, StateDetails
+from prefect.orion.schemas.states import RunDetails, State, StateDetails
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
