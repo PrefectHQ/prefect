@@ -75,14 +75,14 @@ async def begin_flow_run(
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
     with flow.executor.start(flow_run_id=flow_run_id, orion_client=client) as executor:
-        with portal_context as sync_task_portal:
+        with portal_context as sync_portal:
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run_id=flow_run_id,
                 parameters=parameters,
                 executor=executor,
                 client=client,
-                sync_task_portal=sync_task_portal,
+                sync_portal=sync_portal,
             )
 
     # Update the flow to the terminal state _after_ the executor has shut down
@@ -137,7 +137,7 @@ async def begin_subflow_run(
         parameters=parameters,
         executor=parent_flow_run_context.executor,
         client=client,
-        sync_task_portal=parent_flow_run_context.sync_task_portal,
+        sync_portal=parent_flow_run_context.sync_portal,
     )
 
     if terminal_state.is_completed():
@@ -168,7 +168,7 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     executor: BaseExecutor,
     client: OrionClient,
-    sync_task_portal: BlockingPortal,
+    sync_portal: BlockingPortal,
 ) -> State:
     """
     TODO: Note that pydantic will now coerce parameter types into the correct type
@@ -187,7 +187,7 @@ async def orchestrate_flow_run(
             flow=flow,
             client=client,
             executor=executor,
-            sync_task_portal=sync_task_portal,
+            sync_portal=sync_portal,
         ):
             flow_call = partial(validate_arguments(flow.fn), **parameters)
             if flow.isasync:

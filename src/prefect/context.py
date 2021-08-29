@@ -55,8 +55,9 @@ class FlowRunContext(RunContext):
     flow_run_id: UUID
     client: OrionClient
     executor: BaseExecutor
-    # The synchronous task portal is only created for async flows
-    sync_task_portal: Optional[BlockingPortal] = None
+    # The synchronous portal is only created for async flows for creating engine calls
+    # from synchronous task and subflow calls
+    sync_portal: Optional[BlockingPortal] = None
 
     __var__ = ContextVar("flow_run")
 
