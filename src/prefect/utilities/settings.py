@@ -22,7 +22,9 @@ class DatabaseSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_DATABASE_"
         frozen = True
 
-    connection_url: SecretStr = "sqlite+aiosqlite:///:memory:"
+    # the default connection_url is an in-memory sqlite database
+    # that can be accessed from multiple threads
+    connection_url: SecretStr = "sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
     echo: bool = False
 
 

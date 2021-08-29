@@ -16,7 +16,7 @@ from prefect.orion.utilities.database import (
 @pytest.fixture(scope="session", autouse=True)
 async def database_engine():
     """Produce a database engine"""
-    engine = get_engine()
+    engine = await get_engine()
     try:
         yield engine
     finally:
@@ -56,7 +56,7 @@ async def clear_db(database_engine):
 
 @pytest.fixture
 async def session(database_engine):
-    session_factory = get_session_factory(bind=database_engine)
+    session_factory = await get_session_factory(bind=database_engine)
     async with session_factory() as session:
         yield session
 
