@@ -241,7 +241,8 @@ class JSON(TypeDecorator):
     JSON type that returns SQLAlchemy's dialect-specific JSON types, where
     possible. Uses generic JSON otherwise.
 
-    The "base" type is postgresql.JSONB to expose useful methods.
+    The "base" type is postgresql.JSONB to expose useful methods prior
+    to SQL compilation
     """
 
     impl = postgresql.JSONB
@@ -253,7 +254,7 @@ class JSON(TypeDecorator):
         elif dialect.name == "sqlite":
             return dialect.type_descriptor(sqlite.JSON())
         else:
-            return dialect.type_descriptor(sa.JSON)
+            return dialect.type_descriptor(sa.JSON())
 
 
 class Pydantic(TypeDecorator):
