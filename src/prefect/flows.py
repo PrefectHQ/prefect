@@ -62,7 +62,8 @@ class Flow:
                 "flow in a flow?"
             )
 
-        is_subflow_run = FlowRunContext.get() is not None
+        parent_flow_run_context = FlowRunContext.get()
+        is_subflow_run = parent_flow_run_context is not None
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
@@ -77,7 +78,12 @@ class Flow:
                 with start_blocking_portal() as portal:
                     return portal.call(lambda: begin_run_coro)
             else:
-                return run_async_from_worker_thread(lambda: begin_run_coro)
+                if not parent_flow_run_context.flow.isasync:
+                    return run_async_from_worker_thread(lambda: begin_run_coro)
+                else:
+                    return parent_flow_run_context.sync_task_portal.call(
+                        lambda: begin_run_coro
+                    )
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
