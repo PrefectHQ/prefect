@@ -31,3 +31,12 @@ def run_async_from_worker_thread(
     """
     call = partial(fn, *args, **kwargs)
     return anyio.from_thread.run(call)
+
+
+def is_in_async_worker_thread() -> bool:
+
+    try:
+        anyio.from_thread.threadlocals.current_async_module
+        return True
+    except AttributeError:
+        return False
