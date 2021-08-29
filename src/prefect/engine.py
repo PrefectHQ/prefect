@@ -9,14 +9,14 @@ from uuid import UUID
 import pendulum
 from pydantic import validate_arguments
 
-from prefect.client import inject_client, OrionClient
-from prefect.executors import BaseExecutor
+from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.executors import BaseExecutor
+from prefect.flows import Flow
 from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
-from prefect.orion.schemas.states import State, StateType, StateDetails
+from prefect.orion.schemas.states import State, StateDetails, StateType
 from prefect.tasks import Task
-from prefect.flows import Flow
 
 
 async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
