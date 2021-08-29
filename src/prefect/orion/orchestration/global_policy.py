@@ -1,4 +1,3 @@
-from collections import defaultdict
 from prefect.orion.schemas import states
 from prefect.orion.orchestration.rules import (
     BaseUniversalRule,
@@ -9,9 +8,6 @@ from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 
 
 class GlobalPolicy(BaseOrchestrationPolicy):
-    REGISTERED_RULES = []
-    TRANSITION_TABLE = defaultdict(list)
-
     def priority():
         return [
             UpdateRunDetails,
@@ -19,7 +15,6 @@ class GlobalPolicy(BaseOrchestrationPolicy):
         ]
 
 
-@GlobalPolicy.register
 class UpdateRunDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
@@ -37,7 +32,6 @@ class UpdateRunDetails(BaseUniversalRule):
         return proposed_state
 
 
-@GlobalPolicy.register
 class UpdateStateDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES

@@ -38,11 +38,11 @@ async def create_task_run_state(
     intended_transition = (initial_state.type if initial_state else None), state.type
 
     if apply_orchestration_rules:
-        orchestration_rules = CorePolicy.lookup_transition_rules(*intended_transition)
+        orchestration_rules = CorePolicy.compile_transition_rules(*intended_transition)
     else:
         orchestration_rules = []
 
-    global_rules = GlobalPolicy.lookup_transition_rules(*intended_transition)
+    global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
     context = OrchestrationContext(
         initial_state=initial_state,

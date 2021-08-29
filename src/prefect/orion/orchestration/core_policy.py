@@ -1,22 +1,20 @@
+from typing import Optional
+
 import pendulum
 import sqlalchemy as sa
-from collections import defaultdict
 from sqlalchemy import select
-from typing import Optional
+
+from prefect.orion.models import orm
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
     OrchestrationContext,
-    ALL_ORCHESTRATION_STATES,
 )
-from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.schemas import states
-from prefect.orion.models import orm
 
 
 class CorePolicy(BaseOrchestrationPolicy):
-    REGISTERED_RULES = []
-    TRANSITION_TABLE = defaultdict(list)
-
     def priority():
         return [
             RetryPotentialFailures,
@@ -25,7 +23,6 @@ class CorePolicy(BaseOrchestrationPolicy):
         ]
 
 
-@CorePolicy.register
 class CacheRetrieval(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.RUNNING]
@@ -48,7 +45,6 @@ class CacheRetrieval(BaseOrchestrationRule):
         return proposed_state
 
 
-@CorePolicy.register
 class CacheInsertion(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.COMPLETED]
@@ -64,7 +60,6 @@ class CacheInsertion(BaseOrchestrationRule):
             await cache_task_run_state(session, validated_state)
 
 
-@CorePolicy.register
 class RetryPotentialFailures(BaseOrchestrationRule):
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = [states.StateType.FAILED]

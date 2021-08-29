@@ -37,7 +37,7 @@ async def create_flow_run_state(
     initial_state = run.state.as_state() if run.state else None
     intended_transition = (initial_state.type if initial_state else None), state.type
 
-    global_rules = GlobalPolicy.lookup_transition_rules(*intended_transition)
+    global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
     context = OrchestrationContext(
         initial_state=initial_state,
