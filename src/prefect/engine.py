@@ -2,13 +2,11 @@
 Client-side execution of flows and tasks
 """
 import time
-from contextlib import nullcontext
-from typing import Any, Dict, Optional
+from functools import partial
+from typing import Any, Dict
 from uuid import UUID
 
 import pendulum
-from anyio import start_blocking_portal, to_thread
-from anyio.abc import BlockingPortal
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
@@ -19,6 +17,7 @@ from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateDetails, StateType
 from prefect.tasks import Task
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 
 async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
@@ -69,15 +68,13 @@ async def begin_flow_run(
     )
 
     with flow.executor.start(flow_run_id=flow_run_id, orion_client=client) as executor:
-        with start_blocking_portal() as task_run_portal:
-            terminal_state = await orchestrate_flow_run(
-                flow,
-                flow_run_id=flow_run_id,
-                parameters=parameters,
-                executor=executor,
-                client=client,
-                task_run_portal=task_run_portal,
-            )
+        terminal_state = await orchestrate_flow_run(
+            flow,
+            flow_run_id=flow_run_id,
+            parameters=parameters,
+            executor=executor,
+            client=client,
+        )
 
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.set_flow_run_state(
@@ -105,7 +102,6 @@ async def begin_subflow_run(
 
     Subflows differ from parent flows in that they
     - use the existing parent flow executor
-    - do not create a new task run portal
     - create a dummy task for representation in the parent flow
 
     This function then returns a fake future containing the terminal state.
@@ -132,7 +128,6 @@ async def begin_subflow_run(
         parameters=parameters,
         executor=parent_flow_run_context.executor,
         client=client,
-        task_run_portal=parent_flow_run_context.task_run_portal,
     )
 
     if terminal_state.is_completed():
@@ -163,7 +158,6 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     executor: BaseExecutor,
     client: OrionClient,
-    task_run_portal: BlockingPortal,
 ) -> State:
     """
     TODO: Note that pydantic will now coerce parameter types into the correct type
@@ -182,21 +176,12 @@ async def orchestrate_flow_run(
             flow=flow,
             client=client,
             executor=executor,
-            task_run_portal=None,  # Disabled as PoC
-        ) as ctx:
-            from functools import partial
-
+        ):
             flow_call = partial(validate_arguments(flow.fn), **parameters)
             if flow.isasync:
                 result = await flow_call()
             else:
-                from contextvars import copy_context
-
-                # anyio does not copy the context to workers automatically so we do so
-                # here
-                # TODO: Write a `to_thread` util that behaves well to start
-                #       https://github.com/python-trio/trio/issues/648
-                result = await to_thread.run_sync(copy_context().run, flow_call)
+                result = await run_sync_in_worker_thread(flow_call)
 
     except Exception as exc:
         state = State(

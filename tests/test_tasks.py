@@ -29,27 +29,8 @@ class TestTaskCall:
         @flow
         def bar():
             return foo(1)
-            # Returns a future which is resolved on return into a `State`
 
         flow_future = bar()
-        task_state = flow_future.result().data
-        assert isinstance(task_state, State)
-        assert task_state.data == 1
-
-    @pytest.mark.skip(
-        "Mixing sync/async is not supported yet when using worker threads"
-    )
-    async def test_sync_task_called_inside_async_flow(self):
-        @task
-        def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            return foo(1)
-            # Returns a future which is resolved on return into a `State`
-
-        flow_future = await bar()
         task_state = flow_future.result().data
         assert isinstance(task_state, State)
         assert task_state.data == 1
@@ -62,7 +43,6 @@ class TestTaskCall:
         @flow
         async def bar():
             return await foo(1)
-            # Returns a future which is resolved on return into a `State`
 
         flow_future = await bar()
         task_state = flow_future.result().data
@@ -80,11 +60,28 @@ class TestTaskCall:
 
         with pytest.raises(
             RuntimeError,
-            match="Asynchronous tasks may not be called from synchronous flows",
+            match="Your task is async and your flow is sync.",
         ):
             # Normally, this would just return the coro which was never awaited but we
             # want to fail instead to provide a better error
             raise bar().result().data
+
+    async def test_sync_task_called_inside_async_flow_raises_clear_error(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
+
+        with pytest.raises(
+            RuntimeError,
+            match="Your task is sync and your flow is async.",
+        ):
+            # We technically could make this possible but it would require additional
+            # event loops
+            raise (await bar()).result().data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):

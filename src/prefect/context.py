@@ -55,8 +55,6 @@ class FlowRunContext(RunContext):
     flow_run_id: UUID
     client: OrionClient
     executor: BaseExecutor
-    # TODO: The portal should be required
-    task_run_portal: BlockingPortal = None
 
     __var__ = ContextVar("flow_run")
 
