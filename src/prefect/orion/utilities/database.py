@@ -282,9 +282,6 @@ class Pydantic(TypeDecorator):
             return pydantic.parse_obj_as(self._pydantic_type, value)
 
 
-# "now" element --------------------
-
-
 class now(FunctionElement):
     """
     Platform-independent "now" generator
@@ -318,9 +315,6 @@ def current_timestamp(element, compiler, **kwargs):
     Generates the current timestamp in standard SQL
     """
     return "CURRENT_TIMESTAMP"
-
-
-# "json_contains" function --------------------
 
 
 class json_contains(FunctionElement):
