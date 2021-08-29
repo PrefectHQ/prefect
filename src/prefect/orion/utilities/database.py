@@ -340,12 +340,16 @@ def json_contains_sqlite(element, compiler, **kwargs):
 
     json_values = []
     for v in element.values:
+
+        # sqlite appears to store JSON as a string with whitespace removed,
+        # so non-scalar equality needs to be formatted identically
         if isinstance(v, (dict, list)):
             v = json.dumps(v, separators=(",", ":"))
         json_values.append(v)
 
     json_each = sa.func.json_each(element.json_col).alias("json_each")
 
+    # attempt to match each of the provided values at least once
     return compiler.process(
         sa.and_(
             *[
@@ -389,6 +393,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
 
 @compiles(json_has_any_key, "sqlite")
 def json_has_any_key_sqlite(element, compiler, **kwargs):
+    # attempt to match any of the provided values at least once
     json_each = sa.func.json_each(element.json_col).alias("json_each")
     return compiler.process(
         sa.select(1)
@@ -427,6 +432,8 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 
 @compiles(json_has_all_keys, "sqlite")
 def json_has_all_keys_sqlite(element, compiler, **kwargs):
+    # attempt to match all of the provided values at least once
+    # by applying an "any_key" match to each one individually
     return compiler.process(
         sa.and_(
             *[json_has_any_key(element.json_col, [v]) for v in element.values] or [True]
