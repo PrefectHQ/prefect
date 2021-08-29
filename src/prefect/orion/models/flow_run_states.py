@@ -6,7 +6,7 @@ from uuid import UUID
 
 from prefect.orion import schemas, models
 from prefect.orion.models import orm
-from prefect.orion.orchestration import global_policy
+from prefect.orion.orchestration.global_policy import GlobalPolicy
 from prefect.orion.orchestration.rules import OrchestrationContext
 
 
@@ -37,7 +37,7 @@ async def create_flow_run_state(
     initial_state = run.state.as_state() if run.state else None
     intended_transition = (initial_state.type if initial_state else None), state.type
 
-    global_rules = global_policy.lookup_transition_rules(*intended_transition)
+    global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
     context = OrchestrationContext(
         initial_state=initial_state,
