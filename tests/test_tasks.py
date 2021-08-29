@@ -36,6 +36,9 @@ class TestTaskCall:
         assert isinstance(task_state, State)
         assert task_state.data == 1
 
+    @pytest.mark.skip(
+        "Mixing sync/async is not supported yet when using worker threads"
+    )
     async def test_sync_task_called_inside_async_flow(self):
         @task
         def foo(x):

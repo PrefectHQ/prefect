@@ -108,7 +108,9 @@ class Task:
         if self.isasync:
             return begin_run_coro
         else:
-            return flow_run_context.task_run_portal.call(lambda: begin_run_coro)
+            from anyio import from_thread
+
+            return from_thread.run(lambda: begin_run_coro)
 
     def update_dynamic_key(self):
         """
