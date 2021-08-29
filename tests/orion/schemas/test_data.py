@@ -6,10 +6,10 @@ from typing_extensions import Literal
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.serializers import (
     _SERIALIZERS,
-    register_serializer,
-    OrionSerializer,
     FileSerializer,
+    OrionSerializer,
     Serializer,
+    register_serializer,
 )
 
 

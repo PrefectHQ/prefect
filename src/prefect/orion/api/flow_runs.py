@@ -1,6 +1,7 @@
+import logging
 from typing import List
 from uuid import UUID
-import logging
+
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 

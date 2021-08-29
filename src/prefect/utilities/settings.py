@@ -4,6 +4,7 @@ Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
 from pathlib import Path
+
 from pydantic import BaseSettings, Field, SecretStr
 
 

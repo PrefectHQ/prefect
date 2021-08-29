@@ -8,8 +8,8 @@ import prefect
 from prefect import flow
 from prefect.client import OrionClient
 from prefect.orion import schemas
+from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.tasks import task
-from prefect.serializers import PickleSerializer, JSONSerializer
 
 
 @pytest.fixture

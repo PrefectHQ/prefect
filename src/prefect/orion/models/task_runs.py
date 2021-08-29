@@ -1,10 +1,10 @@
-from uuid import UUID
 from typing import List
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion import schemas, models
+from prefect.orion import models, schemas
 from prefect.orion.models import orm
 
 

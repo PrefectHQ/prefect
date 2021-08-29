@@ -1,13 +1,13 @@
-from uuid import UUID
-from typing import Any, Callable, Dict, Optional, TypeVar
 from contextlib import contextmanager
+from typing import Any, Callable, Dict, Optional, TypeVar
+from uuid import UUID
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
-from prefect.orion.schemas.states import State
-from prefect.futures import resolve_futures, PrefectFuture
 from prefect.client import OrionClient
+from prefect.futures import PrefectFuture, resolve_futures
+from prefect.orion.schemas.states import State
 
 T = TypeVar("T", bound="BaseExecutor")
 

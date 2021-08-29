@@ -1,13 +1,14 @@
-import yaml
 from unittest.mock import MagicMock
+
 import pytest
+import yaml
 
 from prefect.utilities.logging import (
+    DEFAULT_LOGGING_SETTINGS_PATH,
     get_logger,
     setup_logging,
-    DEFAULT_LOGGING_SETTINGS_PATH,
 )
-from prefect.utilities.settings import Settings, LoggingSettings
+from prefect.utilities.settings import LoggingSettings, Settings
 
 
 @pytest.fixture

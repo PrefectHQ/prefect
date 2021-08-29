@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Dict, Any, Tuple
+from typing import Any, Callable, Dict, Tuple
 
 
 def get_call_parameters(

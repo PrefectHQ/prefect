@@ -9,8 +9,8 @@ from uuid import UUID
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
-from prefect.utilities.collections import ensure_iterable
 from prefect.utilities.asyncio import get_prefect_event_loop
+from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
