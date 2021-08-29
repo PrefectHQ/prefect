@@ -10,6 +10,7 @@ from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import file_hash
+from prefect.utilities.asyncio import run_async_from_worker_thread
 
 
 class Flow:
@@ -72,8 +73,11 @@ class Flow:
         if self.isasync:
             return begin_run_coro
         else:
-            with start_blocking_portal() as portal:
-                return portal.call(lambda: begin_run_coro)
+            if not is_subflow_run:
+                with start_blocking_portal() as portal:
+                    return portal.call(lambda: begin_run_coro)
+            else:
+                return run_async_from_worker_thread(lambda: begin_run_coro)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
