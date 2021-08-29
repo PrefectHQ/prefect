@@ -268,7 +268,7 @@ class TestFlowCall:
         child_task_state = child_state.data
         assert child_task_state.data == 6
 
-    async def test_async_subflow_call_with_async_tasks(self):
+    async def test_async_flow_with_async_subflow_and_with_async_tasks(self):
         @task
         async def compute_async(x, y, z):
             return x + y + z
@@ -280,6 +280,50 @@ class TestFlowCall:
         @flow(version="bar")
         async def parent(x, y=2, z=3):
             return await child(x, y, z)
+
+        parent_future = await parent(1, 2)
+        assert isinstance(parent_future, PrefectFuture)
+        assert parent_future.result().is_completed()
+
+        child_state = parent_future.result().data
+        assert child_state.is_completed()
+        task_state = child_state.data
+        assert task_state.data == 6
+
+    async def test_async_flow_with_async_subflow_and_sync_tasks(self):
+        @task
+        def compute(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        async def child(x, y, z):
+            return compute(x, y, z)
+
+        @flow(version="bar")
+        async def parent(x, y=2, z=3):
+            return await child(x, y, z)
+
+        parent_future = await parent(1, 2)
+        assert isinstance(parent_future, PrefectFuture)
+        assert parent_future.result().is_completed()
+
+        child_state = parent_future.result().data
+        assert child_state.is_completed()
+        task_state = child_state.data
+        assert task_state.data == 6
+
+    async def test_async_flow_with_sync_subflow_and_tasks(self):
+        @task
+        def compute(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        def child(x, y, z):
+            return compute(x, y, z)
+
+        @flow(version="bar")
+        async def parent(x, y=2, z=3):
+            return child(x, y, z)
 
         parent_future = await parent(1, 2)
         assert isinstance(parent_future, PrefectFuture)
