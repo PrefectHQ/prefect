@@ -2,6 +2,7 @@ import os
 
 import pytest
 import sqlalchemy as sa
+
 from prefect import settings
 
 pytestmark = pytest.mark.skipif(
