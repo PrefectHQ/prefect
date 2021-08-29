@@ -8,7 +8,7 @@ from prefect.orion.schemas.data import (
 )
 from prefect.orion.serializers import FileSerializer, OrionSerializer
 from prefect.orion.utilities.server import OrionRouter
-from prefect.orion.utilities.asyncio import run_in_threadpool
+from prefect.utilities.asyncio import run_in_threadpool
 
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 

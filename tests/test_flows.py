@@ -80,7 +80,7 @@ class TestDecorator:
 
 
 class TestFlowCall:
-    def test_call_creates_flow_run_and_runs(self):
+    async def test_call_creates_flow_run_and_runs(self):
         @flow(version="test")
         def foo(x, y=3, z=3):
             return x + y + z
@@ -91,23 +91,25 @@ class TestFlowCall:
         assert future.result().data == 6
         assert future.run_id is not None
 
-        flow_run = OrionClient().read_flow_run(future.run_id)
+        async with OrionClient() as client:
+            flow_run = await client.read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
-    def test_call_creates_ephemeral_instance(self):
+    async def test_async_call_creates_flow_run_and_runs(self):
         @flow(version="test")
-        def foo(x, y=3, z=3):
+        async def foo(x, y=3, z=3):
             return x + y + z
 
-        future = foo(1, 2)
+        future = await foo(1, 2)
         assert isinstance(future, PrefectFuture)
         assert future.result().is_completed()
         assert future.result().data == 6
         assert future.run_id is not None
 
-        flow_run = OrionClient().read_flow_run(future.run_id)
+        async with OrionClient() as client:
+            flow_run = await client.read_flow_run(future.run_id)
         assert flow_run.id == future.run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
@@ -219,7 +221,7 @@ class TestFlowCall:
         assert second.is_failed()
         assert third.is_completed()
 
-    def test_subflow_call_with_no_tasks(self):
+    async def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
             return x + y + z
@@ -237,7 +239,8 @@ class TestFlowCall:
         assert child_state.is_completed()
         assert child_state.data == 6
 
-        child_flow_run = OrionClient().read_flow_run(child_run_id)
+        async with OrionClient() as client:
+            child_flow_run = await client.read_flow_run(child_run_id)
         assert child_flow_run.id == child_run_id
         assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert child_flow_run.parent_task_run_id is not None
@@ -264,3 +267,30 @@ class TestFlowCall:
         assert child_state.is_completed()
         child_task_state = child_state.data
         assert child_task_state.data == 6
+
+    async def test_async_subflow_call(self):
+        @task
+        async def compute_async(x, y, z):
+            return x + y + z
+
+        @task
+        def compute_sync(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        async def child(x, y, z):
+            return compute_sync(x, y, z), await compute_async(x, y, z)
+
+        @flow(version="bar")
+        async def parent(x, y=2, z=3):
+            return await child(x, y, z)
+
+        parent_future = await parent(1, 2)
+        assert isinstance(parent_future, PrefectFuture)
+        assert parent_future.result().is_completed()
+
+        child_state = parent_future.result().data
+        assert child_state.is_completed()
+        sync_state, async_state = child_state.data
+        assert sync_state.data == 6
+        assert sync_state.data == async_state.data
