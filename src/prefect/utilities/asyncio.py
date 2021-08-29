@@ -14,8 +14,8 @@ async def run_sync_in_worker_thread(
     Runs a sync function in a new worker thread so that the main thread's event loop
     is not blocked
 
-    Unlike the anyio function, this that context variables are copied into the worker
-    thread.
+    Unlike the anyio function, this ensures that context variables are copied into the
+    worker thread.
     """
     call = partial(fn, *args, **kwargs)
     context = copy_context()  # Pass the context to the worker thread
@@ -26,8 +26,8 @@ def run_async_from_worker_thread(
     fn: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
 ) -> T:
     """
-    Runs an async function in the main thread's event loop while blocking the worker
-    thread
+    Runs an async function in the main thread's event loop, blocking the worker
+    thread until completion
     """
     call = partial(fn, *args, **kwargs)
     return anyio.from_thread.run(call)
