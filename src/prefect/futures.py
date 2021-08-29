@@ -35,6 +35,10 @@ class PrefectFuture:
         self._result = _result
 
     def result(self, timeout: float = None) -> Optional[State]:
+        # TODO: We can make this a dual sync/async interface by returning the coro
+        #       directly if this is a future from an async flow/task. This bool just
+        #       needs to be attached to the class at some point.
+        #       Once this is async compatible, `aresult` can be made private
         if self._result:
             return self._result
 
