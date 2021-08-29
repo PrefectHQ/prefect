@@ -2,11 +2,11 @@ from typing import List, Union
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import JSON, Column, ForeignKey, String, join
+from sqlalchemy import Column, ForeignKey, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, schedules, states
-from prefect.orion.utilities.database import UUID, Base, now, Pydantic, Timestamp
+from prefect.orion.utilities.database import UUID, Base, now, Pydantic, Timestamp, JSON
 from prefect.orion.utilities.functions import ParameterSchema
 
 
