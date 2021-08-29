@@ -4,15 +4,16 @@ from functools import update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
     Callable,
     Dict,
     Iterable,
     Optional,
     Union,
-    Awaitable,
 )
 
 from prefect.futures import PrefectFuture
+from prefect.utilities.asyncio import run_async_from_worker_thread
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
@@ -92,10 +93,12 @@ class Task:
                 "task in a flow?"
             )
 
-        # Provide a helpful error if this task is async in a sync flow
-        if self.isasync and not flow_run_context.flow.isasync:
+        # Provide a helpful error if there is a sync/async task/flow match
+        if self.isasync is not flow_run_context.flow.isasync:
             raise RuntimeError(
-                "Asynchronous tasks may not be called from synchronous flows."
+                f"Your task is {'async' if self.isasync else 'sync'} and your flow is "
+                f"{'async' if flow_run_context.flow.isasync else 'sync'}. You must "
+                "use async consistently."
             )
 
         # Convert the call args/kwargs to a parameter dict
@@ -108,9 +111,7 @@ class Task:
         if self.isasync:
             return begin_run_coro
         else:
-            from anyio import from_thread
-
-            return from_thread.run(lambda: begin_run_coro)
+            return run_async_from_worker_thread(lambda: begin_run_coro)
 
     def update_dynamic_key(self):
         """

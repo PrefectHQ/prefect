@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from unittest.mock import Mock
 from uuid import UUID
 
-from anyio import start_blocking_portal
-
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.utilities.collections import ensure_iterable
+from prefect.utilities.asyncio import run_async_from_worker_thread
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -36,29 +35,35 @@ class PrefectFuture:
         self._result = _result
 
     def result(self, timeout: float = None) -> Optional[State]:
+        if self._result:
+            return self._result
+
+        return run_async_from_worker_thread(self.aresult, timeout)
+
+    def get_state(self) -> State:
+        return run_async_from_worker_thread(self.get_state)
+
+    async def aresult(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
         if self._result:
             return self._result
 
-        state = self.get_state()
+        state = await self.aget_state()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        self._result = self._executor.portal.call(self._executor.wait, self, timeout)
+        self._result = await self._executor.wait(self, timeout)
 
         return self._result
 
-    def get_state(self) -> State:
+    async def aget_state(self) -> State:
         if self.task_run_id:
-            run = self._executor.portal.call(
-                self._client.read_task_run, self.task_run_id
-            )
+            run = await self._client.read_task_run(self.task_run_id)
+
         else:
-            run = self._executor.portal.call(
-                self._client.read_flow_run, self.flow_run_id
-            )
+            run = await self._client.read_flow_run(self.flow_run_id)
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")
@@ -69,11 +74,11 @@ class PrefectFuture:
 
 
 async def future_to_data(future: PrefectFuture) -> Any:
-    return future.result().data
+    return (await future.aresult()).data
 
 
 async def future_to_state(future: PrefectFuture) -> Any:
-    return future.result()
+    return await future.aresult()
 
 
 async def resolve_futures(
