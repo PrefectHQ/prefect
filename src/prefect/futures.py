@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from unittest.mock import Mock
 from uuid import UUID
 
-from anyio import start_blocking_portal
-
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
