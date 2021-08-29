@@ -367,20 +367,20 @@ def json_contains_sqlite(element, compiler, **kwargs):
     )
 
 
-class json_has_any_keys(FunctionElement):
+class json_has_any_key(FunctionElement):
     type = BOOLEAN
-    name = "json_has_any_keys"
+    name = "json_has_any_key"
 
     def __init__(self, json_col, values: List):
         self.json_col = json_col
         if not all(isinstance(v, str) for v in values):
-            raise ValueError("json_has_any_keys values must be strings")
+            raise ValueError("json_has_any_key values must be strings")
         self.values = values
         super().__init__()
 
 
-@compiles(json_has_any_keys)
-def json_has_any_keys_postgresql(element, compiler, **kwargs):
+@compiles(json_has_any_key)
+def json_has_any_key_postgresql(element, compiler, **kwargs):
 
     values_array = postgresql.array(element.values)
     # if the array is empty, postgres requires a type annotation
@@ -393,8 +393,8 @@ def json_has_any_keys_postgresql(element, compiler, **kwargs):
     )
 
 
-@compiles(json_has_any_keys, "sqlite")
-def json_has_any_keys_sqlite(element, compiler, **kwargs):
+@compiles(json_has_any_key, "sqlite")
+def json_has_any_key_sqlite(element, compiler, **kwargs):
     json_each = sa.func.json_each(element.json_col).alias("json_each")
     return compiler.process(
         sa.select(1)
@@ -412,7 +412,7 @@ class json_has_all_keys(FunctionElement):
     def __init__(self, json_col, values: List):
         self.json_col = json_col
         if not all(isinstance(v, str) for v in values):
-            raise ValueError("json_has_any_keys values must be strings")
+            raise ValueError("json_has_any_key values must be strings")
         self.values = values
         super().__init__()
 
@@ -435,8 +435,7 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 def json_has_all_keys_sqlite(element, compiler, **kwargs):
     return compiler.process(
         sa.and_(
-            *[json_has_any_keys(element.json_col, [v]) for v in element.values]
-            or [True]
+            *[json_has_any_key(element.json_col, [v]) for v in element.values] or [True]
         )
     )
 
