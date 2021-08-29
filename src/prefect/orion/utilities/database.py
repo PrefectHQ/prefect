@@ -322,8 +322,8 @@ class json_contains(FunctionElement):
     type = BOOLEAN
     name = "json_contains"
 
-    def __init__(self, json_col, values: List):
-        self.json_col = json_col
+    def __init__(self, json_expr, values: List):
+        self.json_expr = json_expr
         self.values = values
         super().__init__()
 
@@ -331,7 +331,7 @@ class json_contains(FunctionElement):
 @compiles(json_contains)
 def json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
-        sa.type_coerce(element.json_col, postgresql.JSONB).contains(element.values),
+        sa.type_coerce(element.json_expr, postgresql.JSONB).contains(element.values),
         **kwargs
     )
 
@@ -348,7 +348,7 @@ def json_contains_sqlite(element, compiler, **kwargs):
             v = json.dumps(v, separators=(",", ":"))
         json_values.append(v)
 
-    json_each = sa.func.json_each(element.json_col).alias("json_each")
+    json_each = sa.func.json_each(element.json_expr).alias("json_each")
 
     # attempt to match each of the provided values at least once
     return compiler.process(
@@ -370,8 +370,8 @@ class json_has_any_key(FunctionElement):
     type = BOOLEAN
     name = "json_has_any_key"
 
-    def __init__(self, json_col, values: List):
-        self.json_col = json_col
+    def __init__(self, json_expr, values: List):
+        self.json_expr = json_expr
         if not all(isinstance(v, str) for v in values):
             raise ValueError("json_has_any_key values must be strings")
         self.values = values
@@ -387,7 +387,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
         values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
 
     return compiler.process(
-        sa.type_coerce(element.json_col, postgresql.JSONB).has_any(values_array),
+        sa.type_coerce(element.json_expr, postgresql.JSONB).has_any(values_array),
         **kwargs
     )
 
@@ -395,7 +395,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
 @compiles(json_has_any_key, "sqlite")
 def json_has_any_key_sqlite(element, compiler, **kwargs):
     # attempt to match any of the provided values at least once
-    json_each = sa.func.json_each(element.json_col).alias("json_each")
+    json_each = sa.func.json_each(element.json_expr).alias("json_each")
     return compiler.process(
         sa.select(1)
         .select_from(json_each)
@@ -409,8 +409,8 @@ class json_has_all_keys(FunctionElement):
     type = BOOLEAN
     name = "json_has_all_keys"
 
-    def __init__(self, json_col, values: List):
-        self.json_col = json_col
+    def __init__(self, json_expr, values: List):
+        self.json_expr = json_expr
         if not all(isinstance(v, str) for v in values):
             raise ValueError("json_has_any_key values must be strings")
         self.values = values
@@ -426,7 +426,7 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
         values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
 
     return compiler.process(
-        sa.type_coerce(element.json_col, postgresql.JSONB).has_all(values_array),
+        sa.type_coerce(element.json_expr, postgresql.JSONB).has_all(values_array),
         **kwargs
     )
 
@@ -437,7 +437,8 @@ def json_has_all_keys_sqlite(element, compiler, **kwargs):
     # by applying an "any_key" match to each one individually
     return compiler.process(
         sa.and_(
-            *[json_has_any_key(element.json_col, [v]) for v in element.values] or [True]
+            *[json_has_any_key(element.json_expr, [v]) for v in element.values]
+            or [True]
         )
     )
 
