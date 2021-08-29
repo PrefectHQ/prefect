@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID
 
 import pendulum
-from anyio import start_blocking_portal
+from anyio import start_blocking_portal, to_thread
 from anyio.abc import BlockingPortal
 from pydantic import validate_arguments
 
@@ -182,11 +182,21 @@ async def orchestrate_flow_run(
             flow=flow,
             client=client,
             executor=executor,
-            task_run_portal=task_run_portal,
-        ):
-            result = validate_arguments(flow.fn)(**parameters)
+            task_run_portal=None,  # Disabled as PoC
+        ) as ctx:
+            from functools import partial
+
+            flow_call = partial(validate_arguments(flow.fn), **parameters)
             if flow.isasync:
-                result = await result
+                result = await flow_call()
+            else:
+                from contextvars import copy_context
+
+                # anyio does not copy the context to workers automatically so we do so
+                # here
+                # TODO: Write a `to_thread` util that behaves well to start
+                #       https://github.com/python-trio/trio/issues/648
+                result = await to_thread.run_sync(copy_context().run, flow_call)
 
     except Exception as exc:
         state = State(

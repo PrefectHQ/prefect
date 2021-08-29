@@ -268,18 +268,14 @@ class TestFlowCall:
         child_task_state = child_state.data
         assert child_task_state.data == 6
 
-    async def test_async_subflow_call(self):
+    async def test_async_subflow_call_with_async_tasks(self):
         @task
         async def compute_async(x, y, z):
             return x + y + z
 
-        @task
-        def compute_sync(x, y, z):
-            return x + y + z
-
         @flow(version="foo")
         async def child(x, y, z):
-            return compute_sync(x, y, z), await compute_async(x, y, z)
+            return await compute_async(x, y, z)
 
         @flow(version="bar")
         async def parent(x, y=2, z=3):
@@ -291,6 +287,5 @@ class TestFlowCall:
 
         child_state = parent_future.result().data
         assert child_state.is_completed()
-        sync_state, async_state = child_state.data
-        assert sync_state.data == 6
-        assert sync_state.data == async_state.data
+        task_state = child_state.data
+        assert task_state.data == 6
