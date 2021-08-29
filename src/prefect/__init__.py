@@ -14,5 +14,7 @@ import prefect.futures
 import prefect.serializers
 import prefect.tasks
 
+# User-facing API
+from prefect.orion.schemas.states import State
 from prefect.flows import flow
 from prefect.tasks import task
