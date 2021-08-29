@@ -1,6 +1,9 @@
-from prefect.orion.schemas import states
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
-from prefect.orion.orchestration.rules import BaseOrchestrationRule, ALL_ORCHESTRATION_STATES
+from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
+    BaseOrchestrationRule,
+)
+from prefect.orion.schemas import states
 
 
 class TestPoliciesRespectOrdering:
@@ -43,7 +46,9 @@ class TestPoliciesRespectOrdering:
         transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
         fight_club_rules = FightClub.compile_transition_rules(*transition)
         copycat_rules = CopyCatClub.compile_transition_rules(*transition)
-        definitely_different_rules = DefinitelyADifferentClub.compile_transition_rules(*transition)
+        definitely_different_rules = DefinitelyADifferentClub.compile_transition_rules(
+            *transition
+        )
         assert fight_club_rules == copycat_rules
         assert fight_club_rules != definitely_different_rules
 
@@ -70,4 +75,3 @@ class TestPoliciesRespectOrdering:
 
         transition = (states.StateType.PENDING, states.StateType.RUNNING)
         assert Bureaucracy.compile_transition_rules(*transition) == [ValidRule]
-

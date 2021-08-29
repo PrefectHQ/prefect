@@ -1,8 +1,9 @@
 import hashlib
 import json
-import cloudpickle
 from pathlib import Path
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
+
+import cloudpickle
 
 
 def stable_hash(*args: Union[str, bytes, int]) -> str:

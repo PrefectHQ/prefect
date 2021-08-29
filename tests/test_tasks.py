@@ -1,12 +1,13 @@
-import pytest
 import datetime
 from itertools import repeat
 from unittest.mock import MagicMock
 
+import pytest
+
 from prefect import flow
-from prefect.tasks import task, task_input_hash
-from prefect.orion.schemas.states import State, StateType
 from prefect.client import OrionClient
+from prefect.orion.schemas.states import State, StateType
+from prefect.tasks import task, task_input_hash
 
 
 class TestTaskCall:
