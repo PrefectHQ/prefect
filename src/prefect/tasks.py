@@ -94,10 +94,9 @@ class Task:
             )
 
         # Provide a helpful error if there is a sync/async task/flow match
-        if self.isasync is not flow_run_context.flow.isasync:
+        if self.isasync and not flow_run_context.flow.isasync:
             raise RuntimeError(
-                f"Your task is {'async' if self.isasync else 'sync'} and your flow is "
-                f"{'async' if flow_run_context.flow.isasync else 'sync'}. You must "
+                f"Your task is async and your flow is sync. You must "
                 "use async consistently."
             )
 
@@ -111,7 +110,12 @@ class Task:
         if self.isasync:
             return begin_run_coro
         else:
-            return run_async_from_worker_thread(lambda: begin_run_coro)
+            if flow_run_context.flow.isasync:
+                # If the flow is async and the task is sync, we are not in a thread and
+                # must call out to a dedicated event loop
+                return flow_run_context.sync_task_portal.call(lambda: begin_run_coro)
+            else:
+                return run_async_from_worker_thread(lambda: begin_run_coro)
 
     def update_dynamic_key(self):
         """

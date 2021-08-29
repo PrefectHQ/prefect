@@ -5,9 +5,13 @@ import time
 from functools import partial
 from typing import Any, Dict
 from uuid import UUID
+from contextlib import nullcontext
+
 
 import pendulum
 from pydantic import validate_arguments
+from anyio.from_thread import BlockingPortal
+from anyio import start_blocking_portal
 
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -67,14 +71,19 @@ async def begin_flow_run(
         state=State(type=StateType.PENDING),
     )
 
+    # If the flow is async, we need to provide a portal so sync tasks can run
+    portal_context = start_blocking_portal() if flow.isasync else nullcontext()
+
     with flow.executor.start(flow_run_id=flow_run_id, orion_client=client) as executor:
-        terminal_state = await orchestrate_flow_run(
-            flow,
-            flow_run_id=flow_run_id,
-            parameters=parameters,
-            executor=executor,
-            client=client,
-        )
+        with portal_context as sync_task_portal:
+            terminal_state = await orchestrate_flow_run(
+                flow,
+                flow_run_id=flow_run_id,
+                parameters=parameters,
+                executor=executor,
+                client=client,
+                sync_task_portal=sync_task_portal,
+            )
 
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.set_flow_run_state(
@@ -128,6 +137,7 @@ async def begin_subflow_run(
         parameters=parameters,
         executor=parent_flow_run_context.executor,
         client=client,
+        sync_task_portal=parent_flow_run_context.sync_task_portal,
     )
 
     if terminal_state.is_completed():
@@ -158,6 +168,7 @@ async def orchestrate_flow_run(
     parameters: Dict[str, Any],
     executor: BaseExecutor,
     client: OrionClient,
+    sync_task_portal: BlockingPortal,
 ) -> State:
     """
     TODO: Note that pydantic will now coerce parameter types into the correct type
@@ -176,6 +187,7 @@ async def orchestrate_flow_run(
             flow=flow,
             client=client,
             executor=executor,
+            sync_task_portal=sync_task_portal,
         ):
             flow_call = partial(validate_arguments(flow.fn), **parameters)
             if flow.isasync:

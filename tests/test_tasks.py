@@ -49,6 +49,20 @@ class TestTaskCall:
         assert isinstance(task_state, State)
         assert task_state.data == 1
 
+    async def test_sync_task_called_inside_async_flow(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
+
+        flow_future = await bar()
+        task_state = flow_future.result().data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
+
     async def test_async_task_called_inside_sync_flow_raises_clear_error(self):
         @task
         async def foo(x):
@@ -65,23 +79,6 @@ class TestTaskCall:
             # Normally, this would just return the coro which was never awaited but we
             # want to fail instead to provide a better error
             raise bar().result().data
-
-    async def test_sync_task_called_inside_async_flow_raises_clear_error(self):
-        @task
-        def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            return foo(1)
-
-        with pytest.raises(
-            RuntimeError,
-            match="Your task is sync and your flow is async.",
-        ):
-            # We technically could make this possible but it would require additional
-            # event loops
-            raise (await bar()).result().data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
