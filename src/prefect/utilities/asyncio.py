@@ -1,7 +1,8 @@
-import anyio
-from typing import Callable, Awaitable, Any, TypeVar
-from functools import partial
 from contextvars import copy_context
+from functools import partial
+from typing import Any, Awaitable, Callable, TypeVar
+
+import anyio
 
 T = TypeVar("T")
 
