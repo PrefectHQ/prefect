@@ -6,7 +6,7 @@ from sqlalchemy import JSON, Column, ForeignKey, String, join
 from sqlalchemy.orm import aliased, relationship
 
 from prefect.orion.schemas import core, schedules, states
-from prefect.orion.utilities.database import UUID, Base, Now, Pydantic, Timestamp
+from prefect.orion.utilities.database import UUID, Base, now, Pydantic, Timestamp
 from prefect.orion.utilities.functions import ParameterSchema
 
 
@@ -31,7 +31,7 @@ class FlowRunState(Base):
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
-        server_default=Now(),
+        server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
     name = Column(String, nullable=False)
@@ -73,7 +73,7 @@ class TaskRunState(Base):
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
-        server_default=Now(),
+        server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
     name = Column(String, nullable=False)
