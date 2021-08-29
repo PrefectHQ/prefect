@@ -4,13 +4,13 @@ import re
 import uuid
 from asyncio import current_task, get_event_loop
 from enum import Enum
-from typing import Union
+from typing import List, Union
 
 import pendulum
 import pydantic
 import sqlalchemy as sa
 from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import UUID as PostgresUUID
+from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.event import listens_for
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -21,7 +21,8 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
 from sqlalchemy.schema import MetaData
 from sqlalchemy.sql.functions import FunctionElement
-from sqlalchemy.types import CHAR, JSON, TypeDecorator
+from sqlalchemy.sql.sqltypes import BOOLEAN
+from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
 
 from prefect import settings
 
@@ -125,12 +126,6 @@ def setup_sqlite(conn, named=True):
         cursor.close()
 
 
-@compiles(sa.JSON, "postgresql")
-def compile_json_as_jsonb_postgres(type_, compiler, **kw):
-    """Compiles the generic SQLAlchemy JSON type as JSONB on postgres"""
-    return "JSONB"
-
-
 class UUIDDefault(FunctionElement):
     """
     Platform-independent UUID default generator.
@@ -204,6 +199,63 @@ class Timestamp(TypeDecorator):
             return pendulum.instance(value).in_timezone("utc")
 
 
+class UUID(TypeDecorator):
+    """
+    Platform-independent UUID type.
+
+    Uses PostgreSQL's UUID type, otherwise uses
+    CHAR(36), storing as stringified hex values with
+    hyphens.
+    """
+
+    impl = TypeEngine
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(postgresql.UUID())
+        else:
+            return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        elif dialect.name == "postgresql":
+            return str(value)
+        elif isinstance(value, uuid.UUID):
+            return str(value)
+        else:
+            return str(uuid.UUID(value))
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return value
+        else:
+            if not isinstance(value, uuid.UUID):
+                value = uuid.UUID(value)
+            return value
+
+
+class JSON(TypeDecorator):
+    """
+    JSON type that returns SQLAlchemy's dialect-specific JSON types, where
+    possible. Uses generic JSON otherwise.
+
+    The "base" type is postgresql.JSONB to expose useful methods.
+    """
+
+    impl = postgresql.JSONB
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(postgresql.JSONB())
+        elif dialect.name == "sqlite":
+            return dialect.type_descriptor(sqlite.JSON())
+        else:
+            return dialect.type_descriptor(sa.JSON)
+
+
 class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
@@ -230,44 +282,10 @@ class Pydantic(TypeDecorator):
             return pydantic.parse_obj_as(self._pydantic_type, value)
 
 
-class UUID(TypeDecorator):
-    """
-    Platform-independent UUID type.
-
-    Uses PostgreSQL's UUID type, otherwise uses
-    CHAR(36), storing as stringified hex values with
-    hyphens.
-    """
-
-    impl = CHAR
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(PostgresUUID())
-        else:
-            return dialect.type_descriptor(CHAR(36))
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return None
-        elif dialect.name == "postgresql":
-            return str(value)
-        elif isinstance(value, uuid.UUID):
-            return str(value)
-        else:
-            return str(uuid.UUID(value))
-
-    def process_result_value(self, value, dialect):
-        if value is None:
-            return value
-        else:
-            if not isinstance(value, uuid.UUID):
-                value = uuid.UUID(value)
-            return value
+# "now" element --------------------
 
 
-class Now(FunctionElement):
+class now(FunctionElement):
     """
     Platform-independent "now" generator
     """
@@ -275,7 +293,7 @@ class Now(FunctionElement):
     name = "now"
 
 
-@compiles(Now, "sqlite")
+@compiles(now, "sqlite")
 def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp for SQLite
@@ -294,12 +312,133 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 
 
-@compiles(Now)
-def now(element, compiler, **kwargs):
+@compiles(now)
+def current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp in standard SQL
     """
     return "CURRENT_TIMESTAMP"
+
+
+# "json_contains" function --------------------
+
+
+class json_contains(FunctionElement):
+    type = BOOLEAN
+    name = "json_contains"
+
+    def __init__(self, json_col, values: List):
+        self.json_col = json_col
+        self.values = values
+        super().__init__()
+
+
+@compiles(json_contains)
+def json_contains_postgresql(element, compiler, **kwargs):
+    return compiler.process(
+        sa.type_coerce(element.json_col, postgresql.JSONB).contains(element.values),
+        **kwargs
+    )
+
+
+@compiles(json_contains, "sqlite")
+def json_contains_sqlite(element, compiler, **kwargs):
+
+    json_values = []
+    for v in element.values:
+        if isinstance(v, (dict, list)):
+            v = json.dumps(v, separators=(",", ":"))
+        json_values.append(v)
+
+    json_each = sa.func.json_each(element.json_col).alias("json_each")
+
+    return compiler.process(
+        sa.and_(
+            *[
+                sa.select(1)
+                .select_from(json_each)
+                .filter(sa.literal_column("json_each.value") == v)
+                .exists()
+                for v in json_values
+            ]
+            or [True]
+        ),
+        **kwargs
+    )
+
+
+class json_has_any_keys(FunctionElement):
+    type = BOOLEAN
+    name = "json_has_any_keys"
+
+    def __init__(self, json_col, values: List):
+        self.json_col = json_col
+        if not all(isinstance(v, str) for v in values):
+            raise ValueError("json_has_any_keys values must be strings")
+        self.values = values
+        super().__init__()
+
+
+@compiles(json_has_any_keys)
+def json_has_any_keys_postgresql(element, compiler, **kwargs):
+
+    values_array = postgresql.array(element.values)
+    # if the array is empty, postgres requires a type annotation
+    if not element.values:
+        values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
+
+    return compiler.process(
+        sa.type_coerce(element.json_col, postgresql.JSONB).has_any(values_array),
+        **kwargs
+    )
+
+
+@compiles(json_has_any_keys, "sqlite")
+def json_has_any_keys_sqlite(element, compiler, **kwargs):
+    json_each = sa.func.json_each(element.json_col).alias("json_each")
+    return compiler.process(
+        sa.select(1)
+        .select_from(json_each)
+        .filter(sa.literal_column("json_each.value").in_(element.values))
+        .exists(),
+        **kwargs
+    )
+
+
+class json_has_all_keys(FunctionElement):
+    type = BOOLEAN
+    name = "json_has_all_keys"
+
+    def __init__(self, json_col, values: List):
+        self.json_col = json_col
+        if not all(isinstance(v, str) for v in values):
+            raise ValueError("json_has_any_keys values must be strings")
+        self.values = values
+        super().__init__()
+
+
+@compiles(json_has_all_keys)
+def json_has_all_keys_postgresql(element, compiler, **kwargs):
+    values_array = postgresql.array(element.values)
+
+    # if the array is empty, postgres requires a type annotation
+    if not element.values:
+        values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
+
+    return compiler.process(
+        sa.type_coerce(element.json_col, postgresql.JSONB).has_all(values_array),
+        **kwargs
+    )
+
+
+@compiles(json_has_all_keys, "sqlite")
+def json_has_all_keys_sqlite(element, compiler, **kwargs):
+    return compiler.process(
+        sa.and_(
+            *[json_has_any_keys(element.json_col, [v]) for v in element.values]
+            or [True]
+        )
+    )
 
 
 # define naming conventions for our Base class to use
@@ -359,16 +498,16 @@ class Base(object):
     created = Column(
         Timestamp(timezone=True),
         nullable=False,
-        server_default=Now(),
+        server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
     updated = Column(
         Timestamp(timezone=True),
         nullable=False,
         index=True,
-        server_default=Now(),
+        server_default=now(),
         default=lambda: pendulum.now("UTC"),
-        onupdate=Now(),
+        onupdate=now(),
     )
 
 
@@ -382,3 +521,17 @@ async def drop_db(engine=None):
     engine = engine or await get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+def get_dialect():
+    connection_url = settings.orion.database.connection_url.get_secret_value()
+    if connection_url.startswith("postgresql"):
+        return "postgresql"
+    elif connection_url.startswith("sqlite"):
+        return "sqlite"
+    else:
+        raise ValueError("Unrecognized dialect")
+
+
+# call immediately to verify runtime connection string
+assert get_dialect()
