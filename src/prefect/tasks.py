@@ -113,7 +113,7 @@ class Task:
             if flow_run_context.flow.isasync:
                 # If the flow is async and the task is sync, we are not in a thread and
                 # must call out to a dedicated event loop
-                return flow_run_context.sync_task_portal.call(lambda: begin_run_coro)
+                return flow_run_context.sync_portal.call(lambda: begin_run_coro)
             else:
                 return run_async_from_worker_thread(lambda: begin_run_coro)
 

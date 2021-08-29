@@ -81,7 +81,7 @@ class Flow:
                 if not parent_flow_run_context.flow.isasync:
                     return run_async_from_worker_thread(lambda: begin_run_coro)
                 else:
-                    return parent_flow_run_context.sync_task_portal.call(
+                    return parent_flow_run_context.sync_portal.call(
                         lambda: begin_run_coro
                     )
 
