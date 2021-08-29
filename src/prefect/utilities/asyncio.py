@@ -2,7 +2,7 @@ import asyncio
 import functools
 import threading
 from multiprocessing import current_process
-from typing import Any, Callable, Tuple, Dict, Hashable
+from typing import Any, Callable, Dict, Hashable, Tuple
 
 
 async def run_in_threadpool(fn: Callable, *args, **kwargs) -> Any:

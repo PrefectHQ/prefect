@@ -1,6 +1,8 @@
-import sqlalchemy as sa
-import pytest
 from uuid import uuid4
+
+import pytest
+import sqlalchemy as sa
+
 from prefect.orion import models, schemas
 
 

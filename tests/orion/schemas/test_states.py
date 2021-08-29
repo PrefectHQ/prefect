@@ -1,9 +1,10 @@
+from uuid import UUID, uuid4
+
+import pendulum
 import pydantic
 import pytest
-import pendulum
-from uuid import uuid4, UUID
 
-from prefect.orion.schemas.states import State, StateType, AwaitingRetry, Retrying
+from prefect.orion.schemas.states import AwaitingRetry, Retrying, State, StateType
 
 
 class TestState:

@@ -5,8 +5,8 @@ import pathlib
 
 import pytest
 
-from .fixtures.database import *
 from .fixtures.api import *
+from .fixtures.database import *
 
 
 def pytest_collection_modifyitems(session, config, items):

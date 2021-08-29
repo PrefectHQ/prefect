@@ -6,7 +6,7 @@ import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
-from prefect.orion.utilities.schemas import PrefectBaseModel, ORMBaseModel
+from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
 class StateType(AutoEnum):

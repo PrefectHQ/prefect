@@ -1,8 +1,8 @@
 import pytest
 
 from prefect import settings
-from prefect.utilities.settings import DataLocationSettings, Settings
 from prefect.orion.schemas.data import DataDocument
+from prefect.utilities.settings import DataLocationSettings, Settings
 
 
 @pytest.fixture

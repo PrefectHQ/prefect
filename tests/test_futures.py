@@ -1,13 +1,13 @@
-import pytest
-from uuid import uuid4
 from collections import OrderedDict
-from unittest.mock import MagicMock
 from dataclasses import dataclass
+from unittest.mock import MagicMock
+from uuid import uuid4
 
+import pytest
+
+from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures
 from prefect.orion.schemas.states import State, StateType
-from prefect.client import OrionClient
-
 
 mock_client = MagicMock(spec=OrionClient)()
 mock_client.read_flow_run_states.return_value = [

@@ -1,9 +1,11 @@
 import datetime
-import pendulum
-from enum import Enum
 import json
+from enum import Enum
+from typing import Any, Dict, List, Tuple, Union
+
+import pendulum
+
 from prefect.orion.utilities import functions
-from typing import List, Dict, Any, Tuple, Union
 
 
 class TestFunctionToSchema:

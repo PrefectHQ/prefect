@@ -2,14 +2,13 @@ import logging
 import logging.config
 import os
 import re
-from pathlib import Path
 from functools import partial
+from pathlib import Path
 
 import yaml
 
-from prefect.utilities.settings import Settings, LoggingSettings
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
-
+from prefect.utilities.settings import LoggingSettings, Settings
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
