@@ -80,6 +80,23 @@ class TestTaskCall:
             # want to fail instead to provide a better error
             raise bar().result().data
 
+    async def test_sync_task_called_inside_async_flow_raises_clear_error(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
+
+        with pytest.raises(
+            RuntimeError,
+            match="Your task is sync and your flow is async.",
+        ):
+            # We technically could make this possible but it would require additional
+            # event loops
+            raise (await bar()).result().data
+
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
         @task
