@@ -6,11 +6,12 @@ import pydantic
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
+
 from prefect import settings
 from prefect.orion.utilities.database import (
+    JSON,
     Pydantic,
     Timestamp,
-    JSON,
     json_contains,
     json_has_all_keys,
     json_has_any_key,
