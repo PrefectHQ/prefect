@@ -1,8 +1,10 @@
-import pytest
 from uuid import uuid4
+
 import pendulum
+import pytest
+
 from prefect.orion import models, schemas
-from prefect.orion.schemas.states import StateType, State
+from prefect.orion.schemas.states import State, StateType
 
 
 class TestCreateTaskRunState:

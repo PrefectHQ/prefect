@@ -1,11 +1,12 @@
-import pendulum
-from uuid import uuid4
 import datetime
+from uuid import uuid4
+
+import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion.models import orm
 from prefect.orion import models, schemas
+from prefect.orion.models import orm
 from prefect.orion.schemas.states import StateType
 
 

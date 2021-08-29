@@ -1,9 +1,11 @@
-from typing import Dict, TypeVar, Any, TYPE_CHECKING, Union, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Tuple, TypeVar, Union
+
 from typing_extensions import Protocol
+
 from prefect.orion.utilities.filesystem import (
-    write_blob,
-    read_blob,
     FILE_SYSTEM_SCHEMES,
+    read_blob,
+    write_blob,
 )
 
 if TYPE_CHECKING:

@@ -1,7 +1,7 @@
 import pytest
 
-from prefect import task, flow
-from prefect.executors import LocalExecutor, DaskExecutor
+from prefect import flow, task
+from prefect.executors import DaskExecutor, LocalExecutor
 
 
 def get_test_flow():

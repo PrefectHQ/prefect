@@ -1,6 +1,7 @@
 import pytest
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from httpx import AsyncClient
+
 from prefect.orion.api.dependencies import Pagination
 
 
