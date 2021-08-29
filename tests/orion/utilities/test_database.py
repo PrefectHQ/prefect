@@ -13,7 +13,7 @@ from prefect.orion.utilities.database import (
     JSON,
     json_contains,
     json_has_all_keys,
-    json_has_any_keys,
+    json_has_any_key,
 )
 
 DBBase = declarative_base()
@@ -219,10 +219,10 @@ class TestJSON:
         ],
         ids=lambda x: repr(x),
     )
-    async def test_json_has_any_keys(self, session, keys, ids):
+    async def test_json_has_any_key(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_has_any_keys(SQLJSONModel.data, keys))
+            .filter(json_has_any_key(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -250,16 +250,16 @@ class TestJSON:
         with pytest.raises(ValueError, match="(values must be strings)"):
             json_has_all_keys(SQLJSONModel.data, ["a", 3])
 
-    async def test_json_has_any_keys_requires_scalar_inputs(self):
+    async def test_json_has_any_key_requires_scalar_inputs(self):
         with pytest.raises(ValueError, match="(values must be strings)"):
-            json_has_any_keys(SQLJSONModel.data, ["a", 3])
+            json_has_any_key(SQLJSONModel.data, ["a", 3])
 
     async def test_json_functions_use_postgres_operators_with_postgres(self):
         dialect = sa.dialects.postgresql.dialect()
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
         contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
-        any_stmt = json_has_any_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
+        any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
 
         assert "->" in str(extract_statement)
@@ -276,7 +276,7 @@ class TestJSON:
 
         extract_statement = SQLJSONModel.data["x"].compile(dialect=dialect)
         contains_stmt = json_contains(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
-        any_stmt = json_has_any_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
+        any_stmt = json_has_any_key(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
         all_stmt = json_has_all_keys(SQLJSONModel.data, ["x"]).compile(dialect=dialect)
 
         assert "->" not in str(extract_statement)
