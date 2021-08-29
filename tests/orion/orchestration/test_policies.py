@@ -26,6 +26,13 @@ class TestPoliciesRespectOrdering:
                     SecondRuleOfFightClub,
                 ]
 
+        class CopyCatClub(BaseOrchestrationPolicy):
+            def priority():
+                return [
+                    FirstRuleOfFightClub,
+                    SecondRuleOfFightClub,
+                ]
+
         class DefinitelyADifferentClub(BaseOrchestrationPolicy):
             def priority():
                 return [
@@ -35,7 +42,9 @@ class TestPoliciesRespectOrdering:
 
         transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
         fight_club_rules = FightClub.compile_transition_rules(*transition)
+        copycat_rules = CopyCatClub.compile_transition_rules(*transition)
         definitely_different_rules = DefinitelyADifferentClub.compile_transition_rules(*transition)
+        assert fight_club_rules == copycat_rules
         assert fight_club_rules != definitely_different_rules
 
     def test_policies_only_return_relevant_rules(self):
