@@ -55,37 +55,12 @@ class Flow:
     def __call__(
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-        from prefect.context import FlowRunContext, TaskRunContext
-        from prefect.engine import begin_flow_run, begin_subflow_run
-
-        if TaskRunContext.get():
-            raise RuntimeError(
-                "Flows cannot be called from within tasks. Did you mean to call this "
-                "flow in a flow?"
-            )
-
-        parent_flow_run_context = FlowRunContext.get()
-        is_subflow_run = parent_flow_run_context is not None
+        from prefect.engine import flow_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        begin_run_fn = begin_subflow_run if is_subflow_run else begin_flow_run
-        begin_run_coro = begin_run_fn(self, parameters)
-
-        if self.isasync:
-            return begin_run_coro
-        else:
-            if not is_subflow_run:
-                with start_blocking_portal() as portal:
-                    return portal.call(lambda: begin_run_coro)
-            else:
-                if not parent_flow_run_context.flow.isasync:
-                    return run_async_from_worker_thread(lambda: begin_run_coro)
-                else:
-                    return parent_flow_run_context.sync_portal.call(
-                        lambda: begin_run_coro
-                    )
+        return flow_run_engine(self, parameters)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):

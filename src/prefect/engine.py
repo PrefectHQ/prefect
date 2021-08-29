@@ -3,7 +3,7 @@ Client-side execution of flows and tasks
 """
 import time
 from functools import partial
-from typing import Any, Dict
+from typing import Any, Dict, Awaitable, Union
 from uuid import UUID
 from contextlib import nullcontext
 
@@ -23,7 +23,85 @@ from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateDetails, StateType
 from prefect.tasks import Task
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncio import (
+    run_sync_in_worker_thread,
+    run_async_from_worker_thread,
+)
+
+
+def flow_run_engine(
+    flow: Flow, parameters: Dict[str, Any]
+) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    if TaskRunContext.get():
+        raise RuntimeError(
+            "Flows cannot be called from within tasks. Did you mean to call this "
+            "flow in a flow?"
+        )
+
+    parent_flow_run_context = FlowRunContext.get()
+    is_subflow_run = parent_flow_run_context is not None
+
+    begin_run = partial(
+        begin_subflow_run if is_subflow_run else begin_flow_run,
+        flow=flow,
+        parameters=parameters,
+    )
+
+    # Async flow run
+    if flow.isasync:
+        return begin_run()  # Return a coroutine for the user to await
+
+    # Sync flow run
+    if not is_subflow_run:
+        with start_blocking_portal() as portal:
+            return portal.call(begin_run)
+
+    # Sync subflow run
+    if not parent_flow_run_context.flow.isasync:
+        return run_async_from_worker_thread(begin_run)
+    else:
+        return parent_flow_run_context.sync_portal.call(begin_run)
+
+
+def task_run_engine(
+    task: Task, parameters: Dict[str, Any]
+) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    flow_run_context = FlowRunContext.get()
+    if not flow_run_context:
+        raise RuntimeError("Tasks cannot be called outside of a flow.")
+
+    if TaskRunContext.get():
+        raise RuntimeError(
+            "Tasks cannot be called from within tasks. Did you mean to call this "
+            "task in a flow?"
+        )
+
+    # Provide a helpful error if there is a sync/async task/flow match
+    if task.isasync and not flow_run_context.flow.isasync:
+        raise RuntimeError(
+            f"Your task is async and your flow is sync. You must "
+            "use async consistently."
+        )
+
+    begin_run = partial(
+        begin_task_run,
+        task=task,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+    )
+
+    # Async task run
+    if task.isasync:
+        return begin_run()  # Return a coroutine for the user to await
+
+    # Sync task run in sync flow run
+    if not flow_run_context.flow.isasync:
+        return run_async_from_worker_thread(begin_run)
+
+    # Sync task run in async flow run
+    else:
+        # Call out to the sync portal since we are not in a worker thread
+        return flow_run_context.sync_portal.call(begin_run)
 
 
 async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
