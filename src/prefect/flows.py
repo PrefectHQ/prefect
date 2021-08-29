@@ -55,12 +55,12 @@ class Flow:
     def __call__(
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-        from prefect.engine import flow_run_engine
+        from prefect.engine import enter_flow_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return flow_run_engine(self, parameters)
+        return enter_flow_run_engine(self, parameters)
 
 
 def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):

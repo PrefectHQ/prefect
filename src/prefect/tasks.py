@@ -80,12 +80,12 @@ class Task:
     def __call__(
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-        from prefect.engine import task_run_engine
+        from prefect.engine import enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return task_run_engine(self, parameters)
+        return enter_task_run_engine(self, parameters)
 
     def update_dynamic_key(self):
         """
