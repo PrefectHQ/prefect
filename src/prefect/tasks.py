@@ -80,42 +80,12 @@ class Task:
     def __call__(
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
-        from prefect.context import FlowRunContext, TaskRunContext
-        from prefect.engine import begin_task_run
-
-        flow_run_context = FlowRunContext.get()
-        if not flow_run_context:
-            raise RuntimeError("Tasks cannot be called outside of a flow.")
-
-        if TaskRunContext.get():
-            raise RuntimeError(
-                "Tasks cannot be called from within tasks. Did you mean to call this "
-                "task in a flow?"
-            )
-
-        # Provide a helpful error if there is a sync/async task/flow match
-        if self.isasync and not flow_run_context.flow.isasync:
-            raise RuntimeError(
-                f"Your task is async and your flow is sync. You must "
-                "use async consistently."
-            )
+        from prefect.engine import enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        begin_run_coro = begin_task_run(
-            task=self, flow_run_context=flow_run_context, parameters=parameters
-        )
-
-        if self.isasync:
-            return begin_run_coro
-        else:
-            if flow_run_context.flow.isasync:
-                # If the flow is async and the task is sync, we are not in a thread and
-                # must call out to a dedicated event loop
-                return flow_run_context.sync_portal.call(lambda: begin_run_coro)
-            else:
-                return run_async_from_worker_thread(lambda: begin_run_coro)
+        return enter_task_run_engine(self, parameters)
 
     def update_dynamic_key(self):
         """

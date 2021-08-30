@@ -2,16 +2,16 @@
 Client-side execution of flows and tasks
 """
 import time
-from functools import partial
-from typing import Any, Dict
-from uuid import UUID
 from contextlib import nullcontext
-
+from functools import partial
+from typing import Any, Awaitable, Dict, Union
+from uuid import UUID
 
 import pendulum
-from pydantic import validate_arguments
-from anyio.from_thread import BlockingPortal
 from anyio import start_blocking_portal
+from anyio.abc import BlockingPortal
+from anyio.from_thread import BlockingPortal
+from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
@@ -21,29 +21,44 @@ from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.schemas.states import State, StateDetails, StateType
 from prefect.tasks import Task
-from prefect.utilities.asyncio import run_sync_in_worker_thread
+from prefect.utilities.asyncio import (
+    run_async_from_worker_thread,
+    run_sync_in_worker_thread,
+)
 
 
-async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
-    """
-    TODO: Consider rolling this behavior into the `Client` state update method once we
-          understand how we want to handle ABORT cases
-    """
-    response = await client.set_task_run_state(
-        task_run_id,
-        state=state,
+def enter_flow_run_engine(
+    flow: Flow, parameters: Dict[str, Any]
+) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    if TaskRunContext.get():
+        raise RuntimeError(
+            "Flows cannot be called from within tasks. Did you mean to call this "
+            "flow in a flow?"
+        )
+
+    parent_flow_run_context = FlowRunContext.get()
+    is_subflow_run = parent_flow_run_context is not None
+
+    begin_run = partial(
+        begin_subflow_run if is_subflow_run else begin_flow_run,
+        flow=flow,
+        parameters=parameters,
     )
-    if response.status == SetStateStatus.ACCEPT:
-        if response.details.state_details:
-            state.state_details = response.details.state_details
-        return state
 
-    if response.status == SetStateStatus.ABORT:
-        raise RuntimeError("ABORT is not yet handled")
+    # Async flow run
+    if flow.isasync:
+        return begin_run()  # Return a coroutine for the user to await
 
-    server_state = response.details.state
+    # Sync flow run
+    if not is_subflow_run:
+        with start_blocking_portal() as portal:
+            return portal.call(begin_run)
 
-    return server_state
+    # Sync subflow run
+    if not parent_flow_run_context.flow.isasync:
+        return run_async_from_worker_thread(begin_run)
+    else:
+        return parent_flow_run_context.sync_portal.call(begin_run)
 
 
 @inject_client
@@ -207,6 +222,48 @@ async def orchestrate_flow_run(
     return state
 
 
+def enter_task_run_engine(
+    task: Task, parameters: Dict[str, Any]
+) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    flow_run_context = FlowRunContext.get()
+    if not flow_run_context:
+        raise RuntimeError("Tasks cannot be called outside of a flow.")
+
+    if TaskRunContext.get():
+        raise RuntimeError(
+            "Tasks cannot be called from within tasks. Did you mean to call this "
+            "task in a flow?"
+        )
+
+    # Provide a helpful error if there is a async task in a sync flow; this would not
+    # error normally since it would just be an unawaited coroutine
+    if task.isasync and not flow_run_context.flow.isasync:
+        raise RuntimeError(
+            f"Your task is async, but your flow is synchronous. Async tasks may "
+            "only be called from async flows."
+        )
+
+    begin_run = partial(
+        begin_task_run,
+        task=task,
+        flow_run_context=flow_run_context,
+        parameters=parameters,
+    )
+
+    # Async task run
+    if task.isasync:
+        return begin_run()  # Return a coroutine for the user to await
+
+    # Sync task run in sync flow run
+    if not flow_run_context.flow.isasync:
+        return run_async_from_worker_thread(begin_run)
+
+    # Sync task run in async flow run
+    else:
+        # Call out to the sync portal since we are not in a worker thread
+        return flow_run_context.sync_portal.call(begin_run)
+
+
 async def begin_task_run(
     task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
 ) -> PrefectFuture:
@@ -314,3 +371,25 @@ async def orchestrate_task_run(
             )
 
     return state
+
+
+async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
+    """
+    TODO: Consider rolling this behavior into the `Client` state update method once we
+          understand how we want to handle ABORT cases
+    """
+    response = await client.set_task_run_state(
+        task_run_id,
+        state=state,
+    )
+    if response.status == SetStateStatus.ACCEPT:
+        if response.details.state_details:
+            state.state_details = response.details.state_details
+        return state
+
+    if response.status == SetStateStatus.ABORT:
+        raise RuntimeError("ABORT is not yet handled")
+
+    server_state = response.details.state
+
+    return server_state
