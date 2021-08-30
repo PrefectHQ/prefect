@@ -1,71 +1,33 @@
-import asyncio
-import functools
-import threading
-from multiprocessing import current_process
-from typing import Any, Callable, Dict, Hashable, Tuple
+from contextvars import copy_context
+from functools import partial
+from typing import Any, Awaitable, Callable, TypeVar
+
+import anyio
+
+T = TypeVar("T")
 
 
-async def run_in_threadpool(fn: Callable, *args, **kwargs) -> Any:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, functools.partial(fn, *args, **kwargs))
-
-
-class ThreadedEventLoop:
+async def run_sync_in_worker_thread(
+    fn: Callable[..., T], *args: Any, **kwargs: Any
+) -> T:
     """
-    Spawns an event loop in a daemonic thread.
+    Runs a sync function in a new worker thread so that the main thread's event loop
+    is not blocked
 
-    Creating a new event loop that runs in a child thread prevents us from throwing
-    exceptions when there is already an event loop in the main thread and prevents
-    synchronous code in the main thread from blocking the event loop from executing.
-
-    These _cannot_ be shared across processes. We use an `EVENT_LOOPS` global to ensure
-    that there is a single instance available per process.
+    Unlike the anyio function, this ensures that context variables are copied into the
+    worker thread.
     """
-
-    def __init__(self) -> None:
-        self._thread, self._loop = self._create_threaded_event_loop()
-
-    def _create_threaded_event_loop(
-        self,
-    ) -> Tuple[threading.Thread, asyncio.AbstractEventLoop]:
-        def start_loop(loop):
-            asyncio.set_event_loop(loop)
-            loop.run_forever()
-
-        loop = asyncio.new_event_loop()
-
-        t = threading.Thread(target=start_loop, args=(loop,), daemon=True)
-        t.start()
-
-        return t, loop
-
-    def run_coro(self, coro):
-        if not self._loop:
-            raise ValueError("Event loop has not been created.")
-        if not self._loop.is_running():
-            raise ValueError("Event loop is not running.")
-
-        future = asyncio.run_coroutine_threadsafe(coro, loop=self._loop)
-        result = future.result()
-
-        return result
-
-    def __del__(self):
-        if self._loop and self._loop.is_running():
-            self._loop.stop()
+    call = partial(fn, *args, **kwargs)
+    context = copy_context()  # Pass the context to the worker thread
+    return await anyio.to_thread.run_sync(context.run, call)
 
 
-# Mapping of KEY, PID to a lazily instantiated shared event-loop per process
-EVENT_LOOPS: Dict[Tuple[Hashable, int], ThreadedEventLoop] = {}
-
-
-def get_prefect_event_loop(key: Hashable = None):
+def run_async_from_worker_thread(
+    fn: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any
+) -> T:
     """
-    Get or create a `ThreadedEventLoop` for the current process; multiple event loops
-    per process can be managed by providing a hashable 'key'
+    Runs an async function in the main thread's event loop, blocking the worker
+    thread until completion
     """
-    pid = current_process().pid
-    if (key, pid) not in EVENT_LOOPS:
-        EVENT_LOOPS[(key, pid)] = ThreadedEventLoop()
-
-    return EVENT_LOOPS[(key, pid)]
+    call = partial(fn, *args, **kwargs)
+    return anyio.from_thread.run(call)

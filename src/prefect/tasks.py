@@ -1,10 +1,19 @@
 import datetime
 import inspect
 from functools import update_wrapper
-from typing import TYPE_CHECKING, Any, Callable, Dict, Iterable, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    Optional,
+    Union,
+)
 
 from prefect.futures import PrefectFuture
-from prefect.utilities.asyncio import get_prefect_event_loop
+from prefect.utilities.asyncio import run_async_from_worker_thread
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
@@ -68,38 +77,15 @@ class Task:
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
-    def __call__(self, *args: Any, **kwargs: Any) -> PrefectFuture:
-        from prefect.context import FlowRunContext, TaskRunContext
-        from prefect.engine import begin_task_run
-
-        flow_run_context = FlowRunContext.get()
-        if not flow_run_context:
-            raise RuntimeError("Tasks cannot be called outside of a flow.")
-
-        if TaskRunContext.get():
-            raise RuntimeError(
-                "Tasks cannot be called from within tasks. Did you mean to call this "
-                "task in a flow?"
-            )
-
-        # Provide a helpful error if this task is async in a sync flow
-        if self.isasync and not flow_run_context.flow.isasync:
-            raise RuntimeError(
-                "Asynchronous tasks may not be called from synchronous flows."
-            )
+    def __call__(
+        self, *args: Any, **kwargs: Any
+    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+        from prefect.engine import enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        coro = begin_task_run(
-            task=self, flow_run_context=flow_run_context, parameters=parameters
-        )
-
-        if self.isasync:
-            return coro
-        else:
-            loop = get_prefect_event_loop("tasks")
-            return loop.run_coro(coro)
+        return enter_task_run_engine(self, parameters)
 
     def update_dynamic_key(self):
         """

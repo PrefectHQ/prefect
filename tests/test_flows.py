@@ -6,7 +6,6 @@ import pytest
 from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
 
@@ -85,15 +84,15 @@ class TestFlowCall:
         def foo(x, y=3, z=3):
             return x + y + z
 
-        future = foo(1, 2)
-        assert isinstance(future, PrefectFuture)
-        assert future.result().is_completed()
-        assert future.result().data == 6
-        assert future.run_id is not None
+        state = foo(1, 2)
+        assert isinstance(state, State)
+        assert state.is_completed()
+        assert state.data == 6
+        assert state.state_details.flow_run_id is not None
 
         async with OrionClient() as client:
-            flow_run = await client.read_flow_run(future.run_id)
-        assert flow_run.id == future.run_id
+            flow_run = await client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
@@ -102,15 +101,15 @@ class TestFlowCall:
         async def foo(x, y=3, z=3):
             return x + y + z
 
-        future = await foo(1, 2)
-        assert isinstance(future, PrefectFuture)
-        assert future.result().is_completed()
-        assert future.result().data == 6
-        assert future.run_id is not None
+        state = await foo(1, 2)
+        assert isinstance(state, State)
+        assert state.is_completed()
+        assert state.data == 6
+        assert state.state_details.flow_run_id is not None
 
         async with OrionClient() as client:
-            flow_run = await client.read_flow_run(future.run_id)
-        assert flow_run.id == future.run_id
+            flow_run = await client.read_flow_run(state.state_details.flow_run_id)
+        assert flow_run.id == state.state_details.flow_run_id
         assert flow_run.parameters == {"x": 1, "y": 2, "z": 3}
         assert flow_run.flow_version == foo.version
 
@@ -122,24 +121,24 @@ class TestFlowCall:
         def foo(x: int, y: List[int], zt: CustomType):
             return x + sum(y) + zt.z
 
-        future = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert future.result().is_completed()
-        assert future.result().data == 10
+        state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
+        assert state.is_completed()
+        assert state.data == 10
 
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
 
-        # No error until the future is unpacked
-        future = foo(x="foo")
+        # No error until the state is unpacked
+        state = foo(x="foo")
 
-        assert future.result().is_failed()
+        assert state.is_failed()
         with pytest.raises(
             pydantic.error_wrappers.ValidationError,
             match="value is not a valid integer",
         ):
-            raise future.result().data
+            raise state.data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -148,8 +147,7 @@ class TestFlowCall:
             if error:
                 raise error
 
-        future = foo()
-        state = future.result()
+        state = foo()
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
@@ -162,8 +160,7 @@ class TestFlowCall:
                 type=StateType.FAILED, message="Test returned state", data=True
             )
 
-        future = foo()
-        state = future.result()
+        state = foo()
 
         # Assert the final state is correct
         assert state.is_failed()
@@ -181,7 +178,7 @@ class TestFlowCall:
         def foo():
             return fail()
 
-        flow_state = foo().result()
+        flow_state = foo()
 
         assert flow_state.is_failed()
         assert flow_state.message == "1/1 states failed."
@@ -211,7 +208,7 @@ class TestFlowCall:
         def foo():
             return fail(), fail(), succeed()
 
-        flow_state = foo().result()
+        flow_state = foo()
         assert flow_state.is_failed()
         assert flow_state.message == "2/3 states failed."
 
@@ -228,14 +225,14 @@ class TestFlowCall:
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
-            future = child(x, y, z)
-            return future.run_id, future.result()
+            state = child(x, y, z)
+            return state.state_details.flow_run_id, state
 
-        parent_future = parent(1, 2)
-        assert isinstance(parent_future, PrefectFuture)
-        assert parent_future.result().is_completed()
+        parent_state = parent(1, 2)
+        assert isinstance(parent_state, State)
+        assert parent_state.is_completed()
 
-        child_run_id, child_state = parent_future.result().data
+        child_run_id, child_state = parent_state.data
         assert child_state.is_completed()
         assert child_state.data == 6
 
@@ -259,38 +256,70 @@ class TestFlowCall:
         def parent(x, y=2, z=3):
             return child(x, y, z)
 
-        parent_future = parent(1, 2)
-        assert isinstance(parent_future, PrefectFuture)
-        assert parent_future.result().is_completed()
+        parent_state = parent(1, 2)
+        assert isinstance(parent_state, State)
+        assert parent_state.is_completed()
 
-        child_state = parent_future.result().data
+        child_state = parent_state.data
         assert child_state.is_completed()
-        child_task_state = child_state.data
-        assert child_task_state.data == 6
+        assert child_state.data == 6
 
-    async def test_async_subflow_call(self):
+    async def test_async_flow_with_async_subflow_and_async_task(self):
         @task
         async def compute_async(x, y, z):
             return x + y + z
 
-        @task
-        def compute_sync(x, y, z):
-            return x + y + z
-
         @flow(version="foo")
         async def child(x, y, z):
-            return compute_sync(x, y, z), await compute_async(x, y, z)
+            return await compute_async(x, y, z)
 
         @flow(version="bar")
         async def parent(x, y=2, z=3):
             return await child(x, y, z)
 
-        parent_future = await parent(1, 2)
-        assert isinstance(parent_future, PrefectFuture)
-        assert parent_future.result().is_completed()
+        parent_state = await parent(1, 2)
+        assert isinstance(parent_state, State)
+        assert parent_state.is_completed()
 
-        child_state = parent_future.result().data
-        assert child_state.is_completed()
-        sync_state, async_state = child_state.data
-        assert sync_state.data == 6
-        assert sync_state.data == async_state.data
+        child_state = parent_state.data
+        assert child_state.data == 6
+
+    async def test_async_flow_with_async_subflow_and_sync_task(self):
+        @task
+        def compute(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        async def child(x, y, z):
+            return compute(x, y, z)
+
+        @flow(version="bar")
+        async def parent(x, y=2, z=3):
+            return await child(x, y, z)
+
+        parent_state = await parent(1, 2)
+        assert isinstance(parent_state, State)
+        assert parent_state.is_completed()
+
+        child_state = parent_state.data
+        assert child_state.data == 6
+
+    async def test_async_flow_with_sync_subflow_and_sync_task(self):
+        @task
+        def compute(x, y, z):
+            return x + y + z
+
+        @flow(version="foo")
+        def child(x, y, z):
+            return compute(x, y, z)
+
+        @flow(version="bar")
+        async def parent(x, y=2, z=3):
+            return child(x, y, z)
+
+        parent_state = await parent(1, 2)
+        assert isinstance(parent_state, State)
+        assert parent_state.is_completed()
+
+        child_state = parent_state.data
+        assert child_state.data == 6

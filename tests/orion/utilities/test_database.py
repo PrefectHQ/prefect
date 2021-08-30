@@ -197,7 +197,6 @@ class TestJSON:
             ([[2]], [6]),
             ([[2], 3], [6]),
         ],
-        ids=lambda x: repr(x),
     )
     async def test_json_contains(self, session, keys, ids):
         query = (
@@ -218,7 +217,6 @@ class TestJSON:
             (["x"], []),
             ([], []),
         ],
-        ids=lambda x: repr(x),
     )
     async def test_json_has_any_key(self, session, keys, ids):
         query = (
@@ -237,7 +235,6 @@ class TestJSON:
             (["x"], []),
             ([], [1, 2, 3, 4, 5, 6]),
         ],
-        ids=lambda x: repr(x),
     )
     async def test_json_has_all_keys(self, session, keys, ids):
         query = (

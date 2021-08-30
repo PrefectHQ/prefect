@@ -3,7 +3,6 @@ import os
 import re
 import uuid
 from asyncio import current_task, get_event_loop
-from enum import Enum
 from typing import List, Union
 
 import pendulum

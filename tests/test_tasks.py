@@ -29,25 +29,9 @@ class TestTaskCall:
         @flow
         def bar():
             return foo(1)
-            # Returns a future which is resolved on return into a `State`
 
-        flow_future = bar()
-        task_state = flow_future.result().data
-        assert isinstance(task_state, State)
-        assert task_state.data == 1
-
-    async def test_sync_task_called_inside_async_flow(self):
-        @task
-        def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            return foo(1)
-            # Returns a future which is resolved on return into a `State`
-
-        flow_future = await bar()
-        task_state = flow_future.result().data
+        flow_state = bar()
+        task_state = flow_state.data
         assert isinstance(task_state, State)
         assert task_state.data == 1
 
@@ -59,7 +43,34 @@ class TestTaskCall:
         @flow
         async def bar():
             return await foo(1)
-            # Returns a future which is resolved on return into a `State`
+
+        flow_state = await bar()
+        task_state = flow_state.data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
+
+    async def test_sync_task_called_inside_async_flow(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
+
+        flow_state = await bar()
+        task_state = flow_state.data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
+
+    async def test_async_task_called_inside_sync_flow_raises_clear_error(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
 
         flow_future = await bar()
         task_state = flow_future.result().data
@@ -77,11 +88,11 @@ class TestTaskCall:
 
         with pytest.raises(
             RuntimeError,
-            match="Asynchronous tasks may not be called from synchronous flows",
+            match="Your task is async, but your flow is sync",
         ):
             # Normally, this would just return the coro which was never awaited but we
             # want to fail instead to provide a better error
-            raise bar().result().data
+            raise bar().data
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -94,8 +105,8 @@ class TestTaskCall:
         def foo():
             return bar()
 
-        flow_future = foo()
-        task_state = flow_future.result().data
+        flow_state = foo()
+        task_state = flow_state.data
 
         # Assert the final state is correct
         assert task_state.is_failed() if error else task_state.is_completed()
@@ -112,8 +123,8 @@ class TestTaskCall:
         def foo():
             return bar()
 
-        flow_future = foo()
-        task_state = flow_future.result().data
+        flow_state = foo()
+        task_state = flow_state.data
 
         # Assert the final state is correct
         assert task_state.is_failed()
@@ -129,8 +140,8 @@ class TestTaskCall:
         def foo():
             return bar().run_id, bar().run_id
 
-        flow_future = foo()
-        task_run_ids = flow_future.result().data
+        flow_state = foo()
+        task_run_ids = flow_state.data
 
         async with OrionClient() as client:
             task_runs = [await client.read_task_run(run_id) for run_id in task_run_ids]
@@ -152,8 +163,8 @@ class TestTaskCall:
         def test_flow():
             return bar(foo(1))
 
-        flow_future = test_flow()
-        task_state = flow_future.result().data
+        flow_state = test_flow()
+        task_state = flow_state.data
         assert task_state.data == 2
 
 
@@ -179,8 +190,8 @@ class TestTaskRetries:
             future = flaky_function()
             return future.run_id, future.result()
 
-        flow_future = test_flow()
-        task_run_id, task_run_state = flow_future.result().data
+        flow_state = test_flow()
+        task_run_id, task_run_state = flow_state.data
 
         if always_fail:
             assert task_run_state.is_failed()
@@ -223,8 +234,8 @@ class TestTaskRetries:
             future = flaky_function()
             return future.run_id, future.result()
 
-        flow_future = test_flow()
-        task_run_id, task_run_state = flow_future.result().data
+        flow_state = test_flow()
+        task_run_id, task_run_state = flow_state.data
 
         assert task_run_state.is_completed()
         assert task_run_state.data is True
@@ -260,8 +271,8 @@ class TestTaskRetries:
             future = flaky_function()
             return future.run_id
 
-        flow_future = test_flow()
-        task_run_id = flow_future.result().data
+        flow_state = test_flow()
+        task_run_id = flow_state.data
 
         assert sleep.call_count == 1
         # due to rounding, the expected sleep time will be less than 43 seconds
@@ -290,8 +301,8 @@ class TestTaskCaching:
         def bar():
             return foo(1).result(), foo(1).result()
 
-        flow_future = bar()
-        first_state, second_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert second_state.data == first_state.data
@@ -305,8 +316,8 @@ class TestTaskCaching:
         def bar():
             return foo(1).result(), foo(2).result()
 
-        flow_future = bar()
-        first_state, second_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
@@ -322,8 +333,8 @@ class TestTaskCaching:
             calls = repeat(foo(1), 5)
             return [call.result() for call in calls]
 
-        flow_future = bar()
-        states = flow_future.result().data
+        flow_state = bar()
+        states = flow_state.data
         assert all(state.name == "Cached" for state in states)
 
     def test_cache_hits_between_flows_are_cached(self):
@@ -335,8 +346,8 @@ class TestTaskCaching:
         def bar(x):
             return foo(x).result()
 
-        first_state = bar(1).result()
-        second_state = bar(2).result()
+        first_state = bar(1)
+        second_state = bar(2)
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
@@ -356,8 +367,8 @@ class TestTaskCaching:
         def bar():
             return foo(1).result(), foo(1).result()
 
-        flow_future = bar()
-        first_state, second_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
@@ -373,14 +384,14 @@ class TestTaskCaching:
         def bar():
             return foo("something").result(), foo("different").result()
 
-        first_future = bar()
-        first_state, second_state = first_future.result().data
+        first_flow_run_state = bar()
+        first_state, second_state = first_flow_run_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
 
-        second_future = bar()
-        third_state, fourth_state = second_future.result().data
+        second_flow_run_state = bar()
+        third_state, fourth_state = second_flow_run_state.data
         assert third_state.name == "Completed"
         assert fourth_state.name == "Cached"
         assert fourth_state.data == first_state.data
@@ -401,8 +412,8 @@ class TestTaskCaching:
                 foo(c=3, a=1, b=2).result(),
             )
 
-        flow_future = bar()
-        first_state, second_state, third_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state, third_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert third_state.name == "Cached"
@@ -422,8 +433,8 @@ class TestTaskCaching:
         def bar():
             return foo(1).result(), foo(2).result()
 
-        flow_future = bar()
-        first_state, second_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.data == first_state.data
@@ -440,8 +451,8 @@ class TestTaskCaching:
         def bar():
             return foo(1).result(), foo(2).result()
 
-        flow_future = bar()
-        first_state, second_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert second_state.data != first_state.data
@@ -457,8 +468,8 @@ class TestCacheFunctionBuiltins:
         def bar():
             return foo(1).result(), foo(2).result(), foo(1).result()
 
-        flow_future = bar()
-        first_state, second_state, third_state = flow_future.result().data
+        flow_state = bar()
+        first_state, second_state, third_state = flow_state.data
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
@@ -474,9 +485,9 @@ class TestCacheFunctionBuiltins:
         def bar(x):
             return foo(x).result()
 
-        first_state = bar(1).result()
-        second_state = bar(2).result()
-        third_state = bar(1).result()
+        first_state = bar(1)
+        second_state = bar(2)
+        third_state = bar(1)
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
