@@ -66,7 +66,7 @@ async def begin_flow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
-) -> PrefectFuture:
+) -> State:
     """
     Async entrypoint for flow calls
 
@@ -106,13 +106,7 @@ async def begin_flow_run(
         state=terminal_state,
     )
 
-    # Return a fake future that is already resolved to the terminal state
-    return PrefectFuture(
-        flow_run_id=flow_run_id,
-        client=client,
-        executor=flow.executor,
-        _result=terminal_state,
-    )
+    return terminal_state
 
 
 @inject_client
@@ -120,7 +114,7 @@ async def begin_subflow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
-) -> PrefectFuture:
+) -> State:
     """
     Async entrypoint for flows calls within a flow run
 
@@ -167,13 +161,7 @@ async def begin_subflow_run(
         state=terminal_state,
     )
 
-    # Return a fake future that is already resolved to the terminal state
-    return PrefectFuture(
-        flow_run_id=flow_run_id,
-        client=client,
-        executor=parent_flow_run_context.executor,
-        _result=terminal_state,
-    )
+    return terminal_state
 
 
 @inject_client
