@@ -242,11 +242,12 @@ def enter_task_run_engine(
             "task in a flow?"
         )
 
-    # Provide a helpful error if there is a sync/async task/flow match
+    # Provide a helpful error if there is a async task in a sync flow; this would not
+    # error normally since it would just be an unawaited coroutine
     if task.isasync and not flow_run_context.flow.isasync:
         raise RuntimeError(
-            f"Your task is async and your flow is sync. You must "
-            "use async consistently."
+            f"Your task is async, but your flow is synchronous. Async tasks may "
+            "only be called from async flows."
         )
 
     begin_run = partial(
