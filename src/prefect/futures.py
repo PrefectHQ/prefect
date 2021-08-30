@@ -2,7 +2,7 @@ from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, Awaitable
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -36,14 +36,28 @@ class PrefectFuture:
         self._exception: Optional[Exception] = None
         self._executor = executor
 
-    def result(self, timeout: float = None) -> Optional[State]:
+    def result(
+        self, timeout: float = None
+    ) -> Union[Optional[State], Awaitable[Optional[State]]]:
+        """
+        Wait for the result of the future for `timeout` seconds.
+
+        If the timeout is reached before the future is done, `None` will be returned.
+
+        If writing async code, this function returns a coroutine and must be awaited.
+        """
         if is_in_async_worker_thread():
             return run_async_from_worker_thread(self._result_async, timeout)
         else:
             # Return the coroutine for the user to await
             return self._result_async(timeout)
 
-    def get_state(self) -> State:
+    def get_state(self) -> Union[State, Awaitable[State]]:
+        """
+        Get the current state of this future
+
+        If writing async code, this function returns a coroutine and must be awaited.
+        """
         if is_in_async_worker_thread():
             return run_async_from_worker_thread(self._get_state_async)
         else:
