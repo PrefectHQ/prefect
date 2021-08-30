@@ -39,24 +39,26 @@ class PrefectFuture:
 
     def result(self, timeout: float = None) -> Optional[State]:
         if is_in_async_worker_thread():
-            return run_async_from_worker_thread(self._aresult, timeout)
+            return run_async_from_worker_thread(self._result_async, timeout)
         else:
-            return self._aresult(timeout)  # Return the coroutine for the user to await
+            # Return the coroutine for the user to await
+            return self._result_async(timeout)
 
     def get_state(self) -> State:
         if is_in_async_worker_thread():
-            return run_async_from_worker_thread(self._aget_state)
+            return run_async_from_worker_thread(self._get_state_async)
         else:
-            return self._aget_state()  # Return the coroutine for the user to await
+            # Return the coroutine for the user to await
+            return self._get_state_async()
 
-    async def _aresult(self, timeout: float = None) -> Optional[State]:
+    async def _result_async(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
         if self._result:
             return self._result
 
-        state = await self._aget_state()
+        state = await self._get_state_async()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
@@ -64,7 +66,7 @@ class PrefectFuture:
 
         return self._result
 
-    async def _aget_state(self) -> State:
+    async def _get_state_async(self) -> State:
         if self.task_run_id:
             run = await self._client.read_task_run(self.task_run_id)
 
