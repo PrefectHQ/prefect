@@ -88,7 +88,7 @@ class TestTaskCall:
 
         with pytest.raises(
             RuntimeError,
-            match="Your task is async and your flow is sync.",
+            match="Your task is async, but your flow is sync",
         ):
             # Normally, this would just return the coro which was never awaited but we
             # want to fail instead to provide a better error
