@@ -39,8 +39,7 @@ def test_flow_run_by_executor(executor):
     test_flow = get_test_flow()
     test_flow.executor = executor
 
-    future = test_flow()
-    state = future.result()
+    state = test_flow()
 
     assert state.is_completed()
     return_data = state.data
