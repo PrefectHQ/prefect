@@ -65,6 +65,20 @@ class TestTaskCall:
 
     async def test_async_task_called_inside_sync_flow_raises_clear_error(self):
         @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
+
+        flow_future = await bar()
+        task_state = flow_future.result().data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
+
+    async def test_async_task_called_inside_sync_flow_raises_clear_error(self):
+        @task
         async def foo(x):
             return x
 
@@ -74,7 +88,7 @@ class TestTaskCall:
 
         with pytest.raises(
             RuntimeError,
-            match="Your task is async and your flow is sync.",
+            match="Your task is async, but your flow is sync",
         ):
             # Normally, this would just return the coro which was never awaited but we
             # want to fail instead to provide a better error
