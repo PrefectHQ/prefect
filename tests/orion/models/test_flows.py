@@ -101,6 +101,57 @@ class TestReadFlows:
         read_flows = await models.flows.read_flows(session=session)
         assert len(read_flows) == 0
 
+    async def test_read_flows_with_filters(self, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2")
+        )
+        flow_3 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-3")
+        )
+
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_1.id,
+                state=schemas.states.State(type="COMPLETED"),
+                tags=["db", "blue"],
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_1.id, state=schemas.states.State(type="FAILED")
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_2.id, state=schemas.states.State(type="COMPLETED")
+            ),
+        )
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow_3.id, state=schemas.states.State(type="RUNNING")
+            ),
+        )
+        await session.commit()
+        session.expire_all()
+
+        result = await models.flows.read_flows(
+            session=session,
+            # flow_filter=schemas.filters.FlowFilter(tags=["db", "blue"]),
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                # tags=["db", "red"],
+                states=["COMPLETED"]
+            ),
+        )
+        raise ValueError("Unfinished test")
+
 
 class TestDeleteFlow:
     async def test_delete_flow(self, session):
