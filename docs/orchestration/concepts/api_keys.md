@@ -72,9 +72,7 @@ export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
 Modify `~/.prefect/config.toml`
 
 ```toml
-
 [cloud]
-
 api_key = "<YOUR-KEY>"
 
 # Optional
