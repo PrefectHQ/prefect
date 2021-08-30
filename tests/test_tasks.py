@@ -29,24 +29,8 @@ class TestTaskCall:
         @flow
         def bar():
             return foo(1)
-            # Returns a future which is resolved on return into a `State`
 
         flow_future = bar()
-        task_state = flow_future.result().data
-        assert isinstance(task_state, State)
-        assert task_state.data == 1
-
-    async def test_sync_task_called_inside_async_flow(self):
-        @task
-        def foo(x):
-            return x
-
-        @flow
-        async def bar():
-            return foo(1)
-            # Returns a future which is resolved on return into a `State`
-
-        flow_future = await bar()
         task_state = flow_future.result().data
         assert isinstance(task_state, State)
         assert task_state.data == 1
@@ -59,7 +43,34 @@ class TestTaskCall:
         @flow
         async def bar():
             return await foo(1)
-            # Returns a future which is resolved on return into a `State`
+
+        flow_future = await bar()
+        task_state = flow_future.result().data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
+
+    async def test_sync_task_called_inside_async_flow(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
+
+        flow_future = await bar()
+        task_state = flow_future.result().data
+        assert isinstance(task_state, State)
+        assert task_state.data == 1
+
+    async def test_async_task_called_inside_sync_flow_raises_clear_error(self):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        async def bar():
+            return foo(1)
 
         flow_future = await bar()
         task_state = flow_future.result().data
@@ -77,7 +88,7 @@ class TestTaskCall:
 
         with pytest.raises(
             RuntimeError,
-            match="Asynchronous tasks may not be called from synchronous flows",
+            match="Your task is async, but your flow is sync",
         ):
             # Normally, this would just return the coro which was never awaited but we
             # want to fail instead to provide a better error

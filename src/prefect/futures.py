@@ -9,8 +9,8 @@ from uuid import UUID
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
-from prefect.utilities.asyncio import get_prefect_event_loop
 from prefect.utilities.collections import ensure_iterable
+from prefect.utilities.asyncio import run_async_from_worker_thread
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -35,28 +35,39 @@ class PrefectFuture:
         self._result = _result
 
     def result(self, timeout: float = None) -> Optional[State]:
+        # TODO: We can make this a dual sync/async interface by returning the coro
+        #       directly if this is a future from an async flow/task. This bool just
+        #       needs to be attached to the class at some point.
+        #       Once this is async compatible, `aresult` can be made private
+        if self._result:
+            return self._result
+
+        return run_async_from_worker_thread(self.aresult, timeout)
+
+    def get_state(self) -> State:
+        return run_async_from_worker_thread(self.get_state)
+
+    async def aresult(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
         if self._result:
             return self._result
 
-        state = self.get_state()
+        state = await self.aget_state()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        self._result = get_prefect_event_loop("futures").run_coro(
-            self._executor.wait(self, timeout)
-        )
+        self._result = await self._executor.wait(self, timeout)
+
         return self._result
 
-    def get_state(self) -> State:
-        method = (
-            self._client.read_task_run
-            if self.task_run_id
-            else self._client.read_flow_run
-        )
-        run = get_prefect_event_loop("futures").run_coro(method(self.run_id))
+    async def aget_state(self) -> State:
+        if self.task_run_id:
+            run = await self._client.read_task_run(self.task_run_id)
+
+        else:
+            run = await self._client.read_flow_run(self.flow_run_id)
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")
@@ -67,11 +78,11 @@ class PrefectFuture:
 
 
 async def future_to_data(future: PrefectFuture) -> Any:
-    return future.result().data
+    return (await future.aresult()).data
 
 
 async def future_to_state(future: PrefectFuture) -> Any:
-    return future.result()
+    return await future.aresult()
 
 
 async def resolve_futures(

@@ -2,10 +2,11 @@
 This module contains async and thread safe variables for passing runtime context data
 """
 from contextvars import ContextVar
-from typing import Optional, TypeVar, Union
+from typing import Optional, TypeVar, Union, Type
 from uuid import UUID
 
 import pendulum
+from anyio.abc import BlockingPortal
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
@@ -41,7 +42,7 @@ class ContextModel(BaseModel):
         self.__var__.reset(getattr(self, "__token"))
 
     @classmethod
-    def get(cls: T) -> Optional[T]:
+    def get(cls: Type[T]) -> Optional[T]:
         return cls.__var__.get(None)
 
 
@@ -54,6 +55,9 @@ class FlowRunContext(RunContext):
     flow_run_id: UUID
     client: OrionClient
     executor: BaseExecutor
+    # The synchronous portal is only created for async flows for creating engine calls
+    # from synchronous task and subflow calls
+    sync_portal: Optional[BlockingPortal] = None
 
     __var__ = ContextVar("flow_run")
 
