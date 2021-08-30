@@ -23,12 +23,13 @@ class PrefectFuture:
         client: OrionClient,
         executor: "BaseExecutor",
         task_run_id: UUID = None,
+        _result: Any = None,  # Exposed for testing
     ) -> None:
         self.flow_run_id = flow_run_id
         self.task_run_id = task_run_id
         self.run_id = self.task_run_id or self.flow_run_id
         self._client = client
-        self._result: Any = None
+        self._result: Any = _result
         self._exception: Optional[Exception] = None
         self._executor = executor
 
