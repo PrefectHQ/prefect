@@ -6,7 +6,6 @@ import pytest
 from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
 
@@ -283,9 +282,7 @@ class TestFlowCall:
         assert parent_state.is_completed()
 
         child_state = parent_state.data
-        assert child_state.is_completed()
-        task_state = child_state.data
-        assert task_state.data == 6
+        assert child_state.data == 6
 
     async def test_async_flow_with_async_subflow_and_sync_task(self):
         @task
@@ -301,13 +298,11 @@ class TestFlowCall:
             return await child(x, y, z)
 
         parent_state = await parent(1, 2)
-        assert isinstance(parent_state, PrefectFuture)
+        assert isinstance(parent_state, State)
         assert parent_state.is_completed()
 
         child_state = parent_state.data
-        assert child_state.is_completed()
-        task_state = child_state.data
-        assert task_state.data == 6
+        assert child_state.data == 6
 
     async def test_async_flow_with_sync_subflow_and_sync_task(self):
         @task
@@ -327,7 +322,4 @@ class TestFlowCall:
         assert parent_state.is_completed()
 
         child_state = parent_state.data
-        assert child_state.is_completed()
-        task_state = child_state.data
-        assert task_state.data == 6
         assert child_state.data == 6
