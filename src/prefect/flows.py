@@ -2,8 +2,8 @@ import inspect
 from functools import update_wrapper
 from typing import Any, Callable, Iterable, Union, Awaitable
 
+from prefect import State
 from prefect.executors import BaseExecutor, LocalExecutor
-from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.callables import get_call_parameters
@@ -47,9 +47,7 @@ class Flow:
 
         self.parameters = parameter_schema(self.fn)
 
-    def __call__(
-        self, *args: Any, **kwargs: Any
-    ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    def __call__(self, *args: Any, **kwargs: Any) -> Union[State, Awaitable[State]]:
         from prefect.engine import enter_flow_run_engine
 
         # Convert the call args/kwargs to a parameter dict
