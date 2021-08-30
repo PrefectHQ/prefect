@@ -144,10 +144,10 @@ class TestReadFlows:
 
         result = await models.flows.read_flows(
             session=session,
-            # flow_filter=schemas.filters.FlowFilter(tags=["db", "blue"]),
+            # flow_filter=schemas.filters.FlowFilter(tags_eq=["db", "blue"]),
             flow_run_filter=schemas.filters.FlowRunFilter(
-                # tags=["db", "red"],
-                states=["COMPLETED"]
+                # tags_eq=["db", "red"],
+                state_in=["COMPLETED"]
             ),
         )
         raise ValueError("Unfinished test")
