@@ -6,7 +6,7 @@ from fastapi import Request, Response, status
 from prefect.orion.schemas.data import DataDocument, get_instance_data_location
 from prefect.orion.serializers import FileSerializer, OrionSerializer
 from prefect.orion.utilities.server import OrionRouter
-from prefect.utilities.asyncio import run_in_threadpool
+from prefect.utilities.compat import asyncio_to_thread
 
 router = OrionRouter(prefix="/data", tags=["Data Documents"])
 
@@ -26,7 +26,7 @@ async def create_datadoc(request: Request) -> DataDocument:
     path = f"{dataloc.scheme}://{path}"
 
     # Write the data to the path and create a file system document
-    file_datadoc = await run_in_threadpool(
+    file_datadoc = await asyncio_to_thread(
         DataDocument.encode, encoding=dataloc.scheme, data=data, path=path
     )
 
@@ -51,6 +51,6 @@ async def read_datadoc(orion_datadoc: DataDocument):
     inner_datadoc = OrionSerializer.loads(orion_datadoc.blob)
 
     # Read data from the file system; once again do not use the dispatcher
-    data = await run_in_threadpool(FileSerializer.loads, inner_datadoc.blob)
+    data = await asyncio_to_thread(FileSerializer.loads, inner_datadoc.blob)
 
     return Response(content=data, media_type="application/octet-stream")

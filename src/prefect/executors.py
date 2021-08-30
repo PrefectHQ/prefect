@@ -33,7 +33,11 @@ class BaseExecutor:
         raise NotImplementedError()
 
     @contextmanager
-    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
+    def start(
+        self: T,
+        flow_run_id: str,
+        orion_client: "OrionClient",
+    ) -> T:
         self.flow_run_id = flow_run_id
         self.orion_client = orion_client
         try:
