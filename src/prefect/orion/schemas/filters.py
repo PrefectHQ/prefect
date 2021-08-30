@@ -25,7 +25,7 @@ class FlowFilter(PrefectBaseModel):
         if self.name_in is not None:
             filters.append(orm.Flow.name.in_(self.name_in))
         if self.tags_eq is not None:
-            filters.append(json_has_all_keys(orm.Flow.tags_eq, self.tags_eq))
+            filters.append(json_has_all_keys(orm.Flow.tags, self.tags_eq))
 
         return sa.and_(*filters)
 
@@ -45,15 +45,15 @@ class FlowRunFilter(PrefectBaseModel):
         if self.id_in is not None:
             filters.append(orm.FlowRun.id.in_(self.id_in))
         if self.tags_eq is not None:
-            filters.append(json_has_all_keys(orm.FlowRun.tags_eq, self.tags_eq))
+            filters.append(json_has_all_keys(orm.FlowRun.tags, self.tags_eq))
         if self.flow_version_in is not None:
             filters.append(orm.FlowRun.flow_version.in_(self.flow_version_in))
         if self.state_in is not None:
             filters.append(
                 orm.FlowRun.state.has(orm.FlowRunState.type.in_(self.state_in))
             )
-        # TODO: use canonical start time instead of timestamp
 
+        # TODO: use canonical start time instead of timestamp
         if self.start_time_lte is not None:
             filters.append(
                 orm.FlowRun.state.has(orm.FlowRunState.timestamp <= self.start_time_lte)
@@ -68,8 +68,31 @@ class FlowRunFilter(PrefectBaseModel):
 
 class TaskRunFilter(PrefectBaseModel):
     id_in: List[UUID] = None
-    name_in: List[str] = None
     tags_eq: List[str] = None
     state_in: List[schemas.states.StateType] = None
     start_time_gte: datetime.datetime = None
     start_time_lte: datetime.datetime = None
+
+    def as_sql_filter(self) -> List:
+        filters = []
+
+        if self.id_in is not None:
+            filters.append(orm.TaskRun.id.in_(self.id_in))
+        if self.tags_eq is not None:
+            filters.append(json_has_all_keys(orm.TaskRun.tags, self.tags_eq))
+        if self.state_in is not None:
+            filters.append(
+                orm.TaskRun.state.has(orm.TaskRunState.type.in_(self.state_in))
+            )
+
+        # TODO: use canonical start time instead of timestamp
+        if self.start_time_lte is not None:
+            filters.append(
+                orm.TaskRun.state.has(orm.TaskRunState.timestamp <= self.start_time_lte)
+            )
+        if self.start_time_gte is not None:
+            filters.append(
+                orm.TaskRun.state.has(orm.TaskRunState.timestamp >= self.start_time_gte)
+            )
+
+        return sa.and_(*filters)
