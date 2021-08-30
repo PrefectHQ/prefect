@@ -108,7 +108,7 @@ class TestFlowRun:
         self, many_flow_run_states, session
     ):
         query_4 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(sa.cast(orm.FlowRunState.data, sa.Integer) == 4)
+            orm.FlowRun.state.has(orm.FlowRunState.data == 4)
         )
         result_4 = await session.execute(query_4)
         # all flow runs have data == 4
@@ -118,7 +118,7 @@ class TestFlowRun:
         self, many_flow_run_states, session
     ):
         query_3 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(sa.cast(orm.FlowRunState.data, sa.Integer) == 3)
+            orm.FlowRun.state.has(orm.FlowRunState.data == 3)
         )
         result_3 = await session.execute(query_3)
         # no flow runs have data == 3
@@ -183,7 +183,7 @@ class TestTaskRun:
         self, many_task_run_states, session
     ):
         query_4 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(sa.cast(orm.TaskRunState.data, sa.Integer) == 4)
+            orm.TaskRun.state.has(orm.TaskRunState.data == 4)
         )
         result_4 = await session.execute(query_4)
         # all task runs have data == 4
@@ -193,7 +193,7 @@ class TestTaskRun:
         self, many_task_run_states, session
     ):
         query_3 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(sa.cast(orm.TaskRunState.data, sa.Integer) == 3)
+            orm.TaskRun.state.has(orm.TaskRunState.data == 3)
         )
         result_3 = await session.execute(query_3)
         # no task runs have data == 3

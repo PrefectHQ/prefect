@@ -3,8 +3,12 @@ import os
 import pytest
 import sqlalchemy as sa
 
+from prefect import settings
+
 pytestmark = pytest.mark.skipif(
-    not os.getenv("PREFECT_ORION_DATABASE_CONNECTION_URL").startswith("postgresql"),
+    not settings.orion.database.connection_url.get_secret_value().startswith(
+        "postgresql"
+    ),
     reason="These tests apply only to Postgres",
 )
 
