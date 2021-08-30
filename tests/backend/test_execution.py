@@ -15,7 +15,6 @@ from prefect.backend.execution import (
     generate_flow_run_environ,
     execute_flow_run_in_subprocess,
 )
-from prefect.backend import FlowRunView as FlowRunView
 from prefect.run_configs import UniversalRun
 from prefect.engine.state import Failed, Scheduled, Success, Running, Submitted
 from prefect.utilities.graphql import GraphQLResult
