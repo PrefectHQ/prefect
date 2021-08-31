@@ -58,11 +58,12 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def provide_sync_entrypoint(
+def sync_compatible(
     async_fn: Callable[..., Awaitable[T]]
 ) -> Callable[..., Union[T, Awaitable[T]]]:
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
+
     @wraps(async_fn)
     def wrapper(*args, **kwargs):
         if in_async_main_thread():
@@ -77,5 +78,5 @@ def provide_sync_entrypoint(
             # to run the async code then tear it down
             return run_async_in_new_loop(async_fn, *args, **kwargs)
 
-    wrapper.afn = async_fn
+    wrapper.async_fn = async_fn
     return wrapper

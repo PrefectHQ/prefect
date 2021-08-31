@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from unittest.mock import Mock
 from uuid import UUID
 
+import prefect
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import provide_sync_entrypoint
+from prefect.utilities.asyncio import sync_compatible
 
 
 if TYPE_CHECKING:
@@ -32,7 +33,7 @@ class PrefectFuture:
         self._exception: Optional[Exception] = None
         self._executor = executor
 
-    @provide_sync_entrypoint
+    @sync_compatible
     async def result(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
@@ -48,7 +49,7 @@ class PrefectFuture:
 
         return self._result
 
-    @provide_sync_entrypoint
+    @sync_compatible
     async def get_state(self) -> State:
         if self.task_run_id:
             run = await self._client.read_task_run(self.task_run_id)
@@ -65,10 +66,7 @@ class PrefectFuture:
 
 
 async def future_to_data(future: PrefectFuture) -> Any:
-    # TODO: Resolve this circular dependency
-    from prefect.engine import get_result
-
-    return await get_result(await future.result())
+    return await prefect.get_result(await future.result())
 
 
 async def future_to_state(future: PrefectFuture) -> Any:
