@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
+from prefect.utilities.compatibility import nullcontext
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
@@ -29,6 +30,7 @@ def api(monkeypatch):
     client.ping.return_value = True
     client.create_container.return_value = {"Id": "container_id"}
     client.create_host_config.return_value = {"AutoRemove": True}
+    client.version.return_value = {"Version": "20.10.0"}  # Our recommend min version
     monkeypatch.setattr(
         "prefect.agent.docker.agent.DockerAgent._get_docker_client",
         MagicMock(return_value=client),
@@ -465,6 +467,7 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
 def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
+
     if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
@@ -479,7 +482,6 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
         host_config = {"auto_remove": False, "shm_size": "128m"}
         exp_host_config = {
             "auto_remove": False,
-            "extra_hosts": {"host.docker.internal": "host-gateway"},
             "shm_size": "128m",
         }
         run = DockerRun(image=image, env=env, host_config=host_config)
@@ -488,9 +490,10 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
         host_config = {}
         exp_host_config = {
             "auto_remove": True,
-            "extra_hosts": {"host.docker.internal": "host-gateway"},
         }
         run = None if run_kind == "missing" else UniversalRun()
+
+    exp_host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
     agent = DockerAgent()
     agent.deploy_flow(
@@ -519,6 +522,44 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
     res_host_config = api.create_host_config.call_args[1]
     for k, v in exp_host_config.items():
         assert res_host_config[k] == v
+
+
+@pytest.mark.parametrize("docker_engine_version", ["0.25.10", "19.1.1"])
+def test_docker_agent_deploy_flow_does_not_include_host_gateway_for_old_engine_versions(
+    api, docker_engine_version
+):
+    api.version.return_value = {"Version": docker_engine_version}
+
+    run = UniversalRun()
+    storage = Local()
+
+    agent = DockerAgent()
+    with pytest.warns(
+        UserWarning,
+        match=(
+            "`host.docker.internal` could not be automatically resolved.*"
+            f"feature is not supported on Docker Engine v{docker_engine_version}"
+        ),
+    ):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "id": "foo",
+                            "name": "flow-name",
+                            "storage": storage.serialize(),
+                            "core_version": "0.13.11",
+                        }
+                    ),
+                    "run_config": run.serialize() if run else None,
+                    "id": "id",
+                    "name": "name",
+                }
+            )
+        )
+
+    assert "extra_hosts" not in api.create_host_config.call_args[1]
 
 
 def test_docker_agent_deploy_flow_unsupported_run_config(api):
