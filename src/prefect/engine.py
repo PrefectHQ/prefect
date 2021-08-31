@@ -25,7 +25,7 @@ from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
-    provide_sync_entrypoint,
+    sync_compatible,
 )
 from prefect.utilities.collections import ensure_iterable
 
@@ -429,7 +429,7 @@ async def user_return_value_to_state(result: Any, serializer: str) -> State:
     return State(type=StateType.COMPLETED, data=DataDocument.encode(serializer, result))
 
 
-@provide_sync_entrypoint
+@sync_compatible
 async def get_result(state: State, raise_failures: bool = True) -> Any:
     if state.is_failed() and raise_failures:
         return await raise_failed_state(state)
@@ -437,7 +437,7 @@ async def get_result(state: State, raise_failures: bool = True) -> Any:
     return await resolve_datadoc(state.data)
 
 
-@provide_sync_entrypoint
+@sync_compatible
 async def raise_failed_state(state: State) -> None:
     if not state.is_failed():
         return
