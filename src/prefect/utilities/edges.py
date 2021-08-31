@@ -28,7 +28,7 @@ class mapped(EdgeAnnotation):
     as the input to another task.
 
     Args:
-        - value (Any): the task or value to mark as "unmapped"; if not a Task
+        - value (Any): the task or value to mark as "mapped"; if not a Task
             subclass, Prefect will attempt to convert it to one when the edge is
             created.
 
@@ -110,7 +110,7 @@ class flatten(EdgeAnnotation):
 
         with Flow("My Flow"):
             add = Add()
-            ll = ListTask()
+            ll = NestedListTask()
 
             result = add.map(x=flatten(ll))
 
