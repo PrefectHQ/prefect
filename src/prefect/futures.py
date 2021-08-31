@@ -2,16 +2,14 @@ from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, Awaitable
+from typing import TYPE_CHECKING, Any, Callable, Optional
 from unittest.mock import Mock
 from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import (
-    run_async_from_worker_thread,
-    in_async_worker_thread,
-)
+from prefect.utilities.asyncio import provide_sync_entrypoint
+
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -34,42 +32,15 @@ class PrefectFuture:
         self._exception: Optional[Exception] = None
         self._executor = executor
 
-    def result(
-        self, timeout: float = None
-    ) -> Union[Optional[State], Awaitable[Optional[State]]]:
-        """
-        Wait for the result of the future for `timeout` seconds.
-
-        If the timeout is reached before the future is done, `None` will be returned.
-
-        If writing async code, this function returns a coroutine and must be awaited.
-        """
-        if in_async_worker_thread():
-            return run_async_from_worker_thread(self._result_async, timeout)
-        else:
-            # Return the coroutine for the user to await
-            return self._result_async(timeout)
-
-    def get_state(self) -> Union[State, Awaitable[State]]:
-        """
-        Get the current state of this future
-
-        If writing async code, this function returns a coroutine and must be awaited.
-        """
-        if in_async_worker_thread():
-            return run_async_from_worker_thread(self._get_state_async)
-        else:
-            # Return the coroutine for the user to await
-            return self._get_state_async()
-
-    async def _result_async(self, timeout: float = None) -> Optional[State]:
+    @provide_sync_entrypoint
+    async def result(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
         if self._result:
             return self._result
 
-        state = await self._get_state_async()
+        state = await self.get_state()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
@@ -77,7 +48,8 @@ class PrefectFuture:
 
         return self._result
 
-    async def _get_state_async(self) -> State:
+    @provide_sync_entrypoint
+    async def get_state(self) -> State:
         if self.task_run_id:
             run = await self._client.read_task_run(self.task_run_id)
 
@@ -93,6 +65,7 @@ class PrefectFuture:
 
 
 async def future_to_data(future: PrefectFuture) -> Any:
+    # TODO: Resolve this circular dependency
     from prefect.engine import get_result
 
     return await get_result(await future.result())

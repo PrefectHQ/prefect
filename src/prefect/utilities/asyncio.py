@@ -48,13 +48,14 @@ def in_async_worker_thread() -> bool:
         return True
 
 
-def in_async_event_thread() -> bool:
+def in_async_main_thread() -> bool:
     try:
         sniffio.current_async_library()
     except sniffio.AsyncLibraryNotFoundError:
         return False
     else:
-        return True
+        # We could be in a worker thread, not the main thread
+        return True and not in_async_worker_thread()
 
 
 A = TypeVar("A")
@@ -65,8 +66,8 @@ def provide_sync_entrypoint(
 ) -> Callable[..., Union[T, Awaitable[T]]]:
     @wraps(async_fn)
     def wrapper(*args, **kwargs):
-        if in_async_event_thread():
-            # In an async context; return the coro for them to await
+        if in_async_main_thread():
+            # In the main async context; return the coro for them to await
             return async_fn(*args, **kwargs)
         elif in_async_worker_thread():
             # In a sync context but we can access the event loop thread; send the async
