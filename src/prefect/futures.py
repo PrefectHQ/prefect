@@ -2,7 +2,7 @@ from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, Awaitable
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -10,7 +10,10 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.utilities.collections import ensure_iterable
-from prefect.utilities.asyncio import run_async_from_worker_thread
+from prefect.utilities.asyncio import (
+    run_async_from_worker_thread,
+    is_in_async_worker_thread,
+)
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
@@ -33,24 +36,42 @@ class PrefectFuture:
         self._exception: Optional[Exception] = None
         self._executor = executor
 
-    def result(self, timeout: float = None) -> Optional[State]:
-        # TODO: We can make this a dual sync/async interface by returning the coro
-        #       directly if this is a future from an async flow/task. This bool just
-        #       needs to be attached to the class at some point.
-        #       Once this is async compatible, `aresult` can be made private
-        return run_async_from_worker_thread(self.aresult, timeout)
+    def result(
+        self, timeout: float = None
+    ) -> Union[Optional[State], Awaitable[Optional[State]]]:
+        """
+        Wait for the result of the future for `timeout` seconds.
 
-    def get_state(self) -> State:
-        return run_async_from_worker_thread(self.get_state)
+        If the timeout is reached before the future is done, `None` will be returned.
 
-    async def aresult(self, timeout: float = None) -> Optional[State]:
+        If writing async code, this function returns a coroutine and must be awaited.
+        """
+        if is_in_async_worker_thread():
+            return run_async_from_worker_thread(self._result_async, timeout)
+        else:
+            # Return the coroutine for the user to await
+            return self._result_async(timeout)
+
+    def get_state(self) -> Union[State, Awaitable[State]]:
+        """
+        Get the current state of this future
+
+        If writing async code, this function returns a coroutine and must be awaited.
+        """
+        if is_in_async_worker_thread():
+            return run_async_from_worker_thread(self._get_state_async)
+        else:
+            # Return the coroutine for the user to await
+            return self._get_state_async()
+
+    async def _result_async(self, timeout: float = None) -> Optional[State]:
         """
         Return the state of the run the future represents
         """
         if self._result:
             return self._result
 
-        state = await self.aget_state()
+        state = await self._get_state_async()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
@@ -58,7 +79,7 @@ class PrefectFuture:
 
         return self._result
 
-    async def aget_state(self) -> State:
+    async def _get_state_async(self) -> State:
         if self.task_run_id:
             run = await self._client.read_task_run(self.task_run_id)
 
@@ -74,11 +95,11 @@ class PrefectFuture:
 
 
 async def future_to_data(future: PrefectFuture) -> Any:
-    return (await future.aresult()).data
+    return (await future.result()).data
 
 
 async def future_to_state(future: PrefectFuture) -> Any:
-    return await future.aresult()
+    return await future.result()
 
 
 async def resolve_futures(
