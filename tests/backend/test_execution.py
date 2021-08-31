@@ -1,5 +1,6 @@
 import pendulum
 import pytest
+import os
 import sys
 from unittest.mock import MagicMock, call
 from subprocess import CalledProcessError
@@ -14,7 +15,6 @@ from prefect.backend.execution import (
     generate_flow_run_environ,
     execute_flow_run_in_subprocess,
 )
-from prefect.backend import FlowRunView as FlowRunView
 from prefect.run_configs import UniversalRun
 from prefect.engine.state import Failed, Scheduled, Success, Running, Submitted
 from prefect.utilities.graphql import GraphQLResult
@@ -58,34 +58,42 @@ class TestExecuteFlowRunInSubprocess:
 
         return mocks
 
-    def test_creates_subprocess_correctly(self, cloud_mocks, mocks):
+    @pytest.mark.parametrize("include_local_env", [True, False])
+    def test_creates_subprocess_correctly(self, cloud_mocks, mocks, include_local_env):
         # Returned a scheduled flow run to start
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
         # Return a finished flow run after the first iteration
         cloud_mocks.FlowRunView().get_latest().state = Success()
 
-        execute_flow_run_in_subprocess("flow-run-id")
+        execute_flow_run_in_subprocess(
+            "flow-run-id", include_local_env=include_local_env
+        )
 
         # Should pass the correct flow run id to wait for
         mocks.wait_for_flow_run_start_time.assert_called_once_with("flow-run-id")
 
+        # Merge the starting env and the env generated for a flow run
+        base_env = os.environ.copy() if include_local_env else {}
+        generated_env = {
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "True",
+            "PREFECT__LOGGING__LEVEL": "INFO",
+            "PREFECT__LOGGING__FORMAT": "[%(asctime)s] %(levelname)s - %(name)s | %(message)s",
+            "PREFECT__LOGGING__DATEFMT": "%Y-%m-%d %H:%M:%S%z",
+            "PREFECT__BACKEND": "cloud",
+            "PREFECT__CLOUD__API": "https://api.prefect.io",
+            "PREFECT__CLOUD__TENANT_ID": "",
+            "PREFECT__CLOUD__API_KEY": cloud_mocks.Client().api_key,
+            "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
+            "PREFECT__CONTEXT__FLOW_ID": cloud_mocks.FlowRunView.from_flow_run_id().flow_id,
+            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+        }
+        expected_env = {**base_env, **generated_env}
+
         # Calls the correct command w/ environment variables
         mocks.subprocess.run.assert_called_once_with(
             [sys.executable, "-m", "prefect", "execute", "flow-run"],
-            env={
-                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "True",
-                "PREFECT__LOGGING__LEVEL": "INFO",
-                "PREFECT__LOGGING__FORMAT": "[%(asctime)s] %(levelname)s - %(name)s | %(message)s",
-                "PREFECT__LOGGING__DATEFMT": "%Y-%m-%d %H:%M:%S%z",
-                "PREFECT__BACKEND": "cloud",
-                "PREFECT__CLOUD__API": "https://api.prefect.io",
-                "PREFECT__CLOUD__TENANT_ID": "",
-                "PREFECT__CLOUD__API_KEY": cloud_mocks.Client().api_key,
-                "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
-                "PREFECT__CONTEXT__FLOW_ID": cloud_mocks.FlowRunView.from_flow_run_id().flow_id,
-                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-            },
+            env=expected_env,
         )
 
         # Return code is checked
