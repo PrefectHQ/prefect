@@ -55,7 +55,7 @@ def in_async_main_thread() -> bool:
         return False
     else:
         # We could be in a worker thread, not the main thread
-        return True and not in_async_worker_thread()
+        return not in_async_worker_thread()
 
 
 def provide_sync_entrypoint(
