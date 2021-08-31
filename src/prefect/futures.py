@@ -7,12 +7,10 @@ from unittest.mock import Mock
 from uuid import UUID
 
 from prefect.client import OrionClient
-from prefect.orion.schemas.states import State, StateType
-from prefect.orion.states import StateSet, is_state, is_state_iterable
-from prefect.utilities.collections import ensure_iterable
+from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
-    is_in_async_worker_thread,
+    in_async_worker_thread,
 )
 
 if TYPE_CHECKING:
@@ -46,7 +44,7 @@ class PrefectFuture:
 
         If writing async code, this function returns a coroutine and must be awaited.
         """
-        if is_in_async_worker_thread():
+        if in_async_worker_thread():
             return run_async_from_worker_thread(self._result_async, timeout)
         else:
             # Return the coroutine for the user to await
@@ -58,7 +56,7 @@ class PrefectFuture:
 
         If writing async code, this function returns a coroutine and must be awaited.
         """
-        if is_in_async_worker_thread():
+        if in_async_worker_thread():
             return run_async_from_worker_thread(self._get_state_async)
         else:
             # Return the coroutine for the user to await
@@ -95,7 +93,9 @@ class PrefectFuture:
 
 
 async def future_to_data(future: PrefectFuture) -> Any:
-    return (await future.result()).data
+    from prefect.engine import get_result
+
+    return await get_result(await future.result())
 
 
 async def future_to_state(future: PrefectFuture) -> Any:
@@ -144,63 +144,3 @@ async def resolve_futures(
 
     # If not a supported type, just return it
     return expr
-
-
-async def return_val_to_state(result: Any) -> State:
-    """
-    Given a return value from a user-function, create a `State` the run should
-    be placed in.
-
-    - If data is returned, we create a 'COMPLETED' state with the data
-    - If a single state is returned and is not wrapped in a future, we use that state
-    - If an iterable of states are returned, we apply the aggregate rule
-    - If a future or iterable of futures is returned, we resolve it into states then
-        apply the aggregate rule
-
-    The aggregate rule says that given multiple states we will determine the final state
-    such that:
-
-    - If any states are not COMPLETED the final state is FAILED
-    - If all of the states are COMPLETED the final state is COMPLETED
-    - The states will be placed in the final state `data` attribute
-
-    The aggregate rule is applied to _single_ futures to distinguish from returning a
-    _single_ state. This prevents a flow from assuming the state of a single returned
-    task future.
-    """
-    # States returned directly are respected without applying a rule
-    if is_state(result):
-        return result
-
-    # Ensure any futures are resolved
-    result = await resolve_futures(result, resolve_fn=future_to_state)
-
-    # If we resolved a task future or futures into states, we will determine a new state
-    # from their aggregate
-    if is_state(result) or is_state_iterable(result):
-        states = StateSet(ensure_iterable(result))
-
-        # Determine the new state type
-        new_state_type = (
-            StateType.COMPLETED if states.all_completed() else StateType.FAILED
-        )
-
-        # Generate a nice message for the aggregate
-        if states.all_completed():
-            message = "All states completed."
-        elif states.any_failed():
-            message = f"{states.fail_count}/{states.total_count} states failed."
-        elif not states.all_final():
-            message = (
-                f"{states.not_final_count}/{states.total_count} states did not reach a "
-                "final state."
-            )
-        else:
-            message = "Given states: " + states.counts_message()
-
-        # TODO: We may actually want to set the data to a `StateSet` object and just allow
-        #       it to be unpacked into a tuple and such so users can interact with it
-        return State(data=result, type=new_state_type, message=message)
-
-    # Otherwise, they just gave data and this is a completed result
-    return State(type=StateType.COMPLETED, data=result)
