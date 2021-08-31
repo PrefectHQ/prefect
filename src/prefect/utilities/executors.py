@@ -297,6 +297,16 @@ def multiprocessing_safe_run_and_retrieve(
             logger.debug(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
             logger.debug(f"{name}: Execution successful.")
+    except BaseException as exc:
+        # PrefectSignals inherit from BaseException
+        # we need to ensure these are captured and put in the
+        # queue correctly, otherwise no value is returned and
+        # the task runner assumes execution has timed out
+        return_val = exc
+        logger.error(
+            f"{name}: Encountered a BaseException {type(exc).__name__}, "
+            f"returning details as a result..."
+        )
     except Exception as exc:
         return_val = exc
         logger.error(
