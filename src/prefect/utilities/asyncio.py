@@ -58,12 +58,11 @@ def in_async_main_thread() -> bool:
         return True and not in_async_worker_thread()
 
 
-A = TypeVar("A")
-
-
 def provide_sync_entrypoint(
     async_fn: Callable[..., Awaitable[T]]
 ) -> Callable[..., Union[T, Awaitable[T]]]:
+    # TODO: This is breaking type hints on the callable... mypy is behind the curve
+    #       on argument annotations. We can still fix this for editors though.
     @wraps(async_fn)
     def wrapper(*args, **kwargs):
         if in_async_main_thread():
