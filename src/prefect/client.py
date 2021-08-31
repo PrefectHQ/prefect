@@ -226,6 +226,50 @@ class OrionClient:
         response = await self.get(f"/task_runs/{task_run_id}")
         return schemas.core.TaskRun.parse_obj(response.json())
 
+    async def propose_state(
+        self,
+        state: schemas.states.State,
+        task_run_id: UUID = None,
+        flow_run_id: UUID = None,
+    ) -> schemas.states.State:
+        # Determine if working with a task run or flow run
+        if not task_run_id and not flow_run_id:
+            raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+
+        # Exchange the user data document for an orion data document
+        if state.data:
+            state.data = await self.persist_data(state.data.json().encode())
+
+        # Attempt to set the state
+        if task_run_id:
+            response = await self.set_task_run_state(task_run_id, state)
+        elif flow_run_id:
+            response = await self.set_flow_run_state(flow_run_id, state)
+        else:
+            raise ValueError(
+                "Neither flow run id or task run id were provided. At least one must "
+                "be given."
+            )
+
+        # Parse the response to return the new state
+        if response.status == schemas.responses.SetStateStatus.ACCEPT:
+            # Update the state with the details if provided
+            if response.details.state_details:
+                state.state_details = response.details.state_details
+            return state
+
+        elif response.status == schemas.responses.SetStateStatus.ABORT:
+            raise RuntimeError("ABORT is not yet handled")
+
+        elif response.status == schemas.responses.SetStateStatus.REJECT:
+            server_state = response.details.state
+
+            return server_state
+        else:
+            raise ValueError(
+                f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+            )
+
     async def set_task_run_state(
         self,
         task_run_id: UUID,

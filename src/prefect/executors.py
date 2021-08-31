@@ -155,8 +155,10 @@ class DaskExecutor(BaseExecutor):
         Generate a dask future corresponding to a prefect future that will retrieve the
         data from the resulting state
         """
+        from prefect.engine import get_result
+
         dask_state_future = self._get_dask_future(prefect_future)
-        data_future = self._client.submit(getattr, dask_state_future, "data")
+        data_future = self._client.submit(get_result, dask_state_future)
         return data_future
 
     async def wait(
