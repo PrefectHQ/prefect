@@ -56,32 +56,27 @@ class OrchestrationContext(PrefectBaseModel):
     def run_settings(self):
         return self.run.empirical_policy
 
-    def entry_context(self):
-        safe_context = self.copy()
-        initial_state_copy = (
+    def safe_copy(self):
+        safe_copy = self.copy()
+
+        safe_copy.initial_state = (
             self.initial_state.copy() if self.initial_state else None
         )
-        proposed_state_copy = (
+        safe_copy.proposed_state = (
             self.proposed_state.copy() if self.proposed_state else None
         )
-        safe_context.initial_state = initial_state_copy
-        safe_context.proposed_state = proposed_state_copy
+        safe_copy.validated_state = (
+            self.validated_state.copy() if self.validated_state else None
+        )
+        safe_copy.run = self.run.copy()
+        return safe_copy
+
+    def entry_context(self):
+        safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.proposed_state, safe_context
 
     def exit_context(self):
-        safe_context = self.copy()
-        initial_state_copy = (
-            self.initial_state.copy() if self.initial_state else None
-        )
-        proposed_state_copy = (
-            self.proposed_state.copy() if self.proposed_state else None
-        )
-        validated_state_copy = (
-            self.validated_state.copy() if self.validated_state else None
-        )
-        safe_context.initial_state = initial_state_copy
-        safe_context.proposed_state = proposed_state_copy
-        safe_context.validated_state = validated_state_copy
+        safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
 
