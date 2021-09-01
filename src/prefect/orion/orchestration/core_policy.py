@@ -36,14 +36,14 @@ class CacheRetrieval(BaseOrchestrationRule):
         session = context.session
         if proposed_state.state_details.cache_key:
             # Check for cached states matching the cache key
-            database_cache = await get_cached_task_run_state(
+            cached_state = await get_cached_task_run_state(
                 session, proposed_state.state_details.cache_key
             )
-            if database_cache:
-                cached_state = database_cache.as_state().copy(reset_fields=True)
-                cached_state.name = "Cached"
+            if cached_state:
+                new_state = cached_state.as_state().copy(reset_fields=True)
+                new_state.name = "Cached"
                 await self.reject_transition(
-                    state=cached_state, reason="Retrieved state from cache"
+                    state=new_state, reason="Retrieved state from cache"
                 )
 
 

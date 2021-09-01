@@ -87,12 +87,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state: states.StateType,
-        to_state: states.StateType,
+        from_state_type: states.StateType,
+        to_state_type: states.StateType,
     ):
         self.context = context
-        self.from_state = from_state
-        self.to_state = to_state
+        self.from_state = from_state_type
+        self.to_state = to_state_type
         self._not_fizzleable = None
 
     async def __aenter__(self) -> OrchestrationContext:
@@ -189,8 +189,8 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state: states.State,
-        to_state: states.State,
+        from_state_type: states.State,
+        to_state_type: states.State,
     ):
         self.context = context
 
