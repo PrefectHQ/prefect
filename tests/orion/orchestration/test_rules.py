@@ -593,13 +593,13 @@ class TestBaseUniversalRule:
             # UniversalRules are typically used for essential bookkeeping
 
             # a before-transition hook that fires upon entering the rule
-            async def before_transition(self):
+            async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
                 return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self):
+            async def after_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
 
@@ -643,12 +643,12 @@ class TestBaseUniversalRule:
         after_hook = MagicMock()
 
         class IllustrativeUniversalRule(BaseUniversalRule):
-            async def before_transition(self):
+            async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
                 before_hook()
 
-            async def after_transition(self):
+            async def after_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
                 after_hook()
