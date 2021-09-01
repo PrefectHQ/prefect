@@ -5,6 +5,7 @@ from uuid import UUID
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
+import prefect
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures
 from prefect.orion.schemas.states import State
@@ -156,7 +157,7 @@ class DaskExecutor(BaseExecutor):
         data from the resulting state
         """
         dask_state_future = self._get_dask_future(prefect_future)
-        data_future = self._client.submit(getattr, dask_state_future, "data")
+        data_future = self._client.submit(prefect.get_result, dask_state_future)
         return data_future
 
     async def wait(
