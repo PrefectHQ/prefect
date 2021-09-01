@@ -10,17 +10,6 @@ from prefect.orion.utilities.database import JSON, UUID, Base, Pydantic, Timesta
 from prefect.orion.utilities.functions import ParameterSchema
 
 
-class Flow(Base):
-    name = Column(String, nullable=False, unique=True)
-    tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    parameters = Column(
-        Pydantic(ParameterSchema),
-        server_default="{}",
-        default=ParameterSchema,
-        nullable=False,
-    )
-
-
 class FlowRunState(Base):
     # this column isn't explicitly indexed because it is included in
     # the unique compound index on (flow_run_id, timestamp)
@@ -49,6 +38,8 @@ class FlowRunState(Base):
         nullable=False,
     )
     data = Column(JSON)
+
+    flow_run = relationship("FlowRun", back_populates="states", lazy="raise")
 
     __table_args__ = (
         sa.Index(
@@ -92,6 +83,8 @@ class TaskRunState(Base):
     )
     data = Column(JSON, nullable=True)
 
+    task_run = relationship("TaskRun", back_populates="states", lazy="raise")
+
     __table_args__ = (
         sa.Index(
             "ix_task_run_state_task_run_id_timestamp_desc",
@@ -120,10 +113,6 @@ class TaskRunStateCache(Base):
             sa.desc("created"),
         ),
     )
-
-
-frs = aliased(FlowRunState, name="frs")
-trs = aliased(TaskRunState, name="trs")
 
 
 class FlowRun(Base):
@@ -156,49 +145,25 @@ class FlowRun(Base):
         index=True,
     )
 
-    # the current state of a run is found by a "top-n-per group" query that
-    # includes two joins:
-    #   1. from the `Run` table to the `State` table to load states for that run
-    #   2. from the `State` table to itself (aliased as `frs`) to filter all but the current state
-    #
-    # The second join is an outer join that only matches rows where `state.timestamp < frs.timestamp`,
-    # indicating that the matched state is NOT the most recent state. We then add a primary condition
-    # that `frs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
-    # keeping only the most recent state.
-    state = relationship(
-        # the self-referential join of FlowRunState to itself
-        lambda: aliased(
-            FlowRunState,
-            join(
-                FlowRunState,
-                frs,
-                sa.and_(
-                    FlowRunState.flow_run_id == frs.flow_run_id,
-                    FlowRunState.timestamp < frs.timestamp,
-                ),
-                isouter=True,
-            ),
-        ),
-        # the join condition from FlowRun to FlowRunState and also including
-        # only the failed matches for frs
-        primaryjoin=lambda: sa.and_(
-            FlowRun.id == FlowRunState.flow_run_id,
-            frs.id.is_(None),
-        ),
-        uselist=False,
-        viewonly=True,
-        lazy="joined",
+    flow = relationship("Flow", back_populates="flow_runs", lazy="raise")
+    task_runs = relationship(
+        "TaskRun",
+        back_populates="flow_run",
+        lazy="raise",
+        foreign_keys=lambda: [TaskRun.flow_run_id],
     )
-
-    @classmethod
-    def state_filter(cls, state_types: List[states.StateType]):
-        """
-        Helper function that returns a SQLAlchemy expression for filtering runs by their state
-        """
-        if len(state_types) == 1:
-            return cls.state.has(FlowRunState.type == state_types[0])
-        else:
-            return cls.state.has(FlowRunState.type.in_(state_types))
+    parent_task_run = relationship(
+        "TaskRun",
+        back_populates="subflow_runs",
+        lazy="raise",
+        foreign_keys=lambda: [FlowRun.parent_task_run_id],
+    )
+    states = relationship(
+        "FlowRunState",
+        back_populates="flow_run",
+        lazy="raise",
+        foreign_keys=lambda: [FlowRunState.flow_run_id],
+    )
 
     # unique index on flow id / idempotency key
     __table__args__ = sa.Index(
@@ -244,49 +209,26 @@ class TaskRun(Base):
         nullable=False,
     )
 
-    # the current state of a run is found by a "top-n-per group" query that
-    # includes two joins:
-    #   1. from the `Run` table to the `State` table to load states for that run
-    #   2. from the `State` table to itself (aliased as `trs`) to filter all but the current state
-    #
-    # The second join is an outer join that only matches rows where `state.timestamp < trs.timestamp`,
-    # indicating that the matched state is NOT the most recent state. We then add a primary condition
-    # that `trs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
-    # keeping only the most recent state.
-    state = relationship(
-        # the self-referential join of TaskRunState to itself
-        lambda: aliased(
-            TaskRunState,
-            join(
-                TaskRunState,
-                trs,
-                sa.and_(
-                    TaskRunState.task_run_id == trs.task_run_id,
-                    TaskRunState.timestamp < trs.timestamp,
-                ),
-                isouter=True,
-            ),
-        ),
-        # the join condition from TaskRun to TaskRunState and also including
-        # only the failed matches for trs
-        primaryjoin=lambda: sa.and_(
-            TaskRun.id == TaskRunState.task_run_id,
-            trs.id.is_(None),
-        ),
-        uselist=False,
-        viewonly=True,
-        lazy="joined",
+    flow_run = relationship(
+        FlowRun,
+        back_populates="task_runs",
+        lazy="raise",
+        foreign_keys=[flow_run_id],
     )
 
-    @classmethod
-    def state_filter(cls, state_types: List[states.StateType]):
-        """
-        Helper function that returns a SQLAlchemy expression for filtering runs by their state
-        """
-        if len(state_types) == 1:
-            return cls.state.has(TaskRunState.type == state_types[0])
-        else:
-            return cls.state.has(TaskRunState.type.in_(state_types))
+    subflow_runs = relationship(
+        FlowRun,
+        back_populates="parent_task_run",
+        lazy="raise",
+        foreign_keys=[FlowRun.parent_task_run_id],
+    )
+
+    states = relationship(
+        "TaskRunState",
+        back_populates="task_run",
+        lazy="raise",
+        foreign_keys=lambda: [TaskRunState.task_run_id],
+    )
 
     __table_args__ = (
         sa.Index(
@@ -299,9 +241,95 @@ class TaskRun(Base):
     )
 
 
+class Flow(Base):
+    name = Column(String, nullable=False, unique=True)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    parameters = Column(
+        Pydantic(ParameterSchema),
+        server_default="{}",
+        default=ParameterSchema,
+        nullable=False,
+    )
+    flow_runs = relationship("FlowRun", back_populates="flow", lazy="raise")
+    deployments = relationship("Deployment", back_populates="flow", lazy="raise")
+
+
 class Deployment(Base):
     name = Column(String, nullable=False)
     flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)
     schedules = Column(Pydantic(List[schedules.Schedule]))
 
-    flow = relationship(Flow, lazy="joined")
+    flow = relationship(Flow, back_populates="deployments", lazy="raise")
+
+    # the current state of a run is found by a "top-n-per group" query that
+    # includes two joins:
+    #   1. from the `Run` table to the `State` table to load states for that run
+    #   2. from the `State` table to itself (aliased as `frs`) to filter all but the current state
+    #
+    # The second join is an outer join that only matches rows where `state.timestamp < frs.timestamp`,
+    # indicating that the matched state is NOT the most recent state. We then add a primary condition
+    # that `frs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
+    # keeping only the most recent state.
+
+
+frs = aliased(FlowRunState, name="frs")
+FlowRun.state = relationship(
+    # the self-referential join of FlowRunState to itself
+    aliased(
+        FlowRunState,
+        join(
+            FlowRunState,
+            frs,
+            sa.and_(
+                FlowRunState.flow_run_id == frs.flow_run_id,
+                FlowRunState.timestamp < frs.timestamp,
+            ),
+            isouter=True,
+        ),
+    ),
+    # the join condition from FlowRun to FlowRunState and also including
+    # only the failed matches for frs
+    primaryjoin=sa.and_(
+        FlowRun.id == FlowRunState.flow_run_id,
+        frs.id.is_(None),
+    ),
+    uselist=False,
+    viewonly=True,
+    lazy="joined",
+)
+
+
+# the current state of a run is found by a "top-n-per group" query that
+# includes two joins:
+#   1. from the `Run` table to the `State` table to load states for that run
+#   2. from the `State` table to itself (aliased as `trs`) to filter all but the current state
+#
+# The second join is an outer join that only matches rows where `state.timestamp < trs.timestamp`,
+# indicating that the matched state is NOT the most recent state. We then add a primary condition
+# that `trs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
+# keeping only the most recent state.
+trs = aliased(TaskRunState, name="trs")
+TaskRun.state = relationship(
+    # the self-referential join of TaskRunState to itself
+    aliased(
+        TaskRunState,
+        join(
+            TaskRunState,
+            trs,
+            sa.and_(
+                TaskRunState.task_run_id == trs.task_run_id,
+                TaskRunState.timestamp < trs.timestamp,
+            ),
+            isouter=True,
+        ),
+    ),
+    # the join condition from TaskRun to TaskRunState and also including
+    # only the failed matches for trs
+    primaryjoin=sa.and_(
+        TaskRun.id == TaskRunState.task_run_id,
+        trs.id.is_(None),
+    ),
+    uselist=False,
+    viewonly=True,
+    lazy="joined",
+)
