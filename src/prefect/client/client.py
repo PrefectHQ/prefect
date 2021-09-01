@@ -1205,7 +1205,6 @@ class Client:
             self.graphql(
                 task_mutation,
                 variables=dict(input=inputs),
-                retry_on_api_error=True,
             )
             start = stop
             stop += batch_size
@@ -1224,7 +1223,6 @@ class Client:
             self.graphql(
                 edge_mutation,
                 variables=dict(input=inputs),
-                retry_on_api_error=True,
             )
             start = stop
             stop += batch_size
@@ -1238,7 +1236,8 @@ class Client:
             }
             inputs = dict(flow_id=flow_id)
             self.graphql(
-                schedule_mutation, variables=dict(input=inputs), retry_on_api_error=True
+                schedule_mutation,
+                variables=dict(input=inputs),
             )
 
         if not no_url:
