@@ -25,7 +25,10 @@ async def many_flow_run_states(flow, session):
                 flow_run_id=flow_run.id,
                 **schemas.states.State(
                     type=schemas.states.StateType.PENDING,
-                    data=i,
+                    data=schemas.data.DataDocument(
+                        encoding="json", blob=str(i).encode()
+                    ),
+                    message=str(i),
                     timestamp=pendulum.now("UTC"),
                 ).dict()
             )
@@ -57,7 +60,10 @@ async def many_task_run_states(flow_run, session):
                 task_run_id=task_run.id,
                 **schemas.states.State(
                     type=schemas.states.StateType.PENDING,
-                    data=i,
+                    data=schemas.data.DataDocument(
+                        encoding="json", blob=str(i).encode()
+                    ),
+                    message=str(i),
                     timestamp=pendulum.now("UTC"),
                 ).dict()
             )
@@ -77,7 +83,12 @@ class TestFlowRun:
         # full query for most recent states
         frs_alias = sa.orm.aliased(orm.FlowRunState)
         query = (
-            sa.select(orm.FlowRun, orm.FlowRunState.id, orm.FlowRunState.data)
+            sa.select(
+                orm.FlowRun,
+                orm.FlowRunState.id,
+                orm.FlowRunState.data,
+                orm.FlowRunState.message,
+            )
             .select_from(orm.FlowRun)
             .join(
                 orm.FlowRunState,
@@ -98,9 +109,11 @@ class TestFlowRun:
         objs = result.all()
 
         # assert that our handcrafted query picked up all the FINAL states
-        assert all([o[2] == 4 for o in objs])
+        assert all([o[2].decode() == 4 for o in objs])
+        assert all([o[3] == "4" for o in objs])
         # assert that the `state` relationship picked up all the FINAL states
-        assert all([o[0].state.data == 4 for o in objs])
+        assert all([o[0].state.data.decode() == 4 for o in objs])
+        assert all([o[0].state.message == "4" for o in objs])
         # assert that the `state` relationship picked up the correct state id
         assert all([o[0].state.id == o[1] for o in objs])
 
@@ -108,20 +121,20 @@ class TestFlowRun:
         self, many_flow_run_states, session
     ):
         query_4 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(orm.FlowRunState.data == 4)
+            orm.FlowRun.state.has(orm.FlowRunState.message == "4")
         )
         result_4 = await session.execute(query_4)
-        # all flow runs have data == 4
+        # all flow runs have message == 4
         assert len(result_4.all()) == 5
 
     async def test_flow_run_state_relationship_query_doesnt_match_old_data(
         self, many_flow_run_states, session
     ):
         query_3 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(orm.FlowRunState.data == 3)
+            orm.FlowRun.state.has(orm.FlowRunState.message == "3")
         )
         result_3 = await session.execute(query_3)
-        # no flow runs have data == 3
+        # no flow runs have message == 3
         assert len(result_3.all()) == 0
 
     async def test_flow_run_state_relationship_type_filter_selects_current_state(
@@ -152,7 +165,12 @@ class TestTaskRun:
         # full query for most recent states
         frs_alias = sa.orm.aliased(orm.TaskRunState)
         query = (
-            sa.select(orm.TaskRun, orm.TaskRunState.id, orm.TaskRunState.data)
+            sa.select(
+                orm.TaskRun,
+                orm.TaskRunState.id,
+                orm.TaskRunState.data,
+                orm.TaskRunState.message,
+            )
             .select_from(orm.TaskRun)
             .join(
                 orm.TaskRunState,
@@ -173,9 +191,11 @@ class TestTaskRun:
         objs = result.all()
 
         # assert that our handcrafted query picked up all the FINAL states
-        assert all([o[2] == 4 for o in objs])
+        assert all([o[2].decode() == 4 for o in objs])
+        assert all([o[3] == "4" for o in objs])
         # assert that the `state` relationship picked up all the FINAL states
-        assert all([o[0].state.data == 4 for o in objs])
+        assert all([o[0].state.data.decode() == 4 for o in objs])
+        assert all([o[0].state.message == "4" for o in objs])
         # assert that the `state` relationship picked up the correct state id
         assert all([o[0].state.id == o[1] for o in objs])
 
@@ -183,20 +203,20 @@ class TestTaskRun:
         self, many_task_run_states, session
     ):
         query_4 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.data == 4)
+            orm.TaskRun.state.has(orm.TaskRunState.message == 4)
         )
         result_4 = await session.execute(query_4)
-        # all task runs have data == 4
+        # all task runs have message == 4
         assert len(result_4.all()) == 5
 
     async def test_task_run_state_relationship_query_doesnt_match_old_data(
         self, many_task_run_states, session
     ):
         query_3 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.data == 3)
+            orm.TaskRun.state.has(orm.TaskRunState.message == 3)
         )
         result_3 = await session.execute(query_3)
-        # no task runs have data == 3
+        # no task runs have message == 3
         assert len(result_3.all()) == 0
 
     async def test_task_run_state_relationship_type_filter_selects_current_state(
