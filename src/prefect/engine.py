@@ -17,14 +17,17 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, resolve_futures, return_val_to_state
-from prefect.orion.schemas.responses import SetStateStatus
+from prefect.futures import PrefectFuture, resolve_futures, future_to_state
+from prefect.orion.states import is_state, is_state_iterable, StateSet
 from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.orion.schemas.data import DataDocument
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
+    sync_compatible,
 )
+from prefect.utilities.collections import ensure_iterable
 
 
 def enter_flow_run_engine(
@@ -101,9 +104,9 @@ async def begin_flow_run(
             )
 
     # Update the flow to the terminal state _after_ the executor has shut down
-    await client.set_flow_run_state(
-        flow_run_id,
+    await client.propose_state(
         state=terminal_state,
+        flow_run_id=flow_run_id,
     )
 
     return terminal_state
@@ -156,9 +159,9 @@ async def begin_subflow_run(
         terminal_state.data = await resolve_futures(terminal_state.data)
 
     # Update the flow to the terminal state _after_ the executor has shut down
-    await client.set_flow_run_state(
-        flow_run_id,
+    await client.propose_state(
         state=terminal_state,
+        flow_run_id=flow_run_id,
     )
 
     return terminal_state
@@ -182,7 +185,7 @@ async def orchestrate_flow_run(
           work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
-    await client.set_flow_run_state(flow_run_id, State(type=StateType.RUNNING))
+    await client.propose_state(State(type=StateType.RUNNING), flow_run_id=flow_run_id)
 
     try:
         with FlowRunContext(
@@ -202,10 +205,10 @@ async def orchestrate_flow_run(
         state = State(
             type=StateType.FAILED,
             message="Flow run encountered an exception.",
-            data=exc,
+            data=DataDocument.encode("cloudpickle", exc),
         )
     else:
-        state = await return_val_to_state(result)
+        state = await user_return_value_to_state(result, serializer="cloudpickle")
 
     return state
 
@@ -302,15 +305,14 @@ async def orchestrate_task_run(
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
     # Transition from `PENDING` -> `RUNNING`
-    state = await propose_state(
-        client,
-        task_run_id,
+    state = await client.propose_state(
         State(
             type=StateType.RUNNING,
             state_details=StateDetails(
                 cache_key=cache_key,
             ),
         ),
+        task_run_id=task_run_id,
     )
 
     # Only run the task if we enter a `RUNNING` state
@@ -330,10 +332,12 @@ async def orchestrate_task_run(
             terminal_state = State(
                 type=StateType.FAILED,
                 message="Task run encountered an exception.",
-                data=exc,
+                data=DataDocument.encode("cloudpickle", exc),
             )
         else:
-            terminal_state = await return_val_to_state(result)
+            terminal_state = await user_return_value_to_state(
+                result, serializer="cloudpickle"
+            )
 
             # for COMPLETED tasks, add the cache key and expiration
             if terminal_state.is_completed():
@@ -344,7 +348,7 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = await propose_state(client, task_run_id, terminal_state)
+        state = await client.propose_state(terminal_state, task_run_id=task_run_id)
 
         if state.is_scheduled():  # Received a retry from the backend
             start_time = pendulum.instance(state.state_details.scheduled_time)
@@ -354,31 +358,124 @@ async def orchestrate_task_run(
                 print(f"Sleeping for {wait_time}s...")
                 time.sleep(wait_time)
 
-            state = await propose_state(
-                client, task_run_id, State(type=StateType.RUNNING)
+            state = await client.propose_state(
+                State(type=StateType.RUNNING), task_run_id=task_run_id
             )
 
     return state
 
 
-async def propose_state(client: OrionClient, task_run_id: UUID, state: State) -> State:
+async def user_return_value_to_state(
+    result: Any, serializer: str = "cloudpickle"
+) -> State:
     """
-    TODO: Consider rolling this behavior into the `Client` state update method once we
-          understand how we want to handle ABORT cases
+    Given a return value from a user-function, create a `State` the run should
+    be placed in.
+
+    - If data is returned, we create a 'COMPLETED' state with the data
+    - If a single state is returned and is not wrapped in a future, we use that state
+    - If an iterable of states are returned, we apply the aggregate rule
+    - If a future or iterable of futures is returned, we resolve it into states then
+        apply the aggregate rule
+
+    The aggregate rule says that given multiple states we will determine the final state
+    such that:
+
+    - If any states are not COMPLETED the final state is FAILED
+    - If all of the states are COMPLETED the final state is COMPLETED
+    - The states will be placed in the final state `data` attribute
+
+    The aggregate rule is applied to _single_ futures to distinguish from returning a
+    _single_ state. This prevents a flow from assuming the state of a single returned
+    task future.
     """
-    response = await client.set_task_run_state(
-        task_run_id,
-        state=state,
-    )
-    if response.status == SetStateStatus.ACCEPT:
-        if response.state.state_details:
-            state.state_details = response.state.state_details
-            state.run_details = response.state.run_details
-        return state
 
-    if response.status == SetStateStatus.ABORT:
-        raise RuntimeError("ABORT is not yet handled")
+    # States returned directly are respected without applying a rule
+    if is_state(result):
+        return result
 
-    server_state = response.state
+    # Ensure any futures are resolved
+    result = await resolve_futures(result, resolve_fn=future_to_state)
 
-    return server_state
+    # If we resolved a task future or futures into states, we will determine a new state
+    # from their aggregate
+    if is_state(result) or is_state_iterable(result):
+        states = StateSet(ensure_iterable(result))
+
+        # Determine the new state type
+        new_state_type = (
+            StateType.COMPLETED if states.all_completed() else StateType.FAILED
+        )
+
+        # Generate a nice message for the aggregate
+        if states.all_completed():
+            message = "All states completed."
+        elif states.any_failed():
+            message = f"{states.fail_count}/{states.total_count} states failed."
+        elif not states.all_final():
+            message = (
+                f"{states.not_final_count}/{states.total_count} states are not final."
+            )
+        else:
+            message = "Given states: " + states.counts_message()
+
+        # TODO: We may actually want to set the data to a `StateSet` object and just allow
+        #       it to be unpacked into a tuple and such so users can interact with it
+        return State(
+            type=new_state_type,
+            message=message,
+            data=DataDocument.encode(serializer, result),
+        )
+
+    # Otherwise, they just gave data and this is a completed result
+    return State(type=StateType.COMPLETED, data=DataDocument.encode(serializer, result))
+
+
+@sync_compatible
+async def get_result(state: State, raise_failures: bool = True) -> Any:
+    if state.is_failed() and raise_failures:
+        return await raise_failed_state(state)
+
+    return await resolve_datadoc(state.data)
+
+
+@sync_compatible
+async def raise_failed_state(state: State) -> None:
+    if not state.is_failed():
+        return
+
+    result = await resolve_datadoc(state.data)
+
+    if isinstance(result, BaseException):
+        raise result
+
+    elif isinstance(result, State):
+        # Raise the failure in the inner state
+        await raise_failed_state(result)
+
+    elif is_state_iterable(result):
+        # Raise the first failure
+        for state in result:
+            await raise_failed_state(state)
+
+    else:
+        raise TypeError(
+            f"Unexpected result for failure state: {result!r} —— "
+            f"{type(result).__name__} cannot be resolved into an exception"
+        )
+
+
+@inject_client
+async def resolve_datadoc(datadoc: DataDocument, client: OrionClient) -> Any:
+    if not isinstance(datadoc, DataDocument):
+        raise TypeError(
+            f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
+        )
+    result = datadoc
+    while isinstance(result, DataDocument):
+        if result.encoding == "orion":
+            inner_doc_bytes = await client.retrieve_data(result)
+            result = DataDocument.parse_raw(inner_doc_bytes)
+        else:
+            result = result.decode()
+    return result
