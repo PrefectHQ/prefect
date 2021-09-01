@@ -51,7 +51,7 @@ class DataDocument(PrefectBaseModel, Generic[D]):
 
         A serializer must be registered for the document's encoding
         """
-        if hasattr(self, "_data"):
+        if self.has_cached_data():
             return self._data
 
         # Dispatch decoding
@@ -64,6 +64,9 @@ class DataDocument(PrefectBaseModel, Generic[D]):
         # Use object's setattr to avoid a pydantic 'field does not exist' error
         # See https://github.com/samuelcolvin/pydantic/issues/655
         object.__setattr__(self, "_data", data)
+
+    def has_cached_data(self):
+        return hasattr(self, "_data")
 
 
 class DataLocation(PrefectBaseModel):
