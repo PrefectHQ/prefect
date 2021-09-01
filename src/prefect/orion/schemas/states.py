@@ -6,6 +6,7 @@ import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
@@ -43,7 +44,7 @@ class State(ORMBaseModel):
         default_factory=lambda: pendulum.now("UTC"), repr=False
     )
     message: str = Field(None, example="Run started")
-    data: Any = Field(None, repr=False)
+    data: DataDocument = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
     run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 

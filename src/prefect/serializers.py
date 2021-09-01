@@ -13,12 +13,12 @@ class JSONSerializer:
     """Wrapper for the `json` library to handle bytes instead of strings"""
 
     @staticmethod
-    def dumps(blob: bytes) -> Any:
-        return json.loads(blob.decode())
+    def dumps(data: Any) -> bytes:
+        return json.dumps(data).encode()
 
     @staticmethod
-    def loads(data: Any) -> bytes:
-        return json.dumps(data).encode()
+    def loads(blob: bytes) -> Any:
+        return json.loads(blob.decode())
 
 
 @register_serializer("cloudpickle")

@@ -138,12 +138,17 @@ class OrionClient:
         data: bytes,
     ) -> DataDocument:
         response = await self.post("/data/persist", content=data)
-        return DataDocument.parse_obj(response.json())
+        orion_doc = DataDocument.parse_obj(response.json())
+        orion_doc._cache_data(data)
+        return orion_doc
 
     async def retrieve_data(
         self,
         orion_datadoc: DataDocument,
     ) -> bytes:
+        if orion_datadoc.has_cached_data():
+            return orion_datadoc.decode()
+
         response = await self.post(
             "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )
@@ -226,6 +231,50 @@ class OrionClient:
         response = await self.get(f"/task_runs/{task_run_id}")
         return schemas.core.TaskRun.parse_obj(response.json())
 
+    async def propose_state(
+        self,
+        state: schemas.states.State,
+        task_run_id: UUID = None,
+        flow_run_id: UUID = None,
+    ) -> schemas.states.State:
+        # Determine if working with a task run or flow run
+        if not task_run_id and not flow_run_id:
+            raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
+
+        # Exchange the user data document for an orion data document
+        if state.data:
+            state.data = await self.persist_data(state.data.json().encode())
+
+        # Attempt to set the state
+        if task_run_id:
+            response = await self.set_task_run_state(task_run_id, state)
+        elif flow_run_id:
+            response = await self.set_flow_run_state(flow_run_id, state)
+        else:
+            raise ValueError(
+                "Neither flow run id or task run id were provided. At least one must "
+                "be given."
+            )
+
+        # Parse the response to return the new state
+        if response.status == schemas.responses.SetStateStatus.ACCEPT:
+            # Update the state with the details if provided
+            if response.details.state_details:
+                state.state_details = response.details.state_details
+            return state
+
+        elif response.status == schemas.responses.SetStateStatus.ABORT:
+            raise RuntimeError("ABORT is not yet handled")
+
+        elif response.status == schemas.responses.SetStateStatus.REJECT:
+            server_state = response.details.state
+
+            return server_state
+        else:
+            raise ValueError(
+                f"Received unexpected `SetStateStatus` from server: {response.status!r}"
+            )
+
     async def set_task_run_state(
         self,
         task_run_id: UUID,
@@ -270,6 +319,9 @@ class OrionClient:
 
     def __enter__(self):
         raise RuntimeError(
-            "The Orion client is only usable from an async context and must be entered "
-            "with 'async with ...'"
+            "The `OrionClient` must be entered with an async context. Use 'async "
+            "with OrionClient(...)' not 'with OrionClient(...)'"
         )
+
+    def __exit__(self, *_):
+        assert False, "This should never be called but must be defined for __enter__"
