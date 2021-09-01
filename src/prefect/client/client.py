@@ -1190,8 +1190,7 @@ class Client:
             }
         }
 
-        # batches of 100
-        iteration = 0
+        # tasks in batches of 100
         start = 0
         batch_size = 100
         stop = start + batch_size
@@ -1204,6 +1203,25 @@ class Client:
             )
             self.graphql(
                 task_mutation,
+                variables=dict(input=inputs),
+                retry_on_api_error=True,
+            )
+            start = stop
+            stop += batch_size
+
+        # edges in batches of 100
+        start = 0
+        batch_size = 100
+        stop = start + batch_size
+
+        while stop <= len(serialized_edges):
+            edge_batch = serialized_edges[start:stop]
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_edges=edge_batch,
+            )
+            self.graphql(
+                edge_mutation,
                 variables=dict(input=inputs),
                 retry_on_api_error=True,
             )
