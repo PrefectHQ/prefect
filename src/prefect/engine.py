@@ -365,7 +365,9 @@ async def orchestrate_task_run(
     return state
 
 
-async def user_return_value_to_state(result: Any, serializer: str) -> State:
+async def user_return_value_to_state(
+    result: Any, serializer: str = "cloudpickle"
+) -> State:
     """
     Given a return value from a user-function, create a `State` the run should
     be placed in.
@@ -411,8 +413,7 @@ async def user_return_value_to_state(result: Any, serializer: str) -> State:
             message = f"{states.fail_count}/{states.total_count} states failed."
         elif not states.all_final():
             message = (
-                f"{states.not_final_count}/{states.total_count} states did not reach a "
-                "final state."
+                f"{states.not_final_count}/{states.total_count} states are not final."
             )
         else:
             message = "Given states: " + states.counts_message()
