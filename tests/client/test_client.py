@@ -677,7 +677,11 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     flow.result = flow.storage.result
 
     client.register(
-        flow, project_name="my-default-project", compressed=compressed, no_url=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
@@ -735,6 +739,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
         compressed=compressed,
         build=True,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
@@ -795,6 +800,7 @@ def test_client_register_default_prefect_image(
         compressed=compressed,
         build=True,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
@@ -850,6 +856,7 @@ def test_client_register_optionally_avoids_building_flow(
         build=False,
         compressed=compressed,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
