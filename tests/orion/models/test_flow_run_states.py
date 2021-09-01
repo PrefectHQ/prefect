@@ -9,57 +9,56 @@ from prefect.orion.schemas.states import State, StateType
 
 class TestCreateFlowRunState:
     async def test_create_flow_run_state_succeeds(self, flow_run, session):
-        flow_run_state = await models.flow_run_states.create_flow_run_state(
+        flow_run_state = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING"),
-        )
+        )).state
         assert flow_run_state.name == "Running"
         assert flow_run_state.type == StateType.RUNNING
-        assert flow_run_state.flow_run_id == flow_run.id
         assert flow_run_state.state_details.flow_run_id == flow_run.id
 
     async def test_run_details_are_updated_with_previous_state_id(
         self, flow_run, session
     ):
-        trs = await models.flow_run_states.create_flow_run_state(
+        trs = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="SCHEDULED"),
-        )
+        )).state
 
-        trs2 = await models.flow_run_states.create_flow_run_state(
+        trs2 = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING"),
-        )
+        )).state
         assert trs2.run_details.previous_state_id == trs.id
 
     async def test_run_details_are_updated_entering_running(self, flow_run, session):
-        trs = await models.flow_run_states.create_flow_run_state(
+        trs = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="SCHEDULED"),
-        )
+        )).state
 
         assert trs.run_details.start_time is None
         assert trs.run_details.run_count == 0
 
-        trs2 = await models.flow_run_states.create_flow_run_state(
+        trs2 = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING"),
-        )
+        )).state
         assert trs2.run_details.start_time == trs2.timestamp
         assert trs2.run_details.run_count == 1
         assert trs2.run_details.last_run_time == trs2.timestamp
         assert trs2.run_details.total_run_time_seconds == 0
 
-        trs3 = await models.flow_run_states.create_flow_run_state(
+        trs3 = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING"),
-        )
+        )).state
         assert trs3.run_details.start_time == trs2.timestamp
         assert trs3.run_details.run_count == 2
         assert trs3.run_details.last_run_time == trs3.timestamp
@@ -72,16 +71,16 @@ class TestCreateFlowRunState:
 class TestReadFlowRunState:
     async def test_read_flow_run_state(self, flow_run, session):
         # create a flow run to read
-        flow_run_state = await models.flow_run_states.create_flow_run_state(
+        flow_run_state = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING"),
-        )
+        )).state
 
         read_flow_run_state = await models.flow_run_states.read_flow_run_state(
             session=session, flow_run_state_id=flow_run_state.id
         )
-        assert flow_run_state == read_flow_run_state
+        assert flow_run_state == read_flow_run_state.as_state()
 
     async def test_read_flow_run_state_returns_none_if_does_not_exist(self, session):
         result = await models.flow_run_states.read_flow_run_state(
@@ -113,11 +112,11 @@ class TestReadFlowRunStates:
 class TestDeleteFlowRunState:
     async def test_delete_flow_run_state(self, flow_run, session):
         # create a flow run to read
-        flow_run_state = await models.flow_run_states.create_flow_run_state(
+        flow_run_state = (await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING"),
-        )
+        )).state
 
         assert await models.flow_run_states.delete_flow_run_state(
             session=session, flow_run_state_id=flow_run_state.id

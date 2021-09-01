@@ -112,27 +112,14 @@ async def set_flow_run_state(
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    new_state = await models.flow_run_states.create_flow_run_state(
+    result = await models.flow_run_states.orchestrate_flow_run_state(
         session=session, flow_run_id=flow_run_id, state=state
     )
+
     # set the 201 because a new state was created
     response.status_code = status.HTTP_201_CREATED
 
-    # if the set state has the same type as the provided state, it was accepted,
-    # though its details may have been updated
-    if new_state.type == state.type:
-
-        # indicate the state was accepted
-        return schemas.responses.SetStateResponse(
-            state=new_state,
-            status=schemas.responses.SetStateStatus.ACCEPT,
-        )
-
-    # otherwise the requested transition was rejected
-    else:
-
-        # send the new state
-        return schemas.responses.SetStateResponse(
-            state=new_state,
-            status=schemas.responses.SetStateStatus.REJECT,
-        )
+    return schemas.responses.SetStateResponse(
+        state=result.state,
+        status=result.status,
+    )
