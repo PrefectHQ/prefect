@@ -687,14 +687,14 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
 
 
@@ -745,14 +745,14 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
     assert "test_image" in serialized_flow["environment"]["metadata"]["image"]
 
@@ -806,14 +806,14 @@ def test_client_register_default_prefect_image(
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
     assert "prefecthq/prefect" in serialized_flow["environment"]["metadata"]["image"]
 
@@ -862,14 +862,14 @@ def test_client_register_optionally_avoids_building_flow(
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is None
 
 
