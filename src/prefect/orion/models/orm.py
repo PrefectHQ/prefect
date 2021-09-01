@@ -2,11 +2,11 @@ from typing import List, Union
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import Column, ForeignKey, String, join
+from sqlalchemy import JSON, Column, ForeignKey, String, join
 from sqlalchemy.orm import aliased, relationship
 
-from prefect.orion.schemas import core, schedules, states
-from prefect.orion.utilities.database import JSON, UUID, Base, Pydantic, Timestamp, now
+from prefect.orion.schemas import core, data, schedules, states
+from prefect.orion.utilities.database import UUID, Base, Pydantic, Timestamp, now
 from prefect.orion.utilities.functions import ParameterSchema
 
 
@@ -50,7 +50,7 @@ class FlowRunState(Base):
         default=states.RunDetails,
         nullable=False,
     )
-    data = Column(JSON)
+    data = Column(Pydantic(data.DataDocument), nullable=True)
 
     flow_run = relationship("FlowRun", back_populates="states", lazy="raise")
 
@@ -94,7 +94,7 @@ class TaskRunState(Base):
         default=states.RunDetails,
         nullable=False,
     )
-    data = Column(JSON, nullable=True)
+    data = Column(Pydantic(data.DataDocument), nullable=True)
 
     task_run = relationship("TaskRun", back_populates="states", lazy="raise")
 
