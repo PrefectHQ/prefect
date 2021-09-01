@@ -40,10 +40,10 @@ class CacheRetrieval(BaseOrchestrationRule):
                 session, proposed_state.state_details.cache_key
             )
             if database_cache:
-                cached_state = database_cache.as_state().copy()
+                cached_state = database_cache.as_state().copy(reset_fields=True)
                 cached_state.name = "Cached"
                 await self.reject_transition(
-                    state=cached_state, reason="hello im cached"
+                    state=cached_state, reason="Retrieved state from cache"
                 )
 
 

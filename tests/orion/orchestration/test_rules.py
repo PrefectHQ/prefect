@@ -6,7 +6,8 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
+from prefect.orion import schemas
+from prefect.orion.models import orm
 from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
     BaseUniversalRule,
@@ -16,7 +17,7 @@ from prefect.orion.schemas import states
 
 
 async def create_task_run_state(
-    session, task_run, state_type: schemas.actions.StateCreate, state_details=None
+    session, task_run, state_type: states.StateType, state_details=None
 ):
     if state_type is None:
         return None
@@ -27,13 +28,14 @@ async def create_task_run_state(
         state_details=state_details,
     )
 
-    return (
-        await models.task_run_states.orchestrate_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=new_state,
-        )
-    ).state
+    orm_state = orm.TaskRunState(
+        task_run_id=task_run.id,
+        **new_state.dict(shallow=True),
+    )
+
+    session.add(orm_state)
+    await session.flush()
+    return orm_state.as_state()
 
 
 class TestBaseOrchestrationRule:
@@ -686,3 +688,59 @@ class TestBaseUniversalRule:
         assert side_effect == 2
         assert before_hook.call_count == 1
         assert after_hook.call_count == 1
+
+
+class TestOrchestrationContext:
+    async def test_context_is_protected_from_mutation_at_all_costs(
+        self, session, task_run
+    ):
+        class EvilVillainRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                context.initial_state.type = states.StateType.CANCELLED
+                context.proposed_state.type = states.StateType.COMPLETED
+
+            async def after_transition(self, initial_state, validated_state, context):
+                context.initial_state.type = states.StateType.CANCELLED
+                context.proposed_state.type = states.StateType.COMPLETED
+                context.validated_state.type = states.StateType.SCHEDULED
+
+        class MutatingSlimeRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                initial_state.type = states.StateType.CANCELLED
+                proposed_state.type = states.StateType.COMPLETED
+
+            async def after_transition(self, initial_state, validated_state, context):
+                initial_state.type = states.StateType.CANCELLED
+                validated_state.type = states.StateType.COMPLETED
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        async with EvilVillainRule(ctx, *intended_transition) as ctx:
+            assert ctx.initial_state_type == states.StateType.PENDING
+            assert ctx.proposed_state_type == states.StateType.RUNNING
+            validated_state = orm.TaskRunState(
+                task_run_id=ctx.task_run_id,
+                **ctx.proposed_state.dict(shallow=True),
+            )
+            ctx.validated_state = validated_state.as_state()
+
+        # check that the states remain the same after exiting the context
+        assert ctx.initial_state_type == states.StateType.PENDING
+        assert ctx.proposed_state.type == states.StateType.RUNNING
+        assert ctx.validated_state.type == states.StateType.RUNNING
