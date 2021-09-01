@@ -317,3 +317,9 @@ class OrionClient:
             "The Orion client is only usable from an async context and must be entered "
             "with 'async with ...'"
         )
+
+    def __exit__(self, *_):
+        raise RuntimeError(
+            "The Orion client is only usable from an async context and must be entered "
+            "with 'async with ...'"
+        )
