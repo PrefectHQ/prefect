@@ -9,10 +9,10 @@ from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CorePolicy
 from prefect.orion.orchestration.global_policy import GlobalPolicy
-from prefect.orion.orchestration.rules import OrchestrationContext
+from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
 
 
-async def create_task_run_state(
+async def orchestrate_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
     state: schemas.states.State,
@@ -75,7 +75,13 @@ async def create_task_run_state(
 
     if run is not None:
         run.state = validated_state
-    return validated_state
+
+    result = OrchestrationResult(
+        state=validated_state,
+        status=context.response_status,
+    )
+
+    return result
 
 
 async def read_task_run_state(

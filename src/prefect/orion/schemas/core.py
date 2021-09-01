@@ -1,8 +1,7 @@
 import datetime
 from typing import Dict, List
-from uuid import UUID
-
 from pydantic import Field
+from uuid import UUID
 
 from prefect.orion import schemas
 from prefect.orion.schemas import states

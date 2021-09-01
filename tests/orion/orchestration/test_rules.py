@@ -28,12 +28,12 @@ async def create_task_run_state(
     )
 
     return (
-        await models.task_run_states.create_task_run_state(
+        await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=new_state,
         )
-    ).as_state()
+    ).state
 
 
 class TestBaseOrchestrationRule:
@@ -51,7 +51,6 @@ class TestBaseOrchestrationRule:
             async def before_transition(self, initial_state, proposed_state, context):
                 nonlocal side_effect
                 side_effect += 1
-                return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
             async def after_transition(self, initial_state, validated_state, context):
@@ -147,7 +146,6 @@ class TestBaseOrchestrationRule:
         class MinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
                 before_transition_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -203,7 +201,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effect
                 side_effect += 1
                 before_transition_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effect
@@ -279,7 +276,9 @@ class TestBaseOrchestrationRule:
                     )
                 )
                 before_transition_hook()
-                return mutated_state
+                await self.reject_transition(
+                    mutated_state, reason="for testing, of course"
+                )
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -320,7 +319,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_nested_valid_rules_fire_hooks(
         self, session, task_run, intended_transition
@@ -339,7 +338,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 first_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -356,7 +354,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 second_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -430,7 +427,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_complex_nested_rules_interact_sensibly(
         self, session, task_run, intended_transition
@@ -455,7 +452,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 first_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -481,7 +477,9 @@ class TestBaseOrchestrationRule:
                     )
                 )
                 mutator_before_hook()
-                return mutated_state
+                await self.reject_transition(
+                    mutated_state, reason="testing my dear watson"
+                )
 
             async def after_transition(self, initial_state, validated_state, context):
                 mutator_after_hook()
@@ -494,7 +492,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 invalid_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -596,13 +593,13 @@ class TestBaseUniversalRule:
             # UniversalRules are typically used for essential bookkeeping
 
             # a before-transition hook that fires upon entering the rule
-            async def before_transition(self, initial_state, proposed_state, context):
+            async def before_transition(self):
                 nonlocal side_effect
                 side_effect += 1
                 return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self, initial_state, validated_state, context):
+            async def after_transition(self):
                 nonlocal side_effect
                 side_effect += 1
 
@@ -636,7 +633,7 @@ class TestBaseUniversalRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_universal_rules_always_fire(
         self, session, task_run, intended_transition
@@ -646,13 +643,12 @@ class TestBaseUniversalRule:
         after_hook = MagicMock()
 
         class IllustrativeUniversalRule(BaseUniversalRule):
-            async def before_transition(self, initial_state, proposed_state, context):
+            async def before_transition(self):
                 nonlocal side_effect
                 side_effect += 1
                 before_hook()
-                return proposed_state
 
-            async def after_transition(self, initial_state, validated_state, context):
+            async def after_transition(self):
                 nonlocal side_effect
                 side_effect += 1
                 after_hook()

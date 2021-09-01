@@ -69,11 +69,13 @@ class TestReadTaskRun:
 
     async def test_read_flow_run_with_state(self, task_run, client, session):
         state_id = uuid4()
-        await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=states.State(id=state_id, type="RUNNING"),
-        )
+        (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=states.State(id=state_id, type="RUNNING"),
+            )
+        ).state
         response = await client.get(f"/task_runs/{task_run.id}")
         assert task_run.state.type.value == "RUNNING"
         assert task_run.state.id == state_id
@@ -128,7 +130,7 @@ class TestSetTaskRunState:
 
         api_response = responses.SetStateResponse.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
-        assert api_response.details.run_details.run_count == 1
+        assert api_response.state.run_details.run_count == 1
 
         task_run_id = task_run.id
         session.expire_all()
@@ -145,11 +147,13 @@ class TestSetTaskRunState:
         task_run.empirical_policy.max_retries = 1
         await session.flush()
 
-        await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=states.State(type="RUNNING"),
-        )
+        (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=states.State(type="RUNNING"),
+            )
+        ).state
         await session.commit()
 
         # fail the running task run
@@ -161,5 +165,5 @@ class TestSetTaskRunState:
 
         api_response = responses.SetStateResponse.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.REJECT
-        assert api_response.details.state.name == "Awaiting Retry"
-        assert api_response.details.state.type == states.StateType.SCHEDULED
+        assert api_response.state.name == "Awaiting Retry"
+        assert api_response.state.type == states.StateType.SCHEDULED
