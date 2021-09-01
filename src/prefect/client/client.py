@@ -1042,7 +1042,7 @@ class Client:
         idempotency_key: str = None,
     ) -> str:
         """
-        Push a new flow to Prefect Cloud
+        Register a new flow with Prefect Cloud.
 
         Args:
             - flow (Flow): a flow to register
@@ -1067,7 +1067,7 @@ class Client:
             - str: the ID of the newly-registered flow
 
         Raises:
-            - ClientError: if the register failed
+            - ClientError: if the registeration failed
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
@@ -1149,6 +1149,10 @@ class Client:
                 )
             ) from exc
 
+        # prepare for batched registration
+        serialized_tasks = serialized_flow.pop("tasks")
+        serialized_edges = serialized_flow.pop("edges")
+
         if compressed:
             serialized_flow = compress(serialized_flow)
 
@@ -1173,6 +1177,38 @@ class Client:
             if compressed
             else res.data.create_flow.id
         )
+
+        # batch register tasks and edges separately
+        task_mutation = {
+            "mutation($input: register_tasks_input!)": {
+                "register_tasks(input: $input)": {"success"}
+            }
+        }
+        edge_mutation = {
+            "mutation($input: register_edges_input!)": {
+                "register_edges(input: $input)": {"success"}
+            }
+        }
+
+        # batches of 100
+        iteration = 0
+        start = 0
+        batch_size = 100
+        stop = start + batch_size
+
+        while stop <= len(serialized_tasks):
+            task_batch = serialized_tasks[start:stop]
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_tasks=task_batch,
+            )
+            self.graphql(
+                task_mutation,
+                variables=dict(input=inputs),
+                retry_on_api_error=True,
+            )
+            start = stop
+            stop += batch_size
 
         if not no_url:
             # Query for flow group id
