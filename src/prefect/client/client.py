@@ -1067,7 +1067,7 @@ class Client:
             - str: the ID of the newly-registered flow
 
         Raises:
-            - ClientError: if the registeration failed
+            - ClientError: if the registration failed
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
@@ -1196,7 +1196,7 @@ class Client:
         batch_size = 100
         stop = start + batch_size
 
-        while stop <= len(serialized_tasks):
+        while start <= len(serialized_tasks):
             task_batch = serialized_tasks[start:stop]
             inputs = dict(
                 flow_id=flow_id,
@@ -1215,7 +1215,7 @@ class Client:
         batch_size = 100
         stop = start + batch_size
 
-        while stop <= len(serialized_edges):
+        while start <= len(serialized_edges):
             edge_batch = serialized_edges[start:stop]
             inputs = dict(
                 flow_id=flow_id,
