@@ -20,9 +20,9 @@ async def create_flow_run_state(
     """
     Create a flow run state, disregarding orchestration logic
     """
-    return await models.flow_run_states.create_flow_run_state(
+    return (await models.flow_run_states.orchestrate_flow_run_state(
         session=session, state=state, flow_run_id=flow_run_id
-    )
+    )).state
 
 
 @router.get("/{id}")
