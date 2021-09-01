@@ -1,3 +1,4 @@
+import inspect
 from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
@@ -61,8 +62,23 @@ def in_async_main_thread() -> bool:
 def sync_compatible(
     async_fn: Callable[..., Awaitable[T]]
 ) -> Callable[..., Union[T, Awaitable[T]]]:
+    """
+    Converts an async function into a dual async and sync function.
+
+    When the returned function is called, we will attempt to determine the best way
+    to enter the async function.
+
+    - If in a thread with a running event loop, we will return the coroutine for the
+        caller to await. This is normal async behavior.
+    - If in a blocking worker thread with access to an event loop in another thread, we
+        will submit the async method to the event loop.
+    - If we cannot find an event loop, we will create a new one and run the async method
+        then tear down the loop.
+    """
     # TODO: This is breaking type hints on the callable... mypy is behind the curve
     #       on argument annotations. We can still fix this for editors though.
+    if not inspect.iscoroutinefunction(async_fn):
+        raise TypeError("The decorated function must be async.")
 
     @wraps(async_fn)
     def wrapper(*args, **kwargs):
@@ -78,5 +94,5 @@ def sync_compatible(
             # to run the async code then tear it down
             return run_async_in_new_loop(async_fn, *args, **kwargs)
 
-    wrapper.async_fn = async_fn
+    wrapper.aio = async_fn
     return wrapper
