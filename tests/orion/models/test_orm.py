@@ -143,7 +143,9 @@ class TestFlowRun:
         # the flow runs are most recently in a pending state
         match_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
             orm.FlowRun.flow_id == flow.id,
-            orm.FlowRun.state_filter([schemas.states.StateType.PENDING]),
+            orm.FlowRun.state.has(
+                orm.FlowRunState.type == schemas.states.StateType.PENDING
+            ),
         )
         result = await session.execute(match_query)
         assert result.scalar() == 5
@@ -151,7 +153,9 @@ class TestFlowRun:
         # no flow run is in a running state
         miss_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
             orm.FlowRun.flow_id == flow.id,
-            orm.FlowRun.state_filter([schemas.states.StateType.RUNNING]),
+            orm.FlowRun.state.has(
+                orm.FlowRunState.type == schemas.states.StateType.RUNNING
+            ),
         )
         result = await session.execute(miss_query)
         assert result.scalar() == 0
@@ -225,7 +229,9 @@ class TestTaskRun:
         # the task runs are most recently in a pending state
         match_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
             orm.TaskRun.flow_run_id == flow_run.id,
-            orm.TaskRun.state_filter([schemas.states.StateType.PENDING]),
+            orm.TaskRun.state.has(
+                orm.TaskRunState.type == schemas.states.StateType.PENDING
+            ),
         )
         result = await session.execute(match_query)
         assert result.scalar() == 5
@@ -233,7 +239,9 @@ class TestTaskRun:
         # no task run is in a running state
         miss_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
             orm.TaskRun.flow_run_id == flow_run.id,
-            orm.TaskRun.state_filter([schemas.states.StateType.RUNNING]),
+            orm.TaskRun.state.has(
+                orm.TaskRunState.type == schemas.states.StateType.RUNNING
+            ),
         )
         result = await session.execute(miss_query)
         assert result.scalar() == 0
