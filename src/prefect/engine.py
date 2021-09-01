@@ -371,13 +371,14 @@ async def propose_state(client: OrionClient, task_run_id: UUID, state: State) ->
         state=state,
     )
     if response.status == SetStateStatus.ACCEPT:
-        if response.details.state_details:
-            state.state_details = response.details.state_details
+        if response.state.state_details:
+            state.state_details = response.state.state_details
+            state.run_details = response.state.run_details
         return state
 
     if response.status == SetStateStatus.ABORT:
         raise RuntimeError("ABORT is not yet handled")
 
-    server_state = response.details.state
+    server_state = response.state
 
     return server_state

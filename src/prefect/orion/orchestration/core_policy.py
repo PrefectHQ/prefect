@@ -32,17 +32,19 @@ class CacheRetrieval(BaseOrchestrationRule):
         initial_state: states.State,
         proposed_state: states.State,
         context: OrchestrationContext,
-    ) -> states.State:
+    ) -> None:
         session = context.session
         if proposed_state.state_details.cache_key:
             # Check for cached states matching the cache key
-            cached_state = await get_cached_task_run_state(
+            database_cache = await get_cached_task_run_state(
                 session, proposed_state.state_details.cache_key
             )
-            if cached_state:
-                proposed_state = cached_state.as_state().copy()
-                proposed_state.name = "Cached"
-        return proposed_state
+            if database_cache:
+                cached_state = database_cache.as_state().copy()
+                cached_state.name = "Cached"
+                await self.reject_transition(
+                    state=cached_state, reason="hello im cached"
+                )
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -69,18 +71,18 @@ class RetryPotentialFailures(BaseOrchestrationRule):
         initial_state: states.State,
         proposed_state: states.State,
         context: OrchestrationContext,
-    ) -> states.State:
+    ) -> None:
         run_details = context.run_details
         run_settings = context.run_settings
         if run_details.run_count <= run_settings.max_retries:
-            proposed_state = states.AwaitingRetry(
+            retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
                     seconds=run_settings.retry_delay_seconds
                 ),
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
-        return proposed_state
+            await self.reject_transition(state=retry_state, reason="Retying")
 
 
 async def get_cached_task_run_state(

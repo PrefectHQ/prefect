@@ -124,11 +124,8 @@ async def set_flow_run_state(
 
         # indicate the state was accepted
         return schemas.responses.SetStateResponse(
+            state=new_state,
             status=schemas.responses.SetStateStatus.ACCEPT,
-            details=dict(
-                run_details=new_state.run_details,
-                state_details=new_state.state_details,
-            ),
         )
 
     # otherwise the requested transition was rejected
@@ -136,6 +133,6 @@ async def set_flow_run_state(
 
         # send the new state
         return schemas.responses.SetStateResponse(
+            state=new_state,
             status=schemas.responses.SetStateStatus.REJECT,
-            details=dict(state=new_state),
         )
