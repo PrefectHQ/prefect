@@ -319,12 +319,9 @@ class OrionClient:
 
     def __enter__(self):
         raise RuntimeError(
-            "The Orion client is only usable from an async context and must be entered "
-            "with 'async with ...'"
+            "The `OrionClient` must be entered with an async context. Use 'async "
+            "with OrionClient(...)' not 'with OrionClient(...)'"
         )
 
     def __exit__(self, *_):
-        raise RuntimeError(
-            "The Orion client is only usable from an async context and must be entered "
-            "with 'async with ...'"
-        )
+        assert False, "This should never be called but must be defined for __enter__"
