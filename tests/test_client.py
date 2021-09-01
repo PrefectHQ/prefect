@@ -170,3 +170,9 @@ async def test_put_then_retrieve_object(put_obj, orion_client):
     assert datadoc.encoding == "orion"
     retrieved_obj = await orion_client.retrieve_object(datadoc)
     assert retrieved_obj == put_obj
+
+
+async def test_client_non_async_with_is_helpful():
+    with pytest.raises(RuntimeError, match="must be entered with an async context"):
+        with OrionClient():
+            pass
