@@ -57,10 +57,32 @@ class OrchestrationContext(PrefectBaseModel):
         return self.run.empirical_policy
 
     def entry_context(self):
-        return self.initial_state, self.proposed_state, self.copy()
+        safe_context = self.copy()
+        initial_state_copy = (
+            self.initial_state.copy() if self.initial_state else None
+        )
+        proposed_state_copy = (
+            self.proposed_state.copy() if self.proposed_state else None
+        )
+        safe_context.initial_state = initial_state_copy
+        safe_context.proposed_state = proposed_state_copy
+        return safe_context.initial_state, safe_context.proposed_state, safe_context
 
     def exit_context(self):
-        return self.initial_state, self.validated_state, self.copy()
+        safe_context = self.copy()
+        initial_state_copy = (
+            self.initial_state.copy() if self.initial_state else None
+        )
+        proposed_state_copy = (
+            self.proposed_state.copy() if self.proposed_state else None
+        )
+        validated_state_copy = (
+            self.validated_state.copy() if self.validated_state else None
+        )
+        safe_context.initial_state = initial_state_copy
+        safe_context.proposed_state = proposed_state_copy
+        safe_context.validated_state = validated_state_copy
+        return safe_context.initial_state, safe_context.validated_state, safe_context
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
