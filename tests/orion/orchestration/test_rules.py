@@ -45,21 +45,26 @@ class TestBaseOrchestrationRule:
             # we implement rules by inheriting from `BaseOrchestrationRule`
             # in order to do so, we need to define three methods:
 
-            # a before-transition hook that fires upon entering the rule
-            # this method returns a proposed state, and is the only opportunity for a rule
-            # to modify the state transition
-            async def before_transition(self, initial_state, proposed_state, context):
+            # a before-transition hook that fires upon entering the rule, returns None
+            # and is the only opportunity for a rule to modify the state transition
+            # by calling a state mutation method like `self.reject_transision`
+            async def before_transition(
+                self, initial_state, proposed_state, context
+            ) -> None:
                 nonlocal side_effect
                 side_effect += 1
 
-            # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self, initial_state, validated_state, context):
+            # an after-transition hook that returns None, fires after a state
+            # is validated and committed to the DB
+            async def after_transition(
+                self, initial_state, validated_state, context
+            ) -> None:
                 nonlocal side_effect
                 side_effect += 1
 
-            # the cleanup step allows a rule to revert side-effects caused
+            # the cleanup step returns None, and allows a rule to revert side-effects caused
             # by the before-transition hook in case the transition does not complete
-            async def cleanup(self, initial_state, validated_state, context):
+            async def cleanup(self, initial_state, validated_state, context) -> None:
                 nonlocal side_effect
                 side_effect -= 1
 
@@ -100,7 +105,6 @@ class TestBaseOrchestrationRule:
         class MinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
                 before_transition_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -276,6 +280,7 @@ class TestBaseOrchestrationRule:
                     )
                 )
                 before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
                 await self.reject_transition(
                     mutated_state, reason="for testing, of course"
                 )
@@ -477,6 +482,7 @@ class TestBaseOrchestrationRule:
                     )
                 )
                 mutator_before_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
                 await self.reject_transition(
                     mutated_state, reason="testing my dear watson"
                 )
@@ -587,8 +593,8 @@ class TestBaseUniversalRule:
 
         class IllustrativeUniversalRule(BaseUniversalRule):
             # Like OrchestrationRules, UniversalRules are context managers, but stateless.
-            # They fire on every transition, and don't care if the intended transition is modified
-            # thus, they do not have a cleanup step.
+            # They fire on every transition, and don't care if the intended transition
+            # is modified thus, they do not have a cleanup step.
 
             # UniversalRules are typically used for essential bookkeeping
 
@@ -596,7 +602,6 @@ class TestBaseUniversalRule:
             async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
-                return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
             async def after_transition(self, context):
