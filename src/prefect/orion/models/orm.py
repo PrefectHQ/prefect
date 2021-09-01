@@ -261,17 +261,18 @@ class Deployment(Base):
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
 
-    # the current state of a run is found by a "top-n-per group" query that
-    # includes two joins:
-    #   1. from the `Run` table to the `State` table to load states for that run
-    #   2. from the `State` table to itself (aliased as `frs`) to filter all but the current state
-    #
-    # The second join is an outer join that only matches rows where `state.timestamp < frs.timestamp`,
-    # indicating that the matched state is NOT the most recent state. We then add a primary condition
-    # that `frs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
-    # keeping only the most recent state.
 
-
+# --- flow run current state
+#
+# the current state of a run is found by a "top-n-per group" query that
+# includes two joins:
+#   1. from the `Run` table to the `State` table to load states for that run
+#   2. from the `State` table to itself (aliased as `frs`) to filter all but the current state
+#
+# The second join is an outer join that only matches rows where `state.timestamp < frs.timestamp`,
+# indicating that the matched state is NOT the most recent state. We then add a primary condition
+# that `frs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
+# keeping only the most recent state.
 frs = aliased(FlowRunState, name="frs")
 FlowRun.state = relationship(
     # the self-referential join of FlowRunState to itself
@@ -298,7 +299,8 @@ FlowRun.state = relationship(
     lazy="joined",
 )
 
-
+# --- task run current state
+#
 # the current state of a run is found by a "top-n-per group" query that
 # includes two joins:
 #   1. from the `Run` table to the `State` table to load states for that run
