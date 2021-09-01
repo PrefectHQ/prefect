@@ -140,7 +140,7 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 100
         query_result = await session.execute(
             sa.select(orm.FlowRun).filter(
-                orm.FlowRun.state_filter([StateType.SCHEDULED])
+                orm.FlowRun.state.has(orm.FlowRunState.type == StateType.SCHEDULED)
             )
         )
 
@@ -170,7 +170,7 @@ class TestScheduledRuns:
         query_result = await session.execute(
             sa.select(orm.FlowRun).filter(
                 orm.FlowRun.flow_id == flow.id,
-                orm.FlowRun.state_filter([StateType.SCHEDULED]),
+                orm.FlowRun.state.has(orm.FlowRunState.type == StateType.SCHEDULED),
             )
         )
 
