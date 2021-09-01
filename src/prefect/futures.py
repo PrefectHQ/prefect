@@ -2,18 +2,18 @@ from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, Awaitable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional, Union
 from unittest.mock import Mock
 from uuid import UUID
 
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
 from prefect.orion.states import StateSet, is_state, is_state_iterable
-from prefect.utilities.collections import ensure_iterable
 from prefect.utilities.asyncio import (
-    run_async_from_worker_thread,
     is_in_async_worker_thread,
+    run_async_from_worker_thread,
 )
+from prefect.utilities.collections import ensure_iterable
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor

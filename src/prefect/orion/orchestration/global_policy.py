@@ -38,4 +38,3 @@ class UpdateStateDetails(BaseUniversalRule):
     ) -> states.State:
         self.context.proposed_state.state_details.flow_run_id = self.context.flow_run_id
         self.context.proposed_state.state_details.task_run_id = self.context.task_run_id
-

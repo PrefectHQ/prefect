@@ -196,4 +196,3 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
 
     async def after_transition(self) -> None:
         pass
-    
