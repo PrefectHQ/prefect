@@ -10,6 +10,19 @@ from prefect.orion.utilities.database import JSON, UUID, Base, Pydantic, Timesta
 from prefect.orion.utilities.functions import ParameterSchema
 
 
+class Flow(Base):
+    name = Column(String, nullable=False, unique=True)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    parameters = Column(
+        Pydantic(ParameterSchema),
+        server_default="{}",
+        default=ParameterSchema,
+        nullable=False,
+    )
+    flow_runs = relationship("FlowRun", back_populates="flow", lazy="raise")
+    deployments = relationship("Deployment", back_populates="flow", lazy="raise")
+
+
 class FlowRunState(Base):
     # this column isn't explicitly indexed because it is included in
     # the unique compound index on (flow_run_id, timestamp)
@@ -239,19 +252,6 @@ class TaskRun(Base):
             unique=True,
         ),
     )
-
-
-class Flow(Base):
-    name = Column(String, nullable=False, unique=True)
-    tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    parameters = Column(
-        Pydantic(ParameterSchema),
-        server_default="{}",
-        default=ParameterSchema,
-        nullable=False,
-    )
-    flow_runs = relationship("FlowRun", back_populates="flow", lazy="raise")
-    deployments = relationship("Deployment", back_populates="flow", lazy="raise")
 
 
 class Deployment(Base):
