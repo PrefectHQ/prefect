@@ -1881,3 +1881,19 @@ def test_artifacts_client_functions(patch_post, cloud_api):
 
     with pytest.raises(ValueError):
         client.delete_task_run_artifact(task_run_artifact_id=None)
+
+
+def test_client_posts_graphql_to_api_server_backend_server(patch_post):
+    post = patch_post(dict(data=dict(success=True)))
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "backend": "server",
+        }
+    ):
+        client = Client()
+    result = client.graphql("{projects{name}}")
+    assert result.data == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-cloud.foo"
