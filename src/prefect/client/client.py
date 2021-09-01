@@ -1159,7 +1159,8 @@ class Client:
         inputs = dict(
             project_id=(project[0].id if project else None),
             serialized_flow=serialized_flow,
-            set_schedule_active=set_schedule_active,
+            # we don't want to begin scheduling work until all tasks are registered
+            set_schedule_active=False,
             version_group_id=version_group_id,
         )
         # Add newly added inputs only when set for backwards compatibility
@@ -1227,6 +1228,18 @@ class Client:
             )
             start = stop
             stop += batch_size
+
+        # finally, if requested, we turn on the schedule
+        if set_schedule_active:
+            schedule_mutation = {
+                "mutation($input: set_schedule_active_input!)": {
+                    "set_schedule_active(input: $input)": {"success"}
+                }
+            }
+            inputs = dict(flow_id=flow_id)
+            self.graphql(
+                schedule_mutation, variables=dict(input=inputs), retry_on_api_error=True
+            )
 
         if not no_url:
             # Query for flow group id
