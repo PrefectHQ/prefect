@@ -4,6 +4,7 @@ import pytest
 from prefect.utilities.asyncio import (
     run_async_in_new_loop,
     run_sync_in_worker_thread,
+    run_async_from_worker_thread,
     sync_compatible,
     in_async_worker_thread,
     in_async_main_thread,
@@ -54,6 +55,16 @@ async def test_run_sync_in_worker_thread():
         return x + y + z
 
     assert await run_sync_in_worker_thread(foo, 1, y=2) == 6
+
+
+async def test_run_async_from_worker_thread():
+    async def foo(x, y, z=3):
+        return x + y + z
+
+    def outer():
+        return run_async_from_worker_thread(foo, 1, y=2)
+
+    assert await run_sync_in_worker_thread(outer) == 6
 
 
 @sync_compatible
