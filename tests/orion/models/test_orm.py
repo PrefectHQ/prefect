@@ -203,7 +203,7 @@ class TestTaskRun:
         self, many_task_run_states, session
     ):
         query_4 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.message == 4)
+            orm.TaskRun.state.has(orm.TaskRunState.message == "4")
         )
         result_4 = await session.execute(query_4)
         # all task runs have message == 4
@@ -213,7 +213,7 @@ class TestTaskRun:
         self, many_task_run_states, session
     ):
         query_3 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.message == 3)
+            orm.TaskRun.state.has(orm.TaskRunState.message == "3")
         )
         result_3 = await session.execute(query_3)
         # no task runs have message == 3
