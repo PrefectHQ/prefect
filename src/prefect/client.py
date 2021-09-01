@@ -138,12 +138,17 @@ class OrionClient:
         data: bytes,
     ) -> DataDocument:
         response = await self.post("/data/persist", content=data)
-        return DataDocument.parse_obj(response.json())
+        orion_doc = DataDocument.parse_obj(response.json())
+        orion_doc._cache_data(data)
+        return orion_doc
 
     async def retrieve_data(
         self,
         orion_datadoc: DataDocument,
     ) -> bytes:
+        if orion_datadoc.has_cached_data():
+            return orion_datadoc.decode()
+
         response = await self.post(
             "/data/retrieve", json=orion_datadoc.dict(json_compatible=True)
         )

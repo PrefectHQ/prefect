@@ -138,6 +138,16 @@ class TestGetResult:
                 == "hello"
             )
 
+    async def test_decodes_using_cached_data_if_available(self):
+        async with OrionClient() as client:
+            orion_doc = await client.persist_data(
+                DataDocument.encode("json", "hello").json().encode()
+            )
+            # Corrupt the blob so that if we try to retrieve the data from the API
+            # it will fail
+            orion_doc.blob = b"BROKEN!"
+            assert await get_result(Completed(data=orion_doc)) == "hello"
+
 
 class TestRaiseFailedState:
     failed_state = State(
