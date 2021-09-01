@@ -731,9 +731,19 @@ class TestOrchestrationContext:
             task_run_id=task_run.id,
         )
 
-        async with EvilVillainRule(ctx, *intended_transition) as ctx:
+        async with contextlib.AsyncExitStack() as stack:
+            the_evil_villain = EvilVillainRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_evil_villain)
             assert ctx.initial_state_type == states.StateType.PENDING
             assert ctx.proposed_state_type == states.StateType.RUNNING
+            # foiled again
+
+            the_mutating_slime = MutatingSlimeRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_mutating_slime)
+            assert ctx.initial_state_type == states.StateType.PENDING
+            assert ctx.proposed_state_type == states.StateType.RUNNING
+            # thankfully we had the antidote
+
             validated_state = orm.TaskRunState(
                 task_run_id=ctx.task_run_id,
                 **ctx.proposed_state.dict(shallow=True),
@@ -741,6 +751,82 @@ class TestOrchestrationContext:
             ctx.validated_state = validated_state.as_state()
 
         # check that the states remain the same after exiting the context
+        # our context emerges unscathed
         assert ctx.initial_state_type == states.StateType.PENDING
         assert ctx.proposed_state.type == states.StateType.RUNNING
         assert ctx.validated_state.type == states.StateType.RUNNING
+
+    async def test_context_will_mutate_if_asked_politely(self, session, task_run):
+        class PoliteHeroRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.reject_transition(
+                    proposed_state, reason="heroes ask permission"
+                )
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            the_polite_hero = PoliteHeroRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_polite_hero)
+            validated_state = orm.TaskRunState(
+                task_run_id=ctx.task_run_id,
+                **ctx.proposed_state.dict(shallow=True),
+            )
+            ctx.validated_state = validated_state.as_state()
+
+        assert ctx.proposed_state.type == states.StateType.COMPLETED
+        assert ctx.validated_state.type == states.StateType.COMPLETED
+
+    async def test_context_will_not_mutate_if_asked_too_late(self, session, task_run):
+        class TardyHeroRule(BaseOrchestrationRule):
+            async def after_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.reject_transition(
+                    proposed_state, reason="heroes should not be late"
+                )
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        # oh no, the hero is too late
+        with pytest.raises(RuntimeError):
+            async with contextlib.AsyncExitStack() as stack:
+                the_tardy_hero = TardyHeroRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(the_tardy_hero)
+                validated_state = orm.TaskRunState(
+                    task_run_id=ctx.task_run_id,
+                    **ctx.proposed_state.dict(shallow=True),
+                )
+                ctx.validated_state = validated_state.as_state()
