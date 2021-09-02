@@ -6,7 +6,7 @@ Released on September 2, 2021.
 
 ### Features
 
-- We are now publishing Python 3.9 docker images - [#4896](https://github.com/PrefectHQ/prefect/pull/4896)
+- Python 3.9 docker images are now published - [#4896](https://github.com/PrefectHQ/prefect/pull/4896)
 
 ### Enhancements
 
@@ -27,7 +27,8 @@ Released on September 2, 2021.
 - Adjust log limits to match backend logic for better UX - [#4900](https://github.com/PrefectHQ/prefect/pull/4900)
 - Fix use of `marshmallow.fields.Dict` to use `keys` as a kwarg rather than `key`. - [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
 - API server settings are passed correctly to task workers when using Prefect Server - [#4914](https://github.com/PrefectHQ/prefect/pull/4914)
-- We no longer attempt to set `host_gateway` if using an unsupported Docker Engine version - [#4809](https://github.com/PrefectHQ/prefect/pull/4809)
+- Do not attempt attempt to set `host_gateway` if using an unsupported Docker Engine version - [#4809](https://github.com/PrefectHQ/prefect/pull/4809)
+- Ignore jobs without a `flow_run_id` label in `KubernetesAgent.manage_jobs` - [#4934](https://github.com/PrefectHQ/prefect/pull/4934)
 ### Breaking Changes
 
 - Services run by `prefect server` cli are now local by default (listen to localhost instead of 0.0.0.0); use `--expose` if you want to connect from a remote location - [#4821](https://github.com/PrefectHQ/prefect/pull/4821)
