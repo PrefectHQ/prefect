@@ -59,9 +59,7 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(
-    async_fn: Callable[..., Awaitable[T]]
-) -> Callable[..., Union[T, Awaitable[T]]]:
+def sync_compatible(async_fn: T) -> T:
     """
     Converts an async function into a dual async and sync function.
 
