@@ -3,6 +3,7 @@ from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Optional
+
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -10,7 +11,6 @@ import prefect
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import sync_compatible
-
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor

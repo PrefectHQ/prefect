@@ -110,17 +110,21 @@ async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=dict(scheduled_time=pendulum.now("UTC").subtract(seconds=1)),
     )
-    scheduled_flow_run_state = await models.flow_run_states.create_flow_run_state(
-        session=session,
-        flow_run_id=flow_run.id,
-        state=scheduled_state,
-    )
+    scheduled_flow_run_state = (
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=scheduled_state,
+        )
+    ).state
     running_state = schemas.actions.StateCreate(type="RUNNING")
-    running_flow_run_state = await models.flow_run_states.create_flow_run_state(
-        session=session,
-        flow_run_id=flow_run.id,
-        state=running_state,
-    )
+    running_flow_run_state = (
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=running_state,
+        )
+    ).state
     await session.commit()
     return [scheduled_flow_run_state, running_flow_run_state]
 
@@ -131,17 +135,21 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
     )
-    scheduled_task_run_state = await models.task_run_states.create_task_run_state(
-        session=session,
-        task_run_id=task_run.id,
-        state=scheduled_state,
-    )
+    scheduled_task_run_state = (
+        await models.task_run_states.orchestrate_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=scheduled_state,
+        )
+    ).state
     running_state = schemas.actions.StateCreate(type="RUNNING")
-    running_task_run_state = await models.task_run_states.create_task_run_state(
-        session=session,
-        task_run_id=task_run.id,
-        state=running_state,
-    )
+    running_task_run_state = (
+        await models.task_run_states.orchestrate_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=running_state,
+        )
+    ).state
     await session.commit()
     return [scheduled_task_run_state, running_task_run_state]
 
