@@ -2,7 +2,17 @@ from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Optional,
+    Union,
+    overload,
+    cast,
+    Type,
+)
 from unittest.mock import Mock
 from uuid import UUID
 
@@ -11,9 +21,9 @@ from prefect.client import OrionClient
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import sync_compatible
 
-
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
+    from prefect.orion.schemas.core import FlowRun, TaskRun
 
 
 class PrefectFuture:
@@ -33,8 +43,16 @@ class PrefectFuture:
         self._exception: Optional[Exception] = None
         self._executor = executor
 
+    @overload
+    async def result(self, timeout: float) -> Optional[State]:
+        ...
+
+    @overload
+    async def result(self, timeout: None = None) -> State:
+        ...
+
     @sync_compatible
-    async def result(self, timeout: float = None) -> Optional[State]:
+    async def result(self, timeout: float = None):
         """
         Return the state of the run the future represents
         """
@@ -51,6 +69,8 @@ class PrefectFuture:
 
     @sync_compatible
     async def get_state(self) -> State:
+        run: Union[FlowRun, TaskRun]
+
         if self.task_run_id:
             run = await self._client.read_task_run(self.task_run_id)
 
@@ -74,7 +94,7 @@ async def future_to_state(future: PrefectFuture) -> Any:
 
 
 async def resolve_futures(
-    expr, resolve_fn: Callable[[PrefectFuture], Any] = future_to_data
+    expr, resolve_fn: Callable[[PrefectFuture], Awaitable[Any]] = future_to_data
 ):
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
@@ -98,6 +118,7 @@ async def resolve_futures(
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
+    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
     # If it's a python collection, recursively create a collection of the same type with
     # resolved futures
