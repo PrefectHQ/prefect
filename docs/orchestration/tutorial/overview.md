@@ -65,7 +65,7 @@ backend before you can proceed further.
 
 ### Create an API key and login
 
-To authenticate, you'll need to create an [API Key](/orchestration/concepts/api_keys.md) and save it. 
+To authenticate, you'll need to create an [API key](/orchestration/concepts/api_keys.md) and save it. 
 
 - Login to [https://cloud.prefect.io](https://cloud.prefect.io)
 - Navigate to the [API Keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
