@@ -9,6 +9,7 @@ class SetStateStatus(AutoEnum):
     ACCEPT = AutoEnum.auto()
     REJECT = AutoEnum.auto()
     ABORT = AutoEnum.auto()
+    WAIT = AutoEnum.auto()
 
 
 class SetStateResponse(PrefectBaseModel):
