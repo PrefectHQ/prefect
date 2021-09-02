@@ -18,7 +18,7 @@ async def create_flow_run_state(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.states.State:
     """
-    Create a flow run state, disregarding orchestration logic
+    Create a flow run state, invoking orchestration logic
     """
     return (
         await models.flow_run_states.orchestrate_flow_run_state(
