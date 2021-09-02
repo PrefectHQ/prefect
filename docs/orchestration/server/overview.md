@@ -59,12 +59,12 @@ Because of [Prefect's innovative Hybrid Model](https://medium.com/the-prefect-bl
 Prefect Cloud supports users as a first-class concept, which allows for:
 - Permissioned access to the UI through [Auth0](https://auth0.com/)
 - [Customizable access controls](/orchestration/rbac/overview.html)
-- An authenticated GraphQL API that can only be accessed via special authorization tokens
+- An authenticated GraphQL API that can only be accessed via special API keys
 - A full team management experience
 
 ### API network accessibility and custom deployments
 
-Because Prefect Cloud's API is accessible from any location with access to `api.prefect.io`, it is much easier to customize your flow deployments and developer workflows without the hassle of maintaining a network endpoint. From registering flows with your favorite CI/CD tool to running multiple Agents across different clusters and machines, all you need to ensure is that your tools and services have an appropriately permissioned Cloud authorization token.
+Because Prefect Cloud's API is accessible from any location with access to `api.prefect.io`, it is much easier to customize your flow deployments and developer workflows without the hassle of maintaining a network endpoint. From registering flows with your favorite CI/CD tool to running multiple Agents across different clusters and machines, all you need to ensure is that your tools and services have an appropriately permissioned Cloud API key.
 
 ### Enterprise features
 
