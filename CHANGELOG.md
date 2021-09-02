@@ -31,6 +31,7 @@ Released on September 2, 2021.
 ### Breaking Changes
 
 - Services run by `prefect server` cli are now local by default (listen to localhost instead of 0.0.0.0); use `--expose` if you want to connect from a remote location - [#4821](https://github.com/PrefectHQ/prefect/pull/4821)
+- The changes in flow registration require Prefect Server 2021.09.02. Prefect Server will need to be upgraded before flows can be registered from this version - [#4930](https://github.com/PrefectHQ/prefect/pull/4930)
 
 ### Contributors
 
