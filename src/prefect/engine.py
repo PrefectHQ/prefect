@@ -32,7 +32,7 @@ from prefect.utilities.collections import ensure_iterable
 
 def enter_flow_run_engine(
     flow: Flow, parameters: Dict[str, Any]
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+) -> Union[State, Awaitable[State]]:
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
