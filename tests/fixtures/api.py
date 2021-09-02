@@ -4,7 +4,7 @@ from httpx import AsyncClient, Response
 from prefect.orion.api.server import app
 
 
-class OrionTestAsyncClient(AsyncClient):
+class _OrionTestAsyncClient(AsyncClient):
     """Spite class. httpx.AsyncClient.get does not accept `json` as an arg"""
 
     async def get(self, *args, **kwargs) -> Response:
@@ -16,8 +16,13 @@ class OrionTestAsyncClient(AsyncClient):
         return await self.request("GET", *args, **kwargs)
 
 
+@pytest.fixture()
+async def OrionTestAsyncClient():
+    return _OrionTestAsyncClient
+
+
 @pytest.fixture
-async def client():
+async def client(OrionTestAsyncClient):
     """
     Yield a test client for testing the orion api
     """
