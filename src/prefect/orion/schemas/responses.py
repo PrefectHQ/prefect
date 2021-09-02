@@ -5,4 +5,3 @@ class SetStateStatus(AutoEnum):
     ACCEPT = AutoEnum.auto()
     REJECT = AutoEnum.auto()
     ABORT = AutoEnum.auto()
-
