@@ -1191,9 +1191,9 @@ class Client:
             }
         }
 
-        # tasks in batches of 100
+        # tasks in batches of 500
         start = 0
-        batch_size = 100
+        batch_size = 500
         stop = start + batch_size
 
         while start <= len(serialized_tasks):
@@ -1209,9 +1209,9 @@ class Client:
             start = stop
             stop += batch_size
 
-        # edges in batches of 100
+        # edges in batches of 500
         start = 0
-        batch_size = 100
+        batch_size = 500
         stop = start + batch_size
 
         while start <= len(serialized_edges):
