@@ -17,10 +17,10 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, resolve_futures, future_to_state
-from prefect.orion.states import is_state, is_state_iterable, StateSet
-from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.futures import PrefectFuture, future_to_state, resolve_futures
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
