@@ -85,6 +85,24 @@ class RetryPotentialFailures(BaseOrchestrationRule):
             await self.reject_transition(state=retry_state, reason="Retying")
 
 
+class WaitIfScheduled(BaseOrchestrationRule):
+    FROM_STATES = [states.StateType.SCHEDULED]
+    TO_STATES = [ALL_ORCHESTRATION_STATES]
+
+    async def before_transition(
+        self,
+        initial_state: states.State,
+        proposed_state: states.State,
+        context: OrchestrationContext,
+    ) -> None:
+        scheduled_time = pendulum.instance(initial_state.state_details.scheduled_time)
+        warmup_time = pendulum.duration(minutes=1)
+        timedelta = scheduled_time - pendulum.now()
+        if timedelta > warmup_time:
+            delay_seconds = timedelta - warmup_time
+            self.delay_transition(delay_seconds)
+
+
 async def get_cached_task_run_state(
     session: sa.orm.Session, cache_key: str
 ) -> Optional[orm.TaskRunState]:
