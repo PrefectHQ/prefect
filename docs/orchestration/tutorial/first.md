@@ -112,7 +112,7 @@ runs. If you need to shutdown the agent at any point, you can stop it with a
 tutorial.
 
 ::: tip Service Account API Key <Badge text="Cloud"/>
-If you're using Prefect Cloud, the Local Agent will need access to the Service Account's API Key [you created
+If you're using Prefect Cloud, the Local Agent will need access to the service account's API key [you created
 earlier](/orchestration/tutorial/overview.html#create-a-service-account-key).
 :::
 
