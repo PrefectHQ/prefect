@@ -8,10 +8,10 @@ from sqlalchemy import delete, select
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.global_policy import GlobalPolicy
-from prefect.orion.orchestration.rules import OrchestrationContext
+from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
 
 
-async def create_flow_run_state(
+async def orchestrate_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
     state: schemas.states.State,
@@ -65,7 +65,13 @@ async def create_flow_run_state(
     # update the ORM model state
     if run is not None:
         run.state = validated_state
-    return validated_state
+
+    result = OrchestrationResult(
+        state=validated_state,
+        status=context.response_status,
+    )
+
+    return result
 
 
 async def read_flow_run_state(

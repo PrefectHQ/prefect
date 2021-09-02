@@ -389,6 +389,7 @@ async def user_return_value_to_state(
     _single_ state. This prevents a flow from assuming the state of a single returned
     task future.
     """
+
     # States returned directly are respected without applying a rule
     if is_state(result):
         return result

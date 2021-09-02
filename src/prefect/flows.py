@@ -1,11 +1,10 @@
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Iterable, Union, Awaitable
+from typing import Any, Awaitable, Callable, Iterable, Union
 
 from prefect import State
 from prefect.executors import BaseExecutor, LocalExecutor
 from prefect.orion.utilities.functions import parameter_schema
-from prefect.utilities.hashing import file_hash
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import file_hash
 

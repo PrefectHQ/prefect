@@ -7,6 +7,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
+from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
 
@@ -108,34 +109,15 @@ async def set_flow_run_state(
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
-) -> schemas.responses.SetStateResponse:
+) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    new_state = await models.flow_run_states.create_flow_run_state(
+    orchestration_result = await models.flow_run_states.orchestrate_flow_run_state(
         session=session, flow_run_id=flow_run_id, state=state
     )
+
     # set the 201 because a new state was created
     response.status_code = status.HTTP_201_CREATED
 
-    # if the set state has the same type as the provided state, it was accepted,
-    # though its details may have been updated
-    if new_state.type == state.type:
-
-        # indicate the state was accepted
-        return schemas.responses.SetStateResponse(
-            status=schemas.responses.SetStateStatus.ACCEPT,
-            details=dict(
-                run_details=new_state.run_details,
-                state_details=new_state.state_details,
-            ),
-        )
-
-    # otherwise the requested transition was rejected
-    else:
-
-        # send the new state
-        return schemas.responses.SetStateResponse(
-            status=schemas.responses.SetStateStatus.REJECT,
-            details=dict(state=new_state),
-        )
+    return orchestration_result
