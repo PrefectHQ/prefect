@@ -91,8 +91,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         to_state_type: states.StateType,
     ):
         self.context = context
-        self.from_state = from_state_type
-        self.to_state = to_state_type
+        self.from_state_type = from_state_type
+        self.to_state_type = to_state_type
         self._not_fizzleable = None
 
     async def __aenter__(self) -> OrchestrationContext:
@@ -165,8 +165,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             if self.context.proposed_state is None
             else self.context.proposed_state.type
         )
-        return (self.from_state != initial_state_type) or (
-            self.to_state != proposed_state_type
+        return (self.from_state_type != initial_state_type) or (
+            self.to_state_type != proposed_state_type
         )
 
     async def reject_transition(self, state: states.State, reason: str):
@@ -176,7 +176,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
         # if a rule modifies the proposed state, it should not fizzle itself
         if self.context.proposed_state_type != state.type:
-            self.to_state = state.type
+            self.to_state_type = state.type
 
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
