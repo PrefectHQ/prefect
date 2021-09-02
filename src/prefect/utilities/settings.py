@@ -29,7 +29,7 @@ class DatabaseSettings(BaseSettings):
     echo: bool = False
 
     # a default limit for queries
-    default_limit: int = 500
+    default_limit: int = 200
 
 
 class OrionSettings(BaseSettings):
