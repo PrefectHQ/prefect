@@ -4,7 +4,7 @@
 
 Released on September 2, 2021.
 
-### Feature
+### Features
 
 - We are now publishing Python 3.9 docker images - [#4896](https://github.com/PrefectHQ/prefect/pull/4896)
 
