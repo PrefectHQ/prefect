@@ -1,2 +1,0 @@
-breaking:
-  - "Replacing legacy Dremio authentication in DremioFetch - [#4872](https://github.com/PrefectHQ/prefect/pull/4872)"

@@ -1,3 +1,0 @@
-
-enhancement:
-  - "Pass existing environment variables to agentless flow runs - [#4917](https://github.com/PrefectHQ/prefect/pull/4917)"

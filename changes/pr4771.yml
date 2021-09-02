@@ -1,5 +1,0 @@
-enhancement:
-  - "Log boto exception in AWS BatchSubmit task - [#4771](https://github.com/PrefectHQ/prefect/pull/4771)"
-
-contributor:
-  - "[Kathryn Klarich](https://github.com/klarich)"

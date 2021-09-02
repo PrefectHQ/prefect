@@ -1,5 +1,0 @@
-fix:
-  - "Ignore schedules by default for CLI flow runs and add flag to run based on schedule for local only runs [#4817](https://github.com/PrefectHQ/prefect/pull/4817)"
-
-contributor:
-  - "[Tenzin Choedak](https://github.com/tchoedak)"

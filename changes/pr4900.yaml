@@ -1,2 +1,0 @@
-fix:
-  - "Adjust log limits to match backend logic for better UX - [#4900](https://github.com/PrefectHQ/prefect/pull/4900)"

@@ -22,7 +22,7 @@ mutation {
 
 ### API Keys
 
-To authenticate with Prefect Cloud, an API Key is required. Users can generate a key associated with their user, or they can generate keys associated with a Service Account User. See [the API keys page](api_keys.html) for more details.
+To authenticate with Prefect Cloud, an API key is required. Users can generate a key associated with their user, or they can generate keys associated with a Service Account User. See [the API keys page](api_keys.html) for more details.
 
 ## Python Client
 

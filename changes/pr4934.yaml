@@ -1,3 +1,0 @@
-
-fix:
-  - "Ignore jobs without `flow_run_id` labels in `KubernetesAgent.manage_jobs` - [#4934](https://github.com/PrefectHQ/prefect/pull/4934)"
