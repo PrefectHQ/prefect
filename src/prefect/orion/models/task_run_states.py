@@ -64,13 +64,15 @@ async def orchestrate_task_run_state(
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
-
-        validated_state = orm.TaskRunState(
-            task_run_id=context.task_run_id,
-            **context.proposed_state.dict(shallow=True),
-        )
-        session.add(validated_state)
-        await session.flush()
+        if context.proposed_state is not None:
+            validated_state = orm.TaskRunState(
+                task_run_id=context.task_run_id,
+                **context.proposed_state.dict(shallow=True),
+            )
+            session.add(validated_state)
+            await session.flush()
+        else:
+            validated_state = None
         context.validated_state = validated_state.as_state()
 
     if run is not None:
