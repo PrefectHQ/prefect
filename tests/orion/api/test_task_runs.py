@@ -5,6 +5,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models
+from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import responses, states
 
 
@@ -128,7 +129,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == 201
 
-        api_response = responses.SetStateResponse.parse_obj(response.json())
+        api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
         assert api_response.state.run_details.run_count == 1
 
@@ -163,7 +164,7 @@ class TestSetTaskRunState:
         )
         assert response.status_code == 201
 
-        api_response = responses.SetStateResponse.parse_obj(response.json())
+        api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.REJECT
         assert api_response.state.name == "Awaiting Retry"
         assert api_response.state.type == states.StateType.SCHEDULED

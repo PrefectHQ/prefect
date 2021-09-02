@@ -9,6 +9,7 @@ import prefect
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.orchestration.rules import OrchestrationResult
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -166,7 +167,7 @@ class OrionClient:
         self,
         flow_run_id: UUID,
         state: schemas.states.State,
-    ) -> schemas.responses.SetStateResponse:
+    ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
@@ -187,7 +188,7 @@ class OrionClient:
             f"/flow_runs/{flow_run_id}/set_state",
             json=state_data_json,
         )
-        return schemas.responses.SetStateResponse.parse_obj(response.json())
+        return OrchestrationResult.parse_obj(response.json())
 
     async def read_flow_run_states(
         self, flow_run_id: UUID
@@ -280,7 +281,7 @@ class OrionClient:
         self,
         task_run_id: UUID,
         state: schemas.states.State,
-    ) -> schemas.responses.SetStateResponse:
+    ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
@@ -301,7 +302,7 @@ class OrionClient:
             f"/task_runs/{task_run_id}/set_state",
             json=state_data_json,
         )
-        return schemas.responses.SetStateResponse.parse_obj(response.json())
+        return OrchestrationResult.parse_obj(response.json())
 
     async def read_task_run_states(
         self, task_run_id: UUID
