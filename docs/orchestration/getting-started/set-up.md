@@ -29,11 +29,11 @@ Next you'll need to authenticate with the backend before you can proceed further
 
 To authenticate, you'll need to create an [API Key](/orchestration/concepts/api_keys.md) and save it. 
 
-- Navigate to the [API Keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
+- Navigate to the [API keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
 - Copy the created key
 - Login with the Prefect CLI `prefect auth login --key <YOUR-KEY>`
 
-To learn more about API Keys including how to save them, set them through environment varaiables and how to use API Keys connected to a service account, check out the [API Key documentation](/orchestration/concepts/api_keys.md). 
+To learn more about API keys including how to save them, set them through environment varaiables and how to use API keys connected to a service account, check out the [API key documentation](/orchestration/concepts/api_keys.md). 
 
 
 
