@@ -325,8 +325,8 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
+        list(product([*states.StateType, None], [*states.StateType, None])),
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
     )
     async def test_nested_valid_rules_fire_hooks(
         self, session, task_run, intended_transition
@@ -433,8 +433,8 @@ class TestBaseOrchestrationRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
+        list(product([*states.StateType, None], [*states.StateType, None])),
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
     )
     async def test_complex_nested_rules_interact_sensibly(
         self, session, task_run, intended_transition
@@ -473,15 +473,17 @@ class TestBaseOrchestrationRule:
         class StateMutatingRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
-                mutated_state = proposed_state.copy()
-                mutated_state.type = random.choice(
+                mutated_state_type = random.choice(
                     list(
                         set(states.StateType)
                         - {
                             initial_state.type if initial_state else None,
-                            proposed_state.type,
+                            proposed_state.type if proposed_state else None,
                         }
                     )
+                )
+                mutated_state = await create_task_run_state(
+                    session, task_run, mutated_state_type
                 )
                 mutator_before_hook()
                 # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
@@ -639,8 +641,8 @@ class TestBaseUniversalRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
+        list(product([*states.StateType, None], [*states.StateType, None])),
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
     )
     async def test_universal_rules_always_fire(
         self, session, task_run, intended_transition
@@ -679,9 +681,11 @@ class TestBaseUniversalRule:
         universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
 
         async with universal_rule as ctx:
-            mutated_state = proposed_state.copy()
-            mutated_state.type = random.choice(
+            mutated_state_type = random.choice(
                 list(set(states.StateType) - set(intended_transition))
+            )
+            mutated_state = await create_task_run_state(
+                session, task_run, mutated_state_type
             )
             ctx.initial_state = mutated_state
 

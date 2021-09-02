@@ -23,7 +23,7 @@ class OrchestrationContext(PrefectBaseModel):
         arbitrary_types_allowed = True
 
     initial_state: Optional[states.State]
-    proposed_state: states.State
+    proposed_state: Optional[states.State]
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
     run: Optional[Union[core.TaskRun, core.FlowRun]]
@@ -39,11 +39,15 @@ class OrchestrationContext(PrefectBaseModel):
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
-        return None if self.initial_state is None else self.initial_state.type
+        return self.initial_state.type if self.initial_state else None
 
     @property
     def proposed_state_type(self) -> Optional[states.StateType]:
-        return self.proposed_state.type
+        return self.proposed_state.type if self.proposed_state else None
+
+    @property
+    def validated_state_type(self) -> Optional[states.StateType]:
+        return self.validated_state.type if self.validated_state else None
 
     @property
     def run_details(self):
@@ -94,7 +98,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.from_state_type = from_state_type
         self.to_state_type = to_state_type
         self._invalid_on_entry = None
-        self._not_fizzleable = None
 
     async def __aenter__(self) -> OrchestrationContext:
         if await self.invalid():
@@ -145,30 +148,20 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         pass
 
     async def invalid(self) -> bool:
-        # invalid and fizzled states are mutually exclusive, `_not_fizzeable` holds this statefulness
+        # invalid and fizzled states are mutually exclusive,
+        # `_invalid_on_entry` holds this statefulness
         if self._invalid_on_entry is None:
             self._invalid_on_entry = await self.invalid_transition()
         return self._invalid_on_entry
 
     async def fizzled(self) -> bool:
-        if self._invalid_on_entry or self._not_fizzleable:
+        if self._invalid_on_entry:
             return False
         return await self.invalid_transition()
 
     async def invalid_transition(self) -> bool:
-        if self.context.response_status != SetStateStatus.ACCEPT:
-            return True
-
-        initial_state_type = (
-            None
-            if self.context.initial_state is None
-            else self.context.initial_state.type
-        )
-        proposed_state_type = (
-            None
-            if self.context.proposed_state is None
-            else self.context.proposed_state.type
-        )
+        initial_state_type = self.context.initial_state_type
+        proposed_state_type = self.context.proposed_state_type
         return (self.from_state_type != initial_state_type) or (
             self.to_state_type != proposed_state_type
         )
@@ -179,10 +172,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             raise RuntimeError("The transition is already validated")
 
         # a rule that mutates state should not fizzle itself
-        if self.context.proposed_state_type != state.type:
-            self._not_fizzleable = True
-            self.to_state_type = state.type
-
+        self.to_state_type = state.type
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
 
@@ -192,8 +182,10 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             raise RuntimeError("The transition is already validated")
 
         # a rule that mutates state should not fizzle itself
-        self._not_fizzleable = True
+        self.to_state_type = None
+        self.context.proposed_state = None
         self.context.response_status = SetStateStatus.WAIT
+
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     FROM_STATES: Iterable = []
