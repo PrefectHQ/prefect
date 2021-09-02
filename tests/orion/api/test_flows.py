@@ -1,9 +1,9 @@
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 import pendulum
 import pytest
 
-from prefect.orion import models
+from prefect.orion import models, schemas
 
 
 class TestCreateFlow:
@@ -65,15 +65,65 @@ class TestReadFlows:
         assert len(response.json()) == 2
 
     async def test_read_flows_applies_limit(self, flows, client):
-        response = await client.get("/flows/", params=dict(limit=1))
+        query_data = {"pagination": {"limit": 1}}
+        response = await client.get("/flows/", json=query_data)
         assert response.status_code == 200
         assert len(response.json()) == 1
+
+    async def test_read_flows_filters_by_name(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        flow_filter = {"flow": {"names": ["my-flow-1"]}}
+        response = await client.get("/flows/", json=flow_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_1.id
+
+    async def test_read_flows_filters_by_id(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        flow_filter = {"flow": {"ids": [str(flow_2.id)]}}
+        response = await client.get("/flows/", json=flow_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_2.id
+
+    async def test_read_flows_filters_by_tags(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        flow_filter = {"flow": {"tags_all": ["db", "blue"]}}
+        response = await client.get("/flows/", json=flow_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_1.id
 
     async def test_read_flows_offset(self, flows, client):
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
         # should be re-written
-        response = await client.get("/flows/", params=dict(offset=1))
+        query_data = {"pagination": {"offset": 1}}
+        response = await client.get("/flows/", json=query_data)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"

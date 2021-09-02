@@ -108,7 +108,6 @@ async def read_flows(
         limit = prefect.settings.orion.database.default_limit
 
     query = query.limit(limit)
-
     result = await session.execute(query)
     return result.scalars().unique().all()
 
