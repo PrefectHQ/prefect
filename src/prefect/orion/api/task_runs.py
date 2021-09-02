@@ -6,6 +6,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
+from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
@@ -91,7 +92,7 @@ async def set_task_run_state(
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
-) -> schemas.responses.SetStateResponse:
+) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
     # create the state
@@ -101,7 +102,4 @@ async def set_task_run_state(
         state=state,
     )
 
-    return schemas.responses.SetStateResponse(
-        state=orchestration_result.state,
-        status=orchestration_result.status,
-    )
+    return orchestration_result
