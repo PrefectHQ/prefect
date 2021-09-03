@@ -70,9 +70,9 @@ async def read_flow_run(
 @router.get("/")
 async def read_flow_runs(
     pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
-    flow: schemas.filters.FlowFilter = None,
-    flow_run: schemas.filters.FlowRunFilter = None,
-    task_run: schemas.filters.TaskRunFilter = None,
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRun]:
     """
@@ -80,9 +80,9 @@ async def read_flow_runs(
     """
     return await models.flow_runs.read_flow_runs(
         session=session,
-        flow_filter=flow,
-        flow_run_filter=flow_run,
-        task_run_filter=task_run,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
         offset=pagination.offset,
         limit=pagination.limit,
     )

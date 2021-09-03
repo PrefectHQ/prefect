@@ -80,7 +80,7 @@ class TestReadFlows:
         )
         await session.commit()
 
-        flow_filter = {"flow": {"names": ["my-flow-1"]}}
+        flow_filter = {"flows": {"names": ["my-flow-1"]}}
         response = await client.get("/flows/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -96,7 +96,7 @@ class TestReadFlows:
         )
         await session.commit()
 
-        flow_filter = {"flow": {"ids": [str(flow_2.id)]}}
+        flow_filter = {"flows": {"ids": [str(flow_2.id)]}}
         response = await client.get("/flows/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -112,7 +112,7 @@ class TestReadFlows:
         )
         await session.commit()
 
-        flow_filter = {"flow": {"tags_all": ["db", "blue"]}}
+        flow_filter = {"flows": {"tags_all": ["db", "blue"]}}
         response = await client.get("/flows/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
