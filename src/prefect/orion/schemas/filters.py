@@ -50,7 +50,7 @@ class FlowRunFilter(PrefectBaseModel):
     )
     start_time_before: datetime.datetime = None
     start_time_after: datetime.datetime = None
-    parent_task_run_ids: List[str] = Field(
+    parent_task_run_ids: List[UUID] = Field(
         None, description="A list of parent task run ids to include"
     )
 
