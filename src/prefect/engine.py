@@ -308,9 +308,7 @@ async def orchestrate_task_run(
     state = await client.propose_state(
         State(
             type=StateType.RUNNING,
-            state_details=StateDetails(
-                cache_key=cache_key,
-            ),
+            state_details=StateDetails(cache_key=cache_key),
         ),
         task_run_id=task_run_id,
     )
