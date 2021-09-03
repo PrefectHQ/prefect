@@ -3,7 +3,7 @@ from uuid import uuid4
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion import models
+from prefect.orion import models, schemas
 from prefect.orion.schemas import actions, core, responses, states
 
 
@@ -173,12 +173,39 @@ class TestReadFlowRuns:
         assert response.status_code == 200
         assert len(response.json()) == 3
 
-    async def test_read_flow_runs(self, flow, flow_runs, client):
+    async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         response = await client.get(
             "/flow_runs/", json=dict(flow=dict(ids=[str(flow.id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 2
+
+    async def test_read_flow_runs_applies_flow_run_filter(
+        self, flow, flow_runs, client
+    ):
+        response = await client.get(
+            "/flow_runs/", json=dict(flow_run=dict(ids=[str(flow_runs[0].id)]))
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[0].id)
+
+    async def test_read_flow_runs_applies_task_run_filter(
+        self, flow, flow_runs, client, session
+    ):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_runs[1].id, task_key="my-key"
+            ),
+        )
+        await session.commit()
+        response = await client.get(
+            "/flow_runs/", json=dict(task_run=dict(ids=[str(task_run_1.id)]))
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_runs[1].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
         response = await client.get("/flow_runs/", json=dict(pagination=dict(limit=1)))
