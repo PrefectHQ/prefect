@@ -59,13 +59,18 @@ class State(ORMBaseModel):
         return v
 
     @root_validator
-    def scheduled_states_require_scheduled_time(cls, values):
+    def default_scheduled_start_time(cls, values):
+        """
+        TODO: This should throw an error instead of setting a default but is out of
+              scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
+              into work refactoring state initialization
+        """
         if values.get("type") == StateType.SCHEDULED:
-            if (
-                not values["state_details"]
-                or not values["state_details"].scheduled_time
-            ):
-                raise ValueError("`Scheduled` states require a `scheduled_time`")
+            state_details = values.setdefault(
+                "state_details", cls.__fields__["state_details"].get_default()
+            )
+            if not state_details.scheduled_time:
+                state_details.scheduled_time = pendulum.now("utc")
         return values
 
     def is_scheduled(self):
