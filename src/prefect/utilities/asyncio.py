@@ -94,3 +94,52 @@ def sync_compatible(async_fn: T) -> T:
 
     wrapper.aio = async_fn
     return wrapper
+
+
+from typing import *
+
+# All types in `typing` except the async types
+SyncType = Union[
+    Literal,
+]
+#     Tuple,
+#     Type,
+#     TypeVar,
+#     Union,
+#     AbstractSet,
+#     ByteString,
+#     Container,
+#     ContextManager,
+#     Hashable,
+#     ItemsView,
+#     Iterable,
+#     KeysView,
+#     Mapping,
+#     MappingView,
+#     MutableMapping,
+#     MutableSequence,
+#     MutableSet,
+#     Sequence,
+#     Sized,
+#     ValuesView,
+#     Collection,
+#     Reversible,
+#     SupportsAbs,
+#     SupportsBytes,
+#     SupportsComplex,
+#     SupportsFloat,
+#     SupportsIndex,
+#     SupportsInt,
+#     SupportsRound,
+#     ChainMap,
+#     Counter,
+#     Deque,
+#     Dict,
+#     DefaultDict,
+#     List,
+#     OrderedDict,
+#     Set,
+#     FrozenSet,
+#     NamedTuple,
+#     TypedDict,
+# ]

@@ -1,33 +1,73 @@
+# type: ignore
+# mypy does not yet support `ParamSpec`; this file should be type checked with pyright
+
 import inspect
 from functools import update_wrapper
-from typing import Any, Callable, Iterable, Union, Awaitable
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Generic,
+    Iterable,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
+
+from typing_extensions import Literal, ParamSpec
 
 from prefect import State
 from prefect.executors import BaseExecutor, LocalExecutor
+from prefect.orion.schemas.core import FlowRun
 from prefect.orion.utilities.functions import parameter_schema
-from prefect.utilities.hashing import file_hash
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import file_hash
 
+ParametersT = ParamSpec("ParametersT")  # The parameters of the flow
+ReturnT = TypeVar("ReturnT")  # The return type wrapped in an `Awaitable` if async
+ResultT = TypeVar("ResultT")  # The return type of the user's functino
 
-class Flow:
+
+class Flow(Generic[ParametersT, ReturnT]):
     """
     Base class representing Prefect workflows.
     """
 
-    # no docstring until we have a standard and the classes
-    # are more polished
+    @overload
     def __init__(
-        self,
+        self: "Flow[ParametersT, Awaitable[ResultT]]",
+        fn: Callable[ParametersT, Awaitable[ResultT]],
         name: str = None,
-        fn: Callable = None,
         version: str = None,
         executor: BaseExecutor = None,
         description: str = None,
         tags: Iterable[str] = None,
     ):
-        if not fn:
-            raise TypeError("__init__() missing 1 required argument: 'fn'")
+        ...
+
+    @overload
+    def __init__(
+        self: "Flow[ParametersT, ResultT]",
+        fn: Callable[ParametersT, ResultT],
+        name: str = None,
+        version: str = None,
+        executor: BaseExecutor = None,
+        description: str = None,
+        tags: Iterable[str] = None,
+    ):
+        ...
+
+    def __init__(
+        self,
+        fn: Any,
+        name: str = None,
+        version: str = None,
+        executor: BaseExecutor = None,
+        description: str = None,
+        tags: Iterable[str] = None,
+    ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
@@ -47,7 +87,23 @@ class Flow:
 
         self.parameters = parameter_schema(self.fn)
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Union[State, Awaitable[State]]:
+    @overload
+    def __call__(
+        self: "Flow[ParametersT, Awaitable[ResultT]]",
+        *args: "ParametersT.args",
+        **kwargs: "ParametersT.kwargs",
+    ) -> Awaitable[State[ResultT]]:
+        ...
+
+    @overload
+    def __call__(
+        self: "Flow[ParametersT, ResultT]",
+        *args: "ParametersT.args",
+        **kwargs: "ParametersT.kwargs",
+    ) -> State[ResultT]:
+        ...
+
+    def __call__(self, *args, **kwargs):
         from prefect.engine import enter_flow_run_engine
 
         # Convert the call args/kwargs to a parameter dict
@@ -56,13 +112,66 @@ class Flow:
         return enter_flow_run_engine(self, parameters)
 
 
-def flow(_fn: Callable = None, *, name: str = None, **flow_init_kwargs: Any):
-    # TOOD: Using `**flow_init_kwargs` here hides possible settings from the user
-    #       and it may be worth enumerating possible arguments explicitly for user
-    #       friendlyness
-    # TODO: For mypy type checks, @overload will have to be used to clarify return
-    #       types for @flow and @flow(...)
-    #       https://mypy.readthedocs.io/en/stable/generics.html?highlight=decorator#decorator-factories
-    if _fn is None:
-        return lambda _fn: Flow(fn=_fn, name=name, **flow_init_kwargs)
-    return Flow(fn=_fn, name=name, **flow_init_kwargs)
+@overload
+def to_flow(
+    __fn: Callable[ParametersT, Awaitable[ReturnT]]
+) -> Callable[ParametersT, Awaitable[State[ReturnT]]]:
+    ...
+
+
+@overload
+def to_flow(
+    __fn: Callable[ParametersT, ReturnT]
+) -> Callable[ParametersT, State[ReturnT]]:
+    ...
+
+
+def to_flow(fn):
+    return cast(
+        Callable[ParametersT, Union[State[ReturnT], Awaitable[State[ReturnT]]]],
+        Flow(
+            fn=fn,
+            name=name,
+            version=version,
+            executor=executor,
+            description=description,
+            tags=tags,
+        ),
+    )
+
+
+@overload
+def flow(
+    *,
+    name: str = None,
+    version: str = None,
+    executor: BaseExecutor = None,
+    description: str = None,
+    tags: Iterable[str] = None,
+) -> Callable[
+    [Callable[ParametersT, Awaitable[ReturnT]]],
+    Callable[ParametersT, Awaitable[State[ReturnT]]],
+]:
+    ...
+
+
+@overload
+def flow(
+    *,
+    name: str = None,
+    version: str = None,
+    executor: BaseExecutor = None,
+    description: str = None,
+    tags: Iterable[str] = None,
+) -> Callable[[Callable[ParametersT, ReturnT]], Callable[ParametersT, State[ReturnT]]]:
+    ...
+
+
+def flow(
+    __fn=None, *, name=None, version=None, executor=None, description=None, tags=None
+):
+
+    if __fn:
+        return to_flow(__fn)
+    else:
+        return to_flow
