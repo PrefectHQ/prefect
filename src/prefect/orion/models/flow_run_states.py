@@ -36,7 +36,9 @@ async def orchestrate_flow_run_state(
         raise ValueError(f"Invalid flow run: {flow_run_id}")
 
     initial_state = run.state.as_state() if run.state else None
-    intended_transition = (initial_state.type if initial_state else None), state.type
+    initial_state_type = initial_state.type if initial_state else None
+    proposed_state_type = state.type if state else None
+    intended_transition = (initial_state_type, proposed_state_type)
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
@@ -55,12 +57,20 @@ async def orchestrate_flow_run_state(
                 rule(context, *intended_transition)
             )
 
-        validated_state = orm.FlowRunState(
-            flow_run_id=flow_run_id,
-            **state.dict(shallow=True),
-        )
-        session.add(validated_state)
-        await session.flush()
+        for rule in global_rules:
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
+        if context.proposed_state is not None:
+            validated_state = orm.FlowRunState(
+                flow_run_id=context.flow_run_id,
+                **context.proposed_state.dict(shallow=True),
+            )
+            session.add(validated_state)
+            await session.flush()
+        else:
+            validated_state = None
+        context.validated_state = validated_state.as_state()
 
     # update the ORM model state
     if run is not None:
