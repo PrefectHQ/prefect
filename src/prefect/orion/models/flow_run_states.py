@@ -8,6 +8,7 @@ from sqlalchemy import delete, select
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.global_policy import GlobalPolicy
+from prefect.orion.orchestration.core_policy import CoreFlowPolicy
 from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
 
 
@@ -41,6 +42,7 @@ async def orchestrate_flow_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
+    orchestration_rules = CoreFlowPolicy.compile_transition_rules(*intended_transition)
 
     context = OrchestrationContext(
         initial_state=initial_state,
@@ -52,7 +54,7 @@ async def orchestrate_flow_run_state(
 
     # apply orchestration rules and create the new flow run state
     async with contextlib.AsyncExitStack() as stack:
-        for rule in global_rules:
+        for rule in orchestration_rules:
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
@@ -61,6 +63,7 @@ async def orchestrate_flow_run_state(
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
+
         if context.proposed_state is not None:
             validated_state = orm.FlowRunState(
                 flow_run_id=context.flow_run_id,

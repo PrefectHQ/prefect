@@ -14,7 +14,14 @@ from prefect.orion.orchestration.rules import (
 from prefect.orion.schemas import states
 
 
-class CorePolicy(BaseOrchestrationPolicy):
+class CoreFlowPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return [
+            WaitIfScheduled,
+        ]
+
+
+class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             RetryPotentialFailures,
