@@ -36,7 +36,9 @@ async def orchestrate_task_run_state(
         raise ValueError(f"Invalid task run: {task_run_id}")
 
     initial_state = run.state.as_state() if run.state else None
-    intended_transition = (initial_state.type if initial_state else None), state.type
+    initial_state_type = initial_state.type if initial_state else None
+    proposed_state_type = state.type if state else None
+    intended_transition = (initial_state_type, proposed_state_type)
 
     if apply_orchestration_rules:
         orchestration_rules = CorePolicy.compile_transition_rules(*intended_transition)
