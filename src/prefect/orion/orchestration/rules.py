@@ -1,13 +1,18 @@
 import contextlib
 from types import TracebackType
-from typing import Iterable, List, Optional, Type, Union
+from typing import Dict, Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from pydantic import Field
 
 from prefect.orion.schemas import core, states
-from prefect.orion.schemas.responses import SetStateStatus
+from prefect.orion.schemas.responses import (
+    SetStateStatus,
+    StateAcceptDetails,
+    StateRejectDetails,
+    StateWaitDetails,
+)
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
@@ -16,6 +21,7 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 class OrchestrationResult(PrefectBaseModel):
     state: Optional[states.State]
     status: SetStateStatus
+    details: Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -32,6 +38,7 @@ class OrchestrationContext(PrefectBaseModel):
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
+    response_details: Dict = Field(default_factory=dict)
 
     def __post_init__(self, **kwargs):
         if self.flow_run_id is None and self.run is not None:
@@ -175,6 +182,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.to_state_type = state.type
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
+        self.context.response_details = {"reason": reason}
 
     async def delay_transition(self, delay_seconds: int, reason: str):
         # don't run if the transition is already validated
@@ -185,6 +193,10 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.to_state_type = None
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.WAIT
+        self.context.response_details = {
+            "delay_seconds": delay_seconds,
+            "reason": reason,
+        }
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
