@@ -72,25 +72,25 @@ async def orchestrate_flow_run_state(
             )
 
         if context.proposed_state is not None:
-            validated_state = orm.FlowRunState(
+            validated_orm_state = orm.FlowRunState(
                 flow_run_id=context.flow_run_id,
                 **context.proposed_state.dict(shallow=True),
             )
-            session.add(validated_state)
+            session.add(validated_orm_state)
             await session.flush()
         else:
-            validated_state = None
+            validated_orm_state = None
 
         context.validated_state = (
-            validated_state.as_state() if validated_state else None
+            validated_orm_state.as_state() if validated_orm_state else None
         )
 
     # update the ORM model state
     if run is not None:
-        run.state = validated_state
+        run.state = validated_orm_state
 
     result = OrchestrationResult(
-        state=validated_state,
+        state=validated_orm_state,
         status=context.response_status,
         details=context.response_details,
     )
