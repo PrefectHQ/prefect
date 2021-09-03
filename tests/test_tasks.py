@@ -11,7 +11,6 @@ from prefect.orion.schemas.states import State, StateType
 from prefect.orion.schemas.data import DataDocument
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.utilities.compat import AsyncMock
 
 
 class TestTaskCall:
@@ -162,6 +161,11 @@ class TestTaskCall:
 
 
 class TestTaskRetries:
+    """
+    Note, task retry delays are tested in `test_engine` because we need to mock the
+    sleep call which requires a task run id before the task is called.
+    """
+
     @pytest.mark.parametrize("always_fail", [True, False])
     async def test_task_respects_retry_count(self, always_fail):
         mock = MagicMock()
@@ -235,44 +239,6 @@ class TestTaskRetries:
         assert task_run_state.is_completed()
         assert await get_result(task_run_state) is True
         assert mock.call_count == 2
-
-        async with OrionClient() as client:
-            states = await client.read_task_run_states(task_run_id)
-        state_names = [state.name for state in states]
-        assert state_names == [
-            "Pending",
-            "Running",
-            "Awaiting Retry",
-            "Running",
-            "Completed",
-        ]
-
-    async def test_task_respects_retry_delay(self, monkeypatch):
-        mock = MagicMock()
-        sleep = AsyncMock()  # Mock sleep for fast testing
-        monkeypatch.setattr("prefect.client.anyio.sleep", sleep)
-
-        @task(retries=1, retry_delay_seconds=43)
-        def flaky_function():
-            mock()
-
-            if mock.call_count == 2:
-                return True
-
-            raise ValueError("try again, but only once")
-
-        @flow
-        def test_flow():
-            future = flaky_function()
-            return future.run_id
-
-        flow_state = test_flow()
-        task_run_id = await get_result(flow_state)
-
-        sleep.assert_awaited_once()
-        # due to rounding, the expected sleep time will be less than 43 seconds
-        # we test for a 3-second window to account for delays in CI
-        assert 40 < sleep.call_args[0][0] < 43
 
         async with OrionClient() as client:
             states = await client.read_task_run_states(task_run_id)
