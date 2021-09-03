@@ -83,7 +83,7 @@ class RetryPotentialFailures(BaseOrchestrationRule):
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
-            await self.reject_transition(state=retry_state, reason="Retying")
+            await self.reject_transition(state=retry_state, reason="Retrying")
 
 
 class WaitIfScheduled(BaseOrchestrationRule):
@@ -96,8 +96,9 @@ class WaitIfScheduled(BaseOrchestrationRule):
         proposed_state: states.State,
         context: OrchestrationContext,
     ) -> None:
-        scheduled_time = pendulum.instance(initial_state.state_details.scheduled_time)
-        delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
+        delay_seconds = (
+            initial_state.state_details.scheduled_time - pendulum.now()
+        ).in_seconds()
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
