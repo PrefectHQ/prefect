@@ -11,6 +11,7 @@ from prefect.orion.schemas.states import State, StateType
 from prefect.orion.schemas.data import DataDocument
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
+from prefect.utilities.compat import AsyncMock
 
 
 class TestTaskCall:
@@ -248,8 +249,8 @@ class TestTaskRetries:
 
     async def test_task_respects_retry_delay(self, monkeypatch):
         mock = MagicMock()
-        sleep = MagicMock()  # Mock sleep for fast testing
-        monkeypatch.setattr("time.sleep", sleep)
+        sleep = AsyncMock()  # Mock sleep for fast testing
+        monkeypatch.setattr("prefect.client.anyio.sleep", sleep)
 
         @task(retries=1, retry_delay_seconds=43)
         def flaky_function():
@@ -268,7 +269,7 @@ class TestTaskRetries:
         flow_state = test_flow()
         task_run_id = await get_result(flow_state)
 
-        assert sleep.call_count == 1
+        sleep.assert_awaited_once()
         # due to rounding, the expected sleep time will be less than 43 seconds
         # we test for a 3-second window to account for delays in CI
         assert 40 < sleep.call_args[0][0] < 43

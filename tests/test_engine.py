@@ -1,16 +1,20 @@
 import pytest
+import pendulum
 
+from prefect import task, flow
 from prefect.engine import (
     user_return_value_to_state,
     get_result,
     raise_failed_state,
     resolve_datadoc,
+    orchestrate_task_run,
 )
-from prefect.orion.schemas.states import State, StateType, Completed
+from prefect.orion.schemas.states import State, StateType, Completed, StateDetails
 from prefect.orion.schemas.data import DataDocument
 from prefect.futures import PrefectFuture
 from prefect.utilities.testing import exceptions_equal
 from prefect.client import OrionClient
+from prefect.utilities.compat import AsyncMock
 
 
 class TestUserReturnValueToState:
@@ -236,3 +240,50 @@ class TestResolveDataDoc:
                 )
                 == "hello"
             )
+
+
+class TestOrchestrateTaskRun:
+    @pytest.fixture
+    async def flow_run_id(self, orion_client: OrionClient):
+        @flow
+        def foo():
+            pass
+
+        return await orion_client.create_flow_run(flow=foo)
+
+    async def test_waits_until_scheduled_start_time(
+        self, orion_client, flow_run_id, monkeypatch
+    ):
+        @task
+        def foo():
+            return 1
+
+        task_run_id = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run_id,
+            state=State(
+                type=StateType.SCHEDULED,
+                state_details=StateDetails(
+                    scheduled_time=pendulum.now().add(minutes=5)
+                ),
+            ),
+        )
+
+        async def cancel_run():
+            # TODO: Ensure this will exit the run as expected
+            await orion_client.create_task_run_state(
+                task_run_id=task_run_id, state=State(type=StateType.COMPLETED)
+            )
+
+        sleep = AsyncMock(side_effect=cancel_run)
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        result = await orchestrate_task_run(
+            task=foo,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            parameters={},
+            client=orion_client,
+        )
+
+        sleep.assert_awaited_once()

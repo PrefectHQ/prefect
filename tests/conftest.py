@@ -6,6 +6,7 @@ import pathlib
 import pytest
 
 from .fixtures.api import *
+from .fixtures.client import *
 from .fixtures.database import *
 
 
