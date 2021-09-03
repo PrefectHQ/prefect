@@ -175,7 +175,7 @@ class TestReadFlowRuns:
 
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         response = await client.get(
-            "/flow_runs/", json=dict(flow=dict(ids=[str(flow.id)]))
+            "/flow_runs/", json=dict(flows=dict(ids=[str(flow.id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 2
@@ -184,7 +184,7 @@ class TestReadFlowRuns:
         self, flow, flow_runs, client
     ):
         response = await client.get(
-            "/flow_runs/", json=dict(flow_run=dict(ids=[str(flow_runs[0].id)]))
+            "/flow_runs/", json=dict(flow_runs=dict(ids=[str(flow_runs[0].id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -201,7 +201,7 @@ class TestReadFlowRuns:
         )
         await session.commit()
         response = await client.get(
-            "/flow_runs/", json=dict(task_run=dict(ids=[str(task_run_1.id)]))
+            "/flow_runs/", json=dict(task_runs=dict(ids=[str(task_run_1.id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
