@@ -3,7 +3,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, validator
+from pydantic import Field, validator, root_validator
 
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
@@ -57,6 +57,16 @@ class State(ORMBaseModel):
         if v is None and "type" in values:
             v = values.get("type").value.capitalize()
         return v
+
+    @root_validator
+    def default_scheduled_start_time(cls, values):
+        if values.get("type") == StateType.SCHEDULED:
+            state_details = values.setdefault(
+                "state_details", cls.__fields__["state_details"].get_default()
+            )
+            if not state_details.scheduled_time:
+                state_details.scheduled_time = pendulum.now("utc")
+        return values
 
     def is_scheduled(self):
         return self.type == StateType.SCHEDULED
