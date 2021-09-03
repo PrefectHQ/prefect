@@ -271,7 +271,6 @@ class OrionClient:
             raise BaseException("SERVER SAYS ABORT!")
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
-            breakpoint()
             print(
                 f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
@@ -289,6 +288,28 @@ class OrionClient:
             raise ValueError(
                 f"Received unexpected `SetStateStatus` from server: {response.status!r}"
             )
+
+    async def create_task_run_state(
+        self,
+        task_run_id: UUID,
+        state: schemas.states.State,
+    ) -> schemas.states.State:
+        state_data = schemas.actions.StateCreate(
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
+        )
+        state_data.state_details.task_run_id = task_run_id
+
+        response = await self.post(
+            "/task_run_states/",
+            json={
+                "task_run_id": str(task_run_id),
+                "state": state_data.dict(json_compatible=True),
+            },
+        )
+        return schemas.states.State.parse_obj(response.json())
 
     async def set_task_run_state(
         self,

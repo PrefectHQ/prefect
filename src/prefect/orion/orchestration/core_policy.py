@@ -20,6 +20,7 @@ class CorePolicy(BaseOrchestrationPolicy):
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
+            WaitIfScheduled,
         ]
 
 
@@ -87,7 +88,7 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 
 class WaitIfScheduled(BaseOrchestrationRule):
     FROM_STATES = [states.StateType.SCHEDULED]
-    TO_STATES = [ALL_ORCHESTRATION_STATES]
+    TO_STATES = ALL_ORCHESTRATION_STATES
 
     async def before_transition(
         self,
@@ -96,11 +97,11 @@ class WaitIfScheduled(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         scheduled_time = pendulum.instance(initial_state.state_details.scheduled_time)
-        warmup_time = pendulum.duration(minutes=1)
-        timedelta = scheduled_time - pendulum.now()
-        if timedelta > warmup_time:
-            delay_seconds = timedelta - warmup_time
-            self.delay_transition(delay_seconds)
+        delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
+        if delay_seconds > 0:
+            await self.delay_transition(
+                delay_seconds, reason="Scheduled time is in the future"
+            )
 
 
 async def get_cached_task_run_state(

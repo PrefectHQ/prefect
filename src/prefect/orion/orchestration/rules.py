@@ -18,10 +18,13 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 
 
+StateResponseDetails = Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
+
+
 class OrchestrationResult(PrefectBaseModel):
     state: Optional[states.State]
     status: SetStateStatus
-    details: Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
+    details: StateResponseDetails
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -38,7 +41,7 @@ class OrchestrationContext(PrefectBaseModel):
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
-    response_details: Dict = Field(default_factory=dict)
+    response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
 
     def __post_init__(self, **kwargs):
         if self.flow_run_id is None and self.run is not None:
@@ -182,7 +185,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.to_state_type = state.type
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
-        self.context.response_details = {"reason": reason}
+        self.context.response_details = StateRejectDetails(reason=reason)
 
     async def delay_transition(self, delay_seconds: int, reason: str):
         # don't run if the transition is already validated
@@ -193,10 +196,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.to_state_type = None
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.WAIT
-        self.context.response_details = {
-            "delay_seconds": delay_seconds,
-            "reason": reason,
-        }
+        self.context.response_details = StateWaitDetails(
+            delay_seconds=delay_seconds, reason=reason
+        )
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
