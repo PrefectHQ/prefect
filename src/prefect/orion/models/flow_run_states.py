@@ -70,7 +70,10 @@ async def orchestrate_flow_run_state(
             await session.flush()
         else:
             validated_state = None
-        context.validated_state = validated_state.as_state()
+
+        context.validated_state = (
+            validated_state.as_state() if validated_state else None
+        )
 
     # update the ORM model state
     if run is not None:

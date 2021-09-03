@@ -264,21 +264,24 @@ class TestOrchestrateTaskRun:
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
-                    scheduled_time=pendulum.now().add(minutes=5)
+                    scheduled_time=pendulum.now("utc").add(minutes=5)
                 ),
             ),
         )
 
-        async def cancel_run():
-            # TODO: Ensure this will exit the run as expected
+        async def reset_scheduled_time(*_):
             await orion_client.create_task_run_state(
-                task_run_id=task_run_id, state=State(type=StateType.COMPLETED)
+                task_run_id=task_run_id,
+                state=State(
+                    type=StateType.SCHEDULED,
+                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
+                ),
             )
 
-        sleep = AsyncMock(side_effect=cancel_run)
+        sleep = AsyncMock(side_effect=reset_scheduled_time)
         monkeypatch.setattr("anyio.sleep", sleep)
 
-        result = await orchestrate_task_run(
+        state = await orchestrate_task_run(
             task=foo,
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
@@ -287,3 +290,38 @@ class TestOrchestrateTaskRun:
         )
 
         sleep.assert_awaited_once()
+        assert state.is_completed()
+        assert await get_result(state) == 1
+
+    async def test_does_not_wait_for_scheduled_time_in_past(
+        self, orion_client, flow_run_id, monkeypatch
+    ):
+        @task
+        def foo():
+            return 1
+
+        task_run_id = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run_id,
+            state=State(
+                type=StateType.SCHEDULED,
+                state_details=StateDetails(
+                    scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                ),
+            ),
+        )
+
+        sleep = AsyncMock()
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        state = await orchestrate_task_run(
+            task=foo,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            parameters={},
+            client=orion_client,
+        )
+
+        sleep.assert_not_called()
+        assert state.is_completed()
+        assert await get_result(state) == 1

@@ -75,7 +75,9 @@ async def orchestrate_task_run_state(
             await session.flush()
         else:
             validated_state = None
-        context.validated_state = validated_state.as_state()
+        context.validated_state = (
+            validated_state.as_state() if validated_state else None
+        )
 
     if run is not None:
         run.state = validated_state
