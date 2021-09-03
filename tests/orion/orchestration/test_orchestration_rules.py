@@ -1,8 +1,5 @@
-import contextlib
 import pendulum
 import pytest
-from itertools import product
-from unittest.mock import MagicMock
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
@@ -109,3 +106,32 @@ class TestWaitForScheduledTimeRule:
             assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
             assert ctx.proposed_state is None
             assert abs(ctx.response_details.delay_seconds - 300) < 2
+
+    async def test_scheduled_states_without_scheduled_times_are_bad(
+        self, session, task_run
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        not_a_scheduled_state = await create_task_run_state(
+            session,
+            task_run,
+            initial_state_type,
+        )
+        proposed_state = await create_task_run_state(
+            session,
+            task_run,
+            proposed_state_type,
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=not_a_scheduled_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        with pytest.raises(ValueError):
+            async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
+                pass

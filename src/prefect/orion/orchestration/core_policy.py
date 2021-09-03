@@ -110,7 +110,7 @@ class WaitForScheduledTime(BaseOrchestrationRule):
     ) -> None:
         scheduled_time = initial_state.state_details.scheduled_time
         if not scheduled_time:
-            raise ValueError("Received `Scheduled` state without a scheduled time")
+            raise ValueError("Received state without a scheduled time")
 
         delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
         if delay_seconds > 0:

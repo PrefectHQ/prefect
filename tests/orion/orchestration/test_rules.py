@@ -270,7 +270,7 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 0
         assert cleanup_step.call_count == 1
 
-    async def test_rules_that_mutate_state_do_not_fizzle_themselves(
+    async def test_rules_that_reject_state_do_not_fizzle_themselves(
         self, session, task_run
     ):
         before_transition_hook = MagicMock()
@@ -291,6 +291,65 @@ class TestBaseOrchestrationRule:
                 # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
                 await self.reject_transition(
                     mutated_state, reason="for testing, of course"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        mutating_rule = StateMutatingRule(ctx, *intended_transition)
+        async with mutating_rule as ctx:
+            pass
+        assert await mutating_rule.invalid() is False
+        assert await mutating_rule.fizzled() is False
+
+        # despite the mutation, this rule is valid so before and after hooks will fire
+        assert before_transition_hook.call_count == 1
+        assert after_transition_hook.call_count == 1
+        assert cleanup_step.call_count == 0
+
+    async def test_rules_that_wait_do_not_fizzle_themselves(
+        self, session, task_run
+    ):
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_step = MagicMock()
+
+        class StateMutatingRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.delay_transition(
+                    42, reason="for testing, of course"
                 )
 
             async def after_transition(self, initial_state, validated_state, context):
@@ -840,3 +899,82 @@ class TestOrchestrationContext:
                     **ctx.proposed_state.dict(shallow=True),
                 )
                 ctx.validated_state = validated_state.as_state()
+
+    @pytest.mark.parametrize("delay", [42, 424242])
+    async def test_context_will_propose_no_state_if_asked_to_wait(
+        self, session, task_run, delay
+    ):
+        class WaitingRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.delay_transition(delay, reason="heroes should not be late")
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            the_tardy_hero = WaitingRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_tardy_hero)
+            if ctx.proposed_state is not None:
+                validated_state = orm.TaskRunState(
+                    task_run_id=ctx.task_run_id,
+                    **ctx.proposed_state.dict(shallow=True),
+                )
+                ctx.validated_state = validated_state.as_state()
+
+        assert ctx.proposed_state is None
+        assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
+        assert ctx.response_details.delay_seconds == delay
+
+    @pytest.mark.parametrize("delay", [42, 424242])
+    async def test_rules_cant_try_to_wait_too_late(
+        self, session, task_run, delay
+    ):
+        class WaitingRule(BaseOrchestrationRule):
+            async def after_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.delay_transition(delay, reason="heroes should not be late")
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        with pytest.raises(RuntimeError):
+            async with contextlib.AsyncExitStack() as stack:
+                the_tardy_hero = WaitingRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(the_tardy_hero)
+                if ctx.proposed_state is not None:
+                    validated_state = orm.TaskRunState(
+                        task_run_id=ctx.task_run_id,
+                        **ctx.proposed_state.dict(shallow=True),
+                    )
+                    ctx.validated_state = validated_state.as_state()
