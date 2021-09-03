@@ -1,10 +1,9 @@
 import contextlib
+import pendulum
+import pytest
 import random
 from itertools import product
 from unittest.mock import MagicMock
-
-import pendulum
-import pytest
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
@@ -22,6 +21,10 @@ async def create_task_run_state(
     if state_type is None:
         return None
     state_details = dict() if state_details is None else state_details
+
+    if state_type == states.StateType.SCHEDULED:
+        state_details.update({"scheduled_time": pendulum.now()})
+
     new_state = schemas.actions.StateCreate(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
