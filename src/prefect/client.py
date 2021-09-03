@@ -1,7 +1,8 @@
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple
 from uuid import UUID
 
+import anyio
 import httpx
 import pydantic
 
@@ -238,6 +239,7 @@ class OrionClient:
         task_run_id: UUID = None,
         flow_run_id: UUID = None,
     ) -> schemas.states.State:
+
         # Determine if working with a task run or flow run
         if not task_run_id and not flow_run_id:
             raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
@@ -266,7 +268,18 @@ class OrionClient:
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise RuntimeError("ABORT is not yet handled")
+            raise BaseException("SERVER SAYS ABORT!")
+
+        elif response.status == schemas.responses.SetStateStatus.WAIT:
+            breakpoint()
+            print(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            await anyio.sleep(response.details.delay_seconds)
+            return await self.propose_state(
+                state, task_run_id=task_run_id, flow_run_id=flow_run_id
+            )
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
