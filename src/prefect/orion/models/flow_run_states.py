@@ -16,6 +16,7 @@ async def orchestrate_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
     state: schemas.states.State,
+    apply_orchestration_rules: bool = True,
 ) -> orm.FlowRunState:
     """Creates a new flow run state
 
@@ -42,7 +43,13 @@ async def orchestrate_flow_run_state(
     intended_transition = (initial_state_type, proposed_state_type)
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
-    orchestration_rules = CoreFlowPolicy.compile_transition_rules(*intended_transition)
+
+    if apply_orchestration_rules:
+        orchestration_rules = CoreFlowPolicy.compile_transition_rules(
+            *intended_transition
+        )
+    else:
+        orchestration_rules = []
 
     context = OrchestrationContext(
         initial_state=initial_state,

@@ -59,13 +59,13 @@ class State(ORMBaseModel):
         return v
 
     @root_validator
-    def default_scheduled_start_time(cls, values):
+    def scheduled_states_require_scheduled_time(cls, values):
         if values.get("type") == StateType.SCHEDULED:
-            state_details = values.setdefault(
-                "state_details", cls.__fields__["state_details"].get_default()
-            )
-            if not state_details.scheduled_time:
-                state_details.scheduled_time = pendulum.now("utc")
+            if (
+                not values["state_details"]
+                or not values["state_details"].scheduled_time
+            ):
+                raise ValueError("`Scheduled` states require a `scheduled_time`")
         return values
 
     def is_scheduled(self):

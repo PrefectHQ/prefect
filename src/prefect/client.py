@@ -311,6 +311,28 @@ class OrionClient:
         )
         return schemas.states.State.parse_obj(response.json())
 
+    async def create_flow_run_state(
+        self,
+        flow_run_id: UUID,
+        state: schemas.states.State,
+    ) -> schemas.states.State:
+        state_data = schemas.actions.StateCreate(
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
+        )
+        state_data.state_details.flow_run_id = flow_run_id
+
+        response = await self.post(
+            "/flow_run_states/",
+            json={
+                "flow_run_id": str(flow_run_id),
+                "state": state_data.dict(json_compatible=True),
+            },
+        )
+        return schemas.states.State.parse_obj(response.json())
+
     async def set_task_run_state(
         self,
         task_run_id: UUID,
