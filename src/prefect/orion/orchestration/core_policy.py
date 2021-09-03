@@ -17,7 +17,7 @@ from prefect.orion.schemas import states
 class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
-            WaitIfScheduled,
+            WaitForScheduledTime,
         ]
 
 
@@ -27,7 +27,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
-            WaitIfScheduled,
+            WaitForScheduledTime,
         ]
 
 
@@ -93,7 +93,12 @@ class RetryPotentialFailures(BaseOrchestrationRule):
             await self.reject_transition(state=retry_state, reason="Retrying")
 
 
-class WaitIfScheduled(BaseOrchestrationRule):
+class WaitForScheduledTime(BaseOrchestrationRule):
+    """
+    Prevents transition from a scheduled state to a new state if the scheduled time is
+    in the future
+    """
+
     FROM_STATES = [states.StateType.SCHEDULED]
     TO_STATES = ALL_ORCHESTRATION_STATES
 
