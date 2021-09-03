@@ -83,6 +83,7 @@ async def orchestrate_task_run_state(
     result = OrchestrationResult(
         state=validated_state,
         status=context.response_status,
+        details=context.response_details,
     )
 
     return result
