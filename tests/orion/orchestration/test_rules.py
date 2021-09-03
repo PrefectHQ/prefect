@@ -22,7 +22,10 @@ async def create_task_run_state(
         return None
     state_details = dict() if state_details is None else state_details
 
-    if state_type == states.StateType.SCHEDULED:
+    if (
+        state_type == states.StateType.SCHEDULED
+        and "scheduled_time" not in state_details
+    ):
         state_details.update({"scheduled_time": pendulum.now()})
 
     new_state = schemas.actions.StateCreate(
