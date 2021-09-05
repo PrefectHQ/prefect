@@ -260,9 +260,11 @@ class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, pydantic_type):
+    def __init__(self, pydantic_type, sa_column_type=None):
         super().__init__()
         self._pydantic_type = pydantic_type
+        if sa_column_type is not None:
+            self.impl = sa_column_type
 
     def process_bind_param(self, value, dialect):
         if value is None:
