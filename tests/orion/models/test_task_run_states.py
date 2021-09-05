@@ -50,7 +50,6 @@ class TestCreateTaskRunState:
             task_run_id=task_run.id,
             state=State(type="RUNNING", timestamp=dt2),
         )
-        breakpoint()
         await session.commit()
         await session.refresh(task_run)
         assert task_run.run_details.start_time == dt
