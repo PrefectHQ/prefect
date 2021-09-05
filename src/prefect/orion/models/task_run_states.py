@@ -69,12 +69,13 @@ async def orchestrate_task_run_state(
             task_run_id=context.task_run_id,
             **context.proposed_state.dict(shallow=True),
         )
-        session.add(validated_state)
-        await session.flush()
-        context.validated_state = validated_state.as_state()
 
-    if run is not None:
+        # assign to the ORM model to create the state
+        # and update the run
         run.state = validated_state
+        await session.flush()
+
+        context.validated_state = validated_state.as_state()
 
     result = OrchestrationResult(
         state=validated_state,

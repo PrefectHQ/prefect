@@ -27,6 +27,7 @@ class FlowRunDetails(PrefectBaseModel):
 
 class FlowRun(ORMBaseModel):
     flow_id: UUID
+    state_id: UUID = None
     deployment_id: UUID = None
     flow_version: str = Field(None, example="1.0")
     parameters: dict = Field(default_factory=dict)
@@ -41,7 +42,6 @@ class FlowRun(ORMBaseModel):
     # relationships
     # flow: Flow = None
     # task_runs: List["TaskRun"] = Field(default_factory=list)
-    # states: List[schemas.states.State] = Field(default_factory=list)
     state: schemas.states.State = None
     # parent_task_run: "TaskRun" = None
 
@@ -64,6 +64,7 @@ class TaskRun(ORMBaseModel):
     task_version: str = None
     empirical_policy: TaskRunPolicy = Field(default_factory=TaskRunPolicy)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
+    state_id: UUID = None
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
@@ -71,7 +72,6 @@ class TaskRun(ORMBaseModel):
     # relationships
     # flow_run: FlowRun = None
     # subflow_runs: List[FlowRun] = Field(default_factory=list)
-    # states: List[schemas.states.State] = Field(default_factory=list)
     state: schemas.states.State = None
 
 

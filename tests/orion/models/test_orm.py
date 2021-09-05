@@ -24,16 +24,18 @@ async def many_flow_run_states(flow, session):
             orm.FlowRunState(
                 flow_run_id=flow_run.id,
                 **schemas.states.State(
-                    type=schemas.states.StateType.PENDING,
-                    data=schemas.data.DataDocument(
-                        encoding="json", blob=str(i).encode()
-                    ),
-                    message=str(i),
+                    type={
+                        0: schemas.states.StateType.PENDING,
+                        1: schemas.states.StateType.RUNNING,
+                        2: schemas.states.StateType.COMPLETED,
+                    }[i],
                     timestamp=pendulum.now("UTC"),
                 ).dict()
             )
-            for i in range(5)
+            for i in range(3)
         ]
+
+        flow_run.state = states[-1]
 
         session.add_all(states)
     await session.commit()
@@ -59,16 +61,18 @@ async def many_task_run_states(flow_run, session):
             orm.TaskRunState(
                 task_run_id=task_run.id,
                 **schemas.states.State(
-                    type=schemas.states.StateType.PENDING,
-                    data=schemas.data.DataDocument(
-                        encoding="json", blob=str(i).encode()
-                    ),
-                    message=str(i),
+                    type={
+                        0: schemas.states.StateType.PENDING,
+                        1: schemas.states.StateType.RUNNING,
+                        2: schemas.states.StateType.COMPLETED,
+                    }[i],
                     timestamp=pendulum.now("UTC"),
                 ).dict()
             )
-            for i in range(5)
+            for i in range(3)
         ]
+
+        task_run.state = states[-1]
 
         session.add_all(states)
 
@@ -80,14 +84,14 @@ class TestFlowRun:
         self, many_flow_run_states, session
     ):
 
-        # full query for most recent states
+        # efficient query for most recent state without knowing its ID
+        # by getting the state with the most recent timestamp
         frs_alias = sa.orm.aliased(orm.FlowRunState)
         query = (
             sa.select(
                 orm.FlowRun,
                 orm.FlowRunState.id,
-                orm.FlowRunState.data,
-                orm.FlowRunState.message,
+                orm.FlowRunState.type,
             )
             .select_from(orm.FlowRun)
             .join(
@@ -109,42 +113,46 @@ class TestFlowRun:
         objs = result.all()
 
         # assert that our handcrafted query picked up all the FINAL states
-        assert all([o[2].decode() == 4 for o in objs])
-        assert all([o[3] == "4" for o in objs])
+        assert all([o[2] == schemas.states.StateType.COMPLETED for o in objs])
         # assert that the `state` relationship picked up all the FINAL states
-        assert all([o[0].state.data.decode() == 4 for o in objs])
-        assert all([o[0].state.message == "4" for o in objs])
+        assert all(
+            [o[0].state.type == schemas.states.StateType.COMPLETED for o in objs]
+        )
         # assert that the `state` relationship picked up the correct state id
         assert all([o[0].state.id == o[1] for o in objs])
+        # assert that the `state_id` stores the correct state id
+        assert all([o[0].state_id == o[1] for o in objs])
 
     async def test_flow_run_state_relationship_query_matches_current_data(
         self, many_flow_run_states, session
     ):
-        query_4 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(orm.FlowRunState.message == "4")
+        query = sa.select(orm.FlowRun).filter(
+            orm.FlowRun.state.has(
+                orm.FlowRunState.type == schemas.states.StateType.COMPLETED
+            )
         )
-        result_4 = await session.execute(query_4)
-        # all flow runs have message == 4
-        assert len(result_4.all()) == 5
+        result = await session.execute(query)
+        assert len(result.all()) == 5
 
     async def test_flow_run_state_relationship_query_doesnt_match_old_data(
         self, many_flow_run_states, session
     ):
-        query_3 = sa.select(orm.FlowRun).filter(
-            orm.FlowRun.state.has(orm.FlowRunState.message == "3")
+        query = sa.select(orm.FlowRun.id).filter(
+            orm.FlowRun.state.has(
+                orm.FlowRunState.type == schemas.states.StateType.RUNNING
+            )
         )
-        result_3 = await session.execute(query_3)
-        # no flow runs have message == 3
-        assert len(result_3.all()) == 0
+        result = await session.execute(query)
+        assert len(result.all()) == 0
 
     async def test_flow_run_state_relationship_type_filter_selects_current_state(
         self, flow, many_flow_run_states, session
     ):
-        # the flow runs are most recently in a pending state
+        # the flow runs are most recently in a Completed state
         match_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
             orm.FlowRun.flow_id == flow.id,
             orm.FlowRun.state.has(
-                orm.FlowRunState.type == schemas.states.StateType.PENDING
+                orm.FlowRunState.type == schemas.states.StateType.COMPLETED
             ),
         )
         result = await session.execute(match_query)
@@ -160,20 +168,74 @@ class TestFlowRun:
         result = await session.execute(miss_query)
         assert result.scalar() == 0
 
+    async def test_assign_to_state_inserts_state(self, flow_run, session):
+        flow_run_id = flow_run.id
+        assert flow_run.state is None
+
+        # delete all states
+        await session.execute(sa.delete(orm.FlowRunState))
+        flow_run.state = orm.FlowRunState(
+            **schemas.states.State(type=schemas.states.StateType.COMPLETED).dict()
+        )
+        await session.commit()
+        session.expire_all()
+        retrieved_flow_run = await session.get(orm.FlowRun, flow_run_id)
+        assert retrieved_flow_run.state.type.value == "COMPLETED"
+
+        result = await session.execute(
+            sa.select(orm.FlowRunState).filter_by(flow_run_id=flow_run_id)
+        )
+        states = result.scalars().all()
+        assert len(states) == 1
+        assert states[0].type.value == "COMPLETED"
+
+    async def test_assign_multiple_to_state_inserts_states(self, flow_run, session):
+        flow_run_id = flow_run.id
+        assert flow_run.state is None
+
+        # delete all states
+        await session.execute(sa.delete(orm.FlowRunState))
+
+        flow_run.state = orm.FlowRunState(
+            **schemas.states.State(type=schemas.states.StateType.PENDING).dict()
+        )
+        flow_run.state = orm.FlowRunState(
+            **schemas.states.State(type=schemas.states.StateType.RUNNING).dict()
+        )
+        flow_run.state = orm.FlowRunState(
+            **schemas.states.State(type=schemas.states.StateType.COMPLETED).dict()
+        )
+        await session.commit()
+        session.expire_all()
+        retrieved_flow_run = await session.get(orm.FlowRun, flow_run_id)
+        assert retrieved_flow_run.state.type.value == "COMPLETED"
+
+        result = await session.execute(
+            sa.select(orm.FlowRunState)
+            .filter_by(flow_run_id=flow_run_id)
+            .order_by(orm.FlowRunState.timestamp.asc())
+        )
+        states = result.scalars().all()
+        assert len(states) == 3
+        assert states[0].type.value == "PENDING"
+        assert states[1].type.value == "RUNNING"
+        assert states[2].type.value == "COMPLETED"
+
 
 class TestTaskRun:
     async def test_task_run_state_relationship_retrieves_current_state(
         self, many_task_run_states, session
     ):
 
-        # full query for most recent states
+        # efficient query for most recent state without knowing its ID
+        # by getting the state with the most recent timestamp
         frs_alias = sa.orm.aliased(orm.TaskRunState)
         query = (
             sa.select(
                 orm.TaskRun,
                 orm.TaskRunState.id,
                 orm.TaskRunState.data,
-                orm.TaskRunState.message,
+                orm.TaskRunState.type,
             )
             .select_from(orm.TaskRun)
             .join(
@@ -195,42 +257,46 @@ class TestTaskRun:
         objs = result.all()
 
         # assert that our handcrafted query picked up all the FINAL states
-        assert all([o[2].decode() == 4 for o in objs])
-        assert all([o[3] == "4" for o in objs])
+        assert all([o[3] == schemas.states.StateType.COMPLETED for o in objs])
         # assert that the `state` relationship picked up all the FINAL states
-        assert all([o[0].state.data.decode() == 4 for o in objs])
-        assert all([o[0].state.message == "4" for o in objs])
+        assert all(
+            [o[0].state.type == schemas.states.StateType.COMPLETED for o in objs]
+        )
         # assert that the `state` relationship picked up the correct state id
         assert all([o[0].state.id == o[1] for o in objs])
+        # assert that the `state_id` stores the correct state id
+        assert all([o[0].state_id == o[1] for o in objs])
 
     async def test_task_run_state_relationship_query_matches_current_data(
         self, many_task_run_states, session
     ):
-        query_4 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.message == "4")
+        query = sa.select(orm.TaskRun).filter(
+            orm.TaskRun.state.has(
+                orm.TaskRunState.type == schemas.states.StateType.COMPLETED
+            )
         )
-        result_4 = await session.execute(query_4)
-        # all task runs have message == 4
-        assert len(result_4.all()) == 5
+        result = await session.execute(query)
+        assert len(result.all()) == 5
 
     async def test_task_run_state_relationship_query_doesnt_match_old_data(
         self, many_task_run_states, session
     ):
-        query_3 = sa.select(orm.TaskRun).filter(
-            orm.TaskRun.state.has(orm.TaskRunState.message == "3")
+        query = sa.select(orm.TaskRun.id).filter(
+            orm.TaskRun.state.has(
+                orm.TaskRunState.type == schemas.states.StateType.RUNNING
+            )
         )
-        result_3 = await session.execute(query_3)
-        # no task runs have message == 3
-        assert len(result_3.all()) == 0
+        result = await session.execute(query)
+        assert len(result.all()) == 0
 
     async def test_task_run_state_relationship_type_filter_selects_current_state(
         self, flow_run, many_task_run_states, session
     ):
-        # the task runs are most recently in a pending state
+        # the task runs are most recently in a completed state
         match_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
             orm.TaskRun.flow_run_id == flow_run.id,
             orm.TaskRun.state.has(
-                orm.TaskRunState.type == schemas.states.StateType.PENDING
+                orm.TaskRunState.type == schemas.states.StateType.COMPLETED
             ),
         )
         result = await session.execute(match_query)
@@ -245,3 +311,56 @@ class TestTaskRun:
         )
         result = await session.execute(miss_query)
         assert result.scalar() == 0
+
+    async def test_assign_to_state_inserts_state(self, task_run, session):
+        task_run_id = task_run.id
+        assert task_run.state is None
+
+        # delete all states
+        await session.execute(sa.delete(orm.TaskRunState))
+        task_run.state = orm.TaskRunState(
+            **schemas.states.State(type=schemas.states.StateType.COMPLETED).dict()
+        )
+        await session.commit()
+        session.expire_all()
+        retrieved_flow_run = await session.get(orm.TaskRun, task_run_id)
+        assert retrieved_flow_run.state.type.value == "COMPLETED"
+
+        result = await session.execute(
+            sa.select(orm.TaskRunState).filter_by(task_run_id=task_run_id)
+        )
+        states = result.scalars().all()
+        assert len(states) == 1
+        assert states[0].type.value == "COMPLETED"
+
+    async def test_assign_multiple_to_state_inserts_states(self, task_run, session):
+        task_run_id = task_run.id
+        assert task_run.state is None
+
+        # delete all states
+        await session.execute(sa.delete(orm.TaskRunState))
+
+        task_run.state = orm.TaskRunState(
+            **schemas.states.State(type=schemas.states.StateType.PENDING).dict()
+        )
+        task_run.state = orm.TaskRunState(
+            **schemas.states.State(type=schemas.states.StateType.RUNNING).dict()
+        )
+        task_run.state = orm.TaskRunState(
+            **schemas.states.State(type=schemas.states.StateType.COMPLETED).dict()
+        )
+        await session.commit()
+        session.expire_all()
+        retrieved_flow_run = await session.get(orm.TaskRun, task_run_id)
+        assert retrieved_flow_run.state.type.value == "COMPLETED"
+
+        result = await session.execute(
+            sa.select(orm.TaskRunState)
+            .filter_by(task_run_id=task_run_id)
+            .order_by(orm.TaskRunState.timestamp.asc())
+        )
+        states = result.scalars().all()
+        assert len(states) == 3
+        assert states[0].type.value == "PENDING"
+        assert states[1].type.value == "RUNNING"
+        assert states[2].type.value == "COMPLETED"
