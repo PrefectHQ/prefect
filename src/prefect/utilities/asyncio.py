@@ -2,11 +2,26 @@ import inspect
 from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
+from typing_extensions import TypeGuard, ParamSpec
 
 import anyio
 import sniffio
 
 T = TypeVar("T")
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def is_async_fn(
+    func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
+) -> TypeGuard[Callable[P, Awaitable[R]]]:
+    """
+    This wraps `iscoroutinefunction` with a `TypeGuard` such that we can perform a
+    conditional check and type checkers will narrow the expected type.
+
+    See https://github.com/microsoft/pyright/issues/2142 for an example use
+    """
+    return inspect.iscoroutinefunction(func)
 
 
 async def run_sync_in_worker_thread(
@@ -94,52 +109,3 @@ def sync_compatible(async_fn: T) -> T:
 
     wrapper.aio = async_fn
     return wrapper
-
-
-from typing import *
-
-# All types in `typing` except the async types
-SyncType = Union[
-    Literal,
-]
-#     Tuple,
-#     Type,
-#     TypeVar,
-#     Union,
-#     AbstractSet,
-#     ByteString,
-#     Container,
-#     ContextManager,
-#     Hashable,
-#     ItemsView,
-#     Iterable,
-#     KeysView,
-#     Mapping,
-#     MappingView,
-#     MutableMapping,
-#     MutableSequence,
-#     MutableSet,
-#     Sequence,
-#     Sized,
-#     ValuesView,
-#     Collection,
-#     Reversible,
-#     SupportsAbs,
-#     SupportsBytes,
-#     SupportsComplex,
-#     SupportsFloat,
-#     SupportsIndex,
-#     SupportsInt,
-#     SupportsRound,
-#     ChainMap,
-#     Counter,
-#     Deque,
-#     Dict,
-#     DefaultDict,
-#     List,
-#     OrderedDict,
-#     Set,
-#     FrozenSet,
-#     NamedTuple,
-#     TypedDict,
-# ]
