@@ -3,7 +3,8 @@ from typing import List, Union
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import JSON, Column, ForeignKey, String, join
-from sqlalchemy.orm import aliased, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship
 
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import UUID, Base, Pydantic, Timestamp, now
@@ -52,7 +53,11 @@ class FlowRunState(Base):
     )
     data = Column(Pydantic(data.DataDocument), nullable=True)
 
-    flow_run = relationship("FlowRun", back_populates="states", lazy="raise")
+    flow_run = relationship(
+        "FlowRun",
+        lazy="raise",
+        foreign_keys=[flow_run_id],
+    )
 
     __table_args__ = (
         sa.Index(
@@ -96,7 +101,11 @@ class TaskRunState(Base):
     )
     data = Column(Pydantic(data.DataDocument), nullable=True)
 
-    task_run = relationship("TaskRun", back_populates="states", lazy="raise")
+    task_run = relationship(
+        "TaskRun",
+        lazy="raise",
+        foreign_keys=[task_run_id],
+    )
 
     __table_args__ = (
         sa.Index(
@@ -148,15 +157,51 @@ class FlowRun(Base):
         default=core.FlowRunDetails,
         nullable=False,
     )
-    parent_task_run_id = Column(
+
+    # TODO remove this foreign key for significant delete performance gains
+    state_id = Column(
         UUID(),
         ForeignKey(
-            "task_run.id",
-            ondelete="cascade",
+            "flow_run_state.id",
+            ondelete="SET NULL",
             use_alter=True,
         ),
         index=True,
     )
+    parent_task_run_id = Column(
+        UUID(),
+        ForeignKey(
+            "task_run.id",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        index=True,
+    )
+
+    # current states are eagerly loaded unless otherwise specified
+    _state = relationship(
+        "FlowRunState",
+        lazy="joined",
+        foreign_keys=[state_id],
+        primaryjoin=lambda: FlowRun.state_id == FlowRunState.id,
+    )
+
+    @hybrid_property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        """
+        If a state is assigned to this run, populate its run id.
+
+        This would normally be handled by the back-populated SQLAlchemy
+        relationship, but because this is a one-to-one pointer to a
+        one-to-many relationship, SQLAlchemy can't figure it out.
+        """
+        if value and value.flow_run_id is None:
+            value.flow_run_id = self.id
+        self._state = value
 
     flow = relationship("Flow", back_populates="flow_runs", lazy="raise")
     task_runs = relationship(
@@ -170,12 +215,6 @@ class FlowRun(Base):
         back_populates="subflow_runs",
         lazy="raise",
         foreign_keys=lambda: [FlowRun.parent_task_run_id],
-    )
-    states = relationship(
-        "FlowRunState",
-        back_populates="flow_run",
-        lazy="raise",
-        foreign_keys=lambda: [FlowRunState.flow_run_id],
     )
 
     # unique index on flow id / idempotency key
@@ -212,6 +251,17 @@ class TaskRun(Base):
         nullable=False,
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
+
+    # TODO remove this foreign key for significant delete performance gains
+    state_id = Column(
+        UUID(),
+        ForeignKey(
+            "task_run_state.id",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        index=True,
+    )
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
@@ -221,6 +271,31 @@ class TaskRun(Base):
         default=core.TaskRunDetails,
         nullable=False,
     )
+
+    # current states are eagerly loaded unless otherwise specified
+    _state = relationship(
+        "TaskRunState",
+        lazy="joined",
+        foreign_keys=[state_id],
+        primaryjoin=lambda: TaskRun.state_id == TaskRunState.id,
+    )
+
+    @hybrid_property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        """
+        If a state is assigned to this run, populate its run id.
+
+        This would normally be handled by the back-populated SQLAlchemy
+        relationship, but because this is a one-to-one pointer to a
+        one-to-many relationship, SQLAlchemy can't figure it out.
+        """
+        if value and value.task_run_id is None:
+            value.task_run_id = self.id
+        self._state = value
 
     flow_run = relationship(
         FlowRun,
@@ -234,13 +309,6 @@ class TaskRun(Base):
         back_populates="parent_task_run",
         lazy="raise",
         foreign_keys=[FlowRun.parent_task_run_id],
-    )
-
-    states = relationship(
-        "TaskRunState",
-        back_populates="task_run",
-        lazy="raise",
-        foreign_keys=lambda: [TaskRunState.task_run_id],
     )
 
     __table_args__ = (
@@ -260,78 +328,3 @@ class Deployment(Base):
     schedules = Column(Pydantic(List[schedules.Schedule]))
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
-
-
-# --- flow run current state
-#
-# the current state of a run is found by a "top-n-per group" query that
-# includes two joins:
-#   1. from the `Run` table to the `State` table to load states for that run
-#   2. from the `State` table to itself (aliased as `frs`) to filter all but the current state
-#
-# The second join is an outer join that only matches rows where `state.timestamp < frs.timestamp`,
-# indicating that the matched state is NOT the most recent state. We then add a primary condition
-# that `frs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
-# keeping only the most recent state.
-frs = aliased(FlowRunState, name="frs")
-FlowRun.state = relationship(
-    # the self-referential join of FlowRunState to itself
-    aliased(
-        FlowRunState,
-        join(
-            FlowRunState,
-            frs,
-            sa.and_(
-                FlowRunState.flow_run_id == frs.flow_run_id,
-                FlowRunState.timestamp < frs.timestamp,
-            ),
-            isouter=True,
-        ),
-    ),
-    # the join condition from FlowRun to FlowRunState and also including
-    # only the failed matches for frs
-    primaryjoin=sa.and_(
-        FlowRun.id == FlowRunState.flow_run_id,
-        frs.id.is_(None),
-    ),
-    uselist=False,
-    viewonly=True,
-    lazy="joined",
-)
-
-# --- task run current state
-#
-# the current state of a run is found by a "top-n-per group" query that
-# includes two joins:
-#   1. from the `Run` table to the `State` table to load states for that run
-#   2. from the `State` table to itself (aliased as `trs`) to filter all but the current state
-#
-# The second join is an outer join that only matches rows where `state.timestamp < trs.timestamp`,
-# indicating that the matched state is NOT the most recent state. We then add a primary condition
-# that `trs.timestamp IS NULL`, indicating that we only want to keep FAILED matches - in other words
-# keeping only the most recent state.
-trs = aliased(TaskRunState, name="trs")
-TaskRun.state = relationship(
-    # the self-referential join of TaskRunState to itself
-    aliased(
-        TaskRunState,
-        join(
-            TaskRunState,
-            trs,
-            sa.and_(
-                TaskRunState.task_run_id == trs.task_run_id,
-                TaskRunState.timestamp < trs.timestamp,
-            ),
-            isouter=True,
-        ),
-    ),
-    # the join condition from TaskRun to TaskRunState and also including
-    # only the failed matches for trs
-    primaryjoin=sa.and_(
-        TaskRun.id == TaskRunState.task_run_id,
-        trs.id.is_(None),
-    ),
-    uselist=False,
-    viewonly=True,
-    lazy="joined",
-)

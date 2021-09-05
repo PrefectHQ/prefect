@@ -108,3 +108,22 @@ AS (
             ORDER BY
                 id OFFSET 40000) task_run;
 
+
+
+UPDATE flow_run
+SET state_id = (
+    SELECT id
+    FROM flow_run_state
+    WHERE flow_run_id = flow_run.id
+    ORDER BY timestamp DESC
+    LIMIT 1
+);
+
+UPDATE task_run
+SET state_id = (
+    SELECT id
+    FROM task_run_state
+    WHERE task_run_id = task_run.id
+    ORDER BY timestamp DESC
+    LIMIT 1
+);

@@ -59,12 +59,11 @@ async def orchestrate_flow_run_state(
             flow_run_id=flow_run_id,
             **state.dict(shallow=True),
         )
-        session.add(validated_state)
-        await session.flush()
 
-    # update the ORM model state
-    if run is not None:
+        # assign to the ORM model to create the state
+        # and update the run
         run.state = validated_state
+        await session.flush()
 
     result = OrchestrationResult(
         state=validated_state,
