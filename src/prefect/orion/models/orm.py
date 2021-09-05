@@ -45,12 +45,6 @@ class FlowRunState(Base):
         default=states.StateDetails,
         nullable=False,
     )
-    run_details = Column(
-        Pydantic(states.RunDetails),
-        server_default="{}",
-        default=states.RunDetails,
-        nullable=False,
-    )
     data = Column(Pydantic(data.DataDocument), nullable=True)
 
     flow_run = relationship(
@@ -91,12 +85,6 @@ class TaskRunState(Base):
         Pydantic(states.StateDetails),
         server_default="{}",
         default=states.StateDetails,
-        nullable=False,
-    )
-    run_details = Column(
-        Pydantic(states.RunDetails),
-        server_default="{}",
-        default=states.RunDetails,
         nullable=False,
     )
     data = Column(Pydantic(data.DataDocument), nullable=True)
@@ -151,7 +139,7 @@ class FlowRun(Base):
     empirical_policy = Column(JSON, server_default="{}", default={}, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_run_details = Column(
+    run_details = Column(
         Pydantic(core.FlowRunDetails),
         server_default="{}",
         default=core.FlowRunDetails,
@@ -218,11 +206,13 @@ class FlowRun(Base):
     )
 
     # unique index on flow id / idempotency key
-    __table__args__ = sa.Index(
-        "ix_flow_run_flow_id_idempotency_key",
-        flow_id,
-        idempotency_key,
-        unique=True,
+    __table__args__ = (
+        sa.Index(
+            "ix_flow_run_flow_id_idempotency_key",
+            flow_id,
+            idempotency_key,
+            unique=True,
+        ),
     )
 
 
@@ -265,7 +255,7 @@ class TaskRun(Base):
     upstream_task_run_ids = Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    task_run_details = Column(
+    run_details = Column(
         Pydantic(core.TaskRunDetails),
         server_default="{}",
         default=core.TaskRunDetails,

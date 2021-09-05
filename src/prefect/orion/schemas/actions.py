@@ -22,23 +22,22 @@ FlowRunCreate = schemas.core.FlowRun.subclass(
         "parameters",
         "context",
         "tags",
-        "flow_run_details",
-        "parent_task_run_id",
         "idempotency_key",
         "state",
+        "parent_task_run_id",
     ],
 )
 
 StateCreate = schemas.states.State.subclass(
     name="StateCreate",
     include_fields=[
+        "id",
         "type",
         "name",
         "timestamp",
         "message",
         "data",
         "state_details",
-        "run_details",
     ],
 )
 
@@ -55,7 +54,6 @@ TaskRunCreate = schemas.core.TaskRun.subclass(
         "tags",
         "task_inputs",
         "upstream_task_run_ids",
-        "task_run_details",
         "state",
     ],
 )

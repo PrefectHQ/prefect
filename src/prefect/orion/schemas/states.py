@@ -27,16 +27,6 @@ class StateDetails(PrefectBaseModel):
     cache_expiration: datetime.datetime = None
 
 
-class RunDetails(PrefectBaseModel):
-    previous_state_id: UUID = None
-    run_count: int = 0
-    start_time: datetime.datetime = None
-    end_time: datetime.datetime = None
-    total_run_time_seconds: float = 0.0
-    total_time_seconds: float = 0.0
-    last_run_time: datetime.datetime = None
-
-
 class State(ORMBaseModel):
     type: StateType
     name: str = None
@@ -46,7 +36,6 @@ class State(ORMBaseModel):
     message: str = Field(None, example="Run started")
     data: DataDocument = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
-    run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
@@ -119,45 +108,3 @@ def Retrying(**kwargs) -> State:
         State: a Retrying state
     """
     return State(type=StateType.RUNNING, name="Retrying", **kwargs)
-
-
-def update_run_details(from_state: Optional[State], to_state: State) -> RunDetails:
-    """Given two states, generates a run details object using information
-    from both states. Returns the new run details object.
-
-    Args:
-        from_state (Optional[State]): The current state (if any)
-        to_state (State): The new state
-
-    Returns:
-        RunDetails
-    """
-
-    if from_state:
-        run_details = from_state.run_details.copy(reset_fields=True)
-        duration = (to_state.timestamp - from_state.timestamp).total_seconds()
-        run_details.previous_state_id = from_state.id
-        run_details.total_time_seconds += duration
-    else:
-        run_details = RunDetails()
-        duration = 0
-
-    # if exiting a running state...
-    if from_state and from_state.is_running():
-        run_details.total_run_time_seconds += duration
-        if to_state.type in [
-            StateType.COMPLETED,
-            StateType.FAILED,
-            StateType.CANCELLED,
-        ]:
-            run_details.end_time = to_state.timestamp
-
-    # if entering a running state...
-    if to_state.is_running():
-        run_details.run_count += 1
-        run_details.last_run_time = to_state.timestamp
-        if run_details.start_time is None:
-            run_details.start_time = to_state.timestamp
-
-    # return the new run details
-    return run_details
