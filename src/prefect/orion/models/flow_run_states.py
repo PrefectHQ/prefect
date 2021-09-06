@@ -103,7 +103,7 @@ async def read_flow_run_states(
     """
     query = (
         select(orm.FlowRunState)
-        .filter(orm.FlowRunState.flow_run_id == flow_run_id)
+        .filter_by(flow_run_id=flow_run_id)
         .order_by(orm.FlowRunState.timestamp)
     )
     result = await session.execute(query)
