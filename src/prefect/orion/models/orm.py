@@ -29,9 +29,7 @@ class FlowRunState(Base):
     flow_run_id = Column(
         UUID(), ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
     )
-    type = Column(
-        Pydantic(states.StateType, sa_column_type=sa.Text()), nullable=False, index=True
-    )
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
@@ -75,9 +73,7 @@ class TaskRunState(Base):
     task_run_id = Column(
         UUID(), ForeignKey("task_run.id", ondelete="cascade"), nullable=False
     )
-    type = Column(
-        Pydantic(states.StateType, sa_column_type=sa.Text()), nullable=False, index=True
-    )
+    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
         Timestamp(timezone=True),
         nullable=False,
