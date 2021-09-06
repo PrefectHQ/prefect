@@ -4,7 +4,7 @@ from prefect.orion.orchestration.rules import (
     BaseUniversalRule,
     OrchestrationContext,
 )
-from prefect.orion.schemas import states
+from prefect.orion.schemas import states, core
 from prefect.orion.models import orm
 
 
@@ -31,47 +31,50 @@ class UpdateRunDetails(BaseUniversalRule):
         if not run:
             raise ValueError("Run not found.")
 
+        initial_state = context.initial_state
+        proposed_state = context.proposed_state
+
         # avoid mutation inplace
-        run_details = run.run_details.copy()
+        run_details = run.run_details.copy()  # type: core.RunDetails
 
-        # record the new state's details
-        run_details.current_state_id = context.proposed_state.id
-        run_details.current_state_type = context.proposed_state.type
+        # -- record the new state's details
+        run_details.current_state_id = proposed_state.id
+        run_details.current_state_type = proposed_state.type
 
-        # compute duration
+        # -- compute duration
         if context.initial_state:
             state_duration = (
-                context.proposed_state.timestamp - context.initial_state.timestamp
+                proposed_state.timestamp - initial_state.timestamp
             ).total_seconds()
         else:
             state_duration = 0
 
-        # update duration if there's a start time
+        # -- update duration if there's a start time
         if run_details.start_time:
             # increment the total duration
             run_details.total_time_seconds += state_duration
 
-        # if exiting a running state...
-        if context.initial_state and context.initial_state.is_running():
+        # -- if exiting a running state...
+        if initial_state and initial_state.is_running():
             # increment the "run_time_seconds"
             run_details.total_run_time_seconds += state_duration
 
-        # if entering a running state...
-        if context.proposed_state.is_running():
+        # -- if entering a running state...
+        if proposed_state.is_running():
             # increment the run count
             run_details.run_count += 1
             # set the start time
             if run_details.start_time is None:
-                run_details.start_time = context.proposed_state.timestamp
+                run_details.start_time = proposed_state.timestamp
 
-        # if entering a final state...
-        if context.proposed_state.is_final():
+        # -- if entering a final state...
+        if proposed_state.is_final():
             # if the run started, give it an end time (unless it has one)
             if run_details.start_time and not run_details.end_time:
-                run_details.end_time = context.proposed_state.timestamp
+                run_details.end_time = proposed_state.timestamp
 
-        # if exiting a final state...
-        if context.initial_state and context.initial_state.is_final():
+        # -- if exiting a final state...
+        if initial_state and initial_state.is_final():
             # clear the end time
             run_details.end_time = None
 
