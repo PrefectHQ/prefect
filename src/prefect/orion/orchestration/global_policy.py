@@ -42,7 +42,7 @@ class UpdateRunDetails(BaseUniversalRule):
         run_details.current_state_type = proposed_state.type
 
         # -- compute duration
-        if context.initial_state:
+        if initial_state:
             state_duration = (
                 proposed_state.timestamp - initial_state.timestamp
             ).total_seconds()
