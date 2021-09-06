@@ -34,28 +34,3 @@ sa.event.listen(
         """
     ).execute_if(dialect="postgresql"),
 )
-
-
-# # postgres indexes on json values
-# sa.event.listen(
-#     Base.metadata,
-#     "after_create",
-#     sa.DDL(
-#         """
-#         CREATE INDEX ix_flow_run_current_state_type_json
-#         on flow_run ((run_details ->> 'current_state_type'));
-#         """
-#     ).execute_if(dialect="postgresql"),
-# )
-
-# # postgres indexes on json values
-# sa.event.listen(
-#     Base.metadata,
-#     "after_create",
-#     sa.DDL(
-#         """
-#         CREATE INDEX ix_flow_run_expected_start_time_json
-#         on flow_run (text_to_timestamp(run_details ->> 'expected_start_time'));
-#         """
-#     ).execute_if(dialect="postgresql"),
-# )
