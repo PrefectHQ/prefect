@@ -20,14 +20,21 @@ class Flow(ORMBaseModel):
 
 
 class RunDetails(PrefectBaseModel):
-    current_state_id: UUID = None
-    current_state_type: schemas.states.StateType = None
+    state_id: UUID = None
+    state_type: schemas.states.StateType = None
     run_count: int = 0
+
+    # the expected start time is set the first time
+    # the run is placed in a state
+    expected_start_time: datetime.datetime = None
+
+    # the next scheduled start time will be populated
+    # whenever the run is in a scheduled state
+    next_scheduled_start_time: datetime.datetime = None
     start_time: datetime.datetime = None
     end_time: datetime.datetime = None
     total_run_time_seconds: float = 0.0
     total_time_seconds: float = 0.0
-    last_run_time: datetime.datetime = None
 
 
 class FlowRunDetails(RunDetails):
