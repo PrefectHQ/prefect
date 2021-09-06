@@ -7,7 +7,14 @@ from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import relationship
 
 from prefect.orion.schemas import core, data, schedules, states
-from prefect.orion.utilities.database import UUID, Base, Pydantic, Timestamp, now
+from prefect.orion.utilities.database import (
+    UUID,
+    Base,
+    Pydantic,
+    Timestamp,
+    now,
+    get_dialect,
+)
 from prefect.orion.utilities.functions import ParameterSchema
 
 
@@ -30,7 +37,9 @@ class FlowRunState(Base):
     flow_run_id = Column(
         UUID(), ForeignKey("flow_run.id", ondelete="cascade"), nullable=False
     )
-    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
+    type = Column(
+        sa.Enum(states.StateType, name="state_type"), nullable=False, index=True
+    )
     timestamp = Column(
         Timestamp(),
         nullable=False,
@@ -55,7 +64,7 @@ class FlowRunState(Base):
 
     __table_args__ = (
         sa.Index(
-            "ix_flow_run_state_flow_run_id_timestamp_desc",
+            "uq_flow_run_state__flow_run_id_timestamp_desc",
             flow_run_id,
             timestamp.desc(),
             unique=True,
@@ -72,7 +81,9 @@ class TaskRunState(Base):
     task_run_id = Column(
         UUID(), ForeignKey("task_run.id", ondelete="cascade"), nullable=False
     )
-    type = Column(sa.Enum(states.StateType), nullable=False, index=True)
+    type = Column(
+        sa.Enum(states.StateType, name="state_type"), nullable=False, index=True
+    )
     timestamp = Column(
         Timestamp(),
         nullable=False,
@@ -97,7 +108,7 @@ class TaskRunState(Base):
 
     __table_args__ = (
         sa.Index(
-            "ix_task_run_state_task_run_id_timestamp_desc",
+            "uq_task_run_state__task_run_id_timestamp_desc",
             task_run_id,
             timestamp.desc(),
             unique=True,
@@ -118,7 +129,7 @@ class TaskRunStateCache(Base):
 
     __table_args__ = (
         sa.Index(
-            "ix_cache_key_created_desc",
+            "ix_task_run_state_cache__cache_key_created_desc",
             cache_key,
             sa.desc("created"),
         ),
@@ -156,6 +167,7 @@ class FlowRun(Base):
         ),
         index=True,
     )
+
     parent_task_run_id = Column(
         UUID(),
         ForeignKey(
@@ -165,6 +177,44 @@ class FlowRun(Base):
         ),
         index=True,
     )
+
+    # -------------------------- computed columns
+
+    state_type = Column(
+        Pydantic(states.StateType, sa_column_type=sa.Text()),
+        sa.Computed(
+            run_details["state_type"].astext
+            if get_dialect() == "postgresql"
+            else run_details["state_type"].as_string()
+        ),
+        index=True,
+    )
+
+    expected_start_time = Column(
+        Timestamp(),
+        sa.Computed(
+            sa.func.text_to_timestamp_immutable(
+                run_details["expected_start_time"].astext
+            )
+            if get_dialect() == "postgresql"
+            else run_details["expected_start_time"].as_string()
+        ),
+        index=True,
+    )
+
+    next_scheduled_start_time = Column(
+        Timestamp(),
+        sa.Computed(
+            sa.func.text_to_timestamp_immutable(
+                run_details["next_scheduled_start_time"].astext
+            )
+            if get_dialect() == "postgresql"
+            else run_details["next_scheduled_start_time"].as_string()
+        ),
+        index=True,
+    )
+
+    # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
     _state = relationship(
@@ -208,7 +258,7 @@ class FlowRun(Base):
     # unique index on flow id / idempotency key
     __table__args__ = (
         sa.Index(
-            "ix_flow_run_flow_id_idempotency_key",
+            "uq_flow_run__flow_id_idempotency_key",
             flow_id,
             idempotency_key,
             unique=True,
@@ -262,6 +312,44 @@ class TaskRun(Base):
         nullable=False,
     )
 
+    # -------------------------- computed columns
+
+    state_type = Column(
+        Pydantic(states.StateType, sa_column_type=sa.Text()),
+        sa.Computed(
+            run_details["state_type"].astext
+            if get_dialect() == "postgresql"
+            else run_details["state_type"].as_string()
+        ),
+        index=True,
+    )
+
+    expected_start_time = Column(
+        Timestamp(),
+        sa.Computed(
+            sa.func.text_to_timestamp_immutable(
+                run_details["expected_start_time"].astext
+            )
+            if get_dialect() == "postgresql"
+            else run_details["expected_start_time"].as_string()
+        ),
+        index=True,
+    )
+
+    next_scheduled_start_time = Column(
+        Timestamp(),
+        sa.Computed(
+            sa.func.text_to_timestamp_immutable(
+                run_details["next_scheduled_start_time"].astext
+            )
+            if get_dialect() == "postgresql"
+            else run_details["next_scheduled_start_time"].as_string()
+        ),
+        index=True,
+    )
+
+    # -------------------------- relationships
+
     # current states are eagerly loaded unless otherwise specified
     _state = relationship(
         "TaskRunState",
@@ -303,7 +391,7 @@ class TaskRun(Base):
 
     __table_args__ = (
         sa.Index(
-            "ix_task_run_flow_run_id_task_key_dynamic_key",
+            "uq_task_run__flow_run_id_task_key_dynamic_key",
             flow_run_id,
             task_key,
             dynamic_key,

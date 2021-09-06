@@ -38,8 +38,8 @@ class UpdateRunDetails(BaseUniversalRule):
         run_details = run.run_details.copy()  # type: core.RunDetails
 
         # -- record the new state's details
-        run_details.current_state_id = proposed_state.id
-        run_details.current_state_type = proposed_state.type
+        run_details.state_id = proposed_state.id
+        run_details.state_type = proposed_state.type
 
         # -- compute duration
         if initial_state:
@@ -48,6 +48,19 @@ class UpdateRunDetails(BaseUniversalRule):
             ).total_seconds()
         else:
             state_duration = 0
+
+        # -- set next scheduled start time
+        if proposed_state.is_scheduled():
+            run_details.next_scheduled_start_time = (
+                proposed_state.state_details.scheduled_time
+            )
+
+        # -- set expected start time if this is the first state
+        if not run_details.expected_start_time:
+            if proposed_state.is_scheduled():
+                run_details.expected_start_time = run_details.next_scheduled_start_time
+            else:
+                run_details.expected_start_time = proposed_state.timestamp
 
         # -- update duration if there's a start time
         if run_details.start_time:
