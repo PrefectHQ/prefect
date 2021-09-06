@@ -201,7 +201,7 @@ class TestJSON:
     async def test_json_contains(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_contains(SQLJSONModel.data, keys))
+            .where(json_contains(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -221,7 +221,7 @@ class TestJSON:
     async def test_json_has_any_key(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_has_any_key(SQLJSONModel.data, keys))
+            .where(json_has_any_key(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -239,7 +239,7 @@ class TestJSON:
     async def test_json_has_all_keys(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_has_all_keys(SQLJSONModel.data, keys))
+            .where(json_has_all_keys(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
