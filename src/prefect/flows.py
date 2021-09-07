@@ -1,8 +1,5 @@
-from __future__ import annotations
-
 import inspect
-from functools import update_wrapper
-from functools import partial
+from functools import update_wrapper, partial
 from typing import (
     Any,
     Awaitable,
@@ -112,7 +109,17 @@ def flow(
     tags: Iterable[str] = None,
 ):
     if __fn:
-        return cast(Flow[P, R], Flow(fn=__fn))
+        return cast(
+            Flow[P, R],
+            Flow(
+                fn=__fn,
+                name=name,
+                version=version,
+                executor=executor,
+                description=description,
+                tags=tags,
+            ),
+        )
     else:
         return cast(
             Callable[[Callable[P, R]], Flow[P, R]],
