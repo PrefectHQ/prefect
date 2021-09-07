@@ -9,7 +9,10 @@ from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalPolicy
-from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
+from prefect.orion.orchestration.rules import (
+    TaskOrchestrationContext,
+    OrchestrationResult,
+)
 
 
 async def orchestrate_task_run_state(
@@ -49,7 +52,7 @@ async def orchestrate_task_run_state(
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
-    context = OrchestrationContext(
+    context = TaskOrchestrationContext(
         initial_state=initial_state,
         proposed_state=state,
         session=session,
@@ -68,7 +71,8 @@ async def orchestrate_task_run_state(
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
-        validated_orm_state = await context.validate_proposed_state(orm.TaskRunState)
+
+        validated_orm_state = await context.validate_proposed_state()
 
     if run is not None:
         run.state = validated_orm_state
