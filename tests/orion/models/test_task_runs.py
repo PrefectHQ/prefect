@@ -325,6 +325,36 @@ class TestReadTaskRuns:
         )
         assert len(result) == 0
 
+    async def test_read_task_runs_applies_limit(self, flow_run, session):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+        )
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+        )
+        result = await models.task_runs.read_task_runs(session=session, limit=1)
+        assert len(result) == 1
+
+    async def test_read_task_runs_applies_offset(self, flow_run, session):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+        )
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+        )
+        result_1 = await models.task_runs.read_task_runs(
+            session=session, offset=0, limit=1
+        )
+        result_2 = await models.task_runs.read_task_runs(
+            session=session, offset=1, limit=1
+        )
+
+        assert {result_1[0].id, result_2[0].id} == {task_run_1.id, task_run_2.id}
+
 
 class TestDeleteTaskRun:
     async def test_delete_task_run(self, task_run, session):
