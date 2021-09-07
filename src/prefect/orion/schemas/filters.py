@@ -14,9 +14,14 @@ class FlowFilter(PrefectBaseModel):
     """Filter for flows. Only flows matching all criteria will be returned"""
 
     ids: List[UUID] = Field(None, description="A list of flow ids to include")
-    names: List[str] = Field(None, description="A list of flow names to include")
+    names: List[str] = Field(
+        None,
+        example=["my-flow-1", "my-flow-2"],
+        description="A list of flow names to include",
+    )
     tags_all: List[str] = Field(
         None,
+        example=["tag-1", "tag-2"],
         description="A list of tags. Flows will be returned only their tags are a subset of the list",
     )
 
@@ -39,6 +44,7 @@ class FlowRunFilter(PrefectBaseModel):
     ids: List[UUID] = Field(None, description="A list of flow run ids to include")
     tags_all: List[str] = Field(
         None,
+        example=["tag-1", "tag-2"],
         description="A list of tags. Flow runs will be returned only their tags are a subset of the list",
     )
 
@@ -93,6 +99,7 @@ class TaskRunFilter(PrefectBaseModel):
     ids: List[UUID] = Field(None, description="A list of task run ids to include")
     tags_all: List[str] = Field(
         None,
+        example=["tag-1", "tag-2"],
         description="A list of tags. Task runs will be returned only their tags are a subset of the list",
     )
     states: List[schemas.states.StateType] = Field(
