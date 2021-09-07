@@ -29,7 +29,7 @@ async def create_task_run(
         response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         await nested.rollback()
-        query = sa.select(models.orm.TaskRun).filter(
+        query = sa.select(models.orm.TaskRun).where(
             sa.and_(
                 models.orm.TaskRun.flow_run_id == task_run.flow_run_id,
                 models.orm.TaskRun.task_key == task_run.task_key,
