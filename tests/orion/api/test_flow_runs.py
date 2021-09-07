@@ -4,7 +4,6 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion import models
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states
 
