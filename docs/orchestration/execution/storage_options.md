@@ -136,7 +136,7 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 ## Bitbucket
 
-[Bitbucket Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
+[Bitbucket Storage](/api/latest/storage.html#bitbucket) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
 
 Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 

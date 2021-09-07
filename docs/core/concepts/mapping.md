@@ -198,7 +198,7 @@ In the example above, `raw_out` will contain `[0, RuntimeError, SKIP, None, 4]`.
 
 ## Unmapped inputs
 
-When a task is mapped over its inputs, it retains the same call signature and arguments, but iterates over the inputs to generate its children tasks. Sometimes, we don't want to to iterate over one of the inputs -- perhaps it's a constant value, or a list that's required in its entirety. Prefect supplies a convenient `unmapped()` annotation for this case.
+When a task is mapped over its inputs, it retains the same call signature and arguments, but iterates over the inputs to generate its children tasks. Sometimes, we don't want to iterate over one of the inputs -- perhaps it's a constant value, or a list that's required in its entirety. Prefect supplies a convenient `unmapped()` annotation for this case.
 
 ```python
 from prefect import Flow, task, unmapped
