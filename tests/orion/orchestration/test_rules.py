@@ -329,9 +329,7 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
-    async def test_rules_that_wait_do_not_fizzle_themselves(
-        self, session, task_run
-    ):
+    async def test_rules_that_wait_do_not_fizzle_themselves(self, session, task_run):
         before_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
         cleanup_step = MagicMock()
@@ -348,9 +346,7 @@ class TestBaseOrchestrationRule:
                 )
                 before_transition_hook()
                 # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
-                await self.delay_transition(
-                    42, reason="for testing, of course"
-                )
+                await self.delay_transition(42, reason="for testing, of course")
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -942,9 +938,7 @@ class TestOrchestrationContext:
         assert ctx.response_details.delay_seconds == delay
 
     @pytest.mark.parametrize("delay", [42, 424242])
-    async def test_rules_cant_try_to_wait_too_late(
-        self, session, task_run, delay
-    ):
+    async def test_rules_cant_try_to_wait_too_late(self, session, task_run, delay):
         class WaitingRule(BaseOrchestrationRule):
             async def after_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
