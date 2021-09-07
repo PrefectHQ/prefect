@@ -8,6 +8,7 @@ import prefect
 from prefect import flow
 from prefect.client import OrionClient
 from prefect.orion import schemas
+from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.tasks import task
 
@@ -71,7 +72,7 @@ async def test_set_then_read_flow_run_state(orion_client):
             type=schemas.states.StateType.COMPLETED, message="Test!"
         ),
     )
-    assert isinstance(response, schemas.responses.SetStateResponse)
+    assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
     states = await orion_client.read_flow_run_states(flow_run_id)
@@ -138,7 +139,7 @@ async def test_set_then_read_task_run_state(orion_client):
         schemas.states.State(type=schemas.states.StateType.COMPLETED, message="Test!"),
     )
 
-    assert isinstance(response, schemas.responses.SetStateResponse)
+    assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
     run = await orion_client.read_task_run(task_run_id)
@@ -170,3 +171,9 @@ async def test_put_then_retrieve_object(put_obj, orion_client):
     assert datadoc.encoding == "orion"
     retrieved_obj = await orion_client.retrieve_object(datadoc)
     assert retrieved_obj == put_obj
+
+
+async def test_client_non_async_with_is_helpful():
+    with pytest.raises(RuntimeError, match="must be entered with an async context"):
+        with OrionClient():
+            pass

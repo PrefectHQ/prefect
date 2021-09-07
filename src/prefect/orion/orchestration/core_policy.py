@@ -32,7 +32,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         initial_state: states.State,
         proposed_state: states.State,
         context: OrchestrationContext,
-    ) -> states.State:
+    ) -> None:
         session = context.session
         if proposed_state.state_details.cache_key:
             # Check for cached states matching the cache key
@@ -40,9 +40,11 @@ class CacheRetrieval(BaseOrchestrationRule):
                 session, proposed_state.state_details.cache_key
             )
             if cached_state:
-                proposed_state = cached_state.as_state().copy()
-                proposed_state.name = "Cached"
-        return proposed_state
+                new_state = cached_state.as_state().copy(reset_fields=True)
+                new_state.name = "Cached"
+                await self.reject_transition(
+                    state=new_state, reason="Retrieved state from cache"
+                )
 
 
 class CacheInsertion(BaseOrchestrationRule):
@@ -69,18 +71,18 @@ class RetryPotentialFailures(BaseOrchestrationRule):
         initial_state: states.State,
         proposed_state: states.State,
         context: OrchestrationContext,
-    ) -> states.State:
+    ) -> None:
         run_details = context.run_details
         run_settings = context.run_settings
         if run_details.run_count <= run_settings.max_retries:
-            proposed_state = states.AwaitingRetry(
+            retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
                     seconds=run_settings.retry_delay_seconds
                 ),
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
-        return proposed_state
+            await self.reject_transition(state=retry_state, reason="Retying")
 
 
 async def get_cached_task_run_state(
@@ -88,7 +90,7 @@ async def get_cached_task_run_state(
 ) -> Optional[orm.TaskRunState]:
     task_run_state_id = (
         select(orm.TaskRunStateCache.task_run_state_id)
-        .filter(
+        .where(
             sa.and_(
                 orm.TaskRunStateCache.cache_key == cache_key,
                 sa.or_(
@@ -100,7 +102,7 @@ async def get_cached_task_run_state(
         .order_by(orm.TaskRunStateCache.created.desc())
         .limit(1)
     ).scalar_subquery()
-    query = select(orm.TaskRunState).filter(orm.TaskRunState.id == task_run_state_id)
+    query = select(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
     result = await session.execute(query)
     return result.scalar()
 

@@ -189,13 +189,14 @@ class PrefectBaseModel(BaseModel):
                     deep_dict[k] = shallow_dict[k]
             return deep_dict
 
-    def copy(self, *, update: dict = None, **kwargs):
+    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
         When an IDBaseModel is copied, it generates a new ID for the copy.
         """
-        update = update or dict()
-        for field in self._reset_fields():
-            update.setdefault(field, self.__fields__[field].get_default())
+        if reset_fields:
+            update = update or dict()
+            for field in self._reset_fields():
+                update.setdefault(field, self.__fields__[field].get_default())
         return super().copy(update=update, **kwargs)
 
 

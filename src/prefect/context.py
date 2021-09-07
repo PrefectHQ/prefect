@@ -2,7 +2,7 @@
 This module contains async and thread safe variables for passing runtime context data
 """
 from contextvars import ContextVar
-from typing import Optional, TypeVar, Union, Type
+from typing import Optional, Type, TypeVar, Union
 from uuid import UUID
 
 import pendulum

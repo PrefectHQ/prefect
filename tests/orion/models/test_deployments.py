@@ -139,8 +139,8 @@ class TestScheduledRuns:
         )
         assert len(scheduled_runs) == 100
         query_result = await session.execute(
-            sa.select(orm.FlowRun).filter(
-                orm.FlowRun.state_filter([StateType.SCHEDULED])
+            sa.select(orm.FlowRun).where(
+                orm.FlowRun.state.has(orm.FlowRunState.type == StateType.SCHEDULED)
             )
         )
 
@@ -168,9 +168,9 @@ class TestScheduledRuns:
 
         # only 100 runs were inserted
         query_result = await session.execute(
-            sa.select(orm.FlowRun).filter(
+            sa.select(orm.FlowRun).where(
                 orm.FlowRun.flow_id == flow.id,
-                orm.FlowRun.state_filter([StateType.SCHEDULED]),
+                orm.FlowRun.state.has(orm.FlowRunState.type == StateType.SCHEDULED),
             )
         )
 
