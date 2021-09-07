@@ -2,10 +2,10 @@ import inspect
 from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
-from typing_extensions import TypeGuard, ParamSpec
 
 import anyio
 import sniffio
+from typing_extensions import ParamSpec, TypeGuard
 
 T = TypeVar("T")
 P = ParamSpec("P")
