@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Optional
 from uuid import UUID
 
 import pendulum
@@ -8,10 +8,6 @@ from pydantic import Field, validator
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
-
-
-if TYPE_CHECKING:
-    from prefect.orion.schemas.core import FlowRun, TaskRun
 
 
 class StateType(AutoEnum):
@@ -43,18 +39,17 @@ class RunDetails(PrefectBaseModel):
 
 from typing import Generic, TypeVar
 
-ResultT = TypeVar("ResultT")
-RunT = TypeVar("RunT", "FlowRun", "TaskRun")
+R = TypeVar("R")
 
 
-class State(ORMBaseModel, Generic[ResultT]):
+class State(ORMBaseModel, Generic[R]):
     type: StateType
     name: str = None
     timestamp: datetime.datetime = Field(
         default_factory=lambda: pendulum.now("UTC"), repr=False
     )
     message: str = Field(None, example="Run started")
-    data: DataDocument[ResultT] = Field(None, repr=False)
+    data: DataDocument[R] = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
     run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 

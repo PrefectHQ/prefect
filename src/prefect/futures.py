@@ -27,10 +27,10 @@ if TYPE_CHECKING:
     from prefect.orion.schemas.core import FlowRun, TaskRun
 
 
-T = TypeVar("T")
+R = TypeVar("R")
 
 
-class PrefectFuture(Generic[T]):
+class PrefectFuture(Generic[R]):
     def __init__(
         self,
         flow_run_id: UUID,
@@ -48,11 +48,11 @@ class PrefectFuture(Generic[T]):
         self._executor = executor
 
     @overload
-    async def result(self, timeout: float) -> Optional[State[T]]:
+    async def result(self, timeout: float) -> Optional[State[R]]:
         ...
 
     @overload
-    async def result(self, timeout: None = None) -> State[T]:
+    async def result(self, timeout: None = None) -> State[R]:
         ...
 
     @sync_compatible
