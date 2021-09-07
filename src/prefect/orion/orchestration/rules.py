@@ -1,11 +1,12 @@
 import contextlib
 from types import TracebackType
-from typing import Dict, Iterable, List, Optional, Type, Union
+from typing import Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 from pydantic import Field
 
+from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
@@ -42,10 +43,6 @@ class OrchestrationContext(PrefectBaseModel):
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
-
-    def __post_init__(self, **kwargs):
-        if self.flow_run_id is None and self.run is not None:
-            self.flow_run_id = self.run.flow_run_id
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -93,10 +90,35 @@ class OrchestrationContext(PrefectBaseModel):
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
-    async def validate_proposed_state(self, state_constructor):
+
+class TaskOrchestrationContext(OrchestrationContext):
+    def __post_init__(self, **kwargs):
+        if self.flow_run_id is None and self.run is not None:
+            self.flow_run_id = self.run.flow_run_id
+
+    async def validate_proposed_state(self):
         if self.proposed_state is not None:
-            validated_orm_state = state_constructor(
+            validated_orm_state = orm.TaskRunState(
                 task_run_id=self.task_run_id,
+                **self.proposed_state.dict(shallow=True),
+            )
+            self.session.add(validated_orm_state)
+            await self.session.flush()
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
+        self.validated_state = validated_state
+
+        return validated_orm_state
+
+
+class FlowOrchestrationContext(OrchestrationContext):
+    async def validate_proposed_state(self):
+        if self.proposed_state is not None:
+            validated_orm_state = orm.FlowRunState(
+                flow_run_id=self.flow_run_id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
