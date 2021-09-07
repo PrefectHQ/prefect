@@ -122,7 +122,7 @@ async def read_task_run_states(
     """
     query = (
         select(orm.TaskRunState)
-        .filter(orm.TaskRunState.task_run_id == task_run_id)
+        .filter_by(task_run_id=task_run_id)
         .order_by(orm.TaskRunState.timestamp)
     )
     result = await session.execute(query)
