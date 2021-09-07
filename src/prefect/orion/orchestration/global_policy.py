@@ -23,10 +23,11 @@ class UpdateRunDetails(BaseUniversalRule):
         self,
         context: OrchestrationContext,
     ) -> states.State:
-        context.proposed_state.run_details = states.update_run_details(
-            from_state=context.initial_state,
-            to_state=context.proposed_state,
-        )
+        if context.proposed_state is not None:
+            context.proposed_state.run_details = states.update_run_details(
+                from_state=context.initial_state,
+                to_state=context.proposed_state,
+            )
 
 
 class UpdateStateDetails(BaseUniversalRule):
@@ -37,5 +38,6 @@ class UpdateStateDetails(BaseUniversalRule):
         self,
         context: OrchestrationContext,
     ) -> states.State:
-        context.proposed_state.state_details.flow_run_id = context.flow_run_id
-        context.proposed_state.state_details.task_run_id = context.task_run_id
+        if context.proposed_state is not None:
+            context.proposed_state.state_details.flow_run_id = context.flow_run_id
+            context.proposed_state.state_details.task_run_id = context.task_run_id
