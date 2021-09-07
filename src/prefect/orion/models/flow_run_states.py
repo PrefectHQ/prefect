@@ -8,13 +8,15 @@ from sqlalchemy import delete, select
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.global_policy import GlobalPolicy
-from prefect.orion.orchestration.rules import OrchestrationContext
+from prefect.orion.orchestration.core_policy import CoreFlowPolicy
+from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
 
 
-async def create_flow_run_state(
+async def orchestrate_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
     state: schemas.states.State,
+    apply_orchestration_rules: bool = True,
 ) -> orm.FlowRunState:
     """Creates a new flow run state
 
@@ -36,9 +38,18 @@ async def create_flow_run_state(
         raise ValueError(f"Invalid flow run: {flow_run_id}")
 
     initial_state = run.state.as_state() if run.state else None
-    intended_transition = (initial_state.type if initial_state else None), state.type
+    initial_state_type = initial_state.type if initial_state else None
+    proposed_state_type = state.type if state else None
+    intended_transition = (initial_state_type, proposed_state_type)
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
+
+    if apply_orchestration_rules:
+        orchestration_rules = CoreFlowPolicy.compile_transition_rules(
+            *intended_transition
+        )
+    else:
+        orchestration_rules = []
 
     context = OrchestrationContext(
         initial_state=initial_state,
@@ -50,22 +61,41 @@ async def create_flow_run_state(
 
     # apply orchestration rules and create the new flow run state
     async with contextlib.AsyncExitStack() as stack:
+        for rule in orchestration_rules:
+            context = await stack.enter_async_context(
+                rule(context, *intended_transition)
+            )
+
         for rule in global_rules:
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
 
-        validated_state = orm.FlowRunState(
-            flow_run_id=flow_run_id,
-            **state.dict(shallow=True),
+        if context.proposed_state is not None:
+            validated_orm_state = orm.FlowRunState(
+                flow_run_id=context.flow_run_id,
+                **context.proposed_state.dict(shallow=True),
+            )
+            session.add(validated_orm_state)
+            await session.flush()
+        else:
+            validated_orm_state = None
+
+        context.validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
         )
-        session.add(validated_state)
-        await session.flush()
 
     # update the ORM model state
     if run is not None:
-        run.state = validated_state
-    return validated_state
+        run.state = validated_orm_state
+
+    result = OrchestrationResult(
+        state=validated_orm_state,
+        status=context.response_status,
+        details=context.response_details,
+    )
+
+    return result
 
 
 async def read_flow_run_state(
@@ -97,7 +127,7 @@ async def read_flow_run_states(
     """
     query = (
         select(orm.FlowRunState)
-        .filter(orm.FlowRunState.flow_run_id == flow_run_id)
+        .filter_by(flow_run_id=flow_run_id)
         .order_by(orm.FlowRunState.timestamp)
     )
     result = await session.execute(query)

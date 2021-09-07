@@ -9,57 +9,68 @@ from prefect.orion.schemas.states import State, StateType
 
 class TestCreateTaskRunState:
     async def test_create_task_run_state_succeeds(self, task_run, session):
-        task_run_state = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        task_run_state = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
         assert task_run_state.name == "Running"
         assert task_run_state.type == StateType.RUNNING
-        assert task_run_state.task_run_id == task_run.id
         assert task_run_state.state_details.task_run_id == task_run.id
 
     async def test_run_details_are_updated_with_previous_state_id(
         self, task_run, session
     ):
-        trs = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="SCHEDULED"),
-        )
+        trs = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="SCHEDULED"),
+            )
+        ).state
 
-        trs2 = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        trs2 = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
         assert trs2.run_details.previous_state_id == trs.id
 
     async def test_run_details_are_updated_entering_running(self, task_run, session):
-        trs = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="SCHEDULED"),
-        )
+        trs = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="SCHEDULED"),
+            )
+        ).state
 
         assert trs.run_details.start_time is None
         assert trs.run_details.run_count == 0
 
-        trs2 = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        trs2 = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
         assert trs2.run_details.start_time == trs2.timestamp
         assert trs2.run_details.run_count == 1
         assert trs2.run_details.last_run_time == trs2.timestamp
         assert trs2.run_details.total_run_time_seconds == 0
 
-        trs3 = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        trs3 = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
         assert trs3.run_details.start_time == trs2.timestamp
         assert trs3.run_details.run_count == 2
         assert trs3.run_details.last_run_time == trs3.timestamp
@@ -75,17 +86,21 @@ class TestCreateTaskRunState:
         task_run.empirical_policy.max_retries = 1
         await session.flush()
 
-        await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
 
-        new_state = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="FAILED"),
-        )
+        new_state = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="FAILED"),
+            )
+        ).state
 
         assert new_state.name == "Awaiting Retry"
         assert new_state.type == StateType.SCHEDULED
@@ -97,18 +112,22 @@ class TestCreateTaskRunState:
         task_run.empirical_policy.max_retries = 1
         await session.flush()
 
-        await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
 
-        new_state = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="FAILED"),
-            apply_orchestration_rules=False,
-        )
+        new_state = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="FAILED"),
+                apply_orchestration_rules=False,
+            )
+        ).state
 
         assert new_state.type == StateType.FAILED
 
@@ -116,16 +135,18 @@ class TestCreateTaskRunState:
 class TestReadTaskRunState:
     async def test_read_task_run_state(self, task_run, session):
         # create a task run to read
-        task_run_state = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        task_run_state = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
 
         read_task_run_state = await models.task_run_states.read_task_run_state(
             session=session, task_run_state_id=task_run_state.id
         )
-        assert task_run_state == read_task_run_state
+        assert task_run_state == read_task_run_state.as_state()
 
     async def test_read_task_run_state_returns_none_if_does_not_exist(self, session):
         result = await models.task_run_states.read_task_run_state(
@@ -157,11 +178,13 @@ class TestDeleteTaskRunState:
     async def test_delete_task_run_state(self, task_run, session):
         # create a task run to read
 
-        task_run_state = await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=State(type="RUNNING"),
-        )
+        task_run_state = (
+            await models.task_run_states.orchestrate_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=State(type="RUNNING"),
+            )
+        ).state
 
         assert await models.task_run_states.delete_task_run_state(
             session=session, task_run_state_id=task_run_state.id

@@ -1,7 +1,8 @@
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple
 from uuid import UUID
 
+import anyio
 import httpx
 import pydantic
 
@@ -9,6 +10,7 @@ import prefect
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.orchestration.rules import OrchestrationResult
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -166,7 +168,7 @@ class OrionClient:
         self,
         flow_run_id: UUID,
         state: schemas.states.State,
-    ) -> schemas.responses.SetStateResponse:
+    ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
@@ -187,7 +189,7 @@ class OrionClient:
             f"/flow_runs/{flow_run_id}/set_state",
             json=state_data_json,
         )
-        return schemas.responses.SetStateResponse.parse_obj(response.json())
+        return OrchestrationResult.parse_obj(response.json())
 
     async def read_flow_run_states(
         self, flow_run_id: UUID
@@ -237,6 +239,7 @@ class OrionClient:
         task_run_id: UUID = None,
         flow_run_id: UUID = None,
     ) -> schemas.states.State:
+
         # Determine if working with a task run or flow run
         if not task_run_id and not flow_run_id:
             raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
@@ -259,15 +262,26 @@ class OrionClient:
         # Parse the response to return the new state
         if response.status == schemas.responses.SetStateStatus.ACCEPT:
             # Update the state with the details if provided
-            if response.details.state_details:
-                state.state_details = response.details.state_details
+            if response.state.state_details:
+                state.state_details = response.state.state_details
+                state.run_details = response.state.run_details
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise RuntimeError("ABORT is not yet handled")
+            raise BaseException("SERVER SAYS ABORT!")
+
+        elif response.status == schemas.responses.SetStateStatus.WAIT:
+            print(
+                f"Received wait instruction for {response.details.delay_seconds}s: "
+                f"{response.details.reason}"
+            )
+            await anyio.sleep(response.details.delay_seconds)
+            return await self.propose_state(
+                state, task_run_id=task_run_id, flow_run_id=flow_run_id
+            )
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
-            server_state = response.details.state
+            server_state = response.state
 
             return server_state
         else:
@@ -275,11 +289,55 @@ class OrionClient:
                 f"Received unexpected `SetStateStatus` from server: {response.status!r}"
             )
 
+    async def create_task_run_state(
+        self,
+        task_run_id: UUID,
+        state: schemas.states.State,
+    ) -> schemas.states.State:
+        state_data = schemas.actions.StateCreate(
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
+        )
+        state_data.state_details.task_run_id = task_run_id
+
+        response = await self.post(
+            "/task_run_states/",
+            json={
+                "task_run_id": str(task_run_id),
+                "state": state_data.dict(json_compatible=True),
+            },
+        )
+        return schemas.states.State.parse_obj(response.json())
+
+    async def create_flow_run_state(
+        self,
+        flow_run_id: UUID,
+        state: schemas.states.State,
+    ) -> schemas.states.State:
+        state_data = schemas.actions.StateCreate(
+            type=state.type,
+            message=state.message,
+            data=state.data,
+            state_details=state.state_details,
+        )
+        state_data.state_details.flow_run_id = flow_run_id
+
+        response = await self.post(
+            "/flow_run_states/",
+            json={
+                "flow_run_id": str(flow_run_id),
+                "state": state_data.dict(json_compatible=True),
+            },
+        )
+        return schemas.states.State.parse_obj(response.json())
+
     async def set_task_run_state(
         self,
         task_run_id: UUID,
         state: schemas.states.State,
-    ) -> schemas.responses.SetStateResponse:
+    ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
@@ -300,7 +358,7 @@ class OrionClient:
             f"/task_runs/{task_run_id}/set_state",
             json=state_data_json,
         )
-        return schemas.responses.SetStateResponse.parse_obj(response.json())
+        return OrchestrationResult.parse_obj(response.json())
 
     async def read_task_run_states(
         self, task_run_id: UUID

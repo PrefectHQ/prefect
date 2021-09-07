@@ -3,7 +3,7 @@ from typing import Optional
 from uuid import UUID
 
 import pendulum
-from pydantic import Field, validator
+from pydantic import Field, validator, root_validator
 
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
@@ -63,6 +63,21 @@ class State(ORMBaseModel, Generic[R]):
             v = values.get("type").value.capitalize()
         return v
 
+    @root_validator
+    def default_scheduled_start_time(cls, values):
+        """
+        TODO: This should throw an error instead of setting a default but is out of
+              scope for https://github.com/PrefectHQ/orion/pull/174/ and can be rolled
+              into work refactoring state initialization
+        """
+        if values.get("type") == StateType.SCHEDULED:
+            state_details = values.setdefault(
+                "state_details", cls.__fields__["state_details"].get_default()
+            )
+            if not state_details.scheduled_time:
+                state_details.scheduled_time = pendulum.now("utc")
+        return values
+
     def is_scheduled(self):
         return self.type == StateType.SCHEDULED
 
@@ -84,14 +99,14 @@ class State(ORMBaseModel, Generic[R]):
     def is_final(self):
         return self.is_cancelled() or self.is_completed() or self.is_failed()
 
-    def copy(self, *, update: dict = None, **kwargs):
+    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
         """
         update = update or {}
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
-        return super().copy(update=update, **kwargs)
+        return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
 
 def Completed(**kwargs) -> State:
@@ -139,7 +154,7 @@ def update_run_details(from_state: Optional[State], to_state: State) -> RunDetai
     """
 
     if from_state:
-        run_details = from_state.run_details.copy()
+        run_details = from_state.run_details.copy(reset_fields=True)
         duration = (to_state.timestamp - from_state.timestamp).total_seconds()
         run_details.previous_state_id = from_state.id
         run_details.total_time_seconds += duration

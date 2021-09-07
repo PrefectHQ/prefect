@@ -25,7 +25,7 @@ async def create_flow_run(
     session.add(model)
     await session.flush()
     if flow_run.state:
-        await models.flow_run_states.create_flow_run_state(
+        await models.flow_run_states.orchestrate_flow_run_state(
             session=session, flow_run_id=model.id, state=flow_run.state
         )
     return model
