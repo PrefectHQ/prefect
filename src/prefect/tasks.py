@@ -15,6 +15,7 @@ from typing import (
     TypeVar,
     Generic,
     Coroutine,
+    NoReturn,
 )
 
 from typing_extensions import ParamSpec
@@ -85,6 +86,16 @@ class Task(Generic[P, R]):
         #       validate that the user passes positive numbers here
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
+
+    @overload
+    def __call__(
+        self: "Task[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
+    ) -> PrefectFuture[T]:
+        """
+        `NoReturn` matches if a type can't be inferred for the function which stops a
+        sync function from matching the `Coroutine` overload
+        """
+        ...
 
     @overload
     def __call__(

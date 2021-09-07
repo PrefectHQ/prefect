@@ -16,6 +16,7 @@ from typing import (
     cast,
     overload,
     Generic,
+    NoReturn,
 )
 
 from typing_extensions import ParamSpec
@@ -64,6 +65,16 @@ class Flow(Generic[P, R]):
         self.version = version or (file_hash(flow_file) if flow_file else None)
 
         self.parameters = parameter_schema(self.fn)
+
+    @overload
+    def __call__(
+        self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
+    ) -> State[T]:
+        """
+        `NoReturn` matches if a type can't be inferred for the function which stops a
+        sync function from matching the `Coroutine` overload
+        """
+        ...
 
     @overload
     def __call__(
@@ -117,13 +128,16 @@ def flow(
     if __fn:
         return cast(
             Flow[P, R],
-            Flow(
-                fn=__fn,
-                name=name,
-                version=version,
-                executor=executor,
-                description=description,
-                tags=tags,
+            wraps(
+                __fn,
+                Flow(
+                    fn=__fn,
+                    name=name,
+                    version=version,
+                    executor=executor,
+                    description=description,
+                    tags=tags,
+                ),
             ),
         )
     else:
