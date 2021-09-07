@@ -70,7 +70,7 @@ class TestReadFlows:
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_read_flows_filters_by_name(self, client, session):
+    async def test_read_flows_applies_flow_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -86,7 +86,7 @@ class TestReadFlows:
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
 
-    async def test_read_flows_filters_by_id(self, client, session):
+    async def test_read_flows_applies_flow_run_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -94,15 +94,19 @@ class TestReadFlows:
         flow_2 = await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
         )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_1.id),
+        )
         await session.commit()
 
-        flow_filter = {"flows": {"ids": [str(flow_2.id)]}}
+        flow_filter = {"flow_runs": {"ids": [str(flow_run_1.id)]}}
         response = await client.get("/flows/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
-        assert UUID(response.json()[0]["id"]) == flow_2.id
+        assert UUID(response.json()[0]["id"]) == flow_1.id
 
-    async def test_read_flows_filters_by_tags(self, client, session):
+    async def test_read_flows_applies_task_run_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -110,9 +114,19 @@ class TestReadFlows:
         flow_2 = await models.flows.create_flow(
             session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
         )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_1.id),
+        )
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run_1.id, task_key="my-key"
+            ),
+        )
         await session.commit()
 
-        flow_filter = {"flows": {"tags_all": ["db", "blue"]}}
+        flow_filter = {"task_runs": {"ids": [str(task_run_1.id)]}}
         response = await client.get("/flows/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
