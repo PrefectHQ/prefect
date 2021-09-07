@@ -93,6 +93,23 @@ class OrchestrationContext(PrefectBaseModel):
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
+    async def validate_proposed_state(self, state_constructor):
+        if self.proposed_state is not None:
+            validated_orm_state = state_constructor(
+                task_run_id=self.task_run_id,
+                **self.proposed_state.dict(shallow=True),
+            )
+            self.session.add(validated_orm_state)
+            await self.session.flush()
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
+        self.validated_state = validated_state
+
+        return validated_orm_state
+
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     FROM_STATES: Iterable = []
