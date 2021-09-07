@@ -4,6 +4,8 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion import models
+from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states
 
 
@@ -131,11 +133,13 @@ class TestReadFlowRun:
 
     async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
-        await models.flow_run_states.create_flow_run_state(
-            session=session,
-            flow_run_id=flow_run.id,
-            state=states.State(id=state_id, type="RUNNING"),
-        )
+        (
+            await models.flow_run_states.orchestrate_flow_run_state(
+                session=session,
+                flow_run_id=flow_run.id,
+                state=states.State(id=state_id, type="RUNNING"),
+            )
+        ).state
         response = await client.get(f"/flow_runs/{flow_run.id}")
         assert flow_run.state.type.value == "RUNNING"
         assert flow_run.state.id == state_id
@@ -248,7 +252,7 @@ class TestSetFlowRunState:
         )
         assert response.status_code == 201
 
-        api_response = responses.SetStateResponse.parse_obj(response.json())
+        api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
 
         flow_run_id = flow_run.id

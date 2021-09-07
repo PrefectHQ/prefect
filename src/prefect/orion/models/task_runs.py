@@ -25,7 +25,7 @@ async def create_task_run(
     session.add(model)
     await session.flush()
     if task_run.state:
-        await models.task_run_states.create_task_run_state(
+        await models.task_run_states.orchestrate_task_run_state(
             session=session, task_run_id=model.id, state=task_run.state
         )
     return model
@@ -58,9 +58,7 @@ async def read_task_runs(
         List[orm.TaskRun]: the task runs
     """
     query = (
-        select(orm.TaskRun)
-        .filter(orm.TaskRun.flow_run_id == flow_run_id)
-        .order_by(orm.TaskRun.id)
+        select(orm.TaskRun).filter_by(flow_run_id=flow_run_id).order_by(orm.TaskRun.id)
     )
     result = await session.execute(query)
     return result.scalars().unique().all()

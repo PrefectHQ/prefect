@@ -6,7 +6,8 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
+from prefect.orion import schemas
+from prefect.orion.models import orm
 from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
     BaseUniversalRule,
@@ -16,7 +17,7 @@ from prefect.orion.schemas import states
 
 
 async def create_task_run_state(
-    session, task_run, state_type: schemas.actions.StateCreate, state_details=None
+    session, task_run, state_type: states.StateType, state_details=None
 ):
     if state_type is None:
         return None
@@ -27,13 +28,14 @@ async def create_task_run_state(
         state_details=state_details,
     )
 
-    return (
-        await models.task_run_states.create_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=new_state,
-        )
-    ).as_state()
+    orm_state = orm.TaskRunState(
+        task_run_id=task_run.id,
+        **new_state.dict(shallow=True),
+    )
+
+    session.add(orm_state)
+    await session.flush()
+    return orm_state.as_state()
 
 
 class TestBaseOrchestrationRule:
@@ -45,22 +47,26 @@ class TestBaseOrchestrationRule:
             # we implement rules by inheriting from `BaseOrchestrationRule`
             # in order to do so, we need to define three methods:
 
-            # a before-transition hook that fires upon entering the rule
-            # this method returns a proposed state, and is the only opportunity for a rule
-            # to modify the state transition
-            async def before_transition(self, initial_state, proposed_state, context):
-                nonlocal side_effect
-                side_effect += 1
-                return proposed_state
-
-            # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self, initial_state, validated_state, context):
+            # a before-transition hook that fires upon entering the rule, returns None
+            # and is the only opportunity for a rule to modify the state transition
+            # by calling a state mutation method like `self.reject_transision`
+            async def before_transition(
+                self, initial_state, proposed_state, context
+            ) -> None:
                 nonlocal side_effect
                 side_effect += 1
 
-            # the cleanup step allows a rule to revert side-effects caused
+            # an after-transition hook that returns None, fires after a state
+            # is validated and committed to the DB
+            async def after_transition(
+                self, initial_state, validated_state, context
+            ) -> None:
+                nonlocal side_effect
+                side_effect += 1
+
+            # the cleanup step returns None, and allows a rule to revert side-effects caused
             # by the before-transition hook in case the transition does not complete
-            async def cleanup(self, initial_state, validated_state, context):
+            async def cleanup(self, initial_state, validated_state, context) -> None:
                 nonlocal side_effect
                 side_effect -= 1
 
@@ -101,7 +107,6 @@ class TestBaseOrchestrationRule:
         class MinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
                 before_transition_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -147,7 +152,6 @@ class TestBaseOrchestrationRule:
         class MinimalRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
                 before_transition_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -203,7 +207,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effect
                 side_effect += 1
                 before_transition_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effect
@@ -279,7 +282,10 @@ class TestBaseOrchestrationRule:
                     )
                 )
                 before_transition_hook()
-                return mutated_state
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.reject_transition(
+                    mutated_state, reason="for testing, of course"
+                )
 
             async def after_transition(self, initial_state, validated_state, context):
                 after_transition_hook()
@@ -320,7 +326,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_nested_valid_rules_fire_hooks(
         self, session, task_run, intended_transition
@@ -339,7 +345,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 first_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -356,7 +361,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 second_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -430,7 +434,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_complex_nested_rules_interact_sensibly(
         self, session, task_run, intended_transition
@@ -455,7 +459,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 first_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -481,7 +484,10 @@ class TestBaseOrchestrationRule:
                     )
                 )
                 mutator_before_hook()
-                return mutated_state
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.reject_transition(
+                    mutated_state, reason="testing my dear watson"
+                )
 
             async def after_transition(self, initial_state, validated_state, context):
                 mutator_after_hook()
@@ -494,7 +500,6 @@ class TestBaseOrchestrationRule:
                 nonlocal side_effects
                 side_effects += 1
                 invalid_before_hook()
-                return proposed_state
 
             async def after_transition(self, initial_state, validated_state, context):
                 nonlocal side_effects
@@ -590,19 +595,18 @@ class TestBaseUniversalRule:
 
         class IllustrativeUniversalRule(BaseUniversalRule):
             # Like OrchestrationRules, UniversalRules are context managers, but stateless.
-            # They fire on every transition, and don't care if the intended transition is modified
-            # thus, they do not have a cleanup step.
+            # They fire on every transition, and don't care if the intended transition
+            # is modified thus, they do not have a cleanup step.
 
             # UniversalRules are typically used for essential bookkeeping
 
             # a before-transition hook that fires upon entering the rule
-            async def before_transition(self, initial_state, proposed_state, context):
+            async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
-                return proposed_state
 
             # an after-transition hook that fires after a state is validated and committed to the DB
-            async def after_transition(self, initial_state, validated_state, context):
+            async def after_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
 
@@ -636,7 +640,7 @@ class TestBaseUniversalRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], states.StateType)),
-        ids=lambda args: f"rand: {args[0].name if args[0] else None} => {args[1].name}",
+        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name}",
     )
     async def test_universal_rules_always_fire(
         self, session, task_run, intended_transition
@@ -646,13 +650,12 @@ class TestBaseUniversalRule:
         after_hook = MagicMock()
 
         class IllustrativeUniversalRule(BaseUniversalRule):
-            async def before_transition(self, initial_state, proposed_state, context):
+            async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
                 before_hook()
-                return proposed_state
 
-            async def after_transition(self, initial_state, validated_state, context):
+            async def after_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
                 after_hook()
@@ -685,3 +688,145 @@ class TestBaseUniversalRule:
         assert side_effect == 2
         assert before_hook.call_count == 1
         assert after_hook.call_count == 1
+
+
+class TestOrchestrationContext:
+    async def test_context_is_protected_from_mutation_at_all_costs(
+        self, session, task_run
+    ):
+        class EvilVillainRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                context.initial_state.type = states.StateType.CANCELLED
+                context.proposed_state.type = states.StateType.COMPLETED
+
+            async def after_transition(self, initial_state, validated_state, context):
+                context.initial_state.type = states.StateType.CANCELLED
+                context.proposed_state.type = states.StateType.COMPLETED
+                context.validated_state.type = states.StateType.SCHEDULED
+
+        class MutatingSlimeRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                initial_state.type = states.StateType.CANCELLED
+                proposed_state.type = states.StateType.COMPLETED
+
+            async def after_transition(self, initial_state, validated_state, context):
+                initial_state.type = states.StateType.CANCELLED
+                validated_state.type = states.StateType.COMPLETED
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            the_evil_villain = EvilVillainRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_evil_villain)
+            assert ctx.initial_state_type == states.StateType.PENDING
+            assert ctx.proposed_state_type == states.StateType.RUNNING
+            # foiled again
+
+            the_mutating_slime = MutatingSlimeRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_mutating_slime)
+            assert ctx.initial_state_type == states.StateType.PENDING
+            assert ctx.proposed_state_type == states.StateType.RUNNING
+            # thankfully we had the antidote
+
+            validated_state = orm.TaskRunState(
+                task_run_id=ctx.task_run_id,
+                **ctx.proposed_state.dict(shallow=True),
+            )
+            ctx.validated_state = validated_state.as_state()
+
+        # check that the states remain the same after exiting the context
+        # our context emerges unscathed
+        assert ctx.initial_state_type == states.StateType.PENDING
+        assert ctx.proposed_state.type == states.StateType.RUNNING
+        assert ctx.validated_state.type == states.StateType.RUNNING
+
+    async def test_context_will_mutate_if_asked_politely(self, session, task_run):
+        class PoliteHeroRule(BaseOrchestrationRule):
+            async def before_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.reject_transition(
+                    proposed_state, reason="heroes ask permission"
+                )
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            the_polite_hero = PoliteHeroRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(the_polite_hero)
+            validated_state = orm.TaskRunState(
+                task_run_id=ctx.task_run_id,
+                **ctx.proposed_state.dict(shallow=True),
+            )
+            ctx.validated_state = validated_state.as_state()
+
+        assert ctx.proposed_state.type == states.StateType.COMPLETED
+        assert ctx.validated_state.type == states.StateType.COMPLETED
+
+    async def test_context_will_not_mutate_if_asked_too_late(self, session, task_run):
+        class TardyHeroRule(BaseOrchestrationRule):
+            async def after_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.reject_transition(
+                    proposed_state, reason="heroes should not be late"
+                )
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await create_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = await create_task_run_state(
+            session, task_run, proposed_state_type
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        # oh no, the hero is too late
+        with pytest.raises(RuntimeError):
+            async with contextlib.AsyncExitStack() as stack:
+                the_tardy_hero = TardyHeroRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(the_tardy_hero)
+                validated_state = orm.TaskRunState(
+                    task_run_id=ctx.task_run_id,
+                    **ctx.proposed_state.dict(shallow=True),
+                )
+                ctx.validated_state = validated_state.as_state()

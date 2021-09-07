@@ -7,9 +7,15 @@ import sqlalchemy as sa
 from pydantic import Field
 
 from prefect.orion.schemas import core, states
+from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
+
+
+class OrchestrationResult(PrefectBaseModel):
+    state: Optional[states.State]
+    status: SetStateStatus
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -25,6 +31,7 @@ class OrchestrationContext(PrefectBaseModel):
     flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
+    response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
 
     def __post_init__(self, **kwargs):
         if self.flow_run_id is None and self.run is not None:
@@ -49,11 +56,28 @@ class OrchestrationContext(PrefectBaseModel):
     def run_settings(self):
         return self.run.empirical_policy
 
+    def safe_copy(self):
+        safe_copy = self.copy()
+
+        safe_copy.initial_state = (
+            self.initial_state.copy() if self.initial_state else None
+        )
+        safe_copy.proposed_state = (
+            self.proposed_state.copy() if self.proposed_state else None
+        )
+        safe_copy.validated_state = (
+            self.validated_state.copy() if self.validated_state else None
+        )
+        safe_copy.run = self.run.copy()
+        return safe_copy
+
     def entry_context(self):
-        return self.initial_state, self.proposed_state, self.copy()
+        safe_context = self.safe_copy()
+        return safe_context.initial_state, safe_context.proposed_state, safe_context
 
     def exit_context(self):
-        return self.initial_state, self.validated_state, self.copy()
+        safe_context = self.safe_copy()
+        return safe_context.initial_state, safe_context.validated_state, safe_context
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
@@ -63,12 +87,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state: states.StateType,
-        to_state: states.StateType,
+        from_state_type: states.StateType,
+        to_state_type: states.StateType,
     ):
         self.context = context
-        self.from_state = from_state
-        self.to_state = to_state
+        self.from_state_type = from_state_type
+        self.to_state_type = to_state_type
         self._not_fizzleable = None
 
     async def __aenter__(self) -> OrchestrationContext:
@@ -76,8 +100,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             pass
         else:
             entry_context = self.context.entry_context()
-            proposed_state = await self.before_transition(*entry_context)
-            await self.update_state(proposed_state)
+            await self.before_transition(*entry_context)
             self.context.rule_signature.append(str(self.__class__))
         return self.context
 
@@ -102,7 +125,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         proposed_state: states.State,
         context: OrchestrationContext,
     ) -> states.State:
-        return proposed_state
+        pass
 
     async def after_transition(
         self,
@@ -142,15 +165,21 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             if self.context.proposed_state is None
             else self.context.proposed_state.type
         )
-        return (self.from_state != initial_state_type) or (
-            self.to_state != proposed_state_type
+        return (self.from_state_type != initial_state_type) or (
+            self.to_state_type != proposed_state_type
         )
 
-    async def update_state(self, proposed_state: states.State) -> None:
+    async def reject_transition(self, state: states.State, reason: str):
+        # don't run if the transition is already validated
+        if self.context.validated_state:
+            raise RuntimeError("The transition is already validated")
+
         # if a rule modifies the proposed state, it should not fizzle itself
-        if self.context.proposed_state_type != proposed_state.type:
-            self.to_state = proposed_state.type
-        self.context.proposed_state = proposed_state
+        if self.context.proposed_state_type != state.type:
+            self.to_state_type = state.type
+
+        self.context.proposed_state = state
+        self.context.response_status = SetStateStatus.REJECT
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
@@ -160,17 +189,13 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state: states.State,
-        to_state: states.State,
+        from_state_type: states.State,
+        to_state_type: states.State,
     ):
         self.context = context
-        self.from_state = from_state
-        self.to_state = to_state
 
     async def __aenter__(self):
-        entry_context = self.context.entry_context()
-        proposed_state = await self.before_transition(*entry_context)
-        self.context.proposed_state = proposed_state
+        await self.before_transition(self.context)
         self.context.rule_signature.append(str(self.__class__))
         return self.context
 
@@ -180,22 +205,11 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        exit_context = self.context.exit_context()
-        await self.after_transition(*exit_context)
+        await self.after_transition(self.context)
         self.context.finalization_signature.append(str(self.__class__))
 
-    async def before_transition(
-        self,
-        initial_state: states.State,
-        proposed_state: states.State,
-        context: OrchestrationContext,
-    ) -> states.State:
-        return proposed_state
+    async def before_transition(self, context) -> None:
+        pass
 
-    async def after_transition(
-        self,
-        initial_state: states.State,
-        validated_state: states.State,
-        context: OrchestrationContext,
-    ) -> None:
+    async def after_transition(self, context) -> None:
         pass

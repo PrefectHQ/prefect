@@ -6,6 +6,7 @@ import pendulum
 from pydantic import Field, validator
 
 from prefect.orion.utilities.enum import AutoEnum
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
@@ -43,7 +44,7 @@ class State(ORMBaseModel):
         default_factory=lambda: pendulum.now("UTC"), repr=False
     )
     message: str = Field(None, example="Run started")
-    data: Any = Field(None, repr=False)
+    data: DataDocument = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
     run_details: RunDetails = Field(default_factory=RunDetails, repr=False)
 
@@ -78,14 +79,14 @@ class State(ORMBaseModel):
     def is_final(self):
         return self.is_cancelled() or self.is_completed() or self.is_failed()
 
-    def copy(self, *, update: dict = None, **kwargs):
+    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
         Copying API models should return an object that could be inserted into the
         database again. The 'timestamp' is reset using the default factory.
         """
         update = update or {}
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
-        return super().copy(update=update, **kwargs)
+        return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
 
 def Completed(**kwargs) -> State:
@@ -133,7 +134,7 @@ def update_run_details(from_state: Optional[State], to_state: State) -> RunDetai
     """
 
     if from_state:
-        run_details = from_state.run_details.copy()
+        run_details = from_state.run_details.copy(reset_fields=True)
         duration = (to_state.timestamp - from_state.timestamp).total_seconds()
         run_details.previous_state_id = from_state.id
         run_details.total_time_seconds += duration

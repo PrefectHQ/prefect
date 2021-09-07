@@ -6,6 +6,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
+from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
@@ -28,7 +29,7 @@ async def create_task_run(
         response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         await nested.rollback()
-        query = sa.select(models.orm.TaskRun).filter(
+        query = sa.select(models.orm.TaskRun).where(
             sa.and_(
                 models.orm.TaskRun.flow_run_id == task_run.flow_run_id,
                 models.orm.TaskRun.task_key == task_run.task_key,
@@ -91,32 +92,14 @@ async def set_task_run_state(
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
-) -> schemas.responses.SetStateResponse:
+) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
     # create the state
-    new_state = await models.task_run_states.create_task_run_state(
-        session=session, task_run_id=task_run_id, state=state
+    orchestration_result = await models.task_run_states.orchestrate_task_run_state(
+        session=session,
+        task_run_id=task_run_id,
+        state=state,
     )
 
-    # if the set state has the same type as the provided state, it was accepted,
-    # though its details may have been updated
-    if new_state.type == state.type:
-
-        # indicate the state was accepted
-        return schemas.responses.SetStateResponse(
-            status=schemas.responses.SetStateStatus.ACCEPT,
-            details=dict(
-                run_details=new_state.run_details,
-                state_details=new_state.state_details,
-            ),
-        )
-
-    # otherwise the requested transition was rejected
-    else:
-
-        # send the new state
-        return schemas.responses.SetStateResponse(
-            status=schemas.responses.SetStateStatus.REJECT,
-            details=dict(state=new_state),
-        )
+    return orchestration_result

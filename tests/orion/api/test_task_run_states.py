@@ -72,7 +72,7 @@ class TestBackendCachingLogic:
             assert cached_response.json()["status"] == "ACCEPT"
         else:
             assert cached_response.json()["status"] == "REJECT"
-            assert cached_response.json()["details"]["state"]["name"] == "Cached"
+            assert cached_response.json()["state"]["name"] == "Cached"
 
 
 class TestReadTaskRunStateById:

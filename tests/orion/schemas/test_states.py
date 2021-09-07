@@ -27,12 +27,21 @@ class TestState:
         state = State(type=StateType.RUNNING)
         assert state.timestamp > dt
 
-    def test_state_copy_creates_insertable_object(self):
+    def test_state_copy_does_not_create_insertable_object(self):
         dt = pendulum.now("UTC")
         state = State(
             type=StateType.RUNNING, timestamp=dt, id=uuid4(), created=dt, updated=dt
         )
         new_state = state.copy()
+        # Same UUID
+        assert new_state.id == state.id
+
+    def test_state_copy_with_field_reset_creates_insertable_object(self):
+        dt = pendulum.now("UTC")
+        state = State(
+            type=StateType.RUNNING, timestamp=dt, id=uuid4(), created=dt, updated=dt
+        )
+        new_state = state.copy(reset_fields=True)
         # New UUID
         assert new_state.id != state.id
         assert isinstance(new_state.id, UUID)

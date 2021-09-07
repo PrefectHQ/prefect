@@ -15,6 +15,10 @@ class Flow(ORMBaseModel):
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     parameters: ParameterSchema = Field(default_factory=ParameterSchema)
 
+    # relationships
+    # flow_runs: List["FlowRun"] = Field(default_factory=list)
+    # deployments: List["Deployment"] = Field(default_factory=list)
+
 
 class FlowRunDetails(PrefectBaseModel):
     auto_scheduled: bool = False
@@ -33,7 +37,13 @@ class FlowRun(ORMBaseModel):
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     flow_run_details: FlowRunDetails = Field(default_factory=FlowRunDetails)
     parent_task_run_id: UUID = None
-    state: states.State = None
+
+    # relationships
+    # flow: Flow = None
+    # task_runs: List["TaskRun"] = Field(default_factory=list)
+    # states: List[schemas.states.State] = Field(default_factory=list)
+    state: schemas.states.State = None
+    # parent_task_run: "TaskRun" = None
 
 
 class TaskRunDetails(PrefectBaseModel):
@@ -57,10 +67,21 @@ class TaskRun(ORMBaseModel):
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
     task_run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
-    state: states.State = None
+
+    # relationships
+    # flow_run: FlowRun = None
+    # subflow_runs: List[FlowRun] = Field(default_factory=list)
+    # states: List[schemas.states.State] = Field(default_factory=list)
+    state: schemas.states.State = None
 
 
 class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
     schedules: List[schemas.schedules.Schedule] = Field(default_factory=list)
+
+    # flow: Flow = None
+
+
+Flow.update_forward_refs()
+FlowRun.update_forward_refs()

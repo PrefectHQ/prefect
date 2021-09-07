@@ -55,7 +55,7 @@ class StateSet:
 
     @staticmethod
     def _get_not_final_count(states: Iterable[State]) -> int:
-        return int(sum(state.is_final() for state in states))
+        return len(states) - sum(state.is_final() for state in states)
 
     def __repr__(self) -> str:
         return f"StateSet<{self.counts_message()}>"
