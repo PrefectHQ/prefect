@@ -276,9 +276,11 @@ class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, pydantic_type):
+    def __init__(self, pydantic_type, sa_column_type=None):
         super().__init__()
         self._pydantic_type = pydantic_type
+        if sa_column_type is not None:
+            self.impl = sa_column_type
 
     def process_bind_param(self, value, dialect):
         if value is None:
@@ -370,7 +372,7 @@ def json_contains_sqlite(element, compiler, **kwargs):
             *[
                 sa.select(1)
                 .select_from(json_each)
-                .filter(sa.literal_column("json_each.value") == v)
+                .where(sa.literal_column("json_each.value") == v)
                 .exists()
                 for v in json_values
             ]
@@ -413,7 +415,7 @@ def json_has_any_key_sqlite(element, compiler, **kwargs):
     return compiler.process(
         sa.select(1)
         .select_from(json_each)
-        .filter(sa.literal_column("json_each.value").in_(element.values))
+        .where(sa.literal_column("json_each.value").in_(element.values))
         .exists(),
         **kwargs
     )
