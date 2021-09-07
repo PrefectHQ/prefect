@@ -72,7 +72,7 @@ async def read_flows(
         flow_run_filter (FlowFilter): only select flows whose flow runs match these filters
         task_run_filter (FlowFilter): only select flows whose task runs match these filters
         offset (int): Query offset
-        limit(int): Query limit
+        limit (int): Query limit
 
     Returns:
         List[orm.Flow]: flows

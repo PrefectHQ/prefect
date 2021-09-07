@@ -54,11 +54,15 @@ async def read_task_runs(
     offset: int = None,
     limit: int = None,
 ) -> List[orm.TaskRun]:
-    """Read a task runs asssociated with a flow run
+    """Read task runs
 
     Args:
         session (sa.orm.Session): a database session
-        flow_run_id (str): the flow run id
+        flow_filter (FlowFilter): only select task runs whose flows match these filters
+        flow_run_filter (FlowFilter): only select task runs whose flow runs match these filters
+        task_run_filter (FlowFilter): only select task runs that match these filters
+        offset (int): Query offset
+        limit (int): Query limit
 
     Returns:
         List[orm.TaskRun]: the task runs
