@@ -1,5 +1,5 @@
 black
-git+git://github.com/python/mypy.git
+mypy @ git+git://github.com/python/mypy.git
 pytest
 pytest-asyncio
 flake8

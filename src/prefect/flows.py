@@ -4,7 +4,6 @@ import inspect
 from functools import update_wrapper
 from functools import partial
 from typing import (
-    TYPE_CHECKING,
     Any,
     Awaitable,
     Callable,
@@ -13,7 +12,6 @@ from typing import (
     TypeVar,
     cast,
     overload,
-    Union,
     Generic,
 )
 
@@ -26,19 +24,19 @@ from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import file_hash
 
-T = TypeVar("T")
-ResultT = TypeVar("ResultT")  # The return type of the user's function
-ParamsT = ParamSpec("ParamsT")  # The parameters of the flow
+T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
+R = TypeVar("R")  # The return type of the user's function
+P = ParamSpec("P")  # The parameters of the flow
 
 
-class Flow(Generic[ParamsT, ResultT]):
+class Flow(Generic[P, R]):
     """
     Base class representing Prefect workflows.
     """
 
     def __init__(
         self,
-        fn: Callable[ParamsT, ResultT],
+        fn: Callable[P, R],
         name: str = None,
         version: str = None,
         executor: BaseExecutor = None,
@@ -66,24 +64,18 @@ class Flow(Generic[ParamsT, ResultT]):
 
     @overload
     def __call__(
-        self: "Flow[ParamsT, Coroutine[Any, Any, T]]",
-        *args: "ParamsT.args",
-        **kwargs: "ParamsT.kwargs",
+        self: "Flow[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
     ) -> Awaitable[State[T]]:
         ...
 
     @overload
-    def __call__(
-        self: "Flow[ParamsT, T]",
-        *args: "ParamsT.args",
-        **kwargs: "ParamsT.kwargs",
-    ) -> State[T]:
+    def __call__(self: "Flow[P, T]", *args: P.args, **kwargs: P.kwargs) -> State[T]:
         ...
 
     def __call__(
         self,
-        *args: "ParamsT.args",
-        **kwargs: "ParamsT.kwargs",
+        *args: "P.args",
+        **kwargs: "P.kwargs",
     ):
         from prefect.engine import enter_flow_run_engine
 
@@ -94,7 +86,7 @@ class Flow(Generic[ParamsT, ResultT]):
 
 
 @overload
-def flow(__fn: Callable[ParamsT, ResultT]) -> Flow[ParamsT, ResultT]:
+def flow(__fn: Callable[P, R]) -> Flow[P, R]:
     ...
 
 
@@ -106,7 +98,7 @@ def flow(
     executor: BaseExecutor = None,
     description: str = None,
     tags: Iterable[str] = None,
-) -> Callable[[Callable[ParamsT, ResultT]], Flow[ParamsT, ResultT]]:
+) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
 
@@ -120,12 +112,12 @@ def flow(
     tags: Iterable[str] = None,
 ):
     if __fn:
-        return cast(Flow[ParamsT, ResultT], Flow(fn=__fn))
+        return cast(Flow[P, R], Flow(fn=__fn))
     else:
         return cast(
-            Callable[[Callable[ParamsT, ResultT]], Flow[ParamsT, ResultT]],
+            Callable[[Callable[P, R]], Flow[P, R]],
             partial(
-                Flow,
+                flow,
                 name=name,
                 version=version,
                 executor=executor,
