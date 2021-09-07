@@ -89,11 +89,11 @@ class PrefectFuture(Generic[R]):
         return hash(self.run_id)
 
 
-async def future_to_data(future: PrefectFuture[T]) -> T:
+async def future_to_data(future: PrefectFuture[R]) -> R:
     return await prefect.get_result(await future.result())
 
 
-async def future_to_state(future: PrefectFuture[T]) -> State[T]:
+async def future_to_state(future: PrefectFuture[R]) -> State[R]:
     return await future.result()
 
 
