@@ -11,7 +11,8 @@ from typing import (
     Union,
     overload,
     cast,
-    Type,
+    TypeVar,
+    Generic,
 )
 from unittest.mock import Mock
 from uuid import UUID
@@ -26,7 +27,10 @@ if TYPE_CHECKING:
     from prefect.orion.schemas.core import FlowRun, TaskRun
 
 
-class PrefectFuture:
+T = TypeVar("T")
+
+
+class PrefectFuture(Generic[T]):
     def __init__(
         self,
         flow_run_id: UUID,
@@ -44,15 +48,15 @@ class PrefectFuture:
         self._executor = executor
 
     @overload
-    async def result(self, timeout: float) -> Optional[State]:
+    async def result(self, timeout: float) -> Optional[State[T]]:
         ...
 
     @overload
-    async def result(self, timeout: None = None) -> State:
+    async def result(self, timeout: None = None) -> State[T]:
         ...
 
     @sync_compatible
-    async def result(self, timeout: float = None):
+    async def result(self, timeout=None):
         """
         Return the state of the run the future represents
         """
@@ -68,7 +72,7 @@ class PrefectFuture:
         return self._result
 
     @sync_compatible
-    async def get_state(self) -> State:
+    async def get_state(self) -> State[T]:
         run: Union[FlowRun, TaskRun]
 
         if self.task_run_id:
@@ -85,11 +89,11 @@ class PrefectFuture:
         return hash(self.run_id)
 
 
-async def future_to_data(future: PrefectFuture) -> Any:
+async def future_to_data(future: PrefectFuture[T]) -> T:
     return await prefect.get_result(await future.result())
 
 
-async def future_to_state(future: PrefectFuture) -> Any:
+async def future_to_state(future: PrefectFuture[T]) -> State[T]:
     return await future.result()
 
 
@@ -127,6 +131,7 @@ async def resolve_futures(
         return typ([await recurse(o) for o in expr])
 
     if typ in (dict, OrderedDict):
+        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         return typ([[await recurse(k), await recurse(v)] for k, v in expr.items()])
 
     if is_dataclass(expr) and not isinstance(expr, type):
