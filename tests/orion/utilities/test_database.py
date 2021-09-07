@@ -1,3 +1,4 @@
+import enum
 import datetime
 from typing import List
 
@@ -25,12 +26,18 @@ class PydanticModel(pydantic.BaseModel):
     y: datetime.datetime = pydantic.Field(default_factory=lambda: pendulum.now("UTC"))
 
 
+class Color(enum.Enum):
+    RED = "RED"
+    BLUE = "BLUE"
+
+
 class SQLPydanticModel(DBBase):
     __tablename__ = "_test_pydantic_model"
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     data = sa.Column(Pydantic(PydanticModel))
     data_list = sa.Column(Pydantic(List[PydanticModel]))
+    color = sa.Column(Pydantic(Color, sa_column_type=sa.Text()))
 
 
 class SQLTimestampModel(DBBase):
@@ -138,6 +145,37 @@ class TestPydantic:
         with pytest.raises(sa.exc.StatementError, match="(validation error)"):
             await session.flush()
 
+    async def test_write_to_enum_field(self, session):
+        s_model = SQLPydanticModel(color="RED")
+        session.add(s_model)
+        await session.flush()
+
+    async def test_write_to_enum_field_is_validated(self, session):
+        s_model = SQLPydanticModel(color="GREEN")
+        session.add(s_model)
+        with pytest.raises(sa.exc.StatementError, match="(validation error)"):
+            await session.flush()
+
+    async def test_enum_field_is_a_string_in_database(self, session):
+        s_model = SQLPydanticModel(color="RED")
+        session.add(s_model)
+        await session.flush()
+
+        # write to the field, since it is an arbitrary string
+        await session.execute(
+            f"""
+            UPDATE {SQLPydanticModel.__tablename__}
+            SET color = 'GREEN';
+            """
+        )
+
+        # enum enforced by application
+        stmt = sa.select(SQLPydanticModel)
+        with pytest.raises(
+            pydantic.ValidationError, match="(not a valid enumeration member)"
+        ):
+            await session.execute(stmt)
+
 
 class TestTimestamp:
     async def test_error_if_naive_timestamp_passed(self, session):
@@ -201,7 +239,7 @@ class TestJSON:
     async def test_json_contains(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_contains(SQLJSONModel.data, keys))
+            .where(json_contains(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -221,7 +259,7 @@ class TestJSON:
     async def test_json_has_any_key(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_has_any_key(SQLJSONModel.data, keys))
+            .where(json_has_any_key(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids
@@ -239,7 +277,7 @@ class TestJSON:
     async def test_json_has_all_keys(self, session, keys, ids):
         query = (
             sa.select(SQLJSONModel)
-            .filter(json_has_all_keys(SQLJSONModel.data, keys))
+            .where(json_has_all_keys(SQLJSONModel.data, keys))
             .order_by(SQLJSONModel.id)
         )
         assert await self.get_ids(session, query) == ids

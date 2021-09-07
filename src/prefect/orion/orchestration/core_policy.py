@@ -124,7 +124,7 @@ async def get_cached_task_run_state(
 ) -> Optional[orm.TaskRunState]:
     task_run_state_id = (
         select(orm.TaskRunStateCache.task_run_state_id)
-        .filter(
+        .where(
             sa.and_(
                 orm.TaskRunStateCache.cache_key == cache_key,
                 sa.or_(
@@ -136,7 +136,7 @@ async def get_cached_task_run_state(
         .order_by(orm.TaskRunStateCache.created.desc())
         .limit(1)
     ).scalar_subquery()
-    query = select(orm.TaskRunState).filter(orm.TaskRunState.id == task_run_state_id)
+    query = select(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
     result = await session.execute(query)
     return result.scalar()
 
