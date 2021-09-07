@@ -14,8 +14,8 @@ class CensusSyncTask(Task):
     """
     Task for running Census connector sync jobs.
 
-    This task assumes the user has the Census sync already configured and is attempting to orchestrate the
-    sync using a prefect task to send a post to the API within a prefect flow. Copy and paste from the api
+    This task assumes the user has a Census sync already configured and is attempting to orchestrate the
+    sync using Prefect task to send a post to the API within a prefect flow. Copy and paste from the api
     trigger section on the configuration page in the `api_trigger` param to set a default sync.
 
     Args:
@@ -31,7 +31,7 @@ class CensusSyncTask(Task):
     def run(
         self, api_trigger: str, poll_status_every_n_seconds: int = DEFAULT_WAIT_TIME
     ) -> dict:
-        f"""
+        """
         Task run method for Census syncs.
 
         An invocation of `run` will attempt to start a sync job for the specified `api_trigger`. `run`
@@ -45,8 +45,8 @@ class CensusSyncTask(Task):
             - api_trigger (str): if not specified in run, it will pull from the default for the
                 CensusSyncTask constructor. Keyword argument.
             - poll_status_every_n_seconds (int, optional): this task polls the Census API for the sync's
-                status. If provided, this value will override the default polling time of {DEFAULT_WAIT_TIME}
-                seconds but it has a minimum wait time of {MIN_WAIT_TIME} seconds.  Keyword argument.
+                status. If provided, this value will override the default polling time of
+                60 seconds and it has a minimum wait time of 5 seconds. Keyword argument.
 
         Returns:
             - dict: dictionary of statistics returned by Census on the specified sync
@@ -54,11 +54,11 @@ class CensusSyncTask(Task):
 
         if not api_trigger:
             raise ValueError(
-                """Value for parameter `api_trigger` must be provided. See Census sync 
+                """Value for parameter `api_trigger` must be provided. See Census sync
                                 configuration page."""
             )
 
-        pattern = "https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger"
+        pattern = r'https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger'
         url_pattern = re.compile(pattern)
 
         # Making sure it is a valid api trigger.
@@ -66,7 +66,7 @@ class CensusSyncTask(Task):
 
         if not confirmed_pattern:
             raise ValueError(
-                """Invalid parameter for `api_trigger` please paste directly from the Census 
+                """Invalid parameter for `api_trigger` please paste directly from the Census
                                 sync configuration page. This is CaSe SenSITiVe."""
             )
 
@@ -84,7 +84,7 @@ class CensusSyncTask(Task):
         )
 
         sync_run_id = response.json()["data"]["sync_run_id"]
-        status_url = f"https://bearer:secret-token:{secret}@app.getcensus.com/api/v1/sync_runs/{sync_run_id}"
+        sr_url = f"https://bearer:secret-token:{secret}@app.getcensus.com/api/v1/sync_runs/{sync_run_id}"
         log_url = f"https://app.getcensus.com/syncs/{sync_id}/sync-history"
 
         result = {}
@@ -92,7 +92,7 @@ class CensusSyncTask(Task):
         start_time = time.time()
         while True:
             time.sleep(sleep_time)
-            status_response = requests.get(status_url)
+            status_response = requests.get(sr_url)
             response_dict = status_response.json()
             if status_response.status_code != 200 or "data" not in response_dict.keys():
                 raise ValueError(

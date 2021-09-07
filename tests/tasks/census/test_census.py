@@ -11,7 +11,7 @@ class TestCensusSyncTask:
 
     def test_run_failing_on_poor_url(self):
         task = CensusSyncTask(api_trigger="random_url.com")
-        assert task.api_trigger is None
+        assert task.api_trigger == "random_url.com"
         with pytest.raises(ValueError, match="paste"):
             task.run()
 
