@@ -58,7 +58,7 @@ class CensusSyncTask(Task):
                                 configuration page."""
             )
 
-        pattern = r'https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger'
+        pattern = r"https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger"
         url_pattern = re.compile(pattern)
 
         # Making sure it is a valid api trigger.
