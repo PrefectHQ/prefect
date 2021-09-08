@@ -107,7 +107,7 @@ class TestFlowRun:
                 ),
                 isouter=True,
             )
-            .filter(frs_alias.id == None)
+            .where(frs_alias.id == None)
         )
         result = await session.execute(query)
         objs = result.all()
@@ -126,7 +126,7 @@ class TestFlowRun:
     async def test_flow_run_state_relationship_query_matches_current_data(
         self, many_flow_run_states, session
     ):
-        query = sa.select(orm.FlowRun).filter(
+        query = sa.select(orm.FlowRun).where(
             orm.FlowRun.state.has(
                 orm.FlowRunState.type == schemas.states.StateType.COMPLETED
             )
@@ -137,7 +137,7 @@ class TestFlowRun:
     async def test_flow_run_state_relationship_query_doesnt_match_old_data(
         self, many_flow_run_states, session
     ):
-        query = sa.select(orm.FlowRun.id).filter(
+        query = sa.select(orm.FlowRun.id).where(
             orm.FlowRun.state.has(
                 orm.FlowRunState.type == schemas.states.StateType.RUNNING
             )
@@ -149,7 +149,7 @@ class TestFlowRun:
         self, flow, many_flow_run_states, session
     ):
         # the flow runs are most recently in a Completed state
-        match_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
+        match_query = sa.select(sa.func.count(orm.FlowRun.id)).where(
             orm.FlowRun.flow_id == flow.id,
             orm.FlowRun.state.has(
                 orm.FlowRunState.type == schemas.states.StateType.COMPLETED
@@ -159,7 +159,7 @@ class TestFlowRun:
         assert result.scalar() == 5
 
         # no flow run is in a running state
-        miss_query = sa.select(sa.func.count(orm.FlowRun.id)).filter(
+        miss_query = sa.select(sa.func.count(orm.FlowRun.id)).where(
             orm.FlowRun.flow_id == flow.id,
             orm.FlowRun.state.has(
                 orm.FlowRunState.type == schemas.states.StateType.RUNNING
@@ -251,7 +251,7 @@ class TestTaskRun:
                 ),
                 isouter=True,
             )
-            .filter(frs_alias.id == None)
+            .where(frs_alias.id == None)
         )
         result = await session.execute(query)
         objs = result.all()
@@ -270,7 +270,7 @@ class TestTaskRun:
     async def test_task_run_state_relationship_query_matches_current_data(
         self, many_task_run_states, session
     ):
-        query = sa.select(orm.TaskRun).filter(
+        query = sa.select(orm.TaskRun).where(
             orm.TaskRun.state.has(
                 orm.TaskRunState.type == schemas.states.StateType.COMPLETED
             )
@@ -281,7 +281,7 @@ class TestTaskRun:
     async def test_task_run_state_relationship_query_doesnt_match_old_data(
         self, many_task_run_states, session
     ):
-        query = sa.select(orm.TaskRun.id).filter(
+        query = sa.select(orm.TaskRun.id).where(
             orm.TaskRun.state.has(
                 orm.TaskRunState.type == schemas.states.StateType.RUNNING
             )
@@ -293,7 +293,7 @@ class TestTaskRun:
         self, flow_run, many_task_run_states, session
     ):
         # the task runs are most recently in a completed state
-        match_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
+        match_query = sa.select(sa.func.count(orm.TaskRun.id)).where(
             orm.TaskRun.flow_run_id == flow_run.id,
             orm.TaskRun.state.has(
                 orm.TaskRunState.type == schemas.states.StateType.COMPLETED
@@ -303,7 +303,7 @@ class TestTaskRun:
         assert result.scalar() == 5
 
         # no task run is in a running state
-        miss_query = sa.select(sa.func.count(orm.TaskRun.id)).filter(
+        miss_query = sa.select(sa.func.count(orm.TaskRun.id)).where(
             orm.TaskRun.flow_run_id == flow_run.id,
             orm.TaskRun.state.has(
                 orm.TaskRunState.type == schemas.states.StateType.RUNNING

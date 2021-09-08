@@ -14,12 +14,20 @@ from prefect.orion.orchestration.rules import (
 from prefect.orion.schemas import states
 
 
-class CorePolicy(BaseOrchestrationPolicy):
+class CoreFlowPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return [
+            WaitForScheduledTime,
+        ]
+
+
+class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
+            WaitForScheduledTime,
         ]
 
 
@@ -82,7 +90,33 @@ class RetryPotentialFailures(BaseOrchestrationRule):
                 message=proposed_state.message,
                 data=proposed_state.data,
             )
-            await self.reject_transition(state=retry_state, reason="Retying")
+            await self.reject_transition(state=retry_state, reason="Retrying")
+
+
+class WaitForScheduledTime(BaseOrchestrationRule):
+    """
+    Prevents transition from a scheduled state to a new state if the scheduled time is
+    in the future
+    """
+
+    FROM_STATES = [states.StateType.SCHEDULED]
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: states.State,
+        proposed_state: states.State,
+        context: OrchestrationContext,
+    ) -> None:
+        scheduled_time = initial_state.state_details.scheduled_time
+        if not scheduled_time:
+            raise ValueError("Received state without a scheduled time")
+
+        delay_seconds = (scheduled_time - pendulum.now()).in_seconds()
+        if delay_seconds > 0:
+            await self.delay_transition(
+                delay_seconds, reason="Scheduled time is in the future"
+            )
 
 
 async def get_cached_task_run_state(
@@ -90,7 +124,7 @@ async def get_cached_task_run_state(
 ) -> Optional[orm.TaskRunState]:
     task_run_state_id = (
         select(orm.TaskRunStateCache.task_run_state_id)
-        .filter(
+        .where(
             sa.and_(
                 orm.TaskRunStateCache.cache_key == cache_key,
                 sa.or_(
@@ -102,7 +136,7 @@ async def get_cached_task_run_state(
         .order_by(orm.TaskRunStateCache.created.desc())
         .limit(1)
     ).scalar_subquery()
-    query = select(orm.TaskRunState).filter(orm.TaskRunState.id == task_run_state_id)
+    query = select(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
     result = await session.execute(query)
     return result.scalar()
 

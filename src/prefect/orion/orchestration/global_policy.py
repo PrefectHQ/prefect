@@ -104,5 +104,6 @@ class UpdateStateDetails(BaseUniversalRule):
         self,
         context: OrchestrationContext,
     ) -> states.State:
-        context.proposed_state.state_details.flow_run_id = context.flow_run_id
-        context.proposed_state.state_details.task_run_id = context.task_run_id
+        if context.proposed_state is not None:
+            context.proposed_state.state_details.flow_run_id = context.flow_run_id
+            context.proposed_state.state_details.task_run_id = context.task_run_id

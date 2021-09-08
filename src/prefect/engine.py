@@ -308,9 +308,7 @@ async def orchestrate_task_run(
     state = await client.propose_state(
         State(
             type=StateType.RUNNING,
-            state_details=StateDetails(
-                cache_key=cache_key,
-            ),
+            state_details=StateDetails(cache_key=cache_key),
         ),
         task_run_id=task_run_id,
     )
@@ -350,14 +348,8 @@ async def orchestrate_task_run(
 
         state = await client.propose_state(terminal_state, task_run_id=task_run_id)
 
-        if state.is_scheduled():  # Received a retry from the backend
-            start_time = pendulum.instance(state.state_details.scheduled_time)
-            wait_time = start_time.diff(abs=False).in_seconds() * -1
-            print(f"Task is scheduled to run again {start_time.diff_for_humans()}")
-            if wait_time > 0:
-                print(f"Sleeping for {wait_time}s...")
-                time.sleep(wait_time)
-
+        if not state.is_final():
+            # Attempt to enter a running state again
             state = await client.propose_state(
                 State(type=StateType.RUNNING), task_run_id=task_run_id
             )

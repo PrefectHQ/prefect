@@ -29,7 +29,7 @@ async def create_task_run(
         response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError:
         await nested.rollback()
-        query = sa.select(models.orm.TaskRun).filter(
+        query = sa.select(models.orm.TaskRun).where(
             sa.and_(
                 models.orm.TaskRun.flow_run_id == task_run.flow_run_id,
                 models.orm.TaskRun.task_key == task_run.task_key,
@@ -86,7 +86,7 @@ async def delete_task_run(
     return result
 
 
-@router.post("/{id}/set_state", status_code=201)
+@router.post("/{id}/set_state")
 async def set_task_run_state(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
@@ -101,5 +101,10 @@ async def set_task_run_state(
         task_run_id=task_run_id,
         state=state,
     )
+
+    if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
+        response.status_code = status.HTTP_200_OK
+    else:
+        response.status_code = status.HTTP_201_CREATED
 
     return orchestration_result

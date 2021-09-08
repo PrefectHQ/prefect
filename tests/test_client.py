@@ -4,19 +4,11 @@ from uuid import UUID
 import pytest
 from pydantic import BaseModel
 
-import prefect
 from prefect import flow
 from prefect.client import OrionClient
 from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.serializers import JSONSerializer, PickleSerializer
 from prefect.tasks import task
-
-
-@pytest.fixture
-async def orion_client():
-    async with OrionClient() as client:
-        yield client
 
 
 async def test_create_then_read_flow(orion_client):
