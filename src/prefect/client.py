@@ -134,10 +134,10 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
-        schedules: List[schemas.schedules.Schedule] = [],
+        schedule: schemas.schedules.Schedule = None,
     ) -> UUID:
         deployment_create = schemas.actions.DeploymentCreate(
-            flow_id=flow_id, name=name, schedules=schedules
+            flow_id=flow_id, name=name, schedule=schedule
         )
 
         response = await self.post(

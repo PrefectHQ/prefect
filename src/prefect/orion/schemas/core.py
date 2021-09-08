@@ -78,7 +78,7 @@ class TaskRun(ORMBaseModel):
 class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
-    schedules: List[schemas.schedules.Schedule] = Field(default_factory=list)
+    schedule: schemas.schedules.Schedule = None
 
     # flow: Flow = None
 
