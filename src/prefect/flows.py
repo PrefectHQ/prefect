@@ -128,16 +128,13 @@ def flow(
     if __fn:
         return cast(
             Flow[P, R],
-            wraps(
-                __fn,
-                Flow(
-                    fn=__fn,
-                    name=name,
-                    version=version,
-                    executor=executor,
-                    description=description,
-                    tags=tags,
-                ),
+            Flow(
+                fn=__fn,
+                name=name,
+                version=version,
+                executor=executor,
+                description=description,
+                tags=tags,
             ),
         )
     else:
