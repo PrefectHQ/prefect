@@ -1,11 +1,10 @@
 from pathlib import Path
-from typing import Any, Dict, Iterable, Union
+from typing import Any, Dict, Iterable
 
 import typer
 from rich.live import Live
 from rich.status import Status
 
-from prefect.cli import app
 from prefect.cli.base import (
     app,
     console,
@@ -59,6 +58,15 @@ async def create(
     await _create_deployment(flow_path=flow_path, name=name, flow_name=flow_name)
 
 
+@deployments_app.command()
+@sync_compatible
+async def run(deployment_name: str, watch: bool = True):
+    """
+    Create a flow run for the given deployment
+    """
+    ...
+
+
 @app.command()  # Provides `prefect deploy` alias for `prefect deployment create`
 @sync_compatible
 async def deploy(
@@ -91,7 +99,10 @@ async def _create_deployment(
     if not flows:
         exit_with_error(f"No flows found at path {dsp_path!r}")
     elif flow_name and flow_name not in flows:
-        exit_with_error(f"Flow {flow_name!r} not found at path {dsp_path!r}")
+        exit_with_error(
+            f"Flow {flow_name!r} not found at path {dsp_path!r}. "
+            f"Found the following flows: {listrepr(flows.keys())}"
+        )
     elif not flow_name and len(flows) > 1:
         exit_with_error(
             f"Found {len(flows)} flows at {dsp_path!r}: {listrepr(flows.keys())}. "
