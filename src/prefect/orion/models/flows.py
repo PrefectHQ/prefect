@@ -69,8 +69,8 @@ async def read_flows(
     Args:
         session (sa.orm.Session): A database session
         flow_filter (FlowFilter): only select flows that match these filters
-        flow_run_filter (FlowFilter): only select flows whose flow runs match these filters
-        task_run_filter (FlowFilter): only select flows whose task runs match these filters
+        flow_run_filter (FlowRunFilter): only select flows whose flow runs match these filters
+        task_run_filter (TaskRunFilter): only select flows whose task runs match these filters
         offset (int): Query offset
         limit (int): Query limit
 
