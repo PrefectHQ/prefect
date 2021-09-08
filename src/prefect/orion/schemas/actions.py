@@ -31,7 +31,6 @@ FlowRunCreate = schemas.core.FlowRun.subclass(
 StateCreate = schemas.states.State.subclass(
     name="StateCreate",
     include_fields=[
-        "id",
         "type",
         "name",
         "timestamp",
