@@ -69,17 +69,17 @@ async def read_flow_runs(
     query = select(orm.FlowRun).order_by(orm.FlowRun.id)
 
     if flow_run_filter:
-        query = query.filter(flow_run_filter.as_sql_filter())
+        query = query.where(flow_run_filter.as_sql_filter())
 
     if flow_filter:
-        query = query.join(orm.Flow, orm.Flow.id == orm.FlowRun.flow_id).filter(
+        query = query.join(orm.Flow, orm.Flow.id == orm.FlowRun.flow_id).where(
             flow_filter.as_sql_filter()
         )
 
     if task_run_filter:
         query = query.join(
             orm.TaskRun, orm.FlowRun.id == orm.TaskRun.flow_run_id
-        ).filter(task_run_filter.as_sql_filter())
+        ).where(task_run_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)
