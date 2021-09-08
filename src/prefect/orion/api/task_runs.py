@@ -99,7 +99,8 @@ async def set_task_run_state(
     orchestration_result = await models.task_run_states.orchestrate_task_run_state(
         session=session,
         task_run_id=task_run_id,
-        state=state,
+        # convert to a full State object
+        state=schemas.states.State.parse_obj(state),
     )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:

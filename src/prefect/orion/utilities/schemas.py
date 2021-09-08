@@ -1,13 +1,16 @@
 import copy
 import datetime
 import json
-from typing import Any, List, Set
+from typing import Any, List, Set, TypeVar
 from uuid import UUID, uuid4
 
 import pendulum
 from pydantic import BaseModel, Field
 
 from prefect import settings
+
+
+T = TypeVar("T")
 
 
 def pydantic_subclass(
@@ -189,7 +192,9 @@ class PrefectBaseModel(BaseModel):
                     deep_dict[k] = shallow_dict[k]
             return deep_dict
 
-    def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
+    def copy(
+        self: T, *, update: dict = None, reset_fields: bool = False, **kwargs
+    ) -> T:
         """
         When an IDBaseModel is copied, it generates a new ID for the copy.
         """
