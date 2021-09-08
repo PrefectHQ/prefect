@@ -23,6 +23,26 @@ class TestCreateDeployment:
         )
         assert str(deployment.id) == deployment_id
 
+    async def test_create_deployment_respects_flow_id_name_uniqueness(
+        self, session, client, flow
+    ):
+        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
+            json_compatible=True
+        )
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        assert response.json()["name"] == "My Deployment"
+        deployment_id = response.json()["id"]
+
+        # post the same data
+        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
+            json_compatible=True
+        )
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["id"] == deployment_id
+
     async def test_create_deployment_populates_and_returned_created(self, client, flow):
         now = pendulum.now(tz="UTC")
 

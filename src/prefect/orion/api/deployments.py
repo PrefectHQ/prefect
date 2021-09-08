@@ -11,15 +11,28 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/")
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
-    return await models.deployments.create_deployment(
-        session=session, deployment=deployment
-    )
+    """Create a deployment"""
+    nested = await session.begin_nested()
+    try:
+        result = await models.deployments.create_deployment(
+            session=session, deployment=deployment
+        )
+        response.status_code = status.HTTP_201_CREATED
+    except sa.exc.IntegrityError as exc:
+        await nested.rollback()
+        stmt = await session.execute(
+            sa.select(models.orm.Deployment).filter_by(
+                flow_id=deployment.flow_id, name=deployment.name
+            )
+        )
+        result = stmt.scalar()
+    return result
 
 
 @router.get("/{id}")
@@ -53,7 +66,7 @@ async def read_deployments(
     )
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),

@@ -261,6 +261,14 @@ class Deployment(Base):
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
 
+    __table_args__ = (
+        sa.Index(
+            flow_id,
+            name,
+            unique=True,
+        ),
+    )
+
 
 # --- flow run current state
 #
