@@ -24,6 +24,11 @@ class UpdateRunDetails(BaseUniversalRule):
         self,
         context: OrchestrationContext,
     ) -> states.State:
+
+        # if no state transition is taking place, exit
+        if context.proposed_state is None:
+            return
+
         if context.run_type == "flow_run":
             run = await context.session.get(orm.FlowRun, context.flow_run_id)
         else:
