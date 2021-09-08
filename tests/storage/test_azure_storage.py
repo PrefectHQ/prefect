@@ -17,14 +17,14 @@ def test_create_azure_storage():
 def test_create_azure_storage_init_args():
     storage = Azure(
         container="test",
-        connection_string="conn",
+        connection_string_secret_name="conn",
         blob_name="name",
         secrets=["foo"],
     )
     assert storage
     assert storage.flows == dict()
     assert storage.container == "test"
-    assert storage.connection_string == "conn"
+    assert storage.connection_string_secret_name == "conn"
     assert storage.blob_name == "name"
     assert storage.secrets == ["foo"]
 
@@ -41,7 +41,7 @@ def test_blob_service_client_property(monkeypatch):
     azure = MagicMock(from_connection_string=connection)
     monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
 
-    storage = Azure(container="test", connection_string="conn")
+    storage = Azure(container="test", connection_string_secret_name="conn")
 
     azure_client = storage._azure_block_blob_service
     assert azure_client
