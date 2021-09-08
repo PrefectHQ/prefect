@@ -1,7 +1,6 @@
 from collections.abc import Sequence, Set
-from typing import Any, Iterable, Mapping, Tuple, TypeVar, Union
-
-from pydantic import BaseModel
+from collections import defaultdict
+from typing import Any, Iterable, Mapping, Tuple, TypeVar, Union, List, Dict, Type
 
 T = TypeVar("T")
 
@@ -61,3 +60,39 @@ def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     if isinstance(obj, Sequence) or isinstance(obj, Set):
         return obj
     return [obj]
+
+
+def listrepr(objs: Iterable, sep=" ") -> str:
+    return sep.join(repr(obj) for obj in objs)
+
+
+def extract_instances(
+    objects: Iterable,
+    types: Union[Type[T], Tuple[Type[T], ...]] = object,
+) -> Union[List[T], Dict[Type[T], T]]:
+    """
+    Extract objects from a file and returns a dict of type -> instances
+
+    Args:
+        - objects: An iterable of objects
+        - types: A type or tuple of types to extract, defaults to all objects
+
+    Returns:
+        - If a single type is given: a list of instances of that type
+        - If a tuple of types is given: a mapping of type to a list of instances
+    """
+    types = ensure_iterable(types)
+
+    # Create a mapping of type -> instance from the exec values
+    ret = defaultdict(list)
+
+    for o in objects:
+        # We iterate here so that the key is the passed type rather than type(o)
+        for type_ in types:
+            if isinstance(o, type_):
+                ret[type_].append(o)
+
+    if len(types) == 1:
+        return ret[types[0]]
+
+    return ret
