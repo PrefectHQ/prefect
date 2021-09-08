@@ -14,7 +14,7 @@ To install Prefect, run:
 ::: tab Pip
 
 ```bash
-$ pip install prefect
+pip install prefect
 ```
 
 :::
@@ -22,7 +22,7 @@ $ pip install prefect
 ::: tab Conda
 
 ```bash
-$ conda install -c conda-forge prefect
+conda install -c conda-forge prefect
 ```
 
 :::
