@@ -50,6 +50,8 @@ class TestCreateFlowRunState:
             session=session,
             flow_run_id=flow_run.id,
             state=State(type="RUNNING", timestamp=dt2),
+            # running / running isn't usually allowed
+            apply_orchestration_rules=False,
         )
         await session.refresh(flow_run)
 
