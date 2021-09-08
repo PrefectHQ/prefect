@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -42,7 +42,7 @@ async def read_deployment(
 
 @router.get("/")
 async def read_deployments(
-    pagination: dependencies.Pagination = Depends(),
+    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
