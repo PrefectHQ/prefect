@@ -130,7 +130,7 @@ async def _create_deployment(
 
             status.update("Registering deployment...")
             deployment_id = await client.create_deployment(
-                flow_id=flow_id, name=name, schedules=[]
+                flow_id=flow_id, name=name, schedule=None
             )
 
     exit_with_success(f"Created deployment {name!r} for flow {flow.name!r}")
