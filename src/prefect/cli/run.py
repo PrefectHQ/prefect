@@ -1,11 +1,11 @@
 import typer
 
-from prefect.cli import app
+from prefect.cli.base import app
 
 
 @app.command()
-def run():
+def run(path: str = None, module: str = None, deployment: str = None):
     """
-    Run a flow
+    Run a flow or deployment
     """
     ...
