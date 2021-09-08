@@ -4,8 +4,10 @@ from typing import Dict, Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import Field
+from pydantic import Field, validator
+from typing_extensions import Literal
 
+from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
@@ -36,12 +38,22 @@ class OrchestrationContext(PrefectBaseModel):
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
     run: Optional[Union[core.TaskRun, core.FlowRun]]
+    run_type: Optional[Literal["task_run", "flow_run"]]
     task_run_id: Optional[UUID]
     flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
+
+    @validator("run_type", pre=True, always=True)
+    def infer_run_type(cls, v, *, values, **kwargs):
+        if v is None and "run" in values:
+            if isinstance(values["run"], core.TaskRun):
+                return "task_run"
+            elif isinstance(values["run"], core.FlowRun):
+                return "flow_run"
+        return v
 
     def __post_init__(self, **kwargs):
         if self.flow_run_id is None and self.run is not None:
@@ -62,7 +74,7 @@ class OrchestrationContext(PrefectBaseModel):
     @property
     def run_details(self):
         try:
-            return self.run.state.run_details
+            return self.run.run_details
         except AttributeError:
             return None
 
