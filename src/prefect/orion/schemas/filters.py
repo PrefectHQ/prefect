@@ -45,7 +45,7 @@ class FlowRunFilter(PrefectBaseModel):
     tags_all: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Flow runs will be returned only their tags are a subset of the list",
+        description="A list of tags. Flow runs will be returned only if their tags are a subset of the list",
     )
 
     states: List[schemas.states.StateType] = Field(
