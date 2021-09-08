@@ -174,12 +174,28 @@ class Timestamp(TypeDecorator):
 
     For SQLite, all timestamps are converted to UTC (since they are stored
     as naive timestamps) and recovered as UTC.
-
-    Note: this should still be instantiated as Timestamp(timezone=True)
     """
 
     impl = sa.TIMESTAMP(timezone=True)
     cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(postgresql.TIMESTAMP(timezone=True))
+        elif dialect.name == "sqlite":
+            return dialect.type_descriptor(
+                sqlite.DATETIME(
+                    # store with "T" separator for time
+                    storage_format=(
+                        "%(year)04d-%(month)02d-%(day)02d"
+                        "T%(hour)02d:%(minute)02d:%(second)02d.%(microsecond)06d"
+                    ),
+                    # handle ISO 8601 with "T" or " " as the time separator
+                    regexp=r"(\d+)-(\d+)-(\d+)[T ](\d+):(\d+):(\d+).(\d+)",
+                )
+            )
+        else:
+            return dialect.type_descriptor(sa.TIMESTAMP(timezone=True))
 
     def process_bind_param(self, value, dialect):
         if value is None:
@@ -260,9 +276,11 @@ class Pydantic(TypeDecorator):
     impl = JSON
     cache_ok = True
 
-    def __init__(self, pydantic_type):
+    def __init__(self, pydantic_type, sa_column_type=None):
         super().__init__()
         self._pydantic_type = pydantic_type
+        if sa_column_type is not None:
+            self.impl = sa_column_type
 
     def process_bind_param(self, value, dialect):
         if value is None:
@@ -295,16 +313,15 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp for SQLite
 
-    We need to add three zeros to the string representation
-    because SQLAlchemy uses a regex expression which is expecting
-    6 decimal places, but SQLite only stores milliseconds. This
-    causes SQLAlchemy to interpret 01:23:45.678 as if it were
-    01:23:45.000678. By forcing SQLite to store an extra three
-    0's, we work around his issue.
+    We need to add three zeros to the string representation because SQLAlchemy
+    uses a regex expression which is expecting 6 decimal places (microseconds),
+    but SQLite by default only stores 3 (milliseconds). This causes SQLAlchemy
+    to interpret 01:23:45.678 as if it were 01:23:45.000678. By forcing SQLite
+    to store an extra three 0's, we work around his issue.
 
-    Note this only affects timestamps that we ask SQLite to issue
-    in SQL (like the default value for a timestamp column); not
-    datetimes provided by SQLAlchemy itself.
+    Note this only affects timestamps that we ask SQLite to issue in SQL (like
+    the default value for a timestamp column); not datetimes provided by
+    SQLAlchemy itself.
     """
     return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 
@@ -446,6 +463,10 @@ def json_has_all_keys_sqlite(element, compiler, **kwargs):
 # sqlalchemy will use the following templated strings
 # to generate the names of indices, constraints, and keys
 #
+# we offset the table name with two underscores (__) to
+# help differentiate, for example, between "flow_run.state_type"
+# and "flow_run_state.type".
+#
 # more information on this templating and available
 # customization can be found here
 # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
@@ -455,10 +476,10 @@ def json_has_all_keys_sqlite(element, compiler, **kwargs):
 # https://docs.sqlalchemy.org/en/14/core/constraints.html
 base_metadata = MetaData(
     naming_convention={
-        "ix": "ix_%(column_0_N_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_N_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+        "ix": "ix_%(table_name)s__%(column_0_N_name)s",
+        "uq": "uq_%(table_name)s__%(column_0_N_name)s",
+        "ck": "ck_%(table_name)s__%(constraint_name)s",
+        "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
         "pk": "pk_%(table_name)s",
     }
 )
@@ -497,13 +518,13 @@ class Base(object):
         default=uuid.uuid4,
     )
     created = Column(
-        Timestamp(timezone=True),
+        Timestamp(),
         nullable=False,
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
     updated = Column(
-        Timestamp(timezone=True),
+        Timestamp(),
         nullable=False,
         index=True,
         server_default=now(),
