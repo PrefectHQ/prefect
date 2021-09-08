@@ -30,7 +30,7 @@ class Flow:
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
-        self.name = name or fn.__name__
+        self.name = name or fn.__name__.replace("_", "-")
 
         self.tags = set(tags if tags else [])
         self.executor = executor or LocalExecutor()
