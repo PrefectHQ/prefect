@@ -81,13 +81,13 @@ async def read_flows(
     query = select(orm.Flow).order_by(orm.Flow.name)
 
     if flow_filter:
-        query = query.filter(flow_filter.as_sql_filter())
+        query = query.where(flow_filter.as_sql_filter())
 
     if flow_run_filter:
         query = query.join(
             orm.FlowRun,
             orm.Flow.id == orm.FlowRun.flow_id,
-        ).filter(flow_run_filter.as_sql_filter())
+        ).where(flow_run_filter.as_sql_filter())
 
     if task_run_filter:
         if not flow_run_filter:
@@ -99,7 +99,7 @@ async def read_flows(
         query = query.join(
             orm.TaskRun,
             orm.FlowRun.id == orm.TaskRun.flow_run_id,
-        ).filter(task_run_filter.as_sql_filter())
+        ).where(task_run_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)

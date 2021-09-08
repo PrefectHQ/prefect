@@ -70,18 +70,18 @@ async def read_task_runs(
     query = select(orm.TaskRun).order_by(orm.TaskRun.id)
 
     if task_run_filter:
-        query = query.filter(task_run_filter.as_sql_filter())
+        query = query.where(task_run_filter.as_sql_filter())
 
     if flow_run_filter:
         query = query.join(
             orm.FlowRun, orm.FlowRun.id == orm.TaskRun.flow_run_id
-        ).filter(flow_run_filter.as_sql_filter())
+        ).where(flow_run_filter.as_sql_filter())
 
     if flow_filter:
         if not flow_run_filter:
             query = query.join(orm.FlowRun, orm.FlowRun.id == orm.TaskRun.flow_run_id)
 
-        query = query.join(orm.Flow, orm.Flow.id == orm.FlowRun.flow_id).filter(
+        query = query.join(orm.Flow, orm.Flow.id == orm.FlowRun.flow_id).where(
             flow_filter.as_sql_filter()
         )
 
