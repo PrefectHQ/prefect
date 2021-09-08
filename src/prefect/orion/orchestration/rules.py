@@ -4,7 +4,7 @@ from typing import Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
@@ -28,7 +28,7 @@ class OrchestrationResult(PrefectBaseModel):
     details: StateResponseDetails
 
 
-class OrchestrationContext(PrefectBaseModel):
+class OrchestrationContext(BaseModel):
     class Config:
         arbitrary_types_allowed = True
 
@@ -92,9 +92,12 @@ class OrchestrationContext(PrefectBaseModel):
 
 
 class TaskOrchestrationContext(OrchestrationContext):
-    def __post_init__(self, **kwargs):
-        if self.flow_run_id is None and self.run is not None:
-            self.flow_run_id = self.run.flow_run_id
+    run_id: UUID
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.task_run_id = self.run_id
+        self.flow_run_id = self.run.flow_run_id
 
     async def validate_proposed_state(self):
         if self.proposed_state is not None:
@@ -115,6 +118,12 @@ class TaskOrchestrationContext(OrchestrationContext):
 
 
 class FlowOrchestrationContext(OrchestrationContext):
+    run_id: UUID
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.flow_run_id = self.run_id
+
     async def validate_proposed_state(self):
         if self.proposed_state is not None:
             validated_orm_state = orm.FlowRunState(
