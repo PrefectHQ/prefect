@@ -32,7 +32,7 @@ class FlowRunState(Base):
     )
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
-        Timestamp(timezone=True),
+        Timestamp(),
         nullable=False,
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
@@ -80,7 +80,7 @@ class TaskRunState(Base):
     )
     type = Column(sa.Enum(states.StateType), nullable=False, index=True)
     timestamp = Column(
-        Timestamp(timezone=True),
+        Timestamp(),
         nullable=False,
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
@@ -123,7 +123,7 @@ class TaskRunState(Base):
 class TaskRunStateCache(Base):
     cache_key = Column(String, nullable=False)
     cache_expiration = Column(
-        Timestamp(timezone=True),
+        Timestamp(),
         nullable=True,
     )
     task_run_state_id = Column(UUID(), nullable=False)
@@ -236,7 +236,7 @@ class TaskRun(Base):
     task_key = Column(String, nullable=False)
     dynamic_key = Column(String)
     cache_key = Column(String)
-    cache_expiration = Column(Timestamp(timezone=True))
+    cache_expiration = Column(Timestamp())
     task_version = Column(String)
     empirical_policy = Column(
         Pydantic(core.TaskRunPolicy),
