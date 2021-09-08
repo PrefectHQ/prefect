@@ -72,7 +72,7 @@ class PrefectFuture(Generic[R]):
         return self._result
 
     @sync_compatible
-    async def get_state(self) -> State[T]:
+    async def get_state(self) -> State[R]:
         run: Union[FlowRun, TaskRun]
 
         if self.task_run_id:
