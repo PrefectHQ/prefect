@@ -205,7 +205,7 @@ async def _insert_scheduled_flow_runs(
             orm.FlowRun.id == orm.FlowRunState.flow_run_id,
             isouter=True,
         )
-        .filter(
+        .where(
             orm.FlowRun.id.in_([r.id for r in runs]),
             orm.FlowRunState.id.is_(None),
         )
