@@ -86,3 +86,35 @@ async def delete_deployment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
     return result
+
+
+@router.post("/{id}/set_schedule_active")
+async def set_schedule_active(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> None:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+    deployment.is_schedule_active = True
+    await session.flush()
+
+
+@router.post("/{id}/set_schedule_inactive")
+async def set_schedule_inactive(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> None:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+    deployment.is_schedule_active = False
+    await session.flush()

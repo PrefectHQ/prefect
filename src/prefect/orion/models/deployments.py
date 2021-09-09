@@ -178,10 +178,9 @@ async def _generate_scheduled_flow_runs(
                 run_details=schemas.core.FlowRunDetails(
                     auto_scheduled=True,
                 ),
-                state=schemas.states.State(
-                    type=schemas.states.StateType.SCHEDULED,
+                state=schemas.states.Scheduled(
+                    scheduled_time=date,
                     message="Flow run scheduled",
-                    state_details=dict(scheduled_time=date),
                 ),
             )
         )

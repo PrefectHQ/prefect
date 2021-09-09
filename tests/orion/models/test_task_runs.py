@@ -5,6 +5,7 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas.states import Scheduled
 
 
 class TestCreateTaskRun:
@@ -135,7 +136,7 @@ class TestReadTaskRuns:
         task_run_state_1 = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run_1.id,
-            state=schemas.states.State(type="SCHEDULED"),
+            state=Scheduled(),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
@@ -144,7 +145,7 @@ class TestReadTaskRuns:
         task_run_state_2 = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run_2.id,
-            state=schemas.states.State(type="COMPLETED"),
+            state=schemas.states.Completed(),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -190,7 +191,7 @@ class TestReadTaskRuns:
         task_run_state_2 = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run_2.id,
-            state=schemas.states.State(type="SCHEDULED", timestamp=now.add(minutes=1)),
+            state=Scheduled(timestamp=now.add(minutes=1)),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -230,7 +231,7 @@ class TestReadTaskRuns:
         task_run_state_2 = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run_2.id,
-            state=schemas.states.State(type="SCHEDULED", timestamp=now.add(minutes=1)),
+            state=Scheduled(timestamp=now.add(minutes=1)),
         )
 
         result = await models.task_runs.read_task_runs(

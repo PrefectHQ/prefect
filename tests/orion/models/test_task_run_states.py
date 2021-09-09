@@ -5,7 +5,7 @@ import pytest
 
 from prefect.orion import models
 from prefect.orion.schemas import states
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import State, StateType, Running, Scheduled, Failed
 
 
 class TestCreateTaskRunState:
@@ -14,7 +14,7 @@ class TestCreateTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
         assert task_run_state.name == "Running"
@@ -25,7 +25,7 @@ class TestCreateTaskRunState:
         trs = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=State(type="SCHEDULED"),
+            state=Scheduled(),
         )
 
         await session.refresh(task_run)
@@ -37,7 +37,7 @@ class TestCreateTaskRunState:
         trs2 = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=State(type="RUNNING", timestamp=dt),
+            state=Running(timestamp=dt),
         )
         await session.refresh(task_run)
         assert task_run.run_details.start_time == dt
@@ -48,7 +48,7 @@ class TestCreateTaskRunState:
         trs3 = await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=task_run.id,
-            state=State(type="RUNNING", timestamp=dt2),
+            state=Running(timestamp=dt2),
         )
         await session.commit()
         await session.refresh(task_run)
@@ -67,7 +67,7 @@ class TestCreateTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
 
@@ -75,7 +75,7 @@ class TestCreateTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="FAILED"),
+                state=Failed(),
             )
         ).state
 
@@ -93,7 +93,7 @@ class TestCreateTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
 
@@ -101,7 +101,7 @@ class TestCreateTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="FAILED"),
+                state=Failed(),
                 apply_orchestration_rules=False,
             )
         ).state
@@ -116,7 +116,7 @@ class TestReadTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
 
@@ -159,7 +159,7 @@ class TestDeleteTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
 
