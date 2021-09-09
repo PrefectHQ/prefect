@@ -198,7 +198,11 @@ class TestCachingBackendLogic:
     @pytest.mark.parametrize(
         ["expiration", "expected_status", "expected_name"],
         [
-            (pendulum.now().subtract(days=1), responses.SetStateStatus.ACCEPT, "Running"),
+            (
+                pendulum.now().subtract(days=1),
+                responses.SetStateStatus.ACCEPT,
+                "Running",
+            ),
             (pendulum.now().add(days=1), responses.SetStateStatus.REJECT, "Cached"),
             (None, responses.SetStateStatus.REJECT, "Cached"),
         ],
@@ -249,3 +253,27 @@ class TestCachingBackendLogic:
 
         assert ctx2.response_status == expected_status
         assert ctx2.validated_state.name == expected_name
+
+
+class TestRetryingRule:
+    async def test_retry_potential_failures(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type == states.StateType.RUNNING

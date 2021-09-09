@@ -60,14 +60,9 @@ class CacheRetrieval(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
-        if (
-            cache_key
-            and context.proposed_state_type == states.StateType.RUNNING
-        ):
+        if cache_key and context.proposed_state_type == states.StateType.RUNNING:
             # Check for cached states matching the cache key
-            cached_state = await get_cached_task_run_state(
-                context.session, cache_key
-            )
+            cached_state = await get_cached_task_run_state(context.session, cache_key)
             if cached_state:
                 new_state = cached_state.as_state().copy(reset_fields=True)
                 new_state.name = "Cached"
