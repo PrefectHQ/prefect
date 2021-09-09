@@ -131,10 +131,11 @@ class OrionClient:
         self,
         flow_id: UUID,
         name: str,
-        schedule: schemas.schedules.Schedule = None,
+        flow_data: DataDocument,
+        schedule: schemas.schedules.SCHEDULE_TYPES = None,
     ) -> UUID:
         deployment_create = schemas.actions.DeploymentCreate(
-            flow_id=flow_id, name=name, schedule=schedule
+            flow_id=flow_id, name=name, schedule=schedule, flow_data=flow_data
         )
 
         response = await self.post(

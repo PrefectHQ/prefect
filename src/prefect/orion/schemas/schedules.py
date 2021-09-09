@@ -321,3 +321,6 @@ class CronSchedule(PrefectBaseModel):
             await asyncio.sleep(0)
 
         return dates
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule]
