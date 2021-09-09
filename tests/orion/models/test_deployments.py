@@ -36,18 +36,19 @@ class TestCreateDeployment:
             )
 
     async def test_create_deployment_with_schedule(self, session, flow):
-        schedule = schemas.schedules.Schedule(
-            clock=schemas.schedules.IntervalClock(interval=datetime.timedelta(days=1))
+        schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
         )
+
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="My Deployment", flow_id=flow.id, schedules=[schedule]
+                name="My Deployment", flow_id=flow.id, schedule=schedule
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
-        assert deployment.schedules == [schedule]
+        assert deployment.schedule == schedule
 
 
 class TestReadDeployment:
