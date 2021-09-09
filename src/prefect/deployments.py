@@ -3,13 +3,20 @@ from contextvars import ContextVar
 from os.path import abspath
 from typing import Any, Set
 
+import yaml
 from pydantic import root_validator
 
+from prefect.exceptions import (
+    FlowScriptError,
+    MissingFlowError,
+    UnspecifiedFlowError,
+)
 from prefect.flows import Flow
 from prefect.orion.schemas.schedules import Schedule
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.evaluation import exec_script
+from prefect.utilities.filesystem import tmpchdir
 
 # See `_register_new_specs`
 _DeploymentSpecContextVar = ContextVar("_DeploymentSpecContext")
@@ -25,48 +32,22 @@ class DeploymentSpec(PrefectBaseModel):
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
         # After initialization; register this deployment
-        _try_register_spec(self)
+        _register_spec(self)
 
     @root_validator(pre=True)
     def infer_flow_from_location(cls, values):
         if "flow_location" in values and "flow" not in values:
-            flow_loc = values["flow_location"]
-            flow_name = values.get("flow_name")
-            flows = {
-                f.name: f
-                for f in extract_instances(exec_script(flow_loc).values(), types=Flow)
-            }
-            if not flows:
-                raise ValueError(f"No flows found at path {flow_loc!r}")
-            elif flow_name and flow_name not in flows:
-                raise ValueError(
-                    f"Flow {flow_name!r} not found at path {flow_loc!r}. "
-                    f"Found the following flows: {listrepr(flows.keys())}"
-                )
-            elif not flow_name and len(flows) > 1:
-                raise ValueError(
-                    f"Found {len(flows)} flows at {flow_loc!r}: {listrepr(flows.keys())}. "
-                    "Provide a flow name to select a flow to deploy.",
-                )
 
-            if flow_name:
-                flow = flows[flow_name]
-            else:
-                flow = list(flows.values())[0]
+            values["flow"] = load_flow_from_script(
+                values["flow_location"], values.get("flow_name")
+            )
 
-            values["flow"] = flow
         return values
 
     @root_validator(pre=True)
     def infer_flow_name_from_flow(cls, values):
         if "flow" in values:
             values.setdefault("flow_name", values["flow"].name)
-        return values
-
-    @root_validator(pre=True)
-    def infer_name_from_flow(cls, values):
-        if "flow" in values:
-            values.setdefault("name", values["flow"].name)
         return values
 
     @root_validator(pre=True)
@@ -81,7 +62,10 @@ class DeploymentSpec(PrefectBaseModel):
     def ensure_flow_name_matches_flow_object(cls, values):
         flow, flow_name = values.get("flow"), values.get("flow_name")
         if flow and flow_name and flow.name != flow_name:
-            raise ValueError("flow.name and flow_name must match")
+            raise ValueError(
+                "`flow.name` and `flow_name` must match. "
+                f"Got {flow.name!r} and {flow_name!r}."
+            )
         return values
 
     class Config:
@@ -92,7 +76,57 @@ class DeploymentSpec(PrefectBaseModel):
         return hash(self.name)
 
 
-def _try_register_spec(spec: DeploymentSpec) -> None:
+def load_flow_from_script(script_path: str, flow_name: str = None):
+    try:
+        variables = exec_script(script_path)
+    except Exception as exc:
+        raise FlowScriptError(f"Failed to load flow from {script_path!r}") from exc
+
+    flows = {f.name: f for f in extract_instances(variables.values(), types=Flow)}
+
+    if not flows:
+        raise MissingFlowError(f"No flows found at path {script_path!r}")
+
+    elif flow_name and flow_name not in flows:
+        raise MissingFlowError(
+            f"Flow {flow_name!r} not found at path {script_path!r}. "
+            f"Found the following flows: {listrepr(flows.keys())}"
+        )
+
+    elif not flow_name and len(flows) > 1:
+        raise UnspecifiedFlowError(
+            f"Found {len(flows)} flows at {script_path!r}: {listrepr(flows.keys())}. "
+            "Specify a flow name to select a flow to deploy.",
+        )
+
+    if flow_name:
+        return flows[flow_name]
+    else:
+        return list(flows.values())[0]
+
+
+def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
+    with _register_new_specs() as specs:
+        exec_script(script_path)
+
+    return specs
+
+
+def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
+    with open(path, "r") as f:
+        contents = yaml.safe_load(f.read())
+
+    # Load deployments relative to the yaml file's directory
+    with tmpchdir(path):
+        if isinstance(contents, list):
+            specs = {DeploymentSpec.parse_obj(spec) for spec in contents}
+        else:
+            specs = {DeploymentSpec.parse_obj(contents)}
+
+    return specs
+
+
+def _register_spec(spec: DeploymentSpec) -> None:
     specs = _DeploymentSpecContextVar.get(None)
 
     if specs is None:
@@ -117,10 +151,3 @@ def _register_new_specs():
     token = _DeploymentSpecContextVar.set(specs)
     yield specs
     _DeploymentSpecContextVar.reset(token)
-
-
-def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
-    with _register_new_specs() as specs:
-        exec_script(script_path)
-
-    return specs
