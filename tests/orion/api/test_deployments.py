@@ -79,12 +79,12 @@ class TestReadDeployments:
         assert len(response.json()) == 2
 
     async def test_read_deployments_applies_limit(self, deployments, client):
-        response = await client.get("/deployments/", params=dict(limit=1))
+        response = await client.get("/deployments/", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
-        response = await client.get("/deployments/", params=dict(offset=1))
+        response = await client.get("/deployments/", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
