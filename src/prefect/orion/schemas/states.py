@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, Optional
+from typing import Optional, Generic, TypeVar
 from uuid import UUID
 
 import pendulum
@@ -8,6 +8,9 @@ from pydantic import Field, validator, root_validator
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+
+
+R = TypeVar("R")
 
 
 class StateType(AutoEnum):
@@ -27,14 +30,14 @@ class StateDetails(PrefectBaseModel):
     cache_expiration: datetime.datetime = None
 
 
-class State(ORMBaseModel):
+class State(ORMBaseModel, Generic[R]):
     type: StateType
     name: str = None
     timestamp: datetime.datetime = Field(
         default_factory=lambda: pendulum.now("UTC"), repr=False
     )
     message: str = Field(None, example="Run started")
-    data: DataDocument = Field(None, repr=False)
+    data: DataDocument[R] = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
 
     @validator("name", always=True)
