@@ -4,7 +4,7 @@ Client-side execution of flows and tasks
 import time
 from contextlib import nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Union, TypeVar, overload
+from typing import Any, Awaitable, Dict, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum
@@ -19,7 +19,15 @@ from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, future_to_state, resolve_futures
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.orion.schemas.states import (
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    State,
+    StateDetails,
+    StateType,
+)
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
@@ -28,7 +36,6 @@ from prefect.utilities.asyncio import (
     sync_compatible,
 )
 from prefect.utilities.collections import ensure_iterable
-
 
 R = TypeVar("R")
 
@@ -89,7 +96,7 @@ async def begin_flow_run(
     flow_run_id = await client.create_flow_run(
         flow,
         parameters=parameters,
-        state=State(type=StateType.PENDING),
+        state=Pending(),
     )
 
     # If the flow is async, we need to provide a portal so sync tasks can run
@@ -143,7 +150,7 @@ async def begin_subflow_run(
         flow,
         parameters=parameters,
         parent_task_run_id=parent_task_run_id,
-        state=State(type=StateType.PENDING),
+        state=Pending(),
     )
 
     terminal_state = await orchestrate_flow_run(
@@ -188,7 +195,7 @@ async def orchestrate_flow_run(
           work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
-    await client.propose_state(State(type=StateType.RUNNING), flow_run_id=flow_run_id)
+    await client.propose_state(Running(), flow_run_id=flow_run_id)
 
     try:
         with FlowRunContext(
@@ -205,8 +212,7 @@ async def orchestrate_flow_run(
                 result = await run_sync_in_worker_thread(flow_call)
 
     except Exception as exc:
-        state = State(
-            type=StateType.FAILED,
+        state = Failed(
             message="Flow run encountered an exception.",
             data=DataDocument.encode("cloudpickle", exc),
         )
@@ -272,7 +278,7 @@ async def begin_task_run(
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
-        state=State(type=StateType.PENDING),
+        state=Pending(),
     )
 
     future = await flow_run_context.executor.submit(
@@ -309,10 +315,7 @@ async def orchestrate_task_run(
 
     # Transition from `PENDING` -> `RUNNING`
     state = await client.propose_state(
-        State(
-            type=StateType.RUNNING,
-            state_details=StateDetails(cache_key=cache_key),
-        ),
+        Running(state_details=StateDetails(cache_key=cache_key)),
         task_run_id=task_run_id,
     )
 
@@ -330,8 +333,7 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await result
         except Exception as exc:
-            terminal_state = State(
-                type=StateType.FAILED,
+            terminal_state = Failed(
                 message="Task run encountered an exception.",
                 data=DataDocument.encode("cloudpickle", exc),
             )
@@ -353,9 +355,7 @@ async def orchestrate_task_run(
 
         if not state.is_final():
             # Attempt to enter a running state again
-            state = await client.propose_state(
-                State(type=StateType.RUNNING), task_run_id=task_run_id
-            )
+            state = await client.propose_state(Running(), task_run_id=task_run_id)
 
     return state
 
@@ -423,7 +423,7 @@ async def user_return_value_to_state(
         )
 
     # Otherwise, they just gave data and this is a completed result
-    return State(type=StateType.COMPLETED, data=DataDocument.encode(serializer, result))
+    return Completed(data=DataDocument.encode(serializer, result))
 
 
 @overload

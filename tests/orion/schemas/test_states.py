@@ -4,7 +4,18 @@ import pendulum
 import pydantic
 import pytest
 
-from prefect.orion.schemas.states import AwaitingRetry, Retrying, State, StateType
+from prefect.orion.schemas.states import (
+    AwaitingRetry,
+    Completed,
+    Failed,
+    Pending,
+    Retrying,
+    Running,
+    Scheduled,
+    State,
+    StateDetails,
+    StateType,
+)
 
 
 class TestState:
@@ -85,6 +96,45 @@ class TestStateTypeFunctions:
 
 
 class TestStateConvenienceFunctions:
+    def test_completed(self):
+        state = Completed()
+        assert state.type == StateType.COMPLETED
+
+    def test_completed_with_custom_attrs(self):
+        state = Completed(name="my-state", state_details=StateDetails(cache_key="123"))
+        assert state.name == "my-state"
+        assert state.state_details.cache_key == "123"
+
+    def test_failed(self):
+        state = Failed()
+        assert state.type == StateType.FAILED
+
+    def test_running(self):
+        state = Running()
+        assert state.type == StateType.RUNNING
+
+    def test_pending(self):
+        state = Pending()
+        assert state.type == StateType.PENDING
+
+    def test_scheduled(self):
+        dt = pendulum.now("UTC")
+        state = Scheduled(scheduled_time=dt)
+        assert state.type == StateType.SCHEDULED
+        assert state.name == "Scheduled"
+        assert state.state_details.scheduled_time == dt
+
+    def test_scheduled_without_scheduled_time_defaults_to_now(self):
+        dt1 = pendulum.now("UTC")
+        state = Scheduled()
+        dt2 = pendulum.now("UTC")
+        assert dt1 < state.state_details.scheduled_time < dt2
+
+    def test_scheduled_with_state_details_cant_provide_scheduled_time(self):
+        dt = pendulum.now("UTC")
+        with pytest.raises(ValueError, match="(extra scheduled_time)"):
+            Scheduled(StateDetails(scheduled_time=dt), scheduled_time=dt)
+
     def test_awaiting_retry(self):
         dt = pendulum.now("UTC")
         state = AwaitingRetry(scheduled_time=dt)
