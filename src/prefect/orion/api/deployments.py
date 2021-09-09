@@ -71,7 +71,7 @@ async def delete_deployment(
     return result
 
 
-@router.post("/{id}/set_schedule_active", status_code="201")
+@router.post("/{id}/set_schedule_active", status_code=201)
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -84,7 +84,7 @@ async def set_schedule_active(
     deployment.is_schedule_active = True
 
 
-@router.post("/{id}/set_schedule_inactive", status_code="201")
+@router.post("/{id}/set_schedule_inactive", status_code=201)
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),

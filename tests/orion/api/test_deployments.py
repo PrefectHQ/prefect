@@ -126,7 +126,11 @@ class TestDeleteDeployment:
 class TestSetScheduleActive:
     async def test_set_schedule_inactive(self, client, deployment, session):
         assert deployment.is_schedule_active is True
-        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+        assert response.status_code == 201
+
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
 
@@ -136,13 +140,22 @@ class TestSetScheduleActive:
         assert deployment.is_schedule_active is True
         await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
         await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
+
+    async def test_set_schedule_inactive_with_missing_deployment(self, client):
+        response = await client.post(f"/deployments/{uuid4()}/set_schedule_inactive")
+        assert response.status_code == 404
 
     async def test_set_schedule_active(self, client, deployment, session):
         assert deployment.is_schedule_active is True
         await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
-        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        assert response.status_code == 201
+
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
 
@@ -153,5 +166,10 @@ class TestSetScheduleActive:
         await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
         await client.post(f"/deployments/{deployment.id}/set_schedule_active")
         await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
+
+    async def test_set_schedule_active_with_missing_deployment(self, client):
+        response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
+        assert response.status_code == 404
