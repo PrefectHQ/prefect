@@ -121,3 +121,37 @@ class TestDeleteDeployment:
     async def test_delete_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/deployments/{uuid4()}")
         assert response.status_code == 404
+
+
+class TestSetScheduleActive:
+    async def test_set_schedule_inactive(self, client, deployment, session):
+        assert deployment.is_schedule_active is True
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is False
+
+    async def test_set_schedule_inactive_can_be_called_multiple_times(
+        self, client, deployment, session
+    ):
+        assert deployment.is_schedule_active is True
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is False
+
+    async def test_set_schedule_active(self, client, deployment, session):
+        assert deployment.is_schedule_active is True
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
+
+    async def test_set_schedule_active_can_be_called_multiple_times(
+        self, client, deployment, session
+    ):
+        assert deployment.is_schedule_active is True
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
