@@ -135,31 +135,28 @@ async def _generate_scheduled_flow_runs(
     # retrieve the deployment
     deployment = await session.get(orm.Deployment, deployment_id)
 
-    for schedule in deployment.schedules:
+    dates = await deployment.schedule.get_dates(
+        n=max_runs, start=start_time, end=end_time
+    )
 
-        dates = await schedule.clock.get_dates(
-            n=max_runs, start=start_time, end=end_time
-        )
-
-        for date in dates:
-            runs.append(
-                schemas.core.FlowRun(
-                    flow_id=deployment.flow_id,
-                    deployment_id=deployment_id,
-                    parameters=schedule.parameters,
-                    idempotency_key=f"scheduled {schedule.id} {date}",
-                    tags=["auto-scheduled"],
-                    flow_run_details=schemas.core.FlowRunDetails(
-                        schedule_id=schedule.id,
-                        auto_scheduled=True,
-                    ),
-                    state=schemas.states.State(
-                        type=schemas.states.StateType.SCHEDULED,
-                        message="Flow run scheduled",
-                        state_details=dict(scheduled_time=date),
-                    ),
-                )
+    for date in dates:
+        runs.append(
+            schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment_id,
+                # parameters=,
+                idempotency_key=f"scheduled {deployment.id} {date}",
+                tags=["auto-scheduled"],
+                flow_run_details=schemas.core.FlowRunDetails(
+                    auto_scheduled=True,
+                ),
+                state=schemas.states.State(
+                    type=schemas.states.StateType.SCHEDULED,
+                    message="Flow run scheduled",
+                    state_details=dict(scheduled_time=date),
+                ),
             )
+        )
 
     return runs
 
