@@ -104,7 +104,7 @@ async def task_run(session, flow_run) -> models.orm.TaskRun:
 
 @pytest.fixture
 async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
-    scheduled_state = schemas.actions.StateCreate(
+    scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=dict(scheduled_time=pendulum.now("UTC").subtract(seconds=1)),
@@ -116,7 +116,7 @@ async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
             state=scheduled_state,
         )
     ).state
-    running_state = schemas.actions.StateCreate(type="RUNNING")
+    running_state = schemas.states.State(type="RUNNING")
     running_flow_run_state = (
         await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
@@ -130,7 +130,7 @@ async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
 
 @pytest.fixture
 async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
-    scheduled_state = schemas.actions.StateCreate(
+    scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
     )
@@ -141,7 +141,7 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
             state=scheduled_state,
         )
     ).state
-    running_state = schemas.actions.StateCreate(type="RUNNING")
+    running_state = schemas.states.State(type="RUNNING")
     running_task_run_state = (
         await models.task_run_states.orchestrate_task_run_state(
             session=session,

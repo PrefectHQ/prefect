@@ -463,6 +463,10 @@ def json_has_all_keys_sqlite(element, compiler, **kwargs):
 # sqlalchemy will use the following templated strings
 # to generate the names of indices, constraints, and keys
 #
+# we offset the table name with two underscores (__) to
+# help differentiate, for example, between "flow_run.state_type"
+# and "flow_run_state.type".
+#
 # more information on this templating and available
 # customization can be found here
 # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
@@ -472,10 +476,10 @@ def json_has_all_keys_sqlite(element, compiler, **kwargs):
 # https://docs.sqlalchemy.org/en/14/core/constraints.html
 base_metadata = MetaData(
     naming_convention={
-        "ix": "ix_%(column_0_N_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_N_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_N_name)s_%(referred_table_name)s",
+        "ix": "ix_%(table_name)s__%(column_0_N_name)s",
+        "uq": "uq_%(table_name)s__%(column_0_N_name)s",
+        "ck": "ck_%(table_name)s__%(constraint_name)s",
+        "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
         "pk": "pk_%(table_name)s",
     }
 )

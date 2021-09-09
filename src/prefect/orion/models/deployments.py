@@ -10,6 +10,7 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
+from prefect.orion.utilities.database import get_dialect
 
 
 async def create_deployment(
@@ -149,7 +150,7 @@ async def _generate_scheduled_flow_runs(
                     parameters=schedule.parameters,
                     idempotency_key=f"scheduled {schedule.id} {date}",
                     tags=["auto-scheduled"],
-                    flow_run_details=schemas.core.FlowRunDetails(
+                    run_details=schemas.core.FlowRunDetails(
                         schedule_id=schedule.id,
                         auto_scheduled=True,
                     ),
@@ -186,6 +187,8 @@ async def _insert_scheduled_flow_runs(
         raise ValueError(f"Unrecognized dialect: {session.bind.dialect.name}")
 
     # gracefully insert the flow runs against the idempotency key
+    # this syntax (insert statement, values to insert) is most efficient
+    # because it uses a single bind parameter
     await session.execute(
         insert(orm.FlowRun.__table__).on_conflict_do_nothing(
             index_elements=["flow_id", "idempotency_key"]
@@ -216,8 +219,41 @@ async def _insert_scheduled_flow_runs(
         if r.id in inserted_flow_run_ids
     ]
     if insert_flow_run_states:
+        # this syntax (insert statement, values to insert) is most efficient
+        # because it uses a single bind parameter
         await session.execute(
             orm.FlowRunState.__table__.insert(), insert_flow_run_states
         )
+
+        # set the `state_id` on the newly inserted runs
+        if get_dialect() == "postgresql":
+            # postgres supports `UPDATE ... FROM` syntax
+            stmt = (
+                sa.update(orm.FlowRun)
+                .where(orm.FlowRunState.flow_run_id == orm.FlowRun.id)
+                .where(
+                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states])
+                )
+                .values(state_id=orm.FlowRunState.id)
+                # no need to synchronize as these flow runs are entirely new
+                .execution_options(synchronize_session=False)
+            )
+        else:
+            # sqlite requires a correlated subquery to update from another table
+            subquery = (
+                sa.select(orm.FlowRunState.id)
+                .where(
+                    orm.FlowRunState.flow_run_id == orm.FlowRun.id,
+                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
+                )
+                .limit(1)
+                .scalar_subquery()
+            )
+            stmt = (
+                sa.update(orm.FlowRun).values(state_id=subquery)
+                # no need to synchronize as these flow runs are entirely new
+                .execution_options(synchronize_session=False)
+            )
+        await session.execute(stmt)
 
     return [r for r in runs if r.id in inserted_flow_run_ids]
