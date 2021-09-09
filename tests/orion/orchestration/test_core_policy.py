@@ -1,14 +1,25 @@
+import contextlib
 import pendulum
 import pytest
 
 from prefect.orion import schemas
+from prefect.orion.schemas import responses
 from prefect.orion.models import orm
 from prefect.orion.orchestration.rules import (
     OrchestrationContext,
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
-from prefect.orion.orchestration.core_policy import WaitForScheduledTime
+from prefect.orion.orchestration.core_policy import (
+    WaitForScheduledTime,
+    RetryPotentialFailures,
+    CacheInsertion,
+    CacheRetrieval,
+)
+from prefect.orion.orchestration.global_policy import (
+    UpdateRunDetails,
+    UpdateStateDetails,
+)
 from prefect.orion.schemas import states
 
 
@@ -72,16 +83,18 @@ async def create_flow_run_state(
 
 @pytest.fixture
 def initialize_orchestration(
-        session,
-        task_run,
-        flow_run,
+    task_run,
+    flow_run,
 ):
     async def initializer(
+        session,
         orchestration_type,
         initial_state_type,
         proposed_state_type,
-        state_details=None,
+        initial_details=None,
+        proposed_details=None,
     ) -> OrchestrationContext:
+
         if orchestration_type == "flow":
             run = flow_run
             context = FlowOrchestrationContext
@@ -95,10 +108,12 @@ def initialize_orchestration(
             session,
             run,
             initial_state_type,
-            state_details,
+            initial_details,
         )
 
-        proposed_state = states.State(type=proposed_state_type)
+        proposed_details = proposed_details if proposed_details else dict()
+        psd = states.StateDetails(**proposed_details)
+        proposed_state = states.State(type=proposed_state_type, state_details=psd)
 
         ctx = context(
             initial_state=initial_state,
@@ -109,21 +124,26 @@ def initialize_orchestration(
         )
 
         return ctx
+
     return initializer
 
 
 @pytest.mark.parametrize("orchestration_type", ["task", "flow"])
 class TestWaitForScheduledTimeRule:
     async def test_late_scheduled_states_just_run(
-        self, orchestration_type, initialize_orchestration,
+        self,
+        session,
+        orchestration_type,
+        initialize_orchestration,
     ):
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
+            session,
             orchestration_type,
             *intended_transition,
-            {"scheduled_time": pendulum.now().subtract(minutes=5)},
+            initial_details={"scheduled_time": pendulum.now().subtract(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -132,35 +152,100 @@ class TestWaitForScheduledTimeRule:
         assert ctx.validated_state_type == proposed_state_type
 
     async def test_early_scheduled_states_are_delayed(
-        self, orchestration_type, initialize_orchestration,
+        self,
+        session,
+        orchestration_type,
+        initialize_orchestration,
     ):
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
-            "flow",
+            session,
+            orchestration_type,
             *intended_transition,
-            {"scheduled_time": pendulum.now().add(minutes=5)},
+            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
+        assert ctx.response_status == responses.SetStateStatus.WAIT
         assert ctx.proposed_state is None
         assert abs(ctx.response_details.delay_seconds - 300) < 2
 
     async def test_scheduled_states_without_scheduled_times_are_bad(
-        self, orchestration_type, initialize_orchestration,
+        self,
+        session,
+        orchestration_type,
+        initialize_orchestration,
     ):
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(
-            "flow",
+            session,
+            orchestration_type,
             *intended_transition,
         )
 
         with pytest.raises(ValueError):
             async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
                 pass
+
+
+class TestCachingBackendLogic:
+    @pytest.mark.parametrize(
+        ["expiration", "expected_status", "expected_name"],
+        [
+            (pendulum.now().subtract(days=1), responses.SetStateStatus.ACCEPT, "Running"),
+            (pendulum.now().add(days=1), responses.SetStateStatus.REJECT, "Cached"),
+            (None, responses.SetStateStatus.REJECT, "Cached"),
+        ],
+        ids=["past", "future", "null"],
+    )
+    async def test_set_and_retrieve_cached_task_run_state(
+        self,
+        session,
+        initialize_orchestration,
+        expiration,
+        expected_status,
+        expected_name,
+    ):
+        caching_policy = [CacheInsertion, CacheRetrieval]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx1 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+            proposed_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *intended_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == responses.SetStateStatus.ACCEPT
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+            proposed_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *intended_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == expected_status
+        assert ctx2.validated_state.name == expected_name
