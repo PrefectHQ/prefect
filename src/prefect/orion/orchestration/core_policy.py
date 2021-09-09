@@ -10,6 +10,7 @@ from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
     OrchestrationContext,
+    TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
 
@@ -31,30 +32,6 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
         ]
 
 
-class CacheRetrieval(BaseOrchestrationRule):
-    FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = [states.StateType.RUNNING]
-
-    async def before_transition(
-        self,
-        initial_state: states.State,
-        proposed_state: states.State,
-        context: OrchestrationContext,
-    ) -> None:
-        session = context.session
-        if proposed_state.state_details.cache_key:
-            # Check for cached states matching the cache key
-            cached_state = await get_cached_task_run_state(
-                session, proposed_state.state_details.cache_key
-            )
-            if cached_state:
-                new_state = cached_state.as_state().copy(reset_fields=True)
-                new_state.name = "Cached"
-                await self.reject_transition(
-                    state=new_state, reason="Retrieved state from cache"
-                )
-
-
 class CacheInsertion(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.COMPLETED]
@@ -63,11 +40,40 @@ class CacheInsertion(BaseOrchestrationRule):
         self,
         initial_state: states.State,
         validated_state: states.State,
-        context: OrchestrationContext,
+        context: TaskOrchestrationContext,
     ) -> None:
-        session = context.session
-        if validated_state.state_details.cache_key:
-            await cache_task_run_state(session, validated_state)
+        if (
+            validated_state.state_details.cache_key
+            and context.validated_state_type == states.StateType.COMPLETED
+        ):
+            await cache_task_run_state(context.session, validated_state)
+
+
+class CacheRetrieval(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: states.State,
+        proposed_state: states.State,
+        context: TaskOrchestrationContext,
+    ) -> None:
+        cache_key = proposed_state.state_details.cache_key
+        if (
+            cache_key
+            and context.proposed_state_type == states.StateType.RUNNING
+        ):
+            # Check for cached states matching the cache key
+            cached_state = await get_cached_task_run_state(
+                context.session, cache_key
+            )
+            if cached_state:
+                new_state = cached_state.as_state().copy(reset_fields=True)
+                new_state.name = "Cached"
+                await self.reject_transition(
+                    state=new_state, reason="Retrieved state from cache"
+                )
 
 
 class RetryPotentialFailures(BaseOrchestrationRule):
