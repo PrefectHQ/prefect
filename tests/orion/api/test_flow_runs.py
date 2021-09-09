@@ -94,7 +94,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_state(self, flow, client, session):
         flow_run_data = dict(
             flow_id=str(flow.id),
-            state=states.State(type="RUNNING").dict(json_compatible=True),
+            state=states.Running().dict(json_compatible=True),
         )
         response = await client.post("/flow_runs/", json=flow_run_data)
         flow_run = await models.flow_runs.read_flow_run(

@@ -7,13 +7,11 @@ import pytest
 
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import Completed
 from prefect.orion.schemas.data import DataDocument
 
 mock_client = MagicMock(spec=OrionClient)()
-mock_client.read_flow_run_states.return_value = [
-    State(type=StateType.COMPLETED, data=None)
-]
+mock_client.read_flow_run_states.return_value = [Completed()]
 
 
 async def test_resolve_futures_transforms_future():
@@ -21,9 +19,7 @@ async def test_resolve_futures_transforms_future():
         flow_run_id=uuid4(),
         client=None,
         executor=None,
-        _result=State(
-            type=StateType.COMPLETED, data=DataDocument.encode("json", "foo")
-        ),
+        _result=Completed(data=DataDocument.encode("json", "foo")),
     )
     assert await resolve_futures(future) == "foo"
 
@@ -34,9 +30,7 @@ async def test_resolve_futures_transforms_future_in_listlike_type(typ):
         flow_run_id=uuid4(),
         client=None,
         executor=None,
-        _result=State(
-            type=StateType.COMPLETED, data=DataDocument.encode("json", "foo")
-        ),
+        _result=Completed(data=DataDocument.encode("json", "foo")),
     )
     assert await resolve_futures(typ(["a", future, "b"])) == typ(["a", "foo", "b"])
 
@@ -48,9 +42,7 @@ async def test_resolve_futures_transforms_future_in_generator_type():
             flow_run_id=uuid4(),
             client=None,
             executor=None,
-            _result=State(
-                type=StateType.COMPLETED, data=DataDocument.encode("json", "foo")
-            ),
+            _result=Completed(data=DataDocument.encode("json", "foo")),
         )
         yield "b"
 
@@ -63,9 +55,7 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types():
             flow_run_id=uuid4(),
             client=None,
             executor=None,
-            _result=State(
-                type=StateType.COMPLETED, data=DataDocument.encode("json", "foo")
-            ),
+            _result=Completed(data=DataDocument.encode("json", "foo")),
         )
 
     def gen_b():
@@ -82,17 +72,13 @@ async def test_resolve_futures_transforms_future_in_dictlike_type(typ):
         flow_run_id=uuid4(),
         client=None,
         executor=None,
-        _result=State(
-            type=StateType.COMPLETED, data=DataDocument.encode("json", "foo")
-        ),
+        _result=Completed(data=DataDocument.encode("json", "foo")),
     )
     value_future = PrefectFuture(
         flow_run_id=uuid4(),
         client=None,
         executor=None,
-        _result=State(
-            type=StateType.COMPLETED, data=DataDocument.encode("json", "bar")
-        ),
+        _result=Completed(data=DataDocument.encode("json", "bar")),
     )
     assert await resolve_futures(
         typ([("a", 1), (key_future, value_future), ("b", 2)])
@@ -110,9 +96,7 @@ async def test_resolve_futures_transforms_future_in_dataclass():
         flow_run_id=uuid4(),
         client=None,
         executor=None,
-        _result=State(
-            type=StateType.COMPLETED, data=DataDocument.encode("json", "bar")
-        ),
+        _result=Completed(data=DataDocument.encode("json", "bar")),
     )
     assert await resolve_futures(Foo(a=1, foo=future)) == Foo(a=1, foo="bar", b=2)
 
@@ -128,9 +112,7 @@ async def test_resolves_futures_in_nested_collections():
         flow_run_id=uuid4(),
         client=None,
         executor=None,
-        _result=State(
-            type=StateType.COMPLETED, data=DataDocument.encode("json", "bar")
-        ),
+        _result=Completed(data=DataDocument.encode("json", "bar")),
     )
     assert await resolve_futures(
         Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})

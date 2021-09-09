@@ -49,7 +49,7 @@ class TestCreateTaskRun:
         task_run_data = dict(
             flow_run_id=str(flow_run.id),
             task_key="task-key",
-            state=states.State(type="RUNNING").dict(json_compatible=True),
+            state=states.Running().dict(json_compatible=True),
         )
         response = await client.post("/task_runs/", json=task_run_data)
         task_run = await models.task_runs.read_task_run(
@@ -192,7 +192,7 @@ class TestSetTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=states.State(type="RUNNING"),
+                state=states.Running(),
             )
         ).state
         await session.commit()

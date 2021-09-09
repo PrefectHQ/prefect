@@ -45,7 +45,7 @@ async def test_create_then_read_flow_run_with_state(orion_client):
         pass
 
     flow_run_id = await orion_client.create_flow_run(
-        foo, state=schemas.states.State(type="RUNNING")
+        foo, state=schemas.states.Running()
     )
     lookup = await orion_client.read_flow_run(flow_run_id)
     assert lookup.state.is_running()
@@ -59,9 +59,7 @@ async def test_set_then_read_flow_run_state(orion_client):
     flow_run_id = await orion_client.create_flow_run(foo)
     response = await orion_client.set_flow_run_state(
         flow_run_id,
-        state=schemas.states.State(
-            type=schemas.states.StateType.COMPLETED, message="Test!"
-        ),
+        state=schemas.states.Completed(message="Test!"),
     )
     assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
@@ -106,7 +104,7 @@ async def test_create_then_read_task_run_with_state(orion_client):
 
     flow_run_id = await orion_client.create_flow_run(foo)
     task_run_id = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run_id, state=schemas.states.State(type="RUNNING")
+        bar, flow_run_id=flow_run_id, state=schemas.states.Running()
     )
 
     lookup = await orion_client.read_task_run(task_run_id)
@@ -127,7 +125,7 @@ async def test_set_then_read_task_run_state(orion_client):
 
     response = await orion_client.set_task_run_state(
         task_run_id,
-        schemas.states.State(type=schemas.states.StateType.COMPLETED, message="Test!"),
+        schemas.states.Completed(message="Test!"),
     )
 
     assert isinstance(response, OrchestrationResult)
