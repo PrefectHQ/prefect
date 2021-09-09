@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 import pendulum
 from slugify import slugify
 
+import prefect
 from prefect.client import Secret
 from prefect.engine.results import AzureResult
 from prefect.storage import Storage
