@@ -81,8 +81,8 @@ class DeploymentSpec(PrefectBaseModel):
         arbitrary_types_allowed = True
 
     def __hash__(self) -> int:
-        # Deployments are unique on name
-        return hash(self.name)
+        # Deployments are unique on name / flow name pair
+        return hash((self.name, self.flow_name))
 
 
 def load_flow_from_script(script_path: str, flow_name: str = None):
