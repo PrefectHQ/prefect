@@ -16,7 +16,15 @@ from prefect.engine import (
 from prefect.executors import BaseExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.schemas.states import Completed, State, StateDetails, StateType
+from prefect.orion.schemas.states import (
+    Completed,
+    State,
+    StateDetails,
+    StateType,
+    Failed,
+    Running,
+    Pending,
+)
 from prefect.utilities.compat import AsyncMock
 from prefect.utilities.testing import exceptions_equal
 
@@ -39,8 +47,8 @@ class TestUserReturnValueToState:
     async def test_some_failed_states(self):
         states = [
             Completed(message="hi"),
-            State(type=StateType.FAILED, message="bye"),
-            State(type=StateType.FAILED, message="err"),
+            Failed(message="bye"),
+            Failed(message="err"),
         ]
         result_state = await user_return_value_to_state(states)
         # States have been stored as data
@@ -53,8 +61,8 @@ class TestUserReturnValueToState:
     async def test_some_unfinal_states(self):
         states = [
             Completed(message="hi"),
-            State(type=StateType.RUNNING, message="bye"),
-            State(type=StateType.PENDING, message="err"),
+            Running(message="bye"),
+            Pending(message="err"),
         ]
         result_state = await user_return_value_to_state(states)
         # States have been stored as data
@@ -351,7 +359,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=flaky_function,
             flow_run_id=flow_run_id,
-            state=State(type=StateType.PENDING),
+            state=Pending(),
         )
 
         # Mock sleep for a fast test; force transition into a new scheduled state so we

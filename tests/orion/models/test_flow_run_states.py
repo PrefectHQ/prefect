@@ -4,8 +4,7 @@ import pendulum
 import pytest
 
 from prefect.orion import models
-from prefect.orion.schemas import states
-from prefect.orion.schemas.states import State, StateType
+from prefect.orion.schemas.states import Running, Scheduled, StateType
 
 
 class TestCreateFlowRunState:
@@ -14,7 +13,7 @@ class TestCreateFlowRunState:
             await models.flow_run_states.orchestrate_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
         assert flow_run_state.name == "Running"
@@ -25,7 +24,7 @@ class TestCreateFlowRunState:
         frs = await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=State(type="SCHEDULED"),
+            state=Scheduled(),
         )
 
         await session.refresh(flow_run)
@@ -37,7 +36,7 @@ class TestCreateFlowRunState:
         frs2 = await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=State(type="RUNNING", timestamp=dt),
+            state=Running(timestamp=dt),
         )
         await session.refresh(flow_run)
 
@@ -49,7 +48,7 @@ class TestCreateFlowRunState:
         frs3 = await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
-            state=State(type="RUNNING", timestamp=dt2),
+            state=Running(timestamp=dt2),
             # running / running isn't usually allowed
             apply_orchestration_rules=False,
         )
@@ -67,7 +66,7 @@ class TestReadFlowRunState:
             await models.flow_run_states.orchestrate_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
 
@@ -110,7 +109,7 @@ class TestDeleteFlowRunState:
             await models.flow_run_states.orchestrate_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
-                state=State(type="RUNNING"),
+                state=Running(),
             )
         ).state
 
