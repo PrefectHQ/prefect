@@ -59,14 +59,22 @@ async def read_task_run(
 
 @router.get("/")
 async def read_task_runs(
-    flow_run_id: UUID,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
 ) -> List[schemas.core.TaskRun]:
     """
     Query for task runs
     """
     return await models.task_runs.read_task_runs(
-        session=session, flow_run_id=flow_run_id
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+        offset=pagination.offset,
+        limit=pagination.limit,
     )
 
 

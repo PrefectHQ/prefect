@@ -28,6 +28,9 @@ class DatabaseSettings(BaseSettings):
     connection_url: SecretStr = "sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
     echo: bool = False
 
+    # a default limit for queries
+    default_limit: int = 200
+
 
 class OrionSettings(BaseSettings):
     class Config:
