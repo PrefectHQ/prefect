@@ -4,7 +4,7 @@ Client-side execution of flows and tasks
 import time
 from contextlib import nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Union
+from typing import Any, Awaitable, Dict, TypeVar, Union, overload
 from uuid import UUID
 
 import pendulum
@@ -17,10 +17,18 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, resolve_futures, future_to_state
-from prefect.orion.states import is_state, is_state_iterable, StateSet
-from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.futures import PrefectFuture, future_to_state, resolve_futures
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import (
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    State,
+    StateDetails,
+    StateType,
+)
+from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
@@ -29,10 +37,12 @@ from prefect.utilities.asyncio import (
 )
 from prefect.utilities.collections import ensure_iterable
 
+R = TypeVar("R")
+
 
 def enter_flow_run_engine(
     flow: Flow, parameters: Dict[str, Any]
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+) -> Union[State, Awaitable[State]]:
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
@@ -86,7 +96,7 @@ async def begin_flow_run(
     flow_run_id = await client.create_flow_run(
         flow,
         parameters=parameters,
-        state=State(type=StateType.PENDING),
+        state=Pending(),
     )
 
     # If the flow is async, we need to provide a portal so sync tasks can run
@@ -140,7 +150,7 @@ async def begin_subflow_run(
         flow,
         parameters=parameters,
         parent_task_run_id=parent_task_run_id,
-        state=State(type=StateType.PENDING),
+        state=Pending(),
     )
 
     terminal_state = await orchestrate_flow_run(
@@ -185,7 +195,7 @@ async def orchestrate_flow_run(
           work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
-    await client.propose_state(State(type=StateType.RUNNING), flow_run_id=flow_run_id)
+    await client.propose_state(Running(), flow_run_id=flow_run_id)
 
     try:
         with FlowRunContext(
@@ -202,8 +212,7 @@ async def orchestrate_flow_run(
                 result = await run_sync_in_worker_thread(flow_call)
 
     except Exception as exc:
-        state = State(
-            type=StateType.FAILED,
+        state = Failed(
             message="Flow run encountered an exception.",
             data=DataDocument.encode("cloudpickle", exc),
         )
@@ -269,7 +278,7 @@ async def begin_task_run(
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
-        state=State(type=StateType.PENDING),
+        state=Pending(),
     )
 
     future = await flow_run_context.executor.submit(
@@ -306,10 +315,7 @@ async def orchestrate_task_run(
 
     # Transition from `PENDING` -> `RUNNING`
     state = await client.propose_state(
-        State(
-            type=StateType.RUNNING,
-            state_details=StateDetails(cache_key=cache_key),
-        ),
+        Running(state_details=StateDetails(cache_key=cache_key)),
         task_run_id=task_run_id,
     )
 
@@ -327,8 +333,7 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await result
         except Exception as exc:
-            terminal_state = State(
-                type=StateType.FAILED,
+            terminal_state = Failed(
                 message="Task run encountered an exception.",
                 data=DataDocument.encode("cloudpickle", exc),
             )
@@ -350,9 +355,7 @@ async def orchestrate_task_run(
 
         if not state.is_final():
             # Attempt to enter a running state again
-            state = await client.propose_state(
-                State(type=StateType.RUNNING), task_run_id=task_run_id
-            )
+            state = await client.propose_state(Running(), task_run_id=task_run_id)
 
     return state
 
@@ -420,11 +423,23 @@ async def user_return_value_to_state(
         )
 
     # Otherwise, they just gave data and this is a completed result
-    return State(type=StateType.COMPLETED, data=DataDocument.encode(serializer, result))
+    return Completed(data=DataDocument.encode(serializer, result))
+
+
+@overload
+async def get_result(state: State[R], raise_failures: bool = True) -> R:
+    ...
+
+
+@overload
+async def get_result(
+    state: State[R], raise_failures: bool = False
+) -> Union[R, Exception]:
+    ...
 
 
 @sync_compatible
-async def get_result(state: State, raise_failures: bool = True) -> Any:
+async def get_result(state, raise_failures: bool = True):
     if state.is_failed() and raise_failures:
         return await raise_failed_state(state)
 

@@ -101,6 +101,85 @@ class TestReadFlows:
         read_flows = await models.flows.read_flows(session=session)
         assert len(read_flows) == 0
 
+    async def test_read_flows_filters_by_tags(self, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_3 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-3")
+        )
+
+        # exact tag match
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(tags_all=["db", "blue"]),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_1.id
+
+        # subset of tags match
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(tags_all=["db"]),
+        )
+        assert {res.id for res in result} == {flow_1.id, flow_2.id}
+
+    async def test_flows_filters_by_name(self, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_3 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-3")
+        )
+
+        # filter based on flow names
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(names=["my-flow-1"]),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_1.id
+
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(names=["my-flow-2", "my-flow-3"]),
+        )
+        assert {res.id for res in result} == {flow_2.id, flow_3.id}
+
+    async def test_read_flows_filters_by_ids(self, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_3 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-3")
+        )
+
+        # filter based on flow ids
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(ids=[flow_1.id]),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_1.id
+
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(ids=[flow_1.id, flow_2.id]),
+        )
+        assert {res.id for res in result} == {flow_1.id, flow_2.id}
+
 
 class TestDeleteFlow:
     async def test_delete_flow(self, session):

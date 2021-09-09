@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+from fastapi.param_functions import Body
 
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Path, Response, status
@@ -46,14 +47,22 @@ async def read_flow(
 
 @router.get("/")
 async def read_flows(
-    pagination: dependencies.Pagination = Depends(),
+    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Flow]:
     """
     Query for flows
     """
     return await models.flows.read_flows(
-        session=session, offset=pagination.offset, limit=pagination.limit
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+        offset=pagination.offset,
+        limit=pagination.limit,
     )
 
 
