@@ -545,6 +545,12 @@ async def drop_db(engine=None):
         await conn.run_sync(Base.metadata.drop_all)
 
 
+def get_dialect_specific_insert():
+    """Returns an insert statement specific to a dialect"""
+    inserts = {"postgresql": postgresql.insert, "sqlite": sqlite.insert}
+    return inserts[get_dialect()]
+
+
 def get_dialect():
     connection_url = settings.orion.database.connection_url.get_secret_value()
     if connection_url.startswith("postgresql"):

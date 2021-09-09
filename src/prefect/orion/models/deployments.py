@@ -5,58 +5,47 @@ from uuid import UUID
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
-from sqlalchemy.dialects.postgresql import insert as insert_postgres
-from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import get_dialect
+from prefect.orion.utilities.database import get_dialect, get_dialect_specific_insert
 
 
 async def create_deployment(
     session: sa.orm.Session, deployment: schemas.core.Deployment
 ) -> orm.Deployment:
-    """Creates a new deployment
+    """Upserts a deployment
 
     Args:
         session (sa.orm.Session): a database session
         deployment (schemas.core.Deployment): a deployment model
 
     Returns:
-        orm.Deployment: the newly-created deployment
-
-    Raises:
-        sqlalchemy.exc.IntegrityError: if a deployment with the same name already exists
+        orm.Deployment: the newly-created or updated deployment
 
     """
-    model = orm.Deployment(**deployment.dict(shallow=True))
-    session.add(model)
-    await session.flush()
-    return model
-
-
-async def update_deployment(
-    session: sa.orm.Session, deployment: schemas.core.Deployment
-) -> orm.Deployment:
-    """Updates an existing deployment
-
-    Args:
-        session (sa.orm.Session): a database session
-        deployment (schemas.core.Deployment): a deployment model
-
-    Returns:
-        bool: whether or not the deployment was updated
-
-    """
-    update_stmt = (
-        sa.update(orm.Deployment)
-        .where(orm.Deployment.name == deployment.name)
-        .where(orm.Deployment.flow_id == deployment.flow_id)
+    insert_stmt = (
+        get_dialect_specific_insert()(orm.Deployment)
         .values(**deployment.dict(shallow=True, exclude_unset=True))
+        .on_conflict_do_update(
+            index_elements=["flow_id", "name"],
+            set_=deployment.dict(
+                shallow=True, include={"schedule", "is_schedule_active"}
+            ),
+        )
     )
-    affected_rows = (await session.execute(update_stmt)).rowcount
-    await session.flush()
-    return affected_rows > 0
+    await session.execute(insert_stmt)
+
+    query = sa.select(orm.Deployment).where(
+        sa.and_(
+            orm.Deployment.flow_id == deployment.flow_id,
+            orm.Deployment.name == deployment.name,
+        )
+    )
+    result = await session.execute(query)
+    model = result.scalar()
+
+    return model
 
 
 async def read_deployment(
@@ -200,14 +189,15 @@ async def _insert_scheduled_flow_runs(
     Returns a list of flow runs that were created
     """
     # gracefully insert runs against the idempotency key
-    if session.bind.dialect.name == "sqlite":
-        insert = insert_sqlite
-    elif session.bind.dialect.name == "postgresql":
-        # TODO postgres supports RETURNING so we can use the returned IDs to know which states to enter
-        # Sqlite does not so we need an alternative solution
-        insert = insert_postgres
-    else:
-        raise ValueError(f"Unrecognized dialect: {session.bind.dialect.name}")
+    # if session.bind.dialect.name == "sqlite":
+    #     insert = insert_sqlite
+    # elif session.bind.dialect.name == "postgresql":
+    #     # TODO postgres supports RETURNING so we can use the returned IDs to know which states to enter
+    #     # Sqlite does not so we need an alternative solution
+    #     insert = insert_postgres
+    # else:
+    #     raise ValueError(f"Unrecognized dialect: {session.bind.dialect.name}")
+    insert = get_dialect_specific_insert()
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
