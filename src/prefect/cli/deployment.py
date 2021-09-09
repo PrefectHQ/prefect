@@ -111,9 +111,9 @@ async def create_deployments_from_file(
     created, errored = stats["created"], stats["errored"]
     parts = []
     if created:
-        parts.append(f"[green]Created {created} deployments[/]")
+        parts.append(f"[green]Created {created} deployment(s)[/]")
     if errored:
-        parts.append(f"[red]Failed to create {errored} deployments[/]")
+        parts.append(f"[red]Failed to create {errored} deployment(s)[/]")
     summary = ", ".join(parts)
 
     console.print(f"[bold]{summary}[/]")
@@ -136,16 +136,12 @@ async def create_deployment_from_spec(spec: DeploymentSpec):
             status.update("Registering flow...")
             flow_id = await client.create_flow(spec.flow)
 
-            status.update("Persisting flow script...")
-            contents = Path(spec.flow_location).read_bytes()
-            datadoc = await client.persist_data(contents)
-
             status.update("Registering deployment...")
             deployment_id = await client.create_deployment(
                 flow_id=flow_id,
                 name=spec.name,
                 schedule=None,
-                flow_data=datadoc,
+                flow_location=spec.flow_location,
             )
 
-    console.print(f"Registered {stylized_name}!")
+    console.print(f"Registered {stylized_name}")

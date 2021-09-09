@@ -1,10 +1,11 @@
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
+import pathlib
 from typing import Any, Set
 
 import yaml
-from pydantic import root_validator
+from pydantic import root_validator, validator
 
 from prefect.exceptions import (
     FlowScriptError,
@@ -67,6 +68,14 @@ class DeploymentSpec(PrefectBaseModel):
                 f"Got {flow.name!r} and {flow_name!r}."
             )
         return values
+
+    @validator("flow_location", pre=True)
+    def ensure_flow_location_is_str(cls, value):
+        return str(value)
+
+    @validator("flow_location")
+    def ensure_flow_location_is_absolute(cls, value):
+        return str(pathlib.Path(value).absolute())
 
     class Config:
         arbitrary_types_allowed = True
