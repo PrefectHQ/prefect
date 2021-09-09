@@ -43,7 +43,7 @@ class IntervalScheduleFilters(PrefectBaseModel):
 
     @validator("days_of_month")
     def zero_is_invalid_day_of_month(cls, v):
-        if 0 in v:
+        if v and 0 in v:
             raise ValueError("0 is not a valid day of the month")
         return v
 
@@ -98,13 +98,15 @@ class IntervalScheduleAdjustments(PrefectBaseModel):
 
 
 class IntervalSchedule(PrefectBaseModel):
+    class Config:
+        exclude_none = True
 
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
-    filters = IntervalScheduleFilters()
-    adjustments = IntervalScheduleAdjustments()
+    filters: IntervalScheduleFilters = IntervalScheduleFilters()
+    adjustments: IntervalScheduleAdjustments = IntervalScheduleAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
