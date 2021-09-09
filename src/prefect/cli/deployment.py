@@ -3,8 +3,6 @@ from pathlib import Path
 import typer
 from rich.live import Live
 from rich.status import Status
-from rich.panel import Panel
-from rich.text import Text
 from rich.json import JSON
 from rich.padding import Padding
 
@@ -12,17 +10,14 @@ from prefect.cli.base import (
     app,
     console,
     exit_with_error,
-    exit_with_success,
 )
 from prefect.client import OrionClient
-from prefect.flows import Flow
 from prefect.utilities.asyncio import sync_compatible
 from prefect.deployments import (
     DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
 )
-from prefect.utilities.collections import listrepr
 from collections import Counter
 
 
@@ -141,9 +136,16 @@ async def create_deployment_from_spec(spec: DeploymentSpec):
             status.update("Registering flow...")
             flow_id = await client.create_flow(spec.flow)
 
+            status.update("Persisting flow script...")
+            contents = Path(spec.flow_location).read_bytes()
+            datadoc = await client.persist_data(contents)
+
             status.update("Registering deployment...")
             deployment_id = await client.create_deployment(
-                flow_id=flow_id, name=spec.name, schedule=None
+                flow_id=flow_id,
+                name=spec.name,
+                schedule=None,
+                flow_data=datadoc,
             )
 
     console.print(f"Registered {stylized_name}!")

@@ -12,7 +12,7 @@ from prefect.exceptions import (
     UnspecifiedFlowError,
 )
 from prefect.flows import Flow
-from prefect.orion.schemas.schedules import Schedule
+from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.scripts import exec_script
@@ -27,7 +27,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow
     flow_name: str
     flow_location: str
-    schedule: Schedule = None
+    schedule: SCHEDULE_TYPES = None
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
