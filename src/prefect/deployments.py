@@ -80,7 +80,9 @@ def load_flow_from_script(script_path: str, flow_name: str = None):
     try:
         variables = exec_script(script_path)
     except Exception as exc:
-        raise FlowScriptError(f"Failed to load flow from {script_path!r}") from exc
+        raise FlowScriptError(
+            f"Flow script at {script_path!r} encountered an exception"
+        ) from exc
 
     flows = {f.name: f for f in extract_instances(variables.values(), types=Flow)}
 

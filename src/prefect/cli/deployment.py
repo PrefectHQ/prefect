@@ -17,9 +17,14 @@ from prefect.cli.base import (
 from prefect.client import OrionClient
 from prefect.flows import Flow
 from prefect.utilities.asyncio import sync_compatible
-from prefect.deployments import DeploymentSpec, deployment_specs_from_script
+from prefect.deployments import (
+    DeploymentSpec,
+    deployment_specs_from_script,
+    deployment_specs_from_yaml,
+)
 from prefect.utilities.collections import listrepr
 from collections import Counter
+
 
 deployment_app = typer.Typer(name="deployment")
 app.add_typer(deployment_app)
@@ -45,8 +50,17 @@ async def list_(flow_name: str = None):
 
 @deployment_app.command()
 @sync_compatible
+async def run(deployment_name: str, watch: bool = True):
+    """
+    Create a flow run for the given deployment
+    """
+    ...
+
+
+@deployment_app.command()
+@sync_compatible
 async def create(
-    script_path: Path = typer.Argument(
+    path: Path = typer.Argument(
         ...,
         exists=True,
         file_okay=True,
@@ -55,48 +69,67 @@ async def create(
         readable=True,
         resolve_path=False,
     ),
-    name: str = None,
-    flow_name: str = None,
 ):
     """
-    Create or update a deployment of a flow
+    Create or update a deployment from a file containing deployment specifications
     """
-    await create_deployment(script_path, name=name, flow_name=flow_name)
+    await create_deployments_from_file(path)
 
 
-@deployment_app.command()
-@sync_compatible
-async def run(deployment_name: str, watch: bool = True):
-    """
-    Create a flow run for the given deployment
-    """
-    ...
-
-
-async def create_deployment(
-    script_path: Path,
-    name: str = None,
-    flow_name: str = None,
+async def create_deployments_from_file(
+    path: Path,
 ):
-    if script_path.name.endswith(".py"):
-        console.print(
-            f"Loading deployments from python script at {str(script_path)!r}..."
+    if path.name.endswith(".py"):
+        from_msg = "python script"
+        loader = deployment_specs_from_script
+
+    elif path.name.endswith(".yaml") or path.name.endswith(".yml"):
+        from_msg = "yaml file"
+        loader = deployment_specs_from_yaml
+
+    else:
+        exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
+
+    console.print(f"Loading deployments from {from_msg} at {str(path)!r}...")
+    try:
+        specs = loader(path)
+    except Exception as exc:
+        # TODO: Raise and catch more specific exceptions?
+        console.print_exception()
+        exit_with_error(
+            f"Encountered exception while loading deployments from {str(path)!r}"
         )
-        specs = deployment_specs_from_script(script_path)
+
+    if not specs:
+        exit_with_error(f"No deployment specifications found!", style="yellow")
 
     stats = Counter(created=0, errored=0)
     for spec in specs:
         try:
             await create_deployment_from_spec(spec)
-        except Exception as exc:
+        except Exception:
             console.print_exception()
             stats["errored"] += 1
         else:
             stats["created"] += 1
 
+    created, errored = stats["created"], stats["errored"]
+    parts = []
+    if created:
+        parts.append(f"[green]Created {created} deployments[/]")
+    if errored:
+        parts.append(f"[red]Failed to create {errored} deployments[/]")
+    summary = ", ".join(parts)
+
+    console.print(f"[bold]{summary}[/]")
+
+    if errored:
+        raise typer.Exit(1)
+
 
 async def create_deployment_from_spec(spec: DeploymentSpec):
-    console.print(f"Found deployment [bold blue]{spec.name!r}")
+    stylized_name = f"[bold blue]{spec.name!r}[/]"
+    console.print(f"Found deployment {stylized_name}:")
     console.print(Padding(JSON(spec.json(exclude={"flow", "name"})), (0, 4)))
 
     status = Status("")
@@ -113,4 +146,4 @@ async def create_deployment_from_spec(spec: DeploymentSpec):
                 flow_id=flow_id, name=spec.name, schedule=None
             )
 
-    console.print("Registered deployment!", style="green")
+    console.print(f"Registered {stylized_name}!")
