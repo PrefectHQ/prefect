@@ -5,7 +5,7 @@ from prefect.orion import schemas
 
 FlowCreate = schemas.core.Flow.subclass(
     name="FlowCreate",
-    include_fields=["name", "tags", "parameters"],
+    include_fields=["name", "tags"],
 )
 
 DeploymentCreate = schemas.core.Deployment.subclass(
