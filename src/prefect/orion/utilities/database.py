@@ -545,10 +545,10 @@ async def drop_db(engine=None):
         await conn.run_sync(Base.metadata.drop_all)
 
 
-def get_dialect_specific_insert():
+def dialect_specific_insert(model: Base):
     """Returns an insert statement specific to a dialect"""
     inserts = {"postgresql": postgresql.insert, "sqlite": sqlite.insert}
-    return inserts[get_dialect()]
+    return inserts[get_dialect()](model)
 
 
 def get_dialect():

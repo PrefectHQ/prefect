@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import get_dialect, get_dialect_specific_insert
+from prefect.orion.utilities.database import get_dialect, dialect_specific_insert
 
 
 async def create_deployment(
@@ -25,7 +25,7 @@ async def create_deployment(
 
     """
     insert_stmt = (
-        get_dialect_specific_insert()(orm.Deployment)
+        dialect_specific_insert(orm.Deployment)
         .values(**deployment.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
             index_elements=["flow_id", "name"],
@@ -34,13 +34,18 @@ async def create_deployment(
             ),
         )
     )
+
     await session.execute(insert_stmt)
 
-    query = sa.select(orm.Deployment).where(
-        sa.and_(
-            orm.Deployment.flow_id == deployment.flow_id,
-            orm.Deployment.name == deployment.name,
+    query = (
+        sa.select(orm.Deployment)
+        .where(
+            sa.and_(
+                orm.Deployment.flow_id == deployment.flow_id,
+                orm.Deployment.name == deployment.name,
+            )
         )
+        .execution_options(populate_existing=True)
     )
     result = await session.execute(query)
     model = result.scalar()
