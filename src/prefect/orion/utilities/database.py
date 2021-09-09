@@ -428,7 +428,7 @@ class json_has_all_keys(FunctionElement):
     def __init__(self, json_expr, values: List):
         self.json_expr = json_expr
         if not all(isinstance(v, str) for v in values):
-            raise ValueError("json_has_any_key values must be strings")
+            raise ValueError("json_has_all_key values must be strings")
         self.values = values
         super().__init__()
 
