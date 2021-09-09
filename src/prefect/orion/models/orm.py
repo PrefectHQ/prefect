@@ -414,6 +414,7 @@ class Deployment(Base):
 
     __table_args__ = (
         sa.Index(
+            "uq_deployment__flow_id_name",
             flow_id,
             name,
             unique=True,

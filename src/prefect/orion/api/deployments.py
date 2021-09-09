@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -19,23 +20,12 @@ async def create_deployment(
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
     same name and flow_id already exists, the deployment is updated."""
-    nested = await session.begin_nested()
-    try:
-        result = await models.deployments.create_deployment(
-            session=session, deployment=deployment
-        )
+    now = pendulum.now()
+    result = await models.deployments.create_deployment(
+        session=session, deployment=deployment
+    )
+    if result.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    except sa.exc.IntegrityError as exc:
-        await nested.rollback()
-        affected_rows = await models.deployments.update_deployment(
-            session=session, deployment=deployment
-        )
-        stmt = await session.execute(
-            sa.select(models.orm.Deployment).filter_by(
-                flow_id=deployment.flow_id, name=deployment.name
-            )
-        )
-        result = stmt.scalar()
     return result
 
 
