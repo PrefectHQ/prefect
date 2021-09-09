@@ -1,9 +1,9 @@
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 import pendulum
 import pytest
 
-from prefect.orion import models
+from prefect.orion import models, schemas
 
 
 class TestCreateFlow:
@@ -65,15 +65,79 @@ class TestReadFlows:
         assert len(response.json()) == 2
 
     async def test_read_flows_applies_limit(self, flows, client):
-        response = await client.get("/flows/", params=dict(limit=1))
+        query_data = {"pagination": {"limit": 1}}
+        response = await client.get("/flows/", json=query_data)
         assert response.status_code == 200
         assert len(response.json()) == 1
+
+    async def test_read_flows_applies_flow_filter(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        await session.commit()
+
+        flow_filter = {"flows": {"names": ["my-flow-1"]}}
+        response = await client.get("/flows/", json=flow_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_1.id
+
+    async def test_read_flows_applies_flow_run_filter(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_1.id),
+        )
+        await session.commit()
+
+        flow_filter = {"flow_runs": {"ids": [str(flow_run_1.id)]}}
+        response = await client.get("/flows/", json=flow_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_1.id
+
+    async def test_read_flows_applies_task_run_filter(self, client, session):
+        flow_1 = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow-2", tags=["db"])
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow_1.id),
+        )
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run_1.id, task_key="my-key"
+            ),
+        )
+        await session.commit()
+
+        flow_filter = {"task_runs": {"ids": [str(task_run_1.id)]}}
+        response = await client.get("/flows/", json=flow_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert UUID(response.json()[0]["id"]) == flow_1.id
 
     async def test_read_flows_offset(self, flows, client):
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
         # should be re-written
-        response = await client.get("/flows/", params=dict(offset=1))
+        query_data = {"pagination": {"offset": 1}}
+        response = await client.get("/flows/", json=query_data)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"
