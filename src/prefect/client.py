@@ -78,11 +78,7 @@ class OrionClient:
         return await self.post("/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
-        flow_data = schemas.actions.FlowCreate(
-            name=flow.name,
-            tags=flow.tags,
-            parameters=flow.parameters,
-        )
+        flow_data = schemas.actions.FlowCreate(name=flow.name, tags=flow.tags)
         response = await self.post("/flows/", json=flow_data.dict(json_compatible=True))
 
         flow_id = response.json().get("id")

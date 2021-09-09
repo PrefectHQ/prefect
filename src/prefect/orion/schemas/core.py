@@ -12,7 +12,6 @@ from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 class Flow(ORMBaseModel):
     name: str = Field(..., example="my-flow")
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
-    parameters: ParameterSchema = Field(default_factory=ParameterSchema)
 
     # relationships
     # flow_runs: List["FlowRun"] = Field(default_factory=list)
