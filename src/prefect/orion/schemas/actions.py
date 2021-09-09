@@ -5,12 +5,12 @@ from prefect.orion import schemas
 
 FlowCreate = schemas.core.Flow.subclass(
     name="FlowCreate",
-    include_fields=["name", "tags", "parameters"],
+    include_fields=["name", "tags"],
 )
 
 DeploymentCreate = schemas.core.Deployment.subclass(
     name="DeploymentCreate",
-    include_fields=["name", "flow_id", "schedule"],
+    include_fields=["name", "flow_id", "schedule", "is_schedule_active"],
 )
 
 FlowRunCreate = schemas.core.FlowRun.subclass(
@@ -22,10 +22,9 @@ FlowRunCreate = schemas.core.FlowRun.subclass(
         "parameters",
         "context",
         "tags",
-        "flow_run_details",
-        "parent_task_run_id",
         "idempotency_key",
         "state",
+        "parent_task_run_id",
     ],
 )
 
@@ -38,7 +37,6 @@ StateCreate = schemas.states.State.subclass(
         "message",
         "data",
         "state_details",
-        "run_details",
     ],
 )
 
@@ -55,7 +53,6 @@ TaskRunCreate = schemas.core.TaskRun.subclass(
         "tags",
         "task_inputs",
         "upstream_task_run_ids",
-        "task_run_details",
         "state",
     ],
 )

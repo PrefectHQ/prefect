@@ -4,6 +4,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
+import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
 
@@ -57,6 +58,9 @@ async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
 
 async def read_flows(
     session: sa.orm.Session,
+    flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
     offset: int = None,
     limit: int = None,
 ) -> List[orm.Flow]:
@@ -64,8 +68,11 @@ async def read_flows(
 
     Args:
         session (sa.orm.Session): A database session
+        flow_filter (FlowFilter): only select flows that match these filters
+        flow_run_filter (FlowRunFilter): only select flows whose flow runs match these filters
+        task_run_filter (TaskRunFilter): only select flows whose task runs match these filters
         offset (int): Query offset
-        limit(int): Query limit
+        limit (int): Query limit
 
     Returns:
         List[orm.Flow]: flows
@@ -73,11 +80,34 @@ async def read_flows(
 
     query = select(orm.Flow).order_by(orm.Flow.name)
 
+    if flow_filter:
+        query = query.where(flow_filter.as_sql_filter())
+
+    if flow_run_filter:
+        query = query.join(
+            orm.FlowRun,
+            orm.Flow.id == orm.FlowRun.flow_id,
+        ).where(flow_run_filter.as_sql_filter())
+
+    if task_run_filter:
+        if not flow_run_filter:
+            query = query.join(
+                orm.FlowRun,
+                orm.Flow.id == orm.FlowRun.flow_id,
+            )
+
+        query = query.join(
+            orm.TaskRun,
+            orm.FlowRun.id == orm.TaskRun.flow_run_id,
+        ).where(task_run_filter.as_sql_filter())
+
     if offset is not None:
         query = query.offset(offset)
-    if limit is not None:
-        query = query.limit(limit)
 
+    if limit is None:
+        limit = prefect.settings.orion.database.default_limit
+
+    query = query.limit(limit)
     result = await session.execute(query)
     return result.scalars().unique().all()
 

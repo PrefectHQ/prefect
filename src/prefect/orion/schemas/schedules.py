@@ -14,7 +14,7 @@ from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
 MAX_ITERATIONS = 10000
 
 
-class ClockFilters(PrefectBaseModel):
+class IntervalScheduleFilters(PrefectBaseModel):
     """A collection of filters that can be applied to a date. Each filter
     is defined as an inclusive set of dates or times: candidate dates
     will pass the filter if they match all of the supplied criteria.
@@ -43,7 +43,7 @@ class ClockFilters(PrefectBaseModel):
 
     @validator("days_of_month")
     def zero_is_invalid_day_of_month(cls, v):
-        if 0 in v:
+        if v and 0 in v:
             raise ValueError("0 is not a valid day of the month")
         return v
 
@@ -79,7 +79,7 @@ class ClockFilters(PrefectBaseModel):
         return True
 
 
-class ClockAdjustments(PrefectBaseModel):
+class IntervalScheduleAdjustments(PrefectBaseModel):
     """Adjusts a candidate date by modifying it to meet the supplied criteria."""
 
     advance_to_next_weekday: bool = False
@@ -97,14 +97,16 @@ class ClockAdjustments(PrefectBaseModel):
         return dt
 
 
-class IntervalClock(PrefectBaseModel):
+class IntervalSchedule(PrefectBaseModel):
+    class Config:
+        exclude_none = True
 
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
-    filters = ClockFilters()
-    adjustments = ClockAdjustments()
+    filters: IntervalScheduleFilters = IntervalScheduleFilters()
+    adjustments: IntervalScheduleAdjustments = IntervalScheduleAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
@@ -130,7 +132,7 @@ class IntervalClock(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
-        """Retrieves dates from the clock. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -200,17 +202,17 @@ class IntervalClock(PrefectBaseModel):
         return dates
 
 
-class CronClock(PrefectBaseModel):
+class CronSchedule(PrefectBaseModel):
     """
-    Cron clock
+    Cron schedule
 
-    NOTE: If the timezone is a DST-observing one, then the clock will adjust
-    itself appropriately. Cron's rules for DST are based on clock times, not
-    intervals. This means that an hourly cron clock will fire on every new
-    clock hour, not every elapsed hour; for example, when clocks are set back
-    this will result in a two-hour pause as the clock will fire *the first
+    NOTE: If the timezone is a DST-observing one, then the schedule will adjust
+    itself appropriately. Cron's rules for DST are based on schedule times, not
+    intervals. This means that an hourly cron schedule will fire on every new
+    schedule hour, not every elapsed hour; for example, when clocks are set back
+    this will result in a two-hour pause as the schedule will fire *the first
     time* 1am is reached and *the first time* 2am is reached, 120 minutes later.
-    Longer clocks, such as one that fires at 9am every morning, will
+    Longer schedules, such as one that fires at 9am every morning, will
     automatically adjust for DST.
 
     Args:
@@ -249,7 +251,7 @@ class CronClock(PrefectBaseModel):
         start: datetime.datetime = None,
         end: datetime.datetime = None,
     ) -> List[datetime.datetime]:
-        """Retrieves dates from the clock. Up to 10,000 candidate dates are checked
+        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
         Args:
@@ -319,9 +321,3 @@ class CronClock(PrefectBaseModel):
             await asyncio.sleep(0)
 
         return dates
-
-
-class Schedule(IDBaseModel):
-    clock: Union[IntervalClock, CronClock]
-    parameters: Dict[str, Any] = Field(default_factory=dict)
-    is_active: bool = True
