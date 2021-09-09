@@ -3,7 +3,8 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
+from prefect.orion import models
+from prefect.orion.schemas import states
 from prefect.orion.schemas.states import State, StateType
 
 
@@ -20,64 +21,43 @@ class TestCreateFlowRunState:
         assert flow_run_state.type == StateType.RUNNING
         assert flow_run_state.state_details.flow_run_id == flow_run.id
 
-    async def test_run_details_are_updated_with_previous_state_id(
-        self, flow_run, session
-    ):
-        trs = (
-            await models.flow_run_states.orchestrate_flow_run_state(
-                session=session,
-                flow_run_id=flow_run.id,
-                state=State(type="SCHEDULED"),
-            )
-        ).state
-
-        trs2 = (
-            await models.flow_run_states.orchestrate_flow_run_state(
-                session=session,
-                flow_run_id=flow_run.id,
-                state=State(type="RUNNING"),
-            )
-        ).state
-        assert trs2.run_details.previous_state_id == trs.id
-
     async def test_run_details_are_updated_entering_running(self, flow_run, session):
-        trs = (
-            await models.flow_run_states.orchestrate_flow_run_state(
-                session=session,
-                flow_run_id=flow_run.id,
-                state=State(type="SCHEDULED"),
-            )
-        ).state
-
-        assert trs.run_details.start_time is None
-        assert trs.run_details.run_count == 0
-
-        trs2 = (
-            await models.flow_run_states.orchestrate_flow_run_state(
-                session=session,
-                flow_run_id=flow_run.id,
-                state=State(type="RUNNING"),
-            )
-        ).state
-        assert trs2.run_details.start_time == trs2.timestamp
-        assert trs2.run_details.run_count == 1
-        assert trs2.run_details.last_run_time == trs2.timestamp
-        assert trs2.run_details.total_run_time_seconds == 0
-
-        trs3 = (
-            await models.flow_run_states.orchestrate_flow_run_state(
-                session=session,
-                flow_run_id=flow_run.id,
-                state=State(type="RUNNING"),
-            )
-        ).state
-        assert trs3.run_details.start_time == trs2.timestamp
-        assert trs3.run_details.run_count == 2
-        assert trs3.run_details.last_run_time == trs3.timestamp
-        assert (
-            trs3.run_details.total_run_time_seconds
-            == (trs3.timestamp - trs2.timestamp).total_seconds()
+        frs = await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=State(type="SCHEDULED"),
         )
+
+        await session.refresh(flow_run)
+
+        assert flow_run.run_details.start_time is None
+        assert flow_run.run_details.run_count == 0
+
+        dt = pendulum.now("UTC")
+        frs2 = await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=State(type="RUNNING", timestamp=dt),
+        )
+        await session.refresh(flow_run)
+
+        assert flow_run.run_details.start_time == dt
+        assert flow_run.run_details.run_count == 1
+        assert flow_run.run_details.total_run_time_seconds == 0
+
+        dt2 = pendulum.now("utc")
+        frs3 = await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=State(type="RUNNING", timestamp=dt2),
+            # running / running isn't usually allowed
+            apply_orchestration_rules=False,
+        )
+        await session.refresh(flow_run)
+
+        assert flow_run.run_details.start_time == dt
+        assert flow_run.run_details.run_count == 2
+        assert flow_run.run_details.total_run_time_seconds == (dt2 - dt).total_seconds()
 
 
 class TestReadFlowRunState:

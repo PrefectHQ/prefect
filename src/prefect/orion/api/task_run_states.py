@@ -23,7 +23,8 @@ async def create_task_run_state(
     return (
         await models.task_run_states.orchestrate_task_run_state(
             session=session,
-            state=state,
+            # convert to a full State object
+            state=schemas.states.State.parse_obj(state),
             task_run_id=task_run_id,
             apply_orchestration_rules=False,
         )

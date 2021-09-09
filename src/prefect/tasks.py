@@ -1,6 +1,6 @@
 import datetime
 import inspect
-from functools import update_wrapper
+from functools import update_wrapper, partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -10,10 +10,17 @@ from typing import (
     Iterable,
     Optional,
     Union,
+    cast,
+    overload,
+    TypeVar,
+    Generic,
+    Coroutine,
+    NoReturn,
 )
 
+from typing_extensions import ParamSpec
+
 from prefect.futures import PrefectFuture
-from prefect.utilities.asyncio import run_async_from_worker_thread
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 
@@ -21,19 +28,24 @@ if TYPE_CHECKING:
     from prefect.context import TaskRunContext
 
 
+T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
+R = TypeVar("R")  # The return type of the user's function
+P = ParamSpec("P")  # The parameters of the task
+
+
 def task_input_hash(context: "TaskRunContext", arguments: Dict[str, Any]):
     return hash_objects(context.task.fn, arguments)
 
 
-class Task:
+class Task(Generic[P, R]):
     """
     Base class representing Prefect worktasks.
     """
 
     def __init__(
         self,
+        fn: Callable[P, R],
         name: str = None,
-        fn: Callable = None,
         description: str = None,
         tags: Iterable[str] = None,
         cache_key_fn: Callable[
@@ -43,8 +55,6 @@ class Task:
         retries: int = 0,
         retry_delay_seconds: Union[float, int] = 0,
     ):
-        if not fn:
-            raise TypeError("__init__() missing 1 required argument: 'fn'")
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
@@ -77,6 +87,28 @@ class Task:
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
+    @overload
+    def __call__(
+        self: "Task[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
+    ) -> PrefectFuture[T]:
+        """
+        `NoReturn` matches if a type can't be inferred for the function which stops a
+        sync function from matching the `Coroutine` overload
+        """
+        ...
+
+    @overload
+    def __call__(
+        self: "Task[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
+    ) -> Awaitable[PrefectFuture[T]]:
+        ...
+
+    @overload
+    def __call__(
+        self: "Task[P, T]", *args: P.args, **kwargs: P.kwargs
+    ) -> PrefectFuture[T]:
+        ...
+
     def __call__(
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
@@ -96,8 +128,61 @@ class Task:
         self.dynamic_key += 1
 
 
-def task(_fn: Callable = None, *, name: str = None, **task_init_kwargs: Any):
-    # TODO: See notes on decorator cleanup in `prefect.flows.flow`
-    if _fn is None:
-        return lambda _fn: Task(fn=_fn, name=name, **task_init_kwargs)
-    return Task(fn=_fn, name=name, **task_init_kwargs)
+@overload
+def task(__fn: Callable[P, R]) -> Task[P, R]:
+    ...
+
+
+@overload
+def task(
+    *,
+    name: str = None,
+    description: str = None,
+    tags: Iterable[str] = None,
+    cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
+    cache_expiration: datetime.timedelta = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[float, int] = 0,
+) -> Callable[[Callable[P, R]], Task[P, R]]:
+    ...
+
+
+def task(
+    __fn=None,
+    *,
+    name: str = None,
+    description: str = None,
+    tags: Iterable[str] = None,
+    cache_key_fn: Callable[["TaskRunContext", Dict[str, Any]], Optional[str]] = None,
+    cache_expiration: datetime.timedelta = None,
+    retries: int = 0,
+    retry_delay_seconds: Union[float, int] = 0,
+):
+    if __fn:
+        return cast(
+            Task[P, R],
+            Task(
+                fn=__fn,
+                name=name,
+                description=description,
+                tags=tags,
+                cache_key_fn=cache_key_fn,
+                cache_expiration=cache_expiration,
+                retries=retries,
+                retry_delay_seconds=retry_delay_seconds,
+            ),
+        )
+    else:
+        return cast(
+            Callable[[Callable[P, R]], Task[P, R]],
+            partial(
+                task,
+                name=name,
+                description=description,
+                tags=tags,
+                cache_key_fn=cache_key_fn,
+                cache_expiration=cache_expiration,
+                retries=retries,
+                retry_delay_seconds=retry_delay_seconds,
+            ),
+        )
