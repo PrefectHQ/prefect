@@ -155,7 +155,9 @@ class Azure(Storage):
     def connection_string(self) -> str:
         if self.connection_string_secret_name is not None:
             return Secret(self.connection_string_secret_name).get()
-        conn_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+        conn_string = prefect.context.get("secrets", {}).get(
+            "AZURE_STORAGE_CONNECTION_STRING"
+        ) or os.getenv("AZURE_STORAGE_CONNECTION_STRING")
         if conn_string is None:
             raise Exception(
                 "Azure connection string not provided. Set `AZURE_STORAGE_CONNECTION_STRING` environment"

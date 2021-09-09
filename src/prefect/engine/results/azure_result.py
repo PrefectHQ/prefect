@@ -156,17 +156,7 @@ class AzureResult(Result):
         Returns:
             - bool: whether or not the target result exists.
         """
-        from azure.core.exceptions import ResourceNotFoundError
 
-        # initialize client and download
-        client = self.service.get_blob_client(
+        return self.service.get_blob_client(
             container=self.container, blob=location.format(**kwargs)
-        )
-
-        # Catch exception because Azure python bindings do not yet have an exists method
-        # https://github.com/Azure/azure-sdk-for-python/issues/9507
-        try:
-            client.get_blob_properties()
-            return True
-        except ResourceNotFoundError:
-            return False
+        ).exists()

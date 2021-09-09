@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import Flow
+from prefect import Flow, context
 from prefect.storage import Azure
 
 pytest.importorskip("azure.storage.blob")
@@ -35,18 +35,30 @@ def test_serialize_azure_storage():
 
     assert serialized_storage["type"] == "Azure"
 
-
-def test_blob_service_client_property(monkeypatch):
+@pytest.mark.parametrize(
+    "secret_name,secret_arg", [("SECRET_NAME", "conn_string_value"), ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value")]
+)
+def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
     connection = MagicMock()
     azure = MagicMock(from_connection_string=connection)
     monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
 
-    storage = Azure(container="test", connection_string_secret_name="conn")
+    with context(secrets={secret_name: secret_arg}):
+        storage = Azure(container="test", connection_string_secret_name=secret_name)
+        client = storage._azure_block_blob_service()
+        azure_client = storage._azure_block_blob_service
+        assert storage.connection_string == secret_arg
 
-    azure_client = storage._azure_block_blob_service
     assert azure_client
-    connection.assert_called_with(conn_str="conn")
+    connection.assert_called_with(conn_str=secret_arg)
 
+@pytest.mark.parametrize(
+    "secret_name,secret_arg", [("SECRET_NAME", "conn_string_value"), ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value")]
+)
+def test_connection_string_property(secret_name, secret_arg):
+    with context(secrets={secret_name: secret_arg}):
+        storage = Azure(container="test", connection_string_secret_name=secret_name)
+        assert storage.connection_string == secret_arg
 
 def test_add_flow_to_azure():
     storage = Azure(container="test")
