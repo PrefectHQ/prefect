@@ -276,4 +276,4 @@ class TestRetryingRule:
                 ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
 
-        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state_type == states.StateType.SCHEDULED

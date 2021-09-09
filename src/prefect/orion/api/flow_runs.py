@@ -1,4 +1,3 @@
-import logging
 from typing import List
 from uuid import UUID
 
@@ -71,9 +70,10 @@ async def read_flow_run(
 
 @router.get("/")
 async def read_flow_runs(
-    flow_id: UUID = None,
-    offset: int = 0,
-    limit: int = 10,
+    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRun]:
     """
@@ -81,9 +81,11 @@ async def read_flow_runs(
     """
     return await models.flow_runs.read_flow_runs(
         session=session,
-        flow_id=flow_id,
-        offset=offset,
-        limit=limit,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+        offset=pagination.offset,
+        limit=pagination.limit,
     )
 
 
@@ -114,7 +116,10 @@ async def set_flow_run_state(
 
     # create the state
     orchestration_result = await models.flow_run_states.orchestrate_flow_run_state(
-        session=session, flow_run_id=flow_run_id, state=state
+        session=session,
+        flow_run_id=flow_run_id,
+        # convert to a full State object
+        state=schemas.states.State.parse_obj(state),
     )
 
     # set the 201 because a new state was created
