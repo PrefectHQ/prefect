@@ -1,16 +1,16 @@
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import Home from '../views/Home.vue'
+import Dashboard from '../views/Dashboard.vue'
 
 const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
-    name: 'Home',
-    component: Home // We don't implement route level code splitting for the home route because we don't want this to load asyncronously
+    name: 'Dashboard',
+    component: Dashboard // We don't implement route level code splitting for the Dashboard route because we don't want this to load asyncronously
   },
   {
-    path: '/schematics',
-    name: 'Schematics',
-    component: () => import('../views/Schematics.vue')
+    path: '/flow-run',
+    name: 'FlowRun',
+    component: () => import('../views/FlowRun.vue')
   }
 ]
 

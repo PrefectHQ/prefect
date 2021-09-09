@@ -1,6 +1,6 @@
 <template>
   <div class="px-8">
-    <h1>Home</h1>
+    <h1>Flow Run</h1>
   </div>
 </template>
 
@@ -10,9 +10,5 @@ import { Options, Vue } from 'vue-class-component'
 @Options({
   components: {}
 })
-export default class Home extends Vue {
-  sayHello(): void {
-    console.log('hello!')
-  }
-}
+export default class FlowRun extends Vue {}
 </script>
