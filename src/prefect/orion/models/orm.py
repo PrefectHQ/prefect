@@ -22,12 +22,6 @@ from prefect.orion.utilities.functions import ParameterSchema
 class Flow(Base):
     name = Column(String, nullable=False, unique=True)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    parameters = Column(
-        Pydantic(ParameterSchema),
-        server_default="{}",
-        default=ParameterSchema,
-        nullable=False,
-    )
     flow_runs = relationship("FlowRun", back_populates="flow", lazy="raise")
     deployments = relationship("Deployment", back_populates="flow", lazy="raise")
 
