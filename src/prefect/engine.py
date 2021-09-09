@@ -4,7 +4,7 @@ Client-side execution of flows and tasks
 import time
 from contextlib import nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Union
+from typing import Any, Awaitable, Dict, Union, TypeVar, overload
 from uuid import UUID
 
 import pendulum
@@ -17,10 +17,10 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, resolve_futures, future_to_state
-from prefect.orion.states import is_state, is_state_iterable, StateSet
-from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.futures import PrefectFuture, future_to_state, resolve_futures
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import State, StateDetails, StateType
+from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
@@ -30,9 +30,12 @@ from prefect.utilities.asyncio import (
 from prefect.utilities.collections import ensure_iterable
 
 
+R = TypeVar("R")
+
+
 def enter_flow_run_engine(
     flow: Flow, parameters: Dict[str, Any]
-) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+) -> Union[State, Awaitable[State]]:
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
@@ -423,8 +426,20 @@ async def user_return_value_to_state(
     return State(type=StateType.COMPLETED, data=DataDocument.encode(serializer, result))
 
 
+@overload
+async def get_result(state: State[R], raise_failures: bool = True) -> R:
+    ...
+
+
+@overload
+async def get_result(
+    state: State[R], raise_failures: bool = False
+) -> Union[R, Exception]:
+    ...
+
+
 @sync_compatible
-async def get_result(state: State, raise_failures: bool = True) -> Any:
+async def get_result(state, raise_failures: bool = True):
     if state.is_failed() and raise_failures:
         return await raise_failed_state(state)
 

@@ -5,8 +5,23 @@ from typing import Any, Awaitable, Callable, TypeVar, Union
 
 import anyio
 import sniffio
+from typing_extensions import ParamSpec, TypeGuard
 
 T = TypeVar("T")
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def is_async_fn(
+    func: Union[Callable[P, R], Callable[P, Awaitable[R]]]
+) -> TypeGuard[Callable[P, Awaitable[R]]]:
+    """
+    This wraps `iscoroutinefunction` with a `TypeGuard` such that we can perform a
+    conditional check and type checkers will narrow the expected type.
+
+    See https://github.com/microsoft/pyright/issues/2142 for an example use
+    """
+    return inspect.iscoroutinefunction(func)
 
 
 async def run_sync_in_worker_thread(
@@ -59,9 +74,7 @@ def in_async_main_thread() -> bool:
         return not in_async_worker_thread()
 
 
-def sync_compatible(
-    async_fn: Callable[..., Awaitable[T]]
-) -> Callable[..., Union[T, Awaitable[T]]]:
+def sync_compatible(async_fn: T) -> T:
     """
     Converts an async function into a dual async and sync function.
 
