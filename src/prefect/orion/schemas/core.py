@@ -1,9 +1,9 @@
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Union
 from uuid import UUID
 
 from pydantic import Field
-import prefect
+
 from prefect.orion import schemas
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
@@ -39,7 +39,6 @@ class RunDetails(PrefectBaseModel):
 
 class FlowRunDetails(RunDetails):
     auto_scheduled: bool = False
-    schedule_id: UUID = None
 
 
 class TaskRunDetails(RunDetails):
@@ -95,8 +94,11 @@ class TaskRun(ORMBaseModel):
 class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
-    schedules: List[schemas.schedules.Schedule] = Field(default_factory=list)
-
+    schedule: Union[
+        schemas.schedules.IntervalSchedule,
+        schemas.schedules.CronSchedule,
+    ] = None
+    is_schedule_active: bool = True
     # flow: Flow = None
 
 
