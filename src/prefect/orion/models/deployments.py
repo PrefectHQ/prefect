@@ -1,6 +1,6 @@
 import datetime
-from typing import List, Tuple, Union
-from uuid import UUID, uuid4
+from typing import List
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
@@ -33,6 +33,30 @@ async def create_deployment(
     session.add(model)
     await session.flush()
     return model
+
+
+async def update_deployment(
+    session: sa.orm.Session, deployment: schemas.core.Deployment
+) -> orm.Deployment:
+    """Updates an existing deployment
+
+    Args:
+        session (sa.orm.Session): a database session
+        deployment (schemas.core.Deployment): a deployment model
+
+    Returns:
+        bool: whether or not the deployment was updated
+
+    """
+    update_stmt = (
+        sa.update(orm.Deployment)
+        .where(orm.Deployment.name == deployment.name)
+        .where(orm.Deployment.flow_id == deployment.flow_id)
+        .values(**deployment.dict(shallow=True, exclude_unset=True))
+    )
+    affected_rows = (await session.execute(update_stmt)).rowcount
+    await session.flush()
+    return affected_rows > 0
 
 
 async def read_deployment(

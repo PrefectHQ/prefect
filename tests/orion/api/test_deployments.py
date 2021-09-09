@@ -26,22 +26,33 @@ class TestCreateDeployment:
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow
     ):
-        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
-            json_compatible=True
-        )
+        data = DeploymentCreate(
+            name="My Deployment", flow_id=flow.id, is_schedule_active=False
+        ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
         deployment_id = response.json()["id"]
 
         # post the same data
-        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
-            json_compatible=True
-        )
+        data = DeploymentCreate(
+            name="My Deployment", flow_id=flow.id, is_schedule_active=False
+        ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 200
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert not response.json()["is_schedule_active"]
+
+        # post different data, upsert should be respected
+        data = DeploymentCreate(
+            name="My Deployment", flow_id=flow.id, is_schedule_active=True
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 200
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["id"] == deployment_id
+        assert response.json()["is_schedule_active"]
 
     async def test_create_deployment_populates_and_returned_created(self, client, flow):
         now = pendulum.now(tz="UTC")

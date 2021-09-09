@@ -17,7 +17,8 @@ async def create_deployment(
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
-    """Create a deployment"""
+    """Gracefully creates a new deployment from the provided schema. If a deployment with the
+    same name and flow_id already exists, the deployment is updated."""
     nested = await session.begin_nested()
     try:
         result = await models.deployments.create_deployment(
@@ -26,6 +27,9 @@ async def create_deployment(
         response.status_code = status.HTTP_201_CREATED
     except sa.exc.IntegrityError as exc:
         await nested.rollback()
+        affected_rows = await models.deployments.update_deployment(
+            session=session, deployment=deployment
+        )
         stmt = await session.execute(
             sa.select(models.orm.Deployment).filter_by(
                 flow_id=deployment.flow_id, name=deployment.name
