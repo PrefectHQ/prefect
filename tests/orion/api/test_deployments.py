@@ -139,7 +139,10 @@ class TestSetScheduleActive:
     ):
         assert deployment.is_schedule_active is True
         await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
-        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+        assert response.status_code == 201
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
@@ -149,8 +152,9 @@ class TestSetScheduleActive:
         assert response.status_code == 404
 
     async def test_set_schedule_active(self, client, deployment, session):
-        assert deployment.is_schedule_active is True
-        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        deployment.is_schedule_active = False
+        await session.commit()
+
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
@@ -162,10 +166,14 @@ class TestSetScheduleActive:
     async def test_set_schedule_active_can_be_called_multiple_times(
         self, client, deployment, session
     ):
-        assert deployment.is_schedule_active is True
-        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        deployment.is_schedule_active = False
+        await session.commit()
+
         await client.post(f"/deployments/{deployment.id}/set_schedule_active")
-        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        assert response.status_code == 201
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
