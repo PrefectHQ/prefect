@@ -259,20 +259,20 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.State(type="RUNNING", name="My Running State"),
+                state=schemas.states.Running(name="My Running State"),
             ),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
-                state=schemas.states.State(type="COMPLETED", name="My Completed State"),
+                state=schemas.states.Completed(name="My Completed State"),
             ),
         )
         flow_run_3 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, state=schemas.states.State(type="FAILED", name="RIP")
+                flow_id=flow.id, state=schemas.states.Failed(name="RIP")
             ),
         )
 
