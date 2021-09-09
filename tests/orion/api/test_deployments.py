@@ -129,7 +129,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
@@ -142,7 +142,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_inactive"
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is False
@@ -158,7 +158,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
@@ -173,7 +173,7 @@ class TestSetScheduleActive:
         response = await client.post(
             f"/deployments/{deployment.id}/set_schedule_active"
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
 
         await session.refresh(deployment)
         assert deployment.is_schedule_active is True
