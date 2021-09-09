@@ -1,15 +1,12 @@
 <template>
   <div class="navbar" tabindex="-1">
-    <div class="nav-item">
-      <router-link to="/">
-        <i class="material-icons">home</i>
-      </router-link>
-    </div>
-    <div class="nav-item">
-      <router-link to="/schematics">
-        <i class="material-icons">bubble_chart</i>
-      </router-link>
-    </div>
+    <router-link to="/" class="nav-item">
+      <img class="logo" src="@/assets/logos/prefect-logo-mark-gradient.svg" />
+    </router-link>
+
+    <router-link to="/settings" class="nav-item mt-auto">
+      <i class="pi pi-Settings pi-2x" />
+    </router-link>
   </div>
 </template>
 
@@ -20,25 +17,50 @@ export default class NavBar extends Vue {}
 </script>
 
 <style scoped lang="scss">
+@use '@prefect/miter-design/src/styles/abstracts/variables';
+
+.logo {
+  width: 24px;
+}
+
 .navbar {
   background-color: #fff;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.06), 0px 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
   height: 100vh;
-  max-width: 100px;
-  padding-top: 8px;
+  padding: 8px 0;
   position: relative;
-  transition: max-width 150ms ease-in-out 150ms;
   top: 0;
+  transition: all 150ms ease-in-out;
+  width: 62px;
   z-index: 10;
 
   .nav-item {
-    align-content: center;
-    display: flex;
+    color: variables.$grey-40 !important;
+    text-decoration: none;
+
+    height: 62px;
+    width: 62px;
+
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    margin-top: 16px;
-    margin-bottom: 16px;
+
     transition: width 150ms ease-in-out 150ms;
-    width: 50px;
+  }
+}
+
+@media (max-width: 640px) {
+  .navbar {
+    padding: 0 8px;
+    height: 62px;
+    max-width: unset;
+    width: 100vw;
+
+    .nav-item {
+      transition: width 150ms ease-in-out 150ms;
+    }
   }
 }
 </style>
