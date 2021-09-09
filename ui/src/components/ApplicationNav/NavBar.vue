@@ -17,8 +17,6 @@ export default class NavBar extends Vue {}
 </script>
 
 <style scoped lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables';
-
 .logo {
   width: 24px;
 }

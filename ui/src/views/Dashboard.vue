@@ -1,6 +1,6 @@
 <template>
-  <div class="px-8">
-    <h1>Dashboard</h1>
+  <div>
+    <h2>Dashboard</h2>
   </div>
 </template>
 
