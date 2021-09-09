@@ -155,13 +155,14 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
 
 @pytest.fixture
 async def deployment(session, flow) -> models.orm.Deployment:
-    schedule = schemas.schedules.Schedule(
-        clock=schemas.schedules.IntervalClock(interval=datetime.timedelta(days=1))
-    )
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
-            name="My Deployment", flow_id=flow.id, schedules=[schedule]
+            name="My Deployment",
+            flow_id=flow.id,
+            schedule=schemas.schedules.IntervalSchedule(
+                interval=datetime.timedelta(days=1)
+            ),
         ),
     )
     await session.commit()
