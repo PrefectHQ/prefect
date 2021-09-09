@@ -23,7 +23,6 @@ async def test_create_then_read_flow(orion_client):
     assert isinstance(lookup, schemas.core.Flow)
     assert lookup.name == foo.name
     assert lookup.tags == list(foo.tags)
-    assert lookup.parameters == foo.parameters
 
 
 async def test_create_then_read_flow_run(orion_client):
