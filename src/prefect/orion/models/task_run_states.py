@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
-from prefect.orion.orchestration.core_policy import CorePolicy
+from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalPolicy
 from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
 
@@ -36,10 +36,14 @@ async def orchestrate_task_run_state(
         raise ValueError(f"Invalid task run: {task_run_id}")
 
     initial_state = run.state.as_state() if run.state else None
-    intended_transition = (initial_state.type if initial_state else None), state.type
+    initial_state_type = initial_state.type if initial_state else None
+    proposed_state_type = state.type if state else None
+    intended_transition = (initial_state_type, proposed_state_type)
 
     if apply_orchestration_rules:
-        orchestration_rules = CorePolicy.compile_transition_rules(*intended_transition)
+        orchestration_rules = CoreTaskPolicy.compile_transition_rules(
+            *intended_transition
+        )
     else:
         orchestration_rules = []
 
@@ -64,21 +68,28 @@ async def orchestrate_task_run_state(
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
-
-        validated_state = orm.TaskRunState(
-            task_run_id=context.task_run_id,
-            **context.proposed_state.dict(shallow=True),
+        if context.proposed_state is not None:
+            validated_orm_state = orm.TaskRunState(
+                task_run_id=context.task_run_id,
+                **context.proposed_state.dict(shallow=True),
+            )
+            session.add(validated_orm_state)
+            await session.flush()
+        else:
+            validated_orm_state = None
+        context.validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
         )
-        session.add(validated_state)
-        await session.flush()
-        context.validated_state = validated_state.as_state()
 
-    if run is not None:
-        run.state = validated_state
+        # assign to the ORM model to create the state
+        # and update the run
+        run.state = validated_orm_state
+        await session.flush()
 
     result = OrchestrationResult(
-        state=validated_state,
+        state=validated_orm_state,
         status=context.response_status,
+        details=context.response_details,
     )
 
     return result

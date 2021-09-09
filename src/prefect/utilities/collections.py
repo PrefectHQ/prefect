@@ -1,13 +1,14 @@
-from collections.abc import Sequence, Set
 from collections import defaultdict
-from typing import Any, Iterable, Mapping, Tuple, TypeVar, Union, List, Dict, Type
+from collections.abc import Sequence, Set
+from typing import Any, Dict, Iterable, List, Tuple, Type, TypeVar, Union, cast
 
-T = TypeVar("T")
+KT = TypeVar("KT")
+VT = TypeVar("VT")
 
 
 def dict_to_flatdict(
-    dct: Mapping[T, Any], _parent: Tuple[T, ...] = None
-) -> Mapping[Tuple[T, ...], Any]:
+    dct: Dict[KT, Union[Any, Dict[KT, Any]]], _parent: Tuple[KT, ...] = None
+) -> Dict[Tuple[KT, ...], Any]:
     """Converts a (nested) dictionary to a flattened representation.
 
     Each key of the flat dict will be a CompoundKey tuple containing the "chain of keys"
@@ -20,8 +21,8 @@ def dict_to_flatdict(
     Returns:
         - A flattened dict of the same type as dct
     """
-    typ = type(dct)
-    items = []
+    typ = cast(Type[Dict[Tuple[KT, ...], Any]], type(dct))
+    items: List[Tuple[Tuple[KT, ...], Any]] = []
     parent = _parent or tuple()
 
     for k, v in dct.items():
@@ -33,7 +34,9 @@ def dict_to_flatdict(
     return typ(items)
 
 
-def flatdict_to_dict(dct: Mapping[Tuple[T, ...], Any]) -> Mapping[T, Any]:
+def flatdict_to_dict(
+    dct: Dict[Tuple[KT, ...], VT]
+) -> Dict[KT, Union[VT, Dict[KT, VT]]]:
     """Converts a flattened dictionary back to a nested dictionary.
 
     Args:
@@ -44,21 +47,26 @@ def flatdict_to_dict(dct: Mapping[Tuple[T, ...], Any]) -> Mapping[T, Any]:
         - A nested dict of the same type as dct
     """
     typ = type(dct)
-    result = typ()
+    result = cast(Dict[KT, Union[VT, Dict[KT, VT]]], typ())
     for key_tuple, value in dct.items():
         current_dict = result
         for prefix_key in key_tuple[:-1]:
             # Build nested dictionaries up for the current key tuple
-            current_dict = current_dict.setdefault(prefix_key, typ())
+            # Use `setdefault` in case the nested dict has already been created
+            current_dict = current_dict.setdefault(prefix_key, typ())  # type: ignore
         # Set the value
         current_dict[key_tuple[-1]] = value
 
     return result
 
 
+T = TypeVar("T")
+
+
 def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
     if isinstance(obj, Sequence) or isinstance(obj, Set):
         return obj
+    obj = cast(T, obj)  # No longer in the iterable case
     return [obj]
 
 

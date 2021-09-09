@@ -49,7 +49,7 @@ class TestCreateTaskRun:
         task_run_data = dict(
             flow_run_id=str(flow_run.id),
             task_key="task-key",
-            state=states.State(type="RUNNING").dict(json_compatible=True),
+            state=states.Running().dict(json_compatible=True),
         )
         response = await client.post("/task_runs/", json=task_run_data)
         task_run = await models.task_runs.read_task_run(
@@ -87,15 +87,55 @@ class TestReadTaskRun:
 
 
 class TestReadTaskRuns:
-    async def test_read_task_runs(self, flow_run, task_run, client):
-        response = await client.get("/task_runs/", params=dict(flow_run_id=flow_run.id))
+    async def test_read_task_runs(self, task_run, client):
+        response = await client.get("/task_runs/")
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-    async def test_read_task_runs_filters_by_flow_run_id(self, client):
-        response = await client.get("/task_runs/", params=dict(flow_run_id=uuid4()))
+    async def test_read_task_runs_applies_task_run_filter(self, task_run, client):
+        response = await client.get(
+            "/task_runs/", json={"task_runs": {"ids": [str(task_run.id)]}}
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(task_run.id)
+        assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
+
+        response = await client.get(
+            "/task_runs/", json={"task_runs": {"ids": [str(uuid4())]}}
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_read_task_runs_applies_flow_run_filter(self, task_run, client):
+        response = await client.get(
+            "/task_runs/", json={"flow_runs": {"ids": [str(task_run.flow_run_id)]}}
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(task_run.id)
+        assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
+
+        response = await client.get(
+            "/task_runs/", json={"flow_runs": {"ids": [str(uuid4())]}}
+        )
+        assert response.status_code == 200
+        assert response.json() == []
+
+    async def test_read_task_runs_applies_flow_filter(self, flow, task_run, client):
+        response = await client.get(
+            "/task_runs/", json={"flows": {"ids": [str(flow.id)]}}
+        )
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(task_run.id)
+        assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
+
+        response = await client.get(
+            "/task_runs/", json={"flows": {"ids": [str(uuid4())]}}
+        )
         assert response.status_code == 200
         assert response.json() == []
 
@@ -131,7 +171,6 @@ class TestSetTaskRunState:
 
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
-        assert api_response.state.run_details.run_count == 1
 
         task_run_id = task_run.id
         session.expire_all()
@@ -140,6 +179,7 @@ class TestSetTaskRunState:
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
+        assert run.run_details.run_count == 1
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
@@ -152,7 +192,7 @@ class TestSetTaskRunState:
             await models.task_run_states.orchestrate_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
-                state=states.State(type="RUNNING"),
+                state=states.Running(),
             )
         ).state
         await session.commit()

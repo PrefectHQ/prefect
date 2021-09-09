@@ -79,12 +79,12 @@ class TestReadDeployments:
         assert len(response.json()) == 2
 
     async def test_read_deployments_applies_limit(self, deployments, client):
-        response = await client.get("/deployments/", params=dict(limit=1))
+        response = await client.get("/deployments/", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
-        response = await client.get("/deployments/", params=dict(offset=1))
+        response = await client.get("/deployments/", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -120,4 +120,64 @@ class TestDeleteDeployment:
 
     async def test_delete_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.delete(f"/deployments/{uuid4()}")
+        assert response.status_code == 404
+
+
+class TestSetScheduleActive:
+    async def test_set_schedule_inactive(self, client, deployment, session):
+        assert deployment.is_schedule_active is True
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+        assert response.status_code == 200
+
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is False
+
+    async def test_set_schedule_inactive_can_be_called_multiple_times(
+        self, client, deployment, session
+    ):
+        assert deployment.is_schedule_active is True
+        await client.post(f"/deployments/{deployment.id}/set_schedule_inactive")
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+        assert response.status_code == 200
+
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is False
+
+    async def test_set_schedule_inactive_with_missing_deployment(self, client):
+        response = await client.post(f"/deployments/{uuid4()}/set_schedule_inactive")
+        assert response.status_code == 404
+
+    async def test_set_schedule_active(self, client, deployment, session):
+        deployment.is_schedule_active = False
+        await session.commit()
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        assert response.status_code == 200
+
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
+
+    async def test_set_schedule_active_can_be_called_multiple_times(
+        self, client, deployment, session
+    ):
+        deployment.is_schedule_active = False
+        await session.commit()
+
+        await client.post(f"/deployments/{deployment.id}/set_schedule_active")
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        assert response.status_code == 200
+
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
+
+    async def test_set_schedule_active_with_missing_deployment(self, client):
+        response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
         assert response.status_code == 404

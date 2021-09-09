@@ -22,7 +22,11 @@ async def create_flow_run_state(
     """
     return (
         await models.flow_run_states.orchestrate_flow_run_state(
-            session=session, state=state, flow_run_id=flow_run_id
+            session=session,
+            # convert to a full State object
+            state=schemas.states.State.parse_obj(state),
+            flow_run_id=flow_run_id,
+            apply_orchestration_rules=False,
         )
     ).state
 

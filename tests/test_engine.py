@@ -1,16 +1,32 @@
+from unittest.mock import MagicMock
+
+import pendulum
 import pytest
 
+from prefect import flow, task
+from prefect.client import OrionClient
 from prefect.engine import (
-    user_return_value_to_state,
     get_result,
+    orchestrate_flow_run,
+    orchestrate_task_run,
     raise_failed_state,
     resolve_datadoc,
+    user_return_value_to_state,
 )
-from prefect.orion.schemas.states import State, StateType, Completed
-from prefect.orion.schemas.data import DataDocument
+from prefect.executors import BaseExecutor
 from prefect.futures import PrefectFuture
+from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import (
+    Completed,
+    State,
+    StateDetails,
+    StateType,
+    Failed,
+    Running,
+    Pending,
+)
+from prefect.utilities.compat import AsyncMock
 from prefect.utilities.testing import exceptions_equal
-from prefect.client import OrionClient
 
 
 class TestUserReturnValueToState:
@@ -31,8 +47,8 @@ class TestUserReturnValueToState:
     async def test_some_failed_states(self):
         states = [
             Completed(message="hi"),
-            State(type=StateType.FAILED, message="bye"),
-            State(type=StateType.FAILED, message="err"),
+            Failed(message="bye"),
+            Failed(message="err"),
         ]
         result_state = await user_return_value_to_state(states)
         # States have been stored as data
@@ -45,8 +61,8 @@ class TestUserReturnValueToState:
     async def test_some_unfinal_states(self):
         states = [
             Completed(message="hi"),
-            State(type=StateType.RUNNING, message="bye"),
-            State(type=StateType.PENDING, message="err"),
+            Running(message="bye"),
+            Pending(message="err"),
         ]
         result_state = await user_return_value_to_state(states)
         # States have been stored as data
@@ -236,3 +252,231 @@ class TestResolveDataDoc:
                 )
                 == "hello"
             )
+
+
+class TestOrchestrateTaskRun:
+    @pytest.fixture
+    async def flow_run_id(self, orion_client: OrionClient):
+        @flow
+        def foo():
+            pass
+
+        return await orion_client.create_flow_run(flow=foo)
+
+    async def test_waits_until_scheduled_start_time(
+        self, orion_client, flow_run_id, monkeypatch
+    ):
+        @task
+        def foo():
+            return 1
+
+        task_run_id = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run_id,
+            state=State(
+                type=StateType.SCHEDULED,
+                state_details=StateDetails(
+                    scheduled_time=pendulum.now("utc").add(minutes=5)
+                ),
+            ),
+        )
+
+        # Mock sleep for a fast test; force transition into a new scheduled state so we
+        # don't repeatedly propose the state
+        async def reset_scheduled_time(*_):
+            await orion_client.create_task_run_state(
+                task_run_id=task_run_id,
+                state=State(
+                    type=StateType.SCHEDULED,
+                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
+                ),
+            )
+
+        sleep = AsyncMock(side_effect=reset_scheduled_time)
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        state = await orchestrate_task_run(
+            task=foo,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            parameters={},
+            client=orion_client,
+        )
+
+        sleep.assert_awaited_once()
+        assert state.is_completed()
+        assert await get_result(state) == 1
+
+    async def test_does_not_wait_for_scheduled_time_in_past(
+        self, orion_client, flow_run_id, monkeypatch
+    ):
+        @task
+        def foo():
+            return 1
+
+        task_run_id = await orion_client.create_task_run(
+            task=foo,
+            flow_run_id=flow_run_id,
+            state=State(
+                type=StateType.SCHEDULED,
+                state_details=StateDetails(
+                    scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                ),
+            ),
+        )
+
+        sleep = AsyncMock()
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        state = await orchestrate_task_run(
+            task=foo,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            parameters={},
+            client=orion_client,
+        )
+
+        sleep.assert_not_called()
+        assert state.is_completed()
+        assert await get_result(state) == 1
+
+    async def test_waits_for_awaiting_retry_scheduled_time(
+        self, monkeypatch, orion_client, flow_run_id
+    ):
+        # Define a task that fails once and then succeeds
+        mock = MagicMock()
+
+        @task(retries=1, retry_delay_seconds=43)
+        def flaky_function():
+            mock()
+
+            if mock.call_count == 2:
+                return 1
+
+            raise ValueError("try again, but only once")
+
+        # Create a task run to test
+        task_run_id = await orion_client.create_task_run(
+            task=flaky_function,
+            flow_run_id=flow_run_id,
+            state=Pending(),
+        )
+
+        # Mock sleep for a fast test; force transition into a new scheduled state so we
+        # don't repeatedly propose the state
+        async def reset_scheduled_time(*_):
+            await orion_client.create_task_run_state(
+                task_run_id=task_run_id,
+                state=State(
+                    type=StateType.SCHEDULED,
+                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
+                ),
+            )
+
+        sleep = AsyncMock(side_effect=reset_scheduled_time)
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=flaky_function,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            parameters={},
+            client=orion_client,
+        )
+
+        # Check for a proper final result
+        assert await get_result(state) == 1
+
+        # Assert that the sleep was called
+        # due to network time and rounding, the expected sleep time will be less than
+        # 43 seconds so we test a window
+        sleep.assert_awaited_once()
+        assert 40 < sleep.call_args[0][0] < 43
+
+        # Check expected state transitions
+        states = await orion_client.read_task_run_states(task_run_id)
+        state_names = [state.name for state in states]
+        assert state_names == [
+            "Pending",
+            "Running",
+            "Awaiting Retry",
+            "Scheduled",  # This is a forced state change to speedup the test
+            "Running",
+            "Completed",
+        ]
+
+
+class TestOrchestrateFlowRun:
+    async def test_waits_until_scheduled_start_time(self, orion_client, monkeypatch):
+        @flow
+        def foo():
+            return 1
+
+        flow_run_id = await orion_client.create_flow_run(
+            flow=foo,
+            state=State(
+                type=StateType.SCHEDULED,
+                state_details=StateDetails(
+                    scheduled_time=pendulum.now("utc").add(minutes=5)
+                ),
+            ),
+        )
+
+        # Mock sleep for a fast test; force transition into a new scheduled state so we
+        # don't repeatedly propose the state
+        async def reset_scheduled_time(*_):
+            await orion_client.create_flow_run_state(
+                flow_run_id=flow_run_id,
+                state=State(
+                    type=StateType.SCHEDULED,
+                    state_details=StateDetails(scheduled_time=pendulum.now("utc")),
+                ),
+            )
+
+        sleep = AsyncMock(side_effect=reset_scheduled_time)
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        state = await orchestrate_flow_run(
+            flow=foo,
+            flow_run_id=flow_run_id,
+            parameters={},
+            executor=BaseExecutor(),
+            sync_portal=None,
+            client=orion_client,
+        )
+
+        sleep.assert_awaited_once()
+        assert await get_result(state) == 1
+
+    async def test_does_not_wait_for_scheduled_time_in_past(
+        self, orion_client, monkeypatch
+    ):
+        @flow
+        def foo():
+            return 1
+
+        flow_run_id = await orion_client.create_flow_run(
+            flow=foo,
+            state=State(
+                type=StateType.SCHEDULED,
+                state_details=StateDetails(
+                    scheduled_time=pendulum.now("utc").subtract(minutes=5)
+                ),
+            ),
+        )
+
+        sleep = AsyncMock()
+        monkeypatch.setattr("anyio.sleep", sleep)
+
+        state = await orchestrate_flow_run(
+            flow=foo,
+            flow_run_id=flow_run_id,
+            parameters={},
+            executor=BaseExecutor(),
+            sync_portal=None,
+            client=orion_client,
+        )
+
+        sleep.assert_not_called()
+        assert await get_result(state) == 1

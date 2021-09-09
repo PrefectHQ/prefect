@@ -1,21 +1,32 @@
 import contextlib
 from types import TracebackType
-from typing import Iterable, List, Optional, Type, Union
+from typing import Dict, Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
-from pydantic import Field
+from pydantic import Field, validator
+from typing_extensions import Literal
 
+from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
-from prefect.orion.schemas.responses import SetStateStatus
+from prefect.orion.schemas.responses import (
+    SetStateStatus,
+    StateAcceptDetails,
+    StateRejectDetails,
+    StateWaitDetails,
+)
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 
 
+StateResponseDetails = Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
+
+
 class OrchestrationResult(PrefectBaseModel):
     state: Optional[states.State]
     status: SetStateStatus
+    details: StateResponseDetails
 
 
 class OrchestrationContext(PrefectBaseModel):
@@ -23,15 +34,26 @@ class OrchestrationContext(PrefectBaseModel):
         arbitrary_types_allowed = True
 
     initial_state: Optional[states.State]
-    proposed_state: states.State
+    proposed_state: Optional[states.State]
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
     run: Optional[Union[core.TaskRun, core.FlowRun]]
+    run_type: Optional[Literal["task_run", "flow_run"]]
     task_run_id: Optional[UUID]
     flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
+    response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
+
+    @validator("run_type", pre=True, always=True)
+    def infer_run_type(cls, v, *, values, **kwargs):
+        if v is None and "run" in values:
+            if isinstance(values["run"], core.TaskRun):
+                return "task_run"
+            elif isinstance(values["run"], core.FlowRun):
+                return "flow_run"
+        return v
 
     def __post_init__(self, **kwargs):
         if self.flow_run_id is None and self.run is not None:
@@ -39,16 +61,20 @@ class OrchestrationContext(PrefectBaseModel):
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
-        return None if self.initial_state is None else self.initial_state.type
+        return self.initial_state.type if self.initial_state else None
 
     @property
     def proposed_state_type(self) -> Optional[states.StateType]:
-        return self.proposed_state.type
+        return self.proposed_state.type if self.proposed_state else None
+
+    @property
+    def validated_state_type(self) -> Optional[states.StateType]:
+        return self.validated_state.type if self.validated_state else None
 
     @property
     def run_details(self):
         try:
-            return self.run.state.run_details
+            return self.run.run_details
         except AttributeError:
             return None
 
@@ -93,7 +119,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context = context
         self.from_state_type = from_state_type
         self.to_state_type = to_state_type
-        self._not_fizzleable = None
+        self._invalid_on_entry = None
 
     async def __aenter__(self) -> OrchestrationContext:
         if await self.invalid():
@@ -144,27 +170,20 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         pass
 
     async def invalid(self) -> bool:
-        # invalid and fizzled states are mutually exclusive, `_not_fizzeable` holds this statefulness
-        if self._not_fizzleable is None:
-            self._not_fizzleable = await self.invalid_transition()
-        return self._not_fizzleable
+        # invalid and fizzled states are mutually exclusive,
+        # `_invalid_on_entry` holds this statefulness
+        if self._invalid_on_entry is None:
+            self._invalid_on_entry = await self.invalid_transition()
+        return self._invalid_on_entry
 
     async def fizzled(self) -> bool:
-        if self._not_fizzleable:
+        if self._invalid_on_entry:
             return False
         return await self.invalid_transition()
 
     async def invalid_transition(self) -> bool:
-        initial_state_type = (
-            None
-            if self.context.initial_state is None
-            else self.context.initial_state.type
-        )
-        proposed_state_type = (
-            None
-            if self.context.proposed_state is None
-            else self.context.proposed_state.type
-        )
+        initial_state_type = self.context.initial_state_type
+        proposed_state_type = self.context.proposed_state_type
         return (self.from_state_type != initial_state_type) or (
             self.to_state_type != proposed_state_type
         )
@@ -174,12 +193,24 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
 
-        # if a rule modifies the proposed state, it should not fizzle itself
-        if self.context.proposed_state_type != state.type:
-            self.to_state_type = state.type
-
+        # a rule that mutates state should not fizzle itself
+        self.to_state_type = state.type
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
+        self.context.response_details = StateRejectDetails(reason=reason)
+
+    async def delay_transition(self, delay_seconds: int, reason: str):
+        # don't run if the transition is already validated
+        if self.context.validated_state:
+            raise RuntimeError("The transition is already validated")
+
+        # a rule that mutates state should not fizzle itself
+        self.to_state_type = None
+        self.context.proposed_state = None
+        self.context.response_status = SetStateStatus.WAIT
+        self.context.response_details = StateWaitDetails(
+            delay_seconds=delay_seconds, reason=reason
+        )
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):

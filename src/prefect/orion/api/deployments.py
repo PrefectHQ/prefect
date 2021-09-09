@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Depends, HTTPException, Path, Response, status
+from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -42,7 +42,7 @@ async def read_deployment(
 
 @router.get("/")
 async def read_deployments(
-    pagination: dependencies.Pagination = Depends(),
+    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
@@ -69,3 +69,35 @@ async def delete_deployment(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
     return result
+
+
+@router.post("/{id}/set_schedule_active")
+async def set_schedule_active(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> None:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+    deployment.is_schedule_active = True
+    await session.flush()
+
+
+@router.post("/{id}/set_schedule_inactive")
+async def set_schedule_inactive(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> None:
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+    deployment.is_schedule_active = False
+    await session.flush()
