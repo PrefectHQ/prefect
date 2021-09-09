@@ -4,7 +4,7 @@
       <img class="logo" src="@/assets/logos/prefect-logo-mark-gradient.svg" />
     </router-link>
 
-    <router-link to="/settings" class="nav-item mt-auto">
+    <router-link to="/settings" class="nav-item mt-auto ml-auto">
       <i class="pi pi-Settings pi-2x" />
     </router-link>
   </div>
@@ -55,6 +55,7 @@ export default class NavBar extends Vue {}
   .navbar {
     padding: 0 8px;
     height: 62px;
+    flex-direction: row;
     max-width: unset;
     width: 100vw;
 
