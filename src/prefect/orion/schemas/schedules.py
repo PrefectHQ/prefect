@@ -43,7 +43,7 @@ class IntervalScheduleFilters(PrefectBaseModel):
 
     @validator("days_of_month")
     def zero_is_invalid_day_of_month(cls, v):
-        if 0 in v:
+        if v and 0 in v:
             raise ValueError("0 is not a valid day of the month")
         return v
 
