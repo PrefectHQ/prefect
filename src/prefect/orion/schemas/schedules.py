@@ -103,8 +103,8 @@ class IntervalSchedule(PrefectBaseModel):
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
-    filters = IntervalScheduleFilters()
-    adjustments = IntervalScheduleAdjustments()
+    filters: IntervalScheduleFilters = None
+    adjustments: IntervalScheduleAdjustments = None
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
