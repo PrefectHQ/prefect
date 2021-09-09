@@ -71,52 +71,59 @@ async def create_flow_run_state(
 
 
 @pytest.fixture
-def run(request, task_run, flow_run):
-    if request.param == "task_run":
-        return task_run
-    elif request.param == "flow_run":
-        return flow_run
-    raise ValueError(f"Text fixture got bad param: {request.param!r}")
+def initialize_orchestration(
+        session,
+        task_run,
+        flow_run,
+):
+    async def initializer(
+        orchestration_type,
+        initial_state_type,
+        proposed_state_type,
+        state_details=None,
+    ) -> OrchestrationContext:
+        if orchestration_type == "flow":
+            run = flow_run
+            context = FlowOrchestrationContext
+            state_constructor = create_flow_run_state
+        elif orchestration_type == "task":
+            run = task_run
+            context = TaskOrchestrationContext
+            state_constructor = create_task_run_state
 
-
-@pytest.mark.parametrize(
-    ["context", "state_constructor", "run"],
-    [
-        (
-            FlowOrchestrationContext,
-            create_flow_run_state,
-            "flow_run",
-        ),
-        (
-            TaskOrchestrationContext,
-            create_task_run_state,
-            "task_run",
-        ),
-    ],
-    indirect=["run"],
-)
-class TestWaitForScheduledTimeRule:
-    async def test_late_scheduled_states_just_run(
-        self, session, run, context, state_constructor
-    ):
-        initial_state_type = states.StateType.SCHEDULED
-        proposed_state_type = states.StateType.RUNNING
-        intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_state = await state_constructor(
+        initial_state = await state_constructor(
             session,
             run,
             initial_state_type,
-            {"scheduled_time": pendulum.now().subtract(minutes=5)},
+            state_details,
         )
 
         proposed_state = states.State(type=proposed_state_type)
 
         ctx = context(
-            initial_state=scheduled_state,
+            initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
             run=run,
             run_id=run.id,
+        )
+
+        return ctx
+    return initializer
+
+
+@pytest.mark.parametrize("orchestration_type", ["task", "flow"])
+class TestWaitForScheduledTimeRule:
+    async def test_late_scheduled_states_just_run(
+        self, orchestration_type, initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            orchestration_type,
+            *intended_transition,
+            {"scheduled_time": pendulum.now().subtract(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
@@ -125,54 +132,33 @@ class TestWaitForScheduledTimeRule:
         assert ctx.validated_state_type == proposed_state_type
 
     async def test_early_scheduled_states_are_delayed(
-        self, session, run, context, state_constructor
+        self, orchestration_type, initialize_orchestration,
     ):
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_state = await state_constructor(
-            session,
-            run,
-            initial_state_type,
+        ctx = await initialize_orchestration(
+            "flow",
+            *intended_transition,
             {"scheduled_time": pendulum.now().add(minutes=5)},
-        )
-
-        proposed_state = states.State(type=proposed_state_type)
-
-        ctx = context(
-            initial_state=scheduled_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=run,
-            run_id=run.id,
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-            assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
-            assert ctx.proposed_state is None
-            assert abs(ctx.response_details.delay_seconds - 300) < 2
+        assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
+        assert ctx.proposed_state is None
+        assert abs(ctx.response_details.delay_seconds - 300) < 2
 
     async def test_scheduled_states_without_scheduled_times_are_bad(
-        self, session, run, context, state_constructor
+        self, orchestration_type, initialize_orchestration,
     ):
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        not_a_scheduled_state = await state_constructor(
-            session,
-            run,
-            initial_state_type,
-        )
-        proposed_state = states.State(type=proposed_state_type)
-
-        ctx = OrchestrationContext(
-            initial_state=not_a_scheduled_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=run,
-            run_id=run.id,
+        ctx = await initialize_orchestration(
+            "flow",
+            *intended_transition,
         )
 
         with pytest.raises(ValueError):
