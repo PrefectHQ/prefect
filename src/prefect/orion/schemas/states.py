@@ -96,6 +96,20 @@ class State(ORMBaseModel, Generic[R]):
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
 
+def Scheduled(scheduled_time: datetime.datetime, **kwargs) -> State:
+    """Convenience function for creating `Scheduled` states.
+
+    Returns:
+        State: a Scheduled state
+    """
+    state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
+    if state_details.scheduled_time:
+        raise ValueError("An extra scheduled_time was provided in state_details")
+    state_details.scheduled_time = scheduled_time
+
+    return State(type=StateType.SCHEDULED, state_details=state_details, **kwargs)
+
+
 def Completed(**kwargs) -> State:
     """Convenience function for creating `Completed` states.
 
@@ -105,18 +119,40 @@ def Completed(**kwargs) -> State:
     return State(type=StateType.COMPLETED, **kwargs)
 
 
+def Running(**kwargs) -> State:
+    """Convenience function for creating `Running` states.
+
+    Returns:
+        State: a Running state
+    """
+    return State(type=StateType.RUNNING, **kwargs)
+
+
+def Failed(**kwargs) -> State:
+    """Convenience function for creating `Failed` states.
+
+    Returns:
+        State: a Failed state
+    """
+    return State(type=StateType.FAILED, **kwargs)
+
+
+def Pending(**kwargs) -> State:
+    """Convenience function for creating `Pending` states.
+
+    Returns:
+        State: a Pending state
+    """
+    return State(type=StateType.PENDING, **kwargs)
+
+
 def AwaitingRetry(scheduled_time: datetime, **kwargs) -> State:
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
         State: a AwaitingRetry state
     """
-    return State(
-        type=StateType.SCHEDULED,
-        name="Awaiting Retry",
-        state_details=StateDetails(scheduled_time=scheduled_time),
-        **kwargs
-    )
+    return Scheduled(scheduled_time=scheduled_time, name="AwaitingRetry")
 
 
 def Retrying(**kwargs) -> State:

@@ -116,7 +116,7 @@ async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
             state=scheduled_state,
         )
     ).state
-    running_state = schemas.states.State(type="RUNNING")
+    running_state = schemas.states.Running()
     running_flow_run_state = (
         await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
@@ -141,7 +141,7 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
             state=scheduled_state,
         )
     ).state
-    running_state = schemas.states.State(type="RUNNING")
+    running_state = schemas.states.Running()
     running_task_run_state = (
         await models.task_run_states.orchestrate_task_run_state(
             session=session,
