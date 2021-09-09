@@ -9,7 +9,6 @@ from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
-
 R = TypeVar("R")
 
 
@@ -44,10 +43,10 @@ class State(ORMBaseModel, Generic[R]):
     def default_name_from_type(cls, v, *, values, **kwargs):
         """If a name is not provided, use the type"""
 
-        # if type is not in values it means it didn't pass its own
-        # validation check and an error will be raised
+        # if `type` is not in `values` it means the `type` didn't pass its own
+        # validation check and an error will be raised after this function is called
         if v is None and "type" in values:
-            v = values.get("type").value.capitalize()
+            v = " ".join([v.capitalize() for v in values.get("type").value.split("_")])
         return v
 
     @root_validator
@@ -96,14 +95,16 @@ class State(ORMBaseModel, Generic[R]):
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
 
-def Scheduled(scheduled_time: datetime.datetime, **kwargs) -> State:
+def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     """Convenience function for creating `Scheduled` states.
 
     Returns:
         State: a Scheduled state
     """
     state_details = StateDetails.parse_obj(kwargs.pop("state_details", {}))
-    if state_details.scheduled_time:
+    if scheduled_time is None:
+        scheduled_time = pendulum.now("UTC")
+    elif state_details.scheduled_time:
         raise ValueError("An extra scheduled_time was provided in state_details")
     state_details.scheduled_time = scheduled_time
 
@@ -146,13 +147,13 @@ def Pending(**kwargs) -> State:
     return State(type=StateType.PENDING, **kwargs)
 
 
-def AwaitingRetry(scheduled_time: datetime, **kwargs) -> State:
+def AwaitingRetry(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     """Convenience function for creating `AwaitingRetry` states.
 
     Returns:
         State: a AwaitingRetry state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="AwaitingRetry")
+    return Scheduled(scheduled_time=scheduled_time, name="Awaiting Retry")
 
 
 def Retrying(**kwargs) -> State:

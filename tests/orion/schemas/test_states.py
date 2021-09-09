@@ -133,7 +133,10 @@ class TestStateConvenienceFunctions:
     def test_scheduled_with_state_details_cant_provide_scheduled_time(self):
         dt = pendulum.now("UTC")
         with pytest.raises(ValueError, match="(extra scheduled_time)"):
-            Scheduled(StateDetails(scheduled_time=dt), scheduled_time=dt)
+            Scheduled(
+                scheduled_time=dt,
+                state_details=StateDetails(scheduled_time=dt),
+            )
 
     def test_awaiting_retry(self):
         dt = pendulum.now("UTC")
@@ -141,6 +144,12 @@ class TestStateConvenienceFunctions:
         assert state.type == StateType.SCHEDULED
         assert state.name == "Awaiting Retry"
         assert state.state_details.scheduled_time == dt
+
+    def test_awaiting_retry_without_scheduled_time_defaults_to_now(self):
+        dt1 = pendulum.now("UTC")
+        state = AwaitingRetry()
+        dt2 = pendulum.now("UTC")
+        assert dt1 < state.state_details.scheduled_time < dt2
 
     def test_retrying(self):
         state = Retrying()
