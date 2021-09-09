@@ -171,7 +171,6 @@ class TestSetTaskRunState:
 
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
-        assert api_response.state.run_details.run_count == 1
 
         task_run_id = task_run.id
         session.expire_all()
@@ -180,6 +179,7 @@ class TestSetTaskRunState:
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
+        assert run.run_details.run_count == 1
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
