@@ -76,7 +76,9 @@ async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
-    deployment = await session.get(models.orm.Deployment, deployment_id)
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
     if not deployment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
@@ -89,7 +91,9 @@ async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
-    deployment = await session.get(models.orm.Deployment, deployment_id)
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
     if not deployment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
