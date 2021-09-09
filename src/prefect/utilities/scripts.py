@@ -8,12 +8,13 @@ def exec_script(
     """
     Execute a python script with __file__ populated if feasible and return the global
     variables
+
+    TODO: We should probably be using `runpy` for this instead
     """
     with open(file_path, "r") as f:
         file_contents = f.read()
 
-    # If a file_path has been provided, provide __file__ as a global variable
-    # so it resolves correctly during extraction
+    # Provide __file__ and __name__ to provide a `python <file>`-like experience
     exec_vals: Dict[str, Any] = {
         "__file__": file_path,
         "__name__": os.path.dirname(file_path),

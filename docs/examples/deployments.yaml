@@ -1,0 +1,8 @@
+- name: hello-sun
+  flow_location: ./hello_flows.py
+  flow_name: hello-sun
+- name: hello-moon
+  flow_location: ./hello_flows.py
+  flow_name: hello-moon
+  schedule:
+    interval: 360
