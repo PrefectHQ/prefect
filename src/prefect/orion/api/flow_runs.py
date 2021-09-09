@@ -116,7 +116,10 @@ async def set_flow_run_state(
 
     # create the state
     orchestration_result = await models.flow_run_states.orchestrate_flow_run_state(
-        session=session, flow_run_id=flow_run_id, state=state
+        session=session,
+        flow_run_id=flow_run_id,
+        # convert to a full State object
+        state=schemas.states.State.parse_obj(state),
     )
 
     # set the 201 because a new state was created
