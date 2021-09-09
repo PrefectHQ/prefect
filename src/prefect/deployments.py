@@ -15,7 +15,7 @@ from prefect.flows import Flow
 from prefect.orion.schemas.schedules import Schedule
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.collections import extract_instances, listrepr
-from prefect.utilities.evaluation import exec_script
+from prefect.utilities.scripts import exec_script
 from prefect.utilities.filesystem import tmpchdir
 
 # See `_register_new_specs`
