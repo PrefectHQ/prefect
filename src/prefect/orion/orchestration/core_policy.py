@@ -166,4 +166,4 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
                 **task_state_data,
             )
             context.session.add(subflow_parent_task_state)
-            await self.session.flush()
+            await context.session.flush()
