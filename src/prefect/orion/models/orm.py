@@ -411,3 +411,12 @@ class Deployment(Base):
     )
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
+
+    __table_args__ = (
+        sa.Index(
+            "uq_deployment__flow_id_name",
+            flow_id,
+            name,
+            unique=True,
+        ),
+    )
