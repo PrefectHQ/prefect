@@ -52,6 +52,25 @@ async def create_flow_run(
         return result
 
 
+# must be defined before `GET /:id`
+@router.get("/count")
+async def count_flow_runs(
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> int:
+    """
+    Query for flow runs
+    """
+    return await models.flow_runs.count_flow_runs(
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+    )
+
+
 @router.get("/{id}")
 async def read_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
@@ -86,24 +105,6 @@ async def read_flow_runs(
         task_run_filter=task_runs,
         offset=pagination.offset,
         limit=pagination.limit,
-    )
-
-
-@router.get("/count")
-async def count_flow_runs(
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> int:
-    """
-    Query for flow runs
-    """
-    return await models.flow_runs.count_flow_runs(
-        session=session,
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
     )
 
 
