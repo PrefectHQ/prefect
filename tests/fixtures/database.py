@@ -175,7 +175,7 @@ async def deployment(session, flow) -> models.orm.Deployment:
     return deployment
 
 
-async def create_task_run_state(
+async def commit_task_run_state(
     session, task_run, state_type: states.StateType, state_details=None
 ):
     if state_type is None:
@@ -204,7 +204,7 @@ async def create_task_run_state(
     return orm_state.as_state()
 
 
-async def create_flow_run_state(
+async def commit_flow_run_state(
     session, flow_run, state_type: states.StateType, state_details=None
 ):
     if state_type is None:
@@ -240,21 +240,21 @@ def initialize_orchestration(
 ):
     async def initializer(
         session,
-        orchestration_type,
+        run_type,
         initial_state_type,
         proposed_state_type,
         initial_details=None,
         proposed_details=None,
     ):
 
-        if orchestration_type == "flow":
+        if run_type == "flow":
             run = flow_run
             context = FlowOrchestrationContext
-            state_constructor = create_flow_run_state
-        elif orchestration_type == "task":
+            state_constructor = commit_flow_run_state
+        elif run_type == "task":
             run = task_run
             context = TaskOrchestrationContext
-            state_constructor = create_task_run_state
+            state_constructor = commit_task_run_state
 
         initial_state = await state_constructor(
             session,
