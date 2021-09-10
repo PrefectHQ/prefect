@@ -37,44 +37,6 @@ class TestCreateTaskRunState:
         assert "value_error.missing" in response.text
 
 
-class TestBackendCachingLogic:
-    @pytest.mark.parametrize(
-        "expiration",
-        [pendulum.now("utc").subtract(days=1), pendulum.now("utc").add(days=1), None],
-        ids=["past", "future", "null"],
-    )
-    async def test_set_and_retrieve_cached_task_run_state(
-        self, task_run, client, session, expiration
-    ):
-        first_task_run_state_data = schemas.actions.StateCreate(
-            type="COMPLETED",
-            state_details={"cache_key": "cache-hit", "cache_expiration": expiration},
-        ).dict(json_compatible=True)
-
-        second_task_run_state_data = schemas.actions.StateCreate(
-            type="RUNNING",
-            state_details={"cache_key": "cache-hit"},
-        ).dict(json_compatible=True)
-
-        response = await client.post(
-            f"/task_runs/{task_run.id}/set_state", json=first_task_run_state_data
-        )
-
-        cached_response = await client.post(
-            f"/task_runs/{task_run.id}/set_state", json=second_task_run_state_data
-        )
-        assert response.status_code == 201
-        assert response.json()["status"] == "ACCEPT"
-        assert cached_response.status_code == 201
-
-        if expiration and expiration < pendulum.now():
-            # Not receiving the cached state because it is expired
-            assert cached_response.json()["status"] == "ACCEPT"
-        else:
-            assert cached_response.json()["status"] == "REJECT"
-            assert cached_response.json()["state"]["name"] == "Cached"
-
-
 class TestReadTaskRunStateById:
     async def test_read_task_run_state(self, task_run, client):
         # create a task run state to read
