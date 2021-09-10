@@ -24,7 +24,7 @@ class AzureResult(Result):
             Blob storage. If not provided the value set in the environment as
             `AZURE_STORAGE_CONNECTION_STRING` will be used
         - connection_string_secret (str, optional): the name of a Prefect Secret
-            which stores your Azure connection tring
+            which stores your Azure connection string
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 

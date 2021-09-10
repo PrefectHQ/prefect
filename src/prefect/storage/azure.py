@@ -153,7 +153,7 @@ class Azure(Storage):
         return self
 
     @property
-    def connection_string(self) -> str:
+    def connection_string(self):  # type: ignore
         if self.connection_string_secret_name is not None:
             return Secret(self.connection_string_secret_name).get()
         conn_string = prefect.context.get("secrets", {}).get(
