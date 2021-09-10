@@ -19,21 +19,32 @@ class TestCreateDeployment:
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
 
-    async def test_create_deployment_raises_if_id_exists(self, session, flow):
-        deployment_id = uuid4()
-        await models.deployments.create_deployment(
+    async def test_create_deployment_updates_existing_deployment(self, session, flow):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+        )
+
+        assert deployment.name == "My Deployment"
+        assert deployment.flow_id == flow.id
+
+        schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(days=1)
+        )
+
+        deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                id=deployment_id, flow_id=flow.id, name="My Deployment"
+                name="My Deployment",
+                flow_id=flow.id,
+                schedule=schedule,
+                is_schedule_active=False,
             ),
         )
-        with pytest.raises(sa.exc.IntegrityError):
-            await models.deployments.create_deployment(
-                session=session,
-                deployment=schemas.core.Deployment(
-                    id=deployment_id, flow_id=flow.id, name="My Deployment"
-                ),
-            )
+        assert deployment.name == "My Deployment"
+        assert deployment.flow_id == flow.id
+        assert not deployment.is_schedule_active
+        assert deployment.schedule == schedule
 
     async def test_create_deployment_with_schedule(self, session, flow):
         schedule = schemas.schedules.IntervalSchedule(

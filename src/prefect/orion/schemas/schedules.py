@@ -1,7 +1,6 @@
 import asyncio
 import datetime
-from typing import Any, Dict, List, Set, Union
-from uuid import UUID
+from typing import List, Set
 
 import pendulum
 import pytz
@@ -9,7 +8,7 @@ from croniter import croniter
 from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
 
-from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 MAX_ITERATIONS = 10000
 
@@ -157,7 +156,7 @@ class IntervalSchedule(PrefectBaseModel):
         offset = (
             start - self.anchor_date
         ).total_seconds() / self.interval.total_seconds()
-        next_date = self.anchor_date.add(
+        next_date = pendulum.instance(self.anchor_date).add(
             seconds=self.interval.total_seconds() * int(offset)
         )
 
