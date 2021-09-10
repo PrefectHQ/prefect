@@ -1,9 +1,10 @@
 import contextlib
 from types import TracebackType
-from typing import Dict, Iterable, List, Optional, Type, Union
+from typing import Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
+
 from pydantic import Field, validator
 from typing_extensions import Literal
 
@@ -55,10 +56,6 @@ class OrchestrationContext(PrefectBaseModel):
                 return "flow_run"
         return v
 
-    def __post_init__(self, **kwargs):
-        if self.flow_run_id is None and self.run is not None:
-            self.flow_run_id = self.run.flow_run_id
-
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
         return self.initial_state.type if self.initial_state else None
@@ -104,6 +101,59 @@ class OrchestrationContext(PrefectBaseModel):
     def exit_context(self):
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
+
+
+class TaskOrchestrationContext(OrchestrationContext):
+    run_id: UUID
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.task_run_id = self.run_id
+        self.flow_run_id = self.run.flow_run_id
+
+    async def validate_proposed_state(self):
+        if self.proposed_state is not None:
+            validated_orm_state = orm.TaskRunState(
+                task_run_id=self.task_run_id,
+                **self.proposed_state.dict(shallow=True),
+            )
+            self.session.add(validated_orm_state)
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
+
+        await self.session.flush()
+        self.validated_state = validated_state
+
+        return validated_orm_state
+
+
+class FlowOrchestrationContext(OrchestrationContext):
+    run_id: UUID
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self.flow_run_id = self.run_id
+
+    async def validate_proposed_state(self):
+        if self.proposed_state is not None:
+            validated_orm_state = orm.FlowRunState(
+                flow_run_id=self.flow_run_id,
+                **self.proposed_state.dict(shallow=True),
+            )
+            self.session.add(validated_orm_state)
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
+
+        await self.session.flush()
+        self.validated_state = validated_state
+
+        return validated_orm_state
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
