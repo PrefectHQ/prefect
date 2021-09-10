@@ -78,7 +78,7 @@ async def read_task_runs(
     )
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
