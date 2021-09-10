@@ -89,6 +89,24 @@ async def read_flow_runs(
     )
 
 
+@router.get("/count")
+async def count_flow_runs(
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> int:
+    """
+    Query for flow runs
+    """
+    return await models.flow_runs.count_flow_runs(
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+    )
+
+
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
