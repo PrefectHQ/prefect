@@ -89,7 +89,7 @@ async def read_flow_runs(
     )
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
