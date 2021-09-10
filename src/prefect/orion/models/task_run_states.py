@@ -9,7 +9,10 @@ from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalPolicy
-from prefect.orion.orchestration.rules import OrchestrationContext, OrchestrationResult
+from prefect.orion.orchestration.rules import (
+    TaskOrchestrationContext,
+    OrchestrationResult,
+)
 
 
 async def orchestrate_task_run_state(
@@ -49,12 +52,12 @@ async def orchestrate_task_run_state(
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
-    context = OrchestrationContext(
+    context = TaskOrchestrationContext(
         initial_state=initial_state,
         proposed_state=state,
         session=session,
         run=run,
-        task_run_id=task_run_id,
+        run_id=task_run_id,
     )
 
     # apply orchestration rules and create the new task run state
@@ -68,18 +71,8 @@ async def orchestrate_task_run_state(
             context = await stack.enter_async_context(
                 rule(context, *intended_transition)
             )
-        if context.proposed_state is not None:
-            validated_orm_state = orm.TaskRunState(
-                task_run_id=context.task_run_id,
-                **context.proposed_state.dict(shallow=True),
-            )
-            session.add(validated_orm_state)
-            await session.flush()
-        else:
-            validated_orm_state = None
-        context.validated_state = (
-            validated_orm_state.as_state() if validated_orm_state else None
-        )
+
+        validated_orm_state = await context.validate_proposed_state()
 
         # assign to the ORM model to create the state
         # and update the run
