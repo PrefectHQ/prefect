@@ -193,24 +193,13 @@ async def _insert_scheduled_flow_runs(
 
     Returns a list of flow runs that were created
     """
-    # gracefully insert runs against the idempotency key
-    # if session.bind.dialect.name == "sqlite":
-    #     insert = insert_sqlite
-    # elif session.bind.dialect.name == "postgresql":
-    #     # TODO postgres supports RETURNING so we can use the returned IDs to know which states to enter
-    #     # Sqlite does not so we need an alternative solution
-    #     insert = insert_postgres
-    # else:
-    #     raise ValueError(f"Unrecognized dialect: {session.bind.dialect.name}")
-    insert = get_dialect_specific_insert()
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
+    insert = dialect_specific_insert(orm.FlowRun)
     await session.execute(
-        insert(orm.FlowRun.__table__).on_conflict_do_nothing(
-            index_elements=["flow_id", "idempotency_key"]
-        ),
+        insert.on_conflict_do_nothing(index_elements=["flow_id", "idempotency_key"]),
         [r.dict(exclude={"created", "updated"}) for r in runs],
     )
 
