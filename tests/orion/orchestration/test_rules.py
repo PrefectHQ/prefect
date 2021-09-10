@@ -82,8 +82,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -127,8 +127,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -172,8 +172,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -234,8 +234,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -306,8 +306,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -361,8 +361,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -438,8 +438,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -579,8 +579,8 @@ class TestBaseOrchestrationRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -678,8 +678,8 @@ class TestBaseUniversalRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -727,8 +727,8 @@ class TestBaseUniversalRule:
         initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await commit_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
