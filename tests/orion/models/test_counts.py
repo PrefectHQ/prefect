@@ -1,3 +1,5 @@
+import pydantic
+import json
 from prefect.orion.utilities.database import Base, get_session_factory
 import pendulum
 import pytest
@@ -176,230 +178,156 @@ async def create_flows(database_engine):
             await conn.execute(table.delete())
 
 
-class TestCountFlows:
-    async def test_count_flows(self, session):
-        count = await models.flows.count_flows(session=session)
-        assert count == 3
+class TestCountFlowsModels:
 
-    async def test_count_flows_with_name_filter(self, session):
-        count = await models.flows.count_flows(
-            session=session,
-            flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-2"]),
+    params = [
+        [{}, 3],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-2"])), 2],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-100"])), 1],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1"])), 1],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db"])), 2],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "blue"])), 1],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "red"])), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"])), 3],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"])), 2],
+        # possibly odd behavior
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=[])), 2],
+        # next two check that filters are applied as an intersection not a union
+        [dict(task_run_filter=filters.TaskRunFilter(states=["FAILED"])), 1],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(states=["FAILED"]),
+                flow_run_filter=filters.FlowRunFilter(tags_all=["xyz"]),
+            ),
+            0,
+        ],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_models_count(self, session, kwargs, expected):
+        count = await models.flows.count_flows(session=session, **kwargs)
+        assert count == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_api_count(self, client, kwargs, expected):
+        adjusted_kwargs = {}
+        for k, v in kwargs.items():
+            if k == "flow_filter":
+                k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
+            adjusted_kwargs[k] = v
+
+        repsonse = await client.get(
+            "/flows/count",
+            json=json.loads(
+                json.dumps(
+                    adjusted_kwargs,
+                    default=pydantic.json.pydantic_encoder,
+                )
+            ),
         )
-        assert count == 2
+        assert repsonse.json() == expected
 
-        count = await models.flows.count_flows(
-            session=session,
-            flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-100"]),
+
+class TestCountFlowRunModels:
+
+    params = [
+        [{}, 10],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-2"])), 8],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-100"])), 5],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1"])), 5],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db"])), 8],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "blue"])), 5],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "red"])), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"])), 3],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"])), 3],
+        # possibly odd behavior
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=[])), 2],
+        # next two check that filters are applied as an intersection not a union
+        [dict(task_run_filter=filters.TaskRunFilter(states=["FAILED"])), 1],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(states=["FAILED"]),
+                flow_filter=filters.FlowFilter(tags_all=["xyz"]),
+            ),
+            0,
+        ],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_models_count(self, session, kwargs, expected):
+        count = await models.flow_runs.count_flow_runs(session=session, **kwargs)
+        assert count == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_api_count(self, client, kwargs, expected):
+        adjusted_kwargs = {}
+        for k, v in kwargs.items():
+            if k == "flow_filter":
+                k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
+            adjusted_kwargs[k] = v
+
+        repsonse = await client.get(
+            "/flow_runs/count",
+            json=json.loads(
+                json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
+            ),
         )
-        assert count == 1
+        assert repsonse.json() == expected
 
-        count = await models.flows.count_flows(
-            session=session, flow_filter=filters.FlowFilter(names=["my-flow-1"])
+
+class TestCountTaskRunsModels:
+
+    params = [
+        [{}, 7],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-2"])), 6],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-100"])), 3],
+        [dict(flow_filter=filters.FlowFilter(names=["my-flow-1"])), 3],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db"])), 6],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "blue"])), 3],
+        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "red"])), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"])), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"])), 3],
+        # possibly odd behavior
+        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=[])), 1],
+        # next two check that filters are applied as an intersection not a union
+        [dict(flow_run_filter=filters.FlowRunFilter(states=["COMPLETED"])), 4],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(states=["COMPLETED"]),
+                flow_filter=filters.FlowFilter(tags_all=["xyz"]),
+            ),
+            0,
+        ],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_models_count(self, session, kwargs, expected):
+        count = await models.task_runs.count_task_runs(session=session, **kwargs)
+        assert count == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_api_count(self, client, kwargs, expected):
+        adjusted_kwargs = {}
+        for k, v in kwargs.items():
+            if k == "flow_filter":
+                k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
+            adjusted_kwargs[k] = v
+        repsonse = await client.get(
+            "/task_runs/count",
+            json=json.loads(
+                json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
+            ),
         )
-        assert count == 1
-
-    async def test_count_flows_with_tag_filter(self, session):
-        count = await models.flows.count_flows(
-            session=session, flow_filter=filters.FlowFilter(tags_all=["db"])
-        )
-        assert count == 2
-
-        count = await models.flows.count_flows(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["db", "blue"]),
-        )
-        assert count == 1
-
-        count = await models.flows.count_flows(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["db", "red"]),
-        )
-        assert count == 0
-
-    async def test_count_flows_with_flow_run_tag_filter(self, session):
-        count = await models.flows.count_flows(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"]),
-        )
-        assert count == 3
-
-        count = await models.flows.count_flows(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"]),
-        )
-        assert count == 2
-
-        count = await models.flows.count_flows(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=[]),
-        )
-        assert count == 2
-
-    async def test_count_flows_with_flow_run_and_task_run_filters_applies_both(
-        self, session
-    ):
-        """Ensures that flow run and task run filters are combined, not taken independently"""
-        count = await models.flows.count_flows(
-            session=session, task_run_filter=filters.TaskRunFilter(states=["FAILED"])
-        )
-        assert count == 1
-
-        count = await models.flows.count_flows(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["xyz"]),
-            task_run_filter=filters.TaskRunFilter(states=["FAILED"]),
-        )
-        assert count == 0
-
-
-class TestCountFlowRun:
-    async def test_count_flow_runs(self, session):
-        count = await models.flow_runs.count_flow_runs(session=session)
-        assert count == 10
-
-    async def test_count_flow_runs_with_flow_name_filter(self, session):
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-2"]),
-        )
-        assert count == 8
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-100"]),
-        )
-        assert count == 5
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session, flow_filter=filters.FlowFilter(names=["my-flow-1"])
-        )
-        assert count == 5
-
-    async def test_count_flow_runs_with_flow_tag_filter(self, session):
-        count = await models.flow_runs.count_flow_runs(
-            session=session, flow_filter=filters.FlowFilter(tags_all=["db"])
-        )
-        assert count == 8
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["db", "blue"]),
-        )
-        assert count == 5
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["db", "red"]),
-        )
-        assert count == 0
-
-    async def test_count_flow_runs_with_flow_run_tag_filter(self, session):
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"]),
-        )
-        assert count == 3
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"]),
-        )
-        assert count == 3
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=[]),
-        )
-        assert count == 2
-
-    async def test_count_flow_runs_with_flows_and_task_filters(self, session):
-        """Ensures that flow and task run filters are combined, not taken independently"""
-        count = await models.flow_runs.count_flow_runs(
-            session=session, task_run_filter=filters.TaskRunFilter(states=["FAILED"])
-        )
-        assert count == 1
-
-        count = await models.flow_runs.count_flow_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["xyz"]),
-            task_run_filter=filters.TaskRunFilter(states=["FAILED"]),
-        )
-        assert count == 0
-
-
-class TestCountTaskRuns:
-    async def test_count_task_runs(self, session):
-        count = await models.task_runs.count_task_runs(session=session)
-        assert count == 7
-
-    async def test_count_task_runs_with_name_filter(self, session):
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-2"]),
-        )
-        assert count == 6
-
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(names=["my-flow-1", "my-flow-100"]),
-        )
-        assert count == 3
-
-        count = await models.task_runs.count_task_runs(
-            session=session, flow_filter=filters.FlowFilter(names=["my-flow-1"])
-        )
-        assert count == 3
-
-    async def test_count_task_runs_with_tag_filter(self, session):
-        count = await models.task_runs.count_task_runs(
-            session=session, flow_filter=filters.FlowFilter(tags_all=["db"])
-        )
-        assert count == 6
-
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["db", "blue"]),
-        )
-        assert count == 3
-
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["db", "red"]),
-        )
-        assert count == 0
-
-    async def test_count_task_runs_with_flow_run_tag_filter(self, session):
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"]),
-        )
-        assert count == 0
-
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"]),
-        )
-        assert count == 3
-
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_run_filter=filters.FlowRunFilter(tags_all=[]),
-        )
-        assert count == 1
-
-    async def test_count_task_runs_with_flow_run_and_flow_filters_applies_both(
-        self, session
-    ):
-        """Ensures that flow and flow run filters are combined, not taken independently"""
-        count = await models.task_runs.count_task_runs(
-            session=session, flow_run_filter=filters.FlowRunFilter(states=["COMPLETED"])
-        )
-        assert count == 4
-
-        count = await models.task_runs.count_task_runs(
-            session=session,
-            flow_filter=filters.FlowFilter(tags_all=["xyz"]),
-            flow_run_filter=filters.FlowRunFilter(states=["COMPLETED"]),
-        )
-        assert count == 0
+        assert repsonse.json() == expected
