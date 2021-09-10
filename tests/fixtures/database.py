@@ -7,6 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect import settings
 from prefect.orion import models, schemas
+from prefect.orion.models import orm
+from prefect.orion.schemas import states
+from prefect.orion.orchestration.rules import (
+    FlowOrchestrationContext,
+    TaskOrchestrationContext,
+)
 from prefect.orion.utilities.database import (
     ENGINES,
     Base,
@@ -167,3 +173,111 @@ async def deployment(session, flow) -> models.orm.Deployment:
     )
     await session.commit()
     return deployment
+
+
+async def commit_task_run_state(
+    session, task_run, state_type: states.StateType, state_details=None
+):
+    if state_type is None:
+        return None
+    state_details = dict() if state_details is None else state_details
+
+    if (
+        state_type == states.StateType.SCHEDULED
+        and "scheduled_time" not in state_details
+    ):
+        state_details.update({"scheduled_time": pendulum.now()})
+
+    new_state = schemas.actions.StateCreate(
+        type=state_type,
+        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        state_details=state_details,
+    )
+
+    orm_state = orm.TaskRunState(
+        task_run_id=task_run.id,
+        **new_state.dict(shallow=True),
+    )
+
+    session.add(orm_state)
+    await session.flush()
+    return orm_state.as_state()
+
+
+async def commit_flow_run_state(
+    session, flow_run, state_type: states.StateType, state_details=None
+):
+    if state_type is None:
+        return None
+    state_details = dict() if state_details is None else state_details
+
+    if (
+        state_type == states.StateType.SCHEDULED
+        and "scheduled_time" not in state_details
+    ):
+        state_details.update({"scheduled_time": pendulum.now()})
+
+    new_state = schemas.actions.StateCreate(
+        type=state_type,
+        timestamp=pendulum.now("UTC").subtract(seconds=5),
+        state_details=state_details,
+    )
+
+    orm_state = orm.FlowRunState(
+        flow_run_id=flow_run.id,
+        **new_state.dict(shallow=True),
+    )
+
+    session.add(orm_state)
+    await session.flush()
+    return orm_state.as_state()
+
+
+@pytest.fixture
+def initialize_orchestration(
+    task_run,
+    flow_run,
+):
+    async def initializer(
+        session,
+        run_type,
+        initial_state_type,
+        proposed_state_type,
+        initial_details=None,
+        proposed_details=None,
+    ):
+
+        if run_type == "flow":
+            run = flow_run
+            context = FlowOrchestrationContext
+            state_constructor = commit_flow_run_state
+        elif run_type == "task":
+            run = task_run
+            context = TaskOrchestrationContext
+            state_constructor = commit_task_run_state
+
+        initial_state = await state_constructor(
+            session,
+            run,
+            initial_state_type,
+            initial_details,
+        )
+
+        proposed_details = proposed_details if proposed_details else dict()
+        if proposed_state_type is not None:
+            psd = states.StateDetails(**proposed_details)
+            proposed_state = states.State(type=proposed_state_type, state_details=psd)
+        else:
+            proposed_state = None
+
+        ctx = context(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=run,
+            run_id=run.id,
+        )
+
+        return ctx
+
+    return initializer
