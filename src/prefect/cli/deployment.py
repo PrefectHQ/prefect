@@ -19,7 +19,7 @@ app.add_typer(deployment_app)
 
 @deployment_app.command()
 @sync_compatible
-async def inspect(name: str, flow_name: str = None):
+async def inspect(name: str):
     """
     View details about a deployment
     """
@@ -37,7 +37,7 @@ async def list_(flow_name: str = None):
 
 @deployment_app.command()
 @sync_compatible
-async def run(deployment_name: str, watch: bool = True):
+async def run(name: str, watch: bool = True):
     """
     Create a flow run for the given deployment
     """
