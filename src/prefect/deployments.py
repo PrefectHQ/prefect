@@ -136,7 +136,6 @@ async def create_deployment_from_spec(
     Create a deployment from a specification
     """
     spec.load_flow()
-
     flow_id = await client.create_flow(spec.flow)
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
