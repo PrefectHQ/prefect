@@ -149,6 +149,13 @@ class OrionClient:
 
         return UUID(deployment_id)
 
+    async def read_deployment(
+        self,
+        deployment_id: UUID,
+    ) -> schemas.core.Deployment:
+        response = await self.get(f"/deployments/{deployment_id}")
+        return schemas.core.Deployment.parse_obj(response.json())
+
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())

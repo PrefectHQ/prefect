@@ -4,14 +4,17 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from typing import Any, Set
+from uuid import UUID
 
 import yaml
 from pydantic import root_validator, validator
 
+from prefect.client import OrionClient, inject_client
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
 
@@ -20,6 +23,12 @@ _DeploymentSpecContextVar = ContextVar("_DeploymentSpecContext")
 
 
 class DeploymentSpec(PrefectBaseModel):
+    """
+    Specification for a flow deployment. Used to create or update deployments.
+
+    The flow object or flow location must be provided.
+    """
+
     name: str
     flow: Flow = None
     flow_name: str = None
@@ -75,9 +84,19 @@ class DeploymentSpec(PrefectBaseModel):
         return hash((self.name, self.flow_name))
 
 
-def load_flow_from_script(script_path: str, flow_name: str = None):
-    try:
+def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
+    """
+    Extract a flow object from a script by running all of the code in the file
 
+    If the script has multiple flows in it, a flow name must be provided to specify
+    the flow to return.
+
+    Raises:
+        - MissingFlowError: If no flows exist in the script
+        - MissingFlowError: If a flow name is provided and that flow does not exist
+        - UnspecifiedFlowError: If multiple flows exist but no flow name was provided
+    """
+    try:
         variables = runpy.run_path(script_path)
     except Exception as exc:
         raise FlowScriptError(
@@ -106,6 +125,27 @@ def load_flow_from_script(script_path: str, flow_name: str = None):
         return flows[flow_name]
     else:
         return list(flows.values())[0]
+
+
+@sync_compatible
+@inject_client
+async def create_deployment_from_spec(
+    spec: DeploymentSpec, client: OrionClient
+) -> UUID:
+    """
+    Create a deployment from a specification
+    """
+    spec.load_flow()
+
+    flow_id = await client.create_flow(spec.flow)
+    deployment_id = await client.create_deployment(
+        flow_id=flow_id,
+        name=spec.name,
+        schedule=None,
+        flow_location=spec.flow_location,
+    )
+
+    return deployment_id
 
 
 def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
