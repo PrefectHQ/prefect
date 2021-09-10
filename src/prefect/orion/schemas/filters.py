@@ -34,7 +34,7 @@ class FlowFilter(PrefectBaseModel):
             filters.append(orm.Flow.name.in_(self.names))
         if self.tags_all is not None:
             if self.tags_all == []:
-                filters.append(sa.or_(orm.Flow.tags == [], orm.Flow.tags.is_(None)))
+                filters.append(orm.Flow.tags == [])
             else:
                 filters.append(json_has_all_keys(orm.Flow.tags, self.tags_all))
 
@@ -70,9 +70,7 @@ class FlowRunFilter(PrefectBaseModel):
             filters.append(orm.FlowRun.id.in_(self.ids))
         if self.tags_all is not None:
             if self.tags_all == []:
-                filters.append(
-                    sa.or_(orm.FlowRun.tags == [], orm.FlowRun.tags.is_(None))
-                )
+                filters.append(orm.FlowRun.tags == [])
             else:
                 filters.append(json_has_all_keys(orm.FlowRun.tags, self.tags_all))
         if self.flow_versions is not None:
@@ -123,9 +121,7 @@ class TaskRunFilter(PrefectBaseModel):
             filters.append(orm.TaskRun.id.in_(self.ids))
         if self.tags_all is not None:
             if self.tags_all == []:
-                filters.append(
-                    sa.or_(orm.TaskRun.tags == [], orm.TaskRun.tags.is_(None))
-                )
+                filters.append(orm.TaskRun.tags == [])
             else:
                 filters.append(json_has_all_keys(orm.TaskRun.tags, self.tags_all))
         if self.states is not None:
