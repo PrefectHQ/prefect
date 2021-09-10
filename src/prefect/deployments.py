@@ -1,18 +1,14 @@
+import pathlib
+import runpy
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
-import pathlib
-import runpy
 from typing import Any, Set
 
 import yaml
 from pydantic import root_validator, validator
 
-from prefect.exceptions import (
-    FlowScriptError,
-    MissingFlowError,
-    UnspecifiedFlowError,
-)
+from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -32,7 +28,7 @@ class DeploymentSpec(PrefectBaseModel):
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
-        # After initialization; register this deployment
+        # After initialization; register this deployment. See `_register_new_specs`
         _register_spec(self)
 
     @root_validator
@@ -141,6 +137,9 @@ def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
 
 
 def _register_spec(spec: DeploymentSpec) -> None:
+    """
+    See `_register_new_specs`
+    """
     specs = _DeploymentSpecContextVar.get(None)
 
     if specs is None:
