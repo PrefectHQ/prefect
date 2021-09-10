@@ -44,6 +44,12 @@ async def commit_task_run_state(
     return orm_state.as_state()
 
 
+def transition_names(transition):
+    initial = f"{transition[0].name if transition[0] else None}"
+    proposed = f" => {transition[1].name if transition[1] else None}"
+    return initial + proposed
+
+
 class TestBaseOrchestrationRule:
     async def test_orchestration_rules_are_context_managers(self, session, task_run):
 
@@ -387,7 +393,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
+        ids=transition_names,
     )
     async def test_nested_valid_rules_fire_hooks(
         self, session, task_run, intended_transition
@@ -495,7 +501,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
+        ids=transition_names,
     )
     async def test_complex_nested_rules_interact_sensibly(
         self, session, task_run, intended_transition
@@ -703,7 +709,7 @@ class TestBaseUniversalRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
+        ids=transition_names,
     )
     async def test_universal_rules_always_fire(
         self, session, task_run, intended_transition
@@ -891,3 +897,30 @@ class TestOrchestrationContext:
                 the_tardy_hero = WaitingRule(ctx, *intended_transition)
                 ctx = await stack.enter_async_context(the_tardy_hero)
                 await ctx.validate_proposed_state()
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(product([*states.StateType, None], [*states.StateType, None])),
+        ids=transition_names,
+    )
+    async def test_contexts_validate_proposed_states(
+        self, session, run_type, initialize_orchestration, intended_transition
+    ):
+        initial_state_type, proposed_state_type = intended_transition
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        assert ctx.validated_state is None
+        await ctx.validate_proposed_state()
+        assert ctx.validated_state_type == ctx.proposed_state_type
+
+    async def test_context_validation_returns_orm_state(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        orm_state = await ctx.validate_proposed_state()
+        if run_type == "task":
+            assert isinstance(orm_state, orm.TaskRunState)
+        if run_type == "flow":
+            assert isinstance(orm_state, orm.FlowRunState)
