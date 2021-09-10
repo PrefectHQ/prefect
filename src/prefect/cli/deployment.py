@@ -1,23 +1,21 @@
 from collections import Counter
 from pathlib import Path
-from uuid import UUID
 
 import typer
 from rich.json import JSON
-from rich.live import Live
 from rich.padding import Padding
-from rich.status import Status
+from rich.traceback import Traceback
+from rich.console import Group
+from rich.text import Text
 
 from prefect.cli.base import app, console, exit_with_error
-from prefect.client import OrionClient
 from prefect.deployments import (
-    DeploymentSpec,
+    create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
 )
 from prefect.exceptions import FlowScriptError
 from prefect.utilities.asyncio import sync_compatible
-
 
 deployment_app = typer.Typer(name="deployment")
 app.add_typer(deployment_app)
@@ -65,13 +63,47 @@ async def create(
 ):
     """
     Create or update a deployment from a file containing deployment specifications
+
+    Deployments can be specified in Python or YAML
+
+        \b
+        ```python
+        from prefect.deployments import DeploymentSpec
+        \b
+        DeploymentSpec(
+            name="my-first-deploy", flow_location="./my_flow.py"
+        )
+        ```
+
+        \b
+        ```yaml
+        name: "my-first-deploy"
+        flow_location: "./my_flow.py"
+        ```
+
+    Multiple deployments can be declared in each file
+
+        \b
+        ```python
+        from prefect.deployments import DeploymentSpec
+        \b
+        DeploymentSpec(
+            name="my-first-deploy", flow_location="./my_flow.py"
+        )
+        \b
+        DeploymentSpec(
+            name="my-second-deploy", flow_location="./my_other_flow.py"
+        )
+        ```
+
+        \b
+        ```yaml
+        - name: "my-first-deploy"
+          flow_location: "./my_flow.py"
+        - name: "my-second-deploy"
+          flow_location: "./my_other_flowflow.py"
+        ```
     """
-    await create_deployments_from_file(path)
-
-
-async def create_deployments_from_file(
-    path: Path,
-):
     if path.name.endswith(".py"):
         from_msg = "python script"
         loader = deployment_specs_from_script
@@ -98,20 +130,61 @@ async def create_deployments_from_file(
 
     stats = Counter(created=0, errored=0)
     for spec in specs:
+        failed = False
         try:
+
+            stylized_name = f"[bold blue]{spec.name!r}[/]"
+            flow_name_msg = f" for flow {spec.flow_name!r}" if spec.flow_name else ""
+
+            console.print(f"Found deployment {stylized_name}{flow_name_msg}:")
+            console.print(
+                Padding(
+                    Group(
+                        Text("Deployment specification:"),
+                        JSON(spec.json(exclude={"flow", "name", "flow_name"})),
+                    ),
+                    (0, 4, 0, 4),
+                )
+            )
+
             await create_deployment_from_spec(spec)
         except FlowScriptError as exc:
             console.print(
-                "Encountered exception while loading flow for deployment!", style="red"
+                Padding(
+                    Group(
+                        Text(
+                            "Encountered exception while loading flow for deployment:\n",
+                            style="red",
+                        ),
+                        exc.rich_user_traceback(),
+                    ),
+                    (1, 4, 1, 4),
+                )
             )
-            console.print(Padding(exc.rich_user_traceback(), (1, 4, 1, 4)))
-            stats["errored"] += 1
+            failed = True
         except Exception as exc:
-            console.print_exception()
-            console.print("Encountered unexpected exception during spec deployment!")
+            console.print(
+                Padding(
+                    Group(
+                        Text(
+                            "Encountered exception while registering deployment with server:\n",
+                            style="red",
+                        ),
+                        Traceback.from_exception(),
+                    ),
+                    (1, 4, 1, 4),
+                )
+            )
+            failed = True
+
+        if failed:
+            console.print(f"Failed to create deployment {stylized_name}", style="red")
             stats["errored"] += 1
         else:
+            console.print(f"[green]Registered[/] {stylized_name}")
             stats["created"] += 1
+
+        console.print()
 
     created, errored = stats["created"], stats["errored"]
     parts = []
@@ -121,41 +194,7 @@ async def create_deployments_from_file(
         parts.append(f"[red]Failed to create {errored} deployment(s)[/]")
     summary = ", ".join(parts)
 
-    console.print()
     console.print(f"[bold]{summary}[/]")
 
     if errored:
         raise typer.Exit(1)
-
-
-async def create_deployment_from_spec(spec: DeploymentSpec) -> UUID:
-    stylized_name = f"[bold blue]{spec.name!r}[/]"
-    flow_name_msg = " for flow {spec.flow_name!r}" if spec.flow_name else ""
-
-    console.print(f"Found deployment {stylized_name}{flow_name_msg}:")
-    console.print(
-        Padding(JSON(spec.json(exclude={"flow", "name", "flow_name"})), (0, 4))
-    )
-
-    status = Status("")
-    with Live(status, transient=True, console=console):
-        async with OrionClient() as client:
-            status.update("Connecting to Orion...")
-            await client.hello()
-
-            status.update("Loading flow...")
-            spec.load_flow()
-
-            status.update("Registering flow...")
-            flow_id = await client.create_flow(spec.flow)
-
-            status.update("Registering deployment...")
-            deployment_id = await client.create_deployment(
-                flow_id=flow_id,
-                name=spec.name,
-                schedule=None,
-                flow_location=spec.flow_location,
-            )
-
-    console.print(f"Registered {stylized_name}")
-    return deployment_id

@@ -1,6 +1,7 @@
 import typer
 import rich.console
 
+
 app = typer.Typer()
 console = rich.console.Console(highlight=False)
 
