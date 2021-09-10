@@ -1,12 +1,8 @@
-from collections import Counter
 from pathlib import Path
 
 import typer
-from rich.json import JSON
 from rich.padding import Padding
 from rich.traceback import Traceback
-from rich.console import Group
-from rich.text import Text
 
 from prefect.cli.base import app, console, exit_with_error
 from prefect.deployments import (
@@ -127,7 +123,6 @@ async def create(
     if not specs:
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
-    stats = Counter(created=0, errored=0)
     for spec in specs:
         traceback = None
         try:
