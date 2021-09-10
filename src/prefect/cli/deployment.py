@@ -1,24 +1,22 @@
+from collections import Counter
 from pathlib import Path
+from uuid import UUID
 
 import typer
-from rich.live import Live
-from rich.status import Status
 from rich.json import JSON
+from rich.live import Live
 from rich.padding import Padding
+from rich.status import Status
 
-from prefect.cli.base import (
-    app,
-    console,
-    exit_with_error,
-)
+from prefect.cli.base import app, console, exit_with_error
 from prefect.client import OrionClient
-from prefect.utilities.asyncio import sync_compatible
 from prefect.deployments import (
     DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
 )
-from collections import Counter
+from prefect.exceptions import FlowScriptError
+from prefect.utilities.asyncio import sync_compatible
 
 
 deployment_app = typer.Typer(name="deployment")
@@ -102,8 +100,15 @@ async def create_deployments_from_file(
     for spec in specs:
         try:
             await create_deployment_from_spec(spec)
-        except Exception:
+        except FlowScriptError as exc:
+            console.print(
+                "Encountered exception while loading flow for deployment!", style="red"
+            )
+            console.print(Padding(exc.rich_user_traceback(), (1, 4, 1, 4)))
+            stats["errored"] += 1
+        except Exception as exc:
             console.print_exception()
+            console.print("Encountered unexpected exception during spec deployment!")
             stats["errored"] += 1
         else:
             stats["created"] += 1
@@ -116,15 +121,18 @@ async def create_deployments_from_file(
         parts.append(f"[red]Failed to create {errored} deployment(s)[/]")
     summary = ", ".join(parts)
 
+    console.print()
     console.print(f"[bold]{summary}[/]")
 
     if errored:
         raise typer.Exit(1)
 
 
-async def create_deployment_from_spec(spec: DeploymentSpec):
+async def create_deployment_from_spec(spec: DeploymentSpec) -> UUID:
     stylized_name = f"[bold blue]{spec.name!r}[/]"
-    console.print(f"Found deployment {stylized_name} for flow {spec.flow_name!r}:")
+    flow_name_msg = " for flow {spec.flow_name!r}" if spec.flow_name else ""
+
+    console.print(f"Found deployment {stylized_name}{flow_name_msg}:")
     console.print(
         Padding(JSON(spec.json(exclude={"flow", "name", "flow_name"})), (0, 4))
     )
@@ -134,6 +142,9 @@ async def create_deployment_from_spec(spec: DeploymentSpec):
         async with OrionClient() as client:
             status.update("Connecting to Orion...")
             await client.hello()
+
+            status.update("Loading flow...")
+            spec.load_flow()
 
             status.update("Registering flow...")
             flow_id = await client.create_flow(spec.flow)
@@ -147,3 +158,4 @@ async def create_deployment_from_spec(spec: DeploymentSpec):
             )
 
     console.print(f"Registered {stylized_name}")
+    return deployment_id

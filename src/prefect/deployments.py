@@ -21,9 +21,9 @@ _DeploymentSpecContextVar = ContextVar("_DeploymentSpecContext")
 
 class DeploymentSpec(PrefectBaseModel):
     name: str
-    flow: Flow
-    flow_name: str
-    flow_location: str
+    flow: Flow = None
+    flow_name: str = None
+    flow_location: str = None
     schedule: SCHEDULE_TYPES = None
 
     def __init__(self, **data: Any) -> None:
@@ -31,9 +31,13 @@ class DeploymentSpec(PrefectBaseModel):
         # After initialization; register this deployment. See `_register_new_specs`
         _register_spec(self)
 
+    def load_flow(self):
+        if self.flow_location and not self.flow:
+            self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+
     @root_validator
     def infer_location_from_flow(cls, values):
-        if "flow" in values:
+        if values.get("flow"):
             flow_file = values["flow"].fn.__globals__.get("__file__")
             if flow_file:
                 values.setdefault("flow_location", abspath(str(flow_file)))
@@ -47,19 +51,9 @@ class DeploymentSpec(PrefectBaseModel):
     def ensure_flow_location_is_absolute(cls, value):
         return str(pathlib.Path(value).absolute())
 
-    @root_validator(pre=True)
-    def infer_flow_from_location(cls, values):
-        if "flow_location" in values and "flow" not in values:
-
-            values["flow"] = load_flow_from_script(
-                values["flow_location"], values.get("flow_name")
-            )
-
-        return values
-
     @root_validator
     def infer_flow_name_from_flow(cls, values):
-        if "flow" in values:
+        if values.get("flow"):
             values.setdefault("flow_name", values["flow"].name)
         return values
 
@@ -87,7 +81,8 @@ def load_flow_from_script(script_path: str, flow_name: str = None):
         variables = runpy.run_path(script_path)
     except Exception as exc:
         raise FlowScriptError(
-            f"Flow script at {script_path!r} encountered an exception"
+            user_exc=exc,
+            script_path=script_path,
         ) from exc
 
     flows = {f.name: f for f in extract_instances(variables.values(), types=Flow)}

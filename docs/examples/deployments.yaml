@@ -6,3 +6,5 @@
   flow_name: hello-moon
   schedule:
     interval: 360
+- name: bad-deployment
+  flow_location: ./bad_flow.py
