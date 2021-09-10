@@ -5,7 +5,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 
-from pydantic import Field, BaseModel, validator
+from pydantic import Field, validator
 from typing_extensions import Literal
 
 from prefect.orion.models import orm
@@ -30,7 +30,7 @@ class OrchestrationResult(PrefectBaseModel):
     details: StateResponseDetails
 
 
-class OrchestrationContext(BaseModel):
+class OrchestrationContext(PrefectBaseModel):
     class Config:
         arbitrary_types_allowed = True
 
@@ -118,12 +118,13 @@ class TaskOrchestrationContext(OrchestrationContext):
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
-            await self.session.flush()
         else:
             validated_orm_state = None
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
+
+        await self.session.flush()
         self.validated_state = validated_state
 
         return validated_orm_state
@@ -143,12 +144,13 @@ class FlowOrchestrationContext(OrchestrationContext):
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
-            await self.session.flush()
         else:
             validated_orm_state = None
         validated_state = (
             validated_orm_state.as_state() if validated_orm_state else None
         )
+
+        await self.session.flush()
         self.validated_state = validated_state
 
         return validated_orm_state
