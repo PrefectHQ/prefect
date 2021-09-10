@@ -18,7 +18,19 @@ class Flow(ORMBaseModel):
     # deployments: List["Deployment"] = Field(default_factory=list)
 
 
-class RunDetails(PrefectBaseModel):
+class FlowRun(ORMBaseModel):
+    flow_id: UUID
+    state_id: UUID = None
+    deployment_id: UUID = None
+    flow_version: str = Field(None, example="1.0")
+    parameters: dict = Field(default_factory=dict)
+    idempotency_key: str = None
+    context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
+    empirical_policy: dict = Field(default_factory=dict)
+    empirical_config: dict = Field(default_factory=dict)
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
+    parent_task_run_id: UUID = None
+
     state_id: UUID = None
     state_type: schemas.states.StateType = None
     run_count: int = 0
@@ -34,29 +46,7 @@ class RunDetails(PrefectBaseModel):
     end_time: datetime.datetime = None
     total_run_time_seconds: float = 0.0
     total_time_seconds: float = 0.0
-
-
-class FlowRunDetails(RunDetails):
     auto_scheduled: bool = False
-
-
-class TaskRunDetails(RunDetails):
-    pass
-
-
-class FlowRun(ORMBaseModel):
-    flow_id: UUID
-    state_id: UUID = None
-    deployment_id: UUID = None
-    flow_version: str = Field(None, example="1.0")
-    parameters: dict = Field(default_factory=dict)
-    idempotency_key: str = None
-    context: dict = Field(default_factory=dict, example={"my_var": "my_val"})
-    empirical_policy: dict = Field(default_factory=dict)
-    empirical_config: dict = Field(default_factory=dict)
-    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
-    parent_task_run_id: UUID = None
-    run_details: FlowRunDetails = Field(default_factory=FlowRunDetails)
 
     # relationships
     # flow: Flow = None
@@ -82,7 +72,22 @@ class TaskRun(ORMBaseModel):
     state_id: UUID = None
     task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
-    run_details: TaskRunDetails = Field(default_factory=TaskRunDetails)
+
+    state_id: UUID = None
+    state_type: schemas.states.StateType = None
+    run_count: int = 0
+
+    # the expected start time is set the first time
+    # the run is placed in a state
+    expected_start_time: datetime.datetime = None
+
+    # the next scheduled start time will be populated
+    # whenever the run is in a scheduled state
+    next_scheduled_start_time: datetime.datetime = None
+    start_time: datetime.datetime = None
+    end_time: datetime.datetime = None
+    total_run_time_seconds: float = 0.0
+    total_time_seconds: float = 0.0
 
     # relationships
     # flow_run: FlowRun = None

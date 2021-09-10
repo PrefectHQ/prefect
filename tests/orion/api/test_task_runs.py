@@ -179,7 +179,7 @@ class TestSetTaskRunState:
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
-        assert run.run_details.run_count == 1
+        assert run.run_count == 1
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
