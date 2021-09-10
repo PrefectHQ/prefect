@@ -1,37 +1,55 @@
 import datetime
-from typing import List, Tuple, Union
-from uuid import UUID, uuid4
+from typing import List
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
-from sqlalchemy.dialects.postgresql import insert as insert_postgres
-from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import get_dialect
+from prefect.orion.utilities.database import get_dialect, dialect_specific_insert
 
 
 async def create_deployment(
     session: sa.orm.Session, deployment: schemas.core.Deployment
 ) -> orm.Deployment:
-    """Creates a new deployment
+    """Upserts a deployment
 
     Args:
         session (sa.orm.Session): a database session
         deployment (schemas.core.Deployment): a deployment model
 
     Returns:
-        orm.Deployment: the newly-created deployment
-
-    Raises:
-        sqlalchemy.exc.IntegrityError: if a deployment with the same name already exists
+        orm.Deployment: the newly-created or updated deployment
 
     """
-    model = orm.Deployment(**deployment.dict(shallow=True))
-    session.add(model)
-    await session.flush()
+    insert_stmt = (
+        dialect_specific_insert(orm.Deployment)
+        .values(**deployment.dict(shallow=True, exclude_unset=True))
+        .on_conflict_do_update(
+            index_elements=["flow_id", "name"],
+            set_=deployment.dict(
+                shallow=True, include={"schedule", "is_schedule_active"}
+            ),
+        )
+    )
+
+    await session.execute(insert_stmt)
+
+    query = (
+        sa.select(orm.Deployment)
+        .where(
+            sa.and_(
+                orm.Deployment.flow_id == deployment.flow_id,
+                orm.Deployment.name == deployment.name,
+            )
+        )
+        .execution_options(populate_existing=True)
+    )
+    result = await session.execute(query)
+    model = result.scalar()
+
     return model
 
 
@@ -175,23 +193,13 @@ async def _insert_scheduled_flow_runs(
 
     Returns a list of flow runs that were created
     """
-    # gracefully insert runs against the idempotency key
-    if session.bind.dialect.name == "sqlite":
-        insert = insert_sqlite
-    elif session.bind.dialect.name == "postgresql":
-        # TODO postgres supports RETURNING so we can use the returned IDs to know which states to enter
-        # Sqlite does not so we need an alternative solution
-        insert = insert_postgres
-    else:
-        raise ValueError(f"Unrecognized dialect: {session.bind.dialect.name}")
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
+    insert = dialect_specific_insert(orm.FlowRun)
     await session.execute(
-        insert(orm.FlowRun.__table__).on_conflict_do_nothing(
-            index_elements=["flow_id", "idempotency_key"]
-        ),
+        insert.on_conflict_do_nothing(index_elements=["flow_id", "idempotency_key"]),
         [r.dict(exclude={"created", "updated"}) for r in runs],
     )
 

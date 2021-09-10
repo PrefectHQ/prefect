@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -11,15 +12,21 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/")
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
-    return await models.deployments.create_deployment(
+    """Gracefully creates a new deployment from the provided schema. If a deployment with the
+    same name and flow_id already exists, the deployment is updated."""
+    now = pendulum.now()
+    result = await models.deployments.create_deployment(
         session=session, deployment=deployment
     )
+    if result.created >= now:
+        response.status_code = status.HTTP_201_CREATED
+    return result
 
 
 @router.get("/{id}")
@@ -53,7 +60,7 @@ async def read_deployments(
     )
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
