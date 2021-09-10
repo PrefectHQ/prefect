@@ -115,14 +115,13 @@ async def create(
     else:
         exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
 
-    console.print(f"Loading deployments from {from_msg} at {str(path)!r}...")
+    console.print(f"Loading deployments from {from_msg} at [green]{str(path)!r}[/]...")
     try:
         specs = loader(path)
     except Exception as exc:
-        # TODO: Raise and catch more specific exceptions?
         console.print_exception()
         exit_with_error(
-            f"Encountered exception while loading deployments from {str(path)!r}"
+            f"Encountered exception while loading specifications from {str(path)!r}"
         )
 
     if not specs:
@@ -130,71 +129,23 @@ async def create(
 
     stats = Counter(created=0, errored=0)
     for spec in specs:
-        failed = False
+        traceback = None
         try:
-
-            stylized_name = f"[bold blue]{spec.name!r}[/]"
-            flow_name_msg = f" for flow {spec.flow_name!r}" if spec.flow_name else ""
-
-            console.print(f"Found deployment {stylized_name}{flow_name_msg}:")
-            console.print(
-                Padding(
-                    Group(
-                        Text("Deployment specification:"),
-                        JSON(spec.json(exclude={"flow", "name", "flow_name"})),
-                    ),
-                    (0, 4, 0, 4),
-                )
-            )
-
             await create_deployment_from_spec(spec)
+
         except FlowScriptError as exc:
-            console.print(
-                Padding(
-                    Group(
-                        Text(
-                            "Encountered exception while loading flow for deployment:\n",
-                            style="red",
-                        ),
-                        exc.rich_user_traceback(),
-                    ),
-                    (1, 4, 1, 4),
-                )
-            )
-            failed = True
+            traceback = exc.rich_user_traceback()
         except Exception as exc:
-            console.print(
-                Padding(
-                    Group(
-                        Text(
-                            "Encountered exception while registering deployment with server:\n",
-                            style="red",
-                        ),
-                        Traceback.from_exception(),
-                    ),
-                    (1, 4, 1, 4),
-                )
-            )
-            failed = True
+            traceback = Traceback.from_exception()
 
-        if failed:
-            console.print(f"Failed to create deployment {stylized_name}", style="red")
-            stats["errored"] += 1
+        stylized_name = f"deployment [bold blue]{spec.name!r}[/]"
+        if spec.flow_name:
+            stylized_name += f" for flow [blue]{spec.flow_name!r}[/]"
         else:
-            console.print(f"[green]Registered[/] {stylized_name}")
-            stats["created"] += 1
+            stylized_name += f" for flow at [blue]{spec.flow_location!r}[/]"
 
-        console.print()
-
-    created, errored = stats["created"], stats["errored"]
-    parts = []
-    if created:
-        parts.append(f"[green]Created {created} deployment(s)[/]")
-    if errored:
-        parts.append(f"[red]Failed to create {errored} deployment(s)[/]")
-    summary = ", ".join(parts)
-
-    console.print(f"[bold]{summary}[/]")
-
-    if errored:
-        raise typer.Exit(1)
+        if traceback:
+            console.print(f"Failed to create {stylized_name}", style="red")
+            console.print(Padding(traceback, (1, 4, 1, 4)))
+        else:
+            console.print(f"Created {stylized_name}", style="green")
