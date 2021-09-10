@@ -2,6 +2,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 import pathlib
+import runpy
 from typing import Any, Set
 
 import yaml
@@ -16,7 +17,6 @@ from prefect.flows import Flow
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.collections import extract_instances, listrepr
-from prefect.utilities.scripts import exec_script
 from prefect.utilities.filesystem import tmpchdir
 
 # See `_register_new_specs`
@@ -35,6 +35,22 @@ class DeploymentSpec(PrefectBaseModel):
         # After initialization; register this deployment
         _register_spec(self)
 
+    @root_validator
+    def infer_location_from_flow(cls, values):
+        if "flow" in values:
+            flow_file = values["flow"].fn.__globals__.get("__file__")
+            if flow_file:
+                values.setdefault("flow_location", abspath(str(flow_file)))
+        return values
+
+    @validator("flow_location", pre=True)
+    def ensure_flow_location_is_str(cls, value):
+        return str(value)
+
+    @validator("flow_location", pre=True)
+    def ensure_flow_location_is_absolute(cls, value):
+        return str(pathlib.Path(value).absolute())
+
     @root_validator(pre=True)
     def infer_flow_from_location(cls, values):
         if "flow_location" in values and "flow" not in values:
@@ -45,18 +61,10 @@ class DeploymentSpec(PrefectBaseModel):
 
         return values
 
-    @root_validator(pre=True)
+    @root_validator
     def infer_flow_name_from_flow(cls, values):
         if "flow" in values:
             values.setdefault("flow_name", values["flow"].name)
-        return values
-
-    @root_validator(pre=True)
-    def infer_location_from_flow(cls, values):
-        if "flow" in values:
-            flow_file = values["flow"].fn.__globals__.get("__file__")
-            if flow_file:
-                values.setdefault("flow_location", abspath(str(flow_file)))
         return values
 
     @root_validator
@@ -69,14 +77,6 @@ class DeploymentSpec(PrefectBaseModel):
             )
         return values
 
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_str(cls, value):
-        return str(value)
-
-    @validator("flow_location")
-    def ensure_flow_location_is_absolute(cls, value):
-        return str(pathlib.Path(value).absolute())
-
     class Config:
         arbitrary_types_allowed = True
 
@@ -87,7 +87,8 @@ class DeploymentSpec(PrefectBaseModel):
 
 def load_flow_from_script(script_path: str, flow_name: str = None):
     try:
-        variables = exec_script(script_path)
+
+        variables = runpy.run_path(script_path)
     except Exception as exc:
         raise FlowScriptError(
             f"Flow script at {script_path!r} encountered an exception"
@@ -118,7 +119,9 @@ def load_flow_from_script(script_path: str, flow_name: str = None):
 
 def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
     with _register_new_specs() as specs:
-        exec_script(script_path)
+        import runpy
+
+        runpy.run_path(script_path)
 
     return specs
 

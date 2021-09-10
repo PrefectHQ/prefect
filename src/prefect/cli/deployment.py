@@ -124,8 +124,10 @@ async def create_deployments_from_file(
 
 async def create_deployment_from_spec(spec: DeploymentSpec):
     stylized_name = f"[bold blue]{spec.name!r}[/]"
-    console.print(f"Found deployment {stylized_name}:")
-    console.print(Padding(JSON(spec.json(exclude={"flow", "name"})), (0, 4)))
+    console.print(f"Found deployment {stylized_name} for flow {spec.flow_name!r}:")
+    console.print(
+        Padding(JSON(spec.json(exclude={"flow", "name", "flow_name"})), (0, 4))
+    )
 
     status = Status("")
     with Live(status, transient=True, console=console):
