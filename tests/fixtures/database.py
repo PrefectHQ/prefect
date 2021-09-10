@@ -264,8 +264,11 @@ def initialize_orchestration(
         )
 
         proposed_details = proposed_details if proposed_details else dict()
-        psd = states.StateDetails(**proposed_details)
-        proposed_state = states.State(type=proposed_state_type, state_details=psd)
+        if proposed_state_type is not None:
+            psd = states.StateDetails(**proposed_details)
+            proposed_state = states.State(type=proposed_state_type, state_details=psd)
+        else:
+            proposed_state = None
 
         ctx = context(
             initial_state=initial_state,
