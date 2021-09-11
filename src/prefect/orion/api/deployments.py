@@ -24,7 +24,7 @@ async def create_deployment(
     deployment = await models.deployments.create_deployment(
         session=session, deployment=deployment
     )
-    await models.deployments.schedule_runs(deployment_id=deployment.id)
+
     if deployment.created >= now:
         response.status_code = status.HTTP_201_CREATED
     return deployment
