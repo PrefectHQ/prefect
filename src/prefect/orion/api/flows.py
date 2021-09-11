@@ -31,6 +31,25 @@ async def create_flow(
     return flow
 
 
+# must be defined before `GET /:id`
+@router.get("/count")
+async def count_flows(
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> int:
+    """
+    Count flows
+    """
+    return await models.flows.count_flows(
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+    )
+
+
 @router.get("/{id}")
 async def read_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),

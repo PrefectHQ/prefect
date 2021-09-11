@@ -96,6 +96,48 @@ async def read_task_runs(
     return result.scalars().unique().all()
 
 
+async def count_task_runs(
+    session: sa.orm.Session,
+    flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+) -> int:
+    """Count task runs
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_filter (FlowFilter): only count task runs whose flows match these filters
+        flow_run_filter (FlowRunFilter): only count task runs whose flow runs match these filters
+        task_run_filter (TaskRunFilter): only count task runs that match these filters
+
+    Returns:
+        int: count of task runs
+    """
+    query = select(sa.func.count(sa.text("*"))).select_from(orm.TaskRun)
+
+    if task_run_filter:
+        query = query.where(task_run_filter.as_sql_filter())
+
+    if flow_filter or flow_run_filter:
+        exists_clause = select(orm.FlowRun).where(
+            orm.FlowRun.id == orm.TaskRun.flow_run_id
+        )
+
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+
+        if flow_filter:
+            exists_clause = exists_clause.join(
+                orm.Flow,
+                orm.Flow.id == orm.FlowRun.flow_id,
+            ).where(flow_filter.as_sql_filter())
+
+        query = query.where(exists_clause.exists())
+
+    result = await session.execute(query)
+    return result.scalar()
+
+
 async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
     """Delete a task run by id
 
