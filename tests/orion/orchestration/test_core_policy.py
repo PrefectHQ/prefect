@@ -2,17 +2,19 @@ import contextlib
 import pendulum
 import pytest
 
+from prefect.orion.models import orm
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.orchestration.core_policy import (
     WaitForScheduledTime,
     RetryPotentialFailures,
     CacheInsertion,
     CacheRetrieval,
+    UpdateSubflowParentTask,
 )
 from prefect.orion.orchestration.global_policy import (
     UpdateRunDetails,
 )
-from prefect.orion.schemas import states
+from prefect.orion.schemas import states, actions
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
@@ -241,3 +243,51 @@ class TestRetryingRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
+
+
+async def test_update_subflow_parent_task(
+    session,
+    initialize_orchestration,
+):
+    update_subflows_policy = [UpdateSubflowParentTask]
+    initial_state_type = states.StateType.RUNNING
+    proposed_state_type = states.StateType.FAILED
+    intended_transition = (initial_state_type, proposed_state_type)
+    ctx = await initialize_orchestration(
+        session,
+        "flow",
+        *intended_transition,
+    )
+
+    parent_flow = orm.Flow(
+        **actions.FlowCreate(name="subflow-parent").dict(shallow=True)
+    )
+
+    session.add(parent_flow)
+    await session.flush()
+
+    parent_flow_run = orm.FlowRun(
+        **actions.FlowRunCreate(flow_id=parent_flow.id).dict(shallow=True)
+    )
+
+    session.add(parent_flow_run)
+    await session.flush()
+
+    parent_task_run = orm.TaskRun(
+        **actions.TaskRunCreate(
+            task_key="dummy-task", flow_run_id=parent_flow_run.id
+        ).dict(shallow=True)
+    )
+
+    session.add(parent_task_run)
+    await session.flush()
+
+    ctx.run.parent_task_run_id = parent_task_run.id
+
+    async with contextlib.AsyncExitStack() as stack:
+        for rule in update_subflows_policy:
+            ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+        await ctx.validate_proposed_state()
+
+    assert parent_task_run.state.type == proposed_state_type
+
