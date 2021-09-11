@@ -7,14 +7,14 @@ from prefect.orion.utilities.database import get_session_factory
 from prefect.utilities.collections import batched_iterable
 import prefect
 
+settings = prefect.settings.orion.services
+
 
 class Scheduler(LoopService):
-    loop_seconds = prefect.settings.orion.services.scheduler_loop_seconds
-    deployment_batch_size = (
-        prefect.settings.orion.services.scheduler_deployment_batch_size
-    )
-    max_runs = prefect.settings.orion.services.scheduler_max_runs
-    max_timedelta = prefect.settings.orion.services.scheduler_max_timedelta
+    loop_seconds = settings.scheduler_loop_seconds
+    deployment_batch_size = settings.scheduler_deployment_batch_size
+    max_runs = settings.scheduler_max_runs
+    max_future_seconds = settings.scheduler_max_future_seconds
 
     async def run_once(self):
         now = pendulum.now("UTC")
@@ -55,7 +55,7 @@ class Scheduler(LoopService):
                         session=session,
                         deployment_id=deployment.id,
                         start_time=now,
-                        end_time=now + self.max_timedelta,
+                        end_time=now.add(seconds=self.max_future_seconds),
                         max_runs=self.max_runs,
                     )
                     all_runs.extend(runs)

@@ -1,3 +1,4 @@
+import datetime
 from typing import List
 from uuid import UUID
 
@@ -8,6 +9,7 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
+import prefect
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -27,6 +29,14 @@ async def create_deployment(
 
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
+
+    # proactively schedule the deployment
+    if deployment.schedule and deployment.is_schedule_active:
+        await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=model.id,
+        )
+
     return model
 
 
@@ -79,6 +89,28 @@ async def delete_deployment(
     return result
 
 
+@router.post("/{id}/schedule")
+async def schedule_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    start_time: datetime.datetime = Body(
+        None, description="The earliest date to schedule"
+    ),
+    end_time: datetime.datetime = Body(None, description="The latest date to schedule"),
+    max_runs: int = Body(None, description="The maximum number of runs to schedule"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> None:
+    """
+    Schedule runs for a deployment. For backfills, provide start/end times in the past.
+    """
+    await models.deployments.schedule_runs(
+        session=session,
+        deployment_id=deployment_id,
+        start_time=start_time,
+        end_time=end_time,
+        max_runs=max_runs,
+    )
+
+
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -93,6 +125,13 @@ async def set_schedule_active(
         )
     deployment.is_schedule_active = True
     await session.flush()
+
+    # proactively schedule the deployment
+    if deployment.schedule:
+        await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=deployment_id,
+        )
 
 
 @router.post("/{id}/set_schedule_inactive")

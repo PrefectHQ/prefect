@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
+import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.global_policy import update_run_details
@@ -120,6 +121,17 @@ async def schedule_runs(
     end_time: datetime.datetime = None,
     max_runs: int = None,
 ):
+    if max_runs is None:
+        max_runs = prefect.settings.orion.services.scheduler_max_runs
+    if start_time is None:
+        start_time = pendulum.now("UTC")
+    start_time = pendulum.instance(start_time)
+    if end_time is None:
+        end_time = start_time.add(
+            seconds=prefect.settings.orion.services.scheduler_max_future_seconds
+        )
+    end_time = pendulum.instance(end_time)
+
     runs = await _generate_scheduled_flow_runs(
         session=session,
         deployment_id=deployment_id,
@@ -133,9 +145,9 @@ async def schedule_runs(
 async def _generate_scheduled_flow_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
-    start_time: datetime.datetime = None,
-    end_time: datetime.datetime = None,
-    max_runs: int = None,
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
+    max_runs: int,
 ) -> List[schemas.core.FlowRun]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -143,21 +155,13 @@ async def _generate_scheduled_flow_runs(
     does NOT insert generated runs into the database, in order to facilitate
     batch operations. Call `_insert_scheduled_flow_runs()` to insert these runs.
     """
-
-    if max_runs is None:
-        max_runs = 100
-    if start_time is None:
-        start_time = pendulum.now("UTC")
-    if end_time is None:
-        end_time = pendulum.now("UTC").add(years=1)
-
     runs = []
 
     # retrieve the deployment
     deployment = await session.get(orm.Deployment, deployment_id)
 
-    if not deployment:
-        raise ValueError(f'No deployment found: "{deployment_id}"')
+    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
+        return []
 
     dates = await deployment.schedule.get_dates(
         n=max_runs, start=start_time, end=end_time
