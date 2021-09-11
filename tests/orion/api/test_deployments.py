@@ -315,6 +315,37 @@ class TestSetScheduleActive:
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
 
+    async def test_set_schedule_inactive_deletes_auto_scheduled_runs(
+        self, client, deployment, session
+    ):
+
+        # set active to schedule runs
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 100
+
+        # create a run manually
+        await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                state=schemas.states.Scheduled(
+                    scheduled_time=pendulum.now().add(days=1)
+                ),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_inactive"
+        )
+
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 1
+
 
 class TestScheduleDeployment:
     async def test_schedule_deployment(self, client, session, deployment):
