@@ -164,7 +164,7 @@ class FlowRun(Base):
         ),
         index=True,
     )
-    state_type = Column(Pydantic(states.StateType))
+    state_type = Column(sa.Enum(states.StateType, name="state_type"))
     run_count = Column(Integer, server_default="0", default=0, nullable=False)
     expected_start_time = Column(Timestamp())
     next_scheduled_start_time = Column(Timestamp())
@@ -269,7 +269,7 @@ class TaskRun(Base):
         ),
         index=True,
     )
-    state_type = Column(Pydantic(states.StateType))
+    state_type = Column(sa.Enum(states.StateType, name="state_type"))
     run_count = Column(Integer, server_default="0", default=0, nullable=False)
     expected_start_time = Column(Timestamp())
     next_scheduled_start_time = Column(Timestamp())
