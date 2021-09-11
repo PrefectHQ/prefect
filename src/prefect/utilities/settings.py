@@ -49,7 +49,7 @@ class ServicesSettings(BaseSettings):
     # schedule up to 100 new runs per deployment
     scheduler_max_runs: int = 100
     # schedule at most three months into the future
-    scheduler_max_timedelta: timedelta = timedelta(days=90)
+    scheduler_max_future_seconds: int = timedelta(days=100).total_seconds()
 
 
 class OrionSettings(BaseSettings):

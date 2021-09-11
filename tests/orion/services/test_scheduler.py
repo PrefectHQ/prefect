@@ -48,7 +48,7 @@ async def test_create_schedule_respects_max_future_time(flow, session):
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == 3 < Scheduler.max_runs
     expected_dates = await deployment.schedule.get_dates(
-        Scheduler.max_runs, end=pendulum.now() + Scheduler.max_timedelta
+        Scheduler.max_runs, end=pendulum.now().add(seconds=Scheduler.max_future_seconds)
     )
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
@@ -84,7 +84,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
             name="test",
             flow_id=flow_2.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=1)
+                interval=datetime.timedelta(days=5)
             ),
         ),
     )
@@ -95,15 +95,16 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
 
     await Scheduler().run_once()
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 199
+    assert len(runs) == 130
 
     expected_dates = set()
     for deployment in [d1, d2, d3]:
-        expected_dates.update(
-            await deployment.schedule.get_dates(
-                Scheduler.max_runs, end=pendulum.now() + Scheduler.max_timedelta
-            )
+        dep_runs = await deployment.schedule.get_dates(
+            Scheduler.max_runs,
+            start=pendulum.now(),
+            end=pendulum.now().add(seconds=Scheduler.max_future_seconds),
         )
+        expected_dates.update(dep_runs)
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
