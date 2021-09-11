@@ -31,7 +31,9 @@ ENGINES = {}
 SESSION_FACTORIES = {}
 
 
-async def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine.Engine:
+async def get_engine(
+    connection_url: str = None, echo: bool = None, timeout: float = None
+) -> sa.engine.Engine:
     """Retrieves an async SQLAlchemy engine.
 
     A new engine is created for each event loop and cached, so that engines are
@@ -41,10 +43,11 @@ async def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine
     is provided, it is automatically populated with database objects.
 
     Args:
-        connection_url ([type], optional): The database connection string.
+        connection_url (str, optional): The database connection string.
             Defaults to the value in Prefect's settings.
-        echo ([type], optional): [description]. Whether to echo SQL sent
+        echo (bool, optional): Whether to echo SQL sent
             to the database. Defaults to the value in Prefect's settings.
+        timeout (float, optional): The statement timeout, in seconds
 
     Returns:
         sa.engine.Engine: a SQLAlchemy engine
@@ -53,12 +56,21 @@ async def get_engine(connection_url: str = None, echo: bool = None) -> sa.engine
         connection_url = settings.orion.database.connection_url.get_secret_value()
     if echo is None:
         echo = settings.orion.database.echo
-
-    kwargs = {}
+    if timeout is None:
+        timeout = settings.orion.database.timeout
 
     loop = get_event_loop()
-    cache_key = (loop, connection_url, echo)
+    cache_key = (loop, connection_url, echo, timeout)
     if cache_key not in ENGINES:
+
+        kwargs = {}
+
+        if timeout is not None:
+            dialect = get_dialect(connection_url)
+            if dialect.driver == "aiosqlite":
+                kwargs["connect_args"] = dict(timeout=timeout)
+            elif dialect.driver == "asyncpg":
+                kwargs["connect_args"] = dict(command_timeout=timeout)
 
         # ensure a long-lasting pool is used with in-memory databases
         # because they disappear when the last connection closes
@@ -545,21 +557,17 @@ async def drop_db(engine=None):
         await conn.run_sync(Base.metadata.drop_all)
 
 
+def get_dialect(connection_url: str = None):
+    if connection_url is None:
+        connection_url = settings.orion.database.connection_url.get_secret_value()
+    url = sa.engine.url.make_url(connection_url)
+    return url.get_dialect()
+
+
 def dialect_specific_insert(model: Base):
     """Returns an insert statement specific to a dialect"""
-    inserts = {"postgresql": postgresql.insert, "sqlite": sqlite.insert}
-    return inserts[get_dialect()](model)
-
-
-def get_dialect():
-    connection_url = settings.orion.database.connection_url.get_secret_value()
-    if connection_url.startswith("postgresql"):
-        return "postgresql"
-    elif connection_url.startswith("sqlite"):
-        return "sqlite"
-    else:
-        raise ValueError("Unrecognized dialect")
-
-
-# call immediately to verify runtime connection string
-assert get_dialect()
+    inserts = {
+        "postgresql": postgresql.insert,
+        "sqlite": sqlite.insert,
+    }
+    return inserts[get_dialect().name](model)

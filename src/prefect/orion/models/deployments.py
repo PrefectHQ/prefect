@@ -231,7 +231,7 @@ async def _insert_scheduled_flow_runs(
         )
 
         # set the `state_id` on the newly inserted runs
-        if get_dialect() == "postgresql":
+        if get_dialect().name == "postgresql":
             # postgres supports `UPDATE ... FROM` syntax
             stmt = (
                 sa.update(orm.FlowRun)

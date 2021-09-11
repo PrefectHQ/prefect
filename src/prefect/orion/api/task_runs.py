@@ -41,6 +41,25 @@ async def create_task_run(
     return task_run
 
 
+# must be defined before `GET /:id`
+@router.get("/count")
+async def count_task_runs(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+) -> int:
+    """
+    Count task runs
+    """
+    return await models.task_runs.count_task_runs(
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+    )
+
+
 @router.get("/{id}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
