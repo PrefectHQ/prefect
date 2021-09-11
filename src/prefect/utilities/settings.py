@@ -27,6 +27,8 @@ class DatabaseSettings(BaseSettings):
     # that can be accessed from multiple threads
     connection_url: SecretStr = "sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
     echo: bool = False
+    # statement timeout, in seconds
+    timeout: float = None
 
     # a default limit for queries
     default_limit: int = 200
