@@ -21,13 +21,13 @@ async def create_deployment(
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
     same name and flow_id already exists, the deployment is updated."""
     now = pendulum.now()
-    deployment = await models.deployments.create_deployment(
+    model = await models.deployments.create_deployment(
         session=session, deployment=deployment
     )
 
-    if deployment.created >= now:
+    if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    return deployment
+    return model
 
 
 @router.get("/{id}")
