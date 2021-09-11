@@ -50,7 +50,7 @@ async def read_deployment(
 
 @router.get("/")
 async def read_deployments(
-    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    pagination: schemas.filters.Pagination = Depends(),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
