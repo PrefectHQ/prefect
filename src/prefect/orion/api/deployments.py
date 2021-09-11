@@ -148,3 +148,12 @@ async def set_schedule_inactive(
         )
     deployment.is_schedule_active = False
     await session.flush()
+
+    # delete any future scheduled runs that were auto-scheduled
+    delete_query = sa.delete(models.orm.FlowRun).where(
+        models.orm.FlowRun.deployment_id == deployment_id,
+        models.orm.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        models.orm.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
+    await session.commit()
