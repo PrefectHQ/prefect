@@ -12,7 +12,8 @@ from prefect.orion.utilities.database import get_dialect, dialect_specific_inser
 
 
 async def create_deployment(
-    session: sa.orm.Session, deployment: schemas.core.Deployment
+    session: sa.orm.Session,
+    deployment: schemas.core.Deployment,
 ) -> orm.Deployment:
     """Upserts a deployment
 
