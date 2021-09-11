@@ -84,10 +84,9 @@ async def read_flow_runs(
     if offset is not None:
         query = query.offset(offset)
 
-    if limit is None:
-        limit = prefect.settings.orion.database.default_limit
+    if limit is not None:
+        query = query.limit(limit)
 
-    query = query.limit(limit)
     result = await session.execute(query)
     return result.scalars().unique().all()
 

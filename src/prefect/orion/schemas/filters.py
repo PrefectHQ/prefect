@@ -1,13 +1,22 @@
-import sqlalchemy as sa
 import datetime
 from typing import List
 from uuid import UUID
-from pydantic import Field
 
-from prefect.orion.utilities.database import json_has_all_keys
+import sqlalchemy as sa
+from pydantic import Field, conint
+
+import prefect
 from prefect.orion import schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.models import orm
+from prefect.orion.utilities.database import json_has_all_keys
+from prefect.orion.utilities.schemas import PrefectBaseModel
+
+
+class Pagination(PrefectBaseModel):
+    limit: conint(
+        ge=0, le=prefect.settings.orion.api.default_limit
+    ) = prefect.settings.orion.api.default_limit
+    offset: conint(ge=0) = 0
 
 
 class FlowFilter(PrefectBaseModel):
