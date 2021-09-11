@@ -1,11 +1,15 @@
+import datetime
 from uuid import uuid4
 
 import pendulum
 import pytest
 import sqlalchemy as sa
 
-from prefect.orion import models
+from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
+import prefect
+
+services_settings = prefect.settings.orion.services
 
 
 class TestCreateDeployment:
@@ -65,6 +69,71 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
+
+    async def test_creating_deployment_with_active_schedule_creates_runs(
+        self, session, client, flow
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment",
+                flow_id=flow.id,
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+            ).dict(json_compatible=True),
+        )
+
+        n_runs = await models.flow_runs.count_flow_runs(
+            session, flow_filter=schemas.filters.FlowFilter(ids=[flow.id])
+        )
+        assert n_runs == 100
+
+    async def test_creating_deployment_with_inactive_schedule_creates_no_runs(
+        self, session, client, flow
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment",
+                flow_id=flow.id,
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                is_schedule_active=False,
+            ).dict(json_compatible=True),
+        )
+
+        n_runs = await models.flow_runs.count_flow_runs(
+            session, flow_filter=schemas.filters.FlowFilter(ids=[flow.id])
+        )
+        assert n_runs == 0
+
+    async def test_creating_deployment_with_no_schedule_creates_no_runs(
+        self, session, client, flow
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment",
+                flow_id=flow.id,
+                is_schedule_active=True,
+            ).dict(json_compatible=True),
+        )
+
+        n_runs = await models.flow_runs.count_flow_runs(
+            session, flow_filter=schemas.filters.FlowFilter(ids=[flow.id])
+        )
+        assert n_runs == 0
 
 
 class TestReadDeployment:
@@ -212,3 +281,135 @@ class TestSetScheduleActive:
     async def test_set_schedule_active_with_missing_deployment(self, client):
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
         assert response.status_code == 404
+
+    async def test_set_schedule_active_schedules_runs(
+        self, client, deployment, session
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        deployment.is_schedule_active = False
+        await session.commit()
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 100
+
+    async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
+        self, client, deployment, session
+    ):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        deployment.schedule = None
+        deployment.is_schedule_active = False
+        await session.commit()
+
+        response = await client.post(
+            f"/deployments/{deployment.id}/set_schedule_active"
+        )
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+
+class TestScheduleDeployment:
+    async def test_schedule_deployment(self, client, session, deployment):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(f"/deployments/{deployment.id}/schedule")
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        expected_dates = await deployment.schedule.get_dates(
+            n=services_settings.scheduler_max_runs,
+            start=pendulum.now(),
+            end=pendulum.now().add(
+                seconds=services_settings.scheduler_max_future_seconds
+            ),
+        )
+        actual_dates = {r.state.state_details.scheduled_time for r in runs}
+        assert actual_dates == set(expected_dates)
+
+    async def test_schedule_deployment_max_runs(self, client, session, deployment):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            f"/deployments/{deployment.id}/schedule", json=dict(max_runs=5)
+        )
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        expected_dates = await deployment.schedule.get_dates(
+            n=5,
+            start=pendulum.now(),
+            end=pendulum.now().add(
+                seconds=services_settings.scheduler_max_future_seconds
+            ),
+        )
+        actual_dates = {r.state.state_details.scheduled_time for r in runs}
+        assert actual_dates == set(expected_dates)
+
+    async def test_schedule_deployment_start_time(self, client, session, deployment):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            f"/deployments/{deployment.id}/schedule",
+            json=dict(start_time=str(pendulum.now().add(days=120))),
+        )
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        expected_dates = await deployment.schedule.get_dates(
+            n=services_settings.scheduler_max_runs,
+            start=pendulum.now().add(days=120),
+            end=pendulum.now().add(
+                days=120, seconds=services_settings.scheduler_max_future_seconds
+            ),
+        )
+        actual_dates = {r.state.state_details.scheduled_time for r in runs}
+        assert actual_dates == set(expected_dates)
+
+    async def test_schedule_deployment_end_time(self, client, session, deployment):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            f"/deployments/{deployment.id}/schedule",
+            json=dict(end_time=str(pendulum.now().add(days=7))),
+        )
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        expected_dates = await deployment.schedule.get_dates(
+            n=services_settings.scheduler_max_runs,
+            start=pendulum.now(),
+            end=pendulum.now().add(days=7),
+        )
+        actual_dates = {r.state.state_details.scheduled_time for r in runs}
+        assert actual_dates == set(expected_dates)
+        assert len(actual_dates) == 7
+
+    async def test_schedule_deployment_backfill(self, client, session, deployment):
+        n_runs = await models.flow_runs.count_flow_runs(session)
+        assert n_runs == 0
+
+        await client.post(
+            f"/deployments/{deployment.id}/schedule",
+            json=dict(
+                start_time=str(pendulum.now().subtract(days=20)),
+                end_time=str(pendulum.now()),
+            ),
+        )
+
+        runs = await models.flow_runs.read_flow_runs(session)
+        expected_dates = await deployment.schedule.get_dates(
+            n=services_settings.scheduler_max_runs,
+            start=pendulum.now().subtract(days=20),
+            end=pendulum.now(),
+        )
+        actual_dates = {r.state.state_details.scheduled_time for r in runs}
+        assert actual_dates == set(expected_dates)
+        assert len(actual_dates) == 20
