@@ -66,7 +66,7 @@ async def read_flow(
 
 @router.get("/")
 async def read_flows(
-    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
