@@ -2,7 +2,7 @@ from pydantic.types import Json
 import pytest
 from fastapi import FastAPI, Depends
 
-from prefect.orion.schemas.pagination import Pagination
+from prefect.orion.schemas.filters import Pagination
 
 
 @pytest.fixture
