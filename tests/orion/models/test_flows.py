@@ -1,7 +1,6 @@
 from uuid import uuid4
 
 import pytest
-import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 
@@ -14,21 +13,19 @@ class TestCreateFlow:
         assert flow.name == "my-flow"
         assert flow.id
 
-    async def test_create_flow_raises_if_already_exists(self, session):
+    async def test_create_flow_does_not_upsert(self, session):
         # create a flow
-        flow = await models.flows.create_flow(
-            session=session, flow=schemas.core.Flow(name="my-flow")
+        flow_1 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow", tags=["green"])
         )
-        assert flow.name == "my-flow"
-        assert flow.id
 
-        # try to create the same flow
-
-        with pytest.raises(sa.exc.IntegrityError):
-            await models.flows.create_flow(
-                session=session,
-                flow=schemas.core.Flow(name="my-flow"),
-            )
+        # try to create the same flow with tags
+        flow_2 = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow", tags=["blue"])
+        )
+        assert flow_1.tags == flow_2.tags
+        assert flow_1.name == flow_2.name
+        assert flow_1.id == flow_2.id
 
 
 class TestReadFlow:
