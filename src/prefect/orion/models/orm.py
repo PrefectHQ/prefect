@@ -1,10 +1,10 @@
-from typing import List, Union
+from typing import Union
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import Column, ForeignKey, String, join
+from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import aliased, relationship
+from sqlalchemy.orm import relationship
 
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
@@ -13,7 +13,6 @@ from prefect.orion.utilities.database import (
     Base,
     Pydantic,
     Timestamp,
-    get_dialect,
     now,
 )
 from prefect.orion.utilities.functions import ParameterSchema
@@ -145,11 +144,14 @@ class FlowRun(Base):
     empirical_policy = Column(JSON, server_default="{}", default={}, nullable=False)
     empirical_config = Column(JSON, server_default="{}", default=dict, nullable=False)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    run_details = Column(
-        Pydantic(core.FlowRunDetails),
-        server_default="{}",
-        default=core.FlowRunDetails,
-        nullable=False,
+    parent_task_run_id = Column(
+        UUID(),
+        ForeignKey(
+            "task_run.id",
+            ondelete="SET NULL",
+            use_alter=True,
+        ),
+        index=True,
     )
 
     # TODO remove this foreign key for significant delete performance gains
@@ -162,52 +164,19 @@ class FlowRun(Base):
         ),
         index=True,
     )
-
-    parent_task_run_id = Column(
-        UUID(),
-        ForeignKey(
-            "task_run.id",
-            ondelete="SET NULL",
-            use_alter=True,
-        ),
-        index=True,
+    state_type = Column(Pydantic(states.StateType))
+    run_count = Column(Integer, server_default="0", default=0, nullable=False)
+    expected_start_time = Column(Timestamp())
+    next_scheduled_start_time = Column(Timestamp())
+    start_time = Column(Timestamp())
+    end_time = Column(Timestamp())
+    total_run_time_seconds = Column(
+        Float, server_default="0.0", default=0.0, nullable=False
     )
-
-    # -------------------------- computed columns
-
-    state_type = Column(
-        Pydantic(states.StateType, sa_column_type=sa.Text()),
-        sa.Computed(
-            run_details["state_type"].astext
-            if get_dialect().name == "postgresql"
-            else run_details["state_type"].as_string()
-        ),
-        index=True,
+    total_time_seconds = Column(
+        Float, server_default="0.0", default=0.0, nullable=False
     )
-
-    expected_start_time = Column(
-        Timestamp(),
-        sa.Computed(
-            sa.func.text_to_timestamp_immutable(
-                run_details["expected_start_time"].astext
-            )
-            if get_dialect().name == "postgresql"
-            else run_details["expected_start_time"].as_string()
-        ),
-        index=True,
-    )
-
-    next_scheduled_start_time = Column(
-        Timestamp(),
-        sa.Computed(
-            sa.func.text_to_timestamp_immutable(
-                run_details["next_scheduled_start_time"].astext
-            )
-            if get_dialect().name == "postgresql"
-            else run_details["next_scheduled_start_time"].as_string()
-        ),
-        index=True,
-    )
+    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # -------------------------- relationships
 
@@ -286,6 +255,9 @@ class TaskRun(Base):
         nullable=False,
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    upstream_task_run_ids = Column(
+        JSON, server_default="{}", default=dict, nullable=False
+    )
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
@@ -297,50 +269,17 @@ class TaskRun(Base):
         ),
         index=True,
     )
-    upstream_task_run_ids = Column(
-        JSON, server_default="{}", default=dict, nullable=False
+    state_type = Column(Pydantic(states.StateType))
+    run_count = Column(Integer, server_default="0", default=0, nullable=False)
+    expected_start_time = Column(Timestamp())
+    next_scheduled_start_time = Column(Timestamp())
+    start_time = Column(Timestamp())
+    end_time = Column(Timestamp())
+    total_run_time_seconds = Column(
+        Float, server_default="0.0", default=0.0, nullable=False
     )
-    run_details = Column(
-        Pydantic(core.TaskRunDetails),
-        server_default="{}",
-        default=core.TaskRunDetails,
-        nullable=False,
-    )
-
-    # -------------------------- computed columns
-
-    state_type = Column(
-        Pydantic(states.StateType, sa_column_type=sa.Text()),
-        sa.Computed(
-            run_details["state_type"].astext
-            if get_dialect().name == "postgresql"
-            else run_details["state_type"].as_string()
-        ),
-        index=True,
-    )
-
-    expected_start_time = Column(
-        Timestamp(),
-        sa.Computed(
-            sa.func.text_to_timestamp_immutable(
-                run_details["expected_start_time"].astext
-            )
-            if get_dialect().name == "postgresql"
-            else run_details["expected_start_time"].as_string()
-        ),
-        index=True,
-    )
-
-    next_scheduled_start_time = Column(
-        Timestamp(),
-        sa.Computed(
-            sa.func.text_to_timestamp_immutable(
-                run_details["next_scheduled_start_time"].astext
-            )
-            if get_dialect().name == "postgresql"
-            else run_details["next_scheduled_start_time"].as_string()
-        ),
-        index=True,
+    total_time_seconds = Column(
+        Float, server_default="0.0", default=0.0, nullable=False
     )
 
     # -------------------------- relationships

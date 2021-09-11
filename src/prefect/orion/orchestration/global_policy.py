@@ -39,12 +39,9 @@ class UpdateRunDetails(BaseUniversalRule):
         initial_state = context.initial_state
         proposed_state = context.proposed_state
 
-        # avoid mutation inplace
-        run_details = run.run_details.copy()  # type: core.RunDetails
-
         # -- record the new state's details
-        run_details.state_id = proposed_state.id
-        run_details.state_type = proposed_state.type
+        run.state_id = proposed_state.id
+        run.state_type = proposed_state.type
 
         # -- compute duration
         if initial_state:
@@ -56,49 +53,43 @@ class UpdateRunDetails(BaseUniversalRule):
 
         # -- set next scheduled start time
         if proposed_state.is_scheduled():
-            run_details.next_scheduled_start_time = (
-                proposed_state.state_details.scheduled_time
-            )
+            run.next_scheduled_start_time = proposed_state.state_details.scheduled_time
 
         # -- set expected start time if this is the first state
-        if not run_details.expected_start_time:
+        if not run.expected_start_time:
             if proposed_state.is_scheduled():
-                run_details.expected_start_time = run_details.next_scheduled_start_time
+                run.expected_start_time = run.next_scheduled_start_time
             else:
-                run_details.expected_start_time = proposed_state.timestamp
+                run.expected_start_time = proposed_state.timestamp
 
         # -- update duration if there's a start time
-        if run_details.start_time:
+        if run.start_time:
             # increment the total duration
-            run_details.total_time_seconds += state_duration
+            run.total_time_seconds += state_duration
 
         # -- if exiting a running state...
         if initial_state and initial_state.is_running():
             # increment the "run_time_seconds"
-            run_details.total_run_time_seconds += state_duration
+            run.total_run_time_seconds += state_duration
 
         # -- if entering a running state...
         if proposed_state.is_running():
             # increment the run count
-            run_details.run_count += 1
+            run.run_count += 1
             # set the start time
-            if run_details.start_time is None:
-                run_details.start_time = proposed_state.timestamp
+            if run.start_time is None:
+                run.start_time = proposed_state.timestamp
 
         # -- if entering a final state...
         if proposed_state.is_final():
             # if the run started, give it an end time (unless it has one)
-            if run_details.start_time and not run_details.end_time:
-                run_details.end_time = proposed_state.timestamp
+            if run.start_time and not run.end_time:
+                run.end_time = proposed_state.timestamp
 
         # -- if exiting a final state...
         if initial_state and initial_state.is_final():
             # clear the end time
-            run_details.end_time = None
-
-        # set the run details on the orm object
-        # to be tracked by the active session
-        run.run_details = run_details
+            run.end_time = None
 
 
 class UpdateStateDetails(BaseUniversalRule):
