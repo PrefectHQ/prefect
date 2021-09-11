@@ -9,6 +9,7 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
+from prefect.orion.orchestration.global_policy import update_run_details
 from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
@@ -167,20 +168,21 @@ async def _generate_scheduled_flow_runs(
     )
 
     for date in dates:
-        runs.append(
-            schemas.core.FlowRun(
-                flow_id=deployment.flow_id,
-                deployment_id=deployment_id,
-                # parameters=,
-                idempotency_key=f"scheduled {deployment.id} {date}",
-                tags=["auto-scheduled"],
-                auto_scheduled=True,
-                state=schemas.states.Scheduled(
-                    scheduled_time=date,
-                    message="Flow run scheduled",
-                ),
-            )
+        run = schemas.core.FlowRun(
+            flow_id=deployment.flow_id,
+            deployment_id=deployment_id,
+            # parameters=,
+            idempotency_key=f"scheduled {deployment.id} {date}",
+            tags=["auto-scheduled"],
+            auto_scheduled=True,
+            state=schemas.states.Scheduled(
+                scheduled_time=date,
+                message="Flow run scheduled",
+            ),
         )
+        # apply run details updates
+        update_run_details(initial_state=None, proposed_state=run.state, run=run)
+        runs.append(run)
 
     return runs
 
