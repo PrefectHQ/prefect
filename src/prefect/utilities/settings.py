@@ -30,6 +30,9 @@ class DatabaseSettings(BaseSettings):
     # statement timeout, in seconds
     timeout: float = None
 
+
+class APISettings(BaseSettings):
+
     # a default limit for queries
     default_limit: int = 200
 
@@ -45,6 +48,7 @@ class OrionSettings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
 
     data: DataLocationSettings = Field(default_factory=DataLocationSettings)
+    api: APISettings = Field(default_factory=APISettings)
 
 
 class LoggingSettings(BaseSettings):
