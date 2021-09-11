@@ -255,3 +255,16 @@ class TestScheduledRuns:
         assert {
             r.state.state_details.scheduled_time for r in scheduled_runs
         } == expected_times
+
+    async def test_run_details_are_applied_to_scheduled_runs(self, deployment, session):
+        await models.deployments.schedule_runs(
+            session,
+            deployment_id=deployment.id,
+        )
+
+        all_runs = await models.flow_runs.read_flow_runs(session)
+        assert all_runs
+        for r in all_runs:
+            assert r.state_type == schemas.states.StateType.SCHEDULED
+            assert r.expected_start_time is not None
+            assert r.expected_start_time == r.next_scheduled_start_time
