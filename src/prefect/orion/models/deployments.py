@@ -8,7 +8,8 @@ from sqlalchemy import delete, select
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import get_dialect, dialect_specific_insert
+from prefect.orion.orchestration.global_policy import update_run_details
+from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
 async def create_deployment(
@@ -163,20 +164,24 @@ async def _generate_scheduled_flow_runs(
     )
 
     for date in dates:
-        runs.append(
-            schemas.core.FlowRun(
-                flow_id=deployment.flow_id,
-                deployment_id=deployment_id,
-                # parameters=,
-                idempotency_key=f"scheduled {deployment.id} {date}",
-                tags=["auto-scheduled"],
-                auto_scheduled=True,
-                state=schemas.states.Scheduled(
-                    scheduled_time=date,
-                    message="Flow run scheduled",
-                ),
-            )
+        run = schemas.core.FlowRun(
+            flow_id=deployment.flow_id,
+            deployment_id=deployment_id,
+            # parameters=,
+            idempotency_key=f"scheduled {deployment.id} {date}",
+            tags=["auto-scheduled"],
+            auto_scheduled=True,
+            state=schemas.states.Scheduled(
+                scheduled_time=date,
+                message="Flow run scheduled",
+            ),
         )
+        # apply run details updates because this state won't go through the orchestration engine
+        update_run_details(initial_state=None, proposed_state=run.state, run=run)
+        # do not set the `state_id` as it hasn't been created yet; it will be set
+        # when _insert_scheduled_flow_runs is called
+        run.state_id = None
+        runs.append(run)
 
     return runs
 
