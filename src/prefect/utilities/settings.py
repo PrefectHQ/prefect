@@ -4,7 +4,7 @@ Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
 from pathlib import Path
-
+from datetime import timedelta
 from pydantic import BaseSettings, Field, SecretStr
 
 
@@ -32,6 +32,21 @@ class DatabaseSettings(BaseSettings):
     default_limit: int = 200
 
 
+class ServicesSettings(BaseSettings):
+    class Config:
+        env_prefix = "PREFECT_ORION_SERVICES_"
+        frozen = True
+
+    # run scheduler every 60 seconds
+    scheduler_loop_seconds: float = 60
+    # batch deployments in groups of 100
+    scheduler_deployment_batch_size: int = 100
+    # schedule up to 100 new runs per deployment
+    scheduler_max_runs: int = 100
+    # schedule at most three months into the future
+    scheduler_max_timedelta: timedelta = timedelta(days=90)
+
+
 class OrionSettings(BaseSettings):
     class Config:
         env_prefix = "PREFECT_ORION_"
@@ -43,6 +58,7 @@ class OrionSettings(BaseSettings):
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
 
     data: DataLocationSettings = Field(default_factory=DataLocationSettings)
+    services: ServicesSettings = Field(default_factory=ServicesSettings)
 
 
 class LoggingSettings(BaseSettings):
