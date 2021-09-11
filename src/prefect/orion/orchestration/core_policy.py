@@ -4,7 +4,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
-from prefect.orion.models import orm
+from prefect.orion.models import orm, task_runs
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
@@ -166,4 +166,7 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
                 **task_state_data,
             )
             context.session.add(subflow_parent_task_state)
+            await context.session.flush()
+            parent_task_run = await context.session.get(orm.TaskRun, parent_task_run_id)
+            parent_task_run.state = subflow_parent_task_state
             await context.session.flush()
