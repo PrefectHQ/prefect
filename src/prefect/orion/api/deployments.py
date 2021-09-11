@@ -156,4 +156,3 @@ async def set_schedule_inactive(
         models.orm.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
-    await session.commit()
