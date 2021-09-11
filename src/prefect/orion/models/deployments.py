@@ -169,9 +169,7 @@ async def _generate_scheduled_flow_runs(
                 # parameters=,
                 idempotency_key=f"scheduled {deployment.id} {date}",
                 tags=["auto-scheduled"],
-                run_details=schemas.core.FlowRunDetails(
-                    auto_scheduled=True,
-                ),
+                auto_scheduled=True,
                 state=schemas.states.Scheduled(
                     scheduled_time=date,
                     message="Flow run scheduled",
