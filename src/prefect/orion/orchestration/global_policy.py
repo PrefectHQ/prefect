@@ -97,7 +97,6 @@ class UpdateRunDetails(BaseUniversalRule):
             raise ValueError("Run not found.")
 
         update_run_details(
-            session=context.session,
             initial_state=context.initial_state,
             proposed_state=context.proposed_state,
             run=run,
