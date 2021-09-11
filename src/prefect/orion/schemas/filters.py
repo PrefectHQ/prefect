@@ -50,7 +50,9 @@ class FlowRunFilter(PrefectBaseModel):
         example=["tag-1", "tag-2"],
         description="A list of tags. Flow runs will be returned only if their tags are a superset of the list",
     )
-
+    deployment_ids: List[UUID] = Field(
+        None, description="A list of deployment IDs to include"
+    )
     states: List[schemas.states.StateType] = Field(
         None, description="A list of state types to include"
     )
@@ -73,6 +75,8 @@ class FlowRunFilter(PrefectBaseModel):
                 filters.append(orm.FlowRun.tags == [])
             else:
                 filters.append(json_has_all_keys(orm.FlowRun.tags, self.tags_all))
+        if self.deployment_ids is not None:
+            filters.append(orm.FlowRun.deployment_id.in_(self.deployment_ids))
         if self.flow_versions is not None:
             filters.append(orm.FlowRun.flow_version.in_(self.flow_versions))
         if self.states is not None:
