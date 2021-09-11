@@ -69,13 +69,6 @@ class OrchestrationContext(PrefectBaseModel):
         return self.validated_state.type if self.validated_state else None
 
     @property
-    def run_details(self):
-        try:
-            return self.run.run_details
-        except AttributeError:
-            return None
-
-    @property
     def run_settings(self):
         return self.run.empirical_policy
 
