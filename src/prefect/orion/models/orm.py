@@ -179,7 +179,7 @@ class FlowRun(Base):
         Pydantic(states.StateType, sa_column_type=sa.Text()),
         sa.Computed(
             run_details["state_type"].astext
-            if get_dialect() == "postgresql"
+            if get_dialect().name == "postgresql"
             else run_details["state_type"].as_string()
         ),
         index=True,
@@ -191,7 +191,7 @@ class FlowRun(Base):
             sa.func.text_to_timestamp_immutable(
                 run_details["expected_start_time"].astext
             )
-            if get_dialect() == "postgresql"
+            if get_dialect().name == "postgresql"
             else run_details["expected_start_time"].as_string()
         ),
         index=True,
@@ -203,7 +203,7 @@ class FlowRun(Base):
             sa.func.text_to_timestamp_immutable(
                 run_details["next_scheduled_start_time"].astext
             )
-            if get_dialect() == "postgresql"
+            if get_dialect().name == "postgresql"
             else run_details["next_scheduled_start_time"].as_string()
         ),
         index=True,
@@ -313,7 +313,7 @@ class TaskRun(Base):
         Pydantic(states.StateType, sa_column_type=sa.Text()),
         sa.Computed(
             run_details["state_type"].astext
-            if get_dialect() == "postgresql"
+            if get_dialect().name == "postgresql"
             else run_details["state_type"].as_string()
         ),
         index=True,
@@ -325,7 +325,7 @@ class TaskRun(Base):
             sa.func.text_to_timestamp_immutable(
                 run_details["expected_start_time"].astext
             )
-            if get_dialect() == "postgresql"
+            if get_dialect().name == "postgresql"
             else run_details["expected_start_time"].as_string()
         ),
         index=True,
@@ -337,7 +337,7 @@ class TaskRun(Base):
             sa.func.text_to_timestamp_immutable(
                 run_details["next_scheduled_start_time"].astext
             )
-            if get_dialect() == "postgresql"
+            if get_dialect().name == "postgresql"
             else run_details["next_scheduled_start_time"].as_string()
         ),
         index=True,
