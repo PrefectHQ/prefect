@@ -23,7 +23,7 @@ FROM
 INSERT INTO flow_run_state (flow_run_id, TYPE, name, timestamp, state_details)
 WITH states (TYPE, name, timestamp, state_details)
 AS (
-        VALUES ('SCHEDULED'::statetype, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '1 HOUR' || '"}')::jsonb), ('PENDING', 'Pending', CURRENT_TIMESTAMP - INTERVAL '59 minutes', '{}'), ('RUNNING', 'Running', CURRENT_TIMESTAMP - INTERVAL '58 minutes', '{}'), ('COMPLETED', 'Completed', CURRENT_TIMESTAMP - INTERVAL '5 minutes', '{}'))
+        VALUES ('SCHEDULED'::state_type, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '1 HOUR' || '"}')::jsonb), ('PENDING', 'Pending', CURRENT_TIMESTAMP - INTERVAL '59 minutes', '{}'), ('RUNNING', 'Running', CURRENT_TIMESTAMP - INTERVAL '58 minutes', '{}'), ('COMPLETED', 'Completed', CURRENT_TIMESTAMP - INTERVAL '5 minutes', '{}'))
         SELECT
             flow_run.id,
             states.*
@@ -41,7 +41,7 @@ AS (
 INSERT INTO flow_run_state (flow_run_id, TYPE, name, timestamp, state_details)
 WITH states (TYPE, name, timestamp, state_details)
 AS (
-        VALUES ('SCHEDULED'::statetype, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP + INTERVAL '1 HOUR' || '"}')::jsonb))
+        VALUES ('SCHEDULED'::state_type, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP + INTERVAL '1 HOUR' || '"}')::jsonb))
         SELECT
             flow_run.id,
             states.*
@@ -58,7 +58,7 @@ AS (
 INSERT INTO task_run_state (task_run_id, TYPE, name, timestamp, state_details)
 WITH states (TYPE, name, timestamp, state_details)
 AS (
-        VALUES ('SCHEDULED'::statetype, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '1 HOUR' || '"}')::jsonb), ('PENDING', 'Pending', CURRENT_TIMESTAMP - INTERVAL '59 minutes', '{}'), ('RUNNING', 'Running', CURRENT_TIMESTAMP - INTERVAL '58 minutes', '{}'), ('COMPLETED', 'Completed', CURRENT_TIMESTAMP - INTERVAL '5 minutes', '{}'))
+        VALUES ('SCHEDULED'::state_type, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '1 HOUR' || '"}')::jsonb), ('PENDING', 'Pending', CURRENT_TIMESTAMP - INTERVAL '59 minutes', '{}'), ('RUNNING', 'Running', CURRENT_TIMESTAMP - INTERVAL '58 minutes', '{}'), ('COMPLETED', 'Completed', CURRENT_TIMESTAMP - INTERVAL '5 minutes', '{}'))
         SELECT
             task_run.id,
             states.*
@@ -76,7 +76,7 @@ AS (
 INSERT INTO task_run_state (task_run_id, TYPE, name, timestamp, state_details)
 WITH states (TYPE, name, timestamp, state_details)
 AS (
-        VALUES ('SCHEDULED'::statetype, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '1 HOUR' || '"}')::jsonb), ('PENDING', 'Pending', CURRENT_TIMESTAMP - INTERVAL '59 minutes', '{}'), ('RUNNING', 'Running', CURRENT_TIMESTAMP - INTERVAL '58 minutes', '{}'), ('SCHEDULED', 'Awaiting Retry', CURRENT_TIMESTAMP - INTERVAL '5 minutes', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '3 MINUTES' || '"}')::jsonb), ('RUNNING', 'Retrying', CURRENT_TIMESTAMP - INTERVAL '2 minutes', '{}'), ('FAILED', 'Failed', CURRENT_TIMESTAMP, '{}'))
+        VALUES ('SCHEDULED'::state_type, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '1 HOUR' || '"}')::jsonb), ('PENDING', 'Pending', CURRENT_TIMESTAMP - INTERVAL '59 minutes', '{}'), ('RUNNING', 'Running', CURRENT_TIMESTAMP - INTERVAL '58 minutes', '{}'), ('SCHEDULED', 'Awaiting Retry', CURRENT_TIMESTAMP - INTERVAL '5 minutes', ('{"scheduled_time":"' || CURRENT_TIMESTAMP - INTERVAL '3 MINUTES' || '"}')::jsonb), ('RUNNING', 'Retrying', CURRENT_TIMESTAMP - INTERVAL '2 minutes', '{}'), ('FAILED', 'Failed', CURRENT_TIMESTAMP, '{}'))
         SELECT
             task_run.id,
             states.*
@@ -94,7 +94,7 @@ AS (
 INSERT INTO task_run_state (task_run_id, TYPE, name, timestamp, state_details)
 WITH states (TYPE, name, timestamp, state_details)
 AS (
-        VALUES ('SCHEDULED'::statetype, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP + INTERVAL '1 HOUR' || '"}')::jsonb))
+        VALUES ('SCHEDULED'::state_type, 'Scheduled', CURRENT_TIMESTAMP - INTERVAL '1 HOUR', ('{"scheduled_time":"' || CURRENT_TIMESTAMP + INTERVAL '1 HOUR' || '"}')::jsonb))
         SELECT
             task_run.id,
             states.*
