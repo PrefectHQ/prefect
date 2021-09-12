@@ -30,6 +30,16 @@ async def create_deployment(
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
 
+    # this deployment might have already scheduled runs (if it's being upserted)
+    # so we delete them all here; if the upserted deployment has an active schedule
+    # then its runs will be rescheduled.
+    delete_query = sa.delete(models.orm.FlowRun).where(
+        models.orm.FlowRun.deployment_id == model.id,
+        models.orm.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        models.orm.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
+
     # proactively schedule the deployment
     if deployment.schedule and deployment.is_schedule_active:
         await models.deployments.schedule_runs(
