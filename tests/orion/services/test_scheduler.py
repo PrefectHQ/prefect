@@ -43,10 +43,10 @@ async def test_create_schedule_respects_max_future_time(flow, session):
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
-
     await Scheduler().run_once()
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 3 < Scheduler.max_runs
+
+    assert len(runs) == 3
     expected_dates = await deployment.schedule.get_dates(
         Scheduler.max_runs, end=pendulum.now().add(seconds=Scheduler.max_future_seconds)
     )
