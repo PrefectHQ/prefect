@@ -161,15 +161,10 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
                 (k, v) for k, v in flow_state_data.items() if k in columns
             )
 
-            subflow_parent_task_run_state = actions.StateCreate(
+            subflow_parent_task_state = orm.TaskRunState(
+                task_run_id=parent_task_run_id,
                 **task_state_data,
             )
-
-            parent_task_run = await context.session.get(
-                orm.TaskRun, parent_task_run_id
-            )
-            await models.task_run_states.orchestrate_task_run_state(
-                session=context.session,
-                state=schemas.states.State.parse_obj(subflow_parent_task_run_state),
-                task_run_id=parent_task_run.id,
-            )
+            context.session.add(subflow_parent_task_state)
+            parent_task_run = await context.session.get(orm.TaskRun, parent_task_run_id)
+            parent_task_run.state = subflow_parent_task_state
