@@ -155,20 +155,19 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
     ) -> None:
         parent_task_run_id = context.run.parent_task_run_id
         columns = {"type", "timestamp", "name", "message", "state_details", "data"}
-        if parent_task_run_id is not None:
+        if parent_task_run_id is not None and validated_state is not None:
             flow_state_data = validated_state.dict(shallow=True)
             task_state_data = dict(
                 (k, v) for k, v in flow_state_data.items() if k in columns
             )
 
-            if validated_state is not None:
-                subflow_parent_task_run_state = actions.StateCreate(
-                    **task_state_data,
-                )
-            else:
-                subflow_parent_task_run_state = None
+            subflow_parent_task_run_state = actions.StateCreate(
+                **task_state_data,
+            )
 
-            parent_task_run = await context.session.get(orm.TaskRun, parent_task_run_id)
+            parent_task_run = await context.session.get(
+                orm.TaskRun, parent_task_run_id
+            )
             await models.task_run_states.orchestrate_task_run_state(
                 session=context.session,
                 state=schemas.states.State.parse_obj(subflow_parent_task_run_state),
