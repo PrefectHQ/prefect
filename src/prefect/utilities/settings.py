@@ -6,6 +6,7 @@ to avoid instantiating the nested settings class until runtime.
 from pathlib import Path
 from datetime import timedelta
 from pydantic import BaseSettings, Field, SecretStr
+from typing import Optional
 
 
 class DataLocationSettings(BaseSettings):
@@ -27,8 +28,11 @@ class DatabaseSettings(BaseSettings):
     # that can be accessed from multiple threads
     connection_url: SecretStr = "sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
     echo: bool = False
+
     # statement timeout, in seconds
-    timeout: float = None
+    timeout: Optional[float] = 1
+    # statement timeout for services, in seconds
+    services_timeout: Optional[float] = None
 
 
 class APISettings(BaseSettings):
