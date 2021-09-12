@@ -2,7 +2,7 @@ import contextlib
 import pendulum
 import pytest
 
-from prefect.orion.models import orm
+from prefect.orion import models
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.orchestration.core_policy import (
     WaitForScheduledTime,
@@ -259,28 +259,21 @@ async def test_update_subflow_parent_task(
         *intended_transition,
     )
 
-    parent_flow = orm.Flow(
-        **actions.FlowCreate(name="subflow-parent").dict(shallow=True)
+    parent_flow = await models.flows.create_flow(
+        session=session, flow=actions.FlowCreate(name="subflow-parent")
     )
 
-    session.add(parent_flow)
-    await session.flush()
-
-    parent_flow_run = orm.FlowRun(
-        **actions.FlowRunCreate(flow_id=parent_flow.id).dict(shallow=True)
+    parent_flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=actions.FlowRunCreate(flow_id=parent_flow.id),
     )
 
-    session.add(parent_flow_run)
-    await session.flush()
-
-    parent_task_run = orm.TaskRun(
-        **actions.TaskRunCreate(
+    parent_task_run = await models.task_runs.create_task_run(
+        session=session,
+        task_run=actions.TaskRunCreate(
             task_key="dummy-task", flow_run_id=parent_flow_run.id
-        ).dict(shallow=True)
+        ),
     )
-
-    session.add(parent_task_run)
-    await session.flush()
 
     ctx.run.parent_task_run_id = parent_task_run.id
 
@@ -290,4 +283,3 @@ async def test_update_subflow_parent_task(
         await ctx.validate_proposed_state()
 
     assert parent_task_run.state.type == proposed_state_type
-
