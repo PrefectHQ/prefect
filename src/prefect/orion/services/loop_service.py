@@ -101,13 +101,12 @@ class LoopService:
 
         await self.shutdown()
 
-    @classmethod
-    def stop(cls) -> None:
+    def stop(self) -> None:
         """
-        Stops a running LoopService. This is a classmethod, so it will affect
-        all instances of the class.
+        Gracefully stops a running LoopService. It may take until the end of its sleep time
+        for it to exit.
         """
-        cls.should_stop = True
+        self.should_stop = True
 
     async def run_once(self) -> None:
         """
