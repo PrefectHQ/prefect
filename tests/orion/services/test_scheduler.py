@@ -35,7 +35,7 @@ async def test_create_schedule_respects_max_future_time(flow, session):
             name="test",
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=30), anchor_date=pendulum.now()
+                interval=datetime.timedelta(days=30), anchor_date=pendulum.now("UTC")
             ),
         ),
     )
