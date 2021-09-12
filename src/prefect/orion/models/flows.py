@@ -104,12 +104,52 @@ async def read_flows(
     if offset is not None:
         query = query.offset(offset)
 
-    if limit is None:
-        limit = prefect.settings.orion.database.default_limit
+    if limit is not None:
+        query = query.limit(limit)
 
-    query = query.limit(limit)
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+async def count_flows(
+    session: sa.orm.Session,
+    flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+) -> int:
+    """Count flows
+
+    Args:
+        session (sa.orm.Session): A database session
+        flow_filter (FlowFilter): only count flows that match these filters
+        flow_run_filter (FlowRunFilter): only count flows whose flow runs match these filters
+        task_run_filter (TaskRunFilter): only count flows whose task runs match these filters
+
+    Returns:
+        int: count of flows
+    """
+
+    query = select(sa.func.count(sa.text("*"))).select_from(orm.Flow)
+
+    if flow_filter:
+        query = query.where(flow_filter.as_sql_filter())
+
+    if flow_run_filter or task_run_filter:
+        exists_clause = select(orm.FlowRun).where(orm.FlowRun.flow_id == orm.Flow.id)
+
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+
+        if task_run_filter:
+            exists_clause = exists_clause.join(
+                orm.TaskRun,
+                orm.TaskRun.flow_run_id == orm.FlowRun.id,
+            ).where(task_run_filter.as_sql_filter())
+
+        query = query.where(exists_clause.exists())
+
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:

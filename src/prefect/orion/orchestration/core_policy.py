@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
@@ -107,9 +105,8 @@ class RetryPotentialFailures(BaseOrchestrationRule):
         proposed_state: states.State,
         context: OrchestrationContext,
     ) -> None:
-        run_details = context.run_details
         run_settings = context.run_settings
-        if run_details.run_count <= run_settings.max_retries:
+        if context.run.run_count <= run_settings.max_retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
                     seconds=run_settings.retry_delay_seconds
