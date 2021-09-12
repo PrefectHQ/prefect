@@ -4,7 +4,6 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-import prefect
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 
