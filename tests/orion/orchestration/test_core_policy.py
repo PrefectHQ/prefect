@@ -208,7 +208,7 @@ class TestRetryingRule:
         )
 
         ctx.run_settings.max_retries = 2
-        ctx.run_details.run_count = 2
+        ctx.run.run_count = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -234,7 +234,7 @@ class TestRetryingRule:
         )
 
         ctx.run_settings.max_retries = 2
-        ctx.run_details.run_count = 3
+        ctx.run.run_count = 3
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
