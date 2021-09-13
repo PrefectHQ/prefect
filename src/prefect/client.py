@@ -75,7 +75,7 @@ class OrionClient:
     # API methods ----------------------------------------------------------------------
 
     async def hello(self) -> httpx.Response:
-        return await self.post("/hello")
+        return await self.get("/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
         flow_data = schemas.actions.FlowCreate(name=flow.name, tags=flow.tags)
@@ -126,6 +126,37 @@ class OrionClient:
             raise Exception(f"Malformed response: {response}")
 
         return UUID(flow_run_id)
+
+    async def create_deployment(
+        self,
+        flow_id: UUID,
+        name: str,
+        flow_data: DataDocument,
+        schedule: schemas.schedules.SCHEDULE_TYPES = None,
+    ) -> UUID:
+        deployment_create = schemas.actions.DeploymentCreate(
+            flow_id=flow_id, name=name, schedule=schedule, flow_data=flow_data
+        )
+
+        response = await self.post(
+            "/deployments/", json=deployment_create.dict(json_compatible=True)
+        )
+        deployment_id = response.json().get("id")
+        if not deployment_id:
+            raise Exception(f"Malformed response: {response}")
+
+        return UUID(deployment_id)
+
+    async def read_deployment(
+        self,
+        deployment_id: UUID,
+    ) -> schemas.core.Deployment:
+        response = await self.get(f"/deployments/{deployment_id}")
+        return schemas.core.Deployment.parse_obj(response.json())
+
+    async def read_deployments(self) -> schemas.core.Deployment:
+        response = await self.get(f"/deployments")
+        return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")

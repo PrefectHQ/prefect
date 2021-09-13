@@ -6,71 +6,104 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
+from prefect.orion.models import deployments, orm
 from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.data import DataDocument
 
 
 class TestCreateDeployment:
-    async def test_create_deployment_succeeds(self, session, flow):
+    async def test_create_deployment_succeeds(self, session, flow, flow_function):
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data == flow_data
 
-    async def test_create_deployment_updates_existing_deployment(self, session, flow):
+    async def test_create_deployment_updates_existing_deployment(
+        self, session, flow, flow_function
+    ):
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
         )
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data == flow_data
 
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
 
+        flow_data = DataDocument.encode("json", "test-override")
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
+                flow_data=flow_data,
                 schedule=schedule,
                 is_schedule_active=False,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data == flow_data
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
 
-    async def test_create_deployment_with_schedule(self, session, flow):
+    async def test_create_deployment_with_schedule(self, session, flow, flow_function):
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
         )
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
 
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="My Deployment", flow_id=flow.id, schedule=schedule
+                name="My Deployment",
+                flow_id=flow.id,
+                flow_data=flow_data,
+                schedule=schedule,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data == flow_data
         assert deployment.schedule == schedule
 
 
 class TestReadDeployment:
-    async def test_read_deployment(self, session, flow):
+    async def test_read_deployment(self, session, flow, flow_function):
         # create a deployment to read
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
         )
         assert deployment.name == "My Deployment"
 
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
         read_deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
@@ -86,14 +119,24 @@ class TestReadDeployment:
 
 class TestReadDeployments:
     @pytest.fixture
-    async def deployments(self, session, flow):
+    async def deployments(self, session, flow, flow_function):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
         deployment_1 = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment-1", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment-1",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
         )
         deployment_2 = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment-2", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment-2",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
         )
         await session.commit()
         return [deployment_1, deployment_2]
@@ -119,11 +162,17 @@ class TestReadDeployments:
 
 
 class TestDeleteDeployment:
-    async def test_delete_deployment(self, session, flow):
+    async def test_delete_deployment(self, session, flow, flow_function):
         # create a deployment to delete
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
         )
         assert deployment.name == "My Deployment"
 
