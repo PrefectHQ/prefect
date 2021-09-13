@@ -1,27 +1,27 @@
-import pendulum
 import asyncio
+
+import pendulum
 import sqlalchemy as sa
-from prefect.orion.services.loop_service import LoopService
-from prefect.orion import models
-from prefect.orion.utilities.database import get_session_factory
-from prefect.utilities.collections import batched_iterable
+
 import prefect
+from prefect.orion import models
+from prefect.orion.services.loop_service import LoopService
+from prefect.utilities.collections import batched_iterable
 
 settings = prefect.settings.orion.services
 
 
 class Scheduler(LoopService):
-    loop_seconds = settings.scheduler_loop_seconds
-    deployment_batch_size = settings.scheduler_deployment_batch_size
-    max_runs = settings.scheduler_max_runs
-    max_future_seconds = settings.scheduler_max_future_seconds
+    loop_seconds: float = settings.scheduler_loop_seconds
+    deployment_batch_size: int = settings.scheduler_deployment_batch_size
+    max_runs: int = settings.scheduler_max_runs
+    max_future_seconds: float = settings.scheduler_max_future_seconds
 
     async def run_once(self):
         now = pendulum.now("UTC")
         total_inserted_runs = 0
-        session_factory = await get_session_factory()
 
-        async with session_factory() as session:
+        async with self.session_factory() as session:
             last_id = None
             while True:
                 query = (
