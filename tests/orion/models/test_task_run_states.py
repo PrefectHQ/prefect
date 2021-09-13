@@ -30,8 +30,8 @@ class TestCreateTaskRunState:
 
         await session.refresh(task_run)
 
-        assert task_run.run_details.start_time is None
-        assert task_run.run_details.run_count == 0
+        assert task_run.start_time is None
+        assert task_run.run_count == 0
 
         dt = pendulum.now("UTC")
         trs2 = await models.task_run_states.orchestrate_task_run_state(
@@ -40,9 +40,9 @@ class TestCreateTaskRunState:
             state=Running(timestamp=dt),
         )
         await session.refresh(task_run)
-        assert task_run.run_details.start_time == dt
-        assert task_run.run_details.run_count == 1
-        assert task_run.run_details.total_run_time_seconds == 0
+        assert task_run.start_time == dt
+        assert task_run.run_count == 1
+        assert task_run.total_run_time_seconds == 0
 
         dt2 = pendulum.now("UTC")
         trs3 = await models.task_run_states.orchestrate_task_run_state(
@@ -52,9 +52,9 @@ class TestCreateTaskRunState:
         )
         await session.commit()
         await session.refresh(task_run)
-        assert task_run.run_details.start_time == dt
-        assert task_run.run_details.run_count == 2
-        assert task_run.run_details.total_run_time_seconds == (dt2 - dt).total_seconds()
+        assert task_run.start_time == dt
+        assert task_run.run_count == 2
+        assert task_run.total_run_time_seconds == (dt2 - dt).total_seconds()
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1

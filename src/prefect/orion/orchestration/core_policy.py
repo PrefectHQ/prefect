@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
@@ -43,7 +41,7 @@ class CacheInsertion(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = validated_state.state_details.cache_key
-        if cache_key and context.validated_state_type == states.StateType.COMPLETED:
+        if cache_key:
             new_cache_item = orm.TaskRunStateCache(
                 cache_key=cache_key,
                 cache_expiration=validated_state.state_details.cache_expiration,
@@ -64,7 +62,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
-        if cache_key and context.proposed_state_type == states.StateType.RUNNING:
+        if cache_key:
             # Check for cached states matching the cache key
             cached_state_id = (
                 select(orm.TaskRunStateCache.task_run_state_id)
@@ -103,9 +101,8 @@ class RetryPotentialFailures(BaseOrchestrationRule):
         proposed_state: states.State,
         context: OrchestrationContext,
     ) -> None:
-        run_details = context.run_details
         run_settings = context.run_settings
-        if run_details.run_count <= run_settings.max_retries:
+        if context.run.run_count <= run_settings.max_retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
                     seconds=run_settings.retry_delay_seconds

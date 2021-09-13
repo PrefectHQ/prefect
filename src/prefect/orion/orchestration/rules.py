@@ -69,13 +69,6 @@ class OrchestrationContext(PrefectBaseModel):
         return self.validated_state.type if self.validated_state else None
 
     @property
-    def run_details(self):
-        try:
-            return self.run.run_details
-        except AttributeError:
-            return None
-
-    @property
     def run_settings(self):
         return self.run.empirical_policy
 
@@ -222,6 +215,11 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     async def invalid(self) -> bool:
         # invalid and fizzled states are mutually exclusive,
         # `_invalid_on_entry` holds this statefulness
+        if self.from_state_type not in self.FROM_STATES:
+            self._invalid_on_entry = True
+        if self.to_state_type not in self.TO_STATES:
+            self._invalid_on_entry = True
+
         if self._invalid_on_entry is None:
             self._invalid_on_entry = await self.invalid_transition()
         return self._invalid_on_entry

@@ -69,7 +69,7 @@ async def read_task_run(
 @router.get("/")
 async def read_task_runs(
     session: sa.orm.Session = Depends(dependencies.get_session),
-    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
