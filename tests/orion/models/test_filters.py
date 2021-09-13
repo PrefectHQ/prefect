@@ -2,6 +2,7 @@ from uuid import uuid4
 from datetime import timedelta
 import pydantic
 import json
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.database import Base, get_session_factory
 import pendulum
 import pytest
@@ -22,7 +23,7 @@ d_3_1_id = uuid4()
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(database_engine):
+async def data(database_engine, flow_function):
 
     session_factory = await get_session_factory(bind=database_engine)
     async with session_factory() as session:
@@ -43,11 +44,14 @@ async def data(database_engine):
         f_3 = await create_flow(flow=core.Flow(name="f-3"))
 
         # ---- deployments
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
         d_1_1 = await create_deployment(
             deployment=core.Deployment(
                 id=d_1_1_id,
                 name="d-1-1",
                 flow_id=f_1.id,
+                flow_data=flow_data,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
             )
         )
@@ -55,6 +59,7 @@ async def data(database_engine):
             deployment=core.Deployment(
                 id=d_1_2_id,
                 name="d-1-2",
+                flow_data=flow_data,
                 flow_id=f_1.id,
             )
         )
@@ -62,6 +67,7 @@ async def data(database_engine):
             deployment=core.Deployment(
                 id=d_3_1_id,
                 name="d-3-1",
+                flow_data=flow_data,
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
             )

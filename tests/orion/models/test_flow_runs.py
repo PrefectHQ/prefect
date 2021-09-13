@@ -115,11 +115,19 @@ class TestCreateFlowRun:
 
         assert flow_run.id != flow_run_2.id
 
-    async def test_create_flow_run_with_deployment_id(self, flow, session):
+    async def test_create_flow_run_with_deployment_id(
+        self, flow, session, flow_function
+    ):
 
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="",
+                flow_id=flow.id,
+                flow_data=schemas.data.DataDocument.encode(
+                    "cloudpickle", flow_function
+                ),
+            ),
         )
         flow_run = await models.flow_runs.create_flow_run(
             session=session,

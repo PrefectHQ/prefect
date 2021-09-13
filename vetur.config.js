@@ -1,0 +1,16 @@
+// vetur.config.js
+/** @type {import('vls').VeturConfig} */
+module.exports = {
+  settings: {
+    "vetur.useWorkspaceDependencies": true,
+    "vetur.experimental.templateInterpolationService": true,
+  },
+  projects: [
+    "./orion-ui",
+    {
+      root: "./orion-ui",
+      package: "./package.json",
+      tsconfig: "./tsconfig.json",
+    },
+  ],
+};

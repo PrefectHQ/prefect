@@ -1,0 +1,37 @@
+[
+  {
+    "id": "9997b218-bd38-4c2e-aa69-c6da5b831727",
+    "name": "ETL Deployment - Morning",
+    "tags": ["database", "morning", "prod"]
+  },
+  {
+    "id": "0c2bc81d-f949-4168-ac55-30ab293ab9f0",
+    "name": "ETL Deployment - Evening",
+    "tags": ["database", "evening", "prod"]
+  },
+  {
+    "id": "dd856c06-7bd8-406e-97da-50bc65755080",
+    "name": "Wakeup reminder Deployment",
+    "tags": ["morning", "personal"]
+  },
+  {
+    "id": "e71cd4f5-9533-4b95-99ae-80e844acb4e9",
+    "name": "ETL Deployment",
+    "tags": ["dev"]
+  },
+  {
+    "id": "eedb5e2b-e375-4930-b035-2b223a04ba56",
+    "name": "Aurora - Illinois",
+    "tags": ["IL", "personal"]
+  },
+  {
+    "id": "a24a2f4e-64b2-4719-a0b7-ad394cdb74db",
+    "name": "Aurora - California",
+    "tags": ["CA", "personal"]
+  },
+  {
+    "id": "9faba929-cbd1-4ccb-ac5f-59410f189c06",
+    "name": "Aurora - Washington D.C.",
+    "tags": ["DC", "personal"]
+  }
+]
