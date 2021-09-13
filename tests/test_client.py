@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta
 from uuid import UUID
 
 import pytest
@@ -8,7 +9,9 @@ from prefect import flow
 from prefect.client import OrionClient
 from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.data import DataDocument
 from prefect.tasks import task
+from prefect.orion.schemas.schedules import IntervalSchedule
 
 
 async def test_create_then_read_flow(orion_client):
@@ -23,6 +26,29 @@ async def test_create_then_read_flow(orion_client):
     assert isinstance(lookup, schemas.core.Flow)
     assert lookup.name == foo.name
     assert lookup.tags == list(foo.tags)
+
+
+async def test_create_then_read_deployment(orion_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+    flow_data = DataDocument.encode("cloudpickle", foo)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        flow_data=flow_data,
+        schedule=schedule,
+    )
+
+    lookup = await orion_client.read_deployment(deployment_id)
+    assert isinstance(lookup, schemas.core.Deployment)
+    assert lookup.name == "test-deployment"
+    assert lookup.flow_data == flow_data
+    assert lookup.schedule == schedule
 
 
 async def test_create_then_read_flow_run(orion_client):
