@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from prefect.orion import schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
     BaseUniversalRule,
     OrchestrationContext,
@@ -58,6 +59,11 @@ class TestBaseOrchestrationRule:
         class IllustrativeRule(BaseOrchestrationRule):
             # we implement rules by inheriting from `BaseOrchestrationRule`
             # in order to do so, we need to define three methods:
+
+            # when creating a rule, we need to specify lists of valid
+            # state types the rule can operate on
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
 
             # a before-transition hook that fires upon entering the rule, returns None
             # and is the only opportunity for a rule to modify the state transition
@@ -117,6 +123,9 @@ class TestBaseOrchestrationRule:
         cleanup_step = MagicMock()
 
         class MinimalRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 before_transition_hook()
 
@@ -214,6 +223,9 @@ class TestBaseOrchestrationRule:
         cleanup_step = MagicMock()
 
         class FizzlingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             # the before transition hook causes a side-effect
             async def before_transition(self, initial_state, proposed_state, context):
                 nonlocal side_effect
@@ -284,6 +296,9 @@ class TestBaseOrchestrationRule:
         cleanup_step = MagicMock()
 
         class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
                 mutated_state = proposed_state.copy()
@@ -341,6 +356,9 @@ class TestBaseOrchestrationRule:
         cleanup_step = MagicMock()
 
         class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
                 mutated_state = proposed_state.copy()
@@ -408,6 +426,9 @@ class TestBaseOrchestrationRule:
         # both of the rules produce side-effects on entry and exit, which we can test for
 
         class FirstMinimalRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 nonlocal side_effects
                 side_effects += 1
@@ -424,6 +445,9 @@ class TestBaseOrchestrationRule:
                 cleanup_step()
 
         class SecondMinimalRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 nonlocal side_effects
                 side_effects += 1
@@ -522,6 +546,9 @@ class TestBaseOrchestrationRule:
         # we should see no side effects after exiting the rule contexts
 
         class FirstMinimalRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 nonlocal side_effects
                 side_effects += 1
@@ -538,6 +565,9 @@ class TestBaseOrchestrationRule:
                 cleanup_after_fizzling()
 
         class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 # this rule mutates the proposed state type, but won't fizzle itself upon exiting
                 mutated_state_type = random.choice(
@@ -565,6 +595,9 @@ class TestBaseOrchestrationRule:
                 mutator_cleanup()
 
         class InvalidatedRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 nonlocal side_effects
                 side_effects += 1
@@ -767,6 +800,9 @@ class TestOrchestrationContext:
         self, session, run_type, initialize_orchestration
     ):
         class EvilVillainRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 context.initial_state.type = states.StateType.CANCELLED
                 context.proposed_state.type = states.StateType.COMPLETED
@@ -814,6 +850,9 @@ class TestOrchestrationContext:
         self, session, run_type, initialize_orchestration
     ):
         class PoliteHeroRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
                 await self.reject_transition(
@@ -837,6 +876,9 @@ class TestOrchestrationContext:
         self, session, run_type, initialize_orchestration
     ):
         class TardyHeroRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def after_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
                 await self.reject_transition(
@@ -860,6 +902,9 @@ class TestOrchestrationContext:
         self, session, run_type, initialize_orchestration, delay
     ):
         class WaitingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def before_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
                 await self.delay_transition(delay, reason="heroes should not be late")
@@ -883,6 +928,9 @@ class TestOrchestrationContext:
         self, session, run_type, initialize_orchestration, delay
     ):
         class WaitingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
             async def after_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
                 await self.delay_transition(delay, reason="heroes should not be late")
