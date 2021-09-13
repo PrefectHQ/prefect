@@ -2,6 +2,10 @@
 
 .list--item {
   background-color: $white;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
   padding: 16px;
   width: 100%;
 
