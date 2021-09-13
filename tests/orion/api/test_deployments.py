@@ -7,19 +7,25 @@ import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.schemas.actions import DeploymentCreate
+from prefect.orion.schemas.data import DataDocument
 import prefect
 
 services_settings = prefect.settings.orion.services
 
 
 class TestCreateDeployment:
-    async def test_create_deployment(self, session, client, flow):
-        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
-            json_compatible=True
-        )
+    async def test_create_deployment(self, session, client, flow, flow_function):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+        ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -28,42 +34,62 @@ class TestCreateDeployment:
         assert str(deployment.id) == deployment_id
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
-        self, session, client, flow
+        self, session, client, flow, flow_function
     ):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
         data = DeploymentCreate(
-            name="My Deployment", flow_id=flow.id, is_schedule_active=False
+            name="My Deployment",
+            flow_id=flow.id,
+            flow_data=flow_data,
+            is_schedule_active=False,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         deployment_id = response.json()["id"]
 
         # post the same data
         data = DeploymentCreate(
-            name="My Deployment", flow_id=flow.id, is_schedule_active=False
+            name="My Deployment",
+            flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            is_schedule_active=False,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 200
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
         data = DeploymentCreate(
-            name="My Deployment", flow_id=flow.id, is_schedule_active=True
+            name="My Deployment",
+            flow_id=flow.id,
+            flow_data=DataDocument.encode("json", "test"),
+            is_schedule_active=True,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 200
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["is_schedule_active"]
-
-    async def test_create_deployment_populates_and_returned_created(self, client, flow):
-        now = pendulum.now(tz="UTC")
-
-        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
+        assert response.json()["flow_data"] == DataDocument.encode("json", "test").dict(
             json_compatible=True
         )
+
+    async def test_create_deployment_populates_and_returned_created(
+        self, client, flow, flow_function
+    ):
+        now = pendulum.now(tz="UTC")
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            flow_id=flow.id,
+        ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
@@ -71,7 +97,7 @@ class TestCreateDeployment:
         assert pendulum.parse(response.json()["updated"]) >= now
 
     async def test_creating_deployment_with_active_schedule_creates_runs(
-        self, session, client, flow
+        self, session, client, flow, flow_function
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
@@ -81,6 +107,7 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
                 ),
@@ -93,7 +120,7 @@ class TestCreateDeployment:
         assert n_runs == 100
 
     async def test_creating_deployment_with_inactive_schedule_creates_no_runs(
-        self, session, client, flow
+        self, session, client, flow, flow_function
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
@@ -103,6 +130,7 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(days=1)
                 ),
@@ -116,7 +144,7 @@ class TestCreateDeployment:
         assert n_runs == 0
 
     async def test_creating_deployment_with_no_schedule_creates_no_runs(
-        self, session, client, flow
+        self, session, client, flow, flow_function
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 0
@@ -126,6 +154,7 @@ class TestCreateDeployment:
             json=DeploymentCreate(
                 name="My Deployment",
                 flow_id=flow.id,
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
                 is_schedule_active=True,
             ).dict(json_compatible=True),
         )
@@ -136,7 +165,7 @@ class TestCreateDeployment:
         assert n_runs == 0
 
     async def test_upserting_deployment_with_inactive_schedule_deletes_existing_auto_scheduled_runs(
-        self, client, deployment, session
+        self, client, deployment, session, flow_function
     ):
 
         # set active to schedule runs
@@ -165,6 +194,7 @@ class TestCreateDeployment:
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
                 schedule=deployment.schedule,
                 is_schedule_active=False,
             ).dict(json_compatible=True),
@@ -174,7 +204,11 @@ class TestCreateDeployment:
         assert n_runs == 1
 
     async def test_upserting_deployment_with_new_schedule_deletes_existing_auto_scheduled_runs(
-        self, client, deployment, session
+        self,
+        client,
+        deployment,
+        session,
+        flow_function,
     ):
 
         # set active to schedule runs
@@ -203,6 +237,7 @@ class TestCreateDeployment:
             json=schemas.actions.DeploymentCreate(
                 name=deployment.name,
                 flow_id=deployment.flow_id,
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
                 schedule=schemas.schedules.IntervalSchedule(
                     interval=datetime.timedelta(seconds=1)
                 ),
@@ -221,11 +256,16 @@ class TestCreateDeployment:
 
 
 class TestReadDeployment:
-    async def test_read_deployment(self, client, flow):
+    async def test_read_deployment(self, client, flow, flow_function):
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
         # first create a deployment to read
-        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
-            json_compatible=True
-        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+        ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         deployment_id = response.json()["id"]
 
@@ -235,6 +275,7 @@ class TestReadDeployment:
         assert response.json()["id"] == deployment_id
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_id"] == str(flow.id)
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
 
     async def test_read_deployment_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/deployments/{uuid4()}")
@@ -243,18 +284,22 @@ class TestReadDeployment:
 
 class TestReadDeployments:
     @pytest.fixture
-    async def deployments(self, client, flow):
+    async def deployments(self, client, flow, flow_function):
         await client.post(
             "/deployments/",
-            json=DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
-                json_compatible=True
-            ),
+            json=DeploymentCreate(
+                name="My Deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                flow_id=flow.id,
+            ).dict(json_compatible=True),
         )
         await client.post(
             "/deployments/",
-            json=DeploymentCreate(name="My Deployment 2", flow_id=flow.id).dict(
-                json_compatible=True
-            ),
+            json=DeploymentCreate(
+                name="My Deployment 2",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                flow_id=flow.id,
+            ).dict(json_compatible=True),
         )
 
     async def test_read_deployments(self, deployments, client):
@@ -285,12 +330,14 @@ class TestReadDeployments:
 
 
 class TestDeleteDeployment:
-    async def test_delete_deployment(self, client, flow):
+    async def test_delete_deployment(self, client, flow, flow_function):
         # first create a deployment to delete
 
-        data = DeploymentCreate(name="My Deployment", flow_id=flow.id).dict(
-            json_compatible=True
-        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            flow_id=flow.id,
+        ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         deployment_id = response.json()["id"]
 

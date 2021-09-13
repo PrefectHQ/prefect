@@ -3,14 +3,16 @@ import datetime
 import pendulum
 from prefect.orion import models, schemas
 from prefect.orion.services.scheduler import Scheduler
+from prefect.orion.schemas.data import DataDocument
 
 
-async def test_create_schedules_from_deployment(flow, session):
+async def test_create_schedules_from_deployment(flow, session, flow_function):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -28,12 +30,13 @@ async def test_create_schedules_from_deployment(flow, session):
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
-async def test_create_schedule_respects_max_future_time(flow, session):
+async def test_create_schedule_respects_max_future_time(flow, session, flow_function):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=30),
                 anchor_date=pendulum.now("UTC"),
@@ -54,7 +57,7 @@ async def test_create_schedule_respects_max_future_time(flow, session):
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
-async def test_create_schedules_from_multiple_deployments(flow, session):
+async def test_create_schedules_from_multiple_deployments(flow, session, flow_function):
     flow_2 = await models.flows.create_flow(
         session=session, flow=schemas.core.Flow(name="flow-2")
     )
@@ -64,6 +67,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),
@@ -74,6 +78,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
         deployment=schemas.core.Deployment(
             name="test-2",
             flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=10)
             ),
@@ -84,6 +89,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow_2.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=5)
             ),
@@ -109,12 +115,13 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
     assert set(expected_dates) == {r.state.state_details.scheduled_time for r in runs}
 
 
-async def test_scheduler_respects_schedule_is_active(flow, session):
+async def test_scheduler_respects_schedule_is_active(flow, session, flow_function):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="test",
             flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(hours=1)
             ),

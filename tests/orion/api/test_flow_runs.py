@@ -5,7 +5,7 @@ import sqlalchemy as sa
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas import actions, core, responses, states
+from prefect.orion.schemas import actions, core, responses, states, data
 
 
 class TestCreateFlowRun:
@@ -104,11 +104,17 @@ class TestCreateFlowRun:
         assert str(flow_run.state.id) == flow_run_data["state"]["id"]
         assert flow_run.state.type.value == flow_run_data["state"]["type"]
 
-    async def test_create_flow_run_with_deployment_id(self, flow, client, session):
+    async def test_create_flow_run_with_deployment_id(
+        self, flow, client, session, flow_function
+    ):
 
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=core.Deployment(name="", flow_id=flow.id),
+            deployment=core.Deployment(
+                name="",
+                flow_id=flow.id,
+                flow_data=data.DataDocument.encode("cloudpickle", flow_function),
+            ),
         )
         await session.commit()
 
