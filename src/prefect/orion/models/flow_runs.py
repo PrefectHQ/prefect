@@ -80,71 +80,16 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
     return await session.get(orm.FlowRun, flow_run_id)
 
 
-async def read_flow_runs(
-    session: sa.orm.Session,
+def _apply_flow_run_filters(
+    query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
-    offset: int = None,
-    limit: int = None,
-) -> List[orm.FlowRun]:
-    """Read flow runs
-
-    Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only select flow runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only select flow runs match these filters
-        task_run_filter (TaskRunFilter): only select flow runs whose task runs match these filters
-        offset (int): Query offset
-        limit (int): Query limit
-
-    Returns:
-        List[orm.FlowRun]: flow runs
+):
     """
-    query = select(orm.FlowRun).order_by(orm.FlowRun.id)
-
-    if flow_run_filter:
-        query = query.where(flow_run_filter.as_sql_filter())
-
-    if flow_filter:
-        query = query.join(orm.Flow, orm.Flow.id == orm.FlowRun.flow_id).where(
-            flow_filter.as_sql_filter()
-        )
-
-    if task_run_filter:
-        query = query.join(
-            orm.TaskRun, orm.FlowRun.id == orm.TaskRun.flow_run_id
-        ).where(task_run_filter.as_sql_filter())
-
-    if offset is not None:
-        query = query.offset(offset)
-
-    if limit is None:
-        limit = prefect.settings.orion.database.default_limit
-
-    query = query.limit(limit)
-    result = await session.execute(query)
-    return result.scalars().unique().all()
-
-
-async def count_flow_runs(
-    session: sa.orm.Session,
-    flow_filter: schemas.filters.FlowFilter = None,
-    flow_run_filter: schemas.filters.FlowRunFilter = None,
-    task_run_filter: schemas.filters.TaskRunFilter = None,
-) -> int:
-    """Count flow runs
-
-    Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only count flow runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only count flow runs that match these filters
-        task_run_filter (TaskRunFilter): only count flow runs whose task runs match these filters
-
-    Returns:
-        int: count of flow runs
+    Applies filters to a flow run query as a combination of correlated
+    EXISTS subqueries.
     """
-    query = select(sa.func.count(sa.text("*"))).select_from(orm.FlowRun)
 
     if flow_run_filter:
         query = query.where(flow_run_filter.as_sql_filter())
@@ -172,6 +117,75 @@ async def count_flow_runs(
             )
 
         query = query.where(exists_clause.exists())
+
+    return query
+
+
+async def read_flow_runs(
+    session: sa.orm.Session,
+    flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    offset: int = None,
+    limit: int = None,
+) -> List[orm.FlowRun]:
+    """Read flow runs
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_filter (FlowFilter): only select flow runs whose flows match these filters
+        flow_run_filter (FlowRunFilter): only select flow runs match these filters
+        task_run_filter (TaskRunFilter): only select flow runs whose task runs match these filters
+        offset (int): Query offset
+        limit (int): Query limit
+
+    Returns:
+        List[orm.FlowRun]: flow runs
+    """
+    query = select(orm.FlowRun).order_by(orm.FlowRun.id)
+
+    query = _apply_flow_run_filters(
+        query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
+
+    if offset is not None:
+        query = query.offset(offset)
+
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
+
+
+async def count_flow_runs(
+    session: sa.orm.Session,
+    flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+) -> int:
+    """Count flow runs
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_filter (FlowFilter): only count flow runs whose flows match these filters
+        flow_run_filter (FlowRunFilter): only count flow runs that match these filters
+        task_run_filter (TaskRunFilter): only count flow runs whose task runs match these filters
+
+    Returns:
+        int: count of flow runs
+    """
+    query = select(sa.func.count(sa.text("*"))).select_from(orm.FlowRun)
+
+    query = _apply_flow_run_filters(
+        query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
 
     result = await session.execute(query)
     return result.scalar()

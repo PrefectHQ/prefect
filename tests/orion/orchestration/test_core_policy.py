@@ -61,7 +61,7 @@ class TestWaitForScheduledTimeRule:
         assert ctx.proposed_state is None
         assert abs(ctx.response_details.delay_seconds - 300) < 2
 
-    async def test_scheduled_states_without_scheduled_times_are_bad(
+    async def test_scheduling_rule_does_not_fire_against_other_state_types(
         self,
         session,
         run_type,
@@ -76,9 +76,10 @@ class TestWaitForScheduledTimeRule:
             *intended_transition,
         )
 
-        with pytest.raises(ValueError):
-            async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
-                pass
+        scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
+        async with scheduling_rule as ctx:
+            pass
+        assert await scheduling_rule.invalid()
 
 
 class TestCachingBackendLogic:
@@ -206,7 +207,7 @@ class TestRetryingRule:
         )
 
         ctx.run_settings.max_retries = 2
-        ctx.run_details.run_count = 2
+        ctx.run.run_count = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -232,7 +233,7 @@ class TestRetryingRule:
         )
 
         ctx.run_settings.max_retries = 2
-        ctx.run_details.run_count = 3
+        ctx.run.run_count = 3
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
