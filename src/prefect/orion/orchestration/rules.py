@@ -47,15 +47,6 @@ class OrchestrationContext(PrefectBaseModel):
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
 
-    @validator("run_type", pre=True, always=True)
-    def infer_run_type(cls, v, *, values, **kwargs):
-        if v is None and "run" in values:
-            if isinstance(values["run"], core.TaskRun):
-                return "task_run"
-            elif isinstance(values["run"], core.FlowRun):
-                return "flow_run"
-        return v
-
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
         return self.initial_state.type if self.initial_state else None
@@ -71,15 +62,6 @@ class OrchestrationContext(PrefectBaseModel):
     @property
     def run_settings(self):
         return self.run.empirical_policy
-
-    async def orm_run(self):
-        if self.run_type == "flow_run":
-            run = await self.session.get(orm.FlowRun, self.flow_run_id)
-        else:
-            run = await self.session.get(orm.TaskRun, self.task_run_id)
-        if not run:
-            raise ValueError("Run not found.")
-        return run
 
     def safe_copy(self):
         safe_copy = self.copy()
@@ -131,6 +113,12 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
+    async def orm_run(self):
+        run = await self.session.get(orm.TaskRun, self.task_run_id)
+        if not run:
+            raise ValueError("Run not found.")
+        return run
+
 
 class FlowOrchestrationContext(OrchestrationContext):
     run_id: UUID
@@ -156,6 +144,12 @@ class FlowOrchestrationContext(OrchestrationContext):
         self.validated_state = validated_state
 
         return validated_orm_state
+
+    async def orm_run(self):
+        run = await self.session.get(orm.FlowRun, self.flow_run_id)
+        if not run:
+            raise ValueError("Run not found.")
+        return run
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
