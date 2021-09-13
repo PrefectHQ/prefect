@@ -17,7 +17,23 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
         assert task_run.task_key == "my-key"
 
-    async def test_create_flow_run_has_no_default_state(self, flow_run, session):
+    async def test_create_task_run_with_dynamic_key(self, flow_run, session):
+        fake_task_run = schemas.core.TaskRun(
+            flow_run_id=flow_run.id, task_key="my-key", dynamic_key="TB12"
+        )
+        task_run = await models.task_runs.create_task_run(
+            session=session, task_run=fake_task_run
+        )
+        assert task_run.flow_run_id == flow_run.id
+        assert task_run.task_key == "my-key"
+        assert task_run.dynamic_key == "TB12"
+
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session, task_run=fake_task_run
+        )
+        assert task_run_2.id == task_run.id
+
+    async def test_create_task_run_has_no_default_state(self, flow_run, session):
         task_run = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.actions.TaskRunCreate(
@@ -48,6 +64,65 @@ class TestCreateTaskRun:
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"
+
+        # creating a different task run without a dynamic key should create
+        # a new state
+        new_task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                state=schemas.states.State(type="SCHEDULED", name="My Scheduled State"),
+            ),
+        )
+        assert new_task_run.flow_run_id == flow_run.id
+        assert new_task_run.state.id != task_run.state.id
+
+        query = await session.execute(
+            sa.select(models.orm.TaskRunState).filter_by(id=new_task_run.state.id)
+        )
+        result = query.scalar()
+        assert result.id != state_id
+        assert result.name == "My Scheduled State"
+
+    async def test_create_task_run_with_state_and_dynamic_key(self, flow_run, session):
+        scheduled_state_id = uuid4()
+        running_state_id = uuid4()
+
+        scheduled_task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="TB12",
+                state=schemas.states.State(
+                    id=scheduled_state_id, type="SCHEDULED", name="My Scheduled State"
+                ),
+            ),
+        )
+        assert scheduled_task_run.flow_run_id == flow_run.id
+        assert scheduled_task_run.state.id == scheduled_state_id
+
+        running_task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="TB12",
+                state=schemas.states.State(
+                    id=running_state_id, type="RUNNING", name="My Running State"
+                ),
+            ),
+        )
+        assert running_task_run.flow_run_id == flow_run.id
+        assert running_task_run.state.id == scheduled_state_id
+
+        query = await session.execute(
+            sa.select(models.orm.TaskRunState).filter_by(id=scheduled_state_id)
+        )
+        result = query.scalar()
+        assert result.id == scheduled_state_id
+        assert result.name == "My Scheduled State"
 
 
 class TestReadTaskRun:

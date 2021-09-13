@@ -22,11 +22,11 @@ async def create_flow(
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
     """
-    now = pendulum.now()
-    flow = await models.flows.create_flow(session=session, flow=flow)
-    if flow.created >= now:
+    now = pendulum.now("UTC")
+    model = await models.flows.create_flow(session=session, flow=flow)
+    if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    return flow
+    return model
 
 
 # must be defined before `GET /:id`

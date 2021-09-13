@@ -5,7 +5,6 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.utilities.database import Timestamp
 
 
 class TestCreateFlowRun:
@@ -45,12 +44,48 @@ class TestCreateFlowRun:
         assert result.id == state_id
         assert result.name == "My Running State"
 
+    async def test_create_flow_run_with_state_and_idempotency_key(self, flow, session):
+        scheduled_state_id = uuid4()
+        running_state_id = uuid4()
+
+        scheduled_flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                idempotency_key="TB12",
+                state=schemas.states.State(
+                    id=scheduled_state_id, type="SCHEDULED", name="My Scheduled State"
+                ),
+            ),
+        )
+        assert scheduled_flow_run.flow_id == flow.id
+        assert scheduled_flow_run.state.id == scheduled_state_id
+
+        running_flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id,
+                idempotency_key="TB12",
+                state=schemas.states.State(
+                    id=running_state_id, type="RUNNING", name="My Running State"
+                ),
+            ),
+        )
+        assert running_flow_run.flow_id == flow.id
+        assert running_flow_run.state.id == scheduled_state_id
+
+        query = await session.execute(
+            sa.select(models.orm.FlowRunState).filter_by(id=scheduled_state_id)
+        )
+        result = query.scalar()
+        assert result.id == scheduled_state_id
+        assert result.name == "My Scheduled State"
+
     async def test_create_multiple_flow_runs(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
-
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id),
@@ -91,11 +126,11 @@ class TestCreateFlowRun:
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
         )
-        with pytest.raises(sa.exc.IntegrityError):
-            await models.flow_runs.create_flow_run(
-                session=session,
-                flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
-            )
+        anotha_flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, idempotency_key="test"),
+        )
+        assert flow_run.id == anotha_flow_run.id
 
     async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
         self, flow, session
