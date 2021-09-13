@@ -12,6 +12,7 @@ from pydantic import root_validator, validator
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
@@ -137,11 +138,12 @@ async def create_deployment_from_spec(
     """
     spec.load_flow()
     flow_id = await client.create_flow(spec.flow)
+    flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
         name=spec.name,
-        schedule=None,
-        flow_location=spec.flow_location,
+        schedule=spec.schedule,
+        flow_data=flow_data,
     )
 
     return deployment_id
