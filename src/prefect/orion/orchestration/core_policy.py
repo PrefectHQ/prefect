@@ -2,6 +2,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
+from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -9,6 +10,7 @@ from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
     OrchestrationContext,
     TaskOrchestrationContext,
+    FlowOrchestrationContext,
 )
 from prefect.orion.schemas import states
 
@@ -17,6 +19,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             WaitForScheduledTime,
+            UpdateSubflowParentTask,
         ]
 
 
@@ -136,4 +139,32 @@ class WaitForScheduledTime(BaseOrchestrationRule):
         if delay_seconds > 0:
             await self.delay_transition(
                 delay_seconds, reason="Scheduled time is in the future"
+            )
+
+
+class UpdateSubflowParentTask(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def after_transition(
+        self,
+        initial_state: states.State,
+        validated_state: states.State,
+        context: FlowOrchestrationContext,
+    ) -> None:
+        parent_task_run_id = context.run.parent_task_run_id
+        columns = {"type", "timestamp", "name", "message", "state_details", "data"}
+        if parent_task_run_id is not None and validated_state is not None:
+            flow_state_data = validated_state.dict(shallow=True)
+            task_state_data = dict(
+                (k, v) for k, v in flow_state_data.items() if k in columns
+            )
+
+            subflow_parent_task_state = schemas.states.State(
+                **task_state_data,
+            )
+            await models.task_run_states.orchestrate_task_run_state(
+                session=context.session,
+                state=subflow_parent_task_state,
+                task_run_id=parent_task_run_id,
             )
