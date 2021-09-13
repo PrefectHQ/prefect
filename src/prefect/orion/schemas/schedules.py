@@ -1,7 +1,6 @@
 import asyncio
 import datetime
-from typing import Any, Dict, List, Set, Union
-from uuid import UUID
+from typing import List, Set
 
 import pendulum
 import pytz
@@ -9,7 +8,7 @@ from croniter import croniter
 from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
 
-from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 MAX_ITERATIONS = 10000
 
@@ -43,7 +42,7 @@ class IntervalScheduleFilters(PrefectBaseModel):
 
     @validator("days_of_month")
     def zero_is_invalid_day_of_month(cls, v):
-        if 0 in v:
+        if v and 0 in v:
             raise ValueError("0 is not a valid day of the month")
         return v
 
@@ -98,13 +97,15 @@ class IntervalScheduleAdjustments(PrefectBaseModel):
 
 
 class IntervalSchedule(PrefectBaseModel):
+    class Config:
+        exclude_none = True
 
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
 
-    filters = IntervalScheduleFilters()
-    adjustments = IntervalScheduleAdjustments()
+    filters: IntervalScheduleFilters = IntervalScheduleFilters()
+    adjustments: IntervalScheduleAdjustments = IntervalScheduleAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
@@ -155,7 +156,7 @@ class IntervalSchedule(PrefectBaseModel):
         offset = (
             start - self.anchor_date
         ).total_seconds() / self.interval.total_seconds()
-        next_date = self.anchor_date.add(
+        next_date = pendulum.instance(self.anchor_date).add(
             seconds=self.interval.total_seconds() * int(offset)
         )
 

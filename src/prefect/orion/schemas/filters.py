@@ -1,13 +1,22 @@
-import sqlalchemy as sa
 import datetime
 from typing import List
 from uuid import UUID
-from pydantic import Field
 
-from prefect.orion.utilities.database import json_has_all_keys
+import sqlalchemy as sa
+from pydantic import Field, conint
+
+import prefect
 from prefect.orion import schemas
-from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.models import orm
+from prefect.orion.utilities.database import json_has_all_keys
+from prefect.orion.utilities.schemas import PrefectBaseModel
+
+
+class Pagination(PrefectBaseModel):
+    limit: conint(
+        ge=0, le=prefect.settings.orion.api.default_limit
+    ) = prefect.settings.orion.api.default_limit
+    offset: conint(ge=0) = 0
 
 
 class FlowFilter(PrefectBaseModel):
@@ -22,7 +31,7 @@ class FlowFilter(PrefectBaseModel):
     tags_all: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Flows will be returned only if their tags are a subset of the list",
+        description="A list of tags. Flows will be returned only if their tags are a superset of the list",
     )
 
     def as_sql_filter(self) -> List:
@@ -33,7 +42,10 @@ class FlowFilter(PrefectBaseModel):
         if self.names is not None:
             filters.append(orm.Flow.name.in_(self.names))
         if self.tags_all is not None:
-            filters.append(json_has_all_keys(orm.Flow.tags, self.tags_all))
+            if self.tags_all == []:
+                filters.append(orm.Flow.tags == [])
+            else:
+                filters.append(json_has_all_keys(orm.Flow.tags, self.tags_all))
 
         return sa.and_(*filters) if filters else sa.and_(True)
 
@@ -45,9 +57,11 @@ class FlowRunFilter(PrefectBaseModel):
     tags_all: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Flow runs will be returned only if their tags are a subset of the list",
+        description="A list of tags. Flow runs will be returned only if their tags are a superset of the list",
     )
-
+    deployment_ids: List[UUID] = Field(
+        None, description="A list of deployment IDs to include"
+    )
     states: List[schemas.states.StateType] = Field(
         None, description="A list of state types to include"
     )
@@ -66,7 +80,12 @@ class FlowRunFilter(PrefectBaseModel):
         if self.ids is not None:
             filters.append(orm.FlowRun.id.in_(self.ids))
         if self.tags_all is not None:
-            filters.append(json_has_all_keys(orm.FlowRun.tags, self.tags_all))
+            if self.tags_all == []:
+                filters.append(orm.FlowRun.tags == [])
+            else:
+                filters.append(json_has_all_keys(orm.FlowRun.tags, self.tags_all))
+        if self.deployment_ids is not None:
+            filters.append(orm.FlowRun.deployment_id.in_(self.deployment_ids))
         if self.flow_versions is not None:
             filters.append(orm.FlowRun.flow_version.in_(self.flow_versions))
         if self.states is not None:
@@ -100,7 +119,7 @@ class TaskRunFilter(PrefectBaseModel):
     tags_all: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
-        description="A list of tags. Task runs will be returned only if their tags are a subset of the list",
+        description="A list of tags. Task runs will be returned only if their tags are a superset of the list",
     )
     states: List[schemas.states.StateType] = Field(
         None, description="A list of state types to include"
@@ -114,7 +133,10 @@ class TaskRunFilter(PrefectBaseModel):
         if self.ids is not None:
             filters.append(orm.TaskRun.id.in_(self.ids))
         if self.tags_all is not None:
-            filters.append(json_has_all_keys(orm.TaskRun.tags, self.tags_all))
+            if self.tags_all == []:
+                filters.append(orm.TaskRun.tags == [])
+            else:
+                filters.append(json_has_all_keys(orm.TaskRun.tags, self.tags_all))
         if self.states is not None:
             filters.append(
                 orm.TaskRun.state.has(orm.TaskRunState.type.in_(self.states))
