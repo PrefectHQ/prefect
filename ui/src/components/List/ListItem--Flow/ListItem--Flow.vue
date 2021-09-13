@@ -1,5 +1,27 @@
 <template>
-  <ListItem> {{ flow.name }} - {{ flow.id }} </ListItem>
+  <ListItem>
+    <div>
+      <i class="item--icon pi pi-flow pi-2x" />
+
+      <div>
+        <div class="item--title subheader">
+          {{ flow.name }}
+        </div>
+        <Tag
+          v-for="tag in flow.tags"
+          :key="tag"
+          color="secondary-pressed"
+          class="item--tags mr-1"
+          outlined
+        >
+          {{ tag }}
+        </Tag>
+      </div>
+    </div>
+
+    <div class="ml-auto caption-small mr-2"> Run chart placeholder </div>
+    <Button color="primary">Quick run</Button>
+  </ListItem>
 </template>
 
 <script lang="ts">
@@ -17,6 +39,4 @@ class Props {
 export default class ListItemFlow extends Vue.with(Props) {}
 </script>
 
-<style lang="scss">
-// @use '@/styles/components/list--item.scss';
-</style>
+<style lang="scss"></style>

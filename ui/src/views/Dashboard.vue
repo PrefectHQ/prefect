@@ -2,29 +2,86 @@
   <div>
     <h1>Dashboard</h1>
 
-    <h2>Flows</h2>
-    <List>
-      <FlowListItem v-for="flow in flowList" :key="flow.id" :flow="flow" />
-    </List>
+    <Tabs v-model="resultsTab" class="mt-5">
+      <Tab href="flows">
+        <i class="pi pi-flow pi-lg mr-1" />
+        Flows
+        <span class="result-badge" :class="{ active: resultsTab == 'flows' }">
+          {{ flowList.length }}
+        </span>
+      </Tab>
+      <Tab href="deployments">
+        <i class="pi pi-deployment pi-lg mr-1" />
+        Deployments
+        <span
+          class="result-badge"
+          :class="{ active: resultsTab == 'deployments' }"
+        >
+          {{ deploymentList.length }}
+        </span>
+      </Tab>
+      <Tab href="flow-runs">
+        <i class="pi pi-flow-run pi-lg mr-1" />
+        Flow Runs
+        <span
+          class="result-badge"
+          :class="{ active: resultsTab == 'flow-runs' }"
+        >
+          {{ flowRunList.length }}
+        </span>
+      </Tab>
+      <Tab href="task-runs">
+        <i class="pi pi-task-run pi-lg mr-1" />
+        Task Runs
+        <span
+          class="result-badge"
+          :class="{ active: resultsTab == 'task-runs' }"
+        >
+          {{ taskRunList.length }}
+        </span>
+      </Tab>
+    </Tabs>
 
-    <h2>Deployments</h2>
-    <List>
-      <DeploymentListItem
-        v-for="d in deploymentList"
-        :key="d.id"
-        :deployment="d"
-      />
-    </List>
+    <transition name="fade" mode="out-in">
+      <div v-if="resultsTab == 'flows'">
+        <div class="caption my-2">Flows</div>
+        <List>
+          <FlowListItem v-for="flow in flowList" :key="flow.id" :flow="flow" />
+        </List>
+      </div>
 
-    <h2>Flow Runs</h2>
-    <List>
-      <FlowRunListItem v-for="run in flowRunList" :key="run.id" :run="run" />
-    </List>
+      <div v-else-if="resultsTab == 'deployments'">
+        <div class="caption my-2">Deployments</div>
+        <List>
+          <DeploymentListItem
+            v-for="deployment in deploymentList"
+            :key="deployment.id"
+            :deployment="deployment"
+          />
+        </List>
+      </div>
+      <div v-else-if="resultsTab == 'flow-runs'">
+        <div class="caption my-2">Flow Runs</div>
+        <List>
+          <FlowRunListItem
+            v-for="run in flowRunList"
+            :key="run.id"
+            :run="run"
+          />
+        </List>
+      </div>
 
-    <h2>Task Runs</h2>
-    <List>
-      <TaskRunListItem v-for="run in taskRunList" :key="run.id" :run="run" />
-    </List>
+      <div v-else-if="resultsTab == 'task-runs'">
+        <div class="caption my-2">Task Runs</div>
+        <List>
+          <TaskRunListItem
+            v-for="run in taskRunList"
+            :key="run.id"
+            :run="run"
+          />
+        </List>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -58,8 +115,33 @@ export default class Dashboard extends Vue {
   flowRunList: FlowRun[] = flowRunList
   taskRunList: TaskRun[] = taskRunList
 
+  resultsTab: string = 'flows'
+
   sayHello(): void {
     console.log('hello!')
   }
 }
 </script>
+
+<style lang="scss" scoped>
+.result-badge {
+  border-radius: 16px;
+  padding: 4px 16px;
+  transition: 150ms all;
+
+  &.active {
+    background-color: $primary;
+    color: $white;
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
