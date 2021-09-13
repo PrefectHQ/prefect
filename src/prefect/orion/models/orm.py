@@ -337,17 +337,11 @@ class TaskRun(Base):
 class Deployment(Base):
     name = Column(String, nullable=False)
     flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)
-    schedule = Column(
-        Pydantic(
-            Union[
-                schedules.IntervalSchedule,
-                schedules.CronSchedule,
-            ]
-        )
-    )
+    schedule = Column(Pydantic(schedules.SCHEDULE_TYPES))
     is_schedule_active = Column(
         sa.Boolean, nullable=False, server_default="1", default=True
     )
+    flow_data = Column(Pydantic(data.DataDocument))
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
 
