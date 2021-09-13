@@ -1,37 +1,58 @@
 import datetime
-from typing import List, Tuple, Union
-from uuid import UUID, uuid4
+from typing import List
+from uuid import UUID
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
-from sqlalchemy.dialects.postgresql import insert as insert_postgres
-from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 
+import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import get_dialect
+from prefect.orion.orchestration.global_policy import update_run_details
+from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
 async def create_deployment(
-    session: sa.orm.Session, deployment: schemas.core.Deployment
+    session: sa.orm.Session,
+    deployment: schemas.core.Deployment,
 ) -> orm.Deployment:
-    """Creates a new deployment
+    """Upserts a deployment
 
     Args:
         session (sa.orm.Session): a database session
         deployment (schemas.core.Deployment): a deployment model
 
     Returns:
-        orm.Deployment: the newly-created deployment
-
-    Raises:
-        sqlalchemy.exc.IntegrityError: if a deployment with the same name already exists
+        orm.Deployment: the newly-created or updated deployment
 
     """
-    model = orm.Deployment(**deployment.dict(shallow=True))
-    session.add(model)
-    await session.flush()
+    insert_stmt = (
+        dialect_specific_insert(orm.Deployment)
+        .values(**deployment.dict(shallow=True, exclude_unset=True))
+        .on_conflict_do_update(
+            index_elements=["flow_id", "name"],
+            set_=deployment.dict(
+                shallow=True, include={"schedule", "is_schedule_active"}
+            ),
+        )
+    )
+
+    await session.execute(insert_stmt)
+
+    query = (
+        sa.select(orm.Deployment)
+        .where(
+            sa.and_(
+                orm.Deployment.flow_id == deployment.flow_id,
+                orm.Deployment.name == deployment.name,
+            )
+        )
+        .execution_options(populate_existing=True)
+    )
+    result = await session.execute(query)
+    model = result.scalar()
+
     return model
 
 
@@ -100,6 +121,17 @@ async def schedule_runs(
     end_time: datetime.datetime = None,
     max_runs: int = None,
 ):
+    if max_runs is None:
+        max_runs = prefect.settings.orion.services.scheduler_max_runs
+    if start_time is None:
+        start_time = pendulum.now("UTC")
+    start_time = pendulum.instance(start_time)
+    if end_time is None:
+        end_time = start_time.add(
+            seconds=prefect.settings.orion.services.scheduler_max_future_seconds
+        )
+    end_time = pendulum.instance(end_time)
+
     runs = await _generate_scheduled_flow_runs(
         session=session,
         deployment_id=deployment_id,
@@ -113,9 +145,9 @@ async def schedule_runs(
 async def _generate_scheduled_flow_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
-    start_time: datetime.datetime = None,
-    end_time: datetime.datetime = None,
-    max_runs: int = None,
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
+    max_runs: int,
 ) -> List[schemas.core.FlowRun]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -123,43 +155,37 @@ async def _generate_scheduled_flow_runs(
     does NOT insert generated runs into the database, in order to facilitate
     batch operations. Call `_insert_scheduled_flow_runs()` to insert these runs.
     """
-
-    if max_runs is None:
-        max_runs = 100
-    if start_time is None:
-        start_time = pendulum.now("UTC")
-    if end_time is None:
-        end_time = pendulum.now("UTC").add(years=1)
-
     runs = []
 
     # retrieve the deployment
     deployment = await session.get(orm.Deployment, deployment_id)
 
-    if not deployment:
-        raise ValueError(f'No deployment found: "{deployment_id}"')
+    if not deployment or not deployment.schedule or not deployment.is_schedule_active:
+        return []
 
     dates = await deployment.schedule.get_dates(
         n=max_runs, start=start_time, end=end_time
     )
 
     for date in dates:
-        runs.append(
-            schemas.core.FlowRun(
-                flow_id=deployment.flow_id,
-                deployment_id=deployment_id,
-                # parameters=,
-                idempotency_key=f"scheduled {deployment.id} {date}",
-                tags=["auto-scheduled"],
-                run_details=schemas.core.FlowRunDetails(
-                    auto_scheduled=True,
-                ),
-                state=schemas.states.Scheduled(
-                    scheduled_time=date,
-                    message="Flow run scheduled",
-                ),
-            )
+        run = schemas.core.FlowRun(
+            flow_id=deployment.flow_id,
+            deployment_id=deployment_id,
+            # parameters=,
+            idempotency_key=f"scheduled {deployment.id} {date}",
+            tags=["auto-scheduled"],
+            auto_scheduled=True,
+            state=schemas.states.Scheduled(
+                scheduled_time=date,
+                message="Flow run scheduled",
+            ),
         )
+        # apply run details updates because this state won't go through the orchestration engine
+        update_run_details(initial_state=None, proposed_state=run.state, run=run)
+        # do not set the `state_id` as it hasn't been created yet; it will be set
+        # when _insert_scheduled_flow_runs is called
+        run.state_id = None
+        runs.append(run)
 
     return runs
 
@@ -175,23 +201,13 @@ async def _insert_scheduled_flow_runs(
 
     Returns a list of flow runs that were created
     """
-    # gracefully insert runs against the idempotency key
-    if session.bind.dialect.name == "sqlite":
-        insert = insert_sqlite
-    elif session.bind.dialect.name == "postgresql":
-        # TODO postgres supports RETURNING so we can use the returned IDs to know which states to enter
-        # Sqlite does not so we need an alternative solution
-        insert = insert_postgres
-    else:
-        raise ValueError(f"Unrecognized dialect: {session.bind.dialect.name}")
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
+    insert = dialect_specific_insert(orm.FlowRun)
     await session.execute(
-        insert(orm.FlowRun.__table__).on_conflict_do_nothing(
-            index_elements=["flow_id", "idempotency_key"]
-        ),
+        insert.on_conflict_do_nothing(index_elements=["flow_id", "idempotency_key"]),
         [r.dict(exclude={"created", "updated"}) for r in runs],
     )
 
@@ -225,7 +241,7 @@ async def _insert_scheduled_flow_runs(
         )
 
         # set the `state_id` on the newly inserted runs
-        if get_dialect() == "postgresql":
+        if get_dialect().name == "postgresql":
             # postgres supports `UPDATE ... FROM` syntax
             stmt = (
                 sa.update(orm.FlowRun)

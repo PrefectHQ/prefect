@@ -1,6 +1,6 @@
+import itertools
 from collections.abc import Sequence, Set
-from typing import Any, Iterable, List, Tuple, TypeVar, Union, Dict, cast, Type
-
+from typing import Any, Dict, Iterable, List, Tuple, Type, TypeVar, Union, cast
 
 KT = TypeVar("KT")
 VT = TypeVar("VT")
@@ -68,3 +68,22 @@ def ensure_iterable(obj: Union[T, Iterable[T]]) -> Iterable[T]:
         return obj
     obj = cast(T, obj)  # No longer in the iterable case
     return [obj]
+
+
+def batched_iterable(iterable: Iterable, size: int):
+    """
+    Yield batches of a certain size from an iterable
+
+    Args:
+        - iterable (Iterable): An iterable
+        - size (int): The batch size to return
+
+    Yields:
+        tuple: A batch of the iterable
+    """
+    it = iter(iterable)
+    while True:
+        batch = tuple(itertools.islice(it, size))
+        if not batch:
+            break
+        yield batch
