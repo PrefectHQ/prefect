@@ -5,7 +5,7 @@ from prefect.orion.orchestration.rules import (
     BaseUniversalRule,
     OrchestrationContext,
 )
-from prefect.orion.schemas import states, core
+from prefect.orion.schemas import states
 from prefect.orion.models import orm
 
 
@@ -13,7 +13,6 @@ class GlobalPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             UpdateRunDetails,
-            UpdateStateDetails,
         ]
 
 
@@ -24,7 +23,6 @@ def update_run_details(
 ):
 
     # -- record the new state's details
-    run.state_id = proposed_state.id
     run.state_type = proposed_state.type
 
     # -- compute duration
@@ -94,16 +92,3 @@ class UpdateRunDetails(BaseUniversalRule):
             proposed_state=context.proposed_state,
             run=await context.orm_run(),
         )
-
-
-class UpdateStateDetails(BaseUniversalRule):
-    FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
-
-    async def before_transition(
-        self,
-        context: OrchestrationContext,
-    ) -> states.State:
-        if context.proposed_state is not None:
-            context.proposed_state.state_details.flow_run_id = context.flow_run_id
-            context.proposed_state.state_details.task_run_id = context.task_run_id
