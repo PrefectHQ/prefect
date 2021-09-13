@@ -6,9 +6,9 @@ module.exports = {
     "vetur.experimental.templateInterpolationService": true,
   },
   projects: [
-    "./ui",
+    "./orion-ui",
     {
-      root: "./ui",
+      root: "./orion-ui",
       package: "./package.json",
       tsconfig: "./tsconfig.json",
     },
