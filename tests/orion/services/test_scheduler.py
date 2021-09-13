@@ -35,8 +35,8 @@ async def test_create_schedule_respects_max_future_time(flow, session):
             name="test",
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                anchor_date=pendulum.now("UTC"),
                 interval=datetime.timedelta(days=30),
+                anchor_date=pendulum.now("UTC"),
             ),
         ),
     )
@@ -46,7 +46,8 @@ async def test_create_schedule_respects_max_future_time(flow, session):
     assert n_runs == 0
     await Scheduler().start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
-    assert len(runs) == 3 < Scheduler.max_runs
+
+    assert len(runs) == 3
     expected_dates = await deployment.schedule.get_dates(
         Scheduler.max_runs, end=pendulum.now().add(seconds=Scheduler.max_future_seconds)
     )
