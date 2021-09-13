@@ -79,7 +79,7 @@ class TestWaitForScheduledTimeRule:
         scheduling_rule = WaitForScheduledTime(ctx, *intended_transition)
         async with scheduling_rule as ctx:
             pass
-        assert scheduling_rule.invalid()
+        assert await scheduling_rule.invalid()
 
 
 class TestCachingBackendLogic:

@@ -408,6 +408,88 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
+    @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
+    async def test_rules_enforce_initial_state_validity(
+        self, session, task_run, initial_state_type
+    ):
+        proposed_state_type = None
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        pre_transition_hook = MagicMock()
+        post_transition_hook = MagicMock()
+
+        class StateEnforcingRule(BaseOrchestrationRule):
+            FROM_STATES = set(ALL_ORCHESTRATION_STATES) - {initial_state_type}
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                pre_transition_hook()
+
+            async def after_transition(self, initial_state, validated_state, context):
+                post_transition_hook()
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
+        async with state_enforcing_rule as ctx:
+            pass
+        assert await state_enforcing_rule.invalid()
+        assert pre_transition_hook.call_count == 0
+        assert post_transition_hook.call_count == 0
+
+    @pytest.mark.parametrize("proposed_state_type", ALL_ORCHESTRATION_STATES)
+    async def test_rules_enforce_proposed_state_validity(
+        self, session, task_run, proposed_state_type
+    ):
+        initial_state_type = None
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        pre_transition_hook = MagicMock()
+        post_transition_hook = MagicMock()
+
+        class StateEnforcingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = set(ALL_ORCHESTRATION_STATES) - {proposed_state_type}
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                pre_transition_hook()
+
+            async def after_transition(self, initial_state, validated_state, context):
+                post_transition_hook()
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            run=schemas.core.TaskRun.from_orm(task_run),
+            task_run_id=task_run.id,
+        )
+
+        state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
+        async with state_enforcing_rule as ctx:
+            pass
+        assert await state_enforcing_rule.invalid()
+        assert pre_transition_hook.call_count == 0
+        assert post_transition_hook.call_count == 0
+
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
