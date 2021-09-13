@@ -37,6 +37,12 @@ import FlowRunListItem from '@/components/List/ListItem--FlowRun/ListItem--FlowR
 import TaskRunListItem from '@/components/List/ListItem--TaskRun/ListItem--TaskRun.vue'
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 
+// Temporary imports for dummy data
+import { default as flowList } from '@/util/objects/flows.json'
+import { default as deploymentList } from '@/util/objects/deployments.json'
+import { default as flowRunList } from '@/util/objects/flow_runs.json'
+import { default as taskRunList } from '@/util/objects/task_runs.json'
+
 @Options({
   components: {
     List,
@@ -47,35 +53,10 @@ import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
   }
 })
 export default class Dashboard extends Vue {
-  flowList: Flow[] = [
-    { id: '64e152ae-1837-4327-96e2-96fdcc8a8065', name: 'ETL', tags: ['prod'] }
-  ]
-
-  deploymentList: Deployment[] = [
-    {
-      id: '64e152ae-1837-4327-96e2-96fdcc8a8065',
-      name: 'ETL Deployment',
-      tags: ['foo', 'bar']
-    }
-  ]
-
-  flowRunList: FlowRun[] = [
-    {
-      id: '64e152ae-1837-4327-96e2-96fdcc8a8065',
-      name: 'ETL - 9am',
-      state: 'SUCCESS',
-      tags: []
-    }
-  ]
-
-  taskRunList: TaskRun[] = [
-    {
-      id: '64e152ae-1837-4327-96e2-96fdcc8a8065',
-      name: 'ETL',
-      state: 'SUCCESS',
-      tags: []
-    }
-  ]
+  flowList: Flow[] = flowList
+  deploymentList: Deployment[] = deploymentList
+  flowRunList: FlowRun[] = flowRunList
+  taskRunList: TaskRun[] = taskRunList
 
   sayHello(): void {
     console.log('hello!')
