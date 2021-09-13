@@ -1,18 +1,82 @@
 <template>
   <div>
     <h1>Dashboard</h1>
-    <List />
+
+    <h2>Flows</h2>
+    <List>
+      <FlowListItem v-for="flow in flowList" :key="flow.id" :flow="flow" />
+    </List>
+
+    <h2>Deployments</h2>
+    <List>
+      <DeploymentListItem
+        v-for="d in deploymentList"
+        :key="d.id"
+        :deployment="d"
+      />
+    </List>
+
+    <h2>Flow Runs</h2>
+    <List>
+      <FlowRunListItem v-for="run in flowRunList" :key="run.id" :run="run" />
+    </List>
+
+    <h2>Task Runs</h2>
+    <List>
+      <TaskRunListItem v-for="run in taskRunList" :key="run.id" :run="run" />
+    </List>
   </div>
 </template>
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
 import List from '@/components/List/List.vue'
+import FlowListItem from '@/components/List/ListItem--Flow/ListItem--Flow.vue'
+import DeploymentListItem from '@/components/List/ListItem--Deployment/ListItem--Deployment.vue'
+import FlowRunListItem from '@/components/List/ListItem--FlowRun/ListItem--FlowRun.vue'
+import TaskRunListItem from '@/components/List/ListItem--TaskRun/ListItem--TaskRun.vue'
+import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 
 @Options({
-  components: { List }
+  components: {
+    List,
+    FlowListItem,
+    DeploymentListItem,
+    FlowRunListItem,
+    TaskRunListItem
+  }
 })
 export default class Dashboard extends Vue {
+  flowList: Flow[] = [
+    { id: '64e152ae-1837-4327-96e2-96fdcc8a8065', name: 'ETL', tags: ['prod'] }
+  ]
+
+  deploymentList: Deployment[] = [
+    {
+      id: '64e152ae-1837-4327-96e2-96fdcc8a8065',
+      name: 'ETL Deployment',
+      tags: ['foo', 'bar']
+    }
+  ]
+
+  flowRunList: FlowRun[] = [
+    {
+      id: '64e152ae-1837-4327-96e2-96fdcc8a8065',
+      name: 'ETL - 9am',
+      state: 'SUCCESS',
+      tags: []
+    }
+  ]
+
+  taskRunList: TaskRun[] = [
+    {
+      id: '64e152ae-1837-4327-96e2-96fdcc8a8065',
+      name: 'ETL',
+      state: 'SUCCESS',
+      tags: []
+    }
+  ]
+
   sayHello(): void {
     console.log('hello!')
   }
