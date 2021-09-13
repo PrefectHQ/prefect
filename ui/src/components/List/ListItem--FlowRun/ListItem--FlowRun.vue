@@ -5,13 +5,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import ListItem from '../ListItem/ListItem.vue'
-
-class FlowRun {
-  id!: string
-  name!: string
-  state!: string
-  tags!: string[]
-}
+import { FlowRun } from '@/objects'
 
 class Props {
   run = prop<FlowRun>({ required: true })

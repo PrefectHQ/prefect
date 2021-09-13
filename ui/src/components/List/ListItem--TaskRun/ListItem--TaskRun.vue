@@ -5,13 +5,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import ListItem from '../ListItem/ListItem.vue'
-
-class TaskRun {
-  id!: string
-  name!: string
-  state!: string
-  tags!: string[]
-}
+import { TaskRun } from '@/objects'
 
 class Props {
   run = prop<TaskRun>({ required: true })
