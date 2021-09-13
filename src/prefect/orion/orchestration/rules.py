@@ -72,6 +72,15 @@ class OrchestrationContext(PrefectBaseModel):
     def run_settings(self):
         return self.run.empirical_policy
 
+    async def orm_run(self):
+        if self.run_type == "flow_run":
+            run = await self.session.get(orm.FlowRun, self.flow_run_id)
+        else:
+            run = await self.session.get(orm.TaskRun, self.task_run_id)
+        if not run:
+            raise ValueError("Run not found.")
+        return run
+
     def safe_copy(self):
         safe_copy = self.copy()
 
