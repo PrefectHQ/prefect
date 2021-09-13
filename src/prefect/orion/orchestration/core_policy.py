@@ -41,7 +41,7 @@ class CacheInsertion(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = validated_state.state_details.cache_key
-        if cache_key and context.validated_state_type == states.StateType.COMPLETED:
+        if cache_key:
             new_cache_item = orm.TaskRunStateCache(
                 cache_key=cache_key,
                 cache_expiration=validated_state.state_details.cache_expiration,
@@ -62,7 +62,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
-        if cache_key and context.proposed_state_type == states.StateType.RUNNING:
+        if cache_key:
             # Check for cached states matching the cache key
             cached_state_id = (
                 select(orm.TaskRunStateCache.task_run_state_id)
