@@ -37,7 +37,7 @@ async def list_(flow_name: str = None):
     async with OrionClient() as client:
         deployments = await client.read_deployments()
 
-    for deployment in deployments:
+    for deployment in sorted(deployments, key=lambda d: d.created, reverse=True):
         console.print(deployment.name)
 
 
