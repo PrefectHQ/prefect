@@ -184,12 +184,6 @@ async def commit_task_run_state(
         return None
     state_details = dict() if state_details is None else state_details
 
-    if (
-        state_type == states.StateType.SCHEDULED
-        and "scheduled_time" not in state_details
-    ):
-        state_details.update({"scheduled_time": pendulum.now()})
-
     new_state = schemas.actions.StateCreate(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -212,12 +206,6 @@ async def commit_flow_run_state(
     if state_type is None:
         return None
     state_details = dict() if state_details is None else state_details
-
-    if (
-        state_type == states.StateType.SCHEDULED
-        and "scheduled_time" not in state_details
-    ):
-        state_details.update({"scheduled_time": pendulum.now()})
 
     new_state = schemas.actions.StateCreate(
         type=state_type,
