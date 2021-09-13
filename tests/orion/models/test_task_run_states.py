@@ -19,7 +19,6 @@ class TestCreateTaskRunState:
         ).state
         assert task_run_state.name == "Running"
         assert task_run_state.type == StateType.RUNNING
-        assert task_run_state.state_details.task_run_id == task_run.id
 
     async def test_run_details_are_updated_entering_running(self, task_run, session):
         trs = await models.task_run_states.orchestrate_task_run_state(
