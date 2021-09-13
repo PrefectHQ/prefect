@@ -22,7 +22,7 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.sqltypes import BOOLEAN
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
-
+from typing import Optional
 from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
@@ -32,7 +32,9 @@ SESSION_FACTORIES = {}
 
 
 async def get_engine(
-    connection_url: str = None, echo: bool = None, timeout: float = None
+    connection_url: str = None,
+    echo: bool = settings.orion.database.echo,
+    timeout: Optional[float] = settings.orion.database.timeout,
 ) -> sa.engine.Engine:
     """Retrieves an async SQLAlchemy engine.
 
@@ -47,24 +49,20 @@ async def get_engine(
             Defaults to the value in Prefect's settings.
         echo (bool, optional): Whether to echo SQL sent
             to the database. Defaults to the value in Prefect's settings.
-        timeout (float, optional): The statement timeout, in seconds
+        timeout (float, optional): The database statement timeout, in seconds
 
     Returns:
         sa.engine.Engine: a SQLAlchemy engine
     """
     if connection_url is None:
         connection_url = settings.orion.database.connection_url.get_secret_value()
-    if echo is None:
-        echo = settings.orion.database.echo
-    if timeout is None:
-        timeout = settings.orion.database.timeout
 
     loop = get_event_loop()
     cache_key = (loop, connection_url, echo, timeout)
     if cache_key not in ENGINES:
-
         kwargs = {}
 
+        # apply database timeout
         if timeout is not None:
             dialect = get_dialect(connection_url)
             if dialect.driver == "aiosqlite":
