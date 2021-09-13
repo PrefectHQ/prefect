@@ -1,11 +1,10 @@
 import asyncio
 import datetime
-from typing import List, Set
+from typing import List, Set, Union
 
 import pendulum
 import pytz
 from croniter import croniter
-from pendulum.tz.timezone import Timezone
 from pydantic import Field, conint, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -320,3 +319,6 @@ class CronSchedule(PrefectBaseModel):
             await asyncio.sleep(0)
 
         return dates
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule]
