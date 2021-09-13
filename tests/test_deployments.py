@@ -4,17 +4,15 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from prefect import flow
 from prefect.deployments import (
     DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_script,
 )
-
-from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
-from prefect.exceptions import FlowScriptError, UnspecifiedFlowError, MissingFlowError
+from prefect.orion.schemas.schedules import IntervalSchedule
 
 from .deployment_test_files.single_flow import hello_world as hello_world_flow
 

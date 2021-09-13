@@ -8,25 +8,36 @@ import sqlalchemy as sa
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.data import DataDocument
 
 
 class TestCreateDeployment:
     async def test_create_deployment_succeeds(self, session, flow):
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                flow_id=flow.id,
+            ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data.decode() == "test-flow-data"
 
     async def test_create_deployment_updates_existing_deployment(self, session, flow):
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                flow_id=flow.id,
+            ),
         )
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data.decode() == "test-flow-data"
 
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
@@ -37,12 +48,14 @@ class TestCreateDeployment:
             deployment=schemas.core.Deployment(
                 name="My Deployment",
                 flow_id=flow.id,
+                flow_data=DataDocument.encode("json", "test-flow-data"),
                 schedule=schedule,
                 is_schedule_active=False,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data.decode() == "test-flow-data"
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
 
@@ -54,11 +67,15 @@ class TestCreateDeployment:
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="My Deployment", flow_id=flow.id, schedule=schedule
+                name="My Deployment",
+                flow_id=flow.id,
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                schedule=schedule,
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
+        assert deployment.flow_data.decode() == "test-flow-data"
         assert deployment.schedule == schedule
 
 
@@ -67,7 +84,11 @@ class TestReadDeployment:
         # create a deployment to read
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                flow_id=flow.id,
+            ),
         )
         assert deployment.name == "My Deployment"
 
@@ -89,11 +110,19 @@ class TestReadDeployments:
     async def deployments(self, session, flow):
         deployment_1 = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment-1", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment-1",
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                flow_id=flow.id,
+            ),
         )
         deployment_2 = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment-2", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment-2",
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                flow_id=flow.id,
+            ),
         )
         await session.commit()
         return [deployment_1, deployment_2]
@@ -123,7 +152,11 @@ class TestDeleteDeployment:
         # create a deployment to delete
         deployment = await models.deployments.create_deployment(
             session=session,
-            deployment=schemas.core.Deployment(name="My Deployment", flow_id=flow.id),
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("json", "test-flow-data"),
+                flow_id=flow.id,
+            ),
         )
         assert deployment.name == "My Deployment"
 
