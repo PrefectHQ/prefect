@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import typer
@@ -5,6 +6,7 @@ from rich.padding import Padding
 from rich.traceback import Traceback
 
 from prefect.cli.base import app, console, exit_with_error
+from prefect.client import OrionClient
 from prefect.deployments import (
     create_deployment_from_spec,
     deployment_specs_from_script,
@@ -26,13 +28,17 @@ async def inspect(name: str):
     ...
 
 
-@deployment_app.command()
+@deployment_app.command(name="list")
 @sync_compatible
 async def list_(flow_name: str = None):
     """
     View all deployments or deployments for a specific flow
     """
-    ...
+    async with OrionClient() as client:
+        deployments = await client.read_deployments()
+
+    for deployment in deployments:
+        console.print(deployment.name)
 
 
 @deployment_app.command()
@@ -131,7 +137,7 @@ async def create(
         except FlowScriptError as exc:
             traceback = exc.rich_user_traceback()
         except Exception as exc:
-            traceback = Traceback.from_exception()
+            traceback = Traceback.from_exception(*sys.exc_info())
 
         stylized_name = f"deployment [bold blue]{spec.name!r}[/]"
         if spec.flow_name:
