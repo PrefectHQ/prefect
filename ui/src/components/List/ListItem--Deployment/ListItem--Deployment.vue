@@ -5,12 +5,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import ListItem from '../ListItem/ListItem.vue'
-
-class Deployment {
-  id!: string
-  name!: string
-  tags!: string[]
-}
+import { Deployment } from '@/objects'
 
 class Props {
   deployment = prop<Deployment>({ required: true })

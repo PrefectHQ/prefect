@@ -5,12 +5,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import ListItem from '../ListItem/ListItem.vue'
-
-class Flow {
-  id!: string
-  name!: string
-  tags!: string[]
-}
+import { Flow } from '@/objects'
 
 class Props {
   flow = prop<Flow>({ required: true })
