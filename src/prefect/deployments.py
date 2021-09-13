@@ -23,7 +23,8 @@ class DeploymentSpec(PrefectBaseModel):
     """
     Specification for a flow deployment. Used to create or update deployments.
 
-    The flow object or flow location must be provided.
+    The flow object or flow location must be provided. If a flow object is not provided,
+    `load_flow` must be called to load the flow from the given flow location.
     """
 
     name: str
@@ -40,13 +41,15 @@ class DeploymentSpec(PrefectBaseModel):
     def load_flow(self):
         if self.flow_location and not self.flow:
             self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+            if not self.flow_name:
+                self.flow_name = self.flow.name
 
     @root_validator
     def infer_location_from_flow(cls, values):
-        if values.get("flow"):
+        if values.get("flow") and not values.get("flow_location"):
             flow_file = values["flow"].fn.__globals__.get("__file__")
             if flow_file:
-                values.setdefault("flow_location", abspath(str(flow_file)))
+                values["flow_location"] = abspath(str(flow_file))
         return values
 
     @validator("flow_location", pre=True)
@@ -59,8 +62,8 @@ class DeploymentSpec(PrefectBaseModel):
 
     @root_validator
     def infer_flow_name_from_flow(cls, values):
-        if values.get("flow"):
-            values.setdefault("flow_name", values["flow"].name)
+        if values.get("flow") and not values.get("flow_name"):
+            values["flow_name"] = values["flow"].name
         return values
 
     @root_validator
@@ -149,8 +152,6 @@ def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
     Load deployment specifications from a python script
     """
     with _register_new_specs() as specs:
-        import runpy
-
         runpy.run_path(script_path)
 
     return specs

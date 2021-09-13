@@ -1,7 +1,18 @@
 import itertools
 from collections import defaultdict
-from collections.abc import Sequence, Set, Iterator
-from typing import Any, Dict, Iterable, List, Tuple, Type, TypeVar, Union, cast
+from collections.abc import Sequence, Set
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+    Iterator,
+)
 
 KT = TypeVar("KT")
 VT = TypeVar("VT")
