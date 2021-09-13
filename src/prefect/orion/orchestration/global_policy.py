@@ -23,7 +23,6 @@ def update_run_details(
 ):
 
     # -- record the new state's details
-    run.state_id = proposed_state.id
     run.state_type = proposed_state.type
 
     # -- compute duration
