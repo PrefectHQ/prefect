@@ -1,0 +1,2 @@
+name: bad-hello-deployment
+flow_location: ./flow_with_load_error.py
