@@ -1,3 +1,4 @@
+from datetime import timedelta
 import os
 from pathlib import Path
 
@@ -6,12 +7,14 @@ from pydantic import ValidationError
 
 from prefect.deployments import (
     DeploymentSpec,
+    create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_script,
 )
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 
 from .deployment_test_files.single_flow import hello_world as hello_world_flow
@@ -178,5 +181,25 @@ class TestDeploymentSpecFromFile:
             spec.load_flow()
 
 
-class TestCreateDeploymentFromSpec:
-    ...
+async def test_create_deployment_from_spec(orion_client):
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+
+    spec = DeploymentSpec(
+        name="test",
+        flow_location=TEST_FILES_DIR / "single_flow.py",
+        schedule=schedule,
+    )
+    deployment_id = await create_deployment_from_spec(spec, client=orion_client)
+
+    # Deployment was created in backend
+    lookup = await orion_client.read_deployment(deployment_id)
+    assert lookup.name == "test"
+    assert lookup.schedule == schedule
+
+    # Location was encoded into a data document
+    assert lookup.flow_data == DataDocument(
+        encoding="file", blob=spec.flow_location.encode()
+    )
+
+    # Flow was loaded
+    assert spec.flow is not None
