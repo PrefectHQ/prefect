@@ -33,7 +33,8 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
         sa.select(orm.Flow)
         .where(
             orm.Flow.name == flow.name,
-        ).limit(1)
+        )
+        .limit(1)
         .execution_options(populate_existing=True)
     )
     result = await session.execute(query)

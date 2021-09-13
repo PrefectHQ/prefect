@@ -56,7 +56,8 @@ async def create_task_run(
                     orm.TaskRun.task_key == task_run.task_key,
                     orm.TaskRun.dynamic_key == task_run.dynamic_key,
                 )
-            ).limit(1)
+            )
+            .limit(1)
             .execution_options(populate_existing=True)
         )
         result = await session.execute(query)
