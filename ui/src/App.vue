@@ -16,10 +16,8 @@ export default class App extends Vue {}
 </script>
 
 <style lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables';
-
 .application {
-  background-color: #f4f5f7;
+  background-color: $grey-10;
 
   display: flex;
   align-content: stretch;

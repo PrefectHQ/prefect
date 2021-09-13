@@ -7,6 +7,8 @@ import store from './store'
 // Imports global miter styles
 import '@prefect/miter-design/dist/style.css'
 
+// import '@/styles/main.scss'
+
 // Note: this is a locally-installed package, relative to this directory at ../
 import MiterDesign from '@prefect/miter-design'
 

@@ -35,7 +35,7 @@ export default class NavBar extends Vue {}
   z-index: 10;
 
   .nav-item {
-    color: variables.$grey-40 !important;
+    // color: $red !important;
     text-decoration: none;
 
     height: 62px;

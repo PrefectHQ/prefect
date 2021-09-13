@@ -8,6 +8,16 @@ export default defineConfig({
   resolve: {
     alias: [{ find: '@', replacement: resolve(__dirname, './src') }]
   },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: `
+        @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+        @use "@/styles/main.scss" as *;
+        `
+      }
+    }
+  },
   define: {
     'process.env': process.env
   }
