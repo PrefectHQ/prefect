@@ -15,7 +15,7 @@ from prefect.orion.orchestration.rules import (
 from prefect.orion.schemas import states
 
 
-async def create_task_run_state(
+async def commit_task_run_state(
     session, task_run, state_type: states.StateType, state_details=None
 ):
     if state_type is None:
@@ -42,6 +42,12 @@ async def create_task_run_state(
     session.add(orm_state)
     await session.flush()
     return orm_state.as_state()
+
+
+def transition_names(transition):
+    initial = f"{transition[0].name if transition[0] else None}"
+    proposed = f" => {transition[1].name if transition[1] else None}"
+    return initial + proposed
 
 
 class TestBaseOrchestrationRule:
@@ -79,11 +85,11 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -124,11 +130,11 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -169,11 +175,11 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (states.StateType.SCHEDULED, states.StateType.COMPLETED)
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -231,11 +237,11 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -303,11 +309,11 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -358,11 +364,11 @@ class TestBaseOrchestrationRule:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -387,7 +393,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
+        ids=transition_names,
     )
     async def test_nested_valid_rules_fire_hooks(
         self, session, task_run, intended_transition
@@ -435,11 +441,11 @@ class TestBaseOrchestrationRule:
 
         # both rules are valid
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -495,7 +501,7 @@ class TestBaseOrchestrationRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
+        ids=transition_names,
     )
     async def test_complex_nested_rules_interact_sensibly(
         self, session, task_run, intended_transition
@@ -543,7 +549,7 @@ class TestBaseOrchestrationRule:
                         }
                     )
                 )
-                mutated_state = await create_task_run_state(
+                mutated_state = await commit_task_run_state(
                     session, task_run, mutated_state_type
                 )
                 mutator_before_hook()
@@ -576,11 +582,11 @@ class TestBaseOrchestrationRule:
 
         # all rules start valid
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -675,11 +681,11 @@ class TestBaseUniversalRule:
 
         intended_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -703,7 +709,7 @@ class TestBaseUniversalRule:
     @pytest.mark.parametrize(
         "intended_transition",
         list(product([*states.StateType, None], [*states.StateType, None])),
-        ids=lambda args: f"{args[0].name if args[0] else None} => {args[1].name if args[1] else None}",
+        ids=transition_names,
     )
     async def test_universal_rules_always_fire(
         self, session, task_run, intended_transition
@@ -724,11 +730,11 @@ class TestBaseUniversalRule:
                 after_hook()
 
         initial_state_type, proposed_state_type = intended_transition
-        initial_state = await create_task_run_state(
+        initial_state = await commit_task_run_state(
             session, task_run, initial_state_type
         )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
         )
 
         ctx = OrchestrationContext(
@@ -745,7 +751,7 @@ class TestBaseUniversalRule:
             mutated_state_type = random.choice(
                 list(set(states.StateType) - set(intended_transition))
             )
-            mutated_state = await create_task_run_state(
+            mutated_state = await commit_task_run_state(
                 session, task_run, mutated_state_type
             )
             ctx.initial_state = mutated_state
@@ -755,9 +761,10 @@ class TestBaseUniversalRule:
         assert after_hook.call_count == 1
 
 
+@pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestOrchestrationContext:
     async def test_context_is_protected_from_mutation_at_all_costs(
-        self, session, task_run
+        self, session, run_type, initialize_orchestration
     ):
         class EvilVillainRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
@@ -781,20 +788,7 @@ class TestOrchestrationContext:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
-            session, task_run, initial_state_type
-        )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=initial_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
-        )
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         async with contextlib.AsyncExitStack() as stack:
             the_evil_villain = EvilVillainRule(ctx, *intended_transition)
@@ -808,20 +802,17 @@ class TestOrchestrationContext:
             assert ctx.initial_state_type == states.StateType.PENDING
             assert ctx.proposed_state_type == states.StateType.RUNNING
             # thankfully we had the antidote
-
-            validated_state = orm.TaskRunState(
-                task_run_id=ctx.task_run_id,
-                **ctx.proposed_state.dict(shallow=True),
-            )
-            ctx.validated_state = validated_state.as_state()
+            await ctx.validate_proposed_state()
 
         # check that the states remain the same after exiting the context
         # our context emerges unscathed
         assert ctx.initial_state_type == states.StateType.PENDING
-        assert ctx.proposed_state.type == states.StateType.RUNNING
-        assert ctx.validated_state.type == states.StateType.RUNNING
+        assert ctx.proposed_state_type == states.StateType.RUNNING
+        assert ctx.validated_state_type == states.StateType.RUNNING
 
-    async def test_context_will_mutate_if_asked_politely(self, session, task_run):
+    async def test_context_will_mutate_if_asked_politely(
+        self, session, run_type, initialize_orchestration
+    ):
         class PoliteHeroRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
@@ -832,34 +823,19 @@ class TestOrchestrationContext:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
-            session, task_run, initial_state_type
-        )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=initial_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
-        )
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         async with contextlib.AsyncExitStack() as stack:
             the_polite_hero = PoliteHeroRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(the_polite_hero)
-            validated_state = orm.TaskRunState(
-                task_run_id=ctx.task_run_id,
-                **ctx.proposed_state.dict(shallow=True),
-            )
-            ctx.validated_state = validated_state.as_state()
+            await ctx.validate_proposed_state()
 
-        assert ctx.proposed_state.type == states.StateType.COMPLETED
-        assert ctx.validated_state.type == states.StateType.COMPLETED
+        assert ctx.proposed_state_type == states.StateType.COMPLETED
+        assert ctx.validated_state_type == states.StateType.COMPLETED
 
-    async def test_context_will_not_mutate_if_asked_too_late(self, session, task_run):
+    async def test_context_will_not_mutate_if_asked_too_late(
+        self, session, run_type, initialize_orchestration
+    ):
         class TardyHeroRule(BaseOrchestrationRule):
             async def after_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
@@ -870,35 +846,18 @@ class TestOrchestrationContext:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
-            session, task_run, initial_state_type
-        )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=initial_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
-        )
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         # oh no, the hero is too late
         with pytest.raises(RuntimeError):
             async with contextlib.AsyncExitStack() as stack:
                 the_tardy_hero = TardyHeroRule(ctx, *intended_transition)
                 ctx = await stack.enter_async_context(the_tardy_hero)
-                validated_state = orm.TaskRunState(
-                    task_run_id=ctx.task_run_id,
-                    **ctx.proposed_state.dict(shallow=True),
-                )
-                ctx.validated_state = validated_state.as_state()
+                await ctx.validate_proposed_state()
 
     @pytest.mark.parametrize("delay", [42, 424242])
     async def test_context_will_propose_no_state_if_asked_to_wait(
-        self, session, task_run, delay
+        self, session, run_type, initialize_orchestration, delay
     ):
         class WaitingRule(BaseOrchestrationRule):
             async def before_transition(self, initial_state, proposed_state, context):
@@ -908,37 +867,21 @@ class TestOrchestrationContext:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
-            session, task_run, initial_state_type
-        )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=initial_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
-        )
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         async with contextlib.AsyncExitStack() as stack:
             the_tardy_hero = WaitingRule(ctx, *intended_transition)
             ctx = await stack.enter_async_context(the_tardy_hero)
-            if ctx.proposed_state is not None:
-                validated_state = orm.TaskRunState(
-                    task_run_id=ctx.task_run_id,
-                    **ctx.proposed_state.dict(shallow=True),
-                )
-                ctx.validated_state = validated_state.as_state()
+            await ctx.validate_proposed_state()
 
         assert ctx.proposed_state is None
         assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
         assert ctx.response_details.delay_seconds == delay
 
     @pytest.mark.parametrize("delay", [42, 424242])
-    async def test_rules_cant_try_to_wait_too_late(self, session, task_run, delay):
+    async def test_rules_cant_try_to_wait_too_late(
+        self, session, run_type, initialize_orchestration, delay
+    ):
         class WaitingRule(BaseOrchestrationRule):
             async def after_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
@@ -947,28 +890,37 @@ class TestOrchestrationContext:
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        initial_state = await create_task_run_state(
-            session, task_run, initial_state_type
-        )
-        proposed_state = await create_task_run_state(
-            session, task_run, proposed_state_type
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=initial_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
-        )
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
         with pytest.raises(RuntimeError):
             async with contextlib.AsyncExitStack() as stack:
                 the_tardy_hero = WaitingRule(ctx, *intended_transition)
                 ctx = await stack.enter_async_context(the_tardy_hero)
-                if ctx.proposed_state is not None:
-                    validated_state = orm.TaskRunState(
-                        task_run_id=ctx.task_run_id,
-                        **ctx.proposed_state.dict(shallow=True),
-                    )
-                    ctx.validated_state = validated_state.as_state()
+                await ctx.validate_proposed_state()
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(product([*states.StateType, None], [*states.StateType, None])),
+        ids=transition_names,
+    )
+    async def test_contexts_validate_proposed_states(
+        self, session, run_type, initialize_orchestration, intended_transition
+    ):
+        initial_state_type, proposed_state_type = intended_transition
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        assert ctx.validated_state is None
+        await ctx.validate_proposed_state()
+        assert ctx.validated_state_type == ctx.proposed_state_type
+
+    async def test_context_validation_returns_orm_state(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+        orm_state = await ctx.validate_proposed_state()
+        if run_type == "task":
+            assert isinstance(orm_state, orm.TaskRunState)
+        if run_type == "flow":
+            assert isinstance(orm_state, orm.FlowRunState)

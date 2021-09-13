@@ -1,25 +1,53 @@
+import datetime
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
+import prefect
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/")
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
-    return await models.deployments.create_deployment(
+    """Gracefully creates a new deployment from the provided schema. If a deployment with the
+    same name and flow_id already exists, the deployment is updated."""
+    now = pendulum.now()
+    model = await models.deployments.create_deployment(
         session=session, deployment=deployment
     )
+
+    if model.created >= now:
+        response.status_code = status.HTTP_201_CREATED
+
+    # this deployment might have already scheduled runs (if it's being upserted)
+    # so we delete them all here; if the upserted deployment has an active schedule
+    # then its runs will be rescheduled.
+    delete_query = sa.delete(models.orm.FlowRun).where(
+        models.orm.FlowRun.deployment_id == model.id,
+        models.orm.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        models.orm.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
+
+    # proactively schedule the deployment
+    if deployment.schedule and deployment.is_schedule_active:
+        await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=model.id,
+        )
+
+    return model
 
 
 @router.get("/{id}")
@@ -42,7 +70,7 @@ async def read_deployment(
 
 @router.get("/")
 async def read_deployments(
-    pagination: schemas.pagination.Pagination = Body(schemas.pagination.Pagination()),
+    pagination: schemas.filters.Pagination = Depends(),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
@@ -53,7 +81,7 @@ async def read_deployments(
     )
 
 
-@router.delete("/{id}", status_code=204)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
@@ -71,6 +99,28 @@ async def delete_deployment(
     return result
 
 
+@router.post("/{id}/schedule")
+async def schedule_deployment(
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    start_time: datetime.datetime = Body(
+        None, description="The earliest date to schedule"
+    ),
+    end_time: datetime.datetime = Body(None, description="The latest date to schedule"),
+    max_runs: int = Body(None, description="The maximum number of runs to schedule"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> None:
+    """
+    Schedule runs for a deployment. For backfills, provide start/end times in the past.
+    """
+    await models.deployments.schedule_runs(
+        session=session,
+        deployment_id=deployment_id,
+        start_time=start_time,
+        end_time=end_time,
+        max_runs=max_runs,
+    )
+
+
 @router.post("/{id}/set_schedule_active")
 async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
@@ -85,6 +135,13 @@ async def set_schedule_active(
         )
     deployment.is_schedule_active = True
     await session.flush()
+
+    # proactively schedule the deployment
+    if deployment.schedule:
+        await models.deployments.schedule_runs(
+            session=session,
+            deployment_id=deployment_id,
+        )
 
 
 @router.post("/{id}/set_schedule_inactive")
@@ -101,3 +158,11 @@ async def set_schedule_inactive(
         )
     deployment.is_schedule_active = False
     await session.flush()
+
+    # delete any future scheduled runs that were auto-scheduled
+    delete_query = sa.delete(models.orm.FlowRun).where(
+        models.orm.FlowRun.deployment_id == deployment_id,
+        models.orm.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        models.orm.FlowRun.auto_scheduled.is_(True),
+    )
+    await session.execute(delete_query)
