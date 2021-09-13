@@ -176,3 +176,7 @@ class TestDeploymentSpecFromFile:
         spec = list(specs)[0]
         with pytest.raises(FlowScriptError):
             spec.load_flow()
+
+
+class TestCreateDeploymentFromSpec:
+    ...
