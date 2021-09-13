@@ -217,7 +217,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         # `_invalid_on_entry` holds this statefulness
         if self.from_state_type not in self.FROM_STATES:
             self._invalid_on_entry = True
-        elif self.to_state_type not in self.TO_STATES:
+        if self.to_state_type not in self.TO_STATES:
             self._invalid_on_entry = True
 
         if self._invalid_on_entry is None:
