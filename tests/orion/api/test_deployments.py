@@ -15,14 +15,17 @@ services_settings = prefect.settings.orion.services
 
 class TestCreateDeployment:
     async def test_create_deployment(self, session, client, flow, flow_function):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
         data = DeploymentCreate(
             name="My Deployment",
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            flow_data=flow_data,
             flow_id=flow.id,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -33,15 +36,18 @@ class TestCreateDeployment:
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow, flow_function
     ):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            flow_data=flow_data,
             is_schedule_active=False,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         deployment_id = response.json()["id"]
 
         # post the same data
@@ -55,13 +61,14 @@ class TestCreateDeployment:
         assert response.status_code == 200
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
         assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
         data = DeploymentCreate(
             name="My Deployment",
             flow_id=flow.id,
-            flow_data=DataDocument.encode("cloudpickle", flow_function),
+            flow_data=DataDocument.encode("json", "test"),
             is_schedule_active=True,
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
@@ -69,6 +76,9 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["is_schedule_active"]
+        assert response.json()["flow_data"] == DataDocument.encode("json", "test").dict(
+            json_compatible=True
+        )
 
     async def test_create_deployment_populates_and_returned_created(
         self, client, flow, flow_function

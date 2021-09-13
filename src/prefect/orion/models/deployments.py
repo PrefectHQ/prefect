@@ -33,7 +33,7 @@ async def create_deployment(
         .on_conflict_do_update(
             index_elements=["flow_id", "name"],
             set_=deployment.dict(
-                shallow=True, include={"schedule", "is_schedule_active"}
+                shallow=True, include={"schedule", "is_schedule_active", "flow_data"}
             ),
         )
     )
