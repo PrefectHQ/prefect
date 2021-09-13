@@ -211,7 +211,7 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
-        response = await client.get("/flow_runs/", json=dict(pagination=dict(limit=1)))
+        response = await client.get("/flow_runs/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 

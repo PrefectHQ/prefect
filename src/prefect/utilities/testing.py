@@ -33,7 +33,7 @@ def check_for_type_errors(code: str, expect: Literal["fail", "success"] = "succe
     output = textwrap.dedent(
         f"""
         Ran mypy on the following code
-        
+
         {multiline_indent(code_linenum, 8)}
 
         Received the following output

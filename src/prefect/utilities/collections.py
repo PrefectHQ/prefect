@@ -1,5 +1,6 @@
+import itertools
 from collections import defaultdict
-from collections.abc import Sequence, Set
+from collections.abc import Sequence, Set, Iterator
 from typing import Any, Dict, Iterable, List, Tuple, Type, TypeVar, Union, cast
 
 KT = TypeVar("KT")
@@ -104,3 +105,22 @@ def extract_instances(
         return ret[types[0]]
 
     return ret
+
+
+def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[T]:
+    """
+    Yield batches of a certain size from an iterable
+
+    Args:
+        - iterable (Iterable): An iterable
+        - size (int): The batch size to return
+
+    Yields:
+        tuple: A batch of the iterable
+    """
+    it = iter(iterable)
+    while True:
+        batch = tuple(itertools.islice(it, size))
+        if not batch:
+            break
+        yield batch

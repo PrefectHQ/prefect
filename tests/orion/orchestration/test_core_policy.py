@@ -1,137 +1,243 @@
+import contextlib
 import pendulum
 import pytest
 
-from prefect.orion import schemas
-from prefect.orion.models import orm
-from prefect.orion.orchestration.rules import OrchestrationContext
-from prefect.orion.orchestration.core_policy import WaitForScheduledTime
+from prefect.orion.schemas.responses import SetStateStatus
+from prefect.orion.orchestration.core_policy import (
+    WaitForScheduledTime,
+    RetryPotentialFailures,
+    CacheInsertion,
+    CacheRetrieval,
+)
+from prefect.orion.orchestration.global_policy import (
+    UpdateRunDetails,
+)
 from prefect.orion.schemas import states
 
 
-async def create_task_run_state(
-    session, task_run, state_type: states.StateType, state_details=None
-):
-    if state_type is None:
-        return None
-    state_details = dict() if state_details is None else state_details
-
-    if (
-        state_type == states.StateType.SCHEDULED
-        and "scheduled_time" not in state_details
-    ):
-        state_details.update({"scheduled_time": pendulum.now()})
-
-    new_state = schemas.actions.StateCreate(
-        type=state_type,
-        timestamp=pendulum.now("UTC").subtract(seconds=5),
-        state_details=state_details,
-    )
-
-    orm_state = orm.TaskRunState(
-        task_run_id=task_run.id,
-        **new_state.dict(shallow=True),
-    )
-
-    session.add(orm_state)
-    await session.flush()
-    return orm_state.as_state()
-
-
+@pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestWaitForScheduledTimeRule:
-    async def test_late_scheduled_states_just_run(self, session, task_run):
+    async def test_late_scheduled_states_just_run(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_state = await create_task_run_state(
+        ctx = await initialize_orchestration(
             session,
-            task_run,
-            initial_state_type,
-            {"scheduled_time": pendulum.now().subtract(minutes=5)},
-        )
-        proposed_state = await create_task_run_state(
-            session,
-            task_run,
-            proposed_state_type,
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=scheduled_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
+            run_type,
+            *intended_transition,
+            initial_details={"scheduled_time": pendulum.now().subtract(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
-            validated_orm_state = orm.TaskRunState(
-                task_run_id=ctx.task_run_id,
-                **ctx.proposed_state.dict(shallow=True),
-            )
-            ctx.validated_state = validated_orm_state.as_state()
+            await ctx.validate_proposed_state()
 
         assert ctx.validated_state_type == proposed_state_type
 
-    async def test_early_scheduled_states_are_delayed(self, session, task_run):
+    async def test_early_scheduled_states_are_delayed(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        scheduled_state = await create_task_run_state(
+        ctx = await initialize_orchestration(
             session,
-            task_run,
-            initial_state_type,
-            {"scheduled_time": pendulum.now().add(minutes=5)},
-        )
-        proposed_state = await create_task_run_state(
-            session,
-            task_run,
-            proposed_state_type,
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=scheduled_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
+            run_type,
+            *intended_transition,
+            initial_details={"scheduled_time": pendulum.now().add(minutes=5)},
         )
 
         async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
-            if ctx.proposed_state:
-                validated_orm_state = orm.TaskRunState(
-                    task_run_id=ctx.task_run_id,
-                    **ctx.proposed_state.dict(shallow=True),
-                )
-                ctx.validated_state = validated_orm_state.as_state()
+            await ctx.validate_proposed_state()
 
-            assert ctx.response_status == schemas.responses.SetStateStatus.WAIT
-            assert ctx.proposed_state is None
-            assert abs(ctx.response_details.delay_seconds - 300) < 2
+        assert ctx.response_status == SetStateStatus.WAIT
+        assert ctx.proposed_state is None
+        assert abs(ctx.response_details.delay_seconds - 300) < 2
 
     async def test_scheduled_states_without_scheduled_times_are_bad(
-        self, session, task_run
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
     ):
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
-        not_a_scheduled_state = await create_task_run_state(
+        ctx = await initialize_orchestration(
             session,
-            task_run,
-            initial_state_type,
-        )
-        proposed_state = await create_task_run_state(
-            session,
-            task_run,
-            proposed_state_type,
-        )
-
-        ctx = OrchestrationContext(
-            initial_state=not_a_scheduled_state,
-            proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
+            run_type,
+            *intended_transition,
         )
 
         with pytest.raises(ValueError):
             async with WaitForScheduledTime(ctx, *intended_transition) as ctx:
                 pass
+
+
+class TestCachingBackendLogic:
+    @pytest.mark.parametrize(
+        ["expiration", "expected_status", "expected_name"],
+        [
+            (pendulum.now().subtract(days=1), SetStateStatus.ACCEPT, "Running"),
+            (pendulum.now().add(days=1), SetStateStatus.REJECT, "Cached"),
+            (None, SetStateStatus.REJECT, "Cached"),
+        ],
+        ids=["past", "future", "null"],
+    )
+    async def test_set_and_retrieve_unexpired_cached_states(
+        self,
+        session,
+        initialize_orchestration,
+        expiration,
+        expected_status,
+        expected_name,
+    ):
+        caching_policy = [CacheInsertion, CacheRetrieval]
+
+        # this first proposed state is added to the cache table
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.COMPLETED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx1 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+            proposed_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *intended_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+            proposed_details={"cache_key": "cache-hit", "cache_expiration": expiration},
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *intended_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == expected_status
+        assert ctx2.validated_state.name == expected_name
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        set(states.StateType) - set([states.StateType.COMPLETED]),
+        ids=lambda statetype: statetype.name,
+    )
+    async def test_only_cache_completed_states(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        caching_policy = [CacheInsertion, CacheRetrieval]
+
+        # this first proposed state is added to the cache table
+        initial_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx1 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit"},
+            proposed_details={"cache_key": "cache-hit"},
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *intended_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+            initial_details={"cache_key": "cache-hit"},
+            proposed_details={"cache_key": "cache-hit"},
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in caching_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *intended_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ACCEPT
+
+
+class TestRetryingRule:
+    async def test_retry_potential_failures(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        ctx.run_settings.max_retries = 2
+        ctx.run.run_count = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+
+    async def test_stops_retrying_eventually(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        ctx.run_settings.max_retries = 2
+        ctx.run.run_count = 3
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.FAILED
