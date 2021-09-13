@@ -107,7 +107,7 @@ def extract_instances(
     return ret
 
 
-def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[T]:
+def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]]:
     """
     Yield batches of a certain size from an iterable
 
