@@ -21,7 +21,7 @@ async def test_create_schedules_from_deployment(flow, session):
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    await Scheduler().run_once()
+    await Scheduler().start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == 100 == Scheduler.max_runs
     expected_dates = await deployment.schedule.get_dates(Scheduler.max_runs)
@@ -35,7 +35,8 @@ async def test_create_schedule_respects_max_future_time(flow, session):
             name="test",
             flow_id=flow.id,
             schedule=schemas.schedules.IntervalSchedule(
-                interval=datetime.timedelta(days=30), anchor_date=pendulum.now("UTC")
+                interval=datetime.timedelta(days=30),
+                anchor_date=pendulum.now("UTC"),
             ),
         ),
     )
@@ -43,7 +44,7 @@ async def test_create_schedule_respects_max_future_time(flow, session):
 
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
-    await Scheduler().run_once()
+    await Scheduler().start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
 
     assert len(runs) == 3
@@ -93,7 +94,7 @@ async def test_create_schedules_from_multiple_deployments(flow, session):
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    await Scheduler().run_once()
+    await Scheduler().start(loops=1)
     runs = await models.flow_runs.read_flow_runs(session)
     assert len(runs) == 130
 
@@ -125,6 +126,6 @@ async def test_scheduler_respects_schedule_is_active(flow, session):
     n_runs = await models.flow_runs.count_flow_runs(session)
     assert n_runs == 0
 
-    await Scheduler().run_once()
+    await Scheduler().start(loops=1)
     n_runs_2 = await models.flow_runs.count_flow_runs(session)
     assert n_runs_2 == 0
