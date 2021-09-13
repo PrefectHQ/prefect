@@ -18,9 +18,6 @@ from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
 
-# See `_register_new_specs`
-_DeploymentSpecContextVar = ContextVar("_DeploymentSpecContext")
-
 
 class DeploymentSpec(PrefectBaseModel):
     """
@@ -148,6 +145,9 @@ async def create_deployment_from_spec(
 
 
 def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
+    """
+    Load deployment specifications from a python script
+    """
     with _register_new_specs() as specs:
         import runpy
 
@@ -157,6 +157,9 @@ def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
 
 
 def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
+    """
+    Load deployment specifications from a yaml file
+    """
     with open(path, "r") as f:
         contents = yaml.safe_load(f.read())
 
@@ -170,18 +173,8 @@ def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
     return specs
 
 
-def _register_spec(spec: DeploymentSpec) -> None:
-    """
-    See `_register_new_specs`
-    """
-    specs = _DeploymentSpecContextVar.get(None)
-
-    if specs is None:
-        return
-
-    # Replace the existing spec with the new one if they collide
-    specs.discard(spec)
-    specs.add(spec)
+# Global for `DeploymentSpec` collection; see `_register_new_specs`
+_DeploymentSpecContextVar = ContextVar("_DeploymentSpecContext")
 
 
 @contextmanager
@@ -198,3 +191,17 @@ def _register_new_specs():
     token = _DeploymentSpecContextVar.set(specs)
     yield specs
     _DeploymentSpecContextVar.reset(token)
+
+
+def _register_spec(spec: DeploymentSpec) -> None:
+    """
+    See `_register_new_specs`
+    """
+    specs = _DeploymentSpecContextVar.get(None)
+
+    if specs is None:
+        return
+
+    # Replace the existing spec with the new one if they collide
+    specs.discard(spec)
+    specs.add(spec)
