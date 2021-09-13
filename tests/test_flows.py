@@ -62,7 +62,7 @@ class TestFlow:
         f = Flow(
             fn=my_fn,
         )
-        assert f.name == "my_fn"
+        assert f.name == "my-fn"
 
 
 class TestDecorator:
