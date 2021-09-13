@@ -3,7 +3,6 @@ import sqlalchemy as sa
 from sqlalchemy import select
 
 from prefect.orion import models, schemas
-from prefect.orion.schemas import actions
 from prefect.orion.models import orm
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -161,10 +160,11 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
                 (k, v) for k, v in flow_state_data.items() if k in columns
             )
 
-            subflow_parent_task_state = orm.TaskRunState(
-                task_run_id=parent_task_run_id,
+            subflow_parent_task_state = schemas.states.State(
                 **task_state_data,
             )
-            context.session.add(subflow_parent_task_state)
-            parent_task_run = await context.session.get(orm.TaskRun, parent_task_run_id)
-            parent_task_run.state = subflow_parent_task_state
+            await models.task_run_states.orchestrate_task_run_state(
+                session=context.session,
+                state=subflow_parent_task_state,
+                task_run_id=parent_task_run_id,
+            )

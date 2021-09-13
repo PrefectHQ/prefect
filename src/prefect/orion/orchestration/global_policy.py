@@ -5,7 +5,7 @@ from prefect.orion.orchestration.rules import (
     BaseUniversalRule,
     OrchestrationContext,
 )
-from prefect.orion.schemas import states, core
+from prefect.orion.schemas import states
 from prefect.orion.models import orm
 
 
@@ -13,7 +13,6 @@ class GlobalPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             UpdateRunDetails,
-            UpdateStateDetails,
         ]
 
 
