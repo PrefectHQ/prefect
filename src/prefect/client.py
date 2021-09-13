@@ -154,6 +154,10 @@ class OrionClient:
         response = await self.get(f"/deployments/{deployment_id}")
         return schemas.core.Deployment.parse_obj(response.json())
 
+    async def read_deployments(self) -> schemas.core.Deployment:
+        response = await self.get(f"/deployments")
+        return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
+
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
