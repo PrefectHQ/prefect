@@ -98,11 +98,10 @@ class TaskRun(ORMBaseModel):
 class Deployment(ORMBaseModel):
     name: str
     flow_id: UUID
-    schedule: Union[
-        schemas.schedules.IntervalSchedule,
-        schemas.schedules.CronSchedule,
-    ] = None
+    flow_data: schemas.data.DataDocument
+    schedule: schemas.schedules.SCHEDULE_TYPES = None
     is_schedule_active: bool = True
+
     # flow: Flow = None
 
 

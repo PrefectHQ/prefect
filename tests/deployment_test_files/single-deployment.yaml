@@ -1,0 +1,4 @@
+name: hello-world-deployment
+flow_location: ./single_flow.py
+schedule:
+  interval: 360

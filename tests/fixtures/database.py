@@ -13,6 +13,7 @@ from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.database import (
     ENGINES,
     Base,
@@ -160,12 +161,13 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
 
 
 @pytest.fixture
-async def deployment(session, flow) -> models.orm.Deployment:
+async def deployment(session, flow, flow_function) -> models.orm.Deployment:
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(
             name="My Deployment",
             flow_id=flow.id,
+            flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1)
             ),
