@@ -1040,7 +1040,7 @@ class TestOrchestrationContext:
 
             async def before_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
-                await self.abort_transition(reason="")
+                await self.abort_transition(reason="stop the transition if possible")
 
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
@@ -1065,7 +1065,7 @@ class TestOrchestrationContext:
 
             async def after_transition(self, initial_state, proposed_state, context):
                 proposed_state.type = states.StateType.COMPLETED
-                await self.abort_transition(reason="")
+                await self.abort_transition(reason="stop the transition if possible")
 
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
