@@ -28,7 +28,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
-            PreventTransitionsOutOfTerminalStates,
+            PreventTransitionsFromTerminalStates,
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
@@ -173,7 +173,7 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
             )
 
 
-class PreventTransitionsOutOfTerminalStates(BaseOrchestrationRule):
+class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
     FROM_STATES = TERMINAL_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
@@ -183,4 +183,4 @@ class PreventTransitionsOutOfTerminalStates(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
-        context.abort_transition(reason="This run has already terminated.")
+        await self.abort_transition(reason="This run has already terminated.")
