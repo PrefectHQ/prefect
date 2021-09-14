@@ -6,8 +6,7 @@ import pydantic
 import pytest
 
 from prefect.orion import models
-from prefect.orion.api.ui import HistoryResponse
-from prefect.orion.schemas import core, states
+from prefect.orion.schemas import core, states, responses
 from prefect.orion.utilities.database import get_session_factory
 
 dt = pendulum.datetime(2021, 10, 1)
@@ -112,7 +111,7 @@ async def test_history(client, start, end, interval, expected_bins):
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
     assert len(parsed) == expected_bins
     assert min([r.interval_start for r in parsed]) == start
     assert parsed[0].interval_end - parsed[0].interval_start == interval
@@ -153,7 +152,7 @@ async def test_daily_bins(client):
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
@@ -287,7 +286,7 @@ async def test_weekly_bins(client):
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
@@ -328,7 +327,7 @@ async def test_weekly_bins_with_filters(client):
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
@@ -365,7 +364,7 @@ async def test_last_bin_contains_end_date(client):
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
     assert len(parsed) == 2
     assert parsed[0].interval_start == dt
     assert parsed[0].interval_end == dt.add(days=1)
