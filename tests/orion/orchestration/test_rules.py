@@ -1006,7 +1006,7 @@ class TestOrchestrationContext:
         assert ctx.response_details.delay_seconds == delay
 
     @pytest.mark.parametrize("delay", [42, 424242])
-    async def test_rules_cant_try_to_wait_too_late(
+    async def test_rules_cant_try_to_wait_after_validation(
         self, session, run_type, initialize_orchestration, delay
     ):
         class WaitingRule(BaseOrchestrationRule):
@@ -1027,6 +1027,59 @@ class TestOrchestrationContext:
                 the_tardy_hero = WaitingRule(ctx, *intended_transition)
                 ctx = await stack.enter_async_context(the_tardy_hero)
                 await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type is states.StateType.RUNNING
+        assert ctx.response_status == schemas.responses.SetStateStatus.ACCEPT
+
+    async def test_context_will_propose_no_state_if_aborted(
+        self, session, run_type, initialize_orchestration
+    ):
+        class AbortingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.abort_transition(reason="stop the transition if possible")
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        async with contextlib.AsyncExitStack() as stack:
+            aborting_rule = AbortingRule(ctx, *intended_transition)
+            ctx = await stack.enter_async_context(aborting_rule)
+            await ctx.validate_proposed_state()
+
+        assert ctx.proposed_state is None
+        assert ctx.validated_state is None
+        assert ctx.response_status == schemas.responses.SetStateStatus.ABORT
+
+    async def test_rules_cant_abort_after_validation(
+        self, session, run_type, initialize_orchestration
+    ):
+        class WaitingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def after_transition(self, initial_state, proposed_state, context):
+                proposed_state.type = states.StateType.COMPLETED
+                await self.abort_transition(reason="stop the transition if possible")
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        with pytest.raises(RuntimeError):
+            async with contextlib.AsyncExitStack() as stack:
+                aborting_rule = WaitingRule(ctx, *intended_transition)
+                ctx = await stack.enter_async_context(aborting_rule)
+                await ctx.validate_proposed_state()
+
+        assert ctx.validated_state_type is states.StateType.RUNNING
+        assert ctx.response_status == schemas.responses.SetStateStatus.ACCEPT
 
     @pytest.mark.parametrize(
         "intended_transition",
