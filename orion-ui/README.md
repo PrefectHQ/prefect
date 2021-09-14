@@ -1,5 +1,13 @@
 # ui-next
 
+## Dependency setup
+
+in `miter-design` repo:
+
+```
+npm run build
+```
+
 ## Project setup
 
 ```
