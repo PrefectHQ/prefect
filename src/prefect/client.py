@@ -295,7 +295,7 @@ class OrionClient:
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise exceptions.AbortSignal("SERVER SAYS ABORT!")
+            raise exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
             print(
