@@ -420,6 +420,8 @@ def config_cmd(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+        --expose                    Flag to expose the server to external hosts by listening
+                                    to 0.0.0.0 instead of localhost.
 
     \b
         --external-postgres, -ep    Disable the Postgres service, connect to an external one instead
