@@ -1,5 +1,8 @@
+import datetime
+from typing import Dict
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion import schemas
 
 
 class SetStateStatus(AutoEnum):
@@ -20,3 +23,9 @@ class StateRejectDetails(PrefectBaseModel):
 class StateWaitDetails(PrefectBaseModel):
     delay_seconds: int
     reason: str = None
+
+
+class HistoryResponse(PrefectBaseModel):
+    interval_start: datetime.datetime
+    interval_end: datetime.datetime
+    states: Dict[schemas.states.StateType, int]

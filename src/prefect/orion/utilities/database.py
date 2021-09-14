@@ -64,7 +64,7 @@ async def get_engine(
 
         # apply database timeout
         if timeout is not None:
-            dialect = get_dialect(connection_url)
+            dialect = get_dialect(connection_url=connection_url)
             if dialect.driver == "aiosqlite":
                 kwargs["connect_args"] = dict(timeout=timeout)
             elif dialect.driver == "asyncpg":
@@ -555,10 +555,16 @@ async def drop_db(engine=None):
         await conn.run_sync(Base.metadata.drop_all)
 
 
-def get_dialect(connection_url: str = None):
-    if connection_url is None:
-        connection_url = settings.orion.database.connection_url.get_secret_value()
-    url = sa.engine.url.make_url(connection_url)
+def get_dialect(
+    session=None,
+    connection_url: str = None,
+):
+    if session is not None:
+        url = session.bind.url
+    else:
+        if connection_url is None:
+            connection_url = settings.orion.database.connection_url.get_secret_value()
+        url = sa.engine.url.make_url(connection_url)
     return url.get_dialect()
 
 

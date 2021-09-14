@@ -1,15 +1,14 @@
-import pendulum
-import json
 import datetime
-from typing import Dict, List
+import json
+from typing import List
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.database import Timestamp
-from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.database import Timestamp, get_dialect
 from prefect.utilities.logging import get_logger
 
 logger = get_logger("orion.api")
@@ -71,12 +70,8 @@ def postgres_timestamp_intervals(
     )
 
 
-class HistoryResponse(PrefectBaseModel):
-    interval_start: datetime.datetime
-    interval_end: datetime.datetime
-    states: Dict[schemas.states.StateType, int]
-
-
+# this is added to a router in api/flow_runs.py to ensure
+# it is given the correct route priority
 async def flow_run_history(
     history_start: datetime.datetime = Body(
         ..., description="The history's start time."
@@ -91,17 +86,17 @@ async def flow_run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[HistoryResponse]:
+) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of flow runs aggregated by state
     """
 
     # compute all intervals as a CTE
-    if session.bind.dialect.name == "sqlite":
+    if get_dialect(session=session).name == "sqlite":
         intervals = sqlite_timestamp_intervals(
             history_start, history_end, history_interval
         ).cte("intervals")
-    elif session.bind.dialect.name == "postgresql":
+    elif get_dialect(session=session).name == "postgresql":
         intervals = postgres_timestamp_intervals(
             history_start, history_end, history_interval
         ).cte("intervals")
@@ -145,12 +140,12 @@ async def flow_run_history(
 
     # aggregate all state / count pairs into a JSON object, removing the empty
     # placeholders for NO_STATE
-    if session.bind.dialect.name == "postgresql":
+    if get_dialect(session=session).name == "postgresql":
         json_col = (
             sa.func.jsonb_object_agg(counts_query.c.state, counts_query.c.count)
             - "NO_STATE"
         )
-    elif session.bind.dialect.name == "sqlite":
+    elif get_dialect(session=session).name == "sqlite":
         json_col = sa.func.json_remove(
             sa.func.json_group_object(counts_query.c.state, counts_query.c.count),
             "$.NO_STATE",
@@ -173,7 +168,7 @@ async def flow_run_history(
     records = result.all()
 
     # sqlite returns JSON as strings
-    if session.bind.dialect.name == "sqlite":
+    if get_dialect(session=session).name == "sqlite":
         all_records = []
         for r in records:
             r = dict(r)
