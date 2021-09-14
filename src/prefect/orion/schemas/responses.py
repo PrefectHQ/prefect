@@ -29,7 +29,7 @@ class HistoryResponse(PrefectBaseModel):
     interval_start: datetime.datetime
     interval_end: datetime.datetime
     states: Dict[schemas.states.StateType, int]
-      
-      
+
+
 class StateAbortDetails(PrefectBaseModel):
     reason: str = None
