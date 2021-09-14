@@ -1,9 +1,11 @@
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple, Union
 from uuid import UUID
 
 import anyio
 import httpx
+from httpx._config import UNSET as HTTPXUNSET, UnsetType as HttpxUnsetType
+import httpx._types as httpx_types
 import pydantic
 
 import prefect
@@ -67,8 +69,36 @@ class OrionClient:
         response.raise_for_status()
         return response
 
-    async def get(self, route: str, **kwargs) -> httpx.Response:
-        response = await self._client.get(route, **kwargs)
+    async def get(
+        self,
+        url: httpx_types.URLTypes,
+        *,
+        params: httpx_types.QueryParamTypes = None,
+        json: Any = None,
+        headers: httpx_types.HeaderTypes = None,
+        cookies: httpx_types.CookieTypes = None,
+        auth: Union[httpx_types.AuthTypes, HttpxUnsetType] = HTTPXUNSET,
+        allow_redirects: bool = True,
+        timeout: Union[httpx_types.TimeoutTypes, HttpxUnsetType] = HTTPXUNSET,
+    ) -> httpx.Response:
+        """
+        Send a `GET` request
+
+        Extends `httpx.AsyncClient.get` to accept JSON bodies
+
+        **Parameters**: See `httpx.request`.
+        """
+        response = await self._client.request(
+            "GET",
+            url,
+            params=params,
+            json=json,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            allow_redirects=allow_redirects,
+            timeout=timeout,
+        )
         response.raise_for_status()
         return response
 
@@ -102,6 +132,7 @@ class OrionClient:
     async def create_flow_run(
         self,
         flow: "Flow",
+        *,
         parameters: Dict[str, Any] = None,
         context: dict = None,
         extra_tags: Iterable[str] = None,
@@ -180,6 +211,23 @@ class OrionClient:
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
+
+    async def read_flow_runs(
+        self,
+        flows: schemas.filters.FlowFilter = None,
+        flow_runs: schemas.filters.FlowRunFilter = None,
+        task_runs: schemas.filters.TaskRunFilter = None,
+    ) -> schemas.core.FlowRun:
+        body = {}
+        if flows:
+            body["flows"] = flows.dict(json_compatible=True)
+        if flow_runs:
+            body["flow_runs"] = flow_runs.dict(json_compatible=True)
+        if task_runs:
+            body["task_runs"] = task_runs.dict(json_compatible=True)
+
+        response = await self.get(f"/flow_runs", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def persist_data(
         self,
