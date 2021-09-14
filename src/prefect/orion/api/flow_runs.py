@@ -87,33 +87,9 @@ async def read_flow_run(
     return flow_run
 
 
-from prefect.orion.utilities.enum import AutoEnum
-
-
-class FlowRunSort(AutoEnum):
-    id_desc = AutoEnum.auto()
-    expected_start_time_desc = AutoEnum.auto()
-    next_scheduled_start_time_asc = AutoEnum.auto()
-
-    def __new__(cls, value):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.sort_expression = cls.enum_string_to_sort_expression(value)
-        return obj
-
-    @staticmethod
-    def enum_string_to_sort_expression(enum_str: str):
-        sort_mapping = {
-            "id_desc": models.orm.FlowRun.id.desc(),
-            "expected_start_time_desc": models.orm.FlowRun.expected_start_time.desc(),
-            "next_scheduled_start_time_asc": models.orm.FlowRun.next_scheduled_start_time.asc(),
-        }
-        return sort_mapping[enum_str]
-
-
 @router.get("/")
 async def read_flow_runs(
-    sort: FlowRunSort = FlowRunSort.id_desc,
+    sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.id_desc,
     pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -130,7 +106,7 @@ async def read_flow_runs(
         task_run_filter=task_runs,
         offset=pagination.offset,
         limit=pagination.limit,
-        sort=sort.sort_expression,
+        sort=[sort.as_sql_sort()],
     )
 
 

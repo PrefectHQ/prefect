@@ -52,6 +52,7 @@ async def read_task_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     offset: int = None,
     limit: int = None,
+    sort: List[sa.sql.expression.ColumnElement] = None,
 ) -> List[orm.TaskRun]:
     """Read task runs
 
@@ -62,11 +63,16 @@ async def read_task_runs(
         task_run_filter (TaskRunFilter): only select task runs that match these filters
         offset (int): Query offset
         limit (int): Query limit
+        sort (List[sa.sql.expression.ColumnElement], optional) - clauses to sort the query by
 
     Returns:
         List[orm.TaskRun]: the task runs
     """
-    query = select(orm.TaskRun).order_by(orm.TaskRun.id)
+
+    if sort is None:
+        sort = [orm.TaskRun.id.desc()]
+
+    query = select(orm.TaskRun).order_by(*sort)
 
     if task_run_filter:
         query = query.where(task_run_filter.as_sql_filter())

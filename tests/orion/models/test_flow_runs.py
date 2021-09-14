@@ -544,6 +544,36 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
+    async def test_read_flow_runs_applies_sort(self, flow, session):
+        now = pendulum.now()
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                    timestamp=now.subtract(minutes=1),
+                ),
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                    timestamp=now.add(minutes=1),
+                ),
+            ),
+        )
+        await session.commit()
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            sort=[schemas.sorting.FlowRunSort.expected_start_time_desc.as_sql_sort()],
+            limit=1,
+        )
+        assert result[0].id == flow_run_2.id
+
 
 class TestDeleteFlowRun:
     async def test_delete_flow_run(self, flow, session):
