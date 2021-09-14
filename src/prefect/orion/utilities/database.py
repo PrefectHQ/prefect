@@ -388,7 +388,7 @@ def json_contains_sqlite(element, compiler, **kwargs):
             ]
             or [True]
         ),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -414,7 +414,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
 
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).has_any(values_array),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -427,7 +427,7 @@ def json_has_any_key_sqlite(element, compiler, **kwargs):
         .select_from(json_each)
         .where(sa.literal_column("json_each.value").in_(element.values))
         .exists(),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -453,7 +453,7 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).has_all(values_array),
-        **kwargs
+        **kwargs,
     )
 
 
