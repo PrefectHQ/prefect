@@ -358,7 +358,7 @@ class json_contains(FunctionElement):
 def json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).contains(element.values),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -410,7 +410,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
     values_array = postgresql.array(element.values)
     # if the array is empty, postgres requires a type annotation
     if not element.values:
-        values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
+        values_array = sa.cast(values_array, postgresql.ARRAY(sa.String))
 
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).has_any(values_array),
@@ -449,7 +449,7 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 
     # if the array is empty, postgres requires a type annotation
     if not element.values:
-        values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
+        values_array = sa.cast(values_array, postgresql.ARRAY(sa.String))
 
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).has_all(values_array),
