@@ -2,6 +2,10 @@
 
 ## Dependency setup
 
+```
+git clone https://github.com/PrefectHQ/miter-design.git
+```
+
 in `miter-design` repo:
 
 ```
