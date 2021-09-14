@@ -1006,7 +1006,7 @@ class TestOrchestrationContext:
         assert ctx.response_details.delay_seconds == delay
 
     @pytest.mark.parametrize("delay", [42, 424242])
-    async def test_rules_cant_try_to_wait_too_late(
+    async def test_rules_cant_try_to_wait_after_validation(
         self, session, run_type, initialize_orchestration, delay
     ):
         class WaitingRule(BaseOrchestrationRule):
@@ -1056,7 +1056,7 @@ class TestOrchestrationContext:
         assert ctx.validated_state is None
         assert ctx.response_status == schemas.responses.SetStateStatus.ABORT
 
-    async def test_rules_cant_abort_too_late(
+    async def test_rules_cant_abort_after_validation(
         self, session, run_type, initialize_orchestration
     ):
         class WaitingRule(BaseOrchestrationRule):
