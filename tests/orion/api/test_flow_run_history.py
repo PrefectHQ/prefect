@@ -6,7 +6,7 @@ import pydantic
 import pytest
 
 from prefect.orion import models
-from prefect.orion.api.ui import TimelineResponse
+from prefect.orion.api.ui import HistoryResponse
 from prefect.orion.schemas import core, states
 from prefect.orion.utilities.database import get_session_factory
 
@@ -101,18 +101,18 @@ async def data(database_engine):
         (dt, dt.add(days=1, hours=5), timedelta(minutes=15), 116),
     ],
 )
-async def test_timeline(client, start, end, interval, expected_bins):
+async def test_history(client, start, end, interval, expected_bins):
     response = await client.get(
-        "/flow_runs/timeline",
+        "/flow_runs/history",
         json=dict(
-            timeline_start=str(start),
-            timeline_end=str(end),
-            timeline_interval_seconds=interval.total_seconds(),
+            history_start=str(start),
+            history_end=str(end),
+            history_interval_seconds=interval.total_seconds(),
         ),
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[TimelineResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
     assert len(parsed) == expected_bins
     assert min([r.interval_start for r in parsed]) == start
     assert parsed[0].interval_end - parsed[0].interval_start == interval
@@ -122,13 +122,13 @@ async def test_timeline(client, start, end, interval, expected_bins):
     )
 
 
-async def test_timeline_returns_maximum_items(client):
+async def test_history_returns_maximum_items(client):
     response = await client.get(
-        "/flow_runs/timeline",
+        "/flow_runs/history",
         json=dict(
-            timeline_start=str(dt),
-            timeline_end=str(dt.add(days=10)),
-            timeline_interval_seconds=timedelta(minutes=1).total_seconds(),
+            history_start=str(dt),
+            history_end=str(dt.add(days=10)),
+            history_interval_seconds=timedelta(minutes=1).total_seconds(),
         ),
     )
 
@@ -144,16 +144,16 @@ async def test_timeline_returns_maximum_items(client):
 
 async def test_daily_bins(client):
     response = await client.get(
-        "/flow_runs/timeline",
+        "/flow_runs/history",
         json=dict(
-            timeline_start=str(dt.subtract(days=16)),
-            timeline_end=str(dt.add(days=6)),
-            timeline_interval_seconds=timedelta(days=1).total_seconds(),
+            history_start=str(dt.subtract(days=16)),
+            history_end=str(dt.add(days=6)),
+            history_interval_seconds=timedelta(days=1).total_seconds(),
         ),
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[TimelineResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
@@ -278,16 +278,16 @@ async def test_daily_bins(client):
 
 async def test_weekly_bins(client):
     response = await client.get(
-        "/flow_runs/timeline",
+        "/flow_runs/history",
         json=dict(
-            timeline_start=str(dt.subtract(days=16)),
-            timeline_end=str(dt.add(days=6)),
-            timeline_interval_seconds=timedelta(days=7).total_seconds(),
+            history_start=str(dt.subtract(days=16)),
+            history_end=str(dt.add(days=6)),
+            history_interval_seconds=timedelta(days=7).total_seconds(),
         ),
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[TimelineResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
@@ -318,17 +318,17 @@ async def test_weekly_bins(client):
 
 async def test_weekly_bins_with_filters(client):
     response = await client.get(
-        "/flow_runs/timeline",
+        "/flow_runs/history",
         json=dict(
-            timeline_start=str(dt.subtract(days=16)),
-            timeline_end=str(dt.add(days=6)),
-            timeline_interval_seconds=timedelta(days=7).total_seconds(),
+            history_start=str(dt.subtract(days=16)),
+            history_end=str(dt.add(days=6)),
+            history_interval_seconds=timedelta(days=7).total_seconds(),
             flow_runs=dict(states=["FAILED"]),
         ),
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[TimelineResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
@@ -354,18 +354,18 @@ async def test_weekly_bins_with_filters(client):
 
 
 async def test_last_bin_contains_end_date(client):
-    """The last bin contains the end date, so its own end could be after the timeline end"""
+    """The last bin contains the end date, so its own end could be after the history end"""
     response = await client.get(
-        "/flow_runs/timeline",
+        "/flow_runs/history",
         json=dict(
-            timeline_start=str(dt),
-            timeline_end=str(dt.add(days=1, minutes=30)),
-            timeline_interval_seconds=timedelta(days=1).total_seconds(),
+            history_start=str(dt),
+            history_end=str(dt.add(days=1, minutes=30)),
+            history_interval_seconds=timedelta(days=1).total_seconds(),
         ),
     )
 
     assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[TimelineResponse], response.json())
+    parsed = pydantic.parse_obj_as(List[HistoryResponse], response.json())
     assert len(parsed) == 2
     assert parsed[0].interval_start == dt
     assert parsed[0].interval_end == dt.add(days=1)

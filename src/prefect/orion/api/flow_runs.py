@@ -53,7 +53,7 @@ async def count_flow_runs(
 
 
 # insert the UI routes here so they are defined ahead of `GET /:id`
-router.get("/timeline")(ui.flow_run_timeline)
+router.get("/history")(ui.flow_run_history)
 
 
 @router.get("/{id}")
