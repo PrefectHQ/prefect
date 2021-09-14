@@ -1,7 +1,6 @@
 """
 Client-side execution of flows and tasks
 """
-import time
 from contextlib import nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, TypeVar, Union, overload
@@ -79,12 +78,13 @@ async def begin_flow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
+    flow_run_id: UUID = None,
 ) -> State:
     """
     Async entrypoint for flow calls
 
     When flows are called, they
-    - create a flow run
+    - create a flow run (if not given an existing id)
     - start an executor
     - orchestrate the flow run (run the user-function and generate tasks)
     - wait for tasks to complete / shutdown the executor
@@ -93,11 +93,14 @@ async def begin_flow_run(
     This function then returns a fake future containing the terminal state.
     # TODO: Flow calls should not return futures since they block.
     """
-    flow_run_id = await client.create_flow_run(
-        flow,
-        parameters=parameters,
-        state=Pending(),
-    )
+    if not flow_run_id:
+        flow_run_id = await client.create_flow_run(
+            flow,
+            parameters=parameters,
+            state=Pending(),
+        )
+    else:
+        await client.propose_state(Pending(), flow_run_id=flow_run_id)
 
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
