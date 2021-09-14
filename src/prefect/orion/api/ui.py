@@ -71,39 +71,39 @@ def postgres_timestamp_intervals(
     )
 
 
-class TimelineResponse(PrefectBaseModel):
+class HistoryResponse(PrefectBaseModel):
     interval_start: datetime.datetime
     interval_end: datetime.datetime
     states: Dict[schemas.states.StateType, int]
 
 
-async def flow_run_timeline(
-    timeline_start: datetime.datetime = Body(
-        ..., description="The timeline's start time."
+async def flow_run_history(
+    history_start: datetime.datetime = Body(
+        ..., description="The history's start time."
     ),
-    timeline_end: datetime.datetime = Body(..., description="The timeline's end time."),
-    timeline_interval: datetime.timedelta = Body(
+    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_interval: datetime.timedelta = Body(
         ...,
-        description="The size of each timeline interval, in seconds.",
-        alias="timeline_interval_seconds",
+        description="The size of each history interval, in seconds.",
+        alias="history_interval_seconds",
     ),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> List[TimelineResponse]:
+) -> List[HistoryResponse]:
     """
-    Produce a timeline of flow runs
+    Produce a history of flow runs aggregated by state
     """
 
     # compute all intervals as a CTE
     if session.bind.dialect.name == "sqlite":
         intervals = sqlite_timestamp_intervals(
-            timeline_start, timeline_end, timeline_interval
+            history_start, history_end, history_interval
         ).cte("intervals")
     elif session.bind.dialect.name == "postgresql":
         intervals = postgres_timestamp_intervals(
-            timeline_start, timeline_end, timeline_interval
+            history_start, history_end, history_interval
         ).cte("intervals")
 
     # apply filters prior to outer join on intervals
