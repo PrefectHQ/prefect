@@ -87,15 +87,8 @@ class UpdateRunDetails(BaseUniversalRule):
         if context.proposed_state is None:
             return
 
-        if context.run_type == "flow_run":
-            run = await context.session.get(orm.FlowRun, context.flow_run_id)
-        else:
-            run = await context.session.get(orm.TaskRun, context.task_run_id)
-        if not run:
-            raise ValueError("Run not found.")
-
         update_run_details(
             initial_state=context.initial_state,
             proposed_state=context.proposed_state,
-            run=run,
+            run=await context.orm_run(),
         )
