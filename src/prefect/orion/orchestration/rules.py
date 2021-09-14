@@ -5,13 +5,14 @@ from uuid import UUID
 
 import sqlalchemy as sa
 
-from pydantic import Field, validator
+from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
+    StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
     StateWaitDetails,
@@ -262,6 +263,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.response_details = StateWaitDetails(
             delay_seconds=delay_seconds, reason=reason
         )
+
+    async def abort_transition(self, reason: str):
+        # don't run if the transition is already validated
+        if self.context.validated_state:
+            raise RuntimeError("The transition is already validated")
+
+        # a rule that mutates state should not fizzle itself
+        self.to_state_type = None
+        self.context.proposed_state = None
+        self.context.response_status = SetStateStatus.ABORT
+        self.context.response_details = StateAbortDetails(reason=reason)
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
