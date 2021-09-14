@@ -263,9 +263,13 @@ class TestReadFlowRuns:
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
     )
-    async def test_read_flow_runs_sort_succeeds_for_all_sort_values(self, sort, client):
+    async def test_read_flow_runs_sort_succeeds_for_all_sort_values(
+        self, sort, flow_run, client
+    ):
         response = await client.get("/flow_runs/", params=dict(sort=sort))
         assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_run.id)
 
 
 class TestDeleteFlowRuns:
