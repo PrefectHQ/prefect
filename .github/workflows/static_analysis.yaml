@@ -33,6 +33,9 @@ jobs:
   #         mypy src
 
   python-format:
+    
+    name: Check Python formatting
+
     runs-on: ubuntu-latest
 
     steps:
