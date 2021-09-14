@@ -1,20 +1,29 @@
 import contextlib
 import pendulum
 import pytest
+from itertools import product
 
 from prefect.orion import models
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.orchestration.core_policy import (
-    WaitForScheduledTime,
-    RetryPotentialFailures,
     CacheInsertion,
     CacheRetrieval,
+    PreventTransitionsFromTerminalStates,
+    RetryPotentialFailures,
     UpdateSubflowParentTask,
+    WaitForScheduledTime,
 )
 from prefect.orion.orchestration.global_policy import (
     UpdateRunDetails,
 )
+from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
 from prefect.orion.schemas import states, actions
+
+
+def transition_names(transition):
+    initial = f"{transition[0].name if transition[0] else None}"
+    proposed = f" => {transition[1].name if transition[1] else None}"
+    return initial + proposed
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
@@ -284,3 +293,60 @@ async def test_update_subflow_parent_task(
         await ctx.validate_proposed_state()
 
     assert parent_task_run.state.type == proposed_state_type
+
+
+@pytest.mark.parametrize("run_type", ["task", "flow"])
+class TestTransitionsFromTerminalStatesRule:
+    all_transitions = set(product(ALL_ORCHESTRATION_STATES, ALL_ORCHESTRATION_STATES))
+    terminal_transitions = set(product(TERMINAL_STATES, ALL_ORCHESTRATION_STATES))
+    active_transitions = all_transitions - terminal_transitions
+
+    @pytest.mark.parametrize(
+        "intended_transition", terminal_transitions, ids=transition_names
+    )
+    async def test_transitions_from_terminal_states_are_aborted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        state_protection = PreventTransitionsFromTerminalStates(
+            ctx, *intended_transition
+        )
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ABORT
+
+    @pytest.mark.parametrize(
+        "intended_transition", active_transitions, ids=transition_names
+    )
+    async def test_all_other_transitions_are_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        state_protection = PreventTransitionsFromTerminalStates(
+            ctx, *intended_transition
+        )
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
