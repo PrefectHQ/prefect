@@ -1,20 +1,19 @@
-name: Run tests
+name: Python tests
 
 on: [pull_request]
 
 jobs:
   run-tests-sqlite:
+    name: Sqlite
 
     strategy:
       matrix:
         python-version:
           - 3.7
-          # Testing on all supported Python versions is not necessary yet
-          # - 3.8
-          # - 3.9
+          - 3.8
+          - 3.9
         os: 
           - ubuntu-latest
-          # Testing on Windows is not necessary yet
           # - windows-latest
       fail-fast: false
 
@@ -45,23 +44,26 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Run tests
+        if: ${{ matrix.os == 'ubuntu-latest'}}
         env: 
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:////tmp/orion-tests.db"
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
         run: |
           pytest tests
 
+  
+
   run-tests-postgres:
+    name: Postgres
 
     strategy:
       matrix:
         python-version:
           - 3.7
-          # Testing on all supported Python versions is not necessary yet
-          # - 3.8
-          # - 3.9
+          - 3.8
+          - 3.9
         os: 
           - ubuntu-latest
-          # Testing on Windows is not necessary yet
+          # windows backend doesn't support containers
           # - windows-latest
       fail-fast: false
 
