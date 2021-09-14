@@ -16,7 +16,7 @@ import { Vue } from 'vue-class-component'
 export default class NavBar extends Vue {}
 </script>
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
 .logo {
   width: 24px;
 }
@@ -28,7 +28,7 @@ export default class NavBar extends Vue {}
   flex-direction: column;
   height: 100vh;
   padding: 8px 0;
-  position: relative;
+  position: fixed;
   top: 0;
   transition: all 150ms ease-in-out;
   width: 62px;
