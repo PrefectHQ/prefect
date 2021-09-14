@@ -11,6 +11,7 @@ from prefect.deployments import (
     create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
+    load_flow_from_text,
 )
 from prefect.exceptions import FlowScriptError
 from prefect.utilities.asyncio import sync_compatible
@@ -43,10 +44,26 @@ async def list_(flow_name: str = None):
 
 @deployment_app.command()
 @sync_compatible
-async def run(name: str, watch: bool = True):
+async def execute(name: str):
     """
-    Create a flow run for the given deployment
+    Create and execute a local flow run for the given deployment
     """
+    async with OrionClient() as client:
+        deployment = await client.read_deployment_by_name(name)
+        flow_model = await client.read_flow(deployment.flow_id)
+
+    if deployment.flow_data.encoding == "file":
+        flow_script_contents = deployment.flow_data.decode()
+        flow = load_flow_from_text(flow_script_contents, flow_model.name)
+    elif deployment.flow_data.encoding == "cloudpickle":
+        flow = deployment.flow_data.decode()
+    else:
+        raise ValueError(
+            f"Unknown flow data encoding {deployment.flow_data.encoding!r}"
+        )
+
+    # Call the flow
+    flow()
 
 
 @deployment_app.command()
