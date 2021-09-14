@@ -125,6 +125,8 @@ async def set_flow_run_state(
     # set the 201 because a new state was created
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
         response.status_code = status.HTTP_200_OK
+    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
+        response.status_code = status.HTTP_200_OK
     else:
         response.status_code = status.HTTP_201_CREATED
 
