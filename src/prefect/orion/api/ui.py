@@ -161,7 +161,6 @@ async def flow_run_timeline(
         .limit(500)
     )
 
-    breakpoint()
     result = await session.execute(final_query)
     records = result.all()
 
