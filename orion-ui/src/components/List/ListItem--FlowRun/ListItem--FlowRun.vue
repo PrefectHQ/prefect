@@ -8,9 +8,12 @@
           {{ run.name }}
         </div>
 
-        <Tag :color="run.state.toLowerCase()" class="item--tags mr-1">
+        <div
+          class="item--tags mr-1 correct-text"
+          :class="{ [run.state.toLowerCase() + '-bg']: true }"
+        >
           <span class="run-state">{{ run.state.toLowerCase() }}</span>
-        </Tag>
+        </div>
 
         <Tag
           v-for="tag in run.tags"
@@ -45,6 +48,12 @@ export default class ListItemFlowRun extends Vue.with(Props) {}
 </script>
 
 <style lang="scss" scoped>
+.item--tags {
+  border-radius: 4px;
+  display: inline-block;
+  padding: 4px 8px;
+}
+
 .run-state {
   text-transform: capitalize;
 }
