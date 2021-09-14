@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -19,26 +20,15 @@ async def create_task_run(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.TaskRun:
     """
-    Create a task run
+    Create a task run. If a task run with the same flow_run_id,
+    task_key, and dynamic_key already exists, the existing task
+    run will be returned
     """
-    nested = await session.begin_nested()
-    try:
-        task_run = await models.task_runs.create_task_run(
-            session=session, task_run=task_run
-        )
+    now = pendulum.now("UTC")
+    model = await models.task_runs.create_task_run(session=session, task_run=task_run)
+    if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    except sa.exc.IntegrityError:
-        await nested.rollback()
-        query = sa.select(models.orm.TaskRun).where(
-            sa.and_(
-                models.orm.TaskRun.flow_run_id == task_run.flow_run_id,
-                models.orm.TaskRun.task_key == task_run.task_key,
-                models.orm.TaskRun.dynamic_key == task_run.dynamic_key,
-            )
-        )
-        result = await session.execute(query)
-        task_run = result.scalar()
-    return task_run
+    return model
 
 
 # must be defined before `GET /:id`
@@ -133,6 +123,8 @@ async def set_task_run_state(
     )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
+        response.status_code = status.HTTP_200_OK
+    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
         response.status_code = status.HTTP_200_OK
     else:
         response.status_code = status.HTTP_201_CREATED

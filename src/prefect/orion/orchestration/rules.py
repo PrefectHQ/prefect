@@ -5,13 +5,14 @@ from uuid import UUID
 
 import sqlalchemy as sa
 
-from pydantic import Field, validator
+from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
+    StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
     StateWaitDetails,
@@ -19,6 +20,7 @@ from prefect.orion.schemas.responses import (
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
+TERMINAL_STATES = states.TERMINAL_STATES
 
 
 StateResponseDetails = Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
@@ -46,15 +48,6 @@ class OrchestrationContext(PrefectBaseModel):
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
     response_details: StateResponseDetails = Field(default_factory=StateAcceptDetails)
-
-    @validator("run_type", pre=True, always=True)
-    def infer_run_type(cls, v, *, values, **kwargs):
-        if v is None and "run" in values:
-            if isinstance(values["run"], core.TaskRun):
-                return "task_run"
-            elif isinstance(values["run"], core.FlowRun):
-                return "flow_run"
-        return v
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
@@ -122,6 +115,12 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
+    async def orm_run(self):
+        run = await self.session.get(orm.TaskRun, self.task_run_id)
+        if not run:
+            raise ValueError("Run not found.")
+        return run
+
 
 class FlowOrchestrationContext(OrchestrationContext):
     run_id: UUID
@@ -147,6 +146,12 @@ class FlowOrchestrationContext(OrchestrationContext):
         self.validated_state = validated_state
 
         return validated_orm_state
+
+    async def orm_run(self):
+        run = await self.session.get(orm.FlowRun, self.flow_run_id)
+        if not run:
+            raise ValueError("Run not found.")
+        return run
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
@@ -259,6 +264,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.response_details = StateWaitDetails(
             delay_seconds=delay_seconds, reason=reason
         )
+
+    async def abort_transition(self, reason: str):
+        # don't run if the transition is already validated
+        if self.context.validated_state:
+            raise RuntimeError("The transition is already validated")
+
+        # a rule that mutates state should not fizzle itself
+        self.to_state_type = None
+        self.context.proposed_state = None
+        self.context.response_status = SetStateStatus.ABORT
+        self.context.response_details = StateAbortDetails(reason=reason)
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
