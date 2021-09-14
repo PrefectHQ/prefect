@@ -13,6 +13,7 @@ from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.states import Scheduled
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -129,6 +130,35 @@ class OrionClient:
         response = await self.get(f"/flows/name/{flow_name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
+    async def create_deployment_run(
+        self,
+        deployment: schemas.core.Deployment,
+        *,
+        parameters: Dict[str, Any] = None,
+        context: dict = None,
+        state: schemas.states.State = Scheduled(),
+    ):
+        parameters = parameters or {}
+        context = context or {}
+
+        flow_run_data = schemas.actions.FlowRunCreate(
+            flow_id=deployment.flow_id,
+            deployment_id=deployment.id,
+            flow_version=None,  # Not yet determined
+            parameters=parameters,
+            context=context,
+            state=state,
+        )
+
+        response = await self.post(
+            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+        )
+        flow_run_id = response.json().get("id")
+        if not flow_run_id:
+            raise Exception(f"Malformed response: {response}")
+
+        return UUID(flow_run_id)
+
     async def create_flow_run(
         self,
         flow: "Flow",
@@ -214,6 +244,7 @@ class OrionClient:
 
     async def read_flow_runs(
         self,
+        *,
         flows: schemas.filters.FlowFilter = None,
         flow_runs: schemas.filters.FlowRunFilter = None,
         task_runs: schemas.filters.TaskRunFilter = None,

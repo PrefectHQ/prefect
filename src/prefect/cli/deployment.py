@@ -4,6 +4,7 @@ from pathlib import Path
 import typer
 from rich.padding import Padding
 from rich.traceback import Traceback
+from prefect import cli
 
 from prefect.cli.base import app, console, exit_with_error
 from prefect.client import OrionClient
@@ -64,6 +65,18 @@ async def execute(name: str):
 
     # Call the flow
     flow()
+
+
+@deployment_app.command()
+@sync_compatible
+async def create_run(name: str):
+    """
+    Create a flow run for the given deployment for execution by an agent
+    """
+    async with OrionClient() as client:
+        deployment = await client.read_deployment_by_name(name)
+        flow_run_id = await client.create_deployment_run(deployment)
+    console.print(f"Created flow run '{flow_run_id}'")
 
 
 @deployment_app.command()
