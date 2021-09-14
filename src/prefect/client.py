@@ -7,6 +7,7 @@ import httpx
 import pydantic
 
 import prefect
+from prefect import exceptions
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.schemas.data import DataDocument
@@ -294,7 +295,7 @@ class OrionClient:
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise BaseException("SERVER SAYS ABORT!")
+            raise exceptions.AbortSignal("SERVER SAYS ABORT!")
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
             print(
