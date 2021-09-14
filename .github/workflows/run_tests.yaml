@@ -1,9 +1,10 @@
-name: Run tests
+name: Python tests
 
 on: [pull_request]
 
 jobs:
   run-tests-sqlite:
+    name: Sqlite backend
 
     strategy:
       matrix:
@@ -51,6 +52,7 @@ jobs:
           pytest tests
 
   run-tests-postgres:
+    name: Postgres backend
 
     strategy:
       matrix:
