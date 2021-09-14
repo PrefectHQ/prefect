@@ -2,6 +2,7 @@ from typing import List
 from uuid import UUID
 from fastapi.param_functions import Body
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Path, Response, status
 
@@ -21,14 +22,11 @@ async def create_flow(
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
     """
-    nested = await session.begin_nested()
-    try:
-        flow = await models.flows.create_flow(session=session, flow=flow)
+    now = pendulum.now("UTC")
+    model = await models.flows.create_flow(session=session, flow=flow)
+    if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-    except sa.exc.IntegrityError:
-        await nested.rollback()
-        flow = await models.flows.read_flow_by_name(session=session, name=flow.name)
-    return flow
+    return model
 
 
 # must be defined before `GET /:id`

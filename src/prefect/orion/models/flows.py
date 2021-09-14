@@ -7,26 +7,39 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
+from prefect.orion.utilities.database import dialect_specific_insert
 
 
 async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.Flow:
-    """Creates a new flow
+    """Creates a new flow. If a flow with the same name already exists, the existing flow is returned.
 
     Args:
         session (sa.orm.Session): a database session
         flow (schemas.core.Flow): a flow model
 
     Returns:
-        orm.Flow: the newly-created flow
-
-    Raises:
-        sqlalchemy.exc.IntegrityError: if a flow with the same name already exists
-
+        orm.Flow: the newly-created or existing flow
     """
-    flow = orm.Flow(**flow.dict(shallow=True))
-    session.add(flow)
-    await session.flush()
-    return flow
+    insert_stmt = (
+        dialect_specific_insert(orm.Flow)
+        .values(**flow.dict(shallow=True, exclude_unset=True))
+        .on_conflict_do_nothing(
+            index_elements=["name"],
+        )
+    )
+    await session.execute(insert_stmt)
+
+    query = (
+        sa.select(orm.Flow)
+        .where(
+            orm.Flow.name == flow.name,
+        )
+        .limit(1)
+        .execution_options(populate_existing=True)
+    )
+    result = await session.execute(query)
+    model = result.scalar()
+    return model
 
 
 async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
