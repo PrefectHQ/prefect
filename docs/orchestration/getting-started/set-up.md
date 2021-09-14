@@ -4,7 +4,7 @@
 
 If you want an orchestration layer, you have two options:  Prefect Server and Prefect Cloud. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
 
-As we encourage first time users to try the simpler Cloud layer first, this guide focusses on setting up Prefect Cloud. More information on Server is available in the [Prefect Server documentation](orchestration/server/overview.html).
+As we encourage first time users to try the simpler Cloud layer first, this guide focusses on setting up Prefect Cloud. More information on Server is available in the [Prefect Server documentation](/orchestration/server/overview.html).
 
 ## Cloud 
 
