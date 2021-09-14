@@ -1,12 +1,14 @@
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
+from typing import Optional
 
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
+    TERMINAL_STATES,
     BaseOrchestrationRule,
     OrchestrationContext,
     TaskOrchestrationContext,
@@ -26,6 +28,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
+            PreventTransitionsFromTerminalStates,
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
@@ -168,3 +171,16 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
                 state=subflow_parent_task_state,
                 task_run_id=parent_task_run_id,
             )
+
+
+class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
+    FROM_STATES = TERMINAL_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        await self.abort_transition(reason="This run has already terminated.")
