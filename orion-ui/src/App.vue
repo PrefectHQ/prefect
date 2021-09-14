@@ -18,10 +18,10 @@ export default class App extends Vue {}
 <style lang="scss">
 .application {
   background-color: $grey-10;
-
   display: grid;
   grid-template-areas: 'nav main';
   grid-template-columns: 62px 1fr;
+  height: 100vh;
 
   @media (max-width: 640px) {
     grid-template-areas:
@@ -37,10 +37,11 @@ export default class App extends Vue {}
 
   .router-view {
     grid-area: main;
+    height: 100%;
+    max-height: 100vh;
     padding: 32px;
     overflow: auto;
     overscroll-behavior: contain;
-    max-height: 100vh;
 
     @media (max-width: 640px) {
       padding: 16px;
