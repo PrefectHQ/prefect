@@ -1,0 +1,109 @@
+/* Default */
+$default: (
+  cancelled: #3d3d3d,
+  completed: #2ac769,
+  failed: #fb4e4e,
+  pending: #ebeef7,
+  running: #1860f2,
+  scheduled: #fcd14e
+);
+
+/* Protaponia */
+$protaponia: (
+  cancelled: #3d3d3d,
+  completed: #1aff1a,
+  failed: #4b0092,
+  pending: #ebeef7,
+  running: #1a85ff,
+  scheduled: #fcd14e
+);
+
+/* Protanomaly */
+$protanomaly: (
+  cancelled: #3d3d3d,
+  completed: #2ac769,
+  failed: #fb4e4d,
+  pending: #ebeef7,
+  running: #1a85ff,
+  scheduled: #ffdd00
+);
+
+/* Deuteranopia */
+$deuteranopia: (
+  cancelled: #3d3d3d,
+  completed: #005ab5,
+  failed: #d41159,
+  pending: #ebeef7,
+  running: #99ccff,
+  scheduled: #ffea00
+);
+
+/* Deuteranomaly */
+$deuteranomaly: (
+  cancelled: #3d3d3d,
+  completed: #2ac769,
+  failed: #d41159,
+  pending: #ebeef7,
+  running: #99ccff,
+  scheduled: #ffea00
+);
+
+/* Tritanopia */
+$tritanopia: (
+  cancelled: #3d3d3d,
+  completed: #0a0aff,
+  failed: #ff7b00,
+  pending: #f0f2f9,
+  running: #a0f8e7,
+  scheduled: #ffdab9
+);
+
+/* Tritanomaly */
+$tritanomaly: (
+  cancelled: #3d3d3d,
+  completed: #0a0aff,
+  failed: #ff7b00,
+  pending: #f0f2f9,
+  running: #a0f8e7,
+  scheduled: #ffe169
+);
+
+/* Achromatopsia */
+$achromatopsia: (
+  cancelled: #707070,
+  completed: #abedc5,
+  failed: #3c0101,
+  pending: #ebeef7,
+  running: #09399a,
+  scheduled: #fbc00e
+);
+
+/* Achromatomaly */
+$achromatomaly: (
+  cancelled: #3d3d3d,
+  completed: #1aff1a,
+  failed: #fb4e4e,
+  pending: #050505,
+  running: #1860f2,
+  scheduled: #fcd14e
+);
+
+$themes: (
+  default: $default,
+  protaponia: $protaponia,
+  protanomaly: $protanomaly,
+  deuteranopia: $deuteranopia,
+  deuteranomaly: $deuteranomaly,
+  tritanopia: $tritanopia,
+  tritanomaly: $tritanomaly,
+  achromatopsia: $achromatopsia,
+  achromatomaly: $achromatomaly
+);
+
+:root {
+  @each $key, $colors in $themes {
+    @each $color-key, $color in $colors {
+      --#{"" + $color-key + "-" + $key}: #{$color};
+    }
+  }
+}
