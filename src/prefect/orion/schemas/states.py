@@ -21,6 +21,13 @@ class StateType(AutoEnum):
     CANCELLED = AutoEnum.auto()
 
 
+TERMINAL_STATES = {
+    StateType.COMPLETED,
+    StateType.CANCELLED,
+    StateType.FAILED,
+}
+
+
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
@@ -83,7 +90,7 @@ class State(ORMBaseModel, Generic[R]):
         return self.type == StateType.CANCELLED
 
     def is_final(self):
-        return self.is_cancelled() or self.is_completed() or self.is_failed()
+        return self.type in TERMINAL_STATES
 
     def copy(self, *, update: dict = None, reset_fields: bool = False, **kwargs):
         """
