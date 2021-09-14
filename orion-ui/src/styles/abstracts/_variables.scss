@@ -1,3 +1,7 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as lib;
+@use 'sass:color';
+@use 'sass:math';
+
 /* Default */
 $default: (
   cancelled: #3d3d3d,
@@ -110,7 +114,7 @@ $themes: (
 
 body {
   @each $key, $colors in $themes {
-    &.#{$key} {
+    &.#{$key}-color-mode {
       :root {
         @each $color-key, $color in $colors {
           --#{"" + $color-key}: #{$color};
@@ -125,6 +129,25 @@ body {
 
         .#{$color-key}-bg {
           background-color: $color !important;
+
+          &.correct-text {
+            // method adapted from https://css-tricks.com/switch-font-color-for-different-backgrounds-with-css/
+            /* calculates perceived lightness using the sRGB Luma method 
+            Luma = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255 */
+            $r: color.red($color) * 0.2126;
+            $g: color.green($color) * 0.7152;
+            $b: color.blue($color) * 0.0722;
+            $sum: $r + $g + $b;
+            $perceived-lightness: math.div($sum, 255);
+
+            @debug $perceived-lightness;
+            /* switch font color based on perceived lightness */
+            color: if(
+              $perceived-lightness > 0.65,
+              lib.$text--primary,
+              lib.$text--white
+            );
+          }
         }
       }
     }
