@@ -1,0 +1,155 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as lib;
+@use 'sass:color';
+@use 'sass:math';
+
+/* Default */
+$default: (
+  cancelled: #3d3d3d,
+  completed: #2ac769,
+  failed: #fb4e4e,
+  pending: #ebeef7,
+  running: #1860f2,
+  scheduled: #fcd14e
+);
+
+/* Protaponia */
+$protaponia: (
+  cancelled: #3d3d3d,
+  completed: #1aff1a,
+  failed: #4b0092,
+  pending: #ebeef7,
+  running: #1a85ff,
+  scheduled: #fcd14e
+);
+
+/* Protanomaly */
+$protanomaly: (
+  cancelled: #3d3d3d,
+  completed: #2ac769,
+  failed: #fb4e4d,
+  pending: #ebeef7,
+  running: #1a85ff,
+  scheduled: #ffdd00
+);
+
+/* Deuteranopia */
+$deuteranopia: (
+  cancelled: #3d3d3d,
+  completed: #005ab5,
+  failed: #d41159,
+  pending: #ebeef7,
+  running: #99ccff,
+  scheduled: #ffea00
+);
+
+/* Deuteranomaly */
+$deuteranomaly: (
+  cancelled: #3d3d3d,
+  completed: #2ac769,
+  failed: #d41159,
+  pending: #ebeef7,
+  running: #99ccff,
+  scheduled: #ffea00
+);
+
+/* Tritanopia */
+$tritanopia: (
+  cancelled: #3d3d3d,
+  completed: #0a0aff,
+  failed: #ff7b00,
+  pending: #f0f2f9,
+  running: #a0f8e7,
+  scheduled: #ffdab9
+);
+
+/* Tritanomaly */
+$tritanomaly: (
+  cancelled: #3d3d3d,
+  completed: #0a0aff,
+  failed: #ff7b00,
+  pending: #f0f2f9,
+  running: #a0f8e7,
+  scheduled: #ffe169
+);
+
+/* Achromatopsia */
+$achromatopsia: (
+  cancelled: #7a7a7a,
+  completed: #abedc5,
+  failed: #140000,
+  pending: #ebeef7,
+  running: #0b48c1,
+  scheduled: #fbc00e
+);
+
+/* Achromatomaly */
+$achromatomaly: (
+  cancelled: #3d3d3d,
+  completed: #1aff1a,
+  failed: #fb4e4e,
+  pending: #050505,
+  running: #1860f2,
+  scheduled: #fcd14e
+);
+
+$themes: (
+  default: $default,
+  protaponia: $protaponia,
+  protanomaly: $protanomaly,
+  deuteranopia: $deuteranopia,
+  deuteranomaly: $deuteranomaly,
+  tritanopia: $tritanopia,
+  tritanomaly: $tritanomaly,
+  achromatopsia: $achromatopsia,
+  achromatomaly: $achromatomaly
+);
+
+:root {
+  @each $key, $colors in $themes {
+    @each $color-key, $color in $colors {
+      --#{"" + $color-key + "-" + $key}: #{$color};
+    }
+  }
+}
+
+body {
+  @each $key, $colors in $themes {
+    &.#{$key}-color-mode {
+      :root {
+        @each $color-key, $color in $colors {
+          --#{"" + $color-key}: #{$color};
+        }
+      }
+
+      @each $color-key, $color in $colors {
+        --#{"" + $color-key}: #{$color};
+        .#{$color-key}-text {
+          color: $color !important;
+        }
+
+        .#{$color-key}-bg {
+          background-color: $color !important;
+
+          &.correct-text {
+            // method adapted from https://css-tricks.com/switch-font-color-for-different-backgrounds-with-css/
+            /* calculates perceived lightness using the sRGB Luma method 
+            Luma = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255 */
+            $r: color.red($color) * 0.2126;
+            $g: color.green($color) * 0.7152;
+            $b: color.blue($color) * 0.0722;
+            $sum: $r + $g + $b;
+            $perceived-lightness: math.div($sum, 255);
+
+            @debug $perceived-lightness;
+            /* switch font color based on perceived lightness */
+            color: if(
+              $perceived-lightness > 0.65,
+              lib.$text--primary,
+              lib.$text--white
+            );
+          }
+        }
+      }
+    }
+  }
+}
