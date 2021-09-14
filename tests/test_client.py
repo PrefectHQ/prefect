@@ -6,10 +6,12 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow
+from prefect import orion
 from prefect.client import OrionClient
 from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import Scheduled, Pending, Running, StateType
 from prefect.tasks import task
 from prefect.orion.schemas.schedules import IntervalSchedule
 
@@ -96,6 +98,50 @@ async def test_set_then_read_flow_run_state(orion_client):
     assert isinstance(state, schemas.states.State)
     assert state.type == schemas.states.StateType.COMPLETED
     assert state.message == "Test!"
+
+
+async def test_read_flow_runs_without_filter(orion_client):
+    @flow(tags=["a", "b"])
+    def foo():
+        pass
+
+    fr_id_1 = await orion_client.create_flow_run(foo)
+    fr_id_2 = await orion_client.create_flow_run(foo)
+
+    flows = await orion_client.read_flow_runs()
+    assert len(flows) == 2
+    assert all(isinstance(flow, schemas.core.FlowRun) for flow in flows)
+    assert {flow.id for flow in flows} == {fr_id_1, fr_id_2}
+
+
+async def test_read_flow_runs_with_filtering(orion_client):
+    @flow
+    def foo():
+        pass
+
+    @flow
+    def bar():
+        pass
+
+    fr_id_1 = await orion_client.create_flow_run(foo, state=Pending())
+    fr_id_2 = await orion_client.create_flow_run(foo, state=Scheduled())
+    fr_id_3 = await orion_client.create_flow_run(bar, state=Pending())
+    # Only below should match the filter
+    fr_id_4 = await orion_client.create_flow_run(bar, state=Scheduled())
+    fr_id_5 = await orion_client.create_flow_run(bar, state=Running())
+
+    flows = await orion_client.read_flow_runs(
+        flows=schemas.filters.FlowFilter(names=["bar"]),
+        flow_runs=schemas.filters.FlowRunFilter(
+            states=[
+                StateType.SCHEDULED,
+                StateType.RUNNING,
+            ]
+        ),
+    )
+    assert len(flows) == 2
+    assert all(isinstance(flow, schemas.core.FlowRun) for flow in flows)
+    assert {flow.id for flow in flows} == {fr_id_4, fr_id_5}
 
 
 async def test_create_then_read_task_run(orion_client):
