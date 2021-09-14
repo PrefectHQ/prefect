@@ -50,6 +50,23 @@ async def create_deployment(
     return model
 
 
+@router.get("/name/{flow_name}/{deployment_name}")
+async def read_deployment_by_name(
+    flow_name: str = Path(..., description="The name of the flow"),
+    deployment_name: str = Path(..., description="The name of the deployment"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.Deployment:
+    """
+    Get a deployment using the name of the flow and the deployment
+    """
+    deployment = await models.deployments.read_deployment_by_name(
+        session=session, name=deployment_name, flow_name=flow_name
+    )
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment
+
+
 @router.get("/{id}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),

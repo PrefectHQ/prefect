@@ -47,7 +47,6 @@ async def run(name: str, watch: bool = True):
     """
     Create a flow run for the given deployment
     """
-    ...
 
 
 @deployment_app.command()
