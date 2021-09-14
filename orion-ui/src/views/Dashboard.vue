@@ -2,6 +2,10 @@
   <div>
     <h1>Dashboard</h1>
 
+    <Card>
+      <RunHistoryChart :data="buckets" />
+    </Card>
+
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows">
         <i class="pi pi-flow pi-lg mr-1" />
@@ -92,7 +96,10 @@ import FlowListItem from '@/components/List/ListItem--Flow/ListItem--Flow.vue'
 import DeploymentListItem from '@/components/List/ListItem--Deployment/ListItem--Deployment.vue'
 import FlowRunListItem from '@/components/List/ListItem--FlowRun/ListItem--FlowRun.vue'
 import TaskRunListItem from '@/components/List/ListItem--TaskRun/ListItem--TaskRun.vue'
+import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart.vue'
+
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
+import { default as buckets } from '@/util/run_history/24_hours.json'
 
 // Temporary imports for dummy data
 import { default as flowList } from '@/util/objects/flows.json'
@@ -106,10 +113,13 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
     FlowListItem,
     DeploymentListItem,
     FlowRunListItem,
-    TaskRunListItem
+    TaskRunListItem,
+    RunHistoryChart
   }
 })
 export default class Dashboard extends Vue {
+  buckets = buckets
+
   flowList: Flow[] = flowList
   deploymentList: Deployment[] = deploymentList
   flowRunList: FlowRun[] = flowRunList
