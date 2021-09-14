@@ -1,17 +1,21 @@
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
+from prefect.orion.utilities.database import dialect_specific_insert
 
 
 async def create_task_run(
     session: sa.orm.Session, task_run: schemas.core.TaskRun
 ) -> orm.TaskRun:
-    """Creates a new task run. If the provided task run has a state attached, it
+    """Creates a new task run. If a task run with the same flow_run_id,
+    task_key, and dynamic_key already exists, the existing task
+    run will be returned. If the provided task run has a state attached, it
     will also be created.
 
     Args:
@@ -19,12 +23,46 @@ async def create_task_run(
         task_run (schemas.core.TaskRun): a task run model
 
     Returns:
-        orm.TaskRun: the newly-created flow run
+        orm.TaskRun: the newly-created or existing task run
     """
-    model = orm.TaskRun(**task_run.dict(shallow=True, exclude={"state"}), state=None)
-    session.add(model)
-    await session.flush()
-    if task_run.state:
+    now = pendulum.now("UTC")
+    # if there's no dynamic key, create the task run
+    if not task_run.dynamic_key:
+        model = orm.TaskRun(
+            **task_run.dict(shallow=True, exclude={"state"}), state=None
+        )
+        session.add(model)
+        await session.flush()
+
+    else:
+        # if a dynamic key exists, we need to guard against conflicts
+        insert_stmt = (
+            dialect_specific_insert(orm.TaskRun)
+            .values(
+                **task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
+            )
+            .on_conflict_do_nothing(
+                index_elements=["flow_run_id", "task_key", "dynamic_key"],
+            )
+        )
+        await session.execute(insert_stmt)
+
+        query = (
+            sa.select(orm.TaskRun)
+            .where(
+                sa.and_(
+                    orm.TaskRun.flow_run_id == task_run.flow_run_id,
+                    orm.TaskRun.task_key == task_run.task_key,
+                    orm.TaskRun.dynamic_key == task_run.dynamic_key,
+                )
+            )
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        result = await session.execute(query)
+        model = result.scalar()
+
+    if model.created >= now and task_run.state:
         await models.task_run_states.orchestrate_task_run_state(
             session=session, task_run_id=model.id, state=task_run.state
         )
