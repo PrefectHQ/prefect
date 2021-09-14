@@ -93,6 +93,7 @@ async def read_flow_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     offset: int = None,
     limit: int = None,
+    sort=orm.FlowRun.id,
 ) -> List[orm.FlowRun]:
     """Read flow runs
 
@@ -103,11 +104,12 @@ async def read_flow_runs(
         task_run_filter (TaskRunFilter): only select flow runs whose task runs match these filters
         offset (int): Query offset
         limit (int): Query limit
+        sort - TODO
 
     Returns:
         List[orm.FlowRun]: flow runs
     """
-    query = select(orm.FlowRun).order_by(orm.FlowRun.id)
+    query = select(orm.FlowRun).order_by(sort)
 
     query = _apply_flow_run_filters(
         query,

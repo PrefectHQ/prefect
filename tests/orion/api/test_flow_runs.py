@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -225,6 +226,36 @@ class TestReadFlowRuns:
         response = await client.get("/flow_runs/")
         assert response.status_code == 200
         assert response.json() == []
+
+    async def test_read_flow_runs_applies_sort(self, session, flow, client):
+        now = pendulum.now()
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                    timestamp=now.subtract(minutes=1),
+                ),
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                    timestamp=now.add(minutes=1),
+                ),
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(
+            "/flow_runs/", params=dict(sort="expected_start_time_desc", limit=1)
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_2.id)
 
 
 class TestDeleteFlowRuns:
