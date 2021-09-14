@@ -105,7 +105,9 @@ async def test_timeline(client, start, end, interval, expected_bins):
     response = await client.get(
         "/flow_runs/timeline",
         json=dict(
-            start_time=str(start), end_time=str(end), interval=interval.total_seconds()
+            timeline_start=str(start),
+            timeline_end=str(end),
+            timeline_interval_seconds=interval.total_seconds(),
         ),
     )
 
@@ -124,9 +126,9 @@ async def test_timeline_returns_maximum_items(client):
     response = await client.get(
         "/flow_runs/timeline",
         json=dict(
-            start_time=str(dt),
-            end_time=str(dt.add(days=10)),
-            interval=timedelta(minutes=1).total_seconds(),
+            timeline_start=str(dt),
+            timeline_end=str(dt.add(days=10)),
+            timeline_interval_seconds=timedelta(minutes=1).total_seconds(),
         ),
     )
 
@@ -144,9 +146,9 @@ async def test_daily_bins(client):
     response = await client.get(
         "/flow_runs/timeline",
         json=dict(
-            start_time=str(dt.subtract(days=16)),
-            end_time=str(dt.add(days=6)),
-            interval=timedelta(days=1).total_seconds(),
+            timeline_start=str(dt.subtract(days=16)),
+            timeline_end=str(dt.add(days=6)),
+            timeline_interval_seconds=timedelta(days=1).total_seconds(),
         ),
     )
 
@@ -278,9 +280,9 @@ async def test_weekly_bins(client):
     response = await client.get(
         "/flow_runs/timeline",
         json=dict(
-            start_time=str(dt.subtract(days=16)),
-            end_time=str(dt.add(days=6)),
-            interval=timedelta(days=7).total_seconds(),
+            timeline_start=str(dt.subtract(days=16)),
+            timeline_end=str(dt.add(days=6)),
+            timeline_interval_seconds=timedelta(days=7).total_seconds(),
         ),
     )
 
@@ -318,9 +320,9 @@ async def test_weekly_bins_with_filters(client):
     response = await client.get(
         "/flow_runs/timeline",
         json=dict(
-            start_time=str(dt.subtract(days=16)),
-            end_time=str(dt.add(days=6)),
-            interval=timedelta(days=7).total_seconds(),
+            timeline_start=str(dt.subtract(days=16)),
+            timeline_end=str(dt.add(days=6)),
+            timeline_interval_seconds=timedelta(days=7).total_seconds(),
             flow_runs=dict(states=["FAILED"]),
         ),
     )

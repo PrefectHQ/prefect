@@ -74,10 +74,14 @@ class TimelineResponse(PrefectBaseModel):
 
 
 async def flow_run_timeline(
-    start_time: datetime.datetime = Body(..., description="The timeline's start time."),
-    end_time: datetime.datetime = Body(..., description="The timeline's end time."),
-    interval: datetime.timedelta = Body(
-        ..., description="The timeline's grouping interval."
+    timeline_start: datetime.datetime = Body(
+        ..., description="The timeline's start time."
+    ),
+    timeline_end: datetime.datetime = Body(..., description="The timeline's end time."),
+    timeline_interval: datetime.timedelta = Body(
+        ...,
+        description="The size of each timeline interval, in seconds.",
+        alias="timeline_interval_seconds",
     ),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -90,13 +94,13 @@ async def flow_run_timeline(
 
     # compute all intervals as a CTE
     if session.bind.dialect.name == "sqlite":
-        intervals = sqlite_timestamp_intervals(start_time, end_time, interval).cte(
-            "intervals"
-        )
+        intervals = sqlite_timestamp_intervals(
+            timeline_start, timeline_end, timeline_interval
+        ).cte("intervals")
     elif session.bind.dialect.name == "postgresql":
-        intervals = postgres_timestamp_intervals(start_time, end_time, interval).cte(
-            "intervals"
-        )
+        intervals = postgres_timestamp_intervals(
+            timeline_start, timeline_end, timeline_interval
+        ).cte("intervals")
 
     # apply filters prior to outer join on intervals
     filtered_runs = models.flow_runs._apply_flow_run_filters(
