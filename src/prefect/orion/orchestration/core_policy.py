@@ -28,6 +28,7 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
+            PreventTransitionsOutOfTerminalStates,
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
