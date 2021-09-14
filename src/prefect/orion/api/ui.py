@@ -16,11 +16,14 @@ logger = get_logger("orion.api")
 
 
 def sqlite_timestamp_intervals(
-    start_time: datetime.datetime, end_time: datetime.datetime, interval: str
+    start_time: datetime.datetime,
+    end_time: datetime.datetime,
+    interval: datetime.timedelta,
 ):
     # validate inputs
     start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
+    assert isinstance(interval, datetime.timedelta)
 
     return (
         sa.text(
@@ -50,11 +53,12 @@ def sqlite_timestamp_intervals(
 def postgres_timestamp_intervals(
     start_time: datetime.datetime,
     end_time: datetime.datetime,
-    interval: str,
+    interval: datetime.timedelta,
 ):
     # validate inputs
     start_time = pendulum.instance(start_time)
     end_time = pendulum.instance(end_time)
+    assert isinstance(interval, datetime.timedelta)
     return (
         sa.select(
             sa.literal_column("dt").label("interval_start"),
