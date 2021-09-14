@@ -1,6 +1,7 @@
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
@@ -22,34 +23,14 @@ async def create_flow_run(
     response: Response = None,
 ) -> schemas.core.FlowRun:
     """
-    Create a flow run
+    Create a flow run. If a flow run with the same flow_id and
+    idempotency key already exists, the existing flow run will be returned
     """
-    nested = await session.begin_nested()
-    try:
-        result = await models.flow_runs.create_flow_run(
-            session=session, flow_run=flow_run
-        )
+    now = pendulum.now("UTC")
+    model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+    if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
-        return result
-    except sa.exc.IntegrityError as exc:
-        # try to load a flow run with the same idempotency key
-        await nested.rollback()
-        stmt = await session.execute(
-            sa.select(models.orm.FlowRun).filter_by(
-                flow_id=flow_run.flow_id,
-                idempotency_key=flow_run.idempotency_key,
-            )
-        )
-        result = stmt.scalar()
-
-        # if nothing was returned, then the integrity error was caused by violating
-        # a constraint other than the idempotency key. The most probable one is
-        # that a primary key was provided that already exists in the database.
-        if not result:
-            msg = "Could not create flow run due to database constraint violations."
-            logger.error(msg, exc_info=True)
-            raise ValueError(msg)
-        return result
+    return model
 
 
 # must be defined before `GET /:id`
