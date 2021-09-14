@@ -56,6 +56,15 @@ const storageKey = 'orion-color-mode'
   watch: {
     colorMode(val) {
       localStorage.setItem(storageKey, val)
+
+      const bodyClasses = document.body.classList
+      bodyClasses.forEach((c) => {
+        if (c.includes('-color-mode')) {
+          document.body.classList.remove(c)
+        }
+      })
+
+      document.body.classList.add(val.toLowerCase() + '-color-mode')
     }
   }
 })
