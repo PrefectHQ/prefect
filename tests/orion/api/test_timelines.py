@@ -351,3 +351,23 @@ async def test_weekly_bins_with_filters(client):
             states={},
         ),
     ]
+
+
+async def test_last_bin_contains_end_date(client):
+    """The last bin contains the end date, so its own end could be after the timeline end"""
+    response = await client.get(
+        "/flow_runs/timeline",
+        json=dict(
+            timeline_start=str(dt),
+            timeline_end=str(dt.add(days=1, minutes=30)),
+            timeline_interval_seconds=timedelta(days=1).total_seconds(),
+        ),
+    )
+
+    assert response.status_code == 200
+    parsed = pydantic.parse_obj_as(List[TimelineResponse], response.json())
+    assert len(parsed) == 2
+    assert parsed[0].interval_start == dt
+    assert parsed[0].interval_end == dt.add(days=1)
+    assert parsed[1].interval_start == dt.add(days=1)
+    assert parsed[1].interval_end == dt.add(days=2)
