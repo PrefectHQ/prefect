@@ -1,6 +1,6 @@
 <template>
   <div class="application">
-    <NavBar />
+    <NavBar class="nav" />
     <router-view class="router-view" />
   </div>
 </template>
@@ -19,20 +19,32 @@ export default class App extends Vue {}
 .application {
   background-color: $grey-10;
 
-  display: flex;
-  align-content: stretch;
+  display: grid;
+  grid-template-areas: 'nav main';
+  grid-template-columns: 62px 1fr;
 
   @media (max-width: 640px) {
-    flex-direction: column;
+    grid-template-areas:
+      'nav'
+      'main';
+    grid-template-columns: unset;
+    grid-template-rows: 62px 1fr;
+  }
+
+  .nav {
+    grid-area: nav;
   }
 
   .router-view {
-    flex-grow: 1;
-    flex-shrink: 0;
+    grid-area: main;
     padding: 32px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    max-height: 100vh;
 
     @media (max-width: 640px) {
       padding: 16px;
+      max-height: calc(100vh - 62px);
     }
   }
 }
