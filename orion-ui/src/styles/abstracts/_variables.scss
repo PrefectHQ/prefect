@@ -107,3 +107,26 @@ $themes: (
     }
   }
 }
+
+body {
+  @each $key, $colors in $themes {
+    &.#{$key} {
+      :root {
+        @each $color-key, $color in $colors {
+          --#{"" + $color-key}: #{$color};
+        }
+      }
+
+      @each $color-key, $color in $colors {
+        --#{"" + $color-key}: #{$color};
+        .#{$color-key}-text {
+          color: $color !important;
+        }
+
+        .#{$color-key}-bg {
+          background-color: $color !important;
+        }
+      }
+    }
+  }
+}
