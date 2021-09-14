@@ -34,7 +34,7 @@ jobs:
 
   python-format:
     
-    name: Check Python formatting
+    name: Python formatting
 
     runs-on: ubuntu-latest
 
