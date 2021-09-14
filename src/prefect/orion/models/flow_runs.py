@@ -1,12 +1,14 @@
 from typing import List
 from uuid import UUID
 
+import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 import prefect
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
+from prefect.orion.utilities.database import dialect_specific_insert
 
 
 async def create_flow_run(
@@ -22,10 +24,42 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
-    model = orm.FlowRun(**flow_run.dict(shallow=True, exclude={"state"}), state=None)
-    session.add(model)
-    await session.flush()
-    if flow_run.state:
+    now = pendulum.now("UTC")
+    # if there's no idempotency key, just create the run
+    if not flow_run.idempotency_key:
+        model = orm.FlowRun(
+            **flow_run.dict(shallow=True, exclude={"state"}), state=None
+        )
+        session.add(model)
+        await session.flush()
+
+    # otherwise let the database take care of enforcing idempotency
+    else:
+        insert_stmt = (
+            dialect_specific_insert(orm.FlowRun)
+            .values(
+                **flow_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
+            )
+            .on_conflict_do_nothing(
+                index_elements=[orm.FlowRun.flow_id, orm.FlowRun.idempotency_key],
+            )
+        )
+        await session.execute(insert_stmt)
+        query = (
+            sa.select(orm.FlowRun)
+            .where(
+                sa.and_(
+                    orm.FlowRun.flow_id == flow_run.flow_id,
+                    orm.FlowRun.idempotency_key == flow_run.idempotency_key,
+                )
+            )
+            .limit(1)
+            .execution_options(populate_existing=True)
+        )
+        result = await session.execute(query)
+        model = result.scalar()
+
+    if model.created >= now and flow_run.state:
         await models.flow_run_states.orchestrate_flow_run_state(
             session=session, flow_run_id=model.id, state=flow_run.state
         )
