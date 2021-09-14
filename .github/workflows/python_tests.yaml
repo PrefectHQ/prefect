@@ -4,7 +4,7 @@ on: [pull_request]
 
 jobs:
   run-tests-sqlite:
-    name: Sqlite backend
+    name: Sqlite
 
     strategy:
       matrix:
@@ -50,7 +50,7 @@ jobs:
           pytest tests
 
   run-tests-postgres:
-    name: Postgres backend
+    name: Postgres
 
     strategy:
       matrix:
