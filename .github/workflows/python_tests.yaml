@@ -10,13 +10,11 @@ jobs:
       matrix:
         python-version:
           - 3.7
-          # Testing on all supported Python versions is not necessary yet
-          # - 3.8
-          # - 3.9
+          - 3.8
+          - 3.9
         os: 
           - ubuntu-latest
-          # Testing on Windows is not necessary yet
-          # - windows-latest
+          - windows-latest
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
@@ -58,13 +56,11 @@ jobs:
       matrix:
         python-version:
           - 3.7
-          # Testing on all supported Python versions is not necessary yet
-          # - 3.8
-          # - 3.9
+          - 3.8
+          - 3.9
         os: 
           - ubuntu-latest
-          # Testing on Windows is not necessary yet
-          # - windows-latest
+          - windows-latest
       fail-fast: false
 
     runs-on: ${{ matrix.os }}
