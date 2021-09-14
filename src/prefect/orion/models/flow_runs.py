@@ -143,7 +143,7 @@ async def read_flow_runs(
     Returns:
         List[orm.FlowRun]: flow runs
     """
-    if not sort:
+    if sort is None:
         sort = [orm.FlowRun.id.desc()]
 
     query = select(orm.FlowRun).order_by(*sort)
