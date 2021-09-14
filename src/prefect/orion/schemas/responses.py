@@ -20,3 +20,7 @@ class StateRejectDetails(PrefectBaseModel):
 class StateWaitDetails(PrefectBaseModel):
     delay_seconds: int
     reason: str = None
+
+
+class StateAbortDetails(PrefectBaseModel):
+    reason: str = None

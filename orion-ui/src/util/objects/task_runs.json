@@ -3,70 +3,70 @@
     "id": "bc8daa2c-48ee-4599-ba0c-aa926e0033f2",
     "flow_run_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "name": "E",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
     "id": "3064f188-d241-4fb6-a9e6-ede93fc44a61",
     "flow_run_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "name": "T",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": []
   },
   {
     "id": "7bf3bd8f-a926-4fa4-8be9-bfd49bded1b5",
     "flow_run_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "name": "L",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
     "id": "806b49c1-54a2-4cb7-94f0-2aef282e4a0c",
     "flow_run_id": "9faba929-cbd1-4ccb-ac5f-59410f189c06",
     "name": "E",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
     "id": "16ab8969-3ac2-4c55-9e58-9eb8ea8ec258",
     "flow_run_id": "9faba929-cbd1-4ccb-ac5f-59410f189c06",
     "name": "T",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": []
   },
   {
     "id": "d2d334c1-c18c-4a1d-a330-a9103b1789ca",
     "flow_run_id": "9faba929-cbd1-4ccb-ac5f-59410f189c06",
     "name": "L",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
     "id": "a5a73c96-9eba-4f21-9249-5b3daab6bc50",
     "flow_run_id": "bda303ba-4c4c-46c7-8b0b-9d81129fa2b2",
     "name": "E",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
     "id": "c0494bdf-d0b9-4519-adeb-0b669182516a",
     "flow_run_id": "bda303ba-4c4c-46c7-8b0b-9d81129fa2b2",
     "name": "T",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": []
   },
   {
     "id": "ee59c019-714b-4601-8bf4-6355de470fdf",
     "flow_run_id": "bda303ba-4c4c-46c7-8b0b-9d81129fa2b2",
     "name": "L",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
     "id": "d07ef31b-371e-4da7-837a-c24b5665af32",
     "flow_run_id": "68100b34-1cfb-4a8b-b561-4fbd2f0e095b",
     "name": "E",
-    "state": "SUCCESS",
+    "state": "COMPLETED",
     "tags": ["database"]
   },
   {
