@@ -37,5 +37,5 @@ class PrefectSignal(BaseException):
     pass
 
 
-class AbortSignal(PrefectSignal):
+class Abort(PrefectSignal):
     pass
