@@ -70,7 +70,7 @@ async def read_flow_run(
 
 @router.get("/")
 async def read_flow_runs(
-    sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
+    sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,

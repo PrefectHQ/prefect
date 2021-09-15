@@ -163,8 +163,9 @@ class TestReadTaskRuns:
 
         response = await client.get(
             "/task_runs/",
+            json=dict(sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value),
             params=dict(
-                limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
+                limit=1,
             ),
         )
         assert response.status_code == 200
@@ -176,7 +177,7 @@ class TestReadTaskRuns:
     async def test_read_task_runs_succeeds_for_all_sort_values(
         self, sort, task_run, client
     ):
-        response = await client.get("/task_runs/", params=dict(sort=sort))
+        response = await client.get("/task_runs/", json=dict(sort=sort))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)

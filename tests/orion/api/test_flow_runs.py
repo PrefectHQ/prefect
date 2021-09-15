@@ -253,9 +253,8 @@ class TestReadFlowRuns:
 
         response = await client.get(
             "/flow_runs/",
-            params=dict(
-                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value, limit=1
-            ),
+            json=dict(sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value),
+            params=dict(limit=1),
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == str(flow_run_2.id)
@@ -266,7 +265,7 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_sort_succeeds_for_all_sort_values(
         self, sort, flow_run, client
     ):
-        response = await client.get("/flow_runs/", params=dict(sort=sort))
+        response = await client.get("/flow_runs/", json=dict(sort=sort))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
