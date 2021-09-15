@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+from prefect.orion.api import dependencies, flow_run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
@@ -52,6 +52,10 @@ async def count_flow_runs(
     )
 
 
+# insert other routes here so they are defined ahead of `GET /:id`
+router.get("/history")(flow_run_history.flow_run_history)
+
+
 @router.get("/{id}")
 async def read_flow_run(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
@@ -70,6 +74,7 @@ async def read_flow_run(
 
 @router.get("/")
 async def read_flow_runs(
+    sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -86,6 +91,7 @@ async def read_flow_runs(
         task_run_filter=task_runs,
         offset=pagination.offset,
         limit=pagination.limit,
+        sort=sort,
     )
 
 
