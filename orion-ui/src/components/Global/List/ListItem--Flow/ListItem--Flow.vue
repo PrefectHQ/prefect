@@ -1,5 +1,5 @@
 <template>
-  <ListItem>
+  <list-item>
     <div>
       <i class="item--icon pi pi-flow pi-2x" />
 
@@ -21,21 +21,18 @@
 
     <div class="ml-auto caption-small mr-2"> Run chart placeholder </div>
     <Button color="primary">Quick run</Button>
-  </ListItem>
+  </list-item>
 </template>
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import ListItem from '../ListItem/ListItem.vue'
 import { Flow } from '@/objects'
 
 class Props {
   flow = prop<Flow>({ required: true })
 }
 
-@Options({
-  components: { ListItem }
-})
+@Options({})
 export default class ListItemFlow extends Vue.with(Props) {}
 </script>
 
