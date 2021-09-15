@@ -77,6 +77,9 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
             raise ValueError("Couldn't infer a flow in the current context")
     assert isinstance(flow, prefect.Flow)  # appease mypy
 
+    # Cache the original tasks of the flow for calculating the difference later
+    original_flow_tasks = flow.tasks.copy()
+
     # Check if args/kwargs are valid first
     for x in itertools.chain(args, kwargs.values()):
         if not isinstance(
@@ -174,7 +177,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     #
     # Here we do a final pass adding missing upstream deps on mapped arguments
     # to all newly created tasks in the apply_map.
-    new_tasks = flow2.tasks.difference(arg_info)
+    new_tasks = flow2.tasks.difference(original_flow_tasks).difference(arg_info)
     for task in new_tasks:
         upstream_tasks = flow.upstream_tasks(task)
         is_root_in_subgraph = not upstream_tasks.intersection(new_tasks)
@@ -186,6 +189,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
                     flow.add_edge(
                         upstream_task=arg_task, downstream_task=task, mapped=is_mapped
                     )
+
     return res
 
 
