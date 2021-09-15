@@ -150,6 +150,23 @@ class TestUpdateFlowRun:
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.updated > now
 
+    async def test_update_flow_run_does_not_update_if_fields_not_set(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json={},
+        )
+        assert response.status_code == 200
+        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        assert updated_flow_run.flow_version == "1.0"
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, flow_run, client):

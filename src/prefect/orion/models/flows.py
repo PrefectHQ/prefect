@@ -1,6 +1,5 @@
 from typing import List
 from uuid import UUID
-import pendulum
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select

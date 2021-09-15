@@ -54,6 +54,21 @@ class TestUpdateFlow:
         assert updated_flow.tags == ["TB12"]
         assert updated_flow.updated > now
 
+    async def test_update_flow_does_not_update_if_fields_not_set(self, session, client):
+        flow = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/flows/{str(flow.id)}",
+            json={},
+        )
+        assert response.status_code == 200
+        updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
+        assert updated_flow.tags == ["db", "blue"]
+
 
 class TestReadFlow:
     async def test_read_flow(self, client):
