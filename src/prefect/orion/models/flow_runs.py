@@ -66,6 +66,32 @@ async def create_flow_run(
     return model
 
 
+async def update_flow_run(
+    session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.core.FlowRun
+) -> orm.FlowRun:
+    """
+    Updates a flow run
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_run_id (UUID): the flow run id to update
+        flow_run (schemas.core.FlowRun): a flow run model
+
+    Returns:
+        orm.FlowRun: the updated flow run
+
+    """
+    update_stmt = (
+        sa.update(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+        # exclude_unset=True allows us to only update values provided by
+        # the user, ignoring any defaults on the model
+        .values(**flow_run.dict(shallow=True, exclude_unset=True))
+    )
+    await session.execute(update_stmt)
+    model = await read_flow_run(session=session, flow_run_id=flow_run_id)
+    return model
+
+
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
     """Reads a flow run by id
 

@@ -33,6 +33,21 @@ async def create_flow_run(
     return model
 
 
+@router.patch("/{id}")
+async def update_flow_run(
+    flow_run: schemas.actions.FlowRunUpdate,
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.FlowRun:
+    """
+    Updates a flow run
+    """
+    # TODO - return 404 if this doesnt exist
+    return await models.flow_runs.update_flow_run(
+        session=session, flow_run=flow_run, flow_run_id=flow_run_id
+    )
+
+
 # must be defined before `GET /:id`
 @router.get("/count")
 async def count_flow_runs(

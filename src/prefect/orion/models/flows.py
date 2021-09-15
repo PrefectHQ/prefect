@@ -46,7 +46,7 @@ async def update_flow(
     session: sa.orm.Session, flow_id: UUID, flow: schemas.core.Flow
 ) -> orm.Flow:
     """
-    Updates a flow run
+    Updates a flow
 
     Args:
         session (sa.orm.Session): a database session
@@ -54,12 +54,13 @@ async def update_flow(
         flow (schemas.core.Flow): a flow model
 
     Returns:
-        orm.Flow: the newly-created or existing flow
+        orm.Flow: the updated flow
 
     """
     update_stmt = (
-        sa.update(orm.Flow)
-        .where(orm.Flow.id == flow_id)
+        sa.update(orm.Flow).where(orm.Flow.id == flow_id)
+        # exclude_unset=True allows us to only update values provided by
+        # the user, ignoring any defaults on the model
         .values(**flow.dict(shallow=True, exclude_unset=True))
     )
     await session.execute(update_stmt)
