@@ -64,7 +64,7 @@ async def get_engine(
 
         # apply database timeout
         if timeout is not None:
-            dialect = get_dialect(connection_url)
+            dialect = get_dialect(connection_url=connection_url)
             if dialect.driver == "aiosqlite":
                 kwargs["connect_args"] = dict(timeout=timeout)
             elif dialect.driver == "asyncpg":
@@ -358,7 +358,7 @@ class json_contains(FunctionElement):
 def json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).contains(element.values),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -388,7 +388,7 @@ def json_contains_sqlite(element, compiler, **kwargs):
             ]
             or [True]
         ),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -410,11 +410,11 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
     values_array = postgresql.array(element.values)
     # if the array is empty, postgres requires a type annotation
     if not element.values:
-        values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
+        values_array = sa.cast(values_array, postgresql.ARRAY(sa.String))
 
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).has_any(values_array),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -427,7 +427,7 @@ def json_has_any_key_sqlite(element, compiler, **kwargs):
         .select_from(json_each)
         .where(sa.literal_column("json_each.value").in_(element.values))
         .exists(),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -449,11 +449,11 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 
     # if the array is empty, postgres requires a type annotation
     if not element.values:
-        values_array = sa.func.cast(values_array, postgresql.ARRAY(sa.String))
+        values_array = sa.cast(values_array, postgresql.ARRAY(sa.String))
 
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).has_all(values_array),
-        **kwargs
+        **kwargs,
     )
 
 
@@ -555,10 +555,16 @@ async def drop_db(engine=None):
         await conn.run_sync(Base.metadata.drop_all)
 
 
-def get_dialect(connection_url: str = None):
-    if connection_url is None:
-        connection_url = settings.orion.database.connection_url.get_secret_value()
-    url = sa.engine.url.make_url(connection_url)
+def get_dialect(
+    session=None,
+    connection_url: str = None,
+):
+    if session is not None:
+        url = session.bind.url
+    else:
+        if connection_url is None:
+            connection_url = settings.orion.database.connection_url.get_secret_value()
+        url = sa.engine.url.make_url(connection_url)
     return url.get_dialect()
 
 
