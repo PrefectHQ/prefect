@@ -52,7 +52,7 @@ class CensusSyncTask(Task):
 
         Returns:
             - dict: dictionary of statistics returned by Census on the specified sync, structure below.
-            
+
         Structure:
             ```python
             {
