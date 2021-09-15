@@ -39,6 +39,36 @@ const directions: Map<string, number> = new Map([
   ...mappedNegativeStates
 ])
 
+const formatMillisecond = d3.timeFormat('.%L'),
+  formatSecond = d3.timeFormat(':%S'),
+  formatMinute = d3.timeFormat('%I:%M'),
+  formatHour = d3.timeFormat('%I %p'),
+  formatDay = d3.timeFormat('%a %d'),
+  formatWeek = d3.timeFormat('%b %d'),
+  formatMonth = d3.timeFormat('%B'),
+  formatYear = d3.timeFormat('%Y')
+
+const formatLabel = (date: Date) => {
+  console.log(date)
+  return (
+    d3.timeSecond(date) < date
+      ? formatMillisecond
+      : d3.timeMinute(date) < date
+      ? formatSecond
+      : d3.timeHour(date) < date
+      ? formatMinute
+      : d3.timeDay(date) < date
+      ? formatHour
+      : d3.timeMonth(date) < date
+      ? d3.timeWeek(date) < date
+        ? formatDay
+        : formatWeek
+      : d3.timeYear(date) < date
+      ? formatMonth
+      : formatYear
+  )(date)
+}
+
 export interface StateAggregate {
   [key: string]: number
 }
@@ -85,6 +115,27 @@ export default class RunHistoryChart extends Vue.with(Props) {
     null
   >
 
+  xAxisGroup: SelectionType = null as unknown as d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    null
+  >
+
+  xAxis = (g: any) =>
+    g
+      .attr('transform', `translate(0,${this.height})`)
+      .call(
+        d3
+          .axisTop(this.xScale)
+          .ticks(this.width / 100)
+          .tickFormat(formatLabel)
+          .tickSizeOuter(0)
+      )
+      .call((g) => g.select('.domain').remove())
+
+  // as unknown as d3.Selection<SVGGElement, unknown, HTMLElement, null>
+
   get buckets(): Bucket[] {
     return this.data.map((d: Bucket) => {
       const states: { [key: string]: number } = {}
@@ -129,12 +180,13 @@ export default class RunHistoryChart extends Vue.with(Props) {
   }
 
   handleWindowResize(): void {
-    console.log(this.container)
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
 
-    this.updateScales()
-    this.updateBuckets()
+    if (this.svg) {
+      this.updateScales()
+      this.updateBuckets()
+    }
   }
 
   updateScales(): void {
@@ -153,6 +205,8 @@ export default class RunHistoryChart extends Vue.with(Props) {
         padding.top,
         this.height / 2 - padding.bottom - padding.middle
       ])
+
+    this.xAxisGroup.call(this.xAxis)
   }
 
   createChart(): void {
@@ -167,22 +221,32 @@ export default class RunHistoryChart extends Vue.with(Props) {
 
     this.svg
       .append('rect')
-      .attr('fill', this.backgroundColor && `var(--${this.backgroundColor})`)
+      .attr(
+        'fill',
+        this.backgroundColor ? `var(--${this.backgroundColor})` : 'transparent'
+      )
       .attr('rx', 4)
       .attr('width', '100%')
-      .attr('height', '100%')
+      .attr(
+        'height',
+        `${this.height - padding.top - padding.bottom - padding.middle}px`
+      )
 
     this.barSelection = this.svg.append('g')
 
+    this.xAxisGroup = this.svg.append('g')
+    console.log(this.xAxisGroup)
+
     // TODO: Remove this guidelines (for tesitng purposes only)
-    // this.svg
-    //   .append('line')
-    //   .attr('x1', 0)
-    //   .attr('x2', this.width)
-    //   .attr('y1', this.height / 2 - padding.top / 2)
-    //   .attr('y2', this.height / 2 - padding.top / 2)
-    //   .attr('stroke-width', padding.middle / 4)
-    //   .attr('stroke', 'rgba(0, 0, 0, 0.05')
+    this.svg
+      .append('line')
+      .attr('x1', 0)
+      .attr('x2', this.width)
+      .attr('y1', this.height / 2 + padding.middle / 2)
+      .attr('y2', this.height / 2 + padding.middle / 2)
+      .attr('stroke-width', padding.middle / 6)
+      .attr('stroke-dasharray', 12)
+      .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 
   updateBuckets(): void {
@@ -301,5 +365,9 @@ export default class RunHistoryChart extends Vue.with(Props) {
 .chart-container {
   height: 100%;
   width: 100%;
+}
+
+.tick line {
+  opacity: 0;
 }
 </style>
