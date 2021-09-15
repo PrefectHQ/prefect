@@ -123,7 +123,7 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
   }
 })
 export default class Dashboard extends Vue {
-  buckets: Bucket[] = dataset_2
+  buckets: Bucket[] = dataset_1
 
   flowList: Flow[] = flowList
   deploymentList: Deployment[] = deploymentList
