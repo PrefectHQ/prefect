@@ -68,7 +68,7 @@ async def read_task_run(
 
 @router.get("/")
 async def read_task_runs(
-    sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.id_desc,
+    sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
     pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -85,7 +85,7 @@ async def read_task_runs(
         task_run_filter=task_runs,
         offset=pagination.offset,
         limit=pagination.limit,
-        sort=[sort.as_sql_sort()],
+        sort=sort,
     )
 
 

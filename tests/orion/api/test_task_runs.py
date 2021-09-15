@@ -164,7 +164,7 @@ class TestReadTaskRuns:
         response = await client.get(
             "/task_runs/",
             params=dict(
-                limit=1, sort=schemas.sorting.TaskRunSort.expected_start_time_desc.value
+                limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
             ),
         )
         assert response.status_code == 200

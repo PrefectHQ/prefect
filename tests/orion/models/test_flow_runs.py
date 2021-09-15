@@ -604,7 +604,7 @@ class TestReadFlowRuns:
         await session.commit()
         result = await models.flow_runs.read_flow_runs(
             session=session,
-            sort=[schemas.sorting.FlowRunSort.expected_start_time_desc.as_sql_sort()],
+            sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC,
             limit=1,
         )
         assert result[0].id == flow_run_2.id
