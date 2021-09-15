@@ -723,3 +723,8 @@ classes = ["DremioFetch"]
 title = "SendGrid Tasks"
 module = "prefect.tasks.sendgrid"
 classes = ["SendEmail"]
+
+[pages.tasks.census]
+title = "Census Tasks"
+module = "prefect.tasks.census"
+classes = ["CensusSyncTask"]
