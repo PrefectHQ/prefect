@@ -8,6 +8,7 @@ import pytest
 from prefect.orion import models
 from prefect.orion.schemas import core, states, responses
 from prefect.orion.utilities.database import get_session_factory
+from prefect.orion.schemas.states import StateType
 
 dt = pendulum.datetime(2021, 10, 1)
 
@@ -141,136 +142,67 @@ async def test_history_returns_maximum_items(client):
     )
 
 
-async def test_daily_bins(client):
+async def test_two_day_bins(client):
     response = await client.get(
         "/flow_runs/history",
         json=dict(
-            history_start=str(dt.subtract(days=16)),
-            history_end=str(dt.add(days=6)),
+            history_start=str(dt.subtract(days=5)),
+            history_end=str(dt.add(days=1)),
             history_interval_seconds=timedelta(days=1).total_seconds(),
         ),
     )
 
     assert response.status_code == 200
     parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+
+    # sort states arrays for comparison
+    for p in parsed:
+        p.states = sorted(p.states, key=lambda s: s.name)
+
     assert parsed == [
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 15),
-            interval_end=pendulum.datetime(2021, 9, 16),
-            states={},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 16),
-            interval_end=pendulum.datetime(2021, 9, 17),
-            states={},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 17),
-            interval_end=pendulum.datetime(2021, 9, 18),
-            states={states.StateType.COMPLETED: 2, states.StateType.FAILED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 18),
-            interval_end=pendulum.datetime(2021, 9, 19),
-            states={states.StateType.FAILED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 19),
-            interval_end=pendulum.datetime(2021, 9, 20),
-            states={},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 20),
-            interval_end=pendulum.datetime(2021, 9, 21),
-            states={states.StateType.COMPLETED: 2, states.StateType.FAILED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 21),
-            interval_end=pendulum.datetime(2021, 9, 22),
-            states={states.StateType.COMPLETED: 2, states.StateType.FAILED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 22),
-            interval_end=pendulum.datetime(2021, 9, 23),
-            states={states.StateType.COMPLETED: 2},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 23),
-            interval_end=pendulum.datetime(2021, 9, 24),
-            states={states.StateType.COMPLETED: 2, states.StateType.FAILED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 24),
-            interval_end=pendulum.datetime(2021, 9, 25),
-            states={states.StateType.COMPLETED: 2, states.StateType.FAILED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 25),
-            interval_end=pendulum.datetime(2021, 9, 26),
-            states={},
-        ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 26),
             interval_end=pendulum.datetime(2021, 9, 27),
-            states={states.StateType.FAILED: 1},
+            states=[dict(name="Failed", type=StateType.FAILED, count=1)],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 27),
             interval_end=pendulum.datetime(2021, 9, 28),
-            states={states.StateType.COMPLETED: 2, states.StateType.FAILED: 1},
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=2),
+                dict(name="Failed", type=StateType.FAILED, count=1),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 28),
             interval_end=pendulum.datetime(2021, 9, 29),
-            states={states.StateType.COMPLETED: 2},
+            states=[dict(name="Completed", type=StateType.COMPLETED, count=2)],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 29),
             interval_end=pendulum.datetime(2021, 9, 30),
-            states={states.StateType.COMPLETED: 2, states.StateType.RUNNING: 4},
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=2),
+                dict(name="Running", type=StateType.RUNNING, count=4),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 30),
             interval_end=pendulum.datetime(2021, 10, 1),
-            states={
-                states.StateType.COMPLETED: 2,
-                states.StateType.RUNNING: 4,
-                states.StateType.SCHEDULED: 4,
-            },
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=2),
+                dict(name="Running", type=StateType.RUNNING, count=4),
+                dict(name="Scheduled", type=StateType.SCHEDULED, count=4),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 10, 1),
             interval_end=pendulum.datetime(2021, 10, 2),
-            states={
-                states.StateType.COMPLETED: 1,
-                states.StateType.RUNNING: 1,
-                states.StateType.SCHEDULED: 4,
-            },
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 2),
-            interval_end=pendulum.datetime(2021, 10, 3),
-            states={states.StateType.SCHEDULED: 4},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 3),
-            interval_end=pendulum.datetime(2021, 10, 4),
-            states={states.StateType.SCHEDULED: 4},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 4),
-            interval_end=pendulum.datetime(2021, 10, 5),
-            states={states.StateType.SCHEDULED: 1},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 5),
-            interval_end=pendulum.datetime(2021, 10, 6),
-            states={},
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 6),
-            interval_end=pendulum.datetime(2021, 10, 7),
-            states={},
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=1),
+                dict(name="Running", type=StateType.RUNNING, count=1),
+                dict(name="Scheduled", type=StateType.SCHEDULED, count=4),
+            ],
         ),
     ]
 
@@ -287,30 +219,40 @@ async def test_weekly_bins(client):
 
     assert response.status_code == 200
     parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    # sort states arrays for comparison
+    for p in parsed:
+        p.states = sorted(p.states, key=lambda s: s.name)
+
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
             interval_end=pendulum.datetime(2021, 9, 22),
-            states={states.StateType.COMPLETED: 6, states.StateType.FAILED: 4},
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=6),
+                dict(name="Failed", type=StateType.FAILED, count=4),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 22),
             interval_end=pendulum.datetime(2021, 9, 29),
-            states={states.StateType.COMPLETED: 10, states.StateType.FAILED: 4},
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=10),
+                dict(name="Failed", type=StateType.FAILED, count=4),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 29),
             interval_end=pendulum.datetime(2021, 10, 6),
-            states={
-                states.StateType.COMPLETED: 5,
-                states.StateType.RUNNING: 9,
-                states.StateType.SCHEDULED: 17,
-            },
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=5),
+                dict(name="Running", type=StateType.RUNNING, count=9),
+                dict(name="Scheduled", type=StateType.SCHEDULED, count=17),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 10, 6),
             interval_end=pendulum.datetime(2021, 10, 13),
-            states={},
+            states=[],
         ),
     ]
 
@@ -322,32 +264,42 @@ async def test_weekly_bins_with_filters(client):
             history_start=str(dt.subtract(days=16)),
             history_end=str(dt.add(days=6)),
             history_interval_seconds=timedelta(days=7).total_seconds(),
-            flow_runs=dict(states=["FAILED"]),
+            flow_runs=dict(states=["FAILED", "SCHEDULED"]),
         ),
     )
 
     assert response.status_code == 200
     parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    # sort states arrays for comparison
+    for p in parsed:
+        p.states = sorted(p.states, key=lambda s: s.name)
+
     assert parsed == [
         dict(
             interval_start=pendulum.datetime(2021, 9, 15),
             interval_end=pendulum.datetime(2021, 9, 22),
-            states={states.StateType.FAILED: 4},
+            states=[
+                dict(name="Failed", type=StateType.FAILED, count=4),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 22),
             interval_end=pendulum.datetime(2021, 9, 29),
-            states={states.StateType.FAILED: 4},
+            states=[
+                dict(name="Failed", type=StateType.FAILED, count=4),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 9, 29),
             interval_end=pendulum.datetime(2021, 10, 6),
-            states={},
+            states=[
+                dict(name="Scheduled", type=StateType.SCHEDULED, count=17),
+            ],
         ),
         dict(
             interval_start=pendulum.datetime(2021, 10, 6),
             interval_end=pendulum.datetime(2021, 10, 13),
-            states={},
+            states=[],
         ),
     ]
 
