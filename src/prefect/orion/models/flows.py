@@ -1,10 +1,10 @@
 from typing import List
 from uuid import UUID
+import pendulum
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
 from prefect.orion.utilities.database import dialect_specific_insert
@@ -42,12 +42,37 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
     return model
 
 
+async def update_flow(
+    session: sa.orm.Session, flow_id: UUID, flow: schemas.core.Flow
+) -> orm.Flow:
+    """
+    Updates a flow run
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_id (UUID): the flow id to update
+        flow (schemas.core.Flow): a flow model
+
+    Returns:
+        orm.Flow: the newly-created or existing flow
+
+    """
+    update_stmt = (
+        sa.update(orm.Flow)
+        .where(orm.Flow.id == flow_id)
+        .values(**flow.dict(shallow=True, exclude_unset=True))
+    )
+    await session.execute(update_stmt)
+    model = await read_flow(session=session, flow_id=flow_id)
+    return model
+
+
 async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
     """Reads a flow by id
 
     Args:
         session (sa.orm.Session): A database session
-        flow_id (str): a flow id
+        flow_id (UUID): a flow id
 
     Returns:
         orm.Flow: the flow
@@ -170,7 +195,7 @@ async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
 
     Args:
         session (sa.orm.Session): A database session
-        flow_id (str): a flow id
+        flow_id (UUID): a flow id
 
     Returns:
         bool: whether or not the flow was deleted

@@ -8,6 +8,8 @@ FlowCreate = schemas.core.Flow.subclass(
     include_fields=["name", "tags"],
 )
 
+FlowUpdate = schemas.core.Flow.subclass(name="FlowUpdate", include_fields=["tags"])
+
 DeploymentCreate = schemas.core.Deployment.subclass(
     name="DeploymentCreate",
     include_fields=["name", "flow_id", "schedule", "is_schedule_active", "flow_data"],
