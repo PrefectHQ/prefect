@@ -34,6 +34,9 @@ const padding = {
   right: 16
 }
 
+const paddingY = padding.top + padding.middle + padding.bottom
+const paddingX = padding.left + padding.right
+
 const directions: Map<string, number> = new Map([
   ...mappedPositiveStates,
   ...mappedNegativeStates
@@ -180,6 +183,18 @@ export default class RunHistoryChart extends Vue.with(Props) {
     this.width = this.container.offsetWidth
 
     if (this.svg) {
+      this.svg.attr(
+        'viewbox',
+        `0, 0, ${this.width - paddingX}, ${this.height - paddingY}`
+      )
+
+      this.svg
+        .select('rect')
+        .attr(
+          'height',
+          `${this.height - padding.top - padding.bottom - padding.middle}px`
+        )
+
       this.updateScales()
       this.updateBuckets()
     }
@@ -209,10 +224,8 @@ export default class RunHistoryChart extends Vue.with(Props) {
 
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
-    const paddingY = padding.top + padding.middle + padding.bottom
-    const paddingX = padding.left + padding.right
 
-    this.svg?.attr(
+    this.svg.attr(
       'viewbox',
       `0, 0, ${this.width - paddingX}, ${this.height - paddingY}`
     )
@@ -233,7 +246,6 @@ export default class RunHistoryChart extends Vue.with(Props) {
     this.barSelection = this.svg.append('g')
 
     this.xAxisGroup = this.svg.append('g')
-    console.log(this.xAxisGroup)
 
     // TODO: Remove this guidelines (for tesitng purposes only)
     // this.svg
@@ -247,59 +259,31 @@ export default class RunHistoryChart extends Vue.with(Props) {
     //   .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 
-  updateBuckets(): void {
-    if (!this.barSelection) return
+  updateBarPath(d: any, i: number): string | void {
     const maxWidth = this.width / this.data.length / 2
+    const seriesSlot = this.seriesMap.get(d.state)![d.bucket_key]
+    const biasIndex = directions.get(d.state)
 
-    // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-    /* @ts-ignore */
-    this.barSelection
-      .selectAll('.bucket')
-      .data(this.data)
-      // .join('g')
-      .join((selection: any) =>
-        selection
-          .append('g')
-          .attr('id', (d: Bucket | any) => d.interval_start.toString())
-          .style('transform', `translate(${padding.left}px, ${padding.top}px)`)
-          .selectAll('path')
-          /* @ts-ignore */
-          .data((d: Bucket, i: number) => {
-            const arr = Object.entries(d.states).map(([state, count]) => {
-              return { state: state, count: count, bucket_key: i }
-            })
-            return arr
-          })
-          .join((selection_: any) =>
-            selection_ /* @ts-ignore */
-              .append('path')
-              .attr('d', (d: any, i: number) => {
-                const seriesSlot = this.seriesMap.get(d.state)![d.bucket_key]
-                const biasIndex = directions.get(d.state)
+    if (!seriesSlot || !biasIndex) return
+    const data = this.data.find(
+      /* @ts-ignore */
+      (_d) => _d.interval_start == seriesSlot.data.interval_start
+    )
+    const states = data?.states || []
+    const stateEntries = Object.entries(states)
 
-                if (!seriesSlot || !biasIndex) return
-                const data = this.data.find(
-                  /* @ts-ignore */
-                  (_d) => _d.interval_start == seriesSlot.data.interval_start
-                )
-                const states = data?.states || []
-                const stateEntries = Object.entries(states)
+    const arr = biasIndex > 0 ? negativeStates : positiveStates
+    const stateIndex = arr.findIndex((s) => s == d.state)
 
-                const arr = biasIndex > 0 ? negativeStates : positiveStates
-                const stateIndex = arr.findIndex((s) => s == d.state)
+    const otherStates = stateEntries.filter(
+      ([state, count]) => state !== d.state && arr.includes(state)
+    )
+    const adjustedArr = arr.filter(
+      (s) => stateEntries.find((_s) => _s[0] == s)?.[1] || 0 > 0
+    )
+    const sumCountOther = otherStates.reduce((acc, curr) => acc + curr[1], 0)
 
-                const otherStates = stateEntries.filter(
-                  ([state, count]) => state !== d.state && arr.includes(state)
-                )
-                const adjustedArr = arr.filter(
-                  (s) => stateEntries.find((_s) => _s[0] == s)?.[1] || 0 > 0
-                )
-                const sumCountOther = otherStates.reduce(
-                  (acc, curr) => acc + curr[1],
-                  0
-                )
-
-                /*
+    /*
           Round both top and bottom corners if:
             - Is the only bar in the series
 
@@ -312,60 +296,98 @@ export default class RunHistoryChart extends Vue.with(Props) {
             - Is the first bar in the negative series
         */
 
-                let showCapTop = false
-                let showCapBottom = false
+    let showCapTop = false
+    let showCapBottom = false
 
-                if (sumCountOther == 0) {
-                  showCapTop = true
-                  showCapBottom = true
-                } else if (biasIndex < 0) {
-                  if (stateIndex === adjustedArr.length - 1)
-                    showCapBottom = true
-                  if (stateIndex === 0) showCapTop = true
-                } else if (biasIndex > 0) {
-                  if (stateIndex === adjustedArr.length - 1)
-                    showCapBottom = true
-                  if (stateIndex === 0) showCapTop = true
-                }
+    if (sumCountOther == 0) {
+      showCapTop = true
+      showCapBottom = true
+    } else if (biasIndex < 0) {
+      if (stateIndex === adjustedArr.length - 1) showCapBottom = true
+      if (stateIndex === 0) showCapTop = true
+    } else if (biasIndex > 0) {
+      if (stateIndex === adjustedArr.length - 1) showCapBottom = true
+      if (stateIndex === 0) showCapTop = true
+    }
 
-                const width = Math.min(10, maxWidth) / 2
+    const width = Math.min(10, maxWidth) / 2
 
-                const r = Math.min(capR, width / 2)
+    const r = Math.min(capR, width / 2)
 
-                const xStart =
-                  /* @ts-ignore */
-                  this.xScale(new Date(seriesSlot.data.interval_start)) +
-                  maxWidth / 2
-                const yStart =
-                  this.yScale(seriesSlot[0]) +
-                  padding.top +
-                  (biasIndex > 0 ? padding.middle : 0) +
-                  (biasIndex < 0 ? r / 2 : 0)
-                const height =
-                  this.yScale(seriesSlot[1]) - this.yScale(seriesSlot[0])
+    const xStart =
+      /* @ts-ignore */
+      this.xScale(new Date(seriesSlot.data.interval_start)) + maxWidth / 2
+    const yStart =
+      this.yScale(seriesSlot[0]) +
+      padding.top +
+      (biasIndex > 0 ? padding.middle : 0) +
+      (biasIndex < 0 ? r / 2 : 0)
+    const height = this.yScale(seriesSlot[1]) - this.yScale(seriesSlot[0])
 
-                if (height == 0) return ''
+    if (height == 0) return ''
 
-                const capTop = showCapTop
-                  ? `a ${r} ${r} 0 1 0 -${width} 0`
-                  : `a 0 0 0 1 0 -${width} 0`
-                const capBottom = showCapBottom
-                  ? `a ${r} ${r} 0 1 0 ${width} 0`
-                  : `a 0 0 0 1 0 ${width} 0`
+    const capTop = showCapTop
+      ? `a ${r} ${r} 0 1 0 -${width} 0`
+      : `a 0 0 0 1 0 -${width} 0`
+    const capBottom = showCapBottom
+      ? `a ${r} ${r} 0 1 0 ${width} 0`
+      : `a 0 0 0 1 0 ${width} 0`
 
-                return `M${xStart},${yStart} v${height} ${
-                  capBottom ? capBottom : ''
-                } ${capBottom ? '' : `h${width}`} v-${height} ${
-                  capTop ? capTop : ''
-                }`
-              })
-              .attr(
-                'class',
-                // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-                /* @ts-ignore */
-                (d: any) => d.state.toLowerCase() + '-fill radii'
-              )
-          )
+    return `M${xStart},${yStart} v${height} ${capBottom ? capBottom : ''} ${
+      capBottom ? '' : `h${width}`
+    } v-${height} ${capTop ? capTop : ''}`
+  }
+
+  updateBuckets(): void {
+    if (!this.barSelection) return
+    // TODO: Figure out what the heck the overloads for D3 are supposed to be...
+    /* @ts-ignore */
+    this.barSelection
+      .selectAll('.bucket')
+      .data(this.data, (d: any) => d.interval_start)
+      .join(
+        (enter: any) =>
+          enter
+            .append('g')
+            .attr('class', 'bucket')
+            .attr('id', (d: Bucket | any) => d.interval_start.toString())
+            .style(
+              'transform',
+              `translate(${padding.left}px, ${padding.top}px)`
+            ),
+        (update: any) =>
+          update.style(
+            'transform',
+            `translate(${padding.left}px, ${padding.top}px)`
+          ),
+        (exit: any) => exit.remove()
+      )
+      .selectAll('path')
+      /* @ts-ignore */
+      .data((d: Bucket, i: number) =>
+        Object.entries(d.states).map(([state, count]) => {
+          return { state: state, count: count, bucket_key: i }
+        })
+      )
+      .join(
+        (enter: any) =>
+          enter /* @ts-ignore */
+            .append('path')
+            .attr('d', this.updateBarPath)
+            .attr(
+              'class',
+              // TODO: Figure out what the heck the overloads for D3 are supposed to be...
+              /* @ts-ignore */
+              (d: any) => d.state.toLowerCase() + '-fill'
+            ),
+        (update: any) =>
+          update.attr('d', this.updateBarPath).attr(
+            'class',
+            // TODO: Figure out what the heck the overloads for D3 are supposed to be...
+            /* @ts-ignore */
+            (d: any) => d.state.toLowerCase() + '-fill'
+          ),
+        (exit: any) => exit.remove()
       )
   }
 }
