@@ -1,6 +1,5 @@
 import pytest
 
-# from prefect import Flow
 from prefect.tasks.census import CensusSyncTask
 
 
