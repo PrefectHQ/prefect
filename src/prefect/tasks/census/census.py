@@ -79,7 +79,7 @@ class CensusSyncTask(Task):
 
         sleep_time = max(MIN_WAIT_TIME, poll_status_every_n_seconds)
 
-        self.logger.info(
+        self.logger.debug(
             f"Started Census sync {sync_id}, sleep time set to {sleep_time} seconds."
         )
 
@@ -101,13 +101,13 @@ class CensusSyncTask(Task):
             result = response_dict["data"]
             status = result["status"]
             if status == "working":
-                self.logger.info(
+                self.logger.debug(
                     f"Sync {sync_id} still running after {round(time.time()-start_time, 2)} seconds."
                 )
                 continue
             break
 
-        self.logger.info(
+        self.logger.debug(
             f"Sync {sync_id} has finished running after {round(time.time()-start_time, 2)} seconds."
         )
         self.logger.info(f"View details here: {log_url}.")
