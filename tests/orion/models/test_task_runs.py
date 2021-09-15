@@ -453,7 +453,7 @@ class TestReadTaskRuns:
         result = await models.task_runs.read_task_runs(
             session=session,
             limit=1,
-            sort=[schemas.sorting.TaskRunSort.expected_start_time_desc.as_sql_sort()],
+            sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC,
         )
         assert result[0].id == task_run_2.id
 

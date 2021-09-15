@@ -127,7 +127,7 @@ async def read_flow_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     offset: int = None,
     limit: int = None,
-    sort: List[sa.sql.expression.ColumnElement] = None,
+    sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
 ) -> List[orm.FlowRun]:
     """Read flow runs
 
@@ -138,15 +138,13 @@ async def read_flow_runs(
         task_run_filter (TaskRunFilter, optional): only select flow runs whose task runs match these filters
         offset (int, optional): Query offset
         limit (int, optional): Query limit
-        sort (List[sa.sql.expression.ColumnElement], optional) - clauses to sort the query by
+        sort (schemas.sorting.FlowRunSort, optional) - Query sort
 
     Returns:
         List[orm.FlowRun]: flow runs
     """
-    if sort is None:
-        sort = [orm.FlowRun.id.desc()]
 
-    query = select(orm.FlowRun).order_by(*sort)
+    query = select(orm.FlowRun).order_by(sort.as_sql_sort())
 
     query = _apply_flow_run_filters(
         query,

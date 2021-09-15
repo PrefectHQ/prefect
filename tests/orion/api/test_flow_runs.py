@@ -254,7 +254,7 @@ class TestReadFlowRuns:
         response = await client.get(
             "/flow_runs/",
             params=dict(
-                sort=schemas.sorting.FlowRunSort.expected_start_time_desc.value, limit=1
+                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value, limit=1
             ),
         )
         assert response.status_code == 200
