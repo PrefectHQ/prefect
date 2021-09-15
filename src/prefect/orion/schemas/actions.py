@@ -30,6 +30,10 @@ FlowRunCreate = schemas.core.FlowRun.subclass(
     ],
 )
 
+FlowRunUpdate = schemas.core.FlowRun.subclass(
+    name="FlowRunUpdate", include_fields=["flow_version", "parameters"]
+)
+
 StateCreate = schemas.states.State.subclass(
     name="StateCreate",
     include_fields=[

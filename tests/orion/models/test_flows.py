@@ -37,7 +37,6 @@ class TestUpdateFlow:
         )
 
         flow_id = copy.deepcopy(flow.id)
-        now = pendulum.now("UTC")
 
         updated_flow = await models.flows.update_flow(
             session=session,

@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pendulum
+import pydantic
 import pytest
 import sqlalchemy as sa
 
@@ -127,6 +128,27 @@ class TestCreateFlowRun:
         )
 
         assert response.json()["deployment_id"] == str(deployment.id)
+
+
+class TestUpdateFlowRun:
+    async def test_update_flow_run_succeeds(self, flow, session, client):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+        now = pendulum.now("UTC")
+
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(flow_version="The next one").dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == 200
+        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        assert updated_flow_run.flow_version == "The next one"
+        assert updated_flow_run.updated > now
 
 
 class TestReadFlowRun:

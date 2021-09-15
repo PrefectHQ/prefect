@@ -38,6 +38,7 @@ async def update_flow(
     """
     Updates a flow
     """
+    # TODO - return 404 if this doesnt exist
     return await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
 
 
