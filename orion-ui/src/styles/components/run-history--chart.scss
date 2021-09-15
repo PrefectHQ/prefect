@@ -1,8 +1,13 @@
-.run-history-chart {
+.chart-container {
   height: 100%;
   width: 100%;
 
-  .bar-selection {
-    // transform: translate(-50%, -50%);
+  .run-history-chart {
+    height: 100%;
+    width: 100%;
+
+    .tick line {
+      opacity: 0;
+    }
   }
 }
