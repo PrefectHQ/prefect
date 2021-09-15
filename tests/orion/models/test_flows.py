@@ -64,6 +64,15 @@ class TestUpdateFlow:
         assert updated_flow.tags == ["TB12"]
         assert flow_id == flow.id == updated_flow.id
 
+    async def test_update_flow_returns_none_if_flow_does_not_exist(self, session):
+        assert not (
+            await models.flows.update_flow(
+                session=session,
+                flow_id=uuid4(),
+                flow=schemas.actions.FlowUpdate(),
+            )
+        )
+
 
 class TestReadFlow:
     async def test_read_flow(self, session):

@@ -42,10 +42,12 @@ async def update_flow_run(
     """
     Updates a flow run
     """
-    # TODO - return 404 if this doesnt exist
-    return await models.flow_runs.update_flow_run(
+    flow_run = await models.flow_runs.update_flow_run(
         session=session, flow_run=flow_run, flow_run_id=flow_run_id
     )
+    if not flow_run:
+        raise HTTPException(status_code=404, detail="Flow run not found")
+    return flow_run
 
 
 # must be defined before `GET /:id`
