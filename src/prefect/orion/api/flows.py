@@ -38,7 +38,8 @@ async def update_flow(
     """
     Updates a flow
     """
-    flow = await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
+    await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
+    flow = await models.flows.read_flow(session=session, flow_id=flow_id)
     if not flow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"

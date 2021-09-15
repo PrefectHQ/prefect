@@ -38,12 +38,14 @@ class TestUpdateFlow:
 
         flow_id = copy.deepcopy(flow.id)
 
-        updated_flow = await models.flows.update_flow(
+        update_result = await models.flows.update_flow(
             session=session,
             flow_id=flow_id,
             flow=schemas.actions.FlowUpdate(tags=["TB12"]),
         )
+        assert update_result
 
+        updated_flow = await models.flows.read_flow(session=session, flow_id=flow_id)
         assert updated_flow.tags == ["TB12"]
         assert flow_id == flow.id == updated_flow.id
 
@@ -53,18 +55,19 @@ class TestUpdateFlow:
         )
 
         flow_id = copy.deepcopy(flow.id)
-        now = pendulum.now("UTC")
 
-        updated_flow = await models.flows.update_flow(
+        update_result = await models.flows.update_flow(
             session=session,
             flow_id=flow_id,
             flow=schemas.actions.FlowUpdate(),
         )
+        assert update_result
 
+        updated_flow = await models.flows.read_flow(session=session, flow_id=flow_id)
         assert updated_flow.tags == ["TB12"]
         assert flow_id == flow.id == updated_flow.id
 
-    async def test_update_flow_returns_none_if_flow_does_not_exist(self, session):
+    async def test_update_flow_returns_false_if_flow_does_not_exist(self, session):
         assert not (
             await models.flows.update_flow(
                 session=session,

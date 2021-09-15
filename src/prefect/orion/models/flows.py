@@ -53,7 +53,7 @@ async def update_flow(
         flow (schemas.core.Flow): a flow model
 
     Returns:
-        orm.Flow: the updated flow
+        bool: whether or not matching rows were found to update
 
     """
     update_stmt = (
@@ -62,9 +62,8 @@ async def update_flow(
         # the user, ignoring any defaults on the model
         .values(**flow.dict(shallow=True, exclude_unset=True))
     )
-    await session.execute(update_stmt)
-    model = await read_flow(session=session, flow_id=flow_id)
-    return model
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
 
 
 async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
