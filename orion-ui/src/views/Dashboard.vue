@@ -2,9 +2,9 @@
   <div>
     <h1>Dashboard</h1>
 
-    <Card>
+    <div class="chart-card">
       <RunHistoryChart :data="buckets" />
-    </Card>
+    </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows">
@@ -96,7 +96,10 @@ import FlowListItem from '@/components/List/ListItem--Flow/ListItem--Flow.vue'
 import DeploymentListItem from '@/components/List/ListItem--Deployment/ListItem--Deployment.vue'
 import FlowRunListItem from '@/components/List/ListItem--FlowRun/ListItem--FlowRun.vue'
 import TaskRunListItem from '@/components/List/ListItem--TaskRun/ListItem--TaskRun.vue'
-import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart.vue'
+import {
+  default as RunHistoryChart,
+  Bucket
+} from '@/components/RunHistoryChart/RunHistoryChart.vue'
 
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 import { default as buckets } from '@/util/run_history/24_hours.json'
@@ -118,7 +121,7 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
   }
 })
 export default class Dashboard extends Vue {
-  buckets = buckets
+  buckets: Bucket[] = buckets
 
   flowList: Flow[] = flowList
   deploymentList: Deployment[] = deploymentList
@@ -143,6 +146,13 @@ export default class Dashboard extends Vue {
     background-color: $primary;
     color: $white;
   }
+}
+
+.chart-card {
+  background-color: $white;
+  box-shadow: $box-shadow-sm;
+  border-radius: 4px;
+  padding: 4px;
 }
 
 .fade-enter-active,
