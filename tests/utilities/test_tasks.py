@@ -1,7 +1,7 @@
 import functools
 import pytest
 
-from prefect import Flow, Task, case, Parameter, resource_manager
+from prefect import Flow, Task, case, Parameter, resource_manager, task
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks, edges
@@ -357,6 +357,35 @@ class TestApplyMap:
             r: [3, 4, 5],
         }
         assert res == sol
+
+    def test_apply_map_can_be_used_on_apply_map_result(
+        self,
+    ):
+        # Prior to commit 4b0df740de99a1fad3182c01f4b182ba83445bcc this would introduce
+        # a cycle
+        @task
+        def combine(item_combination):
+            return item_combination[0] + item_combination[1]
+
+        # mapping function one
+        def apply_map_one(item):
+            result_one = inc(item)
+            result_two = inc(inc(item))
+            return (result_one, result_two)
+
+        # mapping function two
+        def apply_map_two(item):
+            return combine(item)
+
+        with Flow("test") as flow:
+            one_result = apply_map(apply_map_one, [1, 2, 3])
+            two_result = apply_map(apply_map_two, one_result)
+
+        state = flow.run()
+        assert state.is_successful()
+        assert state.result[one_result[0]].result == [2, 3, 4]
+        assert state.result[one_result[1]].result == [3, 4, 5]
+        assert state.result[two_result].result == [5, 7, 9]
 
     def test_apply_map_inside_case_statement_works(self):
         def func(x, a):
