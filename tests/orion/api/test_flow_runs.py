@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pendulum
 import pytest
 import sqlalchemy as sa
 
@@ -225,6 +226,49 @@ class TestReadFlowRuns:
         response = await client.get("/flow_runs/")
         assert response.status_code == 200
         assert response.json() == []
+
+    async def test_read_flow_runs_applies_sort(self, session, flow, client):
+        now = pendulum.now()
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                    timestamp=now.subtract(minutes=1),
+                ),
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                    timestamp=now.add(minutes=1),
+                ),
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(
+            "/flow_runs/",
+            json=dict(sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value),
+            params=dict(limit=1),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_2.id)
+
+    @pytest.mark.parametrize(
+        "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
+    )
+    async def test_read_flow_runs_sort_succeeds_for_all_sort_values(
+        self, sort, flow_run, client
+    ):
+        response = await client.get("/flow_runs/", json=dict(sort=sort))
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(flow_run.id)
 
 
 class TestDeleteFlowRuns:
