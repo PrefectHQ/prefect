@@ -1,22 +1,19 @@
 <template>
   <ol class="list">
     <slot>
-      <ListItem>Item 1</ListItem>
-      <ListItem>Item 2</ListItem>
-      <ListItem>Item 3</ListItem>
+      <list-item>Item 1</list-item>
+      <list-item>Item 2</list-item>
+      <list-item>Item 3</list-item>
     </slot>
   </ol>
 </template>
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
-import ListItem from './ListItem/ListItem.vue'
 
 class Props {}
 
-@Options({
-  components: { ListItem }
-})
+@Options({})
 export default class List extends Vue.with(Props) {}
 </script>
 
