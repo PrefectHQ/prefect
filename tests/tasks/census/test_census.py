@@ -14,7 +14,7 @@ class TestCensusSyncTask:
 
     def test_improper_secret_failed(self):
         task = CensusSyncTask()
-        with pytest.raises(ValueError, match="failed"):
+        with pytest.raises(Exception, match="Unauthorized"):
             task.run(
                 api_trigger="https://bearer:secret-token:BLAH@app.getcensus.com/api/v1/syncs/12/trigger"
             )
