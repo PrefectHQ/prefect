@@ -1,5 +1,6 @@
 import datetime
 from uuid import uuid4
+import uuid
 
 import pendulum
 import pytest
@@ -113,6 +114,38 @@ class TestReadDeployment:
     async def test_read_deployment_returns_none_if_does_not_exist(self, session):
         result = await models.deployments.read_deployment(
             session=session, deployment_id=str(uuid4())
+        )
+        assert result is None
+
+    async def test_read_deployment_by_name(self, session, flow, flow_function):
+        # create a deployment to read
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
+        )
+        assert deployment.name == "My Deployment"
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        read_deployment = await models.deployments.read_deployment_by_name(
+            session=session,
+            name=deployment.name,
+            flow_name=flow.name,
+        )
+        assert deployment.id == read_deployment.id
+        assert deployment.name == read_deployment.name
+
+    async def test_read_deployment_by_name_returns_none_if_does_not_exist(
+        self, session
+    ):
+        result = await models.deployments.read_deployment_by_name(
+            session=session,
+            name=str(uuid4()),
+            flow_name=str(uuid4()),
         )
         assert result is None
 
