@@ -40,9 +40,6 @@ class CensusSyncTask(Task):
         will poll Census for the sync status, and will only complete when the sync has completed or
         when it receives an error status code from the trigger API call.
 
-        Format of api_trigger:
-            - "https://bearer:secret-token:s3cr3t@app.getcensus.com/api/v1/syncs/123/trigger"
-
         Args:
             - api_trigger (str): if not specified in run, it will pull from the default for the
                 CensusSyncTask constructor. Keyword argument.
@@ -51,9 +48,9 @@ class CensusSyncTask(Task):
                 60 seconds and it has a minimum wait time of 5 seconds. Keyword argument.
 
         Returns:
-            - dict: dictionary of statistics returned by Census on the specified sync, example below.
+            - dict: dictionary of statistics returned by Census on the specified sync, structure below.
 
-        Example:
+        Structure:
             ```python
             {
                 'error_message': None / str,
@@ -118,6 +115,19 @@ class CensusSyncTask(Task):
 
     @staticmethod
     def check_invalid_api(api_trigger: str):
+        """
+        Makes sure the url for the api trigger matches the Census format specified below. If it does
+        not, it will raise a ValueError before returning.
+
+        Format of api_trigger:
+            - "https://bearer:secret-token:s3cr3t@app.getcensus.com/api/v1/syncs/123/trigger"
+
+        Args:
+            - api_trigger (str): if specified in the constructor, will call this validation there
+        
+        Returns:
+            - confirmed_pattern (Match Object: https://docs.python.org/3/library/re.html#match-objects)
+        """
         pattern = r"https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger"
         url_pattern = re.compile(pattern)
         # Making sure it is a valid api trigger.
