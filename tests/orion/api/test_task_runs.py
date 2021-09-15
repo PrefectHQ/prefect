@@ -1,10 +1,12 @@
 import uuid
 from uuid import uuid4
+import pendulum
 
 import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models
+from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import responses, states
 
@@ -138,6 +140,47 @@ class TestReadTaskRuns:
         )
         assert response.status_code == 200
         assert response.json() == []
+
+    async def test_read_task_runs_applies_sort(self, flow_run, session, client):
+        now = pendulum.now()
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                expected_start_time=now.subtract(minutes=5),
+            ),
+        )
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                expected_start_time=now.add(minutes=5),
+            ),
+        )
+        await session.commit()
+
+        response = await client.get(
+            "/task_runs/",
+            json=dict(sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value),
+            params=dict(
+                limit=1,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(task_run_2.id)
+
+    @pytest.mark.parametrize(
+        "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
+    )
+    async def test_read_task_runs_succeeds_for_all_sort_values(
+        self, sort, task_run, client
+    ):
+        response = await client.get("/task_runs/", json=dict(sort=sort))
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        assert response.json()[0]["id"] == str(task_run.id)
 
 
 class TestDeleteTaskRuns:
