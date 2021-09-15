@@ -165,12 +165,7 @@ class OrionClient:
         self,
         name: str,
     ) -> schemas.core.Deployment:
-        if "/" not in name:
-            raise ValueError(
-                "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
-            )
-        flow_name, deployment_name = name.split("/")
-        response = await self.get(f"/deployments/name/{flow_name}/{deployment_name}")
+        response = await self.get(f"/deployments/name/{name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployments(self) -> schemas.core.Deployment:
