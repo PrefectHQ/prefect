@@ -281,6 +281,51 @@ class TestReadDeployment:
         response = await client.get(f"/deployments/{uuid4()}")
         assert response.status_code == 404
 
+    async def test_read_deployment_by_name(self, client, flow, flow_function):
+        # first create a deployment to read
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+        ).dict(json_compatible=True)
+        response = await client.post("/deployments/", json=data)
+        deployment_id = response.json()["id"]
+
+        # make sure we we can read the deployment correctly
+        response = await client.get(f"/deployments/name/{flow.name}/{data['name']}")
+        assert response.status_code == 200
+        assert response.json()["id"] == deployment_id
+        assert response.json()["name"] == "My Deployment"
+        assert response.json()["flow_id"] == str(flow.id)
+        assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+
+    async def test_read_deployment_by_name_returns_404_if_does_not_exist(self, client):
+        response = await client.get(f"/deployments/name/{uuid4()}")
+        assert response.status_code == 404
+
+    async def test_read_deployment_by_name_returns_404_if_just_given_flow_name(
+        self, client, flow
+    ):
+        response = await client.get(f"/deployments/name/{flow.name}")
+        assert response.status_code == 404
+
+    async def test_read_deployment_by_name_returns_404_if_just_given_deployment_name(
+        self, client, flow, flow_function
+    ):
+        # create a deployment to read
+        response = await client.post(
+            "/deployments/",
+            json=DeploymentCreate(
+                name="My Deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                flow_id=flow.id,
+            ).dict(json_compatible=True),
+        )
+
+        response = await client.get(f"/deployments/name/My Deployment")
+        assert response.status_code == 404
+
 
 class TestReadDeployments:
     @pytest.fixture
