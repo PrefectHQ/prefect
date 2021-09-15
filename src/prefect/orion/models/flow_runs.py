@@ -68,7 +68,7 @@ async def create_flow_run(
 
 
 async def update_flow_run(
-    session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.core.FlowRun
+    session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.actions.FlowRunUpdate
 ) -> bool:
     """
     Updates a flow run
@@ -76,12 +76,17 @@ async def update_flow_run(
     Args:
         session (sa.orm.Session): a database session
         flow_run_id (UUID): the flow run id to update
-        flow_run (schemas.core.FlowRun): a flow run model
+        flow_run (schemas.actions.FlowRun): a flow run model
 
     Returns:
         bool: whether or not matching rows were found to update
 
     """
+    if not isinstance(flow_run, schemas.actions.FlowRunUpdate):
+        raise ValueError(
+            f"Expected parameter flow_run to have type schemas.actions.FlowRunUpdate, got {type(flow_run)!r} instead"
+        )
+
     update_stmt = (
         sa.update(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by

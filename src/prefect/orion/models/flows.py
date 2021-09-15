@@ -42,7 +42,7 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
 
 
 async def update_flow(
-    session: sa.orm.Session, flow_id: UUID, flow: schemas.core.Flow
+    session: sa.orm.Session, flow_id: UUID, flow: schemas.actions.FlowUpdate
 ) -> orm.Flow:
     """
     Updates a flow
@@ -50,12 +50,17 @@ async def update_flow(
     Args:
         session (sa.orm.Session): a database session
         flow_id (UUID): the flow id to update
-        flow (schemas.core.Flow): a flow model
+        flow (schemas.actions.FlowUpdate): a flow update model
 
     Returns:
         bool: whether or not matching rows were found to update
 
     """
+    if not isinstance(flow, schemas.actions.FlowUpdate):
+        raise ValueError(
+            f"Expected parameter flow to have type schemas.actions.FlowUpdate, got {type(flow)!r} instead"
+        )
+
     update_stmt = (
         sa.update(orm.Flow).where(orm.Flow.id == flow_id)
         # exclude_unset=True allows us to only update values provided by

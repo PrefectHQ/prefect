@@ -76,6 +76,14 @@ class TestUpdateFlow:
             )
         )
 
+    async def test_update_flow_raises_error_if_bad_flow_update_passed(self, session):
+        with pytest.raises(ValueError):
+            await models.flows.update_flow(
+                session=session,
+                flow_id=uuid4(),
+                flow=schemas.core.Flow(name="my-flow"),
+            )
+
 
 class TestReadFlow:
     async def test_read_flow(self, session):
