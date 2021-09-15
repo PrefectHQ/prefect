@@ -6,7 +6,7 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+from prefect.orion.api import dependencies, flow_run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
@@ -50,6 +50,10 @@ async def count_flow_runs(
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
     )
+
+
+# insert other routes here so they are defined ahead of `GET /:id`
+router.get("/history")(flow_run_history.flow_run_history)
 
 
 @router.get("/{id}")
