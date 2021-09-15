@@ -1,3 +1,4 @@
+from statistics import mode
 from uuid import uuid4
 import copy
 import pendulum
@@ -181,12 +182,16 @@ class TestUpdateFlowRun:
 
         flow_run_id = copy.deepcopy(flow_run.id)
 
-        updated_flow_run = await models.flow_runs.update_flow_run(
+        update_result = await models.flow_runs.update_flow_run(
             session=session,
             flow_run_id=flow_run_id,
             flow_run=schemas.actions.FlowRunUpdate(flow_version="The next one"),
         )
+        assert update_result
 
+        updated_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
         assert flow_run_id == updated_flow_run.id == flow_run.id
         assert updated_flow_run.flow_version == "The next one"
 
@@ -198,16 +203,20 @@ class TestUpdateFlowRun:
 
         flow_run_id = copy.deepcopy(flow_run.id)
 
-        updated_flow_run = await models.flow_runs.update_flow_run(
+        update_result = await models.flow_runs.update_flow_run(
             session=session,
             flow_run_id=flow_run_id,
             flow_run=schemas.actions.FlowRunUpdate(),
         )
+        assert update_result
 
+        updated_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
         assert flow_run_id == updated_flow_run.id == flow_run.id
         assert updated_flow_run.flow_version == "1.0"
 
-    async def test_update_flow_run_returns_none_if_flow_run_does_not_exist(
+    async def test_update_flow_run_returns_false_if_flow_run_does_not_exist(
         self, session
     ):
         assert not (

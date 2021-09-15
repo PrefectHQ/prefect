@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+from fastapi import responses
 
 import pendulum
 import sqlalchemy as sa
@@ -68,7 +69,7 @@ async def create_flow_run(
 
 async def update_flow_run(
     session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.core.FlowRun
-) -> orm.FlowRun:
+) -> bool:
     """
     Updates a flow run
 
@@ -78,7 +79,7 @@ async def update_flow_run(
         flow_run (schemas.core.FlowRun): a flow run model
 
     Returns:
-        orm.FlowRun: the updated flow run
+        bool: whether or not matching rows were found to update
 
     """
     update_stmt = (
@@ -87,9 +88,8 @@ async def update_flow_run(
         # the user, ignoring any defaults on the model
         .values(**flow_run.dict(shallow=True, exclude_unset=True))
     )
-    await session.execute(update_stmt)
-    model = await read_flow_run(session=session, flow_run_id=flow_run_id)
-    return model
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
