@@ -48,6 +48,12 @@ async def execute(name: str):
     """
     Create and execute a local flow run for the given deployment
     """
+
+    if "/" not in name:
+        raise ValueError(
+            "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+        )
+
     async with OrionClient() as client:
         deployment = await client.read_deployment_by_name(name)
         flow_model = await client.read_flow(deployment.flow_id)
