@@ -4,7 +4,6 @@ import json
 from typing import Any, List, Set, TypeVar
 from uuid import UUID, uuid4
 
-import pendulum
 from pydantic import BaseModel, Field
 
 from prefect import settings
