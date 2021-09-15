@@ -9,10 +9,8 @@ class TestCensusSyncTask:
         assert task.api_trigger is None
 
     def test_run_failing_on_poor_url(self):
-        task = CensusSyncTask(api_trigger="random_url.com")
-        assert task.api_trigger == "random_url.com"
         with pytest.raises(ValueError, match="paste"):
-            task.run()
+            CensusSyncTask(api_trigger="random_url.com")
 
     def test_improper_secret_failed(self):
         task = CensusSyncTask()

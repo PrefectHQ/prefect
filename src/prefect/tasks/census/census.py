@@ -10,6 +10,22 @@ from prefect.utilities.tasks import defaults_from_attrs
 MIN_WAIT_TIME, DEFAULT_WAIT_TIME = 5, 60
 
 
+def check_invalid_api(api_trigger):
+    pattern = r"https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger"
+    url_pattern = re.compile(pattern)
+
+    # Making sure it is a valid api trigger.
+    confirmed_pattern = url_pattern.match(api_trigger)
+
+    if not confirmed_pattern:
+        raise ValueError(
+            """Invalid parameter for `api_trigger` please paste directly from the Census
+                            sync configuration page. This is CaSe SenSITiVe."""
+        )
+
+    return confirmed_pattern
+
+
 class CensusSyncTask(Task):
     """
     Task for running Census connector sync jobs.
@@ -24,6 +40,8 @@ class CensusSyncTask(Task):
     """
 
     def __init__(self, api_trigger=None, **kwargs):
+        if api_trigger:
+            check_invalid_api(api_trigger)
         self.api_trigger = api_trigger
         super().__init__(**kwargs)
 
@@ -50,6 +68,16 @@ class CensusSyncTask(Task):
 
         Returns:
             - dict: dictionary of statistics returned by Census on the specified sync
+            ```python
+            {
+                'error_message': None / String,
+                'records_failed': Int / None,
+                'records_invalid': Int / None,
+                'records_processed': Int / None,
+                'records_updated': Int / None,
+                'status': 'completed'/'working'/'failed'
+            }
+            ```
         """
 
         if not api_trigger:
@@ -58,24 +86,11 @@ class CensusSyncTask(Task):
                                 configuration page."""
             )
 
-        pattern = r"https:\/\/bearer:secret-token:(.*)@app.getcensus.com\/api\/v1\/syncs\/(\d*)\/trigger"
-        url_pattern = re.compile(pattern)
-
-        # Making sure it is a valid api trigger.
-        confirmed_pattern = url_pattern.match(api_trigger)
-
-        if not confirmed_pattern:
-            raise ValueError(
-                """Invalid parameter for `api_trigger` please paste directly from the Census
-                                sync configuration page. This is CaSe SenSITiVe."""
-            )
+        confirmed_pattern = check_invalid_api(api_trigger)
 
         secret, sync_id = confirmed_pattern.groups()
         response = requests.post(api_trigger)
-
-        if response.status_code != 200:
-            error_string = f"Sent POST, failed with status code {response.status_code}: {response.text}."
-            raise ValueError(error_string)
+        response.raise_for_status()
 
         sleep_time = max(MIN_WAIT_TIME, poll_status_every_n_seconds)
 
@@ -110,16 +125,7 @@ class CensusSyncTask(Task):
         self.logger.debug(
             f"Sync {sync_id} has finished running after {round(time.time()-start_time, 2)} seconds."
         )
-        self.logger.info(f"View details here: {log_url}.")
 
-        # Returns a dictionary of:
-        # {
-        #   'error_message': None / String,
-        #   'records_failed': Int / None,
-        #   'records_invalid': Int / None,
-        #   'records_processed': Int / None,
-        #   'records_updated': Int / None,
-        #   'status': 'completed'/'working'/'failed'
-        # }
+        self.logger.info(f"View sync details here: {log_url}.")
 
         return result
