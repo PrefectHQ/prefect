@@ -1,0 +1,272 @@
+[
+  {
+    "interval_start": "2021-09-01T00:00:00.000Z",
+    "interval_end": "2021-09-01T01:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 10,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T01:00:00.000Z",
+    "interval_end": "2021-09-01T02:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 20,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T02:00:00.000Z",
+    "interval_end": "2021-09-01T03:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T03:00:00.000Z",
+    "interval_end": "2021-09-01T04:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 12,
+      "FAILED": 10,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T04:00:00.000Z",
+    "interval_end": "2021-09-01T05:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 15,
+      "FAILED": 20,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T05:00:00.000Z",
+    "interval_end": "2021-09-01T06:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 0,
+      "FAILED": 0,
+      "CANCELLED": 0,
+      "PENDING": 2
+    }
+  },
+  {
+    "interval_start": "2021-09-01T06:00:00.000Z",
+    "interval_end": "2021-09-01T07:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T07:00:00.000Z",
+    "interval_end": "2021-09-01T08:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T08:00:00.000Z",
+    "interval_end": "2021-09-01T09:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 18,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T09:00:00.000Z",
+    "interval_end": "2021-09-01T10:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T10:00:00.000Z",
+    "interval_end": "2021-09-01T11:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 23,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T11:00:00.000Z",
+    "interval_end": "2021-09-01T12:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T12:00:00.000Z",
+    "interval_end": "2021-09-01T13:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 20,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T13:00:00.000Z",
+    "interval_end": "2021-09-01T14:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T14:00:00.000Z",
+    "interval_end": "2021-09-01T15:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T15:00:00.000Z",
+    "interval_end": "2021-09-01T16:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 10,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T16:00:00.000Z",
+    "interval_end": "2021-09-01T17:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T17:00:00.000Z",
+    "interval_end": "2021-09-01T18:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 30,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T18:00:00.000Z",
+    "interval_end": "2021-09-01T19:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 18,
+      "FAILED": 0,
+      "CANCELLED": 0
+    }
+  },
+  {
+    "interval_start": "2021-09-01T19:00:00.000Z",
+    "interval_end": "2021-09-01T20:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 0,
+      "FAILED": 0,
+      "CANCELLED": 0,
+      "PENDING": 2
+    }
+  },
+  {
+    "interval_start": "2021-09-01T20:00:00.000Z",
+    "interval_end": "2021-09-01T21:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 0,
+      "FAILED": 0,
+      "CANCELLED": 0,
+      "PENDING": 2
+    }
+  },
+  {
+    "interval_start": "2021-09-01T21:00:00.000Z",
+    "interval_end": "2021-09-01T22:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 0,
+      "FAILED": 0,
+      "CANCELLED": 0,
+      "PENDING": 2
+    }
+  },
+  {
+    "interval_start": "2021-09-01T22:00:00.000Z",
+    "interval_end": "2021-09-01T23:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 0,
+      "FAILED": 0,
+      "CANCELLED": 0,
+      "PENDING": 2
+    }
+  },
+  {
+    "interval_start": "2021-09-01T23:00:00.000Z",
+    "interval_end": "2021-09-02T00:00:00.000Z",
+    "states": {
+      "SCHEDULED": 0,
+      "RUNNING": 0,
+      "COMPLETED": 0,
+      "FAILED": 0,
+      "CANCELLED": 0,
+      "PENDING": 2
+    }
+  }
+]
