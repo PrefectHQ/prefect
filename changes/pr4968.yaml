@@ -1,0 +1,5 @@
+fix:
+  - "Fix PostgresFetch with headers for one row - [#4968](https://github.com/PrefectHQ/prefect/pull/4968)"
+
+contributor:
+  - "[Noah Holm](https://github.com/noppaz)"
