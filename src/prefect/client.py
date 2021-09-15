@@ -123,6 +123,18 @@ class OrionClient:
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
 
+    async def read_flows(
+        self,
+        *,
+        flows: schemas.filters.FlowFilter = None,
+    ) -> List[schemas.core.Flow]:
+        body = {}
+        if flows:
+            body["flows"] = flows.dict(json_compatible=True)
+
+        response = await self.get(f"/flows", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
+
     async def read_flow_by_name(
         self,
         flow_name: str,
@@ -130,7 +142,7 @@ class OrionClient:
         response = await self.get(f"/flows/name/{flow_name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
-    async def create_deployment_run(
+    async def create_flow_run_from_deployment(
         self,
         deployment: schemas.core.Deployment,
         *,
@@ -162,7 +174,6 @@ class OrionClient:
     async def create_flow_run(
         self,
         flow: "Flow",
-        *,
         parameters: Dict[str, Any] = None,
         context: dict = None,
         extra_tags: Iterable[str] = None,
@@ -248,7 +259,7 @@ class OrionClient:
         flows: schemas.filters.FlowFilter = None,
         flow_runs: schemas.filters.FlowRunFilter = None,
         task_runs: schemas.filters.TaskRunFilter = None,
-    ) -> schemas.core.FlowRun:
+    ) -> List[schemas.core.FlowRun]:
         body = {}
         if flows:
             body["flows"] = flows.dict(json_compatible=True)
