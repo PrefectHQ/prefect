@@ -227,6 +227,11 @@ class FlowRun(Base):
             idempotency_key,
             unique=True,
         ),
+        sa.Index("ix_flow_run__expected_start_time_desc", expected_start_time.desc()),
+        sa.Index(
+            "ix_flow_run__next_scheduled_start_time_asc",
+            next_scheduled_start_time.asc(),
+        ),
     )
 
 
@@ -330,6 +335,11 @@ class TaskRun(Base):
             task_key,
             dynamic_key,
             unique=True,
+        ),
+        sa.Index("ix_task_run__expected_start_time_desc", expected_start_time.desc()),
+        sa.Index(
+            "ix_task_run__next_scheduled_start_time_asc",
+            next_scheduled_start_time.asc(),
         ),
     )
 

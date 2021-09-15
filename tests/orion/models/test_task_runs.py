@@ -431,6 +431,32 @@ class TestReadTaskRuns:
 
         assert {result_1[0].id, result_2[0].id} == {task_run_1.id, task_run_2.id}
 
+    async def test_read_task_runs_applies_sort(self, flow_run, session):
+        now = pendulum.now()
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                expected_start_time=now.subtract(minutes=5),
+            ),
+        )
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                expected_start_time=now.add(minutes=5),
+            ),
+        )
+
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            limit=1,
+            sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC,
+        )
+        assert result[0].id == task_run_2.id
+
 
 class TestDeleteTaskRun:
     async def test_delete_task_run(self, task_run, session):
