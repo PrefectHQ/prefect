@@ -207,6 +207,17 @@ class TestUpdateFlowRun:
         assert flow_run_id == updated_flow_run.id == flow_run.id
         assert updated_flow_run.flow_version == "1.0"
 
+    async def test_update_flow_run_returns_none_if_flow_run_does_not_exist(
+        self, session
+    ):
+        assert not (
+            await models.flow_runs.update_flow_run(
+                session=session,
+                flow_run_id=uuid4(),
+                flow_run=schemas.actions.FlowRunUpdate(),
+            )
+        )
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, session):

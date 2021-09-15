@@ -167,6 +167,13 @@ class TestUpdateFlowRun:
         updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
         assert updated_flow_run.flow_version == "1.0"
 
+    async def test_update_flow_run_raises_error_if_flow_run_not_found(self, client):
+        response = await client.patch(
+            f"flow_runs/{str(uuid4())}",
+            json={},
+        )
+        assert response.status_code == 404
+
 
 class TestReadFlowRun:
     async def test_read_flow_run(self, flow, flow_run, client):

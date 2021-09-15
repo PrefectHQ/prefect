@@ -38,8 +38,12 @@ async def update_flow(
     """
     Updates a flow
     """
-    # TODO - return 404 if this doesnt exist
-    return await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
+    flow = await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
+    if not flow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
+        )
+    return flow
 
 
 # must be defined before `GET /:id`
@@ -71,7 +75,9 @@ async def read_flow(
     """
     flow = await models.flows.read_flow(session=session, flow_id=flow_id)
     if not flow:
-        raise HTTPException(status_code=404, detail="Flow not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
+        )
     return flow
 
 
@@ -106,5 +112,7 @@ async def delete_flow(
     """
     result = await models.flows.delete_flow(session=session, flow_id=flow_id)
     if not result:
-        raise HTTPException(status_code=404, detail="Flow not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
+        )
     return result

@@ -69,6 +69,13 @@ class TestUpdateFlow:
         updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["db", "blue"]
 
+    async def test_update_flow_rasises_error_if_flow_does_not_exist(self, client):
+        response = await client.patch(
+            f"/flows/{str(uuid4())}",
+            json={},
+        )
+        assert response.status_code == 404
+
 
 class TestReadFlow:
     async def test_read_flow(self, client):
