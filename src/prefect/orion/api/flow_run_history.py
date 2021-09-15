@@ -8,7 +8,7 @@ from fastapi import Body, Depends
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.database import Timestamp, get_dialect
+from prefect.orion.utilities.database import Timestamp, get_dialect, JSON
 from prefect.utilities.logging import get_logger
 
 logger = get_logger("orion.api")
@@ -28,12 +28,16 @@ def sqlite_timestamp_intervals(
         sa.text(
             r"""
             WITH RECURSIVE intervals(interval_start, interval_end) AS (
-                VALUES(strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time), strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time, :interval))
+                VALUES(
+                    strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time), 
+                    strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time, :interval)
+                    )
+                
                 UNION ALL
+                
                 SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000+00:00', interval_end, :interval)
                 FROM intervals
-                -- subtract interval because recursive where clauses are effectively
-                -- evaluated on a t-1 lag
+                -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
                 WHERE interval_start < strftime('%Y-%m-%d %H:%M:%f000+00:00', :end_time, :negative_interval)
             )
             SELECT * FROM intervals
@@ -91,35 +95,56 @@ async def flow_run_history(
     Produce a history of flow runs aggregated by state
     """
 
-    # compute all intervals as a CTE
-    if get_dialect(session=session).name == "sqlite":
-        intervals = sqlite_timestamp_intervals(
-            history_start, history_end, history_interval
-        ).cte("intervals")
-    elif get_dialect(session=session).name == "postgresql":
-        intervals = postgres_timestamp_intervals(
-            history_start, history_end, history_interval
-        ).cte("intervals")
+    # prepare dialect-independent functions
+    if get_dialect(session=session).name == "postgresql":
+        make_timestamp_intervals = postgres_timestamp_intervals
+        json_arr_agg = sa.func.jsonb_agg
+        json_build_object = sa.func.jsonb_build_object
+        json_cast = lambda x: x
+    elif get_dialect(session=session).name == "sqlite":
+        make_timestamp_intervals = sqlite_timestamp_intervals
+        json_arr_agg = sa.func.json_group_array
+        json_build_object = sa.func.json_object
+        json_cast = sa.func.json
 
-    # apply filters prior to outer join on intervals
+    # create a CTE for timestamp intervals
+    intervals = make_timestamp_intervals(
+        history_start,
+        history_end,
+        history_interval,
+    ).cte("intervals")
+
+    # apply filters to the flow runs
     filtered_runs = models.flow_runs._apply_flow_run_filters(
-        sa.select(models.orm.FlowRun),
+        sa.select(
+            models.orm.FlowRun.id,
+            models.orm.FlowRun.state_id,
+            models.orm.FlowRun.expected_start_time,
+            models.orm.FlowRun.state_type,
+        ),
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
     ).alias("filtered_runs")
 
-    # select the count of each state within each interval by performing an
-    # outer join against all intervals and filtering appropriately
-    counts_query = (
+    # outer join intervals to the filtered runs (and states) to create a dataset
+    # of each interval and any runs it contains. Aggregate the runs into a a JSON
+    # object that represents each state type / name / count.
+    counts = (
         sa.select(
             intervals.c.interval_start,
             intervals.c.interval_end,
-            sa.func.coalesce(
-                filtered_runs.c.state_type.cast(sa.String()),
-                "NO_STATE",
-            ).label("state"),
-            sa.func.count(filtered_runs.c.id).label("count"),
+            sa.case(
+                (sa.func.count(filtered_runs.c.id) == 0, None),
+                else_=json_build_object(
+                    "type",
+                    models.orm.FlowRunState.type,
+                    "name",
+                    models.orm.FlowRunState.name,
+                    "count",
+                    sa.func.count(filtered_runs.c.id),
+                ),
+            ).label("state_agg"),
         )
         .select_from(intervals)
         .join(
@@ -130,50 +155,47 @@ async def flow_run_history(
             ),
             isouter=True,
         )
+        .join(
+            models.orm.FlowRunState,
+            filtered_runs.c.state_id == models.orm.FlowRunState.id,
+            isouter=True,
+        )
         .group_by(
             intervals.c.interval_start,
             intervals.c.interval_end,
-            filtered_runs.c.state_type,
+            models.orm.FlowRunState.type,
+            models.orm.FlowRunState.name,
         )
-        .alias("counts_query")
-    )
+    ).alias("counts")
 
-    # aggregate all state / count pairs into a JSON object, removing the empty
-    # placeholders for NO_STATE
-    if get_dialect(session=session).name == "postgresql":
-        json_col = (
-            sa.func.jsonb_object_agg(counts_query.c.state, counts_query.c.count)
-            - "NO_STATE"
-        )
-    elif get_dialect(session=session).name == "sqlite":
-        json_col = sa.func.json_remove(
-            sa.func.json_group_object(counts_query.c.state, counts_query.c.count),
-            "$.NO_STATE",
-        )
-
-    final_query = (
+    # aggregate all state counts into a single array for each interval,
+    # ensuring that intervals with no runs have an empty array
+    query = (
         sa.select(
-            counts_query.c.interval_start,
-            counts_query.c.interval_end,
-            json_col.label("states"),
+            counts.c.interval_start,
+            counts.c.interval_end,
+            sa.func.coalesce(
+                json_arr_agg(json_cast(counts.c.state_agg)).filter(
+                    counts.c.state_agg.is_not(None)
+                ),
+                sa.text("'[]'"),
+            ).label("states"),
         )
-        .select_from(counts_query)
-        .group_by(counts_query.c.interval_start, counts_query.c.interval_end)
-        .order_by(counts_query.c.interval_start)
+        .group_by(counts.c.interval_start, counts.c.interval_end)
+        .order_by(counts.c.interval_start)
         # return no more than 500 bars
         .limit(500)
     )
 
-    result = await session.execute(final_query)
+    result = await session.execute(query)
     records = result.all()
 
-    # sqlite returns JSON as strings
+    # sqlite returns JSON as strings so we have to load
+    # and parse the record
     if get_dialect(session=session).name == "sqlite":
-        all_records = []
+        records = [dict(r) for r in records]
         for r in records:
-            r = dict(r)
             r["states"] = json.loads(r["states"])
-            all_records.append(r)
-        return all_records
+        return records
     else:
         return records
