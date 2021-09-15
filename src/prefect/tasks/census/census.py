@@ -51,9 +51,9 @@ class CensusSyncTask(Task):
                 60 seconds and it has a minimum wait time of 5 seconds. Keyword argument.
 
         Returns:
-            - dict: dictionary of statistics returned by Census on the specified sync, structure below.
+            - dict: dictionary of statistics returned by Census on the specified sync, example below.
 
-        Structure:
+        Example:
             ```python
             {
                 'error_message': None / str,
