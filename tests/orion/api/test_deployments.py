@@ -281,6 +281,8 @@ class TestReadDeployment:
         response = await client.get(f"/deployments/{uuid4()}")
         assert response.status_code == 404
 
+
+class TestReadDeploymentByName:
     async def test_read_deployment_by_name(self, client, flow, flow_function):
         # first create a deployment to read
         flow_data = DataDocument.encode("cloudpickle", flow_function)
