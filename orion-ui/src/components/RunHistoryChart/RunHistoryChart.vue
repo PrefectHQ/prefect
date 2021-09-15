@@ -80,12 +80,11 @@ export interface Bucket {
 }
 
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
-type TransitionType = d3.TransitionLike<SVGRectElement, unknown>
-type BarType = d3.Selection<SVGRectElement, unknown, HTMLElement, null>
 
 class Props {
   backgroundColor = prop<String>({ required: false, default: null })
   data = prop<Bucket[]>({ required: true })
+  showAxis = prop<Boolean>({ required: false, default: false, type: Boolean })
 }
 
 const suid = () => '_' + Math.random().toString(36).substr(2, 9)
@@ -129,6 +128,7 @@ export default class RunHistoryChart extends Vue.with(Props) {
         d3
           .axisTop(this.xScale)
           .ticks(this.width / 100)
+          /* @ts-ignore */
           .tickFormat(formatLabel)
           .tickSizeOuter(0)
       )
@@ -206,11 +206,13 @@ export default class RunHistoryChart extends Vue.with(Props) {
         this.height / 2 - padding.bottom - padding.middle
       ])
 
-    this.xAxisGroup.call(this.xAxis)
+    if (this.showAxis) {
+      this.xAxisGroup.call(this.xAxis)
+    }
   }
 
   createChart(): void {
-    this.svg = d3.select('.run-history-chart')
+    this.svg = d3.select(`#${this.id}`)
     const paddingY = padding.top + padding.middle + padding.bottom
     const paddingX = padding.left + padding.right
 
@@ -238,15 +240,15 @@ export default class RunHistoryChart extends Vue.with(Props) {
     console.log(this.xAxisGroup)
 
     // TODO: Remove this guidelines (for tesitng purposes only)
-    this.svg
-      .append('line')
-      .attr('x1', 0)
-      .attr('x2', this.width)
-      .attr('y1', this.height / 2 + padding.middle / 2)
-      .attr('y2', this.height / 2 + padding.middle / 2)
-      .attr('stroke-width', padding.middle / 6)
-      .attr('stroke-dasharray', 12)
-      .attr('stroke', 'rgba(0, 0, 0, 0.03')
+    // this.svg
+    //   .append('line')
+    //   .attr('x1', 0)
+    //   .attr('x2', this.width)
+    //   .attr('y1', this.height / 2 + padding.middle / 2)
+    //   .attr('y2', this.height / 2 + padding.middle / 2)
+    //   .attr('stroke-width', padding.middle / 6)
+    //   .attr('stroke-dasharray', 12)
+    //   .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 
   updateBuckets(): void {
@@ -326,6 +328,8 @@ export default class RunHistoryChart extends Vue.with(Props) {
 
         const width = Math.min(10, maxWidth) / 2
 
+        const r = Math.min(capR, width / 2)
+
         const xStart =
           /* @ts-ignore */
           this.xScale(new Date(seriesSlot.data.interval_start)) + maxWidth / 2
@@ -333,16 +337,16 @@ export default class RunHistoryChart extends Vue.with(Props) {
           this.yScale(seriesSlot[0]) +
           padding.top +
           (biasIndex > 0 ? padding.middle : 0) +
-          (biasIndex < 0 ? capR / 2 : 0)
+          (biasIndex < 0 ? r / 2 : 0)
         const height = this.yScale(seriesSlot[1]) - this.yScale(seriesSlot[0])
 
         if (height == 0) return ''
 
         const capTop = showCapTop
-          ? `a ${capR} ${capR} 0 1 0 -${width} 0`
+          ? `a ${r} ${r} 0 1 0 -${width} 0`
           : `a 0 0 0 1 0 -${width} 0`
         const capBottom = showCapBottom
-          ? `a ${capR} ${capR} 0 1 0 ${width} 0`
+          ? `a ${r} ${r} 0 1 0 ${width} 0`
           : `a 0 0 0 1 0 ${width} 0`
 
         return `M${xStart},${yStart} v${height} ${capBottom ? capBottom : ''} ${

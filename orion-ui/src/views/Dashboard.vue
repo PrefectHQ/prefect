@@ -4,7 +4,7 @@
 
     <div class="chart-card px-2 py-1">
       <div class="subheader">Run History</div>
-      <RunHistoryChart :data="buckets" background-color="blue-5" />
+      <RunHistoryChart :data="buckets" background-color="blue-5" show-axis />
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
@@ -123,7 +123,7 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
   }
 })
 export default class Dashboard extends Vue {
-  buckets: Bucket[] = dataset_1
+  buckets: Bucket[] = dataset_2
 
   flowList: Flow[] = flowList
   deploymentList: Deployment[] = deploymentList
