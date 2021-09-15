@@ -395,13 +395,4 @@ export default class RunHistoryChart extends Vue.with(Props) {
 
 <style lang="scss">
 @use '@/styles/components/run-history--chart.scss';
-
-.chart-container {
-  height: 100%;
-  width: 100%;
-}
-
-.tick line {
-  opacity: 0;
-}
 </style>
