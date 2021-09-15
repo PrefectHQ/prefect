@@ -29,10 +29,10 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
+            WaitForScheduledTime,
             RetryPotentialFailures,
             CacheInsertion,
             CacheRetrieval,
-            WaitForScheduledTime,
         ]
 
 
@@ -42,8 +42,8 @@ class CacheInsertion(BaseOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: states.State,
-        validated_state: states.State,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = validated_state.state_details.cache_key
@@ -63,8 +63,8 @@ class CacheRetrieval(BaseOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State,
-        proposed_state: states.State,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
@@ -103,9 +103,9 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State,
-        proposed_state: states.State,
-        context: OrchestrationContext,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
     ) -> None:
         run_settings = context.run_settings
         if context.run.run_count <= run_settings.max_retries:
@@ -130,8 +130,8 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 
     async def before_transition(
         self,
-        initial_state: states.State,
-        proposed_state: states.State,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
         scheduled_time = initial_state.state_details.scheduled_time
@@ -151,8 +151,8 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
 
     async def after_transition(
         self,
-        initial_state: states.State,
-        validated_state: states.State,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
         parent_task_run_id = context.run.parent_task_run_id
