@@ -124,7 +124,7 @@ class CensusSyncTask(Task):
 
         Args:
             - api_trigger (str): if specified in the constructor, will call this validation there
-        
+
         Returns:
             - confirmed_pattern (Match Object: https://docs.python.org/3/library/re.html#match-objects)
         """
