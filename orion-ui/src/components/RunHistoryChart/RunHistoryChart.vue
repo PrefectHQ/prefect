@@ -49,7 +49,6 @@ const formatMillisecond = d3.timeFormat('.%L'),
   formatYear = d3.timeFormat('%Y')
 
 const formatLabel = (date: Date) => {
-  console.log(date)
   return (
     d3.timeSecond(date) < date
       ? formatMillisecond
@@ -132,9 +131,8 @@ export default class RunHistoryChart extends Vue.with(Props) {
           .tickFormat(formatLabel)
           .tickSizeOuter(0)
       )
+      /* @ts-ignore */
       .call((g) => g.select('.domain').remove())
-
-  // as unknown as d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
   get buckets(): Bucket[] {
     return this.data.map((d: Bucket) => {
