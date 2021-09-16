@@ -42,11 +42,14 @@ from prefect.serializers import resolve_datadoc
 R = TypeVar("R")
 
 
-def enter_flow_run_engine(
+def enter_engine_from_interactive_flow_run(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
     """
     Sync entrypoint for flow calls
+
+    This function does the heavy lifting of ensuring we can get into an async context
+    for flow run execution with minimal overhead.
     """
     if TaskRunContext.get():
         raise RuntimeError(
@@ -58,7 +61,7 @@ def enter_flow_run_engine(
     is_subflow_run = parent_flow_run_context is not None
 
     begin_run = partial(
-        begin_subflow_run if is_subflow_run else begin_flow_run,
+        create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
     )
@@ -79,39 +82,76 @@ def enter_flow_run_engine(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
+def enter_engine_from_deployed_flow_run(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
-    This differs from `enter_flow_run_engine` in that we have a flow run id but not a
-    flow object yet. We will need to retrieve it before we can begin execution.
+    This differs from `enter_engine_from_interactive_flow_run` in that we have a flow
+    run id but not a flow object yet. We will need to retrieve it before we can begin
+    execution.
     """
-    return anyio.run(retrieve_flow_then_begin_run, flow_run_id)
+    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
 
 
 @inject_client
-async def retrieve_flow_then_begin_run(flow_run_id: UUID, client: OrionClient) -> State:
-    flow_run = await client.read_flow_run(flow_run_id)
-    deployment = await client.read_deployment(flow_run.deployment_id)
-    flow = await load_flow_from_deployment(deployment, client=client)
+async def create_then_begin_flow_run(
+    flow: Flow, parameters: Dict[str, Any], client: OrionClient
+) -> State:
+    """
+    Async entrypoint for flow calls
+
+    Here we simply create the flow run in the backend then enter the main flow run
+    engine
+    """
+    flow_run_id = await client.create_flow_run(
+        flow,
+        parameters=parameters,
+        state=Pending(),
+    )
     return await begin_flow_run(
-        flow, parameters={}, client=client, flow_run_id=flow_run_id
+        flow=flow, parameters=parameters, flow_run_id=flow_run_id, client=client
     )
 
 
 @inject_client
+async def retrieve_flow_then_begin_flow_run(
+    flow_run_id: UUID, client: OrionClient
+) -> State:
+    """
+    Async entrypoint for flow runs that have been submitted for execution by an agent
+
+    Here we
+    - Retrieve the deployment information
+    - Load the flow object using deployment information
+    - Update the flow run version
+    """
+    flow_run = await client.read_flow_run(flow_run_id)
+    deployment = await client.read_deployment(flow_run.deployment_id)
+    flow = await load_flow_from_deployment(deployment, client=client)
+
+    await client.update_flow_run(
+        flow_run_id=flow_run_id, version=flow.version, parameters=flow_run.parameters
+    )
+    await client.propose_state(Pending(), flow_run_id=flow_run_id)
+
+    return await begin_flow_run(
+        flow=flow,
+        parameters=flow_run.parameters,
+        flow_run_id=flow_run_id,
+        client=client,
+    )
+
+
 async def begin_flow_run(
+    flow_run_id: UUID,
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
-    flow_run_id: UUID = None,
 ) -> State:
     """
-    Async entrypoint for flow run execution
+    Begins execution of a flow run; blocks until completion of the flow run
 
-    When flows are called, they
-    - create a flow run (if not given an existing id)
-    - enter a pending state
+    When flows are executed, we
     - start an executor
     - orchestrate the flow run (run the user-function and generate tasks)
     - wait for tasks to complete / shutdown the executor
@@ -119,18 +159,6 @@ async def begin_flow_run(
 
     This function then returns the terminal state
     """
-    if not flow_run_id:
-        flow_run_id = await client.create_flow_run(
-            flow,
-            parameters=parameters,
-            state=Pending(),
-        )
-    else:
-        await client.update_flow_run(
-            flow_run_id=flow_run_id, version=flow.version, parameters=parameters
-        )
-        await client.propose_state(Pending(), flow_run_id=flow_run_id)
-
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -155,7 +183,7 @@ async def begin_flow_run(
 
 
 @inject_client
-async def begin_subflow_run(
+async def create_and_begin_subflow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
