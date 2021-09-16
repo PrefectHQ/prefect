@@ -91,12 +91,12 @@ class Flow(Generic[P, R]):
         *args: "P.args",
         **kwargs: "P.kwargs",
     ):
-        from prefect.engine import enter_engine_from_interactive_flow_run
+        from prefect.engine import enter_flow_run_engine_from_flow_call
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return enter_engine_from_interactive_flow_run(self, parameters)
+        return enter_flow_run_engine_from_flow_call(self, parameters)
 
 
 @overload

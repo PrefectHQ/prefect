@@ -42,7 +42,7 @@ from prefect.serializers import resolve_datadoc
 R = TypeVar("R")
 
 
-def enter_engine_from_interactive_flow_run(
+def enter_flow_run_engine_from_flow_call(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
     """
@@ -82,7 +82,7 @@ def enter_engine_from_interactive_flow_run(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_engine_from_deployed_flow_run(flow_run_id: UUID) -> State:
+def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
