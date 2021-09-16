@@ -66,6 +66,20 @@ async def count_flows(
     )
 
 
+@router.get("/name/{name}")
+async def read_flow_by_name(
+    name: str = Path(..., description="The name of the flow"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.Flow:
+    """
+    Get a flow by name
+    """
+    flow = await models.flows.read_flow_by_name(session=session, name=name)
+    if not flow:
+        raise HTTPException(status_code=404, detail="Flow not found")
+    return flow
+
+
 @router.get("/{id}")
 async def read_flow(
     flow_id: UUID = Path(..., description="The flow id", alias="id"),

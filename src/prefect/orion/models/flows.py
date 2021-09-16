@@ -94,8 +94,8 @@ async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
     Returns:
         orm.Flow: the flow
     """
-    stmt = await session.execute(select(orm.Flow).filter_by(name=name))
-    return stmt.scalar()
+    result = await session.execute(select(orm.Flow).filter_by(name=name))
+    return result.scalar()
 
 
 async def read_flows(

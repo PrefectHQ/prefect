@@ -94,6 +94,22 @@ class TestReadFlow:
         response = await client.get(f"/flows/{uuid4()}")
         assert response.status_code == 404
 
+    async def test_read_flow_by_name(self, client):
+        # first create a flow to read
+        flow_data = {"name": "my-flow"}
+        response = await client.post("/flows/", json=flow_data)
+        flow_id = response.json()["id"]
+
+        # make sure we we can read the flow correctly
+        response = await client.get(f"/flows/name/my-flow")
+        assert response.status_code == 200
+        assert response.json()["id"] == flow_id
+        assert response.json()["name"] == "my-flow"
+
+    async def test_read_flow_by_name_returns_404_if_does_not_exist(self, client):
+        response = await client.get(f"/flows/{uuid4()}")
+        assert response.status_code == 404
+
 
 class TestReadFlows:
     @pytest.fixture
