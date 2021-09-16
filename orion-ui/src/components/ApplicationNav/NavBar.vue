@@ -8,7 +8,7 @@
       <i class="pi pi-organization-chart pi-2x" />
     </router-link>
 
-    <router-link to="/settings" class="nav-item ml-auto">
+    <router-link to="/settings" class="nav-item">
       <i class="pi pi-settings-5-fill pi-2x" />
     </router-link>
   </div>
