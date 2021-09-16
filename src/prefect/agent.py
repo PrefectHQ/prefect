@@ -2,6 +2,7 @@ from typing import Callable, List
 
 import anyio
 import anyio.to_process
+import anyio.abc
 import pendulum
 
 import prefect.engine
@@ -14,25 +15,13 @@ from prefect.utilities.callables import cloudpickle_wrapped_call
 
 
 async def submit_local_flow_run(
-    client: OrionClient,
     flow_run: FlowRun,
-    task_group,
+    task_group: anyio.abc.TaskGroup,
 ) -> None:
-    if not flow_run.deployment_id:
-        raise ValueError(
-            "Flow run does not have an associated deployment so the flow cannot be "
-            "loaded."
-        )
-
-    deployment = await client.read_deployment(flow_run.deployment_id)
-    flow = await load_flow_from_deployment(deployment, client=client)
-
     task_group.start_soon(
         anyio.to_process.run_sync,
         cloudpickle_wrapped_call(
             prefect.engine.enter_flow_run_engine_from_deployed_run,
-            flow=flow,
-            parameters={},  # TODO: Send parameters from deployment
             flow_run_id=flow_run.id,
         ),
     )
@@ -44,7 +33,7 @@ async def run_agent(
     client: OrionClient,
     prefetch_seconds: int = 10,
     query_interval_seconds: int = 2,
-    submit_fn: Callable[[OrionClient, FlowRun], None] = submit_local_flow_run,
+    submit_fn: Callable[[FlowRun, anyio.abc.TaskGroup], None] = submit_local_flow_run,
 ) -> None:
     submitted_ids = set()
 
@@ -62,7 +51,7 @@ async def run_agent(
 
             for flow_run in submittable_runs:
                 print(f"Submitting {flow_run.id}")
-                submission_tg.start_soon(submit_fn, client, flow_run, submission_tg)
+                submission_tg.start_soon(submit_fn, flow_run, submission_tg)
                 submitted_ids.add(flow_run.id)
 
             # Wait until the next query
