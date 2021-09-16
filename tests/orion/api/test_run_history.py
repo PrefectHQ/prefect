@@ -86,14 +86,12 @@ async def data(database_engine):
                 )
             )
 
-        await session.commit()
-
         # -------------- task runs
         fr = await create_flow_run(
             flow_run=core.FlowRun(
                 flow_id=f_1.id,
                 tags=["running"],
-                state=states.Running(),
+                state=states.Running(timestamp=dt),
             )
         )
 
@@ -119,6 +117,8 @@ async def data(database_engine):
                     state=states.Running(timestamp=dt.add(minutes=14 + r)),
                 )
             )
+
+        await session.commit()
 
 
 @pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
@@ -234,7 +234,7 @@ async def test_two_day_bins_flow_runs(client):
             interval_end=pendulum.datetime(2021, 10, 2),
             states=[
                 dict(name="Completed", type=StateType.COMPLETED, count=1),
-                dict(name="Running", type=StateType.RUNNING, count=1),
+                dict(name="Running", type=StateType.RUNNING, count=2),
                 dict(name="Scheduled", type=StateType.SCHEDULED, count=4),
             ],
         ),
@@ -279,7 +279,7 @@ async def test_weekly_bins_flow_runs(client):
             interval_end=pendulum.datetime(2021, 10, 6),
             states=[
                 dict(name="Completed", type=StateType.COMPLETED, count=5),
-                dict(name="Running", type=StateType.RUNNING, count=9),
+                dict(name="Running", type=StateType.RUNNING, count=10),
                 dict(name="Scheduled", type=StateType.SCHEDULED, count=17),
             ],
         ),
@@ -334,6 +334,97 @@ async def test_weekly_bins_with_filters_flow_runs(client):
             interval_start=pendulum.datetime(2021, 10, 6),
             interval_end=pendulum.datetime(2021, 10, 13),
             states=[],
+        ),
+    ]
+
+
+async def test_5_minute_bins_task_runs(client):
+    response = await client.get(
+        "/task_runs/history",
+        json=dict(
+            history_start=str(dt.subtract(minutes=5)),
+            history_end=str(dt.add(minutes=15)),
+            history_interval_seconds=timedelta(minutes=5).total_seconds(),
+        ),
+    )
+
+    assert response.status_code == 200
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    # sort states arrays for comparison
+    for p in parsed:
+        p.states = sorted(p.states, key=lambda s: s.name)
+
+    assert parsed == [
+        dict(
+            interval_start=pendulum.datetime(2021, 9, 30, 23, 55),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 0),
+            states=[],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 10, 1, 0, 0),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 5),
+            states=[dict(name="Completed", type=StateType.COMPLETED, count=5)],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 10, 1, 0, 5),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 10),
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=5),
+                dict(name="Failed", type=StateType.FAILED, count=3),
+            ],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 10, 1, 0, 10),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 15),
+            states=[
+                dict(name="Failed", type=StateType.FAILED, count=5),
+                dict(name="Running", type=StateType.RUNNING, count=1),
+            ],
+        ),
+    ]
+
+
+async def test_5_minute_bins_task_runs_with_filter(client):
+    response = await client.get(
+        "/task_runs/history",
+        json=dict(
+            history_start=str(dt.subtract(minutes=5)),
+            history_end=str(dt.add(minutes=15)),
+            history_interval_seconds=timedelta(minutes=5).total_seconds(),
+            task_runs=dict(states=["COMPLETED", "RUNNING"]),
+        ),
+    )
+
+    assert response.status_code == 200
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    # sort states arrays for comparison
+    for p in parsed:
+        p.states = sorted(p.states, key=lambda s: s.name)
+
+    assert parsed == [
+        dict(
+            interval_start=pendulum.datetime(2021, 9, 30, 23, 55),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 0),
+            states=[],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 10, 1, 0, 0),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 5),
+            states=[dict(name="Completed", type=StateType.COMPLETED, count=5)],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 10, 1, 0, 5),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 10),
+            states=[
+                dict(name="Completed", type=StateType.COMPLETED, count=5),
+            ],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 10, 1, 0, 10),
+            interval_end=pendulum.datetime(2021, 10, 1, 0, 15),
+            states=[
+                dict(name="Running", type=StateType.RUNNING, count=1),
+            ],
         ),
     ]
 
