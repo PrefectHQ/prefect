@@ -92,6 +92,21 @@ class TestCreateTask:
         ):
             Task(retry_delay=timedelta(seconds=30), max_retries=max_retries)
 
+    def test_create_task_with_max_retry_override_to_0(self):
+        with set_temporary_config(
+            {"tasks.defaults.max_retries": 3, "tasks.defaults.retry_delay": 3}
+        ) as config:
+            process_task_defaults(config)
+            t = Task(max_retries=0, retry_delay=None)
+            assert t.max_retries == 0
+            assert t.retry_delay is None
+
+            # max_retries set to 0 will not pull retry_delay from the config
+            process_task_defaults(config)
+            t = Task(max_retries=0)
+            assert t.max_retries == 0
+            assert t.retry_delay is None
+
     def test_create_task_with_timeout(self):
         t1 = Task()
         assert t1.timeout is None
