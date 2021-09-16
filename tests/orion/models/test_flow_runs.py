@@ -1,5 +1,6 @@
+from statistics import mode
 from uuid import uuid4
-
+import copy
 import pendulum
 import pytest
 import sqlalchemy as sa
@@ -170,6 +171,71 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
         assert flow_run.deployment_id == deployment.id
+
+
+class TestUpdateFlowRun:
+    async def test_update_flow_run_succeeds(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+
+        flow_run_id = flow_run.id
+
+        update_result = await models.flow_runs.update_flow_run(
+            session=session,
+            flow_run_id=flow_run_id,
+            flow_run=schemas.actions.FlowRunUpdate(flow_version="The next one"),
+        )
+        assert update_result
+
+        updated_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert flow_run_id == updated_flow_run.id == flow_run.id
+        assert updated_flow_run.flow_version == "The next one"
+
+    async def test_update_flow_run_does_not_update_if_nothing_set(self, flow, session):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+
+        flow_run_id = flow_run.id
+
+        update_result = await models.flow_runs.update_flow_run(
+            session=session,
+            flow_run_id=flow_run_id,
+            flow_run=schemas.actions.FlowRunUpdate(),
+        )
+        assert update_result
+
+        updated_flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert flow_run_id == updated_flow_run.id == flow_run.id
+        assert updated_flow_run.flow_version == "1.0"
+
+    async def test_update_flow_run_returns_false_if_flow_run_does_not_exist(
+        self, session
+    ):
+        assert not (
+            await models.flow_runs.update_flow_run(
+                session=session,
+                flow_run_id=uuid4(),
+                flow_run=schemas.actions.FlowRunUpdate(),
+            )
+        )
+
+    async def test_update_flow_run_raises_error_if_bad_flow_run_is_passed(
+        self, flow, session
+    ):
+        with pytest.raises(ValueError):
+            await models.flow_runs.update_flow_run(
+                session=session,
+                flow_run_id=uuid4(),
+                flow_run=schemas.core.FlowRun(flow_id=flow.id),
+            )
 
 
 class TestReadFlowRun:
