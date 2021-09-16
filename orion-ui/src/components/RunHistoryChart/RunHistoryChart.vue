@@ -8,7 +8,8 @@
 import { Options, Vue, prop } from 'vue-class-component'
 import { ref } from 'vue'
 import * as d3 from 'd3'
-import { Series } from 'd3'
+
+import { createCappedBar } from '@/components/Visualizations/utils'
 
 const positiveStates: string[] = [
   'COMPLETED',
@@ -326,16 +327,15 @@ export default class RunHistoryChart extends Vue.with(Props) {
 
     if (height == 0) return ''
 
-    const capTop = showCapTop
-      ? `a ${r} ${r} 0 1 0 -${width} 0`
-      : `a 0 0 0 1 0 -${width} 0`
-    const capBottom = showCapBottom
-      ? `a ${r} ${r} 0 1 0 ${width} 0`
-      : `a 0 0 0 1 0 ${width} 0`
-
-    return `M${xStart},${yStart} v${height} ${capBottom ? capBottom : ''} ${
-      capBottom ? '' : `h${width}`
-    } v-${height} ${capTop ? capTop : ''}`
+    return createCappedBar({
+      capTop: showCapTop,
+      capBottom: showCapBottom,
+      x: xStart,
+      y: yStart,
+      height: height,
+      width: width,
+      radius: r
+    })
   }
 
   updateBuckets(): void {
