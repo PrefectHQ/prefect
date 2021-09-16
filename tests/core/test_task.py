@@ -724,15 +724,6 @@ class TestTaskNout:
         assert res.result[a].result == 2
         assert res.result[b].result == 0
 
-    def test_nout_not_set_on_mapped_tasks(self):
-        @task(nout=2)
-        def test(a):
-            return a + 1, a - 1
-
-        with Flow("test"):
-            with pytest.raises(TypeError, match="Task is not iterable"):
-                a, b = test.map(range(10))
-
 
 @pytest.mark.skip("Result handlers not yet deprecated")
 def test_cache_options_show_deprecation():
