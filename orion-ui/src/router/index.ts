@@ -11,6 +11,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/flow-run',
     name: 'FlowRun',
     component: () => import('../views/FlowRun.vue')
+  },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('../views/Settings.vue')
   }
 ]
 
