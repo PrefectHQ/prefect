@@ -29,7 +29,6 @@ async def create_flow(
     return model
 
 
-# must be defined before `GET /:id`
 @router.get("/count")
 async def count_flows(
     flows: schemas.filters.FlowFilter = None,
@@ -46,6 +45,20 @@ async def count_flows(
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
     )
+
+
+@router.get("/name/{name}")
+async def read_flow_by_name(
+    name: str = Path(..., description="The name of the flow"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.Flow:
+    """
+    Get a flow by name
+    """
+    flow = await models.flows.read_flow_by_name(session=session, name=name)
+    if not flow:
+        raise HTTPException(status_code=404, detail="Flow not found")
+    return flow
 
 
 @router.get("/{id}")
