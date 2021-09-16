@@ -13,6 +13,7 @@ import uuid
 import warnings
 from contextlib import contextmanager
 from pathlib import Path
+
 from typing import (
     Any,
     Callable,
@@ -804,6 +805,24 @@ class Flow:
                 "Task {t} was not found in Flow {f}".format(t=task, f=self)
             )
         return self.all_downstream_edges()[task]
+
+    def is_mapped(self, task: Task) -> bool:
+        """
+        Checks if task will map over at least one of its upstream task outputs
+
+        Args:
+            - task (Task): The task that we want to know if it is mapped
+
+        Returns:
+            - bool: `True` if the Task is mapped in this flow, `False` otherwise
+
+        Raises:
+            - ValueError: if `task` is not found in this flow
+        """
+        for edge in filter(lambda e: e.mapped, self.edges_to(task)):
+            return True
+
+        return False
 
     def upstream_tasks(self, task: Task) -> Set[Task]:
         """
