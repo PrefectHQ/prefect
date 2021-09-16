@@ -21,7 +21,7 @@ async def submit_local_flow_run(
     task_group.start_soon(
         anyio.to_process.run_sync,
         cloudpickle_wrapped_call(
-            prefect.engine.enter_engine_from_deployed_flow_run,
+            prefect.engine.enter_flow_run_engine_from_deployed_run,
             flow_run_id=flow_run.id,
         ),
     )
