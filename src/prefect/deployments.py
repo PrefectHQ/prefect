@@ -13,6 +13,7 @@ from pydantic import root_validator, validator
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
+from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -220,4 +221,23 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
         tmpfile.write(script_contents)
         tmpfile.flush()
         flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
+    return flow
+
+
+@inject_client
+async def load_flow_from_deployment(
+    deployment: schemas.core.Deployment, client: OrionClient
+):
+    flow_model = await client.read_flow(deployment.flow_id)
+
+    if deployment.flow_data.encoding == "file":
+        flow_script_contents = deployment.flow_data.decode()
+        flow = load_flow_from_text(flow_script_contents, flow_model.name)
+    elif deployment.flow_data.encoding == "cloudpickle":
+        flow = deployment.flow_data.decode()
+    else:
+        raise ValueError(
+            f"Unknown flow data encoding {deployment.flow_data.encoding!r}"
+        )
+
     return flow
