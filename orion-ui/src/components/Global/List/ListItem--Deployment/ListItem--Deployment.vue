@@ -1,5 +1,5 @@
 <template>
-  <ListItem>
+  <list-item>
     <div>
       <i class="item--icon pi pi-deployment pi-2x" />
 
@@ -21,21 +21,18 @@
 
     <Button class="ml-auto mr-2" color="outlined">View Parameters</Button>
     <Button color="primary">Quick run</Button>
-  </ListItem>
+  </list-item>
 </template>
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import ListItem from '../ListItem/ListItem.vue'
 import { Deployment } from '@/objects'
 
 class Props {
   deployment = prop<Deployment>({ required: true })
 }
 
-@Options({
-  components: { ListItem }
-})
+@Options({})
 export default class ListItemDeployment extends Vue.with(Props) {}
 </script>
 
