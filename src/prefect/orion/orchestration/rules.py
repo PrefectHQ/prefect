@@ -1,17 +1,18 @@
 import contextlib
 from types import TracebackType
-from typing import Iterable, List, Optional, Type, Union
+from typing import Dict, Iterable, List, Optional, Type, Union
 from uuid import UUID
 
 import sqlalchemy as sa
 
-from pydantic import Field, validator
+from pydantic import Field
 from typing_extensions import Literal
 
 from prefect.orion.models import orm
 from prefect.orion.schemas import core, states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
+    StateAbortDetails,
     StateAcceptDetails,
     StateRejectDetails,
     StateWaitDetails,
@@ -19,6 +20,7 @@ from prefect.orion.schemas.responses import (
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
+TERMINAL_STATES = states.TERMINAL_STATES
 
 
 StateResponseDetails = Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
@@ -60,7 +62,7 @@ class OrchestrationContext(PrefectBaseModel):
         return self.validated_state.type if self.validated_state else None
 
     @property
-    def run_settings(self):
+    def run_settings(self) -> Dict:
         return self.run.empirical_policy
 
     def safe_copy(self):
@@ -95,7 +97,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         self.task_run_id = self.run_id
         self.flow_run_id = self.run.flow_run_id
 
-    async def validate_proposed_state(self):
+    async def validate_proposed_state(self) -> orm.TaskRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.TaskRunState(
                 task_run_id=self.task_run_id,
@@ -113,7 +115,7 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    async def orm_run(self):
+    async def orm_run(self) -> orm.TaskRun:
         run = await self.session.get(orm.TaskRun, self.task_run_id)
         if not run:
             raise ValueError("Run not found.")
@@ -127,7 +129,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         super().__init__(**data)
         self.flow_run_id = self.run_id
 
-    async def validate_proposed_state(self):
+    async def validate_proposed_state(self) -> orm.FlowRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.FlowRunState(
                 flow_run_id=self.flow_run_id,
@@ -145,7 +147,7 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    async def orm_run(self):
+    async def orm_run(self) -> orm.FlowRun:
         run = await self.session.get(orm.FlowRun, self.flow_run_id)
         if not run:
             raise ValueError("Run not found.")
@@ -159,8 +161,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state_type: states.StateType,
-        to_state_type: states.StateType,
+        from_state_type: Optional[states.StateType],
+        to_state_type: Optional[states.StateType],
     ):
         self.context = context
         self.from_state_type = from_state_type
@@ -193,24 +195,24 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
     async def before_transition(
         self,
-        initial_state: states.State,
-        proposed_state: states.State,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> states.State:
         pass
 
     async def after_transition(
         self,
-        initial_state: states.State,
-        validated_state: states.State,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
         pass
 
     async def cleanup(
         self,
-        initial_state: states.State,
-        validated_state: states.State,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
         pass
@@ -263,6 +265,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             delay_seconds=delay_seconds, reason=reason
         )
 
+    async def abort_transition(self, reason: str):
+        # don't run if the transition is already validated
+        if self.context.validated_state:
+            raise RuntimeError("The transition is already validated")
+
+        # a rule that mutates state should not fizzle itself
+        self.to_state_type = None
+        self.context.proposed_state = None
+        self.context.response_status = SetStateStatus.ABORT
+        self.context.response_details = StateAbortDetails(reason=reason)
+
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     FROM_STATES: Iterable = []
@@ -271,8 +284,8 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state_type: states.State,
-        to_state_type: states.State,
+        from_state_type: Optional[states.StateType],
+        to_state_type: Optional[states.StateType],
     ):
         self.context = context
 
