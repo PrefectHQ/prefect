@@ -126,6 +126,7 @@ class Docker(Storage):
         registry_url: str = None,
         base_image: str = None,
         dockerfile: str = None,
+        dockerignore: str = None,
         python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
@@ -199,6 +200,7 @@ class Docker(Storage):
             self.base_image = base_image  # type: ignore
 
         self.dockerfile = dockerfile
+        self.dockerignore = dockerignore
         # we should always try to install prefect, unless it is already installed. We can't
         # determine this until image build time.
         self.installation_commands.append(
@@ -327,6 +329,11 @@ class Docker(Storage):
         with tempfile.TemporaryDirectory(
             dir="." if self.dockerfile else None
         ) as tempdir:
+
+            if self.files and self.dockerignore:
+                shutil.copyfile(
+                    src=self.dockerignore, dst=PurePosixPath(tempdir) / ".dockerignore"
+                )
 
             # Build the dockerfile
             if self.base_image and not self.local_image:
