@@ -2,6 +2,24 @@
   <div>
     <h1>Dashboard</h1>
 
+    <router-link to="/schematics">Scematics</router-link>
+    <row class="filter-row py-1" hide-scrollbars>
+      <button-card
+        v-for="filter in premadeFilters"
+        :key="filter.label"
+        class="filter-card-button"
+        shadow="sm"
+      >
+        <div class="d-flex justify-space-between align-center">
+          <div>
+            <span class="subheader">{{ filter.count }}</span>
+            <span class="ml-1">{{ filter.label }}</span>
+          </div>
+          <i class="pi pi-filter-3-line pi-lg" />
+        </div>
+      </button-card>
+    </row>
+
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows">
         <i class="pi pi-flow pi-lg mr-1" />
@@ -108,10 +126,16 @@ export default class Dashboard extends Vue {
   flowRunList: FlowRun[] = flowRunList
   taskRunList: TaskRun[] = taskRunList
 
+  premadeFilters: { label: string; count: number }[] = [
+    { label: 'Failed Runs', count: 15 },
+    { label: 'Late Runs', count: 25 },
+    { label: 'Upcoming Runs', count: 75 }
+  ]
+
   resultsTab: string = 'flows'
 
   sayHello(): void {
-    console.log('hello!')
+    alert('hello')
   }
 }
 </script>
@@ -126,6 +150,17 @@ export default class Dashboard extends Vue {
     background-color: $primary;
     color: $white;
   }
+}
+
+.filter-card-button {
+  min-width: 300px;
+  width: 100%;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-gap: 16px;
 }
 
 .fade-enter-active,
