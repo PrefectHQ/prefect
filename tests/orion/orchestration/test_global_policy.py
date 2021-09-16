@@ -2,7 +2,7 @@ import math
 import pendulum
 import pytest
 
-from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES
+from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
 from prefect.orion.orchestration.global_policy import (
     UpdateRunDetails,
 )
@@ -13,11 +13,7 @@ from prefect.orion.schemas import states
 class TestUpdateRunDetailsRule:
     @pytest.mark.parametrize("proposed_state_type", ALL_ORCHESTRATION_STATES)
     async def test_rule_updates_run_state(
-        self,
-        session,
-        run_type,
-        initialize_orchestration,
-        proposed_state_type
+        self, session, run_type, initialize_orchestration, proposed_state_type
     ):
         initial_state_type = None
         intended_transition = (initial_state_type, proposed_state_type)
@@ -47,7 +43,7 @@ class TestUpdateRunDetailsRule:
             session,
             run_type,
             *intended_transition,
-            proposed_details={"scheduled_time": scheduled_time}
+            proposed_details={"scheduled_time": scheduled_time},
         )
 
         run = await ctx.orm_run()
@@ -205,11 +201,7 @@ class TestUpdateRunDetailsRule:
 
     @pytest.mark.parametrize("initial_state_type", set(states.StateType))
     async def test_rule_always_updates_total_time(
-        self,
-        session,
-        run_type,
-        initialize_orchestration,
-        initial_state_type
+        self, session, run_type, initialize_orchestration, initial_state_type
     ):
         proposed_state_type = states.StateType.COMPLETED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -229,3 +221,45 @@ class TestUpdateRunDetailsRule:
 
         assert math.ceil(run.total_time_seconds) == 42
 
+    @pytest.mark.parametrize("proposed_state_type", TERMINAL_STATES)
+    async def test_rule_sets_end_time_when_when_run_ends(
+        self, session, run_type, initialize_orchestration, proposed_state_type
+    ):
+        initial_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        run = await ctx.orm_run()
+        run.start_time = pendulum.now().subtract(seconds=4242)
+        assert run.end_time is None
+
+        async with UpdateRunDetails(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert run.end_time is not None
+
+    @pytest.mark.parametrize("initial_state_type", TERMINAL_STATES)
+    async def test_rule_unsets_end_time_when_forced_out_of_terminal_state(
+        self, session, run_type, initialize_orchestration, initial_state_type
+    ):
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        run = await ctx.orm_run()
+        run.start_time = pendulum.now().subtract(seconds=4242)
+        run.end_time = pendulum.now()
+        assert run.end_time is not None
+
+        async with UpdateRunDetails(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert run.end_time is None
