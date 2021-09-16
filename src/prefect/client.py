@@ -9,6 +9,7 @@ import httpx._types as httpx_types
 import pydantic
 
 import prefect
+from prefect import exceptions
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.schemas.data import DataDocument
@@ -237,12 +238,7 @@ class OrionClient:
         self,
         name: str,
     ) -> schemas.core.Deployment:
-        if "/" not in name:
-            raise ValueError(
-                "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
-            )
-        flow_name, deployment_name = name.split("/")
-        response = await self.get(f"/deployments/name/{flow_name}/{deployment_name}")
+        response = await self.get(f"/deployments/name/{name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployments(self) -> schemas.core.Deployment:
@@ -403,7 +399,7 @@ class OrionClient:
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            raise BaseException("SERVER SAYS ABORT!")
+            raise exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
             print(

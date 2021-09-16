@@ -31,3 +31,11 @@ class FlowScriptError(PrefectError):
             self.user_exc.__traceback__.tb_next.tb_next.tb_next.tb_next,
         )
         return Traceback(trace, **kwargs)
+
+
+class PrefectSignal(BaseException):
+    pass
+
+
+class Abort(PrefectSignal):
+    pass

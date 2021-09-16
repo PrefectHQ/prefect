@@ -1,5 +1,17 @@
 # ui-next
 
+## Dependency setup
+
+```
+git clone https://github.com/PrefectHQ/miter-design.git
+```
+
+in `miter-design` repo:
+
+```
+npm run build
+```
+
 ## Project setup
 
 ```
