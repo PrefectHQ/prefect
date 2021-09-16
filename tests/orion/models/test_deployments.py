@@ -1,9 +1,12 @@
 import datetime
+from tests.fixtures.database import session
 from uuid import uuid4
+import uuid
 
 import pendulum
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.sql.functions import mode
 
 from prefect.orion import models, schemas
 from prefect.orion.models import deployments, orm
@@ -103,7 +106,6 @@ class TestReadDeployment:
         )
         assert deployment.name == "My Deployment"
 
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
         read_deployment = await models.deployments.read_deployment(
             session=session, deployment_id=deployment.id
         )
@@ -113,6 +115,72 @@ class TestReadDeployment:
     async def test_read_deployment_returns_none_if_does_not_exist(self, session):
         result = await models.deployments.read_deployment(
             session=session, deployment_id=str(uuid4())
+        )
+        assert result is None
+
+    async def test_read_deployment_by_name(self, session, flow, flow_function):
+        # create a deployment to read
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
+        )
+        assert deployment.name == "My Deployment"
+
+        read_deployment = await models.deployments.read_deployment_by_name(
+            session=session,
+            name=deployment.name,
+            flow_name=flow.name,
+        )
+        assert deployment.id == read_deployment.id
+        assert deployment.name == read_deployment.name
+
+    async def test_read_deployment_by_name_does_not_return_deployments_from_other_flows(
+        self, session, flow_function
+    ):
+        flow_1, flow_2 = [
+            await models.flows.create_flow(
+                session=session, flow=schemas.core.Flow(name=f"my-flow-{i}")
+            )
+            for i in range(2)
+        ]
+
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        deployment_1 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow_1.id,
+            ),
+        )
+        deployment_2 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow_2.id,
+            ),
+        )
+
+        read_deployment = await models.deployments.read_deployment_by_name(
+            session=session,
+            name=deployment_1.name,
+            flow_name=flow_1.name,
+        )
+        assert read_deployment.id == deployment_1.id
+
+    async def test_read_deployment_by_name_returns_none_if_does_not_exist(
+        self, session
+    ):
+        result = await models.deployments.read_deployment_by_name(
+            session=session,
+            name=str(uuid4()),
+            flow_name=str(uuid4()),
         )
         assert result is None
 

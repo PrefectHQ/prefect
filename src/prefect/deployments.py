@@ -3,8 +3,9 @@ import runpy
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
-from typing import Any, Set
+from typing import Any, Set, AnyStr
 from uuid import UUID
+from tempfile import NamedTemporaryFile
 
 import yaml
 from pydantic import root_validator, validator
@@ -208,3 +209,15 @@ def _register_spec(spec: DeploymentSpec) -> None:
     # Replace the existing spec with the new one if they collide
     specs.discard(spec)
     specs.add(spec)
+
+
+def load_flow_from_text(script_contents: AnyStr, flow_name: str):
+    with NamedTemporaryFile(
+        mode="wt" if isinstance(script_contents, str) else "wb",
+        prefix=f"flow-script-{flow_name}",
+        suffix=".py",
+    ) as tmpfile:
+        tmpfile.write(script_contents)
+        tmpfile.flush()
+        flow = load_flow_from_script(tmpfile.name, flow_name=flow_name)
+    return flow
