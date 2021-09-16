@@ -755,7 +755,6 @@ class Task(metaclass=TaskMetaclass):
                     )
                 )
         task_args = task_args.copy() if task_args else {}
-        task_args.setdefault("nout", None)
         new = self.copy(**task_args)
         return new.bind(
             *args, mapped=True, upstream_tasks=upstream_tasks, flow=flow, **kwargs
@@ -984,6 +983,20 @@ class Task(metaclass=TaskMetaclass):
                 "pass `nout` to the task decorator/constructor, or provide a "
                 "`Tuple` return-type annotation to your task."
             )
+        flow: Flow = prefect.context.get("flow", None)
+        if flow and flow.is_mapped(self):
+
+            def getitem_helper(key):
+                if isinstance(key, Task):
+                    name = f"{self.name}[{key.name}]"
+                else:
+                    name = f"{self.name}[{key!r}]"
+                return prefect.tasks.core.operators.GetItem(
+                    checkpoint=self.checkpoint, name=name, result=self.result
+                ).bind(self, prefect.unmapped(key), mapped=True)
+
+            return (getitem_helper(i) for i in range(self.nout))
+
         return (self[i] for i in range(self.nout))
 
     def __getitem__(self, key: Any) -> "Task":
