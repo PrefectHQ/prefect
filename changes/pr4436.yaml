@@ -1,0 +1,5 @@
+task:
+  - "Allow Exasol Tasks to handle Prefect Secrets directly - [#4436](https://github.com/PrefectHQ/prefect/pull/4436)"
+
+contributor:
+  - "[Timo S.](https://github.com/sti0)"

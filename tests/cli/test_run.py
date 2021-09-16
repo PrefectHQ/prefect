@@ -528,6 +528,7 @@ def test_run_local_handles_flow_load_failure_with_missing_module_attr(tmpdir):
             ["--no-logs"],
             dict(),
         ),
+        (["--idempotency-key", "foo-key"], dict(idempotency_key="foo-key")),
     ],
 )
 def test_run_cloud_creates_flow_run(
@@ -552,6 +553,7 @@ def test_run_cloud_creates_flow_run(
     cloud_kwargs.setdefault("labels", None)
     cloud_kwargs.setdefault("run_name", None)
     cloud_kwargs.setdefault("run_config", None)
+    cloud_kwargs.setdefault("idempotency_key", None)
 
     if execute_flag:
         labels = cloud_kwargs["labels"] or []

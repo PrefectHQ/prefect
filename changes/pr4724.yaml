@@ -1,5 +1,0 @@
-fix:
-  - "Minor edit to remove unneeded whitespace from a sample config. [#4724](https://github.com/PrefectHQ/prefect/pull/4724)"
-
-contributor:
-  - "[Johnny Tirado](https://github.com/jclocks)"

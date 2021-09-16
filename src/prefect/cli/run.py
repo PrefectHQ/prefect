@@ -431,6 +431,16 @@ See `prefect run --help` for more details on the options.
     default=None,
 )
 @click.option(
+    "--idempotency-key",
+    help=(
+        "A key to prevent duplicate flow runs. If a flow run has already been started "
+        "with the provided value, the command will display information for the "
+        "existing run. If using `--execute`, duplicate flow runs will exit with an "
+        "error. If not using the backing API, this flag has no effect."
+    ),
+    default=None,
+)
+@click.option(
     "--execute",
     help=(
         "Execute the flow run in-process without an agent. If this process exits, the "
@@ -484,6 +494,7 @@ def run(
     context_vars,
     params,
     execute,
+    idempotency_key,
     schedule,
     log_level,
     param_file,
@@ -665,6 +676,7 @@ def run(
                 run_name=run_name,
                 # We only use the run config for setting logging levels right now
                 run_config=run_config,
+                idempotency_key=idempotency_key,
             )
 
         if quiet:

@@ -177,6 +177,15 @@ class KubernetesAgent(Agent):
                     job_name = job.metadata.name
                     flow_run_id = job.metadata.labels.get("prefect.io/flow_run_id")
 
+                    if not flow_run_id:
+                        # Do not attempt to process a job without a flow run id; we need
+                        # the id to manage the flow run state
+                        self.logger.warning(
+                            f"Cannot manage job {job_name!r}, it is missing a "
+                            "'prefect.io/flow_run_id' label."
+                        )
+                        continue
+
                     # Check for pods that are stuck with image pull errors
                     if not delete_job:
                         pods = self.core_client.list_namespaced_pod(

@@ -313,6 +313,10 @@ class PostgresFetch(Task):
                         col_description[0] for col_description in cursor.description
                     ]
                     header = [tuple(col_name for col_name in names_list)]
+
+                    if isinstance(records, tuple):
+                        records = [records]
+
                     records = header + records
 
             return records

@@ -1,8 +1,0 @@
-breaking:
-  - Services run by `prefect server` cli are now local by default (listen to localhost instead of 0.0.0.0)
-
-enhancement:
-  - Add `--expose` flag to `prefect server` cli to make the Core server and UI listen to all interfaces
-
-contributor:
-  - "[Henri Hannetel](https://github.com/HenriTEL)"

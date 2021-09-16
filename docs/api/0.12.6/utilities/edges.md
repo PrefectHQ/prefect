@@ -37,7 +37,7 @@ A container for specifying that a task should _not_ be mapped over when called w
 
 A container for specifying that a task should be mapped over when supplied as the input to another task.
 
-**Args**:     <ul class="args"><li class="args">`value (Any)`: the task or value to mark as "unmapped"; if not a Task         subclass, Prefect will attempt to convert it to one when the edge is         created.</li></ul>**Example**:     
+**Args**:     <ul class="args"><li class="args">`value (Any)`: the task or value to mark as "mapped"; if not a Task         subclass, Prefect will attempt to convert it to one when the edge is         created.</li></ul>**Example**:     
 ```python
     from prefect import Flow, Task, mapped
 
@@ -79,7 +79,7 @@ A container for specifying that a task's output should be flattened before being
 
     with Flow("My Flow"):
         add = Add()
-        ll = ListTask()
+        ll = NestedListTask()
 
         result = add.map(x=flatten(ll))
 

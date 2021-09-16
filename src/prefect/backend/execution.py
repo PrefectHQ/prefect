@@ -26,7 +26,7 @@ logger = get_logger("backend.execution")
 
 
 def execute_flow_run_in_subprocess(
-    flow_run_id: str, run_api_key: str = None
+    flow_run_id: str, run_api_key: str = None, include_local_env: bool = True
 ) -> FlowRunView:
     """
     Execute a flow run in a subprocess.
@@ -44,6 +44,9 @@ def execute_flow_run_in_subprocess(
         - run_api_key: The authentication key to provide to the flow run for
             communicating with the Prefect Cloud API. If not set, it will be inferred
             from the current config.
+        - include_local_env: If `True`, the currently available environment variables
+            will be passed through to the flow run. Defaults to `True` to match
+            subprocess behavior.
 
     Returns:
         FlowRunView: The final flow run object
@@ -56,6 +59,7 @@ def execute_flow_run_in_subprocess(
         flow_id=flow_run.flow_id,
         run_api_key=run_api_key,
         run_config=flow_run.run_config,
+        include_local_env=include_local_env,
     )
 
     if not flow_run.state.is_scheduled():
@@ -226,7 +230,7 @@ def generate_flow_run_environ(
         - run_api_key: An optional API key to pass to the flow run for authenticating
             with the backend. If not set, it will be pulled from the Client
         - include_local_env: If `True`, the currently available environment variables
-            will be passed through to the flow run. Defaults to `False`
+            will be passed through to the flow run. Defaults to `False` for security.
 
     Returns:
         - A dictionary of environment variables
