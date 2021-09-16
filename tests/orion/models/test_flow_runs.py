@@ -180,7 +180,7 @@ class TestUpdateFlowRun:
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
         )
 
-        flow_run_id = copy.deepcopy(flow_run.id)
+        flow_run_id = flow_run.id
 
         update_result = await models.flow_runs.update_flow_run(
             session=session,
@@ -201,7 +201,7 @@ class TestUpdateFlowRun:
             flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
         )
 
-        flow_run_id = copy.deepcopy(flow_run.id)
+        flow_run_id = flow_run.id
 
         update_result = await models.flow_runs.update_flow_run(
             session=session,

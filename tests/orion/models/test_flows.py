@@ -36,7 +36,7 @@ class TestUpdateFlow:
             session=session, flow=schemas.core.Flow(name="my-flow")
         )
 
-        flow_id = copy.deepcopy(flow.id)
+        flow_id = flow.id
 
         update_result = await models.flows.update_flow(
             session=session,
@@ -54,7 +54,7 @@ class TestUpdateFlow:
             session=session, flow=schemas.core.Flow(name="my-flow", tags=["TB12"])
         )
 
-        flow_id = copy.deepcopy(flow.id)
+        flow_id = flow.id
 
         update_result = await models.flows.update_flow(
             session=session,
