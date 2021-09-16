@@ -79,7 +79,7 @@ class OrionClient:
         url: httpx_types.URLTypes,
         *,
         params: Union[httpx_types.QueryParamTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        json: Union[Any, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        json: Any = None,
         headers: Union[httpx_types.HeaderTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
         cookies: Union[httpx_types.CookieTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
         auth: Union[httpx_types.AuthTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
@@ -93,6 +93,7 @@ class OrionClient:
 
         **Parameters**: See `httpx.request`.
         """
+        self._client.get
         kwargs = dict(
             params=params,
             json=json,
