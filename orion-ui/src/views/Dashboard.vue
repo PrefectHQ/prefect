@@ -2,7 +2,6 @@
   <div>
     <h1>Dashboard</h1>
 
-    <router-link to="/schematics">Scematics</router-link>
     <row class="filter-row py-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
