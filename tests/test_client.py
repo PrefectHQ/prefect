@@ -51,6 +51,30 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.schedule == schedule
 
 
+async def test_read_deployment_by_name(orion_client):
+    @flow
+    def foo():
+        pass
+
+    flow_id = await orion_client.create_flow(foo)
+    schedule = IntervalSchedule(interval=timedelta(days=1))
+    flow_data = DataDocument.encode("cloudpickle", foo)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="test-deployment",
+        flow_data=flow_data,
+        schedule=schedule,
+    )
+
+    lookup = await orion_client.read_deployment_by_name("foo/test-deployment")
+    assert isinstance(lookup, schemas.core.Deployment)
+    assert lookup.id == deployment_id
+    assert lookup.name == "test-deployment"
+    assert lookup.flow_data == flow_data
+    assert lookup.schedule == schedule
+
+
 async def test_create_then_read_flow_run(orion_client):
     @flow(tags=["a", "b"])
     def foo():

@@ -93,6 +93,13 @@ class OrionClient:
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
 
+    async def read_flow_by_name(
+        self,
+        flow_name: str,
+    ) -> schemas.core.Flow:
+        response = await self.get(f"/flows/name/{flow_name}")
+        return schemas.core.Deployment.parse_obj(response.json())
+
     async def create_flow_run(
         self,
         flow: "Flow",
@@ -153,6 +160,13 @@ class OrionClient:
         deployment_id: UUID,
     ) -> schemas.core.Deployment:
         response = await self.get(f"/deployments/{deployment_id}")
+        return schemas.core.Deployment.parse_obj(response.json())
+
+    async def read_deployment_by_name(
+        self,
+        name: str,
+    ) -> schemas.core.Deployment:
+        response = await self.get(f"/deployments/name/{name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployments(self) -> schemas.core.Deployment:
