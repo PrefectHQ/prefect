@@ -99,3 +99,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+class NotSetType:
+    def __eq__(self, o: object) -> bool:
+        return isinstance(o, NotSetType)
+
+
+NOTSET = NotSetType()
