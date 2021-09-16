@@ -112,7 +112,6 @@ async def delete_deployment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
-    return result
 
 
 @router.post("/{id}/schedule")

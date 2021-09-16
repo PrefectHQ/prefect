@@ -4,7 +4,6 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
 from prefect.orion.utilities.database import dialect_specific_insert
@@ -42,12 +41,42 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
     return model
 
 
+async def update_flow(
+    session: sa.orm.Session, flow_id: UUID, flow: schemas.actions.FlowUpdate
+) -> orm.Flow:
+    """
+    Updates a flow
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_id (UUID): the flow id to update
+        flow (schemas.actions.FlowUpdate): a flow update model
+
+    Returns:
+        bool: whether or not matching rows were found to update
+
+    """
+    if not isinstance(flow, schemas.actions.FlowUpdate):
+        raise ValueError(
+            f"Expected parameter flow to have type schemas.actions.FlowUpdate, got {type(flow)!r} instead"
+        )
+
+    update_stmt = (
+        sa.update(orm.Flow).where(orm.Flow.id == flow_id)
+        # exclude_unset=True allows us to only update values provided by
+        # the user, ignoring any defaults on the model
+        .values(**flow.dict(shallow=True, exclude_unset=True))
+    )
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
+
+
 async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
     """Reads a flow by id
 
     Args:
         session (sa.orm.Session): A database session
-        flow_id (str): a flow id
+        flow_id (UUID): a flow id
 
     Returns:
         orm.Flow: the flow
@@ -170,7 +199,7 @@ async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
 
     Args:
         session (sa.orm.Session): A database session
-        flow_id (str): a flow id
+        flow_id (UUID): a flow id
 
     Returns:
         bool: whether or not the flow was deleted

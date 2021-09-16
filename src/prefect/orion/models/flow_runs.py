@@ -1,5 +1,6 @@
 from typing import List
 from uuid import UUID
+from fastapi import responses
 
 import pendulum
 import sqlalchemy as sa
@@ -64,6 +65,36 @@ async def create_flow_run(
             session=session, flow_run_id=model.id, state=flow_run.state
         )
     return model
+
+
+async def update_flow_run(
+    session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.actions.FlowRunUpdate
+) -> bool:
+    """
+    Updates a flow run
+
+    Args:
+        session (sa.orm.Session): a database session
+        flow_run_id (UUID): the flow run id to update
+        flow_run (schemas.actions.FlowRun): a flow run model
+
+    Returns:
+        bool: whether or not matching rows were found to update
+
+    """
+    if not isinstance(flow_run, schemas.actions.FlowRunUpdate):
+        raise ValueError(
+            f"Expected parameter flow_run to have type schemas.actions.FlowRunUpdate, got {type(flow_run)!r} instead"
+        )
+
+    update_stmt = (
+        sa.update(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+        # exclude_unset=True allows us to only update values provided by
+        # the user, ignoring any defaults on the model
+        .values(**flow_run.dict(shallow=True, exclude_unset=True))
+    )
+    result = await session.execute(update_stmt)
+    return result.rowcount > 0
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:

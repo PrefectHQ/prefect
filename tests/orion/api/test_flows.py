@@ -1,6 +1,7 @@
 from uuid import uuid4, UUID
 
 import pendulum
+import pydantic
 import pytest
 
 from prefect.orion import models, schemas
@@ -33,6 +34,51 @@ class TestCreateFlow:
         response_2 = await client.post("/flows/", json=flow_data)
         assert response_2.status_code == 200
         assert response_2.json()["name"] == "my-flow"
+
+
+class TestUpdateFlow:
+    async def test_update_flow_succeeds(self, session, client):
+        flow = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await session.commit()
+        now = pendulum.now("UTC")
+
+        response = await client.patch(
+            f"/flows/{str(flow.id)}",
+            json=schemas.actions.FlowUpdate(tags=["TB12"]).dict(),
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"flows/{flow.id}")
+        updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
+        assert updated_flow.tags == ["TB12"]
+        assert updated_flow.updated > now
+
+    async def test_update_flow_does_not_update_if_fields_not_set(self, session, client):
+        flow = await models.flows.create_flow(
+            session=session,
+            flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/flows/{str(flow.id)}",
+            json={},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"flows/{flow.id}")
+        updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
+        assert updated_flow.tags == ["db", "blue"]
+
+    async def test_update_flow_rasises_error_if_flow_does_not_exist(self, client):
+        response = await client.patch(
+            f"/flows/{str(uuid4())}",
+            json={},
+        )
+        assert response.status_code == 404
 
 
 class TestReadFlow:
