@@ -39,3 +39,17 @@ async def ls(flow_name: List[str] = None):
         )
 
     console.print(table)
+
+
+@flow_run_app.command()
+@sync_compatible
+async def create(name: str):
+    """
+    Create a flow run for the given flow and deployment
+
+    The flow run will be exected by an agent
+    """
+    async with OrionClient() as client:
+        deployment = await client.read_deployment_by_name(name)
+        flow_run_id = await client.create_flow_run_from_deployment(deployment)
+    console.print(f"Created flow run '{flow_run_id}'")
