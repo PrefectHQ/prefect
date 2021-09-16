@@ -1,0 +1,5 @@
+enhancement:
+  - "Add mapping support to tasks with nout specified for tuple expansion [#4974](https://github.com/PrefectHQ/prefect/pull/4974)"
+
+contributor:
+  - "[Emre Akgün](https://github.com/Fraznist)"
