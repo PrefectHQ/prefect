@@ -21,7 +21,6 @@ async def list_(flow_name: List[str] = None):
     View all flow runs or flow runs for specific flows
     """
     flow_filter = FlowFilter(names=flow_name) if flow_name else None
-    breakpoint()
     async with OrionClient() as client:
         flow_runs = await client.read_flow_runs(flows=flow_filter)
         flows_by_id = {
@@ -31,9 +30,14 @@ async def list_(flow_name: List[str] = None):
             )
         }
 
-    table = Table("flow name", "id", "state")
+    table = Table("flow name", "id", "state", "updated")
     for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
         flow = flows_by_id[flow_run.flow_id]
-        table.add_row(flow.name, str(flow_run.id), flow_run.state.type.value)
+        table.add_row(
+            flow.name,
+            str(flow_run.id),
+            flow_run.state.type.value,
+            str(flow_run.state.updated),
+        )
 
     console.print(table)

@@ -5,8 +5,10 @@ from contextlib import nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, TypeVar, Union, overload
 from uuid import UUID
+import cloudpickle
 
 import pendulum
+import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
@@ -14,6 +16,7 @@ from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
+from prefect.deployments import load_flow_from_text
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, future_to_state, resolve_futures
@@ -42,6 +45,9 @@ R = TypeVar("R")
 def enter_flow_run_engine(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
+    """
+    Sync entrypoint for flow calls
+    """
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
@@ -73,6 +79,22 @@ def enter_flow_run_engine(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
+def enter_flow_run_engine_from_deployed_run(
+    flow: Flow,
+    parameters: Dict[str, Any],
+    flow_run_id: UUID,
+):
+    """
+    Sync entrypoint for flow runs that have been submitted for execution by an agent
+
+    This differs from `enter_flow_run_engine` in that
+    - Since the flow run is from a deployment, it is already created and we need the id
+    - We do not need to determine how to get into an async context since this should
+        only be called from a sync context in a new process
+    """
+    anyio.run(partial(begin_flow_run, flow, parameters, flow_run_id=flow_run_id))
+
+
 @inject_client
 async def begin_flow_run(
     flow: Flow,
@@ -81,17 +103,17 @@ async def begin_flow_run(
     flow_run_id: UUID = None,
 ) -> State:
     """
-    Async entrypoint for flow calls
+    Async entrypoint for flow run execution
 
     When flows are called, they
     - create a flow run (if not given an existing id)
+    - enter a pending state
     - start an executor
     - orchestrate the flow run (run the user-function and generate tasks)
     - wait for tasks to complete / shutdown the executor
     - set a terminal state for the flow run
 
-    This function then returns a fake future containing the terminal state.
-    # TODO: Flow calls should not return futures since they block.
+    This function then returns the terminal state
     """
     if not flow_run_id:
         flow_run_id = await client.create_flow_run(
