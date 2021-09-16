@@ -819,10 +819,7 @@ class Flow:
         Raises:
             - ValueError: if `task` is not found in this flow
         """
-        for edge in filter(lambda e: e.mapped, self.edges_to(task)):
-            return True
-
-        return False
+        return any(edge.mapped for edge in self.edges_to(task))
 
     def upstream_tasks(self, task: Task) -> Set[Task]:
         """
