@@ -1,9 +1,8 @@
 from typing import Callable, List
 
-import pendulum
 import anyio
 import anyio.to_process
-import cloudpickle
+import pendulum
 
 import prefect.engine
 from prefect.client import OrionClient, inject_client
@@ -11,8 +10,6 @@ from prefect.deployments import load_flow_from_deployment
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import StateType
-from prefect.orion.utilities.database import UUID
-from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.callables import cloudpickle_wrapped_call
 
 
@@ -22,13 +19,12 @@ async def submit_local_flow_run(
     task_group,
 ) -> None:
     if not flow_run.deployment_id:
-        print(flow_run)
         raise ValueError(
             "Flow run does not have an associated deployment so the flow cannot be "
             "loaded."
         )
-    deployment = await client.read_deployment(flow_run.deployment_id)
 
+    deployment = await client.read_deployment(flow_run.deployment_id)
     flow = await load_flow_from_deployment(deployment, client=client)
 
     task_group.start_soon(
@@ -36,7 +32,7 @@ async def submit_local_flow_run(
         cloudpickle_wrapped_call(
             prefect.engine.enter_flow_run_engine_from_deployed_run,
             flow=flow,
-            parameters={},
+            parameters={},  # TODO: Send parameters from deployment
             flow_run_id=flow_run.id,
         ),
     )
