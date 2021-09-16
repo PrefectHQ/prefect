@@ -9,7 +9,6 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
-import prefect
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -48,6 +47,23 @@ async def create_deployment(
         )
 
     return model
+
+
+@router.get("/name/{flow_name}/{deployment_name}")
+async def read_deployment_by_name(
+    flow_name: str = Path(..., description="The name of the flow"),
+    deployment_name: str = Path(..., description="The name of the deployment"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> schemas.core.Deployment:
+    """
+    Get a deployment using the name of the flow and the deployment
+    """
+    deployment = await models.deployments.read_deployment_by_name(
+        session=session, name=deployment_name, flow_name=flow_name
+    )
+    if not deployment:
+        raise HTTPException(status_code=404, detail="Deployment not found")
+    return deployment
 
 
 @router.get("/{id}")
@@ -96,7 +112,6 @@ async def delete_deployment(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
         )
-    return result
 
 
 @router.post("/{id}/schedule")
