@@ -1,3 +1,4 @@
+import datetime
 from typing import List
 from uuid import UUID
 
@@ -6,7 +7,7 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 
@@ -47,6 +48,34 @@ async def count_task_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+    )
+
+
+@router.get("/history")
+async def task_run_history(
+    history_start: datetime.datetime = Body(
+        ..., description="The history's start time."
+    ),
+    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_interval: datetime.timedelta = Body(
+        ...,
+        description="The size of each history interval, in seconds.",
+        alias="history_interval_seconds",
+    ),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.responses.HistoryResponse]:
+    return await run_history.run_history(
+        session=session,
+        run_type="task_run",
+        history_start=history_start,
+        history_end=history_end,
+        history_interval=history_interval,
+        flows=flows,
+        flow_runs=flow_runs,
+        task_runs=task_runs,
     )
 
 

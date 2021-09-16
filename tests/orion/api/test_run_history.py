@@ -88,7 +88,40 @@ async def data(database_engine):
 
         await session.commit()
 
+        # -------------- task runs
+        fr = await create_flow_run(
+            flow_run=core.FlowRun(
+                flow_id=f_1.id,
+                tags=["running"],
+                state=states.Running(),
+            )
+        )
 
+        for r in range(10):
+            await create_task_run(
+                core.TaskRun(
+                    flow_run_id=fr.id,
+                    task_key=str(r),
+                    state=states.Completed(timestamp=dt.add(minutes=r)),
+                )
+            )
+            await create_task_run(
+                core.TaskRun(
+                    flow_run_id=fr.id,
+                    task_key=str(r),
+                    state=states.Failed(timestamp=dt.add(minutes=7 + r)),
+                )
+            )
+            await create_task_run(
+                core.TaskRun(
+                    flow_run_id=fr.id,
+                    task_key=str(r),
+                    state=states.Running(timestamp=dt.add(minutes=14 + r)),
+                )
+            )
+
+
+@pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
 @pytest.mark.parametrize(
     "start,end,interval,expected_bins",
     [
@@ -101,9 +134,9 @@ async def data(database_engine):
         (dt, dt.add(days=1, hours=5), timedelta(minutes=15), 116),
     ],
 )
-async def test_history(client, start, end, interval, expected_bins):
+async def test_history(client, route, start, end, interval, expected_bins):
     response = await client.get(
-        "/flow_runs/history",
+        f"/{route}/history",
         json=dict(
             history_start=str(start),
             history_end=str(end),
@@ -122,9 +155,10 @@ async def test_history(client, start, end, interval, expected_bins):
     )
 
 
-async def test_history_returns_maximum_items(client):
+@pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
+async def test_history_returns_maximum_items(client, route):
     response = await client.get(
-        "/flow_runs/history",
+        f"/{route}/history",
         json=dict(
             history_start=str(dt),
             history_end=str(dt.add(days=10)),
@@ -142,7 +176,7 @@ async def test_history_returns_maximum_items(client):
     )
 
 
-async def test_two_day_bins(client):
+async def test_two_day_bins_flow_runs(client):
     response = await client.get(
         "/flow_runs/history",
         json=dict(
@@ -207,7 +241,7 @@ async def test_two_day_bins(client):
     ]
 
 
-async def test_weekly_bins(client):
+async def test_weekly_bins_flow_runs(client):
     response = await client.get(
         "/flow_runs/history",
         json=dict(
@@ -257,7 +291,7 @@ async def test_weekly_bins(client):
     ]
 
 
-async def test_weekly_bins_with_filters(client):
+async def test_weekly_bins_with_filters_flow_runs(client):
     response = await client.get(
         "/flow_runs/history",
         json=dict(
@@ -304,10 +338,11 @@ async def test_weekly_bins_with_filters(client):
     ]
 
 
-async def test_last_bin_contains_end_date(client):
+@pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
+async def test_last_bin_contains_end_date(client, route):
     """The last bin contains the end date, so its own end could be after the history end"""
     response = await client.get(
-        "/flow_runs/history",
+        f"/{route}/history",
         json=dict(
             history_start=str(dt),
             history_end=str(dt.add(days=1, minutes=30)),
