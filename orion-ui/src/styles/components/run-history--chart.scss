@@ -1,0 +1,13 @@
+.chart-container {
+  height: 100%;
+  width: 100%;
+
+  .run-history-chart {
+    height: 100%;
+    width: 100%;
+
+    .tick line {
+      opacity: 0;
+    }
+  }
+}

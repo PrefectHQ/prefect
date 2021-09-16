@@ -19,6 +19,11 @@
       </button-card>
     </row>
 
+    <div class="chart-card px-2 py-1">
+      <div class="subheader">Run History</div>
+      <RunHistoryChart :data="buckets" background-color="blue-5" show-axis />
+    </div>
+
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows">
         <i class="pi pi-flow pi-lg mr-1" />
@@ -108,7 +113,14 @@
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
+import {
+  default as RunHistoryChart,
+  Bucket
+} from '@/components/RunHistoryChart/RunHistoryChart.vue'
+
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
+import { default as dataset_1 } from '@/util/run_history/24_hours.json'
+import { default as dataset_2 } from '@/util/run_history/design.json'
 
 // Temporary imports for dummy data
 import { default as flowList } from '@/util/objects/flows.json'
@@ -117,9 +129,11 @@ import { default as flowRunList } from '@/util/objects/flow_runs.json'
 import { default as taskRunList } from '@/util/objects/task_runs.json'
 
 @Options({
-  components: {}
+  components: { RunHistoryChart }
 })
 export default class Dashboard extends Vue {
+  buckets: Bucket[] = dataset_2
+
   flowList: Flow[] = flowList
   deploymentList: Deployment[] = deploymentList
   flowRunList: FlowRun[] = flowRunList
@@ -160,6 +174,16 @@ export default class Dashboard extends Vue {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   grid-gap: 16px;
+}
+
+.chart-card {
+  background-color: $white;
+  box-shadow: $box-shadow-sm;
+  border-radius: 4px;
+  height: 250px;
+
+  display: flex;
+  flex-direction: column;
 }
 
 .fade-enter-active,
