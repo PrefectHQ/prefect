@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import pendulum
+import pydantic
 import pytest
 import sqlalchemy as sa
 
@@ -127,6 +128,55 @@ class TestCreateFlowRun:
         )
 
         assert response.json()["deployment_id"] == str(deployment.id)
+
+
+class TestUpdateFlowRun:
+    async def test_update_flow_run_succeeds(self, flow, session, client):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+        now = pendulum.now("UTC")
+
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json=actions.FlowRunUpdate(flow_version="The next one").dict(
+                json_compatible=True
+            ),
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
+        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        assert updated_flow_run.flow_version == "The next one"
+        assert updated_flow_run.updated > now
+
+    async def test_update_flow_run_does_not_update_if_fields_not_set(
+        self, flow, session, client
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, flow_version="1.0"),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"flow_runs/{flow_run.id}",
+            json={},
+        )
+        assert response.status_code == 204
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
+        updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
+        assert updated_flow_run.flow_version == "1.0"
+
+    async def test_update_flow_run_raises_error_if_flow_run_not_found(self, client):
+        response = await client.patch(
+            f"flow_runs/{str(uuid4())}",
+            json={},
+        )
+        assert response.status_code == 404
 
 
 class TestReadFlowRun:

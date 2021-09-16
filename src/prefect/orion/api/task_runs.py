@@ -102,7 +102,6 @@ async def delete_task_run(
     )
     if not result:
         raise HTTPException(status_code=404, detail="Task not found")
-    return result
 
 
 @router.post("/{id}/set_state")
