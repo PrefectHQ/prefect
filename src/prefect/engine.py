@@ -3,10 +3,8 @@ Client-side execution of flows and tasks
 """
 from contextlib import nullcontext
 from functools import partial
-from sys import version
 from typing import Any, Awaitable, Dict, TypeVar, Union, overload
 from uuid import UUID
-import cloudpickle
 
 import pendulum
 import anyio
@@ -17,7 +15,7 @@ from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.deployments import load_flow_from_text
+from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, future_to_state, resolve_futures
@@ -39,6 +37,7 @@ from prefect.utilities.asyncio import (
     sync_compatible,
 )
 from prefect.utilities.collections import ensure_iterable
+from prefect.serializers import resolve_datadoc
 
 R = TypeVar("R")
 
@@ -80,20 +79,24 @@ def enter_flow_run_engine(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_flow_run_engine_from_deployed_run(
-    flow: Flow,
-    parameters: Dict[str, Any],
-    flow_run_id: UUID,
-):
+def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
-    This differs from `enter_flow_run_engine` in that
-    - Since the flow run is from a deployment, it is already created and we need the id
-    - We do not need to determine how to get into an async context since this should
-        only be called from a sync context in a new process
+    This differs from `enter_flow_run_engine` in that we have a flow run id but not a
+    flow object yet. We will need to retrieve it before we can begin execution.
     """
-    anyio.run(partial(begin_flow_run, flow, parameters, flow_run_id=flow_run_id))
+    return anyio.run(retrieve_flow_then_begin_run, flow_run_id)
+
+
+@inject_client
+async def retrieve_flow_then_begin_run(flow_run_id: UUID, client: OrionClient) -> State:
+    flow_run = await client.read_flow_run(flow_run_id)
+    deployment = await client.read_deployment(flow_run.deployment_id)
+    flow = await load_flow_from_deployment(deployment, client=client)
+    return await begin_flow_run(
+        flow, parameters={}, client=client, flow_run_id=flow_run_id
+    )
 
 
 @inject_client
@@ -499,19 +502,3 @@ async def raise_failed_state(state: State) -> None:
             f"Unexpected result for failure state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
-
-
-@inject_client
-async def resolve_datadoc(datadoc: DataDocument, client: OrionClient) -> Any:
-    if not isinstance(datadoc, DataDocument):
-        raise TypeError(
-            f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
-        )
-    result = datadoc
-    while isinstance(result, DataDocument):
-        if result.encoding == "orion":
-            inner_doc_bytes = await client.retrieve_data(result)
-            result = DataDocument.parse_raw(inner_doc_bytes)
-        else:
-            result = result.decode()
-    return result

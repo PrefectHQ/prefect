@@ -3,9 +3,9 @@ import runpy
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
-from typing import Any, Set, AnyStr
-from uuid import UUID
 from tempfile import NamedTemporaryFile
+from typing import Any, AnyStr, Set
+from uuid import UUID
 
 import yaml
 from pydantic import root_validator, validator
@@ -17,6 +17,7 @@ from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.serializers import resolve_datadoc
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
@@ -227,17 +228,18 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
 @inject_client
 async def load_flow_from_deployment(
     deployment: schemas.core.Deployment, client: OrionClient
-):
+) -> Flow:
     flow_model = await client.read_flow(deployment.flow_id)
 
-    if deployment.flow_data.encoding == "file":
-        flow_script_contents = deployment.flow_data.decode()
-        flow = load_flow_from_text(flow_script_contents, flow_model.name)
-    elif deployment.flow_data.encoding == "cloudpickle":
-        flow = deployment.flow_data.decode()
+    maybe_flow = await resolve_datadoc(deployment.flow_data, client=client)
+    if isinstance(maybe_flow, (str, bytes)):
+        flow = load_flow_from_text(maybe_flow, flow_model.name)
     else:
-        raise ValueError(
-            f"Unknown flow data encoding {deployment.flow_data.encoding!r}"
-        )
+        if not isinstance(maybe_flow, Flow):
+            raise TypeError(
+                "Deployment `flow_data` did not resolve to a `Flow`. "
+                f"Found {maybe_flow}"
+            )
+        flow = maybe_flow
 
     return flow
