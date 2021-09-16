@@ -4,10 +4,8 @@ import './registerServiceWorker'
 import router from './router'
 import store from './store'
 
-// Imports global miter styles
-import '@prefect/miter-design/dist/style.css'
-
 // Global components
+import ButtonCard from '@/components/Global/Button--Card/Button--Card.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import ListItemDeployment from '@/components/Global/List/ListItem--Deployment/ListItem--Deployment.vue'
@@ -27,6 +25,7 @@ document.body.classList.add(colorMode)
 
 const app = createApp(App).use(MiterDesign).use(store).use(router)
 
+app.component('button-card', ButtonCard)
 app.component('list', List)
 app.component('list-item', ListItem)
 app.component('deployment-list-item', ListItemDeployment)

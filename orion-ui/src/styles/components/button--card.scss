@@ -1,0 +1,38 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
+.button-card {
+  padding: 0;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  height: min-content;
+  width: min-content;
+
+  .button-card-content {
+    background-color: $white;
+  }
+
+  &::-moz-focus-inner {
+    outline: none !important;
+    border: none !important;
+  }
+
+  &:hover,
+  &:focus,
+  &:focus-visible,
+  &:focus-within {
+    outline: none !important;
+    border: none !important;
+
+    .button-card-content {
+      background-color: $secondary-hover !important;
+    }
+  }
+
+  &:active {
+    .button-card-content {
+      background-color: $secondary-pressed !important;
+    }
+  }
+}

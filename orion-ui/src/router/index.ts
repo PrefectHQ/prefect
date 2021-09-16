@@ -16,6 +16,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue')
+  },
+  {
+    path: '/schematics',
+    name: 'Schematics',
+    component: () => import('../views/Schematics.vue')
   }
 ]
 
