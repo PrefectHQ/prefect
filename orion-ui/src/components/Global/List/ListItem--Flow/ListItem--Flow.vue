@@ -1,5 +1,5 @@
 <template>
-  <ListItem>
+  <list-item>
     <div>
       <i class="item--icon pi pi-flow pi-2x" />
 
@@ -23,12 +23,11 @@
       <RunHistoryChart :data="taskRunBuckets" />
     </div>
     <Button color="primary">Quick run</Button>
-  </ListItem>
+  </list-item>
 </template>
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import ListItem from '../ListItem/ListItem.vue'
 import { Flow } from '@/objects'
 import {
   default as RunHistoryChart,
@@ -41,9 +40,7 @@ class Props {
   flow = prop<Flow>({ required: true })
 }
 
-@Options({
-  components: { ListItem, RunHistoryChart }
-})
+@Options({ components: { RunHistoryChart } })
 export default class ListItemFlow extends Vue.with(Props) {
   taskRunBuckets: Bucket[] = dataset_2.slice(
     Math.floor(Math.random() * 4),
