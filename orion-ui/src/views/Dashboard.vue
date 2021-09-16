@@ -10,7 +10,7 @@
         class="filter-card-button"
         shadow="sm"
       >
-        <div class="d-flex justify-space-between align-center">
+        <div class="d-flex justify-space-between align-center px-1">
           <div>
             <span class="subheader">{{ filter.count }}</span>
             <span class="ml-1">{{ filter.label }}</span>
