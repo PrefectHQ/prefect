@@ -84,16 +84,13 @@ async def read_deployment_by_name(
     Returns:
         orm.Deployment: the deployment
     """
-    flow_id = (
-        select(orm.Flow.id).where(orm.Flow.name == flow_name).limit(1).scalar_subquery()
-    )
-    stmt = await session.execute(
+    result = await session.execute(
         select(orm.Deployment)
         .join(orm.Flow, orm.Deployment.flow_id == orm.Flow.id)
         .where(sa.and_(orm.Flow.name == flow_name, orm.Deployment.name == name))
         .limit(1)
     )
-    return stmt.scalar()
+    return result.scalar()
 
 
 async def read_deployments(

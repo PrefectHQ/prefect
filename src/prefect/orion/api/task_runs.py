@@ -68,11 +68,12 @@ async def read_task_run(
 
 @router.get("/")
 async def read_task_runs(
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
     pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.TaskRun]:
     """
     Query for task runs
@@ -84,6 +85,7 @@ async def read_task_runs(
         task_run_filter=task_runs,
         offset=pagination.offset,
         limit=pagination.limit,
+        sort=sort,
     )
 
 
@@ -121,6 +123,8 @@ async def set_task_run_state(
     )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
+        response.status_code = status.HTTP_200_OK
+    elif orchestration_result.status == schemas.responses.SetStateStatus.ABORT:
         response.status_code = status.HTTP_200_OK
     else:
         response.status_code = status.HTTP_201_CREATED
