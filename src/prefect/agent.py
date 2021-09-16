@@ -54,7 +54,10 @@ async def run_agent(
 
             # Filter out runs that are already being submitted but maintain ordering
             submittable_runs = [
-                run for run in ready_runs if run.id not in submitted_ids
+                run
+                for run in ready_runs
+                # TODO: Add these to the `query_for_ready_flow_runs` filter
+                if run.id not in submitted_ids and run.deployment_id is not None
             ]
 
             for flow_run in submittable_runs:
