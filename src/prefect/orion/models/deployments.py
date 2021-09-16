@@ -71,6 +71,28 @@ async def read_deployment(
     return await session.get(orm.Deployment, deployment_id)
 
 
+async def read_deployment_by_name(
+    session: sa.orm.Session, name: str, flow_name: str
+) -> orm.Deployment:
+    """Reads a deployment by name
+
+    Args:
+        session (sa.orm.Session): A database session
+        name (str): a deployment name
+        flow_name (str): the name of the flow the deployment belongs to
+
+    Returns:
+        orm.Deployment: the deployment
+    """
+    result = await session.execute(
+        select(orm.Deployment)
+        .join(orm.Flow, orm.Deployment.flow_id == orm.Flow.id)
+        .where(sa.and_(orm.Flow.name == flow_name, orm.Deployment.name == name))
+        .limit(1)
+    )
+    return result.scalar()
+
+
 async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
