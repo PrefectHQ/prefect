@@ -128,4 +128,3 @@ async def delete_flow(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
         )
-    return result
