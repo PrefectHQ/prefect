@@ -4,7 +4,6 @@ from uuid import UUID
 
 import anyio
 import httpx
-from httpx._config import UNSET as HTTPXUNSET, UnsetType as HttpxUnsetType
 import httpx._types as httpx_types
 import pydantic
 
@@ -15,6 +14,10 @@ from prefect.orion.api.server import app as orion_app
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.states import Scheduled
+from prefect.utilities.settings import (
+    NotSetType as UseHttpxDefault,
+    NOTSET as USE_HTTPX_DEFAULT,
+)
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -75,13 +78,13 @@ class OrionClient:
         self,
         url: httpx_types.URLTypes,
         *,
-        params: httpx_types.QueryParamTypes = None,
-        json: Any = None,
-        headers: httpx_types.HeaderTypes = None,
-        cookies: httpx_types.CookieTypes = None,
-        auth: Union[httpx_types.AuthTypes, HttpxUnsetType] = HTTPXUNSET,
-        allow_redirects: bool = True,
-        timeout: Union[httpx_types.TimeoutTypes, HttpxUnsetType] = HTTPXUNSET,
+        params: Union[httpx_types.QueryParamTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        json: Union[Any, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        headers: Union[httpx_types.HeaderTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        cookies: Union[httpx_types.CookieTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        auth: Union[httpx_types.AuthTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        allow_redirects: Union[bool, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        timeout: Union[httpx_types.TimeoutTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
     ) -> httpx.Response:
         """
         Send a `GET` request
@@ -90,9 +93,7 @@ class OrionClient:
 
         **Parameters**: See `httpx.request`.
         """
-        response = await self._client.request(
-            "GET",
-            url,
+        kwargs = dict(
             params=params,
             json=json,
             headers=headers,
@@ -100,6 +101,15 @@ class OrionClient:
             auth=auth,
             allow_redirects=allow_redirects,
             timeout=timeout,
+        )
+        for key in [key for key, value in kwargs.items() if value == USE_HTTPX_DEFAULT]:
+            # Use the httpx default instead
+            kwargs.pop(key)
+
+        response = await self._client.request(
+            "GET",
+            url,
+            **kwargs,
         )
         response.raise_for_status()
         return response
