@@ -49,7 +49,9 @@ class TestUpdateFlow:
             f"/flows/{str(flow.id)}",
             json=schemas.actions.FlowUpdate(tags=["TB12"]).dict(),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
+
+        response = await client.get(f"flows/{flow.id}")
         updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["TB12"]
         assert updated_flow.updated > now
@@ -65,7 +67,9 @@ class TestUpdateFlow:
             f"/flows/{str(flow.id)}",
             json={},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
+
+        response = await client.get(f"flows/{flow.id}")
         updated_flow = pydantic.parse_obj_as(schemas.core.Flow, response.json())
         assert updated_flow.tags == ["db", "blue"]
 

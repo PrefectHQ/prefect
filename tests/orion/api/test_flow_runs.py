@@ -145,7 +145,9 @@ class TestUpdateFlowRun:
                 json_compatible=True
             ),
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
         updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.updated > now
@@ -163,7 +165,9 @@ class TestUpdateFlowRun:
             f"flow_runs/{flow_run.id}",
             json={},
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
+
+        response = await client.get(f"flow_runs/{flow_run.id}")
         updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
         assert updated_flow_run.flow_version == "1.0"
 

@@ -33,24 +33,20 @@ async def create_flow_run(
     return model
 
 
-@router.patch("/{id}")
+@router.patch("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def update_flow_run(
     flow_run: schemas.actions.FlowRunUpdate,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.FlowRun:
+):
     """
     Updates a flow run
     """
-    await models.flow_runs.update_flow_run(
+    result = await models.flow_runs.update_flow_run(
         session=session, flow_run=flow_run, flow_run_id=flow_run_id
     )
-    flow_run = await models.flow_runs.read_flow_run(
-        session=session, flow_run_id=flow_run_id
-    )
-    if not flow_run:
+    if not result:
         raise HTTPException(status_code=404, detail="Flow run not found")
-    return flow_run
 
 
 # must be defined before `GET /:id`
