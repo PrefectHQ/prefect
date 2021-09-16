@@ -10,7 +10,7 @@
         :id="`node-${key}`"
         :key="key"
         :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
-        class="node d-flex align-stretch justify-center"
+        class="node d-flex align-stretch justify-start"
         :class="node.data.state"
         tabindex="0"
         @focus.self="panToNode(node)"
@@ -23,9 +23,9 @@
         </div>
 
         <div class="d-flex align-center justify-center px-1">
-          <h6 class="text-truncate" style="width: 110px">
+          <div class="text-truncate" style="width: 110px">
             {{ node.data.name }} - {{ node.ring }}
-          </h6>
+          </div>
 
           <div
             v-if="node.downstreamNodes.size > 0"
@@ -70,9 +70,9 @@ class Props {
 }
 
 const iconMap: { [key: string]: string } = {
-  success: 'pi-Checkmark',
-  failed: 'pi-Warning',
-  pending: 'pi-Loading-5'
+  success: 'pi-check-line',
+  failed: 'pi-error-warning-line',
+  pending: 'pi-loader-2-line'
 }
 
 @Options<Schematic>({
@@ -442,7 +442,6 @@ export default class Schematic extends Vue.with(Props) {
 
 <style scoped lang="scss">
 .schematic-container {
-  background: rgba(9, 9, 121, 0.005);
   height: 100vh;
   max-height: 100vh;
   max-width: 100%;
@@ -509,28 +508,28 @@ export default class Schematic extends Vue.with(Props) {
     height: 100%;
 
     &.success {
-      background-color: var(--success);
+      background-color: var(--completed);
     }
 
     &.failed {
-      background-color: var(--error);
+      background-color: var(--failed);
     }
 
     &.pending {
-      background-color: var(--grey-4);
+      background-color: var(--pending);
     }
   }
 
   &.success {
-    border-color: var(--success);
+    border-color: var(--completed);
   }
 
   &.failed {
-    border-color: var(--error);
+    border-color: var(--failed);
   }
 
   &.pending {
-    border-color: var(--grey-4);
+    border-color: var(--pending);
   }
 
   .collapse-button {
@@ -553,8 +552,6 @@ export default class Schematic extends Vue.with(Props) {
 <style lang="scss">
 .schematic-container {
   svg {
-    background-color: #f9f9fb;
-
     path {
       // display: none;
       fill: none;
@@ -564,17 +561,17 @@ export default class Schematic extends Vue.with(Props) {
       stroke-linejoin: round;
 
       &.success {
-        color: var(--success) !important;
+        color: var(--completed) !important;
         stroke: currentColor;
       }
 
       &.failed {
-        color: var(--error) !important;
+        color: var(--failed) !important;
         stroke: currentColor;
       }
 
       &.pending {
-        color: var(--grey-4);
+        color: var(--pending);
         stroke: currentColor;
         stroke-width: 5;
         stroke-dasharray: 4;
@@ -584,15 +581,15 @@ export default class Schematic extends Vue.with(Props) {
 
   linearGradient {
     &.success {
-      color: var(--success) !important;
+      color: var(--completed) !important;
     }
 
     &.failed {
-      color: var(--error) !important;
+      color: var(--failed) !important;
     }
 
     &.pending {
-      color: var(--grey-2);
+      color: var(--pending);
     }
   }
 
