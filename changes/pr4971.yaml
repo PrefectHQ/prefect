@@ -1,0 +1,2 @@
+fix:
+  - "Allow max_retries to be set to 0 when overriding the config level parameter - [#4971](https://github.com/PrefectHQ/prefect/pull/4971)"

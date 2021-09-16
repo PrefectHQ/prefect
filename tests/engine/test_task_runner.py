@@ -181,6 +181,13 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
     assert isinstance(state, Failed)
 
 
+def test_task_with_max_retries_0_does_not_retry():
+    task = ErrorTask(max_retries=0, retry_delay=None)
+    task_runner = TaskRunner(task)
+    state = task_runner.run()
+    assert isinstance(state, Finished) and not isinstance(state, Retrying)
+
+
 def test_task_that_raises_retry_has_start_time_recognized():
     now = pendulum.now("utc")
 
