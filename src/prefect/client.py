@@ -11,17 +11,20 @@ import prefect
 from prefect import exceptions
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
-from prefect.utilities.settings import (
-    NotSetType as UseHttpxDefault,
-    NOTSET as USE_HTTPX_DEFAULT,
-)
+from prefect.utilities.settings import NOTSET, NotSetType, drop_unset
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
+
+UseHttpxDefault = NotSetType
+USE_HTTPX_DEFAULT = NOTSET
+
+NoUpdate = NotSetType
+NO_UPDATE = NOTSET
 
 
 def inject_client(fn):
@@ -67,10 +70,17 @@ class OrionClient:
         self._client = httpx.AsyncClient(**httpx_settings)
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
+        # TODO: This function (and other httpx mirrors) should replicate the types like
+        #       `OrionClient.get` for usability
         response = await self._client.post(route, **kwargs)
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
         #       development
+        response.raise_for_status()
+        return response
+
+    async def patch(self, route: str, **kwargs) -> httpx.Response:
+        response = await self._client.patch(route, **kwargs)
         response.raise_for_status()
         return response
 
@@ -93,24 +103,18 @@ class OrionClient:
 
         **Parameters**: See `httpx.request`.
         """
-        self._client.get
-        kwargs = dict(
-            params=params,
-            json=json,
-            headers=headers,
-            cookies=cookies,
-            auth=auth,
-            allow_redirects=allow_redirects,
-            timeout=timeout,
-        )
-        for key in [key for key, value in kwargs.items() if value == USE_HTTPX_DEFAULT]:
-            # Use the httpx default instead
-            kwargs.pop(key)
-
         response = await self._client.request(
             "GET",
             url,
-            **kwargs,
+            **drop_unset(
+                params=params,
+                json=json,
+                headers=headers,
+                cookies=cookies,
+                auth=auth,
+                allow_redirects=allow_redirects,
+                timeout=timeout,
+            ),
         )
         response.raise_for_status()
         return response
@@ -217,6 +221,21 @@ class OrionClient:
             raise Exception(f"Malformed response: {response}")
 
         return UUID(flow_run_id)
+
+    async def update_flow_run(
+        self,
+        flow_run_id: UUID,
+        version: Union[str, NoUpdate] = NO_UPDATE,
+        parameters: Union[Dict[str, Any], NoUpdate] = NO_UPDATE,
+    ) -> None:
+
+        flow_run_data = schemas.actions.FlowRunUpdate(
+            **drop_unset(version=version, parameters=parameters)
+        )
+
+        await self.patch(
+            f"/flow_runs/{flow_run_id}", json=flow_run_data.dict(json_compatible=True)
+        )
 
     async def create_deployment(
         self,

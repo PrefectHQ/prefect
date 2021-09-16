@@ -6,7 +6,7 @@ to avoid instantiating the nested settings class until runtime.
 from pathlib import Path
 from datetime import timedelta
 from pydantic import BaseSettings, Field, SecretStr
-from typing import Optional
+from typing import Optional, Any, Dict
 
 
 class DataLocationSettings(BaseSettings):
@@ -107,3 +107,7 @@ class NotSetType:
 
 
 NOTSET = NotSetType()
+
+
+def drop_unset(**kwargs: Any) -> Dict[str, Any]:
+    return {key: value for key, value in kwargs.items() if value != NOTSET}

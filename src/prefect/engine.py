@@ -3,6 +3,7 @@ Client-side execution of flows and tasks
 """
 from contextlib import nullcontext
 from functools import partial
+from sys import version
 from typing import Any, Awaitable, Dict, TypeVar, Union, overload
 from uuid import UUID
 import cloudpickle
@@ -122,6 +123,9 @@ async def begin_flow_run(
             state=Pending(),
         )
     else:
+        await client.update_flow_run(
+            flow_run_id=flow_run_id, version=flow.version, parameters=parameters
+        )
         await client.propose_state(Pending(), flow_run_id=flow_run_id)
 
     # If the flow is async, we need to provide a portal so sync tasks can run
