@@ -1166,6 +1166,33 @@ def test_sorted_tasks_with_invalid_start_task():
         f.sorted_tasks(root_tasks=[t3])
 
 
+def test_is_mapped():
+    @task
+    def dummy_task(x):
+        return list(range(3))
+
+    with Flow(name="test") as f:
+        root = dummy_task(None)
+        non_mapped = dummy_task(root)
+        mapped = dummy_task.map(root)
+
+    assert not f.is_mapped(non_mapped)
+    assert f.is_mapped(mapped)
+
+
+def test_is_mapped_root_task():
+    @task
+    def dummy_task(x):
+        pass
+
+    with Flow(name="test") as f:
+        root_map = dummy_task.map([1, 2, 3])
+        root_nomap = dummy_task(1)
+
+    assert f.is_mapped(root_map)
+    assert not f.is_mapped(root_nomap)
+
+
 def test_flow_raises_for_irrelevant_user_provided_parameters():
     class ParameterTask(Task):
         def run(self):

@@ -724,6 +724,28 @@ class TestTaskNout:
         assert res.result[a].result == 2
         assert res.result[b].result == 0
 
+    def test_mapped_nout_expands_mapped_tasks(self):
+        @task(nout=2)
+        def test(a):
+            return a + 1, a - 1
+
+        with Flow("test") as flow:
+            a, b = test.map(list(range(3)))
+        res = flow.run()
+        assert flow.is_mapped(a)
+        assert flow.is_mapped(b)
+
+    def test_mapped_nout_provided_is_iterable(self):
+        @task(nout=2)
+        def test(a):
+            return a + 1, a - 1
+
+        with Flow("test") as flow:
+            a, b = test.map(list(range(3)))
+        res = flow.run()
+        assert res.result[a].result == [1, 2, 3]
+        assert res.result[b].result == [-1, 0, 1]
+
 
 @pytest.mark.skip("Result handlers not yet deprecated")
 def test_cache_options_show_deprecation():
