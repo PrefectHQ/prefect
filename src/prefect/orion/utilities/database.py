@@ -533,6 +533,10 @@ class Base(object):
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
+
+    # onupdate is only called when statements are actually issued
+    # against the database. until COMMIT is issued, this column
+    # will not be updated
     updated = Column(
         Timestamp(),
         nullable=False,

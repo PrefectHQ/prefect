@@ -1,6 +1,8 @@
 from uuid import uuid4
+import copy
 
 import pytest
+import pendulum
 
 from prefect.orion import models, schemas
 
@@ -26,6 +28,61 @@ class TestCreateFlow:
         assert flow_1.tags == flow_2.tags
         assert flow_1.name == flow_2.name
         assert flow_1.id == flow_2.id
+
+
+class TestUpdateFlow:
+    async def test_update_flow_succeeds(self, session):
+        flow = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow")
+        )
+
+        flow_id = flow.id
+
+        update_result = await models.flows.update_flow(
+            session=session,
+            flow_id=flow_id,
+            flow=schemas.actions.FlowUpdate(tags=["TB12"]),
+        )
+        assert update_result
+
+        updated_flow = await models.flows.read_flow(session=session, flow_id=flow_id)
+        assert updated_flow.tags == ["TB12"]
+        assert flow_id == flow.id == updated_flow.id
+
+    async def test_update_flow_does_not_update_if_nothing_set(self, session):
+        flow = await models.flows.create_flow(
+            session=session, flow=schemas.core.Flow(name="my-flow", tags=["TB12"])
+        )
+
+        flow_id = flow.id
+
+        update_result = await models.flows.update_flow(
+            session=session,
+            flow_id=flow_id,
+            flow=schemas.actions.FlowUpdate(),
+        )
+        assert update_result
+
+        updated_flow = await models.flows.read_flow(session=session, flow_id=flow_id)
+        assert updated_flow.tags == ["TB12"]
+        assert flow_id == flow.id == updated_flow.id
+
+    async def test_update_flow_returns_false_if_flow_does_not_exist(self, session):
+        assert not (
+            await models.flows.update_flow(
+                session=session,
+                flow_id=uuid4(),
+                flow=schemas.actions.FlowUpdate(),
+            )
+        )
+
+    async def test_update_flow_raises_error_if_bad_flow_update_passed(self, session):
+        with pytest.raises(ValueError):
+            await models.flows.update_flow(
+                session=session,
+                flow_id=uuid4(),
+                flow=schemas.core.Flow(name="my-flow"),
+            )
 
 
 class TestReadFlow:
