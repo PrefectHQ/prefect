@@ -90,8 +90,25 @@ async def flow(session) -> models.orm.Flow:
 async def flow_run(session, flow) -> models.orm.FlowRun:
     model = await models.flow_runs.create_flow_run(
         session=session,
-        flow_run=schemas.actions.FlowRunCreate(
-            flow_id=flow.id, flow_version="0.1", state=schemas.states.Pending()
+        flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+    )
+    await session.commit()
+    return model
+
+
+@pytest.fixture
+async def flow_run_state(session, flow_run) -> models.orm.FlowRunState:
+    flow_run.state = models.orm.FlowRunState(**schemas.states.Pending().dict())
+    await session.commit()
+    return flow_run.state
+
+
+@pytest.fixture
+async def task_run(session, flow_run) -> models.orm.TaskRun:
+    model = await models.task_runs.create_task_run(
+        session=session,
+        task_run=schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id, task_key="my-key"
         ),
     )
     await session.commit()
@@ -99,25 +116,9 @@ async def flow_run(session, flow) -> models.orm.FlowRun:
 
 
 @pytest.fixture
-async def flow_run_state(flow_run) -> models.orm.FlowRunState:
-    return flow_run.state
-
-
-@pytest.fixture
-async def task_run(session, flow_run) -> models.orm.TaskRun:
-    fake_task_run = schemas.actions.TaskRunCreate(
-        flow_run_id=flow_run.id, task_key="my-key", state=schemas.states.Pending()
-    )
-    model = await models.task_runs.create_task_run(
-        session=session,
-        task_run=fake_task_run,
-    )
+async def task_run_state(session, task_run) -> models.orm.TaskRunState:
+    task_run.state = models.orm.TaskRunState(**schemas.states.Pending().dict())
     await session.commit()
-    return model
-
-
-@pytest.fixture
-async def task_run_state(task_run) -> models.orm.TaskRunState:
     return task_run.state
 
 
