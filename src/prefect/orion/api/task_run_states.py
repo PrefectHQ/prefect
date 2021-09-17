@@ -2,7 +2,7 @@ from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path
+from fastapi import Body, Depends, HTTPException, Path, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -45,7 +45,9 @@ async def read_task_run_state(
         session=session, task_run_state_id=task_run_state_id
     )
     if not task_run_state:
-        raise HTTPException(status_code=404, detail="Flow run state not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow run state not found"
+        )
     return task_run_state
 
 
