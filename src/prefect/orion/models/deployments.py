@@ -1,6 +1,6 @@
 import datetime
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pendulum
 import sqlalchemy as sa
@@ -248,7 +248,7 @@ async def _insert_scheduled_flow_runs(
 
     # insert flow run states that correspond to the newly-insert rows
     insert_flow_run_states = [
-        {"flow_run_id": r.id, **r.state.dict(exclude={"created", "updated"})}
+        {"id": uuid4(), "flow_run_id": r.id, **r.state.dict()}
         for r in runs
         if r.id in inserted_flow_run_ids
     ]

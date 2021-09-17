@@ -25,8 +25,13 @@ async def create_flow_run(
 ) -> schemas.core.FlowRun:
     """
     Create a flow run. If a flow run with the same flow_id and
-    idempotency key already exists, the existing flow run will be returned
+    idempotency key already exists, the existing flow run will be returned.
+
+    If no state is provided, the flow run will be created in a PENDING state.
     """
+    if not flow_run.state:
+        flow_run.state = schemas.states.Pending()
+
     now = pendulum.now("UTC")
     model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
     if model.created >= now:
@@ -151,8 +156,6 @@ async def delete_flow_run(
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
-        )
-
 
 @router.post("/{id}/set_state")
 async def set_flow_run_state(
