@@ -170,7 +170,7 @@ class TestFlowRun:
 
     async def test_assign_to_state_inserts_state(self, flow_run, session):
         flow_run_id = flow_run.id
-        assert flow_run.state.type == schemas.states.StateType.PENDING
+        assert flow_run.state is None
 
         # delete all states
         await session.execute(sa.delete(orm.FlowRunState))
@@ -305,7 +305,7 @@ class TestTaskRun:
 
     async def test_assign_to_state_inserts_state(self, task_run, session):
         task_run_id = task_run.id
-        assert task_run.state.type == schemas.states.StateType.PENDING
+        assert task_run.state is None
 
         # delete all states
         await session.execute(sa.delete(orm.TaskRunState))
