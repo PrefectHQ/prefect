@@ -12,5 +12,5 @@ export default class ListItem extends Vue.with(Props) {}
 </script>
 
 <style lang="scss">
-@use '@/styles/components/list--item.scss';
+@use '@/styles/components/list-item.scss';
 </style>
