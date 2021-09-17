@@ -182,7 +182,8 @@ def visit_custom_uuid_default(element, compiler, **kwargs):
 class Timestamp(TypeDecorator):
     """TypeDecorator that ensures that timestamps have a timezone.
 
-    All timestamps are converted to UTC and recovered as UTC.
+    For SQLite, all timestamps are converted to UTC (since they are stored
+    as naive timestamps without timezones) and recovered as UTC.
     """
 
     impl = sa.TIMESTAMP(timezone=True)
@@ -222,8 +223,10 @@ class Timestamp(TypeDecorator):
         else:
             if value.tzinfo is None:
                 raise ValueError("Timestamps must have a timezone.")
-            else:
+            elif dialect.name == "sqlite":
                 return pendulum.instance(value).in_timezone("UTC")
+            else:
+                return value
 
     def process_result_value(self, value, dialect):
         # retrieve timestamps in their native timezone (or UTC)
