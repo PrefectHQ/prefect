@@ -11,7 +11,7 @@ from prefect.orion.schemas import states
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
 class TestUpdateRunDetailsRule:
-    @pytest.mark.parametrize("proposed_state_type", ALL_ORCHESTRATION_STATES)
+    @pytest.mark.parametrize("proposed_state_type", list(states.StateType))
     async def test_rule_updates_run_state(
         self, session, run_type, initialize_orchestration, proposed_state_type
     ):
