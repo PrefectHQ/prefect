@@ -156,6 +156,8 @@ async def delete_flow_run(
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+        )
+
 
 @router.post("/{id}/set_state")
 async def set_flow_run_state(
