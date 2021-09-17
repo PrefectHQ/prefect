@@ -74,7 +74,9 @@ async def read_flow_by_name(
     """
     flow = await models.flows.read_flow_by_name(session=session, name=name)
     if not flow:
-        raise HTTPException(status_code=404, detail="Flow not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found"
+        )
     return flow
 
 

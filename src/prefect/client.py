@@ -215,6 +215,9 @@ class OrionClient:
         parameters = parameters or {}
         context = context or {}
 
+        if state is None:
+            state = schemas.states.Pending()
+
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
 
@@ -385,6 +388,9 @@ class OrionClient:
         state: schemas.states.State = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])
+
+        if state is None:
+            state = schemas.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run_id,

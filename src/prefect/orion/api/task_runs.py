@@ -1,3 +1,4 @@
+import datetime
 from typing import List
 from uuid import UUID
 
@@ -6,7 +7,7 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
+from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 
@@ -22,8 +23,13 @@ async def create_task_run(
     """
     Create a task run. If a task run with the same flow_run_id,
     task_key, and dynamic_key already exists, the existing task
-    run will be returned
+    run will be returned.
+
+    If no state is provided, the task run will be created in a PENDING state.
     """
+    if not task_run.state:
+        task_run.state = schemas.states.Pending()
+
     now = pendulum.now("UTC")
     model = await models.task_runs.create_task_run(session=session, task_run=task_run)
     if model.created >= now:
@@ -50,6 +56,34 @@ async def count_task_runs(
     )
 
 
+@router.get("/history")
+async def task_run_history(
+    history_start: datetime.datetime = Body(
+        ..., description="The history's start time."
+    ),
+    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_interval: datetime.timedelta = Body(
+        ...,
+        description="The size of each history interval, in seconds.",
+        alias="history_interval_seconds",
+    ),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.responses.HistoryResponse]:
+    return await run_history.run_history(
+        session=session,
+        run_type="task_run",
+        history_start=history_start,
+        history_end=history_end,
+        history_interval=history_interval,
+        flows=flows,
+        flow_runs=flow_runs,
+        task_runs=task_runs,
+    )
+
+
 @router.get("/{id}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
@@ -62,7 +96,7 @@ async def read_task_run(
         session=session, task_run_id=task_run_id
     )
     if not task_run:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task_run
 
 
@@ -101,7 +135,7 @@ async def delete_task_run(
         session=session, task_run_id=task_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
 
 @router.post("/{id}/set_state")

@@ -89,7 +89,7 @@ async def test_create_then_read_flow_run(orion_client):
     lookup = await orion_client.read_flow_run(flow_run_id)
     assert isinstance(lookup, schemas.core.FlowRun)
     assert lookup.tags == list(foo.tags)
-    assert lookup.state is None
+    assert lookup.state.is_pending()
 
 
 async def test_create_then_read_flow_run_with_state(orion_client):
@@ -118,11 +118,12 @@ async def test_set_then_read_flow_run_state(orion_client):
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
     states = await orion_client.read_flow_run_states(flow_run_id)
-    assert len(states) == 1
-    state = states[-1]
-    assert isinstance(state, schemas.states.State)
-    assert state.type == schemas.states.StateType.COMPLETED
-    assert state.message == "Test!"
+    assert len(states) == 2
+
+    assert states[0].is_pending()
+
+    assert states[1].is_completed()
+    assert states[1].message == "Test!"
 
 
 async def test_read_flow_runs_without_filter(orion_client):
@@ -270,7 +271,7 @@ async def test_create_then_read_task_run(orion_client):
     assert lookup.tags == list(bar.tags)
     assert lookup.task_key == bar.task_key
     assert lookup.empirical_policy == schemas.core.TaskRunPolicy(max_retries=3)
-    assert lookup.state is None
+    assert lookup.state.is_pending()
 
 
 async def test_create_then_read_task_run_with_state(orion_client):
