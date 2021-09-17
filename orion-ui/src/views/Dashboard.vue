@@ -25,7 +25,7 @@
 
         <div class="px-2 pb-1 flex-grow-1">
           <RunHistoryChart
-            :items="buckets"
+            :items="run_history_buckets"
             background-color="blue-5"
             show-axis
           />
@@ -34,25 +34,25 @@
 
       <Card class="run-duration flex-grow-0" shadow="sm">
         <template v-slot:aside>
-          <div class="pl-2 pt-1">
+          <div class="pl-2 pt-1" style="width: 100px">
             <div class="subheader">10-19m</div>
             <div class="body">Duration</div>
           </div>
         </template>
-        <div class="chart px-1 align-self-stretch">
-          <BarChart :items="[]" height="117px" />
+        <div class="chart px-1">
+          <BarChart :items="run_duration_items" height="117px" />
         </div>
       </Card>
 
       <Card class="run-lateness flex-grow-0" shadow="sm">
         <template v-slot:aside>
-          <div class="pl-2 pt-1">
+          <div class="pl-2 pt-1" style="width: 100px">
             <div class="subheader">1-59m</div>
             <div class="body">Lateness</div>
           </div>
         </template>
-        <div class="chart px-1 align-self-stretch">
-          <BarChart :items="[]" height="117px" />
+        <div class="chart px-1">
+          <BarChart :items="run_lateness_items" height="117px" />
         </div>
       </Card>
     </div>
@@ -156,6 +156,8 @@ import BarChart from '@/components/BarChart/BarChart.vue'
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 import { default as dataset_1 } from '@/util/run_history/24_hours.json'
 import { default as dataset_2 } from '@/util/run_history/design.json'
+import { default as lateness_dataset_1 } from '@/util/run_lateness/24_hours.json'
+import { default as duration_dataset_1 } from '@/util/run_duration/24_hours.json'
 
 // Temporary imports for dummy data
 import { default as flowList } from '@/util/objects/flows.json'
@@ -167,7 +169,10 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
   components: { BarChart, RunHistoryChart }
 })
 export default class Dashboard extends Vue {
-  buckets: Bucket[] = dataset_2
+  run_history_buckets: Bucket[] = dataset_2
+
+  run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
+  run_duration_items: Item[] = duration_dataset_1.slice(0, 10)
 
   flowList: Flow[] = flowList
   deploymentList: Deployment[] = deploymentList
