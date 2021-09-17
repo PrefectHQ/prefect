@@ -1,8 +1,9 @@
-from typing import Callable, List
+from typing import Callable, List, Set
+from uuid import UUID
 
 import anyio
-import anyio.to_process
 import anyio.abc
+import anyio.to_process
 import pendulum
 
 import prefect.engine
@@ -39,17 +40,11 @@ async def run_agent(
 
     async with anyio.create_task_group() as submission_tg:
         while True:
-            ready_runs = await query_for_ready_flow_runs(client, prefetch_seconds)
+            ready_runs = await query_for_ready_flow_runs(
+                client, prefetch_seconds, submitted_ids
+            )
 
-            # Filter out runs that are already being submitted but maintain ordering
-            submittable_runs = [
-                run
-                for run in ready_runs
-                # TODO: Add these to the `query_for_ready_flow_runs` filter
-                if run.id not in submitted_ids and run.deployment_id is not None
-            ]
-
-            for flow_run in submittable_runs:
+            for flow_run in ready_runs:
                 print(f"Submitting {flow_run.id}")
                 submission_tg.start_soon(submit_fn, flow_run, submission_tg)
                 submitted_ids.add(flow_run.id)
@@ -59,11 +54,28 @@ async def run_agent(
 
 
 async def query_for_ready_flow_runs(
-    client: OrionClient, prefetch_seconds: int
+    client: OrionClient, prefetch_seconds: int, submitted_ids: Set[UUID] = None
 ) -> List[FlowRun]:
-    return await client.read_flow_runs(
+    submitted_ids = submitted_ids or set()
+
+    scheduled_runs = await client.read_flow_runs(
         flow_runs=FlowRunFilter(
             states=[StateType.SCHEDULED],
             start_time_before=pendulum.now("utc").add(seconds=prefetch_seconds),
         )
     )
+
+    # Filter out runs that should not be submitted again but maintain ordering
+    # TODO: Move this into the `FlowRunFilter` once it supports this
+    ready_runs = [
+        run
+        for run in scheduled_runs
+        if run.id not in submitted_ids
+        and run.deployment_id is not None
+        and (
+            run.state.state_details.scheduled_time
+            < pendulum.now("utc").add(seconds=prefetch_seconds)
+        )
+    ]
+
+    return ready_runs

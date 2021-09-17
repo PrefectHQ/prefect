@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from uuid import UUID
 
+import pendulum
 import pytest
 from pydantic import BaseModel
 
@@ -166,6 +167,89 @@ async def test_read_flow_runs_with_filtering(orion_client):
     assert len(flows) == 2
     assert all(isinstance(flow, schemas.core.FlowRun) for flow in flows)
     assert {flow.id for flow in flows} == {fr_id_4, fr_id_5}
+
+
+async def test_read_flows_without_filter(orion_client):
+    @flow
+    def foo():
+        pass
+
+    @flow
+    def bar():
+        pass
+
+    flow_id_1 = await orion_client.create_flow(foo)
+    flow_id_2 = await orion_client.create_flow(bar)
+
+    flows = await orion_client.read_flows()
+    assert len(flows) == 2
+    assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
+    assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
+
+
+async def test_read_flows_with_filter(orion_client):
+    @flow
+    def foo():
+        pass
+
+    @flow
+    def bar():
+        pass
+
+    @flow
+    def foobar():
+        pass
+
+    flow_id_1 = await orion_client.create_flow(foo)
+    flow_id_2 = await orion_client.create_flow(bar)
+    flow_id_3 = await orion_client.create_flow(foobar)
+
+    flows = await orion_client.read_flows(
+        flows=schemas.filters.FlowFilter(names=["foo", "bar"])
+    )
+    assert len(flows) == 2
+    assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
+    assert {flow.id for flow in flows} == {flow_id_1, flow_id_2}
+
+
+async def test_create_flow_run_from_deployment(orion_client, deployment):
+    flow_run_id = await orion_client.create_flow_run_from_deployment(deployment)
+    flow_run = await orion_client.read_flow_run(flow_run_id)
+    # Deployment details attached
+    assert flow_run.deployment_id == deployment.id
+    assert flow_run.flow_id == deployment.flow_id
+    # Flow version is not populated yet
+    assert flow_run.flow_version is None
+    # State is scheduled for now
+    assert flow_run.state.type == schemas.states.StateType.SCHEDULED
+    assert (
+        pendulum.now("utc")
+        .diff(flow_run.state.state_details.scheduled_time)
+        .in_seconds()
+        < 1
+    )
+
+
+async def test_update_flow_run(orion_client):
+    @flow
+    def foo():
+        pass
+
+    flow_run_id = await orion_client.create_flow_run(foo)
+    flow_run = await orion_client.read_flow_run(flow_run_id)
+
+    # No mutation for unset fields
+    await orion_client.update_flow_run(flow_run_id)
+    unchanged_flow_run = await orion_client.read_flow_run(flow_run_id)
+    assert unchanged_flow_run == flow_run
+
+    # Fields updated when set
+    await orion_client.update_flow_run(
+        flow_run_id, flow_version="foo", parameters={"foo": "bar"}
+    )
+    updated_flow_run = await orion_client.read_flow_run(flow_run_id)
+    assert updated_flow_run.flow_version == "foo"
+    assert updated_flow_run.parameters == {"foo": "bar"}
 
 
 async def test_create_then_read_task_run(orion_client):
