@@ -20,7 +20,7 @@
     </div>
 
     <Button class="ml-auto mr-2" color="outlined">View Parameters</Button>
-    <Button color="primary">Quick run</Button>
+    <Button color="outlined">Quick Run</Button>
   </list-item>
 </template>
 

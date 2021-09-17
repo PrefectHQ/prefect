@@ -22,7 +22,6 @@
     <div class="ml-auto chart-container mr-2">
       <RunHistoryChart :items="taskRunBuckets" />
     </div>
-    <Button color="primary">Quick run</Button>
   </list-item>
 </template>
 
