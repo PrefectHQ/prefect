@@ -189,7 +189,6 @@ class TestFlowRun:
 
     async def test_assign_multiple_to_state_inserts_states(self, flow_run, session):
         flow_run_id = flow_run.id
-        assert flow_run.state is None
 
         # delete all states
         await session.execute(sa.delete(orm.FlowRunState))
@@ -325,7 +324,6 @@ class TestTaskRun:
 
     async def test_assign_multiple_to_state_inserts_states(self, task_run, session):
         task_run_id = task_run.id
-        assert task_run.state is None
 
         # delete all states
         await session.execute(sa.delete(orm.TaskRunState))

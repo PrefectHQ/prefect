@@ -1,3 +1,4 @@
+import datetime
 from typing import List
 from uuid import UUID
 
@@ -6,7 +7,7 @@ import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 from prefect.orion import models, schemas
-from prefect.orion.api import dependencies, flow_run_history
+from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
@@ -24,8 +25,13 @@ async def create_flow_run(
 ) -> schemas.core.FlowRun:
     """
     Create a flow run. If a flow run with the same flow_id and
-    idempotency key already exists, the existing flow run will be returned
+    idempotency key already exists, the existing flow run will be returned.
+
+    If no state is provided, the flow run will be created in a PENDING state.
     """
+    if not flow_run.state:
+        flow_run.state = schemas.states.Pending()
+
     now = pendulum.now("UTC")
     model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
     if model.created >= now:
@@ -46,7 +52,7 @@ async def update_flow_run(
         session=session, flow_run=flow_run, flow_run_id=flow_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Flow run not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
 
 
 # must be defined before `GET /:id`
@@ -69,7 +75,32 @@ async def count_flow_runs(
 
 
 # insert other routes here so they are defined ahead of `GET /:id`
-router.get("/history")(flow_run_history.flow_run_history)
+@router.get("/history")
+async def flow_run_history(
+    history_start: datetime.datetime = Body(
+        ..., description="The history's start time."
+    ),
+    history_end: datetime.datetime = Body(..., description="The history's end time."),
+    history_interval: datetime.timedelta = Body(
+        ...,
+        description="The size of each history interval, in seconds.",
+        alias="history_interval_seconds",
+    ),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.responses.HistoryResponse]:
+    return await run_history.run_history(
+        session=session,
+        run_type="flow_run",
+        history_start=history_start,
+        history_end=history_end,
+        history_interval=history_interval,
+        flows=flows,
+        flow_runs=flow_runs,
+        task_runs=task_runs,
+    )
 
 
 @router.get("/{id}")
@@ -84,7 +115,7 @@ async def read_flow_run(
         session=session, flow_run_id=flow_run_id
     )
     if not flow_run:
-        raise HTTPException(status_code=404, detail="Flow run not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
     return flow_run
 
 
@@ -123,7 +154,9 @@ async def delete_flow_run(
         session=session, flow_run_id=flow_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Flow run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+        )
 
 
 @router.post("/{id}/set_state")
