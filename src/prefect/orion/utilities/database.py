@@ -183,7 +183,7 @@ class Timestamp(TypeDecorator):
     """TypeDecorator that ensures that timestamps have a timezone.
 
     For SQLite, all timestamps are converted to UTC (since they are stored
-    as naive timestamps) and recovered as UTC.
+    as naive timestamps without timezones) and recovered as UTC.
     """
 
     impl = sa.TIMESTAMP(timezone=True)
