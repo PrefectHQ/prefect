@@ -176,7 +176,7 @@ async def test_history_returns_maximum_items(client, route):
     )
 
 
-async def test_two_day_bins_flow_runs(client):
+async def test_daily_bins_flow_runs(client):
     response = await client.get(
         "/flow_runs/history",
         json=dict(
