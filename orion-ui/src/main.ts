@@ -16,6 +16,7 @@ import ListItemTaskRun from '@/components/Global/List/ListItem--TaskRun/ListItem
 import Row from '@/components/Global/Row/Row.vue'
 
 // Note: this is a locally-installed package, relative to this directory at ../
+import '@prefect/miter-design/dist/style.css'
 import MiterDesign from '@prefect/miter-design'
 
 const storageKey = 'orion-color-mode'
