@@ -24,14 +24,3 @@ async def populate(session, tests_dir):
             for stmt in stmts:
                 if stmt:
                     await session.execute(sa.text(stmt))
-
-
-async def test_timezone(session):
-    result = await session.execute("select now()::TEXT")
-    now = result.one()
-    if not now[0].endswith("+00"):
-        raise ValueError(
-            "The Postgres database time zone is not UTC. Some tests may "
-            "fail. Run `ALTER DATABASE {DB} SET TIME ZONE 'UTC'` to set "
-            "the timezone globally."
-        )
