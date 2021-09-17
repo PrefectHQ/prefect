@@ -96,7 +96,7 @@ async def read_task_run(
         session=session, task_run_id=task_run_id
     )
     if not task_run:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task_run
 
 
@@ -135,7 +135,7 @@ async def delete_task_run(
         session=session, task_run_id=task_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
 
 @router.post("/{id}/set_state")

@@ -62,7 +62,7 @@ async def read_deployment_by_name(
         session=session, name=deployment_name, flow_name=flow_name
     )
     if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Deployment not found")
     return deployment
 
 
