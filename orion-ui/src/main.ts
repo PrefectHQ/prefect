@@ -19,6 +19,8 @@ import Row from '@/components/Global/Row/Row.vue'
 import '@prefect/miter-design/dist/style.css'
 import MiterDesign from '@prefect/miter-design'
 
+import '@/styles/main.scss'
+
 const storageKey = 'orion-color-mode'
 const storedMode = localStorage.getItem(storageKey)?.toLowerCase()
 const defaultClass = 'default-color-mode'
