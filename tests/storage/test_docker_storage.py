@@ -448,6 +448,47 @@ def test_copy_files():
             ), output
 
 
+def test_copy_files_with_dockerignore():
+    with tempfile.TemporaryDirectory() as sample_top_directory:
+
+        sample_sub_directory = os.path.join(sample_top_directory, "subdir")
+        os.mkdir(sample_sub_directory)
+
+        sample_file = os.path.join(sample_sub_directory, "test.txt")
+        with open(sample_file, "w+") as t:
+            t.write("asdf")
+
+        dockerignore = os.path.join(sample_sub_directory, ".dockerignore")
+        with open(dockerignore, "w+") as t:
+            t.write("test.txt")
+
+        with tempfile.TemporaryDirectory() as directory:
+
+            storage = Docker(
+                files={
+                    sample_sub_directory: "/test_dir",
+                    sample_file: "/path/test_file.txt",
+                },
+                dockerignore=dockerignore,
+            )
+            storage.add_flow(Flow("foo"))
+            dpath = storage.create_dockerfile_object(directory=directory)
+
+            with open(dpath, "r") as dockerfile:
+                output = dockerfile.read()
+
+            contents = os.listdir(directory)
+            assert ".dockerignore" in contents, contents
+
+            assert "COPY {} /test_dir".format(
+                os.path.join(directory, "subdir").replace("\\", "/") in output
+            ), output
+
+            assert "COPY {} /path/test_file.txt".format(
+                os.path.join(directory, "test.txt").replace("\\", "/") in output
+            ), output
+
+
 def test_extra_dockerfile_commands():
     with tempfile.TemporaryDirectory() as directory:
 
