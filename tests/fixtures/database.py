@@ -90,16 +90,23 @@ async def flow(session) -> models.orm.Flow:
 async def flow_run(session, flow) -> models.orm.FlowRun:
     model = await models.flow_runs.create_flow_run(
         session=session,
-        flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+        flow_run=schemas.actions.FlowRunCreate(
+            flow_id=flow.id, flow_version="0.1", state=schemas.states.Pending()
+        ),
     )
     await session.commit()
     return model
 
 
 @pytest.fixture
+async def flow_run_state(flow_run) -> models.orm.FlowRunState:
+    return flow_run.state
+
+
+@pytest.fixture
 async def task_run(session, flow_run) -> models.orm.TaskRun:
     fake_task_run = schemas.actions.TaskRunCreate(
-        flow_run_id=flow_run.id, task_key="my-key"
+        flow_run_id=flow_run.id, task_key="my-key", state=schemas.states.Pending()
     )
     model = await models.task_runs.create_task_run(
         session=session,
@@ -110,7 +117,14 @@ async def task_run(session, flow_run) -> models.orm.TaskRun:
 
 
 @pytest.fixture
-async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
+async def task_run_state(task_run) -> models.orm.TaskRunState:
+    return task_run.state
+
+
+@pytest.fixture
+async def flow_run_states(
+    session, flow_run, flow_run_state
+) -> List[models.orm.FlowRunState]:
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -132,11 +146,13 @@ async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
         )
     ).state
     await session.commit()
-    return [scheduled_flow_run_state, running_flow_run_state]
+    return [flow_run_state, scheduled_flow_run_state, running_flow_run_state]
 
 
 @pytest.fixture
-async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
+async def task_run_states(
+    session, task_run, task_run_state
+) -> List[models.orm.TaskRunState]:
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -157,7 +173,7 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
         )
     ).state
     await session.commit()
-    return [scheduled_task_run_state, running_task_run_state]
+    return [task_run_state, scheduled_task_run_state, running_task_run_state]
 
 
 @pytest.fixture

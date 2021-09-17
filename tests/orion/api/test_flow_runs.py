@@ -12,20 +12,42 @@ from prefect.orion.schemas import actions, core, responses, states, data
 
 class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, client, session):
-        flow_run_data = {"flow_id": str(flow.id)}
-        response = await client.post("/flow_runs/", json=flow_run_data)
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
+                json_compatible=True
+            ),
+        )
         assert response.status_code == 201
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["id"]
+        assert response.json()["state"]["type"] == "PENDING"
 
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
 
+    async def test_create_flow_run_without_state_yields_default_pending(
+        self, flow, client, session
+    ):
+        response = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
+        assert response.json()["state"]["type"] == "PENDING"
+
     async def test_create_multiple_flow_runs(self, flow, client, session):
-        response1 = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
-        response2 = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
+
+        response1 = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
+                json_compatible=True
+            ),
+        )
+        response2 = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
+                json_compatible=True
+            ),
+        )
         assert response1.status_code == 201
         assert response2.status_code == 201
         assert response1.json()["flow_id"] == str(flow.id)
@@ -41,11 +63,13 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_idempotency_key_recovers_original_flow_run(
         self, flow, client, session
     ):
-        flow_run_data = {"flow_id": str(flow.id), "idempotency_key": "test-key"}
-        response1 = await client.post("/flow_runs/", json=flow_run_data)
+        data = actions.FlowRunCreate(
+            flow_id=flow.id, state=states.Pending(), idempotency_key="test-key"
+        ).dict(json_compatible=True)
+        response1 = await client.post("/flow_runs/", json=data)
         assert response1.status_code == 201
 
-        response2 = await client.post("/flow_runs/", json=flow_run_data)
+        response2 = await client.post("/flow_runs/", json=data)
         assert response2.status_code == 200
         assert response1.json()["id"] == response2.json()["id"]
 
@@ -56,14 +80,20 @@ class TestCreateFlowRun:
         session.add(flow2)
         await session.commit()
 
+        data = actions.FlowRunCreate(
+            flow_id=flow.id, state=states.Pending(), idempotency_key="test-key"
+        )
+        data2 = actions.FlowRunCreate(
+            flow_id=flow2.id, state=states.Pending(), idempotency_key="test-key"
+        )
         response1 = await client.post(
-            "/flow_runs/", json={"flow_id": str(flow.id), "idempotency_key": "test-key"}
+            "/flow_runs/", json=data.dict(json_compatible=True)
         )
         assert response1.status_code == 201
 
         response2 = await client.post(
             "/flow_runs/",
-            json={"flow_id": str(flow2.id), "idempotency_key": "test-key"},
+            json=data2.dict(json_compatible=True),
         )
         assert response2.status_code == 201
         assert response1.json()["id"] != response2.json()["id"]
@@ -71,29 +101,19 @@ class TestCreateFlowRun:
     async def test_create_flow_run_with_subflow_information(
         self, flow, task_run, client, session
     ):
-        flow_run_data = dict(
-            flow_id=str(flow.id),
-            parent_task_run_id=str(task_run.id),
+        flow_run_data = actions.FlowRunCreate(
+            flow_id=flow.id, parent_task_run_id=task_run.id, state=states.Pending()
         )
-        response = await client.post("/flow_runs/", json=flow_run_data)
+        response = await client.post(
+            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+        )
 
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.parent_task_run_id == task_run.id
 
-    async def test_create_flow_run_without_state(self, flow, client, session):
-        flow_run_data = dict(
-            flow_id=str(flow.id),
-        )
-        response = await client.post("/flow_runs/", json=flow_run_data)
-        flow_run = await models.flow_runs.read_flow_run(
-            session=session, flow_run_id=response.json()["id"]
-        )
-        assert str(flow_run.id) == response.json()["id"]
-        assert flow_run.state is None
-
-    async def test_create_flow_run_with_state(self, flow, client, session):
+    async def test_create_flow_run_with_running_state(self, flow, client, session):
         flow_run_data = dict(
             flow_id=str(flow.id),
             state=states.Running().dict(json_compatible=True),
