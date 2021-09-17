@@ -164,10 +164,25 @@ class OrionClient:
         *,
         parameters: Dict[str, Any] = None,
         context: dict = None,
-        state: schemas.states.State = Scheduled(),
-    ):
+        state: schemas.states.State = None,
+    ) -> UUID:
+        """
+        Create a flow run for a deployment
+
+        Args:
+            - deployment: The deployment model to create the flow run from
+            - parameters: Parameter overrides for this flow run. Merged with the
+                deployment defaults
+            - context: Optional run context data
+            - state: The initial state for the run. If not provided, defaults to
+                `Scheduled` for now. Should always be a `Scheduled` type.
+
+        Returns:
+            - UUID: The flow run id
+        """
         parameters = parameters or {}
         context = context or {}
+        state = state or Scheduled()
 
         flow_run_data = schemas.actions.FlowRunCreate(
             flow_id=deployment.flow_id,
