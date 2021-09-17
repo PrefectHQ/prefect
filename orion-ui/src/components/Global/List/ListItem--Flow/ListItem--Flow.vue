@@ -1,8 +1,16 @@
 <template>
   <list-item class="list-item--flow d-flex align-start justify-start">
     <i class="item--icon pi pi-flow text--grey-40 align-self-start" />
-
-    <div class="ml-2 d-flex flex-column align-start justify-center">
+    <div
+      class="
+        ml-2
+        d-flex
+        flex-column
+        align-start
+        justify-center
+        align-self-start
+      "
+    >
       <h2 class="item--title subheader">
         {{ flow.name }}
       </h2>
@@ -21,11 +29,17 @@
       </div>
     </div>
 
-    <rounded-button> {{ flowRunCount }} flow runs </rounded-button>
+    <div class="ml-auto">
+      <rounded-button class="mr-2">
+        {{ flowRunCount }} flow runs
+      </rounded-button>
 
-    <rounded-button> {{ taskRunCount }} task runs </rounded-button>
+      <rounded-button class="mr-2">
+        {{ taskRunCount }} task runs
+      </rounded-button>
+    </div>
 
-    <div class="ml-auto chart-container mr-2">
+    <div class="chart-container mr-2">
       <RunHistoryChart
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
