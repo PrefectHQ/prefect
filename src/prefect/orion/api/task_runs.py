@@ -23,8 +23,13 @@ async def create_task_run(
     """
     Create a task run. If a task run with the same flow_run_id,
     task_key, and dynamic_key already exists, the existing task
-    run will be returned
+    run will be returned.
+
+    If no state is provided, the task run will be created in a PENDING state.
     """
+    if not task_run.state:
+        task_run.state = schemas.states.Pending()
+
     now = pendulum.now("UTC")
     model = await models.task_runs.create_task_run(session=session, task_run=task_run)
     if model.created >= now:
@@ -91,7 +96,7 @@ async def read_task_run(
         session=session, task_run_id=task_run_id
     )
     if not task_run:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
     return task_run
 
 
@@ -130,7 +135,7 @@ async def delete_task_run(
         session=session, task_run_id=task_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Task not found")
 
 
 @router.post("/{id}/set_state")

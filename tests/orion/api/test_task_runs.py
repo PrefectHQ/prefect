@@ -45,7 +45,7 @@ class TestCreateTaskRun:
             session=session, task_run_id=response.json()["id"]
         )
         assert str(task_run.id) == response.json()["id"]
-        assert task_run.state is None
+        assert task_run.state.type == states.StateType.PENDING
 
     async def test_create_task_run_with_state(self, flow_run, client, session):
         task_run_data = dict(

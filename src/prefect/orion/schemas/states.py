@@ -7,7 +7,7 @@ from pydantic import Field, validator, root_validator
 
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
+from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
 
 R = TypeVar("R")
 
@@ -36,7 +36,10 @@ class StateDetails(PrefectBaseModel):
     cache_expiration: datetime.datetime = None
 
 
-class State(ORMBaseModel, Generic[R]):
+class State(IDBaseModel, Generic[R]):
+    class Config:
+        orm_mode = True
+
     type: StateType
     name: str = None
     timestamp: datetime.datetime = Field(
