@@ -372,6 +372,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/run-history--chart.scss';
 </style>

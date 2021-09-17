@@ -20,7 +20,10 @@
         </Tag>
       </div>
     </div>
-    <div> </div>
+
+    <rounded-button> {{ flowRunCount }} flow runs </rounded-button>
+
+    <rounded-button> {{ taskRunCount }} task runs </rounded-button>
 
     <div class="ml-auto chart-container mr-2">
       <RunHistoryChart
@@ -53,6 +56,9 @@ export default class ListItemFlow extends Vue.with(Props) {
     this.sliceStart,
     this.sliceStart + 10
   )
+
+  flowRunCount: number = 25
+  taskRunCount: number = 139
 }
 </script>
 
