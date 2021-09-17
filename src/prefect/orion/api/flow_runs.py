@@ -47,7 +47,7 @@ async def update_flow_run(
         session=session, flow_run=flow_run, flow_run_id=flow_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Flow run not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
 
 
 # must be defined before `GET /:id`
@@ -110,7 +110,7 @@ async def read_flow_run(
         session=session, flow_run_id=flow_run_id
     )
     if not flow_run:
-        raise HTTPException(status_code=404, detail="Flow run not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
     return flow_run
 
 
@@ -149,7 +149,9 @@ async def delete_flow_run(
         session=session, flow_run_id=flow_run_id
     )
     if not result:
-        raise HTTPException(status_code=404, detail="Flow run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Flow run not found"
+        )
 
 
 @router.post("/{id}/set_state")
