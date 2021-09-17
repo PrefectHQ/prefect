@@ -21,7 +21,7 @@
 
     <div class="chart-card px-2 py-1">
       <div class="subheader">Run History</div>
-      <RunHistoryChart :data="buckets" background-color="blue-5" show-axis />
+      <RunHistoryChart :items="buckets" background-color="blue-5" show-axis />
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
