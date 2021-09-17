@@ -20,7 +20,7 @@
     </div>
 
     <div class="ml-auto chart-container mr-2">
-      <RunHistoryChart :data="taskRunBuckets" />
+      <RunHistoryChart :items="taskRunBuckets" />
     </div>
     <Button color="primary">Quick run</Button>
   </list-item>
