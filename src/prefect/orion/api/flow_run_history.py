@@ -29,16 +29,16 @@ def sqlite_timestamp_intervals(
             r"""
             WITH RECURSIVE intervals(interval_start, interval_end) AS (
                 VALUES(
-                    strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time), 
-                    strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time, :interval)
+                    strftime('%Y-%m-%d %H:%M:%f000', :start_time), 
+                    strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval)
                     )
                 
                 UNION ALL
                 
-                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000+00:00', interval_end, :interval)
+                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval)
                 FROM intervals
                 -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
-                WHERE interval_start < strftime('%Y-%m-%d %H:%M:%f000+00:00', :end_time, :negative_interval)
+                WHERE interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
             )
             SELECT * FROM intervals
             """
