@@ -472,21 +472,10 @@ def test_copy_files_with_dockerignore():
                 dockerignore=dockerignore,
             )
             storage.add_flow(Flow("foo"))
-            dpath = storage.create_dockerfile_object(directory=directory)
-
-            with open(dpath, "r") as dockerfile:
-                output = dockerfile.read()
+            storage.create_dockerfile_object(directory=directory)
 
             contents = os.listdir(directory)
             assert ".dockerignore" in contents, contents
-
-            assert "COPY {} /test_dir".format(
-                os.path.join(directory, "subdir").replace("\\", "/") in output
-            ), output
-
-            assert "COPY {} /path/test_file.txt".format(
-                os.path.join(directory, "test.txt").replace("\\", "/") in output
-            ), output
 
 
 def test_extra_dockerfile_commands():
