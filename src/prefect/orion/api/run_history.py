@@ -1,14 +1,14 @@
 import datetime
 import json
 from typing import List
+from typing_extensions import Literal
 
 import pendulum
 import sqlalchemy as sa
-from fastapi import Body, Depends
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.database import Timestamp, get_dialect, JSON
+from prefect.orion.utilities.database import Timestamp, get_dialect, JSON, Base
 from prefect.utilities.logging import get_logger
 
 logger = get_logger("orion.api")
@@ -29,16 +29,16 @@ def sqlite_timestamp_intervals(
             r"""
             WITH RECURSIVE intervals(interval_start, interval_end) AS (
                 VALUES(
-                    strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time), 
-                    strftime('%Y-%m-%d %H:%M:%f000+00:00', :start_time, :interval)
+                    strftime('%Y-%m-%d %H:%M:%f000', :start_time), 
+                    strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval)
                     )
                 
                 UNION ALL
                 
-                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000+00:00', interval_end, :interval)
+                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval)
                 FROM intervals
                 -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
-                WHERE interval_start < strftime('%Y-%m-%d %H:%M:%f000+00:00', :end_time, :negative_interval)
+                WHERE interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
             )
             SELECT * FROM intervals
             """
@@ -74,26 +74,28 @@ def postgres_timestamp_intervals(
     )
 
 
-# this is added to a router in api/flow_runs.py to ensure
-# it is given the correct route priority
-async def flow_run_history(
-    history_start: datetime.datetime = Body(
-        ..., description="The history's start time."
-    ),
-    history_end: datetime.datetime = Body(..., description="The history's end time."),
-    history_interval: datetime.timedelta = Body(
-        ...,
-        description="The size of each history interval, in seconds.",
-        alias="history_interval_seconds",
-    ),
+async def run_history(
+    session: sa.orm.Session,
+    run_type: Literal["flow_run", "task_run"],
+    history_start: datetime.datetime,
+    history_end: datetime.datetime,
+    history_interval: datetime.timedelta,
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
-    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.responses.HistoryResponse]:
     """
-    Produce a history of flow runs aggregated by state
+    Produce a history of runs aggregated by interval and state
     """
+    # prepare run-specific models
+    if run_type == "flow_run":
+        run_model = models.orm.FlowRun
+        state_model = models.orm.FlowRunState
+        run_filter_function = models.flow_runs._apply_flow_run_filters
+    elif run_type == "task_run":
+        run_model = models.orm.TaskRun
+        state_model = models.orm.TaskRunState
+        run_filter_function = models.task_runs._apply_task_run_filters
 
     # prepare dialect-independent functions
     if get_dialect(session=session).name == "postgresql":
@@ -115,12 +117,12 @@ async def flow_run_history(
     ).cte("intervals")
 
     # apply filters to the flow runs
-    filtered_runs = models.flow_runs._apply_flow_run_filters(
+    filtered_runs = run_filter_function(
         sa.select(
-            models.orm.FlowRun.id,
-            models.orm.FlowRun.state_id,
-            models.orm.FlowRun.expected_start_time,
-            models.orm.FlowRun.state_type,
+            run_model.id,
+            run_model.state_id,
+            run_model.expected_start_time,
+            run_model.state_type,
         ),
         flow_filter=flows,
         flow_run_filter=flow_runs,
@@ -138,9 +140,9 @@ async def flow_run_history(
                 (sa.func.count(filtered_runs.c.id) == 0, None),
                 else_=json_build_object(
                     "type",
-                    models.orm.FlowRunState.type,
+                    state_model.type,
                     "name",
-                    models.orm.FlowRunState.name,
+                    state_model.name,
                     "count",
                     sa.func.count(filtered_runs.c.id),
                 ),
@@ -156,15 +158,15 @@ async def flow_run_history(
             isouter=True,
         )
         .join(
-            models.orm.FlowRunState,
-            filtered_runs.c.state_id == models.orm.FlowRunState.id,
+            state_model,
+            filtered_runs.c.state_id == state_model.id,
             isouter=True,
         )
         .group_by(
             intervals.c.interval_start,
             intervals.c.interval_end,
-            models.orm.FlowRunState.type,
-            models.orm.FlowRunState.name,
+            state_model.type,
+            state_model.name,
         )
     ).alias("counts")
 

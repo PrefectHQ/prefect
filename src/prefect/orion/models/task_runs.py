@@ -84,6 +84,39 @@ async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskR
     return model
 
 
+def _apply_task_run_filters(
+    query,
+    flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+):
+    """
+    Applies filters to a task run query as a combination of correlated
+    EXISTS subqueries.
+    """
+
+    if task_run_filter:
+        query = query.where(task_run_filter.as_sql_filter())
+
+    if flow_filter or flow_run_filter:
+        exists_clause = select(orm.FlowRun).where(
+            orm.FlowRun.id == orm.TaskRun.flow_run_id
+        )
+
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+
+        if flow_filter:
+            exists_clause = exists_clause.join(
+                orm.Flow,
+                orm.Flow.id == orm.FlowRun.flow_id,
+            ).where(flow_filter.as_sql_filter())
+
+        query = query.where(exists_clause.exists())
+
+    return query
+
+
 async def read_task_runs(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -110,21 +143,12 @@ async def read_task_runs(
 
     query = select(orm.TaskRun).order_by(sort.as_sql_sort())
 
-    if task_run_filter:
-        query = query.where(task_run_filter.as_sql_filter())
-
-    if flow_run_filter:
-        query = query.join(
-            orm.FlowRun, orm.FlowRun.id == orm.TaskRun.flow_run_id
-        ).where(flow_run_filter.as_sql_filter())
-
-    if flow_filter:
-        if not flow_run_filter:
-            query = query.join(orm.FlowRun, orm.FlowRun.id == orm.TaskRun.flow_run_id)
-
-        query = query.join(orm.Flow, orm.Flow.id == orm.FlowRun.flow_id).where(
-            flow_filter.as_sql_filter()
-        )
+    query = _apply_task_run_filters(
+        query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
 
     if offset is not None:
         query = query.offset(offset)
@@ -155,24 +179,12 @@ async def count_task_runs(
     """
     query = select(sa.func.count(sa.text("*"))).select_from(orm.TaskRun)
 
-    if task_run_filter:
-        query = query.where(task_run_filter.as_sql_filter())
-
-    if flow_filter or flow_run_filter:
-        exists_clause = select(orm.FlowRun).where(
-            orm.FlowRun.id == orm.TaskRun.flow_run_id
-        )
-
-        if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
-
-        if flow_filter:
-            exists_clause = exists_clause.join(
-                orm.Flow,
-                orm.Flow.id == orm.FlowRun.flow_id,
-            ).where(flow_filter.as_sql_filter())
-
-        query = query.where(exists_clause.exists())
+    query = _apply_task_run_filters(
+        query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+    )
 
     result = await session.execute(query)
     return result.scalar()
