@@ -1,6 +1,6 @@
 <template>
   <div ref="container" class="chart-container">
-    <svg :id="id" ref="chart" class="run-history-chart" />
+    <svg :id="id" ref="chart" />
   </div>
 </template>
 
@@ -54,5 +54,5 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 </script>
 
 <style lang="scss">
-@use '@/styles/components/run-history--chart.scss';
+@use '@/styles/components/bar--chart.scss';
 </style>

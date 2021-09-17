@@ -1,7 +1,5 @@
 <template>
   <div>
-    <h1>Dashboard</h1>
-
     <row class="filter-row py-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
@@ -19,9 +17,44 @@
       </button-card>
     </row>
 
-    <div class="chart-card px-2 py-1">
-      <div class="subheader">Run History</div>
-      <RunHistoryChart :items="buckets" background-color="blue-5" show-axis />
+    <div class="chart-section">
+      <Card class="run-history" shadow="sm">
+        <template v-slot:header>
+          <div class="subheader py-1 px-2">Run History</div>
+        </template>
+
+        <div class="px-2 pb-1 flex-grow-1">
+          <RunHistoryChart
+            :items="buckets"
+            background-color="blue-5"
+            show-axis
+          />
+        </div>
+      </Card>
+
+      <Card class="run-duration flex-grow-0" shadow="sm">
+        <template v-slot:aside>
+          <div class="pl-2 pt-1">
+            <div class="subheader">10-19m</div>
+            <div class="body">Duration</div>
+          </div>
+        </template>
+        <div class="chart px-1 align-self-stretch">
+          <BarChart :items="[]" height="117px" />
+        </div>
+      </Card>
+
+      <Card class="run-lateness flex-grow-0" shadow="sm">
+        <template v-slot:aside>
+          <div class="pl-2 pt-1">
+            <div class="subheader">1-59m</div>
+            <div class="body">Lateness</div>
+          </div>
+        </template>
+        <div class="chart px-1 align-self-stretch">
+          <BarChart :items="[]" height="117px" />
+        </div>
+      </Card>
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
@@ -118,6 +151,8 @@ import {
   Bucket
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
 
+import BarChart from '@/components/BarChart/BarChart.vue'
+
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 import { default as dataset_1 } from '@/util/run_history/24_hours.json'
 import { default as dataset_2 } from '@/util/run_history/design.json'
@@ -129,7 +164,7 @@ import { default as flowRunList } from '@/util/objects/flow_runs.json'
 import { default as taskRunList } from '@/util/objects/task_runs.json'
 
 @Options({
-  components: { RunHistoryChart }
+  components: { BarChart, RunHistoryChart }
 })
 export default class Dashboard extends Vue {
   buckets: Bucket[] = dataset_2
@@ -184,6 +219,51 @@ export default class Dashboard extends Vue {
 
   display: flex;
   flex-direction: column;
+}
+
+.chart-section {
+  display: grid;
+  grid-template-areas:
+    'history history duration'
+    'history history lateness';
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 117px);
+  column-gap: 16px;
+  row-gap: 16px;
+
+  .run-history,
+  .run-lateness,
+  .run-duration {
+    height: 100%;
+  }
+
+  .chart {
+    height: 117px;
+    overflow: hidden;
+  }
+
+  .run-history {
+    grid-area: history;
+  }
+
+  .run-lateness {
+    grid-area: lateness;
+  }
+
+  .run-duration {
+    grid-area: duration;
+  }
+}
+
+@media (max-width: 640px) {
+  .chart-section {
+    grid-template-areas:
+      'history'
+      'duration'
+      'lateness';
+    grid-template-columns: repeat(1, 1fr);
+    grid-template-rows: 250px 117px 117px;
+  }
 }
 
 .fade-enter-active,
