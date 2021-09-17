@@ -34,7 +34,6 @@ export default class NavBar extends Vue {}
   padding: 8px 0;
   position: fixed;
   top: 0;
-  transition: all 150ms ease-in-out;
   width: 62px;
   z-index: 10;
 
