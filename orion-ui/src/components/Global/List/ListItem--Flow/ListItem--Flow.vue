@@ -39,7 +39,7 @@
       </rounded-button>
     </div>
 
-    <div class="chart-container mr-2">
+    <div class="chart-container">
       <RunHistoryChart
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
