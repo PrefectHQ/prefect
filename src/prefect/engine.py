@@ -129,7 +129,9 @@ async def retrieve_flow_then_begin_flow_run(
     flow = await load_flow_from_deployment(deployment, client=client)
 
     await client.update_flow_run(
-        flow_run_id=flow_run_id, version=flow.version, parameters=flow_run.parameters
+        flow_run_id=flow_run_id,
+        flow_version=flow.version,
+        parameters=flow_run.parameters,
     )
     await client.propose_state(Pending(), flow_run_id=flow_run_id)
 

@@ -240,16 +240,17 @@ class OrionClient:
     async def update_flow_run(
         self,
         flow_run_id: UUID,
-        version: Union[str, NoUpdate] = NO_UPDATE,
+        flow_version: Union[str, NoUpdate] = NO_UPDATE,
         parameters: Union[Dict[str, Any], NoUpdate] = NO_UPDATE,
     ) -> None:
 
         flow_run_data = schemas.actions.FlowRunUpdate(
-            **drop_unset(version=version, parameters=parameters)
+            **drop_unset(flow_version=flow_version, parameters=parameters)
         )
 
         await self.patch(
-            f"/flow_runs/{flow_run_id}", json=flow_run_data.dict(json_compatible=True)
+            f"/flow_runs/{flow_run_id}",
+            json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
 
     async def create_deployment(
