@@ -97,20 +97,35 @@ async def flow_run(session, flow) -> models.orm.FlowRun:
 
 
 @pytest.fixture
+async def flow_run_state(session, flow_run) -> models.orm.FlowRunState:
+    flow_run.state = models.orm.FlowRunState(**schemas.states.Pending().dict())
+    await session.commit()
+    return flow_run.state
+
+
+@pytest.fixture
 async def task_run(session, flow_run) -> models.orm.TaskRun:
-    fake_task_run = schemas.actions.TaskRunCreate(
-        flow_run_id=flow_run.id, task_key="my-key"
-    )
     model = await models.task_runs.create_task_run(
         session=session,
-        task_run=fake_task_run,
+        task_run=schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id, task_key="my-key"
+        ),
     )
     await session.commit()
     return model
 
 
 @pytest.fixture
-async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
+async def task_run_state(session, task_run) -> models.orm.TaskRunState:
+    task_run.state = models.orm.TaskRunState(**schemas.states.Pending().dict())
+    await session.commit()
+    return task_run.state
+
+
+@pytest.fixture
+async def flow_run_states(
+    session, flow_run, flow_run_state
+) -> List[models.orm.FlowRunState]:
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -132,11 +147,13 @@ async def flow_run_states(session, flow_run) -> List[models.orm.FlowRunState]:
         )
     ).state
     await session.commit()
-    return [scheduled_flow_run_state, running_flow_run_state]
+    return [flow_run_state, scheduled_flow_run_state, running_flow_run_state]
 
 
 @pytest.fixture
-async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
+async def task_run_states(
+    session, task_run, task_run_state
+) -> List[models.orm.TaskRunState]:
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -157,7 +174,7 @@ async def task_run_states(session, task_run) -> List[models.orm.TaskRunState]:
         )
     ).state
     await session.commit()
-    return [scheduled_task_run_state, running_task_run_state]
+    return [task_run_state, scheduled_task_run_state, running_task_run_state]
 
 
 @pytest.fixture
