@@ -205,7 +205,7 @@ export default class Dashboard extends Vue {
   }
 }
 
-.filter-card-button {
+.filter-card-button.button-card {
   min-width: 300px;
   width: 100%;
 }
