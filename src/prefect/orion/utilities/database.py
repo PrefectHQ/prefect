@@ -195,13 +195,23 @@ class Timestamp(TypeDecorator):
         elif dialect.name == "sqlite":
             return dialect.type_descriptor(
                 sqlite.DATETIME(
+                    # SQLite is very particular about datetimes, and performs all comparisons
+                    # as alphanumeric comparisons without regard for actual timestamp
+                    # semantics or timezones. Therefore, it's important to have uniform
+                    # and sortable datetime representations. The default is an ISO8601-compatible
+                    # string with NO time zone and a space (" ") delimeter between the date
+                    # and the time. The below settings can be used to add a "T" delimiter but
+                    # will require all other sqlite datetimes to be set similarly, including
+                    # the custom default value for datetime columns and any handwritten SQL
+                    # formed with `strftime()`.
+                    #
                     # store with "T" separator for time
-                    storage_format=(
-                        "%(year)04d-%(month)02d-%(day)02d"
-                        "T%(hour)02d:%(minute)02d:%(second)02d.%(microsecond)06d"
-                    ),
+                    # storage_format=(
+                    #     "%(year)04d-%(month)02d-%(day)02d"
+                    #     "T%(hour)02d:%(minute)02d:%(second)02d.%(microsecond)06d"
+                    # ),
                     # handle ISO 8601 with "T" or " " as the time separator
-                    regexp=r"(\d+)-(\d+)-(\d+)[T ](\d+):(\d+):(\d+).(\d+)",
+                    # regexp=r"(\d+)-(\d+)-(\d+)[T ](\d+):(\d+):(\d+).(\d+)",
                 )
             )
         else:
@@ -333,7 +343,7 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     the default value for a timestamp column); not datetimes provided by
     SQLAlchemy itself.
     """
-    return "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
+    return "strftime('%Y-%m-%d %H:%M:%f000', 'now')"
 
 
 @compiles(now)
