@@ -30,11 +30,11 @@
     </div>
 
     <div class="ml-auto">
-      <rounded-button class="mr-2">
+      <rounded-button class="mr-1">
         {{ flowRunCount }} flow runs
       </rounded-button>
 
-      <rounded-button class="mr-2">
+      <rounded-button class="mr-1">
         {{ taskRunCount }} task runs
       </rounded-button>
     </div>
