@@ -260,6 +260,16 @@ export default class Dashboard extends Vue {
   }
 }
 
+@media (max-width: 1000px) {
+  .chart-section {
+    grid-template-areas:
+      'history history'
+      'duration lateness';
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 250px 117px;
+  }
+}
+
 @media (max-width: 640px) {
   .chart-section {
     grid-template-areas:
