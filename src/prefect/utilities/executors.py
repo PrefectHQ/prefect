@@ -20,7 +20,7 @@ import prefect
 from prefect import config
 from prefect.client import Client
 from prefect.configuration import to_environment_variables
-from prefect.exceptions import TaskTimeoutSignal
+from prefect.exceptions import TaskTimeoutSignal, PrefectSignal
 from prefect.utilities.logging import get_logger
 from typing import (
     TYPE_CHECKING,
@@ -297,6 +297,15 @@ def multiprocessing_safe_run_and_retrieve(
             logger.debug(f"{name}: Executing...")
             return_val = fn(*args, **kwargs)
             logger.debug(f"{name}: Execution successful.")
+    except PrefectSignal as exc:
+        # We need to ensure PrefectSignals are captured and put in the
+        # queue correctly, otherwise no value is returned and
+        # the task runner assumes execution has timed out
+        return_val = exc
+        logger.error(
+            f"{name}: Encountered a PrefectSignal {type(exc).__name__}, "
+            f"returning details as a result..."
+        )
     except Exception as exc:
         return_val = exc
         logger.error(

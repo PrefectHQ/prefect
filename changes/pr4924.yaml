@@ -1,0 +1,3 @@
+
+fix:
+  - "Fix bug where `LocalDaskExecutor` did not respond to a `PrefectSignal` - [#4924](https://github.com/PrefectHQ/prefect/pull/4924)"

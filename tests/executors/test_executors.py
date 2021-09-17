@@ -18,6 +18,7 @@ from prefect.executors import (
     LocalDaskExecutor,
     LocalExecutor,
 )
+from prefect.engine.signals import SUCCESS
 
 
 @pytest.mark.parametrize(
@@ -211,6 +212,19 @@ class TestLocalDaskExecutor:
         # Defining "quickly" here as 4 seconds generally and 6 seconds on
         # Windows which tends to be a little slower
         assert (stop - start) < (6 if sys.platform == "win32" else 4)
+
+    def test_captures_prefect_signals(self):
+        e = LocalDaskExecutor()
+
+        @prefect.task(timeout=1)
+        def succeed():
+            raise SUCCESS()
+
+        with prefect.Flow("signal-test", executor=e) as flow:
+            succeed()
+
+        res = flow.run()
+        assert res.is_successful()
 
 
 class TestLocalExecutor:
