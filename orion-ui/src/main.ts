@@ -6,6 +6,7 @@ import store from './store'
 
 // Global components
 import ButtonCard from '@/components/Global/Button--Card/Button--Card.vue'
+import ButtonRounded from '@/components/Global/Button--Rounded/Button--Rounded.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import ListItemDeployment from '@/components/Global/List/ListItem--Deployment/ListItem--Deployment.vue'
@@ -26,6 +27,7 @@ document.body.classList.add(colorMode)
 const app = createApp(App).use(MiterDesign).use(store).use(router)
 
 app.component('button-card', ButtonCard)
+app.component('rounded-button', ButtonRounded)
 app.component('list', List)
 app.component('list-item', ListItem)
 app.component('deployment-list-item', ListItemDeployment)

@@ -28,6 +28,6 @@ class Props {
 export default class ButtonCard extends Vue.with(Props) {}
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/button--card.scss';
 </style>
