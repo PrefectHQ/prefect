@@ -86,9 +86,10 @@ def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
-    This differs from `enter_engine_from_interactive_flow_run` in that we have a flow
-    run id but not a flow object yet. We will need to retrieve it before we can begin
-    execution.
+    Differs from `enter_flow_run_engine_from_flow_call` in that we have a flow run id
+    but not a flow object. The flow must be retrieved before execution can begin.
+    Additionally, this assumes that the caller is always in a context without an event
+    loop as this should be called from a fresh process.
     """
     return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
 
@@ -100,8 +101,7 @@ async def create_then_begin_flow_run(
     """
     Async entrypoint for flow calls
 
-    Here we simply create the flow run in the backend then enter the main flow run
-    engine
+    Creates the flow run in the backend then enters the main flow rum engine
     """
     flow_run_id = await client.create_flow_run(
         flow,
@@ -120,10 +120,9 @@ async def retrieve_flow_then_begin_flow_run(
     """
     Async entrypoint for flow runs that have been submitted for execution by an agent
 
-    Here we
-    - Retrieve the deployment information
-    - Load the flow object using deployment information
-    - Update the flow run version
+    - Retrieves the deployment information
+    - Loads the flow object using deployment information
+    - Updates the flow run version
     """
     flow_run = await client.read_flow_run(flow_run_id)
     deployment = await client.read_deployment(flow_run.deployment_id)
@@ -151,13 +150,12 @@ async def begin_flow_run(
     """
     Begins execution of a flow run; blocks until completion of the flow run
 
-    When flows are executed, we
-    - start an executor
-    - orchestrate the flow run (run the user-function and generate tasks)
-    - wait for tasks to complete / shutdown the executor
-    - set a terminal state for the flow run
+    - Starts an executor
+    - Orchestrates the flow run (runs the user-function and generates tasks)
+    - Waits for tasks to complete / shutsdown the executor
+    - Sets a terminal state for the flow run
 
-    This function then returns the terminal state
+    Returns the terminal state
     """
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
@@ -192,11 +190,10 @@ async def create_and_begin_subflow_run(
     Async entrypoint for flows calls within a flow run
 
     Subflows differ from parent flows in that they
-    - use the existing parent flow executor
-    - create a dummy task for representation in the parent flow
+    - Use the existing parent flow executor
+    - Create a dummy task for representation in the parent flow
 
-    This function then returns a fake future containing the terminal state.
-    # TODO: Flow calls should not return futures since they block.
+    Returns the terminal state
     """
     parent_flow_run_context = FlowRunContext.get()
 
