@@ -8,7 +8,7 @@ import tempfile
 import textwrap
 import uuid
 import warnings
-from pathlib import PurePosixPath
+from pathlib import PurePosixPath, Path
 from typing import TYPE_CHECKING, Any, Iterable, List, Union
 
 import pendulum
@@ -329,12 +329,6 @@ class Docker(Storage):
         with tempfile.TemporaryDirectory(
             dir="." if self.dockerfile else None
         ) as tempdir:
-
-            if self.files and self.dockerignore:
-                shutil.copyfile(
-                    src=self.dockerignore, dst=PurePosixPath(tempdir) / ".dockerignore"
-                )
-
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
@@ -440,6 +434,12 @@ class Docker(Storage):
         # Copy user specified files into the image
         copy_files = ""
         if self.files:
+            # copy dockerignore if provided
+            if self.dockerignore:
+                shutil.copyfile(
+                    src=Path(self.dockerignore).expanduser().resolve(),
+                    dst=Path(directory) / ".dockerignore",
+                )
             for src, dest in self.files.items():
                 fname = os.path.basename(src)
                 full_fname = os.path.join(directory, fname)
