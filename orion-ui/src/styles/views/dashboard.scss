@@ -2,8 +2,11 @@
 @use 'sass:map';
 
 .result-badge {
+  background-color: $white;
   border-radius: 16px;
-  padding: 4px 16px;
+  font-weight: 400;
+  padding: 0 8px;
+  min-width: 24px;
   transition: 150ms all;
 
   &.active {

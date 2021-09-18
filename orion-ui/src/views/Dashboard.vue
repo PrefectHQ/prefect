@@ -61,7 +61,10 @@
       <Tab href="flows" class="subheader">
         <i class="pi pi-flow pi-lg mr-1" />
         Flows
-        <span class="result-badge" :class="{ active: resultsTab == 'flows' }">
+        <span
+          class="result-badge caption ml-1"
+          :class="{ active: resultsTab == 'flows' }"
+        >
           {{ datasets['flows'].length }}
         </span>
       </Tab>
@@ -69,7 +72,7 @@
         <i class="pi pi-map-pin-line pi-lg mr-1" />
         Deployments
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
           {{ datasets['deployments'].length }}
@@ -79,7 +82,7 @@
         <i class="pi pi-flow-run pi-lg mr-1" />
         Flow Runs
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow-runs' }"
         >
           {{ datasets['flow-runs'].length }}
@@ -89,7 +92,7 @@
         <i class="pi pi-task pi-lg mr-1" />
         Task Runs
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task-runs' }"
         >
           {{ datasets['task-runs'].length }}
