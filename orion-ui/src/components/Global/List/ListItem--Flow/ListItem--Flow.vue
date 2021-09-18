@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div class="ml-auto nowrap">
+    <div v-breakpoints="'sm'" class="ml-auto nowrap">
       <rounded-button class="mr-1">
         {{ flowRunCount }} flow runs
       </rounded-button>
