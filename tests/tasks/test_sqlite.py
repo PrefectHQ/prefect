@@ -62,6 +62,15 @@ class TestSQLiteQuery:
         assert out.is_failed()
         assert "one statement at a time" in str(out.result[task].result)
 
+    def test_parametrized_query(self, database):
+        with Flow(name="test") as f:
+            task = SQLiteQuery(db=database)(
+                query="SELECT * FROM TEST WHERE NUMBER in (?, ?)", data=(12, 13)
+            )
+        out = f.run()
+        assert out.is_successful()
+        assert out.result[task].result == [(12, "second"), (13, "third")]
+
 
 class TestSQLiteScript:
     def test_initialization(self):
