@@ -81,7 +81,9 @@
     <div class="parameters-container pr-2 align-self-stretch">
       <div v-for="(parameter, i) in filteredParameters" :key="i">
         <div class="d-flex align-center justify-space-between">
-          <h4 class="font-weight-bold font--secondary">{{ parameter.name }}</h4>
+          <div class="caption font-weight-bold font--secondary">
+            {{ parameter.name }}
+          </div>
           <span
             class="
               parameter-type
@@ -95,7 +97,7 @@
           </span>
         </div>
 
-        <p class="font--secondary">
+        <p class="font--secondary caption">
           {{ parameter.parameter }}
         </p>
 
