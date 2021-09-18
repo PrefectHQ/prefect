@@ -2,7 +2,7 @@
   <teleport :to="target">
     <div v-if="modelValue && showOverlay" class="overlay" @click="close" />
     <transition name="slide" mode="out-in" appear>
-      <aside v-if="modelValue" class="drawer pa-2">
+      <aside v-if="modelValue" class="drawer pa-2 d-flex flex-column">
         <h2>
           <div class="d-flex justify-start align-center">
             <Button class="mr-1" :icon="true" @click="close">
@@ -14,7 +14,7 @@
           <hr class="title-hr" />
         </h2>
 
-        <article class="content">
+        <article class="content d-flex justify-start flex-column">
           <slot />
         </article>
       </aside>

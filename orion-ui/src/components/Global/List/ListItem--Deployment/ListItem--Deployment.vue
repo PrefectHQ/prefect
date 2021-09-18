@@ -59,15 +59,51 @@
 
   <drawer v-model="parametersDrawerActive" show-overlay>
     <template #title>{{ deployment.name }}</template>
-    <div v-for="(parameter, i) in parameters" :key="i">
-      {{ parameter }}
-      <Button @click="secondaryDrawerActive[parameter.name] = true"
-        >Click</Button
-      >
+    <h3 class="font-weight-bold">Parameters</h3>
+    <div>These are the inputs that are passed to runs of this Deployment.</div>
 
-      <drawer v-model="secondaryDrawerActive[parameter.name]">
-        <template #title>{{ parameter.name }}</template>
-      </drawer>
+    <hr class="mt-2 parameters-hr align-self-stretch" />
+
+    <Input v-model="search" placeholder="Search...">
+      <template #prepend>
+        <i class="pi pi-search-line"></i>
+      </template>
+    </Input>
+
+    <div class="mt-2 font--secondary">
+      {{ filteredParameters.length }} result{{
+        filteredParameters.length !== 1 ? 's' : ''
+      }}
+    </div>
+
+    <hr class="mt-2 parameters-hr" />
+
+    <div class="parameters-container pr-2 align-self-stretch">
+      <div v-for="(parameter, i) in filteredParameters" :key="i">
+        <div class="d-flex align-center justify-space-between">
+          <h4 class="font-weight-bold font--secondary">{{ parameter.name }}</h4>
+          <span
+            class="
+              parameter-type
+              font--secondary
+              caption-small
+              px-1
+              text--white
+            "
+          >
+            {{ parameter.type }}
+          </span>
+        </div>
+
+        <p class="font--secondary">
+          {{ parameter.parameter }}
+        </p>
+
+        <hr
+          v-if="i !== filteredParameters.length - 1"
+          class="mb-2 parameters-hr"
+        />
+      </div>
     </div>
   </drawer>
 </template>
@@ -80,10 +116,16 @@ class Props {
   deployment = prop<Deployment>({ required: true })
 }
 
-@Options({})
+@Options({
+  watch: {
+    parametersDrawerActive() {
+      this.search = ''
+    }
+  }
+})
 export default class ListItemDeployment extends Vue.with(Props) {
   parametersDrawerActive: boolean = false
-  secondaryDrawerActive: { [key: string]: boolean } = {}
+  search: string = ''
 
   get location(): string {
     return this.deployment.location
@@ -99,6 +141,12 @@ export default class ListItemDeployment extends Vue.with(Props) {
 
   get tags(): string[] {
     return this.deployment.tags
+  }
+
+  get filteredParameters(): { [key: string]: any }[] {
+    return this.parameters.filter(
+      (p) => p.name.includes(this.search) || p.type.includes(this.search)
+    )
   }
 }
 </script>
