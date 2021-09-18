@@ -60,8 +60,8 @@ In this tutorial we could have gone one step further and asked for fetching all 
 
 ::: tip More about Control Structures
 - [Mapping](/core/concepts/mapping.html#mapping)
-- [Task Looping](/core/examples/task_looping.html#task-looping)
-- [Signaling](/core/getting_started/next-steps.html#signals)
+- [Task Looping](/core/advanced_tutorials/task_looping.html)
+- [Signaling](/core/concepts/execution.html#state-signals)
 :::
 
 ## Ready-made Task Library
@@ -84,4 +84,3 @@ flow.run()
 ```
 
 The Task library includes integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, [and more](/core/task_library/)!
-
