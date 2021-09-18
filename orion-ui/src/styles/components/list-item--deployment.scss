@@ -1,3 +1,4 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
 @use '@/styles/components/list-item.scss';
 
 .item--title {
@@ -10,4 +11,20 @@
   > .tag-wrapper {
     margin-top: -4px;
   }
+}
+
+.parameters-hr {
+  border: 0;
+  border-bottom: 1px solid;
+  color: $grey-10 !important;
+  width: 100%;
+}
+
+.parameter-type {
+  background-color: $grey-40;
+  border-radius: 4px;
+}
+
+.parameters-container {
+  overflow: auto;
 }
