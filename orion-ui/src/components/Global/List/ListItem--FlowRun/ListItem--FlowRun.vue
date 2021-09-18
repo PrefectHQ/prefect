@@ -52,11 +52,11 @@
       />
     </div>
 
-    <div class="font--secondary item--duration">
+    <div class="font--secondary item--duration mr-1">
       {{ duration }}
     </div>
 
-    <i class="pi pi-arrow-right-s-line text--grey-40" />
+    <i class="pi pi-arrow-right-s-line text--grey-80" />
   </list-item>
 </template>
 
