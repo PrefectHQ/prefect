@@ -25,12 +25,12 @@
           align-bottom
         "
       >
-        <span class="mr-2">
+        <span class="mr-2 text-truncate">
           <span class="text--grey-40">Schedule: </span>
-          <span class="text--grey-80">{{ schedule }}</span>
+          <span class="text--grey-80"> Every {{ schedule }}</span>
         </span>
 
-        <span class="mr-2">
+        <span class="mr-2 text-truncate">
           <span class="text--grey-40">Location: </span>
           <span class="text--grey-80">{{ location }}</span>
         </span>
@@ -118,6 +118,35 @@ class Props {
   deployment = prop<Deployment>({ required: true })
 }
 
+const secondsToString = (s: number) => {
+  const _y = 31536000,
+    _d = 86400,
+    _h = 3600,
+    _m = 60
+  const years = Math.floor(s / _y)
+  const days = Math.floor((s % _y) / _d)
+  const hours = Math.floor(((s % _y) % _d) / _h)
+  const minutes = Math.floor((((s % _y) % _d) % _h) / _m)
+  const seconds = (((s % _y) % _d) % _h) % _m
+
+  console.log(years, days, hours, minutes, seconds)
+  return (
+    (years
+      ? (years == 1 ? '' : years) + ` year${years !== 1 ? 's' : ''} `
+      : '') +
+    (days ? (days == 1 ? '' : days) + ` day${days !== 1 ? 's' : ''} ` : '') +
+    (hours
+      ? (hours == 1 ? '' : hours) + ` hour${hours !== 1 ? 's' : ''} `
+      : '') +
+    (minutes
+      ? (minutes == 1 ? '' : minutes) + ` minute${minutes !== 1 ? 's' : ''} `
+      : '') +
+    (seconds
+      ? (seconds == 1 ? '' : seconds) + ` second${seconds !== 1 ? 's' : ''} `
+      : '')
+  )
+}
+
 @Options({
   watch: {
     parametersDrawerActive() {
@@ -138,7 +167,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
   }
 
   get schedule(): any {
-    return this.deployment.schedule
+    return secondsToString(this.deployment.schedule)
   }
 
   get tags(): string[] {
