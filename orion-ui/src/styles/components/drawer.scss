@@ -18,6 +18,7 @@
   right: 0;
   top: 0;
   width: 35%;
+  will-change: transform;
   z-index: 10;
 
   .content {
@@ -44,9 +45,9 @@
 
 @keyframes slide {
   from {
-    right: -600px;
+    transform: translate(100%);
   }
   to {
-    right: 0px;
+    transform: translate(0);
   }
 }
