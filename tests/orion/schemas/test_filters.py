@@ -40,3 +40,12 @@ def test_start_time_before_must_be_greater_than_after(StartTimeFilter):
         StartTimeFilter(
             before_=pendulum.now("UTC"), after_=pendulum.now("UTC").add(days=1)
         )
+
+
+def test_expected_start_time_before_must_be_greater_than_after():
+    with pytest.raises(
+        ValueError, match="Expected start time before_ must be greater than after_"
+    ):
+        filters.FlowRunFilterExpectedStartTime(
+            before_=pendulum.now("UTC"), after_=pendulum.now("UTC").add(days=1)
+        )
