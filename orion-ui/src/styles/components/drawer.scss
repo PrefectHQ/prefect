@@ -11,13 +11,12 @@
 .drawer {
   background-color: $white;
   height: 100vh;
-  min-width: 600px;
   overflow: hidden;
-  //   overscroll-behavior: contain;
+  overscroll-behavior: contain;
   position: absolute;
   right: 0;
   top: 0;
-  width: 35%;
+  max-width: 600px;
   will-change: transform;
   z-index: 10;
 
