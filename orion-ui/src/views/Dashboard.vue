@@ -58,15 +58,15 @@
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
-      <Tab href="flows">
+      <Tab href="flows" class="subheader">
         <i class="pi pi-flow pi-lg mr-1" />
         Flows
         <span class="result-badge" :class="{ active: resultsTab == 'flows' }">
           {{ datasets['flows'].length }}
         </span>
       </Tab>
-      <Tab href="deployments">
-        <i class="pi pi-deployment pi-lg mr-1" />
+      <Tab href="deployments" class="subheader">
+        <i class="pi pi-map-pin-line pi-lg mr-1" />
         Deployments
         <span
           class="result-badge"
@@ -75,7 +75,7 @@
           {{ datasets['deployments'].length }}
         </span>
       </Tab>
-      <Tab href="flow-runs">
+      <Tab href="flow-runs" class="subheader">
         <i class="pi pi-flow-run pi-lg mr-1" />
         Flow Runs
         <span
@@ -85,8 +85,8 @@
           {{ datasets['flow-runs'].length }}
         </span>
       </Tab>
-      <Tab href="task-runs">
-        <i class="pi pi-task-run pi-lg mr-1" />
+      <Tab href="task-runs" class="subheader">
+        <i class="pi pi-task pi-lg mr-1" />
         Task Runs
         <span
           class="result-badge"
