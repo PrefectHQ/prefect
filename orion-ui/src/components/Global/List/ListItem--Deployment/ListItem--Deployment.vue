@@ -50,10 +50,26 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
-      <Button outlined class="mr-1">View Parameters</Button>
+      <Button outlined class="mr-1" @click="parametersDrawerActive = true">
+        View Parameters
+      </Button>
       <Button outlined>Quick Run</Button>
     </div>
   </list-item>
+
+  <drawer v-model="parametersDrawerActive" show-overlay>
+    <template #title>{{ deployment.name }}</template>
+    <div v-for="(parameter, i) in parameters" :key="i">
+      {{ parameter }}
+      <Button @click="secondaryDrawerActive[parameter.name] = true"
+        >Click</Button
+      >
+
+      <drawer v-model="secondaryDrawerActive[parameter.name]">
+        <template #title>{{ parameter.name }}</template>
+      </drawer>
+    </div>
+  </drawer>
 </template>
 
 <script lang="ts">
@@ -66,6 +82,9 @@ class Props {
 
 @Options({})
 export default class ListItemDeployment extends Vue.with(Props) {
+  parametersDrawerActive: boolean = false
+  secondaryDrawerActive: { [key: string]: boolean } = {}
+
   get location(): string {
     return this.deployment.location
   }
