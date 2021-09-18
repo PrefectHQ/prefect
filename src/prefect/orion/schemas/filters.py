@@ -176,6 +176,35 @@ class FlowRunFilterStartTime(PrefectBaseModel):
         raise ValueError("Must specify before or after criteria for start time")
 
 
+class FlowRunFilterExpectedStartTime(PrefectBaseModel):
+    before_: datetime.datetime = Field(
+        None, description="Only include flow runs scheduled to start before this time"
+    )
+    after_: datetime.datetime = Field(
+        None, description="Only include flow runs scheduled to start after this time"
+    )
+
+    @root_validator
+    def test_before_and_after_are_not_mutually_exclusive(cls, values):
+        if values.get("before_") is not None and values.get("after_") is not None:
+            if values.get("before_") <= values.get("after_"):
+                raise ValueError(
+                    "Expected start time before_ must be greater than after_"
+                )
+        return values
+
+    def as_sql_filter(self):
+        if self.before_ and self.after_:
+            return orm.FlowRun.expected_start_time.between(self.after_, self.before_)
+        elif self.before_:
+            return orm.FlowRun.expected_start_time <= self.before_
+        elif self.after_:
+            return orm.FlowRun.expected_start_time >= self.after_
+        raise ValueError(
+            "Must specify before or after criteria for scheduled start time"
+        )
+
+
 class FlowRunFilterParentTaskRunIds(PrefectBaseModel):
     any_: List[UUID] = Field(
         ..., description="A list of flow run parent task run ids to include"
@@ -208,9 +237,8 @@ class FlowRunFilter(PrefectBaseModel):
     states: Optional[FlowRunFilterStates]
     flow_versions: Optional[FlowRunFilterFlowVersions]
     start_time: Optional[FlowRunFilterStartTime]
+    expected_start_time: Optional[FlowRunFilterExpectedStartTime]
     parent_task_run_ids: Optional[FlowRunFilterParentTaskRunIds]
-
-    # TODO - add scheduled_start_time filter
 
     def as_sql_filter(self) -> List:
         filters = []
