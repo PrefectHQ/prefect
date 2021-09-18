@@ -55,6 +55,8 @@
     <div class="font--secondary item--duration">
       {{ duration }}
     </div>
+
+    <i class="pi pi-arrow-right-s-line text--grey-40" />
   </list-item>
 </template>
 
