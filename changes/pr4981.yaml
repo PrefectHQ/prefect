@@ -1,0 +1,2 @@
+enhancement:
+  - "Add data parameter to SQLiteQuery task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)"
