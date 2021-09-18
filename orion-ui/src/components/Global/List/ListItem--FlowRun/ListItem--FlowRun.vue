@@ -1,6 +1,9 @@
 <template>
   <list-item class="list-item--flow-run d-flex align-start justify-start">
-    <i class="item--icon pi text--grey-40 align-self-start" :class="state" />
+    <i
+      class="item--icon pi text--grey-40 align-self-start"
+      :class="`pi-${state}`"
+    />
     <div
       class="
         item--title
