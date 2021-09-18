@@ -43,7 +43,6 @@ class FlowFilterTags(PrefectBaseModel):
         example=["tag-1", "tag-2"],
         description="A list of tags. Flows will be returned only if their tags are a superset of the list",
     )
-    # TODO - we should allow true or false here and default to None
     is_null_: bool = Field(
         False, description="If true, only include flows without tags"
     )
@@ -95,7 +94,6 @@ class FlowRunFilterTags(PrefectBaseModel):
         example=["tag-1", "tag-2"],
         description="A list of tags. Flow runs will be returned only if their tags are a superset of the list",
     )
-    # TODO - we should allow true or false here and default to None
     is_null_: bool = Field(
         False, description="If true, only include flow runs without tags"
     )
@@ -118,7 +116,6 @@ class FlowRunFilterDeploymentIds(PrefectBaseModel):
     any_: List[UUID] = Field(
         ..., description="A list of flow run deployment ids to include"
     )
-    # TODO - we should allow true or false here and default to None
     is_null_: bool = Field(
         False, description="If true, only include flow runs without deployment ids"
     )
@@ -162,11 +159,16 @@ class FlowRunFilterStartTime(PrefectBaseModel):
         None, description="Only include flow runs starting after this time"
     )
 
-    # TODO - validator
+    @root_validator
+    def test_before_and_after_are_not_mutually_exclusive(cls, values):
+        if values.get("before_") is not None and values.get("after_") is not None:
+            if values.get("before_") <= values.get("after_"):
+                raise ValueError("Start time before_ must be greater than after_")
+        return values
 
     def as_sql_filter(self):
         if self.before_ and self.after_:
-            return orm.FlowRun.start_time.between(self.before_, self.after_)
+            return orm.FlowRun.start_time.between(self.after_, self.before_)
         elif self.before_:
             return orm.FlowRun.start_time <= self.before_
         elif self.after_:
@@ -178,7 +180,6 @@ class FlowRunFilterParentTaskRunIds(PrefectBaseModel):
     any_: List[UUID] = Field(
         ..., description="A list of flow run parent task run ids to include"
     )
-    # TODO - we should allow true or false here and default to None
     is_null_: bool = Field(
         False, description="If true, only include flow runs without parent task run ids"
     )
@@ -245,7 +246,6 @@ class TaskRunFilterTags(PrefectBaseModel):
         example=["tag-1", "tag-2"],
         description="A list of tags. Task runs will be returned only if their tags are a superset of the list",
     )
-    # TODO - we should allow true or false here and default to None
     is_null_: bool = Field(
         False, description="If true, only include task runs without tags"
     )
@@ -281,7 +281,12 @@ class TaskRunFilterStartTime(PrefectBaseModel):
         None, description="Only include task runs starting after this time"
     )
 
-    # TODO - validator
+    @root_validator
+    def test_before_and_after_are_not_mutually_exclusive(cls, values):
+        if values.get("before_") is not None and values.get("after_") is not None:
+            if values.get("before_") <= values.get("after_"):
+                raise ValueError("Start time before_ must be greater than after_")
+        return values
 
     def as_sql_filter(self):
         if self.before_ and self.after_:
