@@ -3,19 +3,19 @@
     <i class="item--icon pi pi-flow text--grey-40 align-self-start" />
     <div
       class="
+        item--title
         ml-2
         d-flex
         flex-column
-        align-start
         justify-center
         align-self-start
       "
     >
-      <h2 class="item--title subheader">
+      <h2>
         {{ flow.name }}
       </h2>
 
-      <div>
+      <div class="nowrap">
         <Tag
           v-for="tag in flow.tags"
           :key="tag"
@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div class="ml-auto">
+    <div class="ml-auto nowrap">
       <rounded-button class="mr-1">
         {{ flowRunCount }} flow runs
       </rounded-button>
