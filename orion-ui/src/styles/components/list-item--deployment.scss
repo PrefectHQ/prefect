@@ -1,0 +1,13 @@
+@use '@/styles/components/list-item.scss';
+
+.item--title {
+  margin-bottom: 2px;
+}
+
+.tag-container {
+  margin-top: 2px;
+
+  > .tag-wrapper {
+    margin-top: -4px;
+  }
+}

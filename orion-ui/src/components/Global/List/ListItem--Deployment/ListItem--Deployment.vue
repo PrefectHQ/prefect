@@ -1,26 +1,58 @@
 <template>
-  <list-item>
-    <div>
-      <i class="item--icon pi pi-deployment pi-2x" />
+  <list-item class="list-item--flow d-flex align-start justify-start">
+    <i class="item--icon pi pi-map-pin-line text--grey-40 align-self-start" />
+    <div
+      class="
+        item--title
+        ml-2
+        d-flex
+        flex-column
+        justify-center
+        align-self-start
+      "
+    >
+      <h2>
+        {{ deployment.name }}
+      </h2>
 
-      <div>
-        <div class="item--title subheader">
-          {{ deployment.name }}
-        </div>
-        <Tag
-          v-for="tag in deployment.tags"
+      <div
+        class="
+          tag-container
+          font-weight-semibold
+          nowrap
+          caption
+          d-flex
+          align-bottom
+        "
+      >
+        <span class="mr-1">
+          <span class="text--grey-40">Schedule: </span>
+          <span class="text--grey-80">{{ schedule }}</span>
+        </span>
+
+        <span class="mr-1">
+          <span class="text--grey-40">Location: </span>
+          <span class="text--grey-80">{{ location }}</span>
+        </span>
+
+        <!-- Hiding these for now since they're not in the design but I think we'll need them -->
+        <!-- <Tag
+          v-for="tag in tags"
           :key="tag"
           color="secondary-pressed"
-          class="item--tags mr-1"
-          outlined
+          class="font--primary caption mr-1"
+          icon="pi-label"
+          flat
         >
           {{ tag }}
-        </Tag>
+        </Tag> -->
       </div>
     </div>
 
-    <Button class="ml-auto mr-2" color="outlined">View Parameters</Button>
-    <Button color="outlined">Quick Run</Button>
+    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+      <Button outlined class="mr-1">View Parameters</Button>
+      <Button outlined>Quick Run</Button>
+    </div>
   </list-item>
 </template>
 
@@ -33,9 +65,25 @@ class Props {
 }
 
 @Options({})
-export default class ListItemDeployment extends Vue.with(Props) {}
+export default class ListItemDeployment extends Vue.with(Props) {
+  get location(): string {
+    return this.deployment.location
+  }
+
+  get parameters(): { [key: string]: any }[] {
+    return this.deployment.parameters
+  }
+
+  get schedule(): any {
+    return this.deployment.schedule
+  }
+
+  get tags(): string[] {
+    return this.deployment.tags
+  }
+}
 </script>
 
 <style lang="scss" scoped>
-// @use '@/styles/components/list--item.scss';
+@use '@/styles/components/list-item--deployment.scss';
 </style>
