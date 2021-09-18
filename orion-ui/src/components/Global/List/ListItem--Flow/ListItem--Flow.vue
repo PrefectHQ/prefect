@@ -15,7 +15,7 @@
         {{ flow.name }}
       </h2>
 
-      <div class="nowrap">
+      <div class="nowrap tag-container d-flex align-bottom">
         <Tag
           v-for="tag in flow.tags"
           :key="tag"
