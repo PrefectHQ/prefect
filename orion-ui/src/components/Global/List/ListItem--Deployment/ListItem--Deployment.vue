@@ -25,12 +25,12 @@
           align-bottom
         "
       >
-        <span class="mr-1">
+        <span class="mr-2">
           <span class="text--grey-40">Schedule: </span>
           <span class="text--grey-80">{{ schedule }}</span>
         </span>
 
-        <span class="mr-1">
+        <span class="mr-2">
           <span class="text--grey-40">Location: </span>
           <span class="text--grey-80">{{ location }}</span>
         </span>
