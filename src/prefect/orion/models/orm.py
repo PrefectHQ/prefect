@@ -1,3 +1,4 @@
+from operator import index
 from typing import Union
 
 import pendulum
@@ -137,7 +138,7 @@ class FlowRun(Base):
     deployment_id = Column(
         UUID(), ForeignKey("deployment.id", ondelete="set null"), index=True
     )
-    flow_version = Column(String)
+    flow_version = Column(String, index=True)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = Column(String)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -164,11 +165,11 @@ class FlowRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
+    state_type = Column(sa.Enum(states.StateType, name="state_type"), index=True)
     run_count = Column(Integer, server_default="0", default=0, nullable=False)
     expected_start_time = Column(Timestamp())
     next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
+    start_time = Column(Timestamp(), index=True)
     end_time = Column(Timestamp())
     total_run_time_seconds = Column(
         Float, server_default="0.0", default=0.0, nullable=False
@@ -274,11 +275,11 @@ class TaskRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
+    state_type = Column(sa.Enum(states.StateType, name="state_type"), index=True)
     run_count = Column(Integer, server_default="0", default=0, nullable=False)
     expected_start_time = Column(Timestamp())
     next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
+    start_time = Column(Timestamp(), index=True)
     end_time = Column(Timestamp())
     total_run_time_seconds = Column(
         Float, server_default="0.0", default=0.0, nullable=False
