@@ -156,7 +156,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         selection
           .append('rect')
           .attr('class', (d: Item) => {
-            return `bar ${d.state}-fill`
+            return `bar ${d.state.toLowerCase()}-fill`
           })
           .attr('x', (d: Item, i: number) => 100)
           .attr('y', (d: Item, i: number) => i * 100 + 100)
