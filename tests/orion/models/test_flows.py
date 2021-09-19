@@ -155,7 +155,7 @@ class TestReadFlows:
         read_flows = await models.flows.read_flows(session=session)
         assert len(read_flows) == 0
 
-    async def test_read_flows_filters_by_tags_all(self, session):
+    async def test_read_flows_filters_by_tags(self, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -186,7 +186,14 @@ class TestReadFlows:
         )
         assert {res.id for res in result} == {flow_1.id, flow_2.id}
 
-        # TODO - test for tags list empty
+        # is_null_
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                tags=schemas.filters.FlowFilterTags(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {flow_3.id}
 
     async def test_flows_filters_by_name_any(self, session):
         flow_1 = await models.flows.create_flow(
