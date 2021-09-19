@@ -17,6 +17,7 @@ export declare interface FlowRun {
   id: string
   flow_id: string
   deployment_id: string
+  duration: number
   name: string
   state: string
   tags: string[]
@@ -27,5 +28,7 @@ export declare interface TaskRun {
   flow_run_id: string
   name: string
   state: string
+  duration: number
+  sub_flow_run_id: string
   tags: string[]
 }
