@@ -409,7 +409,7 @@ class TestReadFlowRuns:
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
-                states=schemas.filters.FlowRunFilterStates(any_=["RUNNING"])
+                state_types=schemas.filters.FlowRunFilterStateTypes(any_=["RUNNING"])
             ),
         )
         assert {res.id for res in result} == {flow_run_1.id}
@@ -417,7 +417,7 @@ class TestReadFlowRuns:
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
-                states=schemas.filters.FlowRunFilterStates(
+                state_types=schemas.filters.FlowRunFilterStateTypes(
                     any_=["RUNNING", "COMPLETED"]
                 )
             ),
@@ -427,7 +427,7 @@ class TestReadFlowRuns:
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
-                states=schemas.filters.FlowRunFilterStates(any_=["SCHEDULED"])
+                state_types=schemas.filters.FlowRunFilterStateTypes(any_=["SCHEDULED"])
             ),
         )
         assert len(result) == 0

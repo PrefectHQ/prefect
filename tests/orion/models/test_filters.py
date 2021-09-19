@@ -236,10 +236,17 @@ class TestCountFlowsModels:
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
         # next two check that filters are applied as an intersection not a union
-        [dict(task_run_filter=filters.TaskRunFilter(states=dict(any_=["FAILED"]))), 1],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(states=dict(any_=["FAILED"])),
+                task_run_filter=filters.TaskRunFilter(state_types=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    state_types=dict(any_=["FAILED"])
+                ),
                 flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["xyz"])),
             ),
             0,
@@ -336,10 +343,17 @@ class TestCountFlowRunModels:
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
         # next two check that filters are applied as an intersection not a union
-        [dict(task_run_filter=filters.TaskRunFilter(states=dict(any_=["FAILED"]))), 1],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(states=dict(any_=["FAILED"])),
+                task_run_filter=filters.TaskRunFilter(state_types=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    state_types=dict(any_=["FAILED"])
+                ),
                 flow_filter=filters.FlowFilter(tags=dict(all_=["xyz"])),
             ),
             0,
@@ -436,13 +450,17 @@ class TestCountTaskRunsModels:
         # next two check that filters are applied as an intersection not a union
         [
             dict(
-                flow_run_filter=filters.FlowRunFilter(states=dict(any_=["COMPLETED"]))
+                flow_run_filter=filters.FlowRunFilter(
+                    state_types=dict(any_=["COMPLETED"])
+                )
             ),
             4,
         ],
         [
             dict(
-                flow_run_filter=filters.FlowRunFilter(states=dict(any_=["COMPLETED"])),
+                flow_run_filter=filters.FlowRunFilter(
+                    state_types=dict(any_=["COMPLETED"])
+                ),
                 flow_filter=filters.FlowFilter(tags=dict(all_=["xyz"])),
             ),
             0,

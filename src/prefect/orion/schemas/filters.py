@@ -133,9 +133,9 @@ class FlowRunFilterDeploymentIds(PrefectBaseModel):
             return orm.FlowRun.deployment_id == None
 
 
-class FlowRunFilterStates(PrefectBaseModel):
+class FlowRunFilterStateTypes(PrefectBaseModel):
     any_: List[schemas.states.StateType] = Field(
-        None, description="A list of flow run states to include"
+        None, description="A list of flow run state types to include"
     )
 
     def as_sql_filter(self):
@@ -236,10 +236,11 @@ class FlowRunFilter(PrefectBaseModel):
     ids: Optional[FlowRunFilterIds]
     tags: Optional[FlowRunFilterTags]
     deployment_ids: Optional[FlowRunFilterDeploymentIds]
-    states: Optional[FlowRunFilterStates]
+    state_types: Optional[FlowRunFilterStateTypes]
     flow_versions: Optional[FlowRunFilterFlowVersions]
     start_time: Optional[FlowRunFilterStartTime]
     expected_start_time: Optional[FlowRunFilterExpectedStartTime]
+    # TODO - filter on next scheduled start time
     parent_task_run_ids: Optional[FlowRunFilterParentTaskRunIds]
 
     def as_sql_filter(self) -> List:
@@ -253,8 +254,8 @@ class FlowRunFilter(PrefectBaseModel):
             filters.append(self.deployment_ids.as_sql_filter())
         if self.flow_versions is not None:
             filters.append(self.flow_versions.as_sql_filter())
-        if self.states is not None:
-            filters.append(self.states.as_sql_filter())
+        if self.state_types is not None:
+            filters.append(self.state_types.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
         if self.expected_start_time is not None:
@@ -296,9 +297,9 @@ class TaskRunFilterTags(PrefectBaseModel):
         raise ValueError("No sql filter available. all_ and is_null_ are not set")
 
 
-class TaskRunFilterStates(PrefectBaseModel):
+class TaskRunFilterStateTypes(PrefectBaseModel):
     any_: List[schemas.states.StateType] = Field(
-        None, description="A list of task run states to include"
+        None, description="A list of task run state types to include"
     )
 
     def as_sql_filter(self):
@@ -335,7 +336,7 @@ class TaskRunFilter(PrefectBaseModel):
 
     ids: Optional[TaskRunFilterIds]
     tags: Optional[TaskRunFilterTags]
-    states: Optional[TaskRunFilterStates]
+    state_types: Optional[TaskRunFilterStateTypes]
     start_time: Optional[TaskRunFilterStartTime]
 
     def as_sql_filter(self) -> List:
@@ -345,8 +346,8 @@ class TaskRunFilter(PrefectBaseModel):
             filters.append(self.ids.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
-        if self.states is not None:
-            filters.append(self.states.as_sql_filter())
+        if self.state_types is not None:
+            filters.append(self.state_types.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
 
