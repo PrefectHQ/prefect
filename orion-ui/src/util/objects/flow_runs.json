@@ -18,7 +18,7 @@
   {
     "name": "Sugartown",
     "tags": ["morning", "prod", "evening", "prod", "dev"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "6b53dbaf-3aab-4bb6-bbfd-0efc41c437c5",
     "duration": 60,
     "task_run_count": 45
@@ -34,7 +34,7 @@
   {
     "name": "Gibbsville",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "f15da66d-352c-4bc2-9324-2d70e743f1cd",
     "duration": 35,
     "task_run_count": 31
@@ -50,7 +50,7 @@
   {
     "name": "Wheatfields",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "aa9e5b95-d305-410a-b4d4-eb266e7b6c49",
     "duration": 60,
     "task_run_count": 16
@@ -58,7 +58,7 @@
   {
     "name": "Idamay",
     "tags": ["prod"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "87a5bb62-6def-4116-b16d-7ecb023826cc",
     "duration": 3850,
     "task_run_count": 23
@@ -194,7 +194,7 @@
   {
     "name": "Conestoga",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "aa9c0d84-38d5-4229-8318-498fe117da8b",
     "duration": 3850,
     "task_run_count": 10
@@ -354,7 +354,7 @@
   {
     "name": "Hilltop",
     "tags": ["dev", "morning", "morning", "evening", "prod"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "8e35811a-f9f5-4f22-ba22-0ca47c67c281",
     "duration": 35,
     "task_run_count": 58
@@ -442,7 +442,7 @@
   {
     "name": "Joppa",
     "tags": ["prod"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "a3e7348f-d3d0-47c7-9da2-e091c47f8b15",
     "duration": 35,
     "task_run_count": 25
@@ -458,7 +458,7 @@
   {
     "name": "Onton",
     "tags": ["prod", "morning", "database"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "256b9490-33f4-478d-a540-e71d0cf21897",
     "duration": 840,
     "task_run_count": 45

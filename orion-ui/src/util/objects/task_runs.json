@@ -66,7 +66,7 @@
   {
     "name": "Rockbridge",
     "tags": ["morning"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "9f20bf4d-c730-4387-b150-d7348568551d",
     "duration": 840,
     "sub_flow_run_id": null
@@ -74,7 +74,7 @@
   {
     "name": "Buxton",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "1d1d399b-9da4-4e23-86ee-d94bd712f95d",
     "duration": 3850,
     "sub_flow_run_id": "fbc9ede5-c3b3-4656-921e-ef80820be38c"
@@ -82,7 +82,7 @@
   {
     "name": "Barclay",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "6951e534-ec9f-484b-87b7-817ea1430c83",
     "duration": 3850,
     "sub_flow_run_id": null
@@ -122,7 +122,7 @@
   {
     "name": "Fowlerville",
     "tags": ["dev"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "9e743706-36f9-41d4-8b22-ac8951cb34af",
     "duration": 210,
     "sub_flow_run_id": null
@@ -202,7 +202,7 @@
   {
     "name": "Nelson",
     "tags": ["dev", "database", "dev"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "947b87ff-299f-4962-8f3b-145bb0808a43",
     "duration": 840,
     "sub_flow_run_id": null
@@ -218,7 +218,7 @@
   {
     "name": "Defiance",
     "tags": ["dev", "evening"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "399613b2-41bd-47d1-92c8-faf5a3dcb89f",
     "duration": 840,
     "sub_flow_run_id": null
@@ -386,7 +386,7 @@
   {
     "name": "Clarence",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "434fb342-d932-4bb8-8915-c8c302f24106",
     "duration": 35,
     "sub_flow_run_id": "cba9f181-9de3-49ee-b2d7-31a981124d58"
@@ -418,7 +418,7 @@
   {
     "name": "Seymour",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "eb436ec1-934d-4e8c-bee6-4de36914e32f",
     "duration": 210,
     "sub_flow_run_id": null
@@ -514,7 +514,7 @@
   {
     "name": "Chapin",
     "tags": ["morning", "morning", "prod"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "e6489b8f-a972-46ed-a69d-4727668900c7",
     "duration": 35,
     "sub_flow_run_id": null
@@ -554,7 +554,7 @@
   {
     "name": "Santel",
     "tags": ["dev"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "7959d459-24f1-4ee4-958c-92ab60a02c60",
     "duration": 35,
     "sub_flow_run_id": null
@@ -610,7 +610,7 @@
   {
     "name": "Cavalero",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "0352b640-69e7-4f0d-9fde-596a9dc1e642",
     "duration": 35,
     "sub_flow_run_id": null
@@ -698,7 +698,7 @@
   {
     "name": "Biddle",
     "tags": ["dev"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "52ac7f1f-8395-4826-9415-26929f4d5ced",
     "duration": 3850,
     "sub_flow_run_id": null
@@ -794,7 +794,7 @@
   {
     "name": "Springhill",
     "tags": [],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "0530f9d7-b388-467e-b43b-ac9a5246938f",
     "duration": 35,
     "sub_flow_run_id": null
@@ -850,7 +850,7 @@
   {
     "name": "Barstow",
     "tags": ["database"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "f176f28f-9caa-4db5-b1a9-0cf39ea7de72",
     "duration": 35,
     "sub_flow_run_id": null
@@ -930,7 +930,7 @@
   {
     "name": "Elbert",
     "tags": ["morning"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "6dc8c1d7-e106-496c-9bec-d23780c47fb1",
     "duration": 60,
     "sub_flow_run_id": "6b1e26ed-6638-4f26-adc1-2f0926b8029b"
@@ -970,7 +970,7 @@
   {
     "name": "Bartonsville",
     "tags": ["prod"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "9ce53b2e-72f1-4737-8e95-5bfc2ac2d902",
     "duration": 3850,
     "sub_flow_run_id": null
@@ -986,7 +986,7 @@
   {
     "name": "Guilford",
     "tags": ["morning", "evening"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "c64c4c2d-e470-4310-a268-91efeecf53ed",
     "duration": 3850,
     "sub_flow_run_id": null
@@ -1130,7 +1130,7 @@
   {
     "name": "Springdale",
     "tags": ["morning", "database", "morning"],
-    "state": "RETRYING",
+    "state": "PENDING",
     "id": "2eb239ce-4047-439a-8b15-d2f1647a1835",
     "duration": 3850,
     "sub_flow_run_id": null

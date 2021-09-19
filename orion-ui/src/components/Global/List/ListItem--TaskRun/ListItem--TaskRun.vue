@@ -25,7 +25,7 @@
           :key="tag"
           color="secondary-pressed"
           class="font--primary caption font-weight-semibold mr-1"
-          ico
+          icon="pi-label"
           flat
         >
           {{ tag }}
