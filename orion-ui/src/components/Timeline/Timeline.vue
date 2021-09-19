@@ -9,7 +9,7 @@
         class="node"
         :style="getNodePosition(item)"
       >
-        {{ item.state }}
+        {{ item.state }}{{ getNodePosition(item) }}
       </div>
     </div>
   </div>
@@ -19,6 +19,7 @@
 import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
+import { intervals } from '@/util/util'
 
 interface Item {
   id: string
@@ -64,8 +65,8 @@ const formatLabel = (date: Date) => {
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 class Props {
-  backgroundColor = prop<String>({ required: false, default: null })
-  interval = prop<String>({ required: false, default: 'minutes' })
+  backgroundColor = prop<string>({ required: false, default: null })
+  interval = prop<string>({ required: false, default: 'minute' })
   items = prop<Item[]>({ required: true })
   padding = prop<{
     top: Number
@@ -76,21 +77,30 @@ class Props {
   }>({
     required: false,
     default: {
-      top: 12,
-      bottom: 12,
-      middle: 12,
-      left: 16,
-      right: 16
+      top: 0,
+      bottom: 0,
+      middle: 0,
+      left: 0,
+      right: 0
     }
   })
 }
 
 @Options({})
 export default class Timeline extends mixins(D3Base).with(Props) {
+  intervalHeight: number = 24
+  intervalWidth: number = 480
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
   barSelection: SelectionType = null as unknown as d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    null
+  >
+
+  gridSelection: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
     unknown,
     HTMLElement,
@@ -103,6 +113,35 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     HTMLElement,
     null
   >
+
+  get numberIntervals(): number {
+    console.log(this.totalSeconds, intervals, intervals[this.interval])
+    return this.totalSeconds / intervals[this.interval]
+  }
+
+  get numberRows(): number {
+    return Math.max(this.items.length, this.height / this.intervalHeight)
+  }
+
+  get start(): Date {
+    return new Date(this.items[0].start_time)
+  }
+
+  get end(): Date {
+    return new Date(this.items[this.items.length - 1].end_time)
+  }
+
+  get totalSeconds(): number {
+    return this.end.getTime() / 1000 - this.start.getTime() / 1000
+  }
+
+  get chartHeight(): number {
+    return Math.max(this.numberRows * this.intervalHeight, this.height)
+  }
+
+  get chartWidth(): number {
+    return this.numberIntervals * this.intervalWidth
+  }
 
   xAxis = (g: any) =>
     g
@@ -130,6 +169,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   update(): void {
     this.updateScales()
+    this.updateGrid()
     // this.updateBars()
   }
 
@@ -140,19 +180,21 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   updateScales(): void {
     // Generate x scale
-    const start = this.items[0].start_time
-    const end = this.items[this.items.length - 1].end_time
-
-    this.xScale.domain([new Date(start), new Date(end)]).range([0, this.width])
+    this.xScale.domain([this.start, this.end]).range([0, this.chartWidth])
   }
 
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
 
-    this.svg.attr(
-      'viewbox',
-      `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
-    )
+    this.svg
+      .attr(
+        'viewbox',
+        `0, 0, ${this.chartWidth - this.paddingX}, ${
+          this.chartHeight - this.paddingY
+        }`
+      )
+      .style('width', this.chartWidth - this.paddingX + 'px')
+      .style('height', this.chartHeight - this.paddingY + 'px')
 
     this.svg
       .append('rect')
@@ -162,17 +204,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       )
       .attr('rx', 4)
       .attr('width', '100%')
-      .attr(
-        'height',
-        `${
-          this.height -
-          this.padding.top -
-          this.padding.bottom -
-          this.padding.middle
-        }px`
-      )
+      .attr('height', '100%')
 
     this.barSelection = this.svg.append('g')
+    this.gridSelection = this.svg.append('g')
 
     this.xAxisGroup = this.svg.append('g')
   }
@@ -181,6 +216,61 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     return {
       left: this.xScale(new Date(item.start_time)) + 'px'
     }
+  }
+
+  updateGrid(): void {
+    // TODO: Figure out what the heck the overloads for D3 are supposed to be...
+    /* @ts-ignore */
+    this.gridSelection
+      .selectAll('.grid-line.grid-x')
+      .data(Array.from({ length: this.numberRows }))
+      .join(
+        (selection: any) =>
+          selection
+            .append('line')
+            .attr('class', 'grid-line grid-x')
+            .attr('stroke', 'var(--blue-20)')
+            .attr('x1', 0)
+            .attr('x2', this.chartWidth)
+            .attr(
+              'y1',
+              (d: any, i: number) =>
+                i * this.intervalHeight + this.intervalHeight
+            )
+            .attr(
+              'y2',
+              (d: any, i: number) =>
+                i * this.intervalHeight + this.intervalHeight
+            ),
+        () => {},
+        () => {}
+      )
+
+    console.log(Array.from({ length: this.numberRows }, (x, i) => i))
+
+    /* @ts-ignore */
+    this.gridSelection
+      .selectAll('.grid-line.grid-y')
+      .data(Array.from({ length: this.numberRows }, (x, i) => i))
+      .join(
+        (selection: any) =>
+          selection
+            .append('line')
+            .attr('class', 'grid-line grid-y')
+            .attr('stroke', 'var(--blue-20)')
+            .attr(
+              'x1',
+              (d: any, i: number) => i * this.intervalWidth + this.intervalWidth
+            )
+            .attr(
+              'x2',
+              (d: any, i: number) => i * this.intervalWidth + this.intervalWidth
+            )
+            .attr('y1', 0)
+            .attr('y2', this.chartHeight),
+        () => {},
+        () => {}
+      )
   }
 
   //   updateBars(): void {
@@ -200,7 +290,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   //       )
   //   }
 
-  updateBarPath(d: any, i: number): string | void {}
+  //   updateBarPath(d: any, i: number): string | void {}
 }
 </script>
 

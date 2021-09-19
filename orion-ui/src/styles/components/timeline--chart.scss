@@ -1,6 +1,8 @@
 .chart-container {
   height: 100%;
   position: relative;
+  overscroll-behavior: contain;
+  overflow: auto;
   width: 100%;
 
   svg {
@@ -9,11 +11,11 @@
   }
 
   .node-container {
+    background-color: transparent;
     left: 0;
     height: 100%;
     width: 100%;
     position: absolute;
-    overflow: auto;
     top: 0;
     z-index: 1;
 

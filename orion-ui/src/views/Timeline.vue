@@ -1,7 +1,18 @@
 <template>
   <div class="d-flex flex-column">
     <div class="d-flex">
-      <Select v-model="selected" :search="true" class="mr-2">
+      <select v-model="selected" :search="true" class="mr-2">
+        <option v-for="(value, key) in datasets" :key="key" :value="key">
+          {{ key }}
+        </option>
+      </select>
+
+      <select v-model="interval">
+        <option v-for="(value, key) in intervals" :key="key" :value="value">
+          {{ value }}
+        </option>
+      </select>
+      <!-- <Select v-model="selected" :search="true" class="mr-2">
         <Option v-for="(value, key) in datasets" :key="key" :value="key">
           {{ key }}
         </Option>
@@ -11,9 +22,9 @@
         <Option v-for="(value, key) in intervals" :key="key" :value="value">
           {{ value }}
         </Option>
-      </Select>
+      </Select> -->
     </div>
-    <Timeline :items="dataset" :interval="interval" />
+    <Timeline :items="dataset" :interval="interval" background-color="blue-5" />
   </div>
 </template>
 
@@ -38,8 +49,8 @@ export default class TimelineView extends Vue {
   search: string = ''
   showOptions: boolean = false
 
-  interval: string = 'seconds'
-  intervals: string[] = ['seconds', 'minutes', 'hours', 'days']
+  interval: string = 'minute'
+  intervals: string[] = ['second', 'minute', 'hour', 'day']
 
   datasets: { [key: string]: Items } = {
     '3 Nodes: ETL': dataset3,
