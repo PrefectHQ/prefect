@@ -100,11 +100,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   resize(): void {
     this.updateScales()
+    this.updateBars()
   }
 
   mounted(): void {
+    console.log(this.items)
     this.createChart()
     this.updateScales()
+    this.updateBars()
   }
 
   updated(): void {
@@ -143,6 +146,23 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.barSelection = this.svg.append('g')
 
     this.xAxisGroup = this.svg.append('g')
+  }
+
+  updateBars(): void {
+    this.barSelection
+      .selectAll('.bar')
+      .data(this.items)
+      .join((selection: any) =>
+        selection
+          .append('rect')
+          .attr('class', (d: Item) => {
+            return `bar ${d.state}-fill`
+          })
+          .attr('x', (d: Item, i: number) => 100)
+          .attr('y', (d: Item, i: number) => i * 100 + 100)
+          .attr('width', (d: Item, i: number) => 100)
+          .attr('height', (d: Item, i: number) => 45)
+      )
   }
 
   updateBarPath(d: any, i: number): string | void {}
