@@ -1,9 +1,24 @@
 .chart-container {
   height: 100%;
+  position: relative;
   width: 100%;
 
   svg {
     height: 100%;
     width: 100%;
+  }
+
+  .node-container {
+    left: 0;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    overflow: auto;
+    top: 0;
+    z-index: 1;
+
+    .node {
+      position: absolute;
+    }
   }
 }
