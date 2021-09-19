@@ -41,7 +41,7 @@
     </div>
 
     <div
-      class="font--secondary item--duration mr-1"
+      class="font--secondary item--duration"
       :class="sub_flow_run ? '' : 'ml-auto'"
     >
       {{ duration }}

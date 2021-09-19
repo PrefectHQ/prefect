@@ -55,7 +55,7 @@
       />
     </div>
 
-    <div class="font--secondary item--duration mr-1">
+    <div class="font--secondary item--duration mr-2">
       {{ duration }}
     </div>
 
