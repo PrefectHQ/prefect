@@ -125,14 +125,13 @@ async def get_session_factory(
     return SESSION_FACTORIES[cache_key]
 
 
-@listens_for(sa.engine.Engine, "engine_connect", once=True)
+@listens_for(sa.engine.Engine, "engine_connect")
 def setup_sqlite(conn, named=True):
-    """The first time a connection is made to a sqlite engine, we enable sqlite foreign keys"""
-    if conn.engine.url.get_backend_name() == "sqlite":
+    """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
+    duration of the connection."""
+    if get_dialect(engine=conn.engine) == "sqlite":
         # enable foreign keys
-        cursor = conn.connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+        conn.execute("PRAGMA foreign_keys=ON")
 
 
 class UUIDDefault(FunctionElement):
@@ -571,10 +570,13 @@ async def drop_db(engine=None):
 
 def get_dialect(
     session=None,
+    engine=None,
     connection_url: str = None,
 ):
     if session is not None:
         url = session.bind.url
+    elif engine is not None:
+        url = engine.url
     else:
         if connection_url is None:
             connection_url = settings.orion.database.connection_url.get_secret_value()
