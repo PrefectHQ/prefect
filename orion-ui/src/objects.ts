@@ -21,6 +21,7 @@ export declare interface FlowRun {
   name: string
   state: string
   tags: string[]
+  task_run_count: number
 }
 
 export declare interface TaskRun {
