@@ -13,7 +13,7 @@
       </Select>
 
       <Select v-model="selected" class="ml-2">
-        <Option v-for="(value, key) in datasets" :key="key" :value="value">
+        <Option v-for="(value, key) in datasets" :key="key" :value="key">
           {{ key }}
         </Option>
       </Select>
