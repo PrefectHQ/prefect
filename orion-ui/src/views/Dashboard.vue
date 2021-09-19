@@ -190,7 +190,7 @@ export default class Dashboard extends Vue {
     { label: 'Upcoming Runs', count: 75 }
   ]
 
-  resultsTab: string = 'deployments'
+  resultsTab: string = 'flows'
 
   get resultsCount(): number {
     return this.datasets[this.resultsTab].length
