@@ -174,8 +174,7 @@ class TestReadFlows:
                 tags=schemas.filters.FlowFilterTags(all_=["db", "blue"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_1.id
+        assert {res.id for res in result} == {flow_1.id}
 
         # subset of tags match
         result = await models.flows.read_flows(
@@ -214,8 +213,7 @@ class TestReadFlows:
                 names=schemas.filters.FlowFilterNames(any_=["my-flow-1"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_1.id
+        assert {res.id for res in result} == {flow_1.id}
 
         result = await models.flows.read_flows(
             session=session,
@@ -244,8 +242,7 @@ class TestReadFlows:
                 ids=schemas.filters.FlowFilterIds(any_=[flow_1.id])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_1.id
+        assert {res.id for res in result} == {flow_1.id}
 
         result = await models.flows.read_flows(
             session=session,
