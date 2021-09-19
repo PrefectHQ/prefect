@@ -1,18 +1,11 @@
 <template>
-  <div>
-    <div class="search-bar">
-      <div class="search-input" tabindex="-1">
-        <Select v-model="selected" :search="true" class="ml-2">
-          <Option v-for="(value, key) in datasets" :key="key" :value="key">
-            {{ key }}
-          </Option>
-        </Select>
-      </div>
-
-      <div>
-        <Timeline :items="dataset" />
-      </div>
-    </div>
+  <div class="d-flex flex-column">
+    <Select v-model="selected" :search="true">
+      <Option v-for="(value, key) in datasets" :key="key" :value="key">
+        {{ key }}
+      </Option>
+    </Select>
+    <Timeline :items="dataset" />
   </div>
 </template>
 
@@ -31,7 +24,7 @@ import { default as dataset7 } from '../util/schematics/61_cluster_nodes.json'
 @Options({
   components: { Timeline }
 })
-export default class Schematics extends Vue {
+export default class TimelineView extends Vue {
   selected: string = '3 Nodes: ETL'
 
   search: string = ''
