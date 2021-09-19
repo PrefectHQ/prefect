@@ -5,7 +5,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_mixin
 
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
@@ -131,7 +131,33 @@ class TaskRunStateCache(Base):
     )
 
 
-class FlowRun(Base):
+@declarative_mixin
+class RunMixin:
+    """
+    Common columns and logic for FlowRun and TaskRun models
+    """
+
+    state_type = Column(sa.Enum(states.StateType, name="state_type"))
+    run_count = Column(Integer, server_default="0", default=0, nullable=False)
+    expected_start_time = Column(Timestamp())
+    next_scheduled_start_time = Column(Timestamp())
+    start_time = Column(Timestamp())
+    end_time = Column(Timestamp())
+    total_run_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
+    )
+    total_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
+    )
+
+
+class FlowRun(Base, RunMixin):
     flow_id = Column(
         UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
     )
@@ -154,6 +180,7 @@ class FlowRun(Base):
         ),
         index=True,
     )
+    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
@@ -165,25 +192,6 @@ class FlowRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
-    run_count = Column(Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = Column(Timestamp())
-    next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
-    end_time = Column(Timestamp())
-    total_run_time = Column(
-        sa.Interval(),
-        server_default="0",
-        default=datetime.timedelta(0),
-        nullable=False,
-    )
-    total_time = Column(
-        sa.Interval(),
-        server_default="0",
-        default=datetime.timedelta(0),
-        nullable=False,
-    )
-    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # -------------------------- relationships
 
@@ -226,23 +234,28 @@ class FlowRun(Base):
         foreign_keys=lambda: [FlowRun.parent_task_run_id],
     )
 
-    # unique index on flow id / idempotency key
-    __table__args__ = (
+    __table_args__ = (
         sa.Index(
             "uq_flow_run__flow_id_idempotency_key",
             flow_id,
             idempotency_key,
             unique=True,
         ),
-        sa.Index("ix_flow_run__expected_start_time_desc", expected_start_time.desc()),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            next_scheduled_start_time.asc(),
-        ),
     )
 
 
-class TaskRun(Base):
+# add indexes after table creation to use mixin columns
+sa.Index(
+    "ix_flow_run__expected_start_time_desc",
+    FlowRun.expected_start_time.desc(),
+)
+sa.Index(
+    "ix_flow_run__next_scheduled_start_time_asc",
+    FlowRun.next_scheduled_start_time.asc(),
+)
+
+
+class TaskRun(Base, RunMixin):
     flow_run_id = Column(
         UUID(),
         ForeignKey("flow_run.id", ondelete="cascade"),
@@ -281,25 +294,6 @@ class TaskRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
-    run_count = Column(Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = Column(Timestamp())
-    next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
-    end_time = Column(Timestamp())
-    total_run_time = Column(
-        sa.Interval(),
-        server_default="0",
-        default=datetime.timedelta(0),
-        nullable=False,
-    )
-    total_time = Column(
-        sa.Interval(),
-        server_default="0",
-        default=datetime.timedelta(0),
-        nullable=False,
-    )
-
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
@@ -349,12 +343,18 @@ class TaskRun(Base):
             dynamic_key,
             unique=True,
         ),
-        sa.Index("ix_task_run__expected_start_time_desc", expected_start_time.desc()),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            next_scheduled_start_time.asc(),
-        ),
     )
+
+
+# add indexes after table creation to use mixin columns
+sa.Index(
+    "ix_task_run__expected_start_time_desc",
+    TaskRun.expected_start_time.desc(),
+)
+sa.Index(
+    "ix_task_run__next_scheduled_start_time_asc",
+    TaskRun.next_scheduled_start_time.asc(),
+)
 
 
 class Deployment(Base):
