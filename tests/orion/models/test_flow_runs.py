@@ -538,7 +538,78 @@ class TestReadFlowRuns:
             ),
         )
         assert len(result) == 1
-        assert result[0].id == flow_run_3.id
+        assert {res.id for res in result} == {flow_run_3.id}
+
+    async def test_read_flow_runs_filters_by_next_scheduled_start_time(
+        self, flow, session
+    ):
+        now = pendulum.now()
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                next_scheduled_start_time=now.subtract(minutes=1),
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                next_scheduled_start_time=now,
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
+            ),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                next_scheduled_start_time=now.add(minutes=1),
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
+            ),
+        )
+
+        # before_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=now.subtract(seconds=1)
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        # after_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    after_=now
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id, flow_run_3.id}
+
+        # before_ AND after_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                next_scheduled_start_time=schemas.filters.FlowRunFilterNextScheduledStartTime(
+                    before_=now.add(minutes=10), after_=now.add(seconds=1)
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_3.id}
 
     async def test_read_flow_runs_filters_by_expected_start_time(self, flow, session):
         now = pendulum.now()
