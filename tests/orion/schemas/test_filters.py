@@ -5,14 +5,12 @@ from prefect.orion.schemas import filters
 
 
 @pytest.mark.parametrize(
-    "TagsFilter",
+    "Filter",
     [filters.FlowFilterTags, filters.FlowRunFilterTags, filters.TaskRunFilterTags],
 )
-def test_tags_filter_validation_does_not_allow_all_and_is_null(TagsFilter):
-    with pytest.raises(
-        ValueError, match="Cannot provide tags all_ with is_null_ = True"
-    ):
-        TagsFilter(all_=["foo"], is_null_=True)
+def test_all_and_is_null_filter_validation_does_not_allow_all_and_is_null(Filter):
+    with pytest.raises(ValueError, match="all_ with is_null_ = True"):
+        Filter(all_=["foo"], is_null_=True)
 
 
 def test_deployment_ids_filter_validation_does_not_allow_any_and_is_null():
@@ -30,22 +28,14 @@ def test_parent_task_run_ids_filter_validation_does_not_allow_any_and_is_null():
 
 
 @pytest.mark.parametrize(
-    "StartTimeFilter",
-    [filters.FlowRunFilterStartTime, filters.TaskRunFilterStartTime],
+    "TimeFilter",
+    [
+        filters.FlowRunFilterStartTime,
+        filters.TaskRunFilterStartTime,
+        filters.FlowRunFilterNextScheduledStartTime,
+        filters.FlowRunFilterExpectedStartTime,
+    ],
 )
-def test_start_time_before_must_be_greater_than_after(StartTimeFilter):
-    with pytest.raises(
-        ValueError, match="Start time before_ must be greater than after_"
-    ):
-        StartTimeFilter(
-            before_=pendulum.now("UTC"), after_=pendulum.now("UTC").add(days=1)
-        )
-
-
-def test_expected_start_time_before_must_be_greater_than_after():
-    with pytest.raises(
-        ValueError, match="Expected start time before_ must be greater than after_"
-    ):
-        filters.FlowRunFilterExpectedStartTime(
-            before_=pendulum.now("UTC"), after_=pendulum.now("UTC").add(days=1)
-        )
+def test_time_filters_before_must_be_greater_than_after(TimeFilter):
+    with pytest.raises(ValueError, match="before_ must be greater than after_"):
+        TimeFilter(before_=pendulum.now("UTC"), after_=pendulum.now("UTC").add(days=1))
