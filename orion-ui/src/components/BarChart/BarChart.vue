@@ -142,9 +142,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
               // TODO: Figure out what the heck the overloads for D3 are supposed to be...
               /* @ts-ignore */
               (d: Item) =>
-                d.value >= this.maxValue
-                  ? 'highlighted-bar bar'
-                  : 'inactive-bar bar'
+                d.value >= this.maxValue ? 'fill--primary' : 'fill--blue-20'
             ),
         (update: any) =>
           update
@@ -155,9 +153,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
               // TODO: Figure out what the heck the overloads for D3 are supposed to be...
               /* @ts-ignore */
               (d: Item) =>
-                d.value >= this.maxValue
-                  ? 'highlighted-bar bar'
-                  : 'inactive-bar bar'
+                d.value >= this.maxValue ? 'fill--primary' : 'fill--blue-20'
             ),
         (exit: any) => exit.remove()
       )
@@ -186,6 +182,6 @@ export default class BarChart extends mixins(D3Base).with(Props) {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/bar--chart.scss';
 </style>

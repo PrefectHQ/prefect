@@ -1,0 +1,32 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
+.button--rounded {
+  background: none;
+  border-radius: 100px;
+  border: 1px solid $blue-20;
+  color: $primary;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: $font--secondary;
+  height: min-content;
+  padding: 2px 8px;
+  user-select: none;
+  white-space: nowrap;
+  width: min-content;
+
+  &::-moz-focus-inner {
+    outline: none !important;
+  }
+
+  &:hover,
+  &:focus,
+  &:focus-visible,
+  &:focus-within {
+    outline: none !important;
+    background-color: $secondary-hover !important;
+  }
+
+  &:active {
+    background-color: $secondary-pressed !important;
+  }
+}
