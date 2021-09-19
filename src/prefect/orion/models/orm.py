@@ -1,3 +1,4 @@
+import datetime
 from typing import Union
 
 import pendulum
@@ -170,11 +171,17 @@ class FlowRun(Base):
     next_scheduled_start_time = Column(Timestamp())
     start_time = Column(Timestamp())
     end_time = Column(Timestamp())
-    total_run_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
+    total_run_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
     )
-    total_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
+    total_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
     )
     auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
@@ -280,11 +287,17 @@ class TaskRun(Base):
     next_scheduled_start_time = Column(Timestamp())
     start_time = Column(Timestamp())
     end_time = Column(Timestamp())
-    total_run_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
+    total_run_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
     )
-    total_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
+    total_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
     )
 
     # -------------------------- relationships
