@@ -1,4 +1,7 @@
 from statistics import mode
+
+from sqlalchemy.util.langhelpers import add_parameter_text
+from tests.fixtures.database import task_run
 from uuid import uuid4
 import copy
 import pendulum
@@ -336,7 +339,7 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
-    async def test_read_flow_runs_filters_by_tags_all(self, flow, session):
+    async def test_read_flow_runs_filters_by_tags(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(flow_id=flow.id, tags=["db", "blue"]),
@@ -375,7 +378,13 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
-        # TODO - test for tags empty
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                tags=schemas.filters.FlowRunFilterTags(is_null_=True)
+            ),
+        )
+        assert result[0].id == flow_run_3.id
 
     async def test_read_flow_runs_filters_by_states_any(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
@@ -467,7 +476,7 @@ class TestReadFlowRuns:
         )
         assert len(result) == 0
 
-    async def test_read_flow_runs_filters_by_start_time_before(self, flow, session):
+    async def test_read_flow_runs_filters_by_start_time(self, flow, session):
         now = pendulum.now()
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -484,6 +493,17 @@ class TestReadFlowRuns:
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                start_time=now,
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
+            ),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
                 start_time=now.add(minutes=1),
                 state=schemas.states.State(
                     type="COMPLETED",
@@ -492,105 +512,175 @@ class TestReadFlowRuns:
             ),
         )
 
+        # before_
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
-                start_time=schemas.filters.FlowRunFilterStartTime(before_=now)
+                start_time=schemas.filters.FlowRunFilterStartTime(
+                    before_=now.subtract(seconds=1)
+                )
             ),
         )
         assert len(result) == 1
         assert result[0].id == flow_run_1.id
 
-        result = await models.flow_runs.read_flow_runs(
-            session=session,
-            flow_run_filter=schemas.filters.FlowRunFilter(
-                start_time=schemas.filters.FlowRunFilterStartTime(
-                    before_=now.add(minutes=10)
-                )
-            ),
-        )
-        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
-
-        result = await models.flow_runs.read_flow_runs(
-            session=session,
-            flow_run_filter=schemas.filters.FlowRunFilter(
-                start_time=schemas.filters.FlowRunFilterStartTime(
-                    before_=now.subtract(minutes=10)
-                )
-            ),
-        )
-        assert len(result) == 0
-
-    async def test_read_flow_runs_filters_by_start_time_after(self, flow, session):
-        now = pendulum.now()
-        flow_run_1 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id,
-                start_time=now.subtract(minutes=1),
-                state=schemas.states.State(
-                    type="COMPLETED",
-                    name="My Completed State",
-                ),
-            ),
-        )
-        flow_run_2 = await models.flow_runs.create_flow_run(
-            session=session,
-            flow_run=schemas.core.FlowRun(
-                flow_id=flow.id,
-                start_time=now.add(minutes=1),
-                state=schemas.states.State(
-                    type="COMPLETED",
-                    name="My Completed State",
-                ),
-            ),
-        )
-
+        # after_
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
                 start_time=schemas.filters.FlowRunFilterStartTime(after_=now)
             ),
         )
+        assert {res.id for res in result} == {flow_run_2.id, flow_run_3.id}
+
+        # before_ AND after_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                start_time=schemas.filters.FlowRunFilterStartTime(
+                    before_=now.add(minutes=10), after_=now.add(seconds=1)
+                )
+            ),
+        )
         assert len(result) == 1
-        assert result[0].id == flow_run_2.id
+        assert result[0].id == flow_run_3.id
 
-        result = await models.flow_runs.read_flow_runs(
-            session=session,
-            flow_run_filter=schemas.filters.FlowRunFilter(
-                start_time=schemas.filters.FlowRunFilterStartTime(
-                    after_=now.subtract(minutes=10)
-                )
-            ),
-        )
-        assert {res.id for res in result} == {flow_run_1.id, flow_run_2.id}
-
-        result = await models.flow_runs.read_flow_runs(
-            session=session,
-            flow_run_filter=schemas.filters.FlowRunFilter(
-                start_time=schemas.filters.FlowRunFilterStartTime(
-                    after_=now.add(minutes=10)
-                )
-            ),
-        )
-        assert len(result) == 0
-
-    async def test_read_flow_runs_filters_by_parent_task_run_ids_any(
-        self, flow, task_run, session
-    ):
+    async def test_read_flow_runs_filters_by_expected_start_time(self, flow, session):
+        now = pendulum.now()
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
-                flow_id=flow.id, parent_task_run_id=task_run.id
+                flow_id=flow.id,
+                expected_start_time=now.subtract(minutes=1),
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
             ),
         )
         flow_run_2 = await models.flow_runs.create_flow_run(
             session=session,
             flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
+                expected_start_time=now,
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
+            ),
+        )
+        flow_run_3 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                expected_start_time=now.add(minutes=1),
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
             ),
         )
 
+        # before_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                expected_start_time=schemas.filters.FlowRunFilterExpectedStartTime(
+                    before_=now.subtract(seconds=1)
+                )
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_run_1.id
+
+        # after_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                expected_start_time=schemas.filters.FlowRunFilterExpectedStartTime(
+                    after_=now
+                )
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id, flow_run_3.id}
+
+        # before_ AND after_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                expected_start_time=schemas.filters.FlowRunFilterExpectedStartTime(
+                    before_=now.add(minutes=10), after_=now.add(seconds=1)
+                )
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_run_3.id
+
+    async def test_read_flows_filters_by_deployment_id(
+        self, flow, session, flow_function
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="",
+                flow_id=flow.id,
+                flow_data=schemas.data.DataDocument.encode(
+                    "cloudpickle", flow_function
+                ),
+            ),
+        )
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, deployment_id=deployment.id),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
+        )
+        # test any_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                deployment_ids=schemas.filters.FlowRunFilterDeploymentIds(
+                    any_=[deployment.id]
+                )
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_run_1.id
+
+        # test is_null_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                deployment_ids=schemas.filters.FlowRunFilterDeploymentIds(is_null_=True)
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_run_2.id
+
+    async def test_read_flow_runs_filters_by_parent_task_run_ids(self, flow, session):
+
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+            ),
+        )
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run_1.id, task_key="my-key"
+            ),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, parent_task_run_id=task_run.id
+            ),
+        )
+
+        # test any_
         result = await models.flow_runs.read_flow_runs(
             session=session,
             flow_run_filter=schemas.filters.FlowRunFilter(
@@ -600,9 +690,19 @@ class TestReadFlowRuns:
             ),
         )
         assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert result[0].id == flow_run_2.id
 
-    # TODO - test for temployment ids null
+        # test is_null_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                parent_task_run_ids=schemas.filters.FlowRunFilterParentTaskRunIds(
+                    is_null_=True
+                )
+            ),
+        )
+        assert len(result) == 1
+        assert result[0].id == flow_run_1.id
 
     async def test_read_flow_runs_filters_by_multiple_criteria(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(

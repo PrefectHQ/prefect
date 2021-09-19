@@ -189,7 +189,15 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id, task_key="my-key-2", tags=["db"]
             ),
         )
+        task_run_3 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key-2",
+            ),
+        )
 
+        # any_
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
@@ -214,6 +222,15 @@ class TestReadTaskRuns:
             ),
         )
         assert len(result) == 0
+
+        # is_null_
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                tags=schemas.filters.TaskRunFilterTags(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {task_run_3.id}
 
     async def test_read_task_runs_filters_by_task_run_states_any(
         self, flow_run, session
@@ -264,7 +281,7 @@ class TestReadTaskRuns:
         )
         assert len(result) == 0
 
-    async def test_read_task_runs_filters_by_task_run_start_time_before(
+    async def test_read_task_runs_filters_by_task_run_start_time(
         self, flow_run, session
     ):
         now = pendulum.now()
@@ -285,6 +302,7 @@ class TestReadTaskRuns:
             ),
         )
 
+        # before_
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
@@ -304,27 +322,7 @@ class TestReadTaskRuns:
         )
         assert {res.id for res in result} == {task_run_1.id, task_run_2.id}
 
-    async def test_read_task_runs_filters_by_task_run_start_time_after(
-        self, flow_run, session
-    ):
-        now = pendulum.now()
-        task_run_1 = await models.task_runs.create_task_run(
-            session=session,
-            task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id,
-                task_key="my-key",
-                start_time=now.subtract(minutes=1),
-            ),
-        )
-        task_run_2 = await models.task_runs.create_task_run(
-            session=session,
-            task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id,
-                task_key="my-key-2",
-                start_time=now.add(minutes=1),
-            ),
-        )
-
+        # after_
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
@@ -343,6 +341,17 @@ class TestReadTaskRuns:
             ),
         )
         assert {res.id for res in result} == {task_run_1.id, task_run_2.id}
+
+        # before_ AND after_
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                start_time=schemas.filters.TaskRunFilterStartTime(
+                    before_=now, after_=now.subtract(minutes=10)
+                )
+            ),
+        )
+        assert {res.id for res in result} == {task_run_1.id}
 
     async def test_read_task_runs_filters_by_flow_run_criteria(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(

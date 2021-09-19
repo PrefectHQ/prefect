@@ -20,7 +20,7 @@ class Pagination(PrefectBaseModel):
 
 
 class FlowFilterIds(PrefectBaseModel):
-    any_: List[UUID] = Field(..., description="A list of flow ids to include")
+    any_: List[UUID] = Field(None, description="A list of flow ids to include")
 
     def as_sql_filter(self):
         return orm.Flow.id.in_(self.any_)
@@ -28,7 +28,7 @@ class FlowFilterIds(PrefectBaseModel):
 
 class FlowFilterNames(PrefectBaseModel):
     any_: List[str] = Field(
-        ...,
+        None,
         description="A list of flow names to include",
         example=["my-flow-1", "my-flow-2"],
     )
@@ -82,7 +82,7 @@ class FlowFilter(PrefectBaseModel):
 
 
 class FlowRunFilterIds(PrefectBaseModel):
-    any_: List[UUID] = Field(..., description="A list of flow run ids to include")
+    any_: List[UUID] = Field(None, description="A list of flow run ids to include")
 
     def as_sql_filter(self):
         return orm.FlowRun.id.in_(self.any_)
@@ -114,7 +114,7 @@ class FlowRunFilterTags(PrefectBaseModel):
 
 class FlowRunFilterDeploymentIds(PrefectBaseModel):
     any_: List[UUID] = Field(
-        ..., description="A list of flow run deployment ids to include"
+        None, description="A list of flow run deployment ids to include"
     )
     is_null_: bool = Field(
         False, description="If true, only include flow runs without deployment ids"
@@ -135,7 +135,7 @@ class FlowRunFilterDeploymentIds(PrefectBaseModel):
 
 class FlowRunFilterStates(PrefectBaseModel):
     any_: List[schemas.states.StateType] = Field(
-        ..., description="A list of flow run states to include"
+        None, description="A list of flow run states to include"
     )
 
     def as_sql_filter(self):
@@ -144,7 +144,7 @@ class FlowRunFilterStates(PrefectBaseModel):
 
 class FlowRunFilterFlowVersions(PrefectBaseModel):
     any_: List[str] = Field(
-        ..., description="A list of flow run deployment ids to include"
+        None, description="A list of flow run deployment ids to include"
     )
 
     def as_sql_filter(self):
@@ -153,10 +153,10 @@ class FlowRunFilterFlowVersions(PrefectBaseModel):
 
 class FlowRunFilterStartTime(PrefectBaseModel):
     before_: datetime.datetime = Field(
-        None, description="Only include flow runs starting before this time"
+        None, description="Only include flow runs starting at or before this time"
     )
     after_: datetime.datetime = Field(
-        None, description="Only include flow runs starting after this time"
+        None, description="Only include flow runs starting at or after this time"
     )
 
     @root_validator
@@ -178,10 +178,12 @@ class FlowRunFilterStartTime(PrefectBaseModel):
 
 class FlowRunFilterExpectedStartTime(PrefectBaseModel):
     before_: datetime.datetime = Field(
-        None, description="Only include flow runs scheduled to start before this time"
+        None,
+        description="Only include flow runs scheduled to start at or before this time",
     )
     after_: datetime.datetime = Field(
-        None, description="Only include flow runs scheduled to start after this time"
+        None,
+        description="Only include flow runs scheduled to start at or after this time",
     )
 
     @root_validator
@@ -207,7 +209,7 @@ class FlowRunFilterExpectedStartTime(PrefectBaseModel):
 
 class FlowRunFilterParentTaskRunIds(PrefectBaseModel):
     any_: List[UUID] = Field(
-        ..., description="A list of flow run parent task run ids to include"
+        None, description="A list of flow run parent task run ids to include"
     )
     is_null_: bool = Field(
         False, description="If true, only include flow runs without parent task run ids"
@@ -255,6 +257,8 @@ class FlowRunFilter(PrefectBaseModel):
             filters.append(self.states.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
+        if self.expected_start_time is not None:
+            filters.append(self.expected_start_time.as_sql_filter())
         if self.parent_task_run_ids is not None:
             filters.append(self.parent_task_run_ids.as_sql_filter())
 
@@ -262,7 +266,7 @@ class FlowRunFilter(PrefectBaseModel):
 
 
 class TaskRunFilterIds(PrefectBaseModel):
-    any_: List[UUID] = Field(..., description="A list of task run ids to include")
+    any_: List[UUID] = Field(None, description="A list of task run ids to include")
 
     def as_sql_filter(self):
         return orm.TaskRun.id.in_(self.any_)
@@ -294,7 +298,7 @@ class TaskRunFilterTags(PrefectBaseModel):
 
 class TaskRunFilterStates(PrefectBaseModel):
     any_: List[schemas.states.StateType] = Field(
-        ..., description="A list of task run states to include"
+        None, description="A list of task run states to include"
     )
 
     def as_sql_filter(self):
@@ -303,10 +307,10 @@ class TaskRunFilterStates(PrefectBaseModel):
 
 class TaskRunFilterStartTime(PrefectBaseModel):
     before_: datetime.datetime = Field(
-        None, description="Only include task runs starting before this time"
+        None, description="Only include task runs starting at or before this time"
     )
     after_: datetime.datetime = Field(
-        None, description="Only include task runs starting after this time"
+        None, description="Only include task runs starting at or after this time"
     )
 
     @root_validator
@@ -318,7 +322,7 @@ class TaskRunFilterStartTime(PrefectBaseModel):
 
     def as_sql_filter(self):
         if self.before_ and self.after_:
-            return orm.TaskRun.start_time.between(self.before_, self.after_)
+            return orm.TaskRun.start_time.between(self.after_, self.before_)
         elif self.before_:
             return orm.TaskRun.start_time <= self.before_
         elif self.after_:
