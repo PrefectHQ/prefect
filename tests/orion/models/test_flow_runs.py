@@ -318,8 +318,7 @@ class TestReadFlowRuns:
                 ids=schemas.filters.FlowRunFilterIds(any_=[flow_run_1.id])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         result = await models.flow_runs.read_flow_runs(
             session=session,
@@ -359,8 +358,7 @@ class TestReadFlowRuns:
                 tags=schemas.filters.FlowRunFilterTags(all_=["db", "blue"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         result = await models.flow_runs.read_flow_runs(
             session=session,
@@ -414,8 +412,7 @@ class TestReadFlowRuns:
                 states=schemas.filters.FlowRunFilterStates(any_=["RUNNING"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         result = await models.flow_runs.read_flow_runs(
             session=session,
@@ -455,8 +452,7 @@ class TestReadFlowRuns:
                 flow_versions=schemas.filters.FlowRunFilterFlowVersions(any_=["alpha"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         result = await models.flow_runs.read_flow_runs(
             session=session,
@@ -521,8 +517,7 @@ class TestReadFlowRuns:
                 )
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         # after_
         result = await models.flow_runs.read_flow_runs(
@@ -590,8 +585,7 @@ class TestReadFlowRuns:
                 )
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         # after_
         result = await models.flow_runs.read_flow_runs(
@@ -646,8 +640,7 @@ class TestReadFlowRuns:
                 )
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         # test is_null_
         result = await models.flow_runs.read_flow_runs(
@@ -656,8 +649,7 @@ class TestReadFlowRuns:
                 deployment_ids=schemas.filters.FlowRunFilterDeploymentIds(is_null_=True)
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_2.id
+        assert {res.id for res in result} == {flow_run_2.id}
 
     async def test_read_flow_runs_filters_by_parent_task_run_ids(self, flow, session):
 
@@ -689,8 +681,7 @@ class TestReadFlowRuns:
                 )
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_2.id
+        assert {res.id for res in result} == {flow_run_2.id}
 
         # test is_null_
         result = await models.flow_runs.read_flow_runs(
@@ -701,8 +692,7 @@ class TestReadFlowRuns:
                 )
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
     async def test_read_flow_runs_filters_by_multiple_criteria(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
@@ -721,8 +711,7 @@ class TestReadFlowRuns:
                 tags=schemas.filters.FlowRunFilterTags(all_=["db"]),
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_1.id
+        assert {res.id for res in result} == {flow_run_1.id}
 
         result = await models.flow_runs.read_flow_runs(
             session=session,
@@ -787,8 +776,7 @@ class TestReadFlowRuns:
                 ids=schemas.filters.TaskRunFilterIds(any_=[task_run_1.id])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_run_2.id
+        assert {res.id for res in result} == {flow_run_2.id}
 
         result = await models.flow_runs.read_flow_runs(
             session=session,

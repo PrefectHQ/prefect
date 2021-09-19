@@ -155,8 +155,7 @@ class TestReadTaskRuns:
                 ids=schemas.filters.TaskRunFilterIds(any_=[task_run_1.id])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == task_run_1.id
+        assert {res.id for res in result} == {task_run_1.id}
 
         result = await models.task_runs.read_task_runs(
             session=session,
@@ -204,8 +203,7 @@ class TestReadTaskRuns:
                 tags=schemas.filters.TaskRunFilterTags(all_=["db", "blue"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == task_run_1.id
+        assert {res.id for res in result} == {task_run_1.id}
 
         result = await models.task_runs.read_task_runs(
             session=session,
@@ -260,8 +258,7 @@ class TestReadTaskRuns:
                 states=schemas.filters.TaskRunFilterStates(any_=["SCHEDULED"])
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == task_run_1.id
+        assert {res.id for res in result} == {task_run_1.id}
 
         result = await models.task_runs.read_task_runs(
             session=session,
@@ -309,8 +306,7 @@ class TestReadTaskRuns:
                 start_time=schemas.filters.TaskRunFilterStartTime(before_=now)
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == task_run_1.id
+        assert {res.id for res in result} == {task_run_1.id}
 
         result = await models.task_runs.read_task_runs(
             session=session,
@@ -329,8 +325,7 @@ class TestReadTaskRuns:
                 start_time=schemas.filters.TaskRunFilterStartTime(after_=now)
             ),
         )
-        assert len(result) == 1
-        assert result[0].id == task_run_2.id
+        assert {res.id for res in result} == {task_run_2.id}
 
         result = await models.task_runs.read_task_runs(
             session=session,
