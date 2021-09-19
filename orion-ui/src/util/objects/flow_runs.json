@@ -20,7 +20,7 @@
     "flow_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "deployment_id": "9997b218-bd38-4c2e-aa69-c6da5b831727",
     "name": "ETL - 9am",
-    "state": "COMPLETED",
+    "state": "PENDING",
     "tags": ["database", "morning", "prod"]
   },
   {
@@ -28,7 +28,7 @@
     "flow_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "deployment_id": "9997b218-bd38-4c2e-aa69-c6da5b831727",
     "name": "ETL - 9am",
-    "state": "FAILED",
+    "state": "PENDING",
     "tags": ["database", "morning", "prod"]
   },
   {
@@ -44,7 +44,7 @@
     "flow_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "deployment_id": "9997b218-bd38-4c2e-aa69-c6da5b831727",
     "name": "ETL - 9am",
-    "state": "FAILED",
+    "state": "PENDING",
     "tags": ["database", "morning", "prod"]
   },
   {
@@ -68,7 +68,7 @@
     "flow_id": "64e152ae-1837-4327-96e2-96fdcc8a8065",
     "deployment_id": "9997b218-bd38-4c2e-aa69-c6da5b831727",
     "name": "ETL - 9am",
-    "state": "COMPLETED",
+    "state": "PENDING",
     "tags": ["database", "morning", "prod"]
   },
   {
