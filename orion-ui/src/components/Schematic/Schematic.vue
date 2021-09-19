@@ -268,7 +268,10 @@ export default class Schematic extends Vue.with(Props) {
           (selection: any) => {
             const g = selection.append('linearGradient')
             g.attr('id', (d: Link, i: number) => d.source.data.name + i)
-              .attr('class', (d: Link) => d.source.data.state)
+              .attr(
+                'class',
+                (d: Link) => `${d.source.data.state.toLowerCase()}-text`
+              )
               .attr('gradientUnits', 'userSpaceOnUse')
               .attr('x1', (d: Link) => calcGradientCoord(d).x1)
               .attr('y1', (d: Link) => calcGradientCoord(d).y1)
@@ -301,7 +304,10 @@ export default class Schematic extends Vue.with(Props) {
           (selection: any) => {
             selection
               .attr('id', (d: Link, i: number) => d.source.data.name + i)
-              .attr('class', (d: Link) => d.source.data.state)
+              .attr(
+                'class',
+                (d: Link) => `${d.source.data.state.toLowerCase()}-text`
+              )
               .attr('gradientUnits', 'userSpaceOnUse')
               .attr('x1', (d: Link) => calcGradientCoord(d).x1)
               .attr('y1', (d: Link) => calcGradientCoord(d).y1)
@@ -336,12 +342,9 @@ export default class Schematic extends Vue.with(Props) {
           selection
             .append('path')
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-            .attr('class', (d: Link) =>
-              this.useLinearGradient
-                ? d.source.data.state == 'pending'
-                  ? d.source.data.state
-                  : null
-                : d.source.data.state
+            .attr(
+              'class',
+              (d: Link) => `${d.source.data.state.toLowerCase()}-stroke`
             )
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
@@ -362,12 +365,9 @@ export default class Schematic extends Vue.with(Props) {
         (selection: any) =>
           selection
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-            .attr('class', (d: Link) =>
-              this.useLinearGradient
-                ? d.source.data.state == 'pending'
-                  ? d.source.data.state
-                  : null
-                : d.source.data.state
+            .attr(
+              'class',
+              (d: Link) => `${d.source.data.state.toLowerCase()}-stroke`
             )
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
