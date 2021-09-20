@@ -14,6 +14,7 @@ from prefect.orion.utilities.database import (
     Base,
     Pydantic,
     Timestamp,
+    interval_add,
     get_dialect,
     date_diff,
     now,
@@ -171,7 +172,10 @@ class RunMixin:
                 sa.case(
                     (
                         cls.state_type == states.StateType.RUNNING,
-                        cls.total_run_time + date_diff(now(), state_table.c.timestamp),
+                        interval_add(
+                            cls.total_run_time,
+                            date_diff(now(), state_table.c.timestamp),
+                        ),
                     ),
                     else_=cls.total_run_time,
                 )
