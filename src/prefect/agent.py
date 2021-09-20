@@ -60,8 +60,10 @@ async def query_for_ready_flow_runs(
 
     scheduled_runs = await client.read_flow_runs(
         flow_runs=FlowRunFilter(
-            states=[StateType.SCHEDULED],
-            start_time_before=pendulum.now("utc").add(seconds=prefetch_seconds),
+            state_types=dict(any_=[StateType.SCHEDULED]),
+            next_scheduled_start_time=dict(
+                before_=pendulum.now("utc").add(seconds=prefetch_seconds)
+            ),
         )
     )
 
@@ -70,12 +72,7 @@ async def query_for_ready_flow_runs(
     ready_runs = [
         run
         for run in scheduled_runs
-        if run.id not in submitted_ids
-        and run.deployment_id is not None
-        and (
-            run.state.state_details.scheduled_time
-            < pendulum.now("utc").add(seconds=prefetch_seconds)
-        )
+        if run.id not in submitted_ids and run.deployment_id is not None
     ]
 
     return ready_runs
