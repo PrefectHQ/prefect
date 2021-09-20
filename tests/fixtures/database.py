@@ -281,7 +281,6 @@ def initialize_orchestration(
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=run,
             run_id=run.id,
         )
 

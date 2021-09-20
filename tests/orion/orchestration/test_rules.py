@@ -102,7 +102,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -150,7 +149,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -195,7 +193,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -260,7 +257,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -335,7 +331,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -393,7 +388,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -438,7 +432,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -479,7 +472,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -558,7 +550,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -708,7 +699,6 @@ class TestBaseOrchestrationRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -807,7 +797,6 @@ class TestBaseUniversalRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -856,7 +845,6 @@ class TestBaseUniversalRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
