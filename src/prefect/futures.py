@@ -37,39 +37,42 @@ class PrefectFuture(Generic[R]):
         client: OrionClient,
         executor: "BaseExecutor",
         task_run_id: UUID = None,
-        _result: Any = None,  # Exposed for testing
+        _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.flow_run_id = flow_run_id
         self.task_run_id = task_run_id
         self.run_id = self.task_run_id or self.flow_run_id
         self._client = client
-        self._result: Any = _result
+        self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
 
     @overload
-    async def result(self, timeout: float) -> Optional[State[R]]:
+    async def wait(self, timeout: float) -> Optional[State[R]]:
         ...
 
     @overload
-    async def result(self, timeout: None = None) -> State[R]:
+    async def wait(self, timeout: None = None) -> State[R]:
         ...
 
     @sync_compatible
-    async def result(self, timeout=None):
+    async def wait(self, timeout=None):
         """
-        Return the state of the run the future represents
+        Wait for the run to finish and return the final state
+
+        If the timeout is reached before the run reaches a final state,
+        `None` is returned.
         """
-        if self._result:
-            return self._result
+        if self._final_state:
+            return self._final_state
 
         state = await self.get_state()
         if (state.is_completed() or state.is_failed()) and state.data:
             return state
 
-        self._result = await self._executor.wait(self, timeout)
+        self._final_state = await self._executor.wait(self, timeout)
 
-        return self._result
+        return self._final_state
 
     @sync_compatible
     async def get_state(self) -> State[R]:
@@ -83,6 +86,7 @@ class PrefectFuture(Generic[R]):
 
         if not run:
             raise RuntimeError("Future has no associated run in the server.")
+
         return run.state
 
     def __hash__(self) -> int:
@@ -90,11 +94,11 @@ class PrefectFuture(Generic[R]):
 
 
 async def future_to_data(future: PrefectFuture[R]) -> R:
-    return await prefect.get_result(await future.result())
+    return await prefect.get_result(await future.wait())
 
 
 async def future_to_state(future: PrefectFuture[R]) -> State[R]:
-    return await future.result()
+    return await future.wait()
 
 
 async def resolve_futures(
