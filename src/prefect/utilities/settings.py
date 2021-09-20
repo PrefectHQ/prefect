@@ -10,12 +10,9 @@ from pydantic import BaseSettings, Field, SecretStr
 from typing import Optional
 
 
-class SharedSettings(BaseSettings):
-    """
-    An eagerly-instantiated settings class that allows us to reference its
-    values in other settings classes. If we did this on the main settings class
-    (Settings), we would not be able to access the values in nested classes.
-    """
+class PrefectSettings(BaseSettings):
+    """An eagerly-instantiated class of "top-level" settings that can be shared
+    among other classes."""
 
     class Config:
         env_prefix = "PREFECT_"
@@ -30,7 +27,7 @@ class SharedSettings(BaseSettings):
 
 
 # instantiate the shared settings
-SharedSettings = SharedSettings()
+SharedSettings = PrefectSettings()
 
 
 class DataLocationSettings(BaseSettings):
@@ -104,17 +101,8 @@ class LoggingSettings(BaseSettings):
     settings_path: Path = Path(f"{SharedSettings.home}/logging.yml")
 
 
-class Settings(BaseSettings):
-    class Config:
-        env_prefix = SharedSettings.__config__.env_prefix
-        frozen = True
-
-    # home
-    home: Path = SharedSettings.home
-
-    # debug
-    debug_mode: bool = SharedSettings.debug_mode
-    test_mode: bool = SharedSettings.test_mode
+class Settings(PrefectSettings):
+    # incorporates all settings from the PrefectSettings class
 
     # logging
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
