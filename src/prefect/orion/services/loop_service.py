@@ -30,7 +30,7 @@ class LoopService:
         if loop_seconds:
             self.loop_seconds = loop_seconds
         self.name = type(self).__name__
-        self.logger = get_logger(f"orion.services.{self.name}")
+        self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
     async def setup(self) -> None:
         """
