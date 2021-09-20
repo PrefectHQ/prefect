@@ -37,13 +37,13 @@ class PrefectFuture(Generic[R]):
         client: OrionClient,
         executor: "BaseExecutor",
         task_run_id: UUID = None,
-        _final_state: Any = None,  # Exposed for testing
+        _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.flow_run_id = flow_run_id
         self.task_run_id = task_run_id
         self.run_id = self.task_run_id or self.flow_run_id
         self._client = client
-        self._final_state: Any = _final_state
+        self._final_state: State[R] = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
 
