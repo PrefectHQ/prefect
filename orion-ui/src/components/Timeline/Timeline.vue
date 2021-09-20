@@ -186,20 +186,24 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .filter((item: Item) => item.state !== 'PENDING' && item.start_time)
   }
 
-  xAxis = (g: any) =>
-    g
-      .style('transform', `translate(0,${this.intervalHeight}px)`)
-      .call(
-        d3
-          .axisTop(this.xScale)
-          .ticks(this.numberIntervals)
-          /* @ts-ignore */
-          .tickFormat(formatLabel)
-          .tickSizeOuter(0)
-          .tickSizeInner(0)
-      )
-      /* @ts-ignore */
-      .call((g) => g.select('.domain').remove())
+  xAxis = (g: any): Selection => {
+    console.log(this.numberIntervals)
+    return (
+      g
+        .style('transform', `translate(0,${this.intervalHeight}px)`)
+        .call(
+          d3
+            .axisTop(this.xScale)
+            .ticks(this.numberIntervals)
+            /* @ts-ignore */
+            .tickFormat(formatLabel)
+            .tickSizeOuter(0)
+            .tickSizeInner(0)
+        )
+        /* @ts-ignore */
+        .call((g) => g.select('.domain').remove())
+    )
+  }
 
   resize(): void {
     this.update()
@@ -234,7 +238,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.xScale
       .domain([new Date(this.start), new Date(this.end)])
       .range([this.intervalWidth, this.chartWidth - this.intervalWidth])
-
+    console.log('update scales', this.numberIntervals)
     this.xAxisGroup.call(this.xAxis)
   }
 
@@ -277,7 +281,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
           height: 8 + 'px',
           left: this.xScale(start) + 'px',
           top: i * this.intervalHeight + 'px',
-          transform: `translate(0, ${this.intervalHeight + 18}px)`,
+          transform: `translate(0, 44px)`, // 36px axis offset + height
           width: this.xScale(end) - this.xScale(start) + 'px'
         }
       }
@@ -312,7 +316,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     /* @ts-ignore */
     this.gridSelection
       .selectAll('.grid-line.grid-y')
-      .data(this.xScale.ticks())
+      .data(this.xScale.ticks(this.numberIntervals))
       .join(
         (selection: any) =>
           selection
@@ -345,14 +349,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   .tick {
     font-size: 13px;
     font-family: $font--secondary;
-
-    &:first-of-type {
-      //   text-anchor: start;
-    }
-
-    &:last-of-type {
-      //   text-anchor: end;
-    }
   }
 }
 </style>
