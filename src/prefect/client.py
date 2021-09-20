@@ -1,21 +1,30 @@
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple, Union
 from uuid import UUID
 
 import anyio
 import httpx
+import httpx._types as httpx_types
 import pydantic
 
 import prefect
 from prefect import exceptions
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
-from prefect.orion.schemas.data import DataDocument
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import Scheduled
+from prefect.utilities.settings import NOTSET, NotSetType, drop_unset
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
+
+UseHttpxDefault = NotSetType
+USE_HTTPX_DEFAULT = NOTSET
+
+NoUpdate = NotSetType
+NO_UPDATE = NOTSET
 
 
 def inject_client(fn):
@@ -61,6 +70,8 @@ class OrionClient:
         self._client = httpx.AsyncClient(**httpx_settings)
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
+        # TODO: This function (and other httpx mirrors) should replicate the types like
+        #       `OrionClient.get` for usability
         response = await self._client.post(route, **kwargs)
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
@@ -68,8 +79,43 @@ class OrionClient:
         response.raise_for_status()
         return response
 
-    async def get(self, route: str, **kwargs) -> httpx.Response:
-        response = await self._client.get(route, **kwargs)
+    async def patch(self, route: str, **kwargs) -> httpx.Response:
+        response = await self._client.patch(route, **kwargs)
+        response.raise_for_status()
+        return response
+
+    async def get(
+        self,
+        url: httpx_types.URLTypes,
+        *,
+        params: Union[httpx_types.QueryParamTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        json: Any = None,
+        headers: Union[httpx_types.HeaderTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        cookies: Union[httpx_types.CookieTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        auth: Union[httpx_types.AuthTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        allow_redirects: Union[bool, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        timeout: Union[httpx_types.TimeoutTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+    ) -> httpx.Response:
+        """
+        Send a `GET` request
+
+        Extends `httpx.AsyncClient.get` to accept JSON bodies
+
+        **Parameters**: See `httpx.request`.
+        """
+        response = await self._client.request(
+            "GET",
+            url,
+            **drop_unset(
+                params=params,
+                json=json,
+                headers=headers,
+                cookies=cookies,
+                auth=auth,
+                allow_redirects=allow_redirects,
+                timeout=timeout,
+            ),
+        )
         response.raise_for_status()
         return response
 
@@ -93,12 +139,68 @@ class OrionClient:
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
 
+    async def read_flows(
+        self,
+        *,
+        flows: schemas.filters.FlowFilter = None,
+    ) -> List[schemas.core.Flow]:
+        body = {}
+        if flows:
+            body["flows"] = flows.dict(json_compatible=True)
+
+        response = await self.get(f"/flows", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
+
     async def read_flow_by_name(
         self,
         flow_name: str,
     ) -> schemas.core.Flow:
         response = await self.get(f"/flows/name/{flow_name}")
         return schemas.core.Deployment.parse_obj(response.json())
+
+    async def create_flow_run_from_deployment(
+        self,
+        deployment: schemas.core.Deployment,
+        *,
+        parameters: Dict[str, Any] = None,
+        context: dict = None,
+        state: schemas.states.State = None,
+    ) -> UUID:
+        """
+        Create a flow run for a deployment
+
+        Args:
+            - deployment: The deployment model to create the flow run from
+            - parameters: Parameter overrides for this flow run. Merged with the
+                deployment defaults
+            - context: Optional run context data
+            - state: The initial state for the run. If not provided, defaults to
+                `Scheduled` for now. Should always be a `Scheduled` type.
+
+        Returns:
+            - UUID: The flow run id
+        """
+        parameters = parameters or {}
+        context = context or {}
+        state = state or Scheduled()
+
+        flow_run_data = schemas.actions.FlowRunCreate(
+            flow_id=deployment.flow_id,
+            deployment_id=deployment.id,
+            flow_version=None,  # Not yet determined
+            parameters=parameters,
+            context=context,
+            state=state,
+        )
+
+        response = await self.post(
+            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+        )
+        flow_run_id = response.json().get("id")
+        if not flow_run_id:
+            raise Exception(f"Malformed response: {response}")
+
+        return UUID(flow_run_id)
 
     async def create_flow_run(
         self,
@@ -137,6 +239,22 @@ class OrionClient:
             raise Exception(f"Malformed response: {response}")
 
         return UUID(flow_run_id)
+
+    async def update_flow_run(
+        self,
+        flow_run_id: UUID,
+        flow_version: Union[str, NoUpdate] = NO_UPDATE,
+        parameters: Union[Dict[str, Any], NoUpdate] = NO_UPDATE,
+    ) -> None:
+
+        flow_run_data = schemas.actions.FlowRunUpdate(
+            **drop_unset(flow_version=flow_version, parameters=parameters)
+        )
+
+        await self.patch(
+            f"/flow_runs/{flow_run_id}",
+            json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
+        )
 
     async def create_deployment(
         self,
@@ -179,6 +297,24 @@ class OrionClient:
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
+
+    async def read_flow_runs(
+        self,
+        *,
+        flows: schemas.filters.FlowFilter = None,
+        flow_runs: schemas.filters.FlowRunFilter = None,
+        task_runs: schemas.filters.TaskRunFilter = None,
+    ) -> List[schemas.core.FlowRun]:
+        body = {}
+        if flows:
+            body["flows"] = flows.dict(json_compatible=True)
+        if flow_runs:
+            body["flow_runs"] = flow_runs.dict(json_compatible=True)
+        if task_runs:
+            body["task_runs"] = task_runs.dict(json_compatible=True)
+
+        response = await self.get(f"/flow_runs", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def persist_data(
         self,

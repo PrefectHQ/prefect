@@ -6,7 +6,7 @@ croniter >= 1.0, <2.0
 distributed >= 2021.8.0
 fastapi >= 0.66, < 0.68.2
 fsspec >= 2021.7.0
-httpx >= 0.18, < 0.19
+httpx >= 0.18, < 0.20
 pendulum >= 2.0, < 3.0
 pydantic >= 1.8, < 2.0
 pyyaml >=5.0, <= 6.0
