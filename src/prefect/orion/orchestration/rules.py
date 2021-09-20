@@ -6,10 +6,9 @@ from uuid import UUID
 import sqlalchemy as sa
 
 from pydantic import Field
-from typing_extensions import Literal
 
 from prefect.orion.models import orm
-from prefect.orion.schemas import core, states
+from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
@@ -40,7 +39,6 @@ class OrchestrationContext(PrefectBaseModel):
     proposed_state: Optional[states.State]
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
-    run: Optional[Union[core.TaskRun, core.FlowRun]]
     task_run_id: Optional[UUID]
     flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
@@ -89,7 +87,6 @@ class TaskOrchestrationContext(OrchestrationContext):
     def __init__(self, **data):
         super().__init__(**data)
         self.task_run_id = self.run_id
-        self.flow_run_id = self.run.flow_run_id
 
     async def validate_proposed_state(self) -> orm.TaskRunState:
         if self.proposed_state is not None:
