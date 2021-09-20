@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
+    "declaration": true,
     "strict": true,
     "jsx": "preserve",
     "importHelpers": true,
@@ -16,6 +17,9 @@
       "webpack-env",
       "jest",
       "d3"
+    ],
+    "typeRoots": [
+      "./types"
     ],
     "paths": {
       "@/*": [
