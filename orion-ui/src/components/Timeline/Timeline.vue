@@ -1,11 +1,13 @@
 <template>
   <div ref="container" class="chart-container">
+    <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
     <svg :id="id" ref="chart" class="timeline-chart" />
 
     <div class="node-container">
       <div
-        v-for="item in computedItems"
+        v-for="(item, i) in computedItems"
         :key="item.id"
+        :id="`row-${i}`"
         class="node correct-text"
         :class="[item.state.toLowerCase() + '-bg']"
         :style="item.style"
@@ -108,6 +110,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
+  axisSvg: SelectionType = null as unknown as d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    null
+  >
+
   gridSelection: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
     unknown,
@@ -132,8 +141,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get numberRows(): number {
-    return Math.ceil(
-      Math.max(this.sortedItems.length, this.height / this.intervalHeight)
+    return (
+      Math.ceil(
+        Math.max(this.sortedItems.length, this.height / this.intervalHeight)
+      ) + 3
     )
   }
 
@@ -143,9 +154,11 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         Math.min(
           ...this.sortedItems.map((item) => new Date(item.start_time).getTime())
         )
-      ).getTime() -
-        intervals[this.interval] * 1000
+      ).getTime()
     )
+
+    //  -
+    //     intervals[this.interval] * 1000
   }
 
   get end(): Date {
@@ -154,9 +167,11 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         Math.max(
           ...this.sortedItems.map((item) => new Date(item.end_time).getTime())
         )
-      ).getTime() +
-        intervals[this.interval] * 1000
+      ).getTime()
     )
+
+    //  +
+    //     intervals[this.interval] * 1000
   }
 
   get totalSeconds(): number {
@@ -190,6 +205,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     console.log(this.numberIntervals)
     return (
       g
+        .attr('class', 'x-axis')
         .style('transform', `translate(0,${this.intervalHeight}px)`)
         .call(
           d3
@@ -244,6 +260,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
+    this.axisSvg = d3.select(`#${this.id}-axis`)
 
     this.updateChart()
 
@@ -261,7 +278,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .append('g')
       .style('transform', `translate(0, 36px)`)
 
-    this.xAxisGroup = this.svg.append('g')
+    this.xAxisGroup = this.axisSvg.append('g')
   }
 
   updateChart(): void {
@@ -269,6 +286,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('viewbox', `0, 0, ${this.chartWidth}, ${this.chartHeight}`)
       .style('width', this.chartWidth + 'px')
       .style('height', this.chartHeight + 'px')
+
+    this.axisSvg
+      .attr('viewbox', `0, 0, ${this.chartWidth}, 100`)
+      .style('width', this.chartWidth + 'px')
   }
 
   updateNodes(): void {
@@ -298,6 +319,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         (selection: any) =>
           selection
             .append('line')
+            .attr('id', (d: any, i: number) => `grid-line-x-${i}`)
             .attr('class', 'grid-line grid-x')
             .attr('stroke', 'var(--blue-20)')
             .attr('x1', 0)
@@ -345,7 +367,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 </style>
 
 <style lang="scss">
-.timeline-chart {
+.timeline-axis {
   .tick {
     font-size: 13px;
     font-family: $font--secondary;
