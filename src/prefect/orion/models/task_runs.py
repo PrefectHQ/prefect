@@ -32,7 +32,11 @@ async def create_task_run(
         model = orm.TaskRun(
             **task_run.dict(
                 shallow=True,
-                exclude={"state", "total_run_time_estimate", "lateness_estimate"},
+                exclude={
+                    "state",
+                    "total_run_time_estimate",
+                    "expected_start_time_delta_estimate",
+                },
             ),
             state=None
         )

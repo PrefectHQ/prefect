@@ -46,7 +46,7 @@ class FlowRun(ORMBaseModel):
     end_time: datetime.datetime = None
     total_run_time: datetime.timedelta = datetime.timedelta(0)
     total_run_time_estimate: datetime.timedelta = datetime.timedelta(0)
-    lateness_estimate: datetime.timedelta = datetime.timedelta(0)
+    expected_start_time_delta_estimate: datetime.timedelta = datetime.timedelta(0)
     auto_scheduled: bool = False
 
     # relationships
@@ -89,7 +89,7 @@ class TaskRun(ORMBaseModel):
     end_time: datetime.datetime = None
     total_run_time: datetime.timedelta = datetime.timedelta(0)
     total_run_time_estimate: datetime.timedelta = datetime.timedelta(0)
-    lateness_estimate: datetime.timedelta = datetime.timedelta(0)
+    expected_start_time_delta_estimate: datetime.timedelta = datetime.timedelta(0)
 
     # relationships
     # flow_run: FlowRun = None
