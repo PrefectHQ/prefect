@@ -1,5 +1,7 @@
 import asyncio
 
+import pendulum
+
 from prefect.orion.services.loop_service import LoopService
 
 
@@ -79,3 +81,23 @@ async def test_loop_service_startup_shutdown():
     service = Service()
     await service.start(loops=3)
     assert service.state == ["setup", "shutdown"]
+
+
+async def test_early_stop():
+    """Test that stop criterion is evaluated without waiting for loop_seconds"""
+
+    class Service(LoopService):
+        loop_seconds = 1000
+
+        async def run_once(self):
+            pass
+
+    service = Service()
+    asyncio.create_task(service.start())
+
+    dt = pendulum.now("UTC")
+    await service.stop()
+    dt2 = pendulum.now("UTC")
+
+    assert service.should_stop is False
+    assert dt2 - dt < pendulum.duration(seconds=1)
