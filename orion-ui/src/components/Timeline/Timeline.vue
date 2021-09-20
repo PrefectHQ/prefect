@@ -210,7 +210,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         .call(
           d3
             .axisTop(this.xScale)
-            .ticks(this.numberIntervals)
+            .ticks(this.numberIntervals + 2)
             /* @ts-ignore */
             .tickFormat(formatLabel)
             .tickSizeOuter(0)
@@ -239,6 +239,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     console.log('rows', this.numberRows)
     console.log('start', this.start)
     console.log('end', this.end)
+
     this.updateScales()
     this.updateChart()
     this.updateGrid()
@@ -253,8 +254,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     // Generate x scale
     this.xScale
       .domain([new Date(this.start), new Date(this.end)])
-      .range([this.intervalWidth, this.chartWidth - this.intervalWidth])
-    console.log('update scales', this.numberIntervals)
+      .range([0, this.chartWidth])
+
     this.xAxisGroup.call(this.xAxis)
   }
 
