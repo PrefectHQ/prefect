@@ -3,10 +3,34 @@
 Note that when implementing nested settings, a `default_factory` should be used
 to avoid instantiating the nested settings class until runtime.
 """
+
 from pathlib import Path
 from datetime import timedelta
 from pydantic import BaseSettings, Field, SecretStr
 from typing import Optional
+
+
+class SharedSettings(BaseSettings):
+    """
+    An eagerly-instantiated settings class that allows us to reference its
+    values in other settings classes. If we did this on the main settings class
+    (Settings), we would not be able to access the values in nested classes.
+    """
+
+    class Config:
+        env_prefix = "PREFECT_"
+        frozen = True
+
+    # home
+    home: Path = Path("~/.prefect").expanduser()
+
+    # debug
+    debug_mode: bool = False
+    test_mode: bool = False
+
+
+# instantiate the shared settings
+SharedSettings = SharedSettings()
 
 
 class DataLocationSettings(BaseSettings):
@@ -24,9 +48,10 @@ class DatabaseSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_DATABASE_"
         frozen = True
 
-    # the default connection_url is an in-memory sqlite database
-    # that can be accessed from multiple threads
-    connection_url: SecretStr = "sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
+    connection_url: SecretStr = f"sqlite+aiosqlite:////{SharedSettings.home}/orion.db"
+    # to use an in-memory database, uncomment this line to ensure it can be
+    # accessed from multiple threads. Note it can not be shared between processes.
+    # connection_url: SecretStr = "sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
     echo: bool = False
 
     # statement timeout, in seconds
@@ -76,7 +101,7 @@ class LoggingSettings(BaseSettings):
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
 
-    settings_path: Path = Path("~/.prefect/logging.yml").expanduser()
+    settings_path: Path = Path(f"{SharedSettings.home}/logging.yml")
 
 
 class Settings(BaseSettings):
@@ -84,9 +109,12 @@ class Settings(BaseSettings):
         env_prefix = "PREFECT_"
         frozen = True
 
+    # home
+    home: Path = SharedSettings.home
+
     # debug
-    debug_mode: bool = False
-    test_mode: bool = False
+    debug_mode: bool = SharedSettings.debug_mode
+    test_mode: bool = SharedSettings.test_mode
 
     # logging
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
