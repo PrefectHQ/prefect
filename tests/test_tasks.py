@@ -529,3 +529,23 @@ class TestTaskRunTags:
             task_state.state_details.task_run_id
         )
         assert not task_run.tags
+
+    @pytest.mark.parametrize("include_existing", [True, False])
+    async def test_task_run_tags_respects_include_existing(self, orion_client, include_existing):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                with tags("c", "d", include_existing=False):
+                    future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"c", "d"}
