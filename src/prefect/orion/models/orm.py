@@ -1,6 +1,3 @@
-from operator import index
-from typing import Union
-
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
