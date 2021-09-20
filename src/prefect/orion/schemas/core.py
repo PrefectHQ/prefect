@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import Field
 
 from prefect.orion import schemas
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
@@ -44,8 +45,8 @@ class FlowRun(ORMBaseModel):
     next_scheduled_start_time: datetime.datetime = None
     start_time: datetime.datetime = None
     end_time: datetime.datetime = None
-    total_run_time_seconds: float = 0.0
-    total_time_seconds: float = 0.0
+    total_run_time: datetime.timedelta = datetime.timedelta(0)
+    total_time: datetime.timedelta = datetime.timedelta(0)
     auto_scheduled: bool = False
 
     # relationships
@@ -86,8 +87,8 @@ class TaskRun(ORMBaseModel):
     next_scheduled_start_time: datetime.datetime = None
     start_time: datetime.datetime = None
     end_time: datetime.datetime = None
-    total_run_time_seconds: float = 0.0
-    total_time_seconds: float = 0.0
+    total_run_time: datetime.timedelta = datetime.timedelta(0)
+    total_time: datetime.timedelta = datetime.timedelta(0)
 
     # relationships
     # flow_run: FlowRun = None
