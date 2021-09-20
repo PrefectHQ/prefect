@@ -1,7 +1,5 @@
 <template>
   <div>
-    <h1>Dashboard</h1>
-
     <row class="filter-row py-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
@@ -19,57 +17,98 @@
       </button-card>
     </row>
 
-    <div class="chart-card px-2 py-1">
-      <div class="subheader">Run History</div>
-      <RunHistoryChart :data="buckets" background-color="blue-5" show-axis />
+    <div class="chart-section">
+      <Card class="run-history" shadow="sm">
+        <template v-slot:header>
+          <div class="subheader py-1 px-2">Run History</div>
+        </template>
+
+        <div class="px-2 pb-1 flex-grow-1">
+          <RunHistoryChart
+            :items="run_history_buckets"
+            background-color="blue-5"
+            show-axis
+          />
+        </div>
+      </Card>
+
+      <Card class="run-duration flex-grow-0" shadow="sm">
+        <template v-slot:aside>
+          <div class="pl-2 pt-1" style="width: 100px">
+            <div class="subheader">10-19m</div>
+            <div class="body">Duration</div>
+          </div>
+        </template>
+        <div class="chart px-1">
+          <BarChart :items="run_duration_items" height="117px" />
+        </div>
+      </Card>
+
+      <Card class="run-lateness flex-grow-0" shadow="sm">
+        <template v-slot:aside>
+          <div class="pl-2 pt-1" style="width: 100px">
+            <div class="subheader">1-59m</div>
+            <div class="body">Lateness</div>
+          </div>
+        </template>
+        <div class="chart px-1">
+          <BarChart :items="run_lateness_items" height="117px" />
+        </div>
+      </Card>
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
-      <Tab href="flows">
+      <Tab href="flows" class="subheader">
         <i class="pi pi-flow pi-lg mr-1" />
         Flows
-        <span class="result-badge" :class="{ active: resultsTab == 'flows' }">
-          {{ flowList.length }}
+        <span
+          class="result-badge caption ml-1"
+          :class="{ active: resultsTab == 'flows' }"
+        >
+          {{ datasets['flows'].length }}
         </span>
       </Tab>
-      <Tab href="deployments">
-        <i class="pi pi-deployment pi-lg mr-1" />
+      <Tab href="deployments" class="subheader">
+        <i class="pi pi-map-pin-line pi-lg mr-1" />
         Deployments
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ deploymentList.length }}
+          {{ datasets['deployments'].length }}
         </span>
       </Tab>
-      <Tab href="flow-runs">
+      <Tab href="flow-runs" class="subheader">
         <i class="pi pi-flow-run pi-lg mr-1" />
         Flow Runs
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow-runs' }"
         >
-          {{ flowRunList.length }}
+          {{ datasets['flow-runs'].length }}
         </span>
       </Tab>
-      <Tab href="task-runs">
-        <i class="pi pi-task-run pi-lg mr-1" />
+      <Tab href="task-runs" class="subheader">
+        <i class="pi pi-task pi-lg mr-1" />
         Task Runs
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task-runs' }"
         >
-          {{ taskRunList.length }}
+          {{ datasets['task-runs'].length }}
         </span>
       </Tab>
     </Tabs>
 
+    <div class="font--secondary caption my-2">
+      {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+    </div>
+
     <transition name="fade" mode="out-in">
       <div v-if="resultsTab == 'flows'">
-        <div class="caption my-2">Flows</div>
         <list>
           <flow-list-item
-            v-for="flow in flowList"
+            v-for="flow in datasets['flows']"
             :key="flow.id"
             :flow="flow"
           />
@@ -77,20 +116,18 @@
       </div>
 
       <div v-else-if="resultsTab == 'deployments'">
-        <div class="caption my-2">Deployments</div>
         <list>
           <deployment-list-item
-            v-for="deployment in deploymentList"
+            v-for="deployment in datasets['deployments']"
             :key="deployment.id"
             :deployment="deployment"
           />
         </list>
       </div>
       <div v-else-if="resultsTab == 'flow-runs'">
-        <div class="caption my-2">Flow Runs</div>
         <list>
           <flow-run-list-item
-            v-for="run in flowRunList"
+            v-for="run in datasets['flow-runs']"
             :key="run.id"
             :run="run"
           />
@@ -98,10 +135,9 @@
       </div>
 
       <div v-else-if="resultsTab == 'task-runs'">
-        <div class="caption my-2">Task Runs</div>
         <list>
           <task-run-list-item
-            v-for="run in taskRunList"
+            v-for="run in datasets['task-runs']"
             :key="run.id"
             :run="run"
           />
@@ -118,9 +154,13 @@ import {
   Bucket
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
 
+import BarChart from '@/components/BarChart/BarChart.vue'
+
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 import { default as dataset_1 } from '@/util/run_history/24_hours.json'
 import { default as dataset_2 } from '@/util/run_history/design.json'
+import { default as lateness_dataset_1 } from '@/util/run_lateness/24_hours.json'
+import { default as duration_dataset_1 } from '@/util/run_duration/24_hours.json'
 
 // Temporary imports for dummy data
 import { default as flowList } from '@/util/objects/flows.json'
@@ -129,15 +169,20 @@ import { default as flowRunList } from '@/util/objects/flow_runs.json'
 import { default as taskRunList } from '@/util/objects/task_runs.json'
 
 @Options({
-  components: { RunHistoryChart }
+  components: { BarChart, RunHistoryChart }
 })
 export default class Dashboard extends Vue {
-  buckets: Bucket[] = dataset_2
+  run_history_buckets: Bucket[] = dataset_2
 
-  flowList: Flow[] = flowList
-  deploymentList: Deployment[] = deploymentList
-  flowRunList: FlowRun[] = flowRunList
-  taskRunList: TaskRun[] = taskRunList
+  run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
+  run_duration_items: Item[] = duration_dataset_1.slice(0, 10)
+
+  datasets: { [key: string]: Flow[] | Deployment[] | FlowRun[] | TaskRun[] } = {
+    flows: flowList,
+    deployments: deploymentList,
+    'flow-runs': flowRunList,
+    'task-runs': taskRunList
+  }
 
   premadeFilters: { label: string; count: number }[] = [
     { label: 'Failed Runs', count: 15 },
@@ -145,7 +190,11 @@ export default class Dashboard extends Vue {
     { label: 'Upcoming Runs', count: 75 }
   ]
 
-  resultsTab: string = 'flows'
+  resultsTab: string = 'deployments'
+
+  get resultsCount(): number {
+    return this.datasets[this.resultsTab].length
+  }
 
   sayHello(): void {
     alert('hello')
@@ -154,45 +203,5 @@ export default class Dashboard extends Vue {
 </script>
 
 <style lang="scss" scoped>
-.result-badge {
-  border-radius: 16px;
-  padding: 4px 16px;
-  transition: 150ms all;
-
-  &.active {
-    background-color: $primary;
-    color: $white;
-  }
-}
-
-.filter-card-button {
-  min-width: 300px;
-  width: 100%;
-}
-
-.filter-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-gap: 16px;
-}
-
-.chart-card {
-  background-color: $white;
-  box-shadow: $box-shadow-sm;
-  border-radius: 4px;
-  height: 250px;
-
-  display: flex;
-  flex-direction: column;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+@use '@/styles/views/dashboard.scss';
 </style>

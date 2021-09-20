@@ -5,10 +5,11 @@
 </template>
 
 <script lang="ts">
-import { Options, Vue, prop } from 'vue-class-component'
-import { ref } from 'vue'
+import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
-import { Series } from 'd3'
+import { D3Base } from '@/components/Visualizations/D3Base'
+
+import { createCappedBar } from '@/components/Visualizations/utils'
 
 const positiveStates: string[] = [
   'COMPLETED',
@@ -26,16 +27,6 @@ const mappedNegativeStates: [string, number][] = negativeStates.map(
 )
 
 const capR = 2
-const padding = {
-  top: 12,
-  bottom: 12,
-  middle: 12,
-  left: 16,
-  right: 16
-}
-
-const paddingY = padding.top + padding.middle + padding.bottom
-const paddingX = padding.left + padding.right
 
 const directions: Map<string, number> = new Map([
   ...mappedPositiveStates,
@@ -80,34 +71,36 @@ export interface Bucket {
   interval_end: Date
   states: StateAggregate
 }
+export type BucketCollection = Bucket[]
 
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 class Props {
   backgroundColor = prop<String>({ required: false, default: null })
-  data = prop<Bucket[]>({ required: true })
+  items = prop<Bucket[]>({ required: true })
   showAxis = prop<Boolean>({ required: false, default: false, type: Boolean })
+  padding = prop<{
+    top: Number
+    bottom: Number
+    middle: Number
+    left: Number
+    right: Number
+  }>({
+    required: false,
+    default: {
+      top: 12,
+      bottom: 12,
+      middle: 12,
+      left: 16,
+      right: 16
+    }
+  })
 }
 
-const suid = () => '_' + Math.random().toString(36).substr(2, 9)
-
 @Options({})
-export default class RunHistoryChart extends Vue.with(Props) {
-  id: string = suid()
-
-  height: number = 0
-  width: number = 0
-
+export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
-
-  container = ref<HTMLElement>() as unknown as HTMLElement
-  svg: SelectionType = null as unknown as d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    null
-  >
 
   barSelection: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
@@ -138,7 +131,7 @@ export default class RunHistoryChart extends Vue.with(Props) {
       .call((g) => g.select('.domain').remove())
 
   get buckets(): Bucket[] {
-    return this.data.map((d: Bucket) => {
+    return this.items.map((d: Bucket) => {
       const states: { [key: string]: number } = {}
       Object.entries(d.states).forEach(([state, count]) => {
         states[state] = count * (state == 'FAILED' ? -1 : 1)
@@ -157,7 +150,7 @@ export default class RunHistoryChart extends Vue.with(Props) {
           (d, key: string) => (directions.get(key) || 1) * (d.states[key] || 0)
         )
         /* @ts-ignore */
-        .offset(d3.stackOffsetDiverging)(this.data)
+        .offset(d3.stackOffsetDiverging)(this.items)
     )
   }
 
@@ -165,44 +158,26 @@ export default class RunHistoryChart extends Vue.with(Props) {
     return new Map(this.series.map((s: any) => [s.key, s]))
   }
 
-  mounted(): void {
-    this.handleWindowResize()
-    window.addEventListener('resize', this.handleWindowResize)
+  resize(): void {
+    this.updateScales()
+    this.updateBuckets()
+  }
 
+  mounted(): void {
     this.createChart()
     this.updateScales()
     this.updateBuckets()
   }
 
   updated(): void {
+    if (!this.svg || !this.barSelection) this.createChart()
+    this.updateScales()
     this.updateBuckets()
   }
 
-  handleWindowResize(): void {
-    this.height = this.container.offsetHeight
-    this.width = this.container.offsetWidth
-
-    if (this.svg) {
-      this.svg.attr(
-        'viewbox',
-        `0, 0, ${this.width - paddingX}, ${this.height - paddingY}`
-      )
-
-      this.svg
-        .select('rect')
-        .attr(
-          'height',
-          `${this.height - padding.top - padding.bottom - padding.middle}px`
-        )
-
-      this.updateScales()
-      this.updateBuckets()
-    }
-  }
-
   updateScales(): void {
-    const start = this.data[0].interval_start
-    const end = this.data[this.data.length - 1].interval_end
+    const start = this.items[0].interval_start
+    const end = this.items[this.items.length - 1].interval_end
     this.xScale.domain([new Date(start), new Date(end)]).range([0, this.width])
 
     const flattened = this.series.flat(2)
@@ -213,8 +188,8 @@ export default class RunHistoryChart extends Vue.with(Props) {
     this.yScale
       .domain([startMin ? min : 0, startMin ? 0 : max])
       .rangeRound([
-        padding.top,
-        this.height / 2 - padding.bottom - padding.middle
+        this.padding.top,
+        this.height / 2 - this.padding.bottom - this.padding.middle
       ])
 
     if (this.showAxis) {
@@ -227,7 +202,7 @@ export default class RunHistoryChart extends Vue.with(Props) {
 
     this.svg.attr(
       'viewbox',
-      `0, 0, ${this.width - paddingX}, ${this.height - paddingY}`
+      `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
     )
 
     this.svg
@@ -240,7 +215,12 @@ export default class RunHistoryChart extends Vue.with(Props) {
       .attr('width', '100%')
       .attr(
         'height',
-        `${this.height - padding.top - padding.bottom - padding.middle}px`
+        `${
+          this.height -
+          this.padding.top -
+          this.padding.bottom -
+          this.padding.middle
+        }px`
       )
 
     this.barSelection = this.svg.append('g')
@@ -252,24 +232,24 @@ export default class RunHistoryChart extends Vue.with(Props) {
     //   .append('line')
     //   .attr('x1', 0)
     //   .attr('x2', this.width)
-    //   .attr('y1', this.height / 2 + padding.middle / 2)
-    //   .attr('y2', this.height / 2 + padding.middle / 2)
-    //   .attr('stroke-width', padding.middle / 6)
+    //   .attr('y1', this.height / 2 + this.padding.middle / 2)
+    //   .attr('y2', this.height / 2 + this.padding.middle / 2)
+    //   .attr('stroke-width', this.padding.middle / 6)
     //   .attr('stroke-dasharray', 12)
     //   .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 
   updateBarPath(d: any, i: number): string | void {
-    const maxWidth = this.width / this.data.length / 2
+    const maxWidth = this.width / this.items.length / 2
     const seriesSlot = this.seriesMap.get(d.state)![d.bucket_key]
     const biasIndex = directions.get(d.state)
 
     if (!seriesSlot || !biasIndex) return
-    const data = this.data.find(
+    const items = this.items.find(
       /* @ts-ignore */
       (_d) => _d.interval_start == seriesSlot.data.interval_start
     )
-    const states = data?.states || []
+    const states = items?.states || []
     const stateEntries = Object.entries(states)
 
     const arr = biasIndex > 0 ? negativeStates : positiveStates
@@ -319,23 +299,22 @@ export default class RunHistoryChart extends Vue.with(Props) {
       this.xScale(new Date(seriesSlot.data.interval_start)) + maxWidth / 2
     const yStart =
       this.yScale(seriesSlot[0]) +
-      padding.top +
-      (biasIndex > 0 ? padding.middle : 0) +
+      this.padding.top +
+      (biasIndex > 0 ? this.padding.middle : 0) +
       (biasIndex < 0 ? r / 2 : 0)
     const height = this.yScale(seriesSlot[1]) - this.yScale(seriesSlot[0])
 
     if (height == 0) return ''
 
-    const capTop = showCapTop
-      ? `a ${r} ${r} 0 1 0 -${width} 0`
-      : `a 0 0 0 1 0 -${width} 0`
-    const capBottom = showCapBottom
-      ? `a ${r} ${r} 0 1 0 ${width} 0`
-      : `a 0 0 0 1 0 ${width} 0`
-
-    return `M${xStart},${yStart} v${height} ${capBottom ? capBottom : ''} ${
-      capBottom ? '' : `h${width}`
-    } v-${height} ${capTop ? capTop : ''}`
+    return createCappedBar({
+      capTop: showCapTop,
+      capBottom: showCapBottom,
+      x: xStart,
+      y: yStart,
+      height: height,
+      width: width,
+      radius: r
+    })
   }
 
   updateBuckets(): void {
@@ -344,7 +323,7 @@ export default class RunHistoryChart extends Vue.with(Props) {
     /* @ts-ignore */
     this.barSelection
       .selectAll('.bucket')
-      .data(this.data, (d: any) => d.interval_start)
+      .data(this.items, (d: any) => d.interval_start)
       .join(
         (enter: any) =>
           enter
@@ -353,12 +332,12 @@ export default class RunHistoryChart extends Vue.with(Props) {
             .attr('id', (d: Bucket | any) => d.interval_start.toString())
             .style(
               'transform',
-              `translate(${padding.left}px, ${padding.top}px)`
+              `translate(${this.padding.left}px, ${this.padding.top}px)`
             ),
         (update: any) =>
           update.style(
             'transform',
-            `translate(${padding.left}px, ${padding.top}px)`
+            `translate(${this.padding.left}px, ${this.padding.top}px)`
           ),
         (exit: any) => exit.remove()
       )
@@ -393,6 +372,6 @@ export default class RunHistoryChart extends Vue.with(Props) {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/run-history--chart.scss';
 </style>
