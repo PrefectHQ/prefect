@@ -13,7 +13,6 @@ export default defineConfig({
       scss: {
         additionalData: `
         @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
-        @use "@/styles/main.scss" as *;
         `
       }
     }

@@ -1,26 +1,49 @@
 <template>
-  <list-item>
-    <div>
-      <i class="item--icon pi pi-flow pi-2x" />
+  <list-item class="list-item--flow d-flex align-start justify-start">
+    <i class="item--icon pi pi-flow text--grey-40 align-self-start" />
+    <div
+      class="
+        item--title
+        ml-2
+        d-flex
+        flex-column
+        justify-center
+        align-self-start
+      "
+    >
+      <h2>
+        {{ flow.name }}
+      </h2>
 
-      <div>
-        <div class="item--title subheader">
-          {{ flow.name }}
-        </div>
+      <div class="nowrap tag-container d-flex align-bottom">
         <Tag
           v-for="tag in flow.tags"
           :key="tag"
           color="secondary-pressed"
-          class="item--tags mr-1"
-          outlined
+          class="caption font-weight-semibold mr-1"
+          icon="pi-label"
+          flat
         >
           {{ tag }}
         </Tag>
       </div>
     </div>
 
-    <div class="ml-auto chart-container mr-2">
-      <RunHistoryChart :items="taskRunBuckets" />
+    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+      <rounded-button class="mr-1">
+        {{ flowRunCount }} flow runs
+      </rounded-button>
+
+      <rounded-button class="mr-1">
+        {{ taskRunCount }} task runs
+      </rounded-button>
+    </div>
+
+    <div v-breakpoints="'md'" class="chart-container">
+      <RunHistoryChart
+        :items="taskRunBuckets"
+        :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
+      />
     </div>
   </list-item>
 </template>
@@ -41,15 +64,18 @@ class Props {
 
 @Options({ components: { RunHistoryChart } })
 export default class ListItemFlow extends Vue.with(Props) {
+  sliceStart: number = Math.floor(Math.random() * 4)
+
   taskRunBuckets: Bucket[] = dataset_2.slice(
-    Math.floor(Math.random() * 4),
-    Math.floor(Math.random() * 9 + 14)
+    this.sliceStart,
+    this.sliceStart + 10
   )
+
+  flowRunCount: number = 25
+  taskRunCount: number = 139
 }
 </script>
 
 <style lang="scss" scoped>
-.chart-container {
-  max-width: 250px;
-}
+@use '@/styles/components/list-item--flow.scss';
 </style>
