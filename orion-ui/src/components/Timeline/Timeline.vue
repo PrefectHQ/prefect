@@ -282,7 +282,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
           left: this.xScale(start) + 'px',
           top: i * this.intervalHeight + 'px',
           transform: `translate(0, 44px)`, // 36px axis offset + height
-          width: this.xScale(end) - this.xScale(start) + 'px'
+          width: Math.max(16, this.xScale(end) - this.xScale(start)) + 'px'
         }
       }
     })
