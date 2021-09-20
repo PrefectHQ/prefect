@@ -1,15 +1,16 @@
 <template>
   <div ref="container" class="chart-container">
-    <svg :id="id" ref="chart" class="run-history-chart" />
+    <svg :id="id" ref="chart" class="timeline-chart" />
 
     <div class="node-container">
       <div
-        v-for="item in items"
+        v-for="item in computedItems"
         :key="item.id"
-        class="node"
-        :style="getNodePosition(item)"
+        class="node correct-text"
+        :class="[item.state.toLowerCase() + '-bg']"
+        :style="item.style"
       >
-        {{ item.state }}{{ getNodePosition(item) }}
+        {{ item.state }}
       </div>
     </div>
   </div>
@@ -29,6 +30,11 @@ interface Item {
   tags: string[]
   start_time: string
   end_time: string
+  style: {
+    left: string
+    top: string
+    width: string
+  }
 }
 
 const capR = 2
@@ -86,8 +92,15 @@ class Props {
   })
 }
 
-@Options({})
+@Options({
+  watch: {
+    items() {
+      this.update()
+    }
+  }
+})
 export default class Timeline extends mixins(D3Base).with(Props) {
+  computedItems: Item[] = []
   intervalHeight: number = 24
   intervalWidth: number = 480
   xScale = d3.scaleTime()
@@ -115,7 +128,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   >
 
   get numberIntervals(): number {
-    console.log(this.totalSeconds, intervals, intervals[this.interval])
     return this.totalSeconds / intervals[this.interval]
   }
 
@@ -124,11 +136,11 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get start(): Date {
-    return new Date(this.items[0].start_time)
+    return new Date(this.sortedItems[0].start_time)
   }
 
   get end(): Date {
-    return new Date(this.items[this.items.length - 1].end_time)
+    return new Date(this.sortedItems[this.sortedItems.length - 1].end_time)
   }
 
   get totalSeconds(): number {
@@ -136,23 +148,34 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get chartHeight(): number {
-    return Math.max(this.numberRows * this.intervalHeight, this.height)
+    return (
+      Math.max(this.numberRows * this.intervalHeight, this.height) -
+      this.paddingY
+    )
   }
 
   get chartWidth(): number {
-    return this.numberIntervals * this.intervalWidth
+    return this.numberIntervals * this.intervalWidth - this.paddingX
+  }
+
+  get sortedItems(): Item[] {
+    return this.items.sort(
+      (a, b) =>
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+    )
   }
 
   xAxis = (g: any) =>
     g
-      .attr('transform', `translate(0,${this.height})`)
+      .style('transform', `translate(0,18px)`)
       .call(
         d3
           .axisTop(this.xScale)
-          .ticks(this.width / 100)
+          .ticks(this.numberIntervals)
           /* @ts-ignore */
           .tickFormat(formatLabel)
           .tickSizeOuter(0)
+          .tickSizeInner(0)
       )
       /* @ts-ignore */
       .call((g) => g.select('.domain').remove())
@@ -175,26 +198,36 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   updated(): void {
     if (!this.svg || !this.barSelection) this.createChart()
-    this.update()
   }
 
   updateScales(): void {
     // Generate x scale
     this.xScale.domain([this.start, this.end]).range([0, this.chartWidth])
+
+    this.xAxisGroup.call(this.xAxis)
+
+    this.computedItems = [...this.sortedItems].map((item: Item) => {
+      const start = new Date(item.start_time)
+      const end = new Date(item.end_time)
+      console.log(start, end, this.xScale(end) - this.xScale(start) + 'px')
+      return {
+        ...item,
+        style: {
+          top: '24px',
+          left: this.xScale(start) + 'px',
+          width: this.xScale(end) - this.xScale(start) + 'px'
+        }
+      }
+    })
   }
 
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
 
     this.svg
-      .attr(
-        'viewbox',
-        `0, 0, ${this.chartWidth - this.paddingX}, ${
-          this.chartHeight - this.paddingY
-        }`
-      )
-      .style('width', this.chartWidth - this.paddingX + 'px')
-      .style('height', this.chartHeight - this.paddingY + 'px')
+      .attr('viewbox', `0, 0, ${this.chartWidth}, ${this.chartHeight}`)
+      .style('width', this.chartWidth + 'px')
+      .style('height', this.chartHeight + 'px')
 
     this.svg
       .append('rect')
@@ -206,16 +239,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('width', '100%')
       .attr('height', '100%')
 
-    this.barSelection = this.svg.append('g')
-    this.gridSelection = this.svg.append('g')
+    this.barSelection = this.svg
+      .append('g')
+      .style('transform', `translate(0, 24px)`)
+    this.gridSelection = this.svg
+      .append('g')
+      .style('transform', `translate(0, 24px)`)
 
     this.xAxisGroup = this.svg.append('g')
-  }
-
-  getNodePosition(item: Item): { [key: string]: any } {
-    return {
-      left: this.xScale(new Date(item.start_time)) + 'px'
-    }
   }
 
   updateGrid(): void {
@@ -246,8 +277,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         () => {}
       )
 
-    console.log(Array.from({ length: this.numberRows }, (x, i) => i))
-
     /* @ts-ignore */
     this.gridSelection
       .selectAll('.grid-line.grid-y')
@@ -272,28 +301,26 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         () => {}
       )
   }
-
-  //   updateBars(): void {
-  //     this.barSelection
-  //       .selectAll('.bar')
-  //       .data(this.items)
-  //       .join((selection: any) =>
-  //         selection
-  //           .append('rect')
-  //           .attr('class', (d: Item) => {
-  //             return `bar ${d.state.toLowerCase()}-fill`
-  //           })
-  //           .attr('x', (d: Item, i: number) => 100)
-  //           .attr('y', (d: Item, i: number) => i * 100 + 100)
-  //           .attr('width', (d: Item, i: number) => 100)
-  //           .attr('height', (d: Item, i: number) => 45)
-  //       )
-  //   }
-
-  //   updateBarPath(d: any, i: number): string | void {}
 }
 </script>
 
 <style lang="scss" scoped>
 @use '@/styles/components/timeline--chart.scss';
+</style>
+
+<style lang="scss">
+.timeline-chart {
+  .tick {
+    font-size: 13px;
+    font-family: $font--secondary;
+
+    &:first-of-type {
+      text-anchor: start;
+    }
+
+    &:last-of-type {
+      text-anchor: end;
+    }
+  }
+}
 </style>
