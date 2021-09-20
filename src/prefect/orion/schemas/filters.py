@@ -19,14 +19,56 @@ class Pagination(PrefectBaseModel):
     offset: conint(ge=0) = 0
 
 
-class FlowFilterIds(PrefectBaseModel):
+class PrefectFilterBaseModel(PrefectBaseModel):
+    """Base model for Prefect filters"""
+
+    @root_validator
+    def check_at_least_one_operator_is_not_none(cls, values):
+        """At least one operator must be specified in order to generate sql filters"""
+        if not any([val for val in values.values()]):
+            raise ValueError(
+                f"Prefect Filter must have at least one operator with arguments.\n"
+                f"{cls.__name__!r} got operator input: {values}"
+            )
+        return values
+
+    @root_validator
+    def check_all_and_is_null_are_not_both_supplied(cls, values):
+        """For filters with all_ and is_null_, don't allow both fields to be provided by default"""
+        if values.get("all_") is not None and values.get("is_null_"):
+            raise ValueError(
+                f"Cannot provide Prefect Filter {cls.__name__!r} all_ with is_null_ = True"
+            )
+        return values
+
+    @root_validator
+    def check_any_and_is_null_are_not_both_supplied(cls, values):
+        """For filters with any_ and is_null_, don't allow both fields to be provided by default"""
+        if values.get("any_") is not None and values.get("is_null_"):
+            raise ValueError(
+                f"Cannot provide Prefect Filter {cls.__name__!r} any_ with is_null_ = True"
+            )
+        return values
+
+    @root_validator
+    def test_before_and_after_are_not_mutually_exclusive(cls, values):
+        """For filters with before_ and after_, make sure they are not mutally exclusive by default"""
+        if values.get("before_") is not None and values.get("after_") is not None:
+            if values.get("before_") <= values.get("after_"):
+                raise ValueError(
+                    f"Cannot provide Prefect Filter {cls.__name__!r} where before_ is less than after_"
+                )
+        return values
+
+
+class FlowFilterIds(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of flow ids to include")
 
     def as_sql_filter(self):
         return orm.Flow.id.in_(self.any_)
 
 
-class FlowFilterNames(PrefectBaseModel):
+class FlowFilterNames(PrefectFilterBaseModel):
     any_: List[str] = Field(
         None,
         description="A list of flow names to include",
@@ -37,7 +79,7 @@ class FlowFilterNames(PrefectBaseModel):
         return orm.Flow.name.in_(self.any_)
 
 
-class FlowFilterTags(PrefectBaseModel):
+class FlowFilterTags(PrefectFilterBaseModel):
     all_: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
@@ -47,21 +89,14 @@ class FlowFilterTags(PrefectBaseModel):
         False, description="If true, only include flows without tags"
     )
 
-    @root_validator
-    def check_all_and_is_null_are_not_both_supplied(cls, values):
-        if values.get("all_") is not None and values.get("is_null_"):
-            raise ValueError("Cannot provide tags all_ with is_null_ = True")
-        return values
-
     def as_sql_filter(self):
         if self.all_ is not None:
             return json_has_all_keys(orm.Flow.tags, self.all_)
         elif self.is_null_:
             return orm.Flow.tags == []
-        raise ValueError("No sql filter available. all_ and is_null_ are not set")
 
 
-class FlowFilter(PrefectBaseModel):
+class FlowFilter(PrefectFilterBaseModel):
     """Filter for flows. Only flows matching all criteria will be returned"""
 
     ids: Optional[FlowFilterIds]
@@ -81,14 +116,14 @@ class FlowFilter(PrefectBaseModel):
         return sa.and_(*filters) if filters else sa.and_(True)
 
 
-class FlowRunFilterIds(PrefectBaseModel):
+class FlowRunFilterIds(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of flow run ids to include")
 
     def as_sql_filter(self):
         return orm.FlowRun.id.in_(self.any_)
 
 
-class FlowRunFilterTags(PrefectBaseModel):
+class FlowRunFilterTags(PrefectFilterBaseModel):
     all_: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
@@ -98,33 +133,20 @@ class FlowRunFilterTags(PrefectBaseModel):
         False, description="If true, only include flow runs without tags"
     )
 
-    @root_validator
-    def check_all_and_is_null_are_not_both_supplied(cls, values):
-        if values.get("all_") is not None and values.get("is_null_"):
-            raise ValueError("Cannot provide tags all_ with is_null_ = True")
-        return values
-
     def as_sql_filter(self):
         if self.all_ is not None:
             return json_has_all_keys(orm.FlowRun.tags, self.all_)
         elif self.is_null_:
             return orm.FlowRun.tags == []
-        raise ValueError("No sql filter available. all_ and is_null_ are not set")
 
 
-class FlowRunFilterDeploymentIds(PrefectBaseModel):
+class FlowRunFilterDeploymentIds(PrefectFilterBaseModel):
     any_: List[UUID] = Field(
         None, description="A list of flow run deployment ids to include"
     )
     is_null_: bool = Field(
         False, description="If true, only include flow runs without deployment ids"
     )
-
-    @root_validator
-    def check_any_and_is_null_are_not_both_supplied(cls, values):
-        if values.get("any_") is not None and values.get("is_null_"):
-            raise ValueError("Cannot provide deployment_ids any_ with is_null_ = True")
-        return values
 
     def as_sql_filter(self):
         if self.any_ is not None:
@@ -133,7 +155,7 @@ class FlowRunFilterDeploymentIds(PrefectBaseModel):
             return orm.FlowRun.deployment_id == None
 
 
-class FlowRunFilterStateTypes(PrefectBaseModel):
+class FlowRunFilterStateTypes(PrefectFilterBaseModel):
     any_: List[schemas.states.StateType] = Field(
         None, description="A list of flow run state_types to include"
     )
@@ -142,7 +164,7 @@ class FlowRunFilterStateTypes(PrefectBaseModel):
         return orm.FlowRun.state_type.in_(self.any_)
 
 
-class FlowRunFilterFlowVersions(PrefectBaseModel):
+class FlowRunFilterFlowVersions(PrefectFilterBaseModel):
     any_: List[str] = Field(
         None, description="A list of flow run flow_versions to include"
     )
@@ -151,20 +173,13 @@ class FlowRunFilterFlowVersions(PrefectBaseModel):
         return orm.FlowRun.flow_version.in_(self.any_)
 
 
-class FlowRunFilterStartTime(PrefectBaseModel):
+class FlowRunFilterStartTime(PrefectFilterBaseModel):
     before_: datetime.datetime = Field(
         None, description="Only include flow runs starting at or before this time"
     )
     after_: datetime.datetime = Field(
         None, description="Only include flow runs starting at or after this time"
     )
-
-    @root_validator
-    def test_before_and_after_are_not_mutually_exclusive(cls, values):
-        if values.get("before_") is not None and values.get("after_") is not None:
-            if values.get("before_") <= values.get("after_"):
-                raise ValueError("start_time before_ must be greater than after_")
-        return values
 
     def as_sql_filter(self):
         if self.before_ and self.after_:
@@ -173,10 +188,9 @@ class FlowRunFilterStartTime(PrefectBaseModel):
             return orm.FlowRun.start_time <= self.before_
         elif self.after_:
             return orm.FlowRun.start_time >= self.after_
-        raise ValueError("Must specify before_ or after_ criteria for start_time")
 
 
-class FlowRunFilterExpectedStartTime(PrefectBaseModel):
+class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     before_: datetime.datetime = Field(
         None,
         description="Only include flow runs scheduled to start at or before this time",
@@ -186,15 +200,6 @@ class FlowRunFilterExpectedStartTime(PrefectBaseModel):
         description="Only include flow runs scheduled to start at or after this time",
     )
 
-    @root_validator
-    def test_before_and_after_are_not_mutually_exclusive(cls, values):
-        if values.get("before_") is not None and values.get("after_") is not None:
-            if values.get("before_") <= values.get("after_"):
-                raise ValueError(
-                    "expected_start_time before_ must be greater than after_"
-                )
-        return values
-
     def as_sql_filter(self):
         if self.before_ and self.after_:
             return orm.FlowRun.expected_start_time.between(self.after_, self.before_)
@@ -202,12 +207,9 @@ class FlowRunFilterExpectedStartTime(PrefectBaseModel):
             return orm.FlowRun.expected_start_time <= self.before_
         elif self.after_:
             return orm.FlowRun.expected_start_time >= self.after_
-        raise ValueError(
-            "Must specify before or after criteria for expected_start_time"
-        )
 
 
-class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
+class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     before_: datetime.datetime = Field(
         None,
         description="Only include flow runs with a next_scheduled_start_time or before this time",
@@ -216,15 +218,6 @@ class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
         None,
         description="Only include flow runs with a next_scheduled_start_time at or after this time",
     )
-
-    @root_validator
-    def test_before_and_after_are_not_mutually_exclusive(cls, values):
-        if values.get("before_") is not None and values.get("after_") is not None:
-            if values.get("before_") <= values.get("after_"):
-                raise ValueError(
-                    "Next scheduled start time before_ must be greater than after_"
-                )
-        return values
 
     def as_sql_filter(self):
         if self.before_ and self.after_:
@@ -235,26 +228,15 @@ class FlowRunFilterNextScheduledStartTime(PrefectBaseModel):
             return orm.FlowRun.next_scheduled_start_time <= self.before_
         elif self.after_:
             return orm.FlowRun.next_scheduled_start_time >= self.after_
-        raise ValueError(
-            "Must specify before or after criteria for next_scheduled_start_time"
-        )
 
 
-class FlowRunFilterParentTaskRunIds(PrefectBaseModel):
+class FlowRunFilterParentTaskRunIds(PrefectFilterBaseModel):
     any_: List[UUID] = Field(
         None, description="A list of flow run parent_task_run_ids to include"
     )
     is_null_: bool = Field(
         False, description="If true, only include flow runs without parent_task_run_id"
     )
-
-    @root_validator
-    def check_any_and_is_null_are_not_both_supplied(cls, values):
-        if values.get("any_") is not None and values.get("is_null_"):
-            raise ValueError(
-                "Cannot provide parent_task_run_ids any_ with is_null_ = True"
-            )
-        return values
 
     def as_sql_filter(self):
         if self.any_ is not None:
@@ -263,7 +245,7 @@ class FlowRunFilterParentTaskRunIds(PrefectBaseModel):
             return orm.FlowRun.parent_task_run_id == None
 
 
-class FlowRunFilter(PrefectBaseModel):
+class FlowRunFilter(PrefectFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
     ids: Optional[FlowRunFilterIds]
@@ -301,14 +283,14 @@ class FlowRunFilter(PrefectBaseModel):
         return sa.and_(*filters) if filters else sa.and_(True)
 
 
-class TaskRunFilterIds(PrefectBaseModel):
+class TaskRunFilterIds(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of task run ids to include")
 
     def as_sql_filter(self):
         return orm.TaskRun.id.in_(self.any_)
 
 
-class TaskRunFilterTags(PrefectBaseModel):
+class TaskRunFilterTags(PrefectFilterBaseModel):
     all_: List[str] = Field(
         None,
         example=["tag-1", "tag-2"],
@@ -318,21 +300,14 @@ class TaskRunFilterTags(PrefectBaseModel):
         False, description="If true, only include task runs without tags"
     )
 
-    @root_validator
-    def check_all_and_is_null_are_not_both_supplied(cls, values):
-        if values.get("all_") is not None and values.get("is_null_"):
-            raise ValueError("Cannot provide tags all_ with is_null_ = True")
-        return values
-
     def as_sql_filter(self):
         if self.all_ is not None:
             return json_has_all_keys(orm.TaskRun.tags, self.all_)
         elif self.is_null_:
             return orm.TaskRun.tags == []
-        raise ValueError("No sql filter available. all_ and is_null_ are not set")
 
 
-class TaskRunFilterStateTypes(PrefectBaseModel):
+class TaskRunFilterStateTypes(PrefectFilterBaseModel):
     any_: List[schemas.states.StateType] = Field(
         None, description="A list of task run state types to include"
     )
@@ -341,20 +316,13 @@ class TaskRunFilterStateTypes(PrefectBaseModel):
         return orm.TaskRun.state_type.in_(self.any_)
 
 
-class TaskRunFilterStartTime(PrefectBaseModel):
+class TaskRunFilterStartTime(PrefectFilterBaseModel):
     before_: datetime.datetime = Field(
         None, description="Only include task runs starting at or before this time"
     )
     after_: datetime.datetime = Field(
         None, description="Only include task runs starting at or after this time"
     )
-
-    @root_validator
-    def test_before_and_after_are_not_mutually_exclusive(cls, values):
-        if values.get("before_") is not None and values.get("after_") is not None:
-            if values.get("before_") <= values.get("after_"):
-                raise ValueError("start_time before_ must be greater than after_")
-        return values
 
     def as_sql_filter(self):
         if self.before_ and self.after_:
@@ -363,10 +331,9 @@ class TaskRunFilterStartTime(PrefectBaseModel):
             return orm.TaskRun.start_time <= self.before_
         elif self.after_:
             return orm.TaskRun.start_time >= self.after_
-        raise ValueError("Must specify before or after criteria for start_time")
 
 
-class TaskRunFilter(PrefectBaseModel):
+class TaskRunFilter(PrefectFilterBaseModel):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
     ids: Optional[TaskRunFilterIds]
