@@ -17,7 +17,7 @@ class SqlServerExecute(Task):
         - driver (str, optional): driver used to communicate with SQL Server database
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder
-            is query string
+            in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -59,7 +59,7 @@ class SqlServerExecute(Task):
         Args:
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using
-                placeholder is query string
+                placeholder in query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
@@ -113,7 +113,7 @@ class SqlServerExecuteMany(Task):
         - driver (str, optional): driver used to communicate with SQL Server database
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder
-            is query string
+            in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -224,7 +224,7 @@ class SqlServerFetch(Task):
                 to fetch, defaults to 10
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder
-            is query string
+            in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -276,7 +276,7 @@ class SqlServerFetch(Task):
                 to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using
-                placeholder is query string
+                placeholder in query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
