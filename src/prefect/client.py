@@ -225,7 +225,7 @@ class OrionClient:
             flow_version=flow.version,
             parameters=parameters,
             context=context,
-            tags=list(tags),
+            tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state,
         )
