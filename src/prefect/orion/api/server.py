@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from prefect.orion import api
 from prefect.orion.schemas import schedules
 from prefect.orion import services
+from prefect import settings
 from prefect.utilities.logging import get_logger
 
 app = FastAPI(title="Prefect Orion", version="alpha")
@@ -44,25 +45,30 @@ def echo(x: str):
 
 @app.on_event("startup")
 async def start_services():
-    loop = asyncio.get_running_loop()
-    service_instances = [services.agent.Agent(), services.scheduler.Scheduler()]
-    app.state.service_tasks = [
-        loop.create_task(service.start(), name=service.name)
-        for service in service_instances
-    ]
+    if settings.orion.services.run_in_app:
+        loop = asyncio.get_running_loop()
+        service_instances = [services.agent.Agent(), services.scheduler.Scheduler()]
+        app.state.service_tasks = [
+            loop.create_task(service.start(), name=service.name)
+            for service in service_instances
+        ]
 
-    for service, task in zip(service_instances, app.state.service_tasks):
-        logger.info(f"Started service {service.name}")
-        task.add_done_callback(partial(on_service_exit, service))
-
-    app.state.service_tasks = None
+        for service, task in zip(service_instances, app.state.service_tasks):
+            logger.info(f"Started service {service.name}")
+            task.add_done_callback(partial(on_service_exit, service))
+    else:
+        logger.info(
+            "In-app services have been disabled and will need to be run separately."
+        )
+        app.state.service_tasks = None
 
 
 @app.on_event("shutdown")
-async def shutdown_services():
+async def wait_for_service_shutdown():
     if app.state.service_tasks:
         for task in app.state.service_tasks:
             try:
+                task.cancel()
                 await task.result()
             except Exception as exc:
                 # `warn_on_on_service_failure` should be handled by the `done_callback`
