@@ -9,9 +9,7 @@
         class="node correct-text"
         :class="[item.state.toLowerCase() + '-bg']"
         :style="item.style"
-      >
-        {{ item.state }}
-      </div>
+      />
     </div>
   </div>
 </template>
@@ -102,7 +100,7 @@ class Props {
 export default class Timeline extends mixins(D3Base).with(Props) {
   computedItems: Item[] = []
   intervalHeight: number = 24
-  intervalWidth: number = 480
+  intervalWidth: number = 125
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
@@ -209,12 +207,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.computedItems = [...this.sortedItems].map((item: Item) => {
       const start = new Date(item.start_time)
       const end = new Date(item.end_time)
-      console.log(start, end, this.xScale(end) - this.xScale(start) + 'px')
       return {
         ...item,
         style: {
-          top: '24px',
+          height: 8 + 'px',
           left: this.xScale(start) + 'px',
+          top: '24px',
+          transform: `translate(0, ${8}px)`,
           width: this.xScale(end) - this.xScale(start) + 'px'
         }
       }
