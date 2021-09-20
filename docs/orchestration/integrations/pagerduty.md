@@ -16,7 +16,7 @@ to be actioned as a typical PagerDuty alert.
 
 ## Requirements
 
-***The user can create or delete an action with the User level role***
+The user can create or delete an action with the User level role.
 
 ## Support
 
