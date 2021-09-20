@@ -1,4 +1,3 @@
-
 # PagerDuty + Prefect
 
 ## Integration Benefits
