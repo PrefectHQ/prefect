@@ -43,7 +43,7 @@ class PrefectFuture(Generic[R]):
         self.task_run_id = task_run_id
         self.run_id = self.task_run_id or self.flow_run_id
         self._client = client
-        self._final_state: State[R] = _final_state
+        self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
 
