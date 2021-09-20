@@ -73,6 +73,9 @@ class ServicesSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_SERVICES_"
         frozen = True
 
+    # run in app
+    run_in_app: bool = False
+
     # run scheduler every 60 seconds
     scheduler_loop_seconds: float = 60
     # batch deployments in groups of 100
