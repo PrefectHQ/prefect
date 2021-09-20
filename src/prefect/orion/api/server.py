@@ -54,7 +54,7 @@ async def start_services():
         ]
 
         for service, task in zip(service_instances, app.state.service_tasks):
-            logger.info(f"Started service {service.name}")
+            logger.info(f"{service.name} service scheduled to start in-app")
             task.add_done_callback(partial(on_service_exit, service))
     else:
         logger.info(
@@ -83,6 +83,6 @@ def on_service_exit(service, task):
         # Retrieving the result will raise the exception
         task.result()
     except asyncio.CancelledError:
-        logger.info(f"Service {service.name} stopped!")
+        logger.info(f"{service.name} service stopped!")
     except Exception:
-        logger.error(f"Service {service.name} failed!", exc_info=True)
+        logger.error(f"{service.name} service failed!", exc_info=True)
