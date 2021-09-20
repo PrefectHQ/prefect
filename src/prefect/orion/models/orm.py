@@ -186,11 +186,12 @@ class RunMixin:
         )
 
     @hybrid_property
-    def lateness_estimate(self) -> datetime.timedelta:
-        """Lateness is computed as the difference between the actual start time
-        and expected start time. To give up-to-date estimates, we estimate
-        lateness for any runs that don't have a start time and are not in a final state and
-        were expected to start already."""
+    def expected_start_time_delta_estimate(self) -> datetime.timedelta:
+        """The delta to the expected start time (or "lateness") is computed as
+        the difference between the actual start time and expected start time. To
+        give up-to-date estimates, we estimate lateness for any runs that don't
+        have a start time and are not in a final state and were expected to
+        start already."""
         if self.start_time and self.start_time > self.expected_start_time:
             return (self.start_time - self.expected_start_time).as_interval()
         elif (
@@ -203,8 +204,8 @@ class RunMixin:
         else:
             return datetime.timedelta(0)
 
-    @lateness_estimate.expression
-    def lateness_estimate(cls):
+    @expected_start_time_delta_estimate.expression
+    def expected_start_time_delta_estimate(cls):
         return sa.case(
             (
                 cls.start_time > cls.expected_start_time,
