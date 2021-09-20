@@ -289,7 +289,8 @@ async def test_update_subflow_parent_task(
         ),
     )
 
-    ctx.run.parent_task_run_id = parent_task_run.id
+    run = await ctx.orm_run()
+    run.parent_task_run_id = parent_task_run.id
 
     async with contextlib.AsyncExitStack() as stack:
         for rule in update_subflows_policy:

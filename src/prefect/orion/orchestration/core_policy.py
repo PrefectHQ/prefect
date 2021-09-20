@@ -156,7 +156,7 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        parent_task_run_id = context.run.parent_task_run_id
+        parent_task_run_id = (await context.orm_run()).parent_task_run_id
         columns = {"type", "timestamp", "name", "message", "state_details", "data"}
         if parent_task_run_id is not None and validated_state is not None:
             flow_state_data = validated_state.dict(shallow=True)

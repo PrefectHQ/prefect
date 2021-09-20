@@ -41,7 +41,6 @@ class OrchestrationContext(PrefectBaseModel):
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
     run: Optional[Union[core.TaskRun, core.FlowRun]]
-    run_type: Optional[Literal["task_run", "flow_run"]]
     task_run_id: Optional[UUID]
     flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
@@ -73,7 +72,6 @@ class OrchestrationContext(PrefectBaseModel):
         safe_copy.validated_state = (
             self.validated_state.copy() if self.validated_state else None
         )
-        safe_copy.run = self.run.copy()
         return safe_copy
 
     def entry_context(self):
