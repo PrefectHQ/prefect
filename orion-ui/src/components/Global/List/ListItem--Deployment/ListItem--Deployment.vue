@@ -1,27 +1,113 @@
 <template>
-  <list-item>
-    <div>
-      <i class="item--icon pi pi-deployment pi-2x" />
+  <list-item class="list-item--flow d-flex align-start justify-start">
+    <i class="item--icon pi pi-map-pin-line text--grey-40 align-self-start" />
+    <div
+      class="
+        item--title
+        ml-2
+        d-flex
+        flex-column
+        justify-center
+        align-self-start
+      "
+    >
+      <h2>
+        {{ deployment.name }}
+      </h2>
 
-      <div>
-        <div class="item--title subheader">
-          {{ deployment.name }}
-        </div>
-        <Tag
-          v-for="tag in deployment.tags"
+      <div
+        class="
+          tag-container
+          font-weight-semibold
+          nowrap
+          caption
+          d-flex
+          align-bottom
+        "
+      >
+        <span class="mr-2 text-truncate">
+          <span class="text--grey-40">Schedule: </span>
+          <span class="text--grey-80"> Every {{ schedule }}</span>
+        </span>
+
+        <span class="mr-2 text-truncate">
+          <span class="text--grey-40">Location: </span>
+          <span class="text--grey-80">{{ location }}</span>
+        </span>
+
+        <!-- Hiding these for now since they're not in the design but I think we'll need them -->
+        <!-- <Tag
+          v-for="tag in tags"
           :key="tag"
           color="secondary-pressed"
-          class="item--tags mr-1"
-          outlined
+          class="font--primary caption mr-1"
+          icon="pi-label"
+          flat
         >
           {{ tag }}
-        </Tag>
+        </Tag> -->
       </div>
     </div>
 
-    <Button class="ml-auto mr-2" color="outlined">View Parameters</Button>
-    <Button color="outlined">Quick Run</Button>
+    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+      <Button outlined class="mr-1" @click="parametersDrawerActive = true">
+        View Parameters
+      </Button>
+      <Button outlined>Quick Run</Button>
+    </div>
   </list-item>
+
+  <drawer v-model="parametersDrawerActive" show-overlay>
+    <template #title>{{ deployment.name }}</template>
+    <h3 class="font-weight-bold">Parameters</h3>
+    <div>These are the inputs that are passed to runs of this Deployment.</div>
+
+    <hr class="mt-2 parameters-hr align-self-stretch" />
+
+    <Input v-model="search" placeholder="Search...">
+      <template #prepend>
+        <i class="pi pi-search-line"></i>
+      </template>
+    </Input>
+
+    <div class="mt-2 font--secondary">
+      {{ filteredParameters.length }} result{{
+        filteredParameters.length !== 1 ? 's' : ''
+      }}
+    </div>
+
+    <hr class="mt-2 parameters-hr" />
+
+    <div class="parameters-container pr-2 align-self-stretch">
+      <div v-for="(parameter, i) in filteredParameters" :key="i">
+        <div class="d-flex align-center justify-space-between">
+          <div class="caption font-weight-bold font--secondary">
+            {{ parameter.name }}
+          </div>
+          <span
+            class="
+              parameter-type
+              font--secondary
+              caption-small
+              px-1
+              text--white
+            "
+          >
+            {{ parameter.type }}
+          </span>
+        </div>
+
+        <p class="font--secondary caption">
+          {{ parameter.parameter }}
+        </p>
+
+        <hr
+          v-if="i !== filteredParameters.length - 1"
+          class="mb-2 parameters-hr"
+        />
+      </div>
+    </div>
+  </drawer>
 </template>
 
 <script lang="ts">
@@ -32,10 +118,70 @@ class Props {
   deployment = prop<Deployment>({ required: true })
 }
 
-@Options({})
-export default class ListItemDeployment extends Vue.with(Props) {}
+const secondsToString = (s: number) => {
+  const _y = 31536000,
+    _d = 86400,
+    _h = 3600,
+    _m = 60
+  const years = Math.floor(s / _y)
+  const days = Math.floor((s % _y) / _d)
+  const hours = Math.floor(((s % _y) % _d) / _h)
+  const minutes = Math.floor((((s % _y) % _d) % _h) / _m)
+  const seconds = (((s % _y) % _d) % _h) % _m
+
+  console.log(years, days, hours, minutes, seconds)
+  return (
+    (years
+      ? (years == 1 ? '' : years) + ` year${years !== 1 ? 's' : ''} `
+      : '') +
+    (days ? (days == 1 ? '' : days) + ` day${days !== 1 ? 's' : ''} ` : '') +
+    (hours
+      ? (hours == 1 ? '' : hours) + ` hour${hours !== 1 ? 's' : ''} `
+      : '') +
+    (minutes
+      ? (minutes == 1 ? '' : minutes) + ` minute${minutes !== 1 ? 's' : ''} `
+      : '') +
+    (seconds
+      ? (seconds == 1 ? '' : seconds) + ` second${seconds !== 1 ? 's' : ''} `
+      : '')
+  )
+}
+
+@Options({
+  watch: {
+    parametersDrawerActive() {
+      this.search = ''
+    }
+  }
+})
+export default class ListItemDeployment extends Vue.with(Props) {
+  parametersDrawerActive: boolean = false
+  search: string = ''
+
+  get location(): string {
+    return this.deployment.location
+  }
+
+  get parameters(): { [key: string]: any }[] {
+    return this.deployment.parameters
+  }
+
+  get schedule(): any {
+    return secondsToString(this.deployment.schedule)
+  }
+
+  get tags(): string[] {
+    return this.deployment.tags
+  }
+
+  get filteredParameters(): { [key: string]: any }[] {
+    return this.parameters.filter(
+      (p) => p.name.includes(this.search) || p.type.includes(this.search)
+    )
+  }
+}
 </script>
 
 <style lang="scss" scoped>
-// @use '@/styles/components/list--item.scss';
+@use '@/styles/components/list-item--deployment.scss';
 </style>
