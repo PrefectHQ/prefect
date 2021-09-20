@@ -79,20 +79,28 @@ class Props {
   backgroundColor = prop<String>({ required: false, default: null })
   items = prop<Bucket[]>({ required: true })
   showAxis = prop<Boolean>({ required: false, default: false, type: Boolean })
+  padding = prop<{
+    top: Number
+    bottom: Number
+    middle: Number
+    left: Number
+    right: Number
+  }>({
+    required: false,
+    default: {
+      top: 12,
+      bottom: 12,
+      middle: 12,
+      left: 16,
+      right: 16
+    }
+  })
 }
 
 @Options({})
 export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
-
-  padding = {
-    top: 12,
-    bottom: 12,
-    middle: 12,
-    left: 16,
-    right: 16
-  }
 
   barSelection: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
@@ -364,6 +372,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 }
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/run-history--chart.scss';
 </style>

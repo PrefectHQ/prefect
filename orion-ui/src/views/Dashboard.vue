@@ -58,51 +58,57 @@
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
-      <Tab href="flows">
+      <Tab href="flows" class="subheader">
         <i class="pi pi-flow pi-lg mr-1" />
         Flows
-        <span class="result-badge" :class="{ active: resultsTab == 'flows' }">
-          {{ flowList.length }}
+        <span
+          class="result-badge caption ml-1"
+          :class="{ active: resultsTab == 'flows' }"
+        >
+          {{ datasets['flows'].length }}
         </span>
       </Tab>
-      <Tab href="deployments">
-        <i class="pi pi-deployment pi-lg mr-1" />
+      <Tab href="deployments" class="subheader">
+        <i class="pi pi-map-pin-line pi-lg mr-1" />
         Deployments
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ deploymentList.length }}
+          {{ datasets['deployments'].length }}
         </span>
       </Tab>
-      <Tab href="flow-runs">
+      <Tab href="flow-runs" class="subheader">
         <i class="pi pi-flow-run pi-lg mr-1" />
         Flow Runs
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow-runs' }"
         >
-          {{ flowRunList.length }}
+          {{ datasets['flow-runs'].length }}
         </span>
       </Tab>
-      <Tab href="task-runs">
-        <i class="pi pi-task-run pi-lg mr-1" />
+      <Tab href="task-runs" class="subheader">
+        <i class="pi pi-task pi-lg mr-1" />
         Task Runs
         <span
-          class="result-badge"
+          class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task-runs' }"
         >
-          {{ taskRunList.length }}
+          {{ datasets['task-runs'].length }}
         </span>
       </Tab>
     </Tabs>
 
+    <div class="font--secondary caption my-2">
+      {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+    </div>
+
     <transition name="fade" mode="out-in">
       <div v-if="resultsTab == 'flows'">
-        <div class="caption my-2">Flows</div>
         <list>
           <flow-list-item
-            v-for="flow in flowList"
+            v-for="flow in datasets['flows']"
             :key="flow.id"
             :flow="flow"
           />
@@ -110,20 +116,18 @@
       </div>
 
       <div v-else-if="resultsTab == 'deployments'">
-        <div class="caption my-2">Deployments</div>
         <list>
           <deployment-list-item
-            v-for="deployment in deploymentList"
+            v-for="deployment in datasets['deployments']"
             :key="deployment.id"
             :deployment="deployment"
           />
         </list>
       </div>
       <div v-else-if="resultsTab == 'flow-runs'">
-        <div class="caption my-2">Flow Runs</div>
         <list>
           <flow-run-list-item
-            v-for="run in flowRunList"
+            v-for="run in datasets['flow-runs']"
             :key="run.id"
             :run="run"
           />
@@ -131,10 +135,9 @@
       </div>
 
       <div v-else-if="resultsTab == 'task-runs'">
-        <div class="caption my-2">Task Runs</div>
         <list>
           <task-run-list-item
-            v-for="run in taskRunList"
+            v-for="run in datasets['task-runs']"
             :key="run.id"
             :run="run"
           />
@@ -174,10 +177,12 @@ export default class Dashboard extends Vue {
   run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
   run_duration_items: Item[] = duration_dataset_1.slice(0, 10)
 
-  flowList: Flow[] = flowList
-  deploymentList: Deployment[] = deploymentList
-  flowRunList: FlowRun[] = flowRunList
-  taskRunList: TaskRun[] = taskRunList
+  datasets: { [key: string]: Flow[] | Deployment[] | FlowRun[] | TaskRun[] } = {
+    flows: flowList,
+    deployments: deploymentList,
+    'flow-runs': flowRunList,
+    'task-runs': taskRunList
+  }
 
   premadeFilters: { label: string; count: number }[] = [
     { label: 'Failed Runs', count: 15 },
@@ -185,7 +190,11 @@ export default class Dashboard extends Vue {
     { label: 'Upcoming Runs', count: 75 }
   ]
 
-  resultsTab: string = 'flows'
+  resultsTab: string = 'deployments'
+
+  get resultsCount(): number {
+    return this.datasets[this.resultsTab].length
+  }
 
   sayHello(): void {
     alert('hello')
@@ -194,100 +203,5 @@ export default class Dashboard extends Vue {
 </script>
 
 <style lang="scss" scoped>
-.result-badge {
-  border-radius: 16px;
-  padding: 4px 16px;
-  transition: 150ms all;
-
-  &.active {
-    background-color: $primary;
-    color: $white;
-  }
-}
-
-.filter-card-button {
-  min-width: 300px;
-  width: 100%;
-}
-
-.filter-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-gap: 16px;
-}
-
-.chart-card {
-  background-color: $white;
-  box-shadow: $box-shadow-sm;
-  border-radius: 4px;
-  height: 250px;
-
-  display: flex;
-  flex-direction: column;
-}
-
-.chart-section {
-  display: grid;
-  grid-template-areas:
-    'history history duration'
-    'history history lateness';
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 117px);
-  column-gap: 16px;
-  row-gap: 16px;
-
-  .run-history,
-  .run-lateness,
-  .run-duration {
-    height: 100%;
-  }
-
-  .chart {
-    height: 117px;
-    overflow: hidden;
-  }
-
-  .run-history {
-    grid-area: history;
-  }
-
-  .run-lateness {
-    grid-area: lateness;
-  }
-
-  .run-duration {
-    grid-area: duration;
-  }
-}
-
-@media (max-width: 1000px) {
-  .chart-section {
-    grid-template-areas:
-      'history history'
-      'duration lateness';
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: 250px 117px;
-  }
-}
-
-@media (max-width: 640px) {
-  .chart-section {
-    grid-template-areas:
-      'history'
-      'duration'
-      'lateness';
-    grid-template-columns: repeat(1, 1fr);
-    grid-template-rows: 250px 117px 117px;
-  }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.5s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+@use '@/styles/views/dashboard.scss';
 </style>

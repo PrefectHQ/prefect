@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import Field
 
 from prefect.orion import schemas
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
