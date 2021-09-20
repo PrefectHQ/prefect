@@ -29,7 +29,7 @@ class Azure(Storage):
 
     Args:
         - container (str): the name of the Azure Blob Container to store the Flow
-        - connection_string_secret_name (str, optional): the name of a Prefect secret
+        - connection_string_secret (str, optional): the name of a Prefect secret
             that contains an Azure connection string for communicating with
             Blob storage. If not provided the value set in the environment as
             `AZURE_STORAGE_CONNECTION_STRING` will be used
@@ -43,17 +43,17 @@ class Azure(Storage):
     def __init__(
         self,
         container: str,
-        connection_string_secret_name: str = None,
+        connection_string_secret: str = None,
         blob_name: str = None,
         stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
         self.container = container
-        self.connection_string_secret_name = connection_string_secret_name
+        self.connection_string_secret = connection_string_secret
         self.blob_name = blob_name
 
         result = AzureResult(
-            connection_string_secret=self.connection_string_secret_name,
+            connection_string_secret=self.connection_string_secret,
             container=container,
         )
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
@@ -154,8 +154,8 @@ class Azure(Storage):
 
     @property
     def connection_string(self):  # type: ignore
-        if self.connection_string_secret_name is not None:
-            return Secret(self.connection_string_secret_name).get()
+        if self.connection_string_secret is not None:
+            return Secret(self.connection_string_secret).get()
         conn_string = prefect.context.get("secrets", {}).get(
             "AZURE_STORAGE_CONNECTION_STRING"
         ) or os.getenv("AZURE_STORAGE_CONNECTION_STRING")

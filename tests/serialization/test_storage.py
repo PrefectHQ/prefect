@@ -168,7 +168,7 @@ def test_azure_empty_serialize():
 def test_azure_full_serialize():
     azure = storage.Azure(
         container="container",
-        connection_string_secret_name="conn",
+        connection_string_secret="conn",
         blob_name="name",
         secrets=["foo"],
         labels=["bar", "baz"],
@@ -179,14 +179,14 @@ def test_azure_full_serialize():
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
-    assert serialized["connection_string_secret_name"] == "conn"
+    assert serialized["connection_string_secret"] == "conn"
     assert serialized["blob_name"] == "name"
     assert serialized["secrets"] == ["foo"]
 
 
 def test_azure_creds_not_serialized():
     azure = storage.Azure(
-        container="container", connection_string_secret_name="conn", blob_name="name"
+        container="container", connection_string_secret="conn", blob_name="name"
     )
     serialized = AzureSchema().dump(azure)
 
@@ -194,14 +194,14 @@ def test_azure_creds_not_serialized():
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
     assert serialized["blob_name"] == "name"
-    assert serialized["connection_string_secret_name"] == "conn"
+    assert serialized["connection_string_secret"] == "conn"
     assert serialized.get("connection_string") is None
 
 
 def test_azure_serialize_with_flows():
     azure = storage.Azure(
         container="container",
-        connection_string_secret_name="conn",
+        connection_string_secret="conn",
         blob_name="name",
         secrets=["foo"],
     )

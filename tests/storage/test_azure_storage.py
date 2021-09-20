@@ -17,14 +17,14 @@ def test_create_azure_storage():
 def test_create_azure_storage_init_args():
     storage = Azure(
         container="test",
-        connection_string_secret_name="conn",
+        connection_string_secret="conn",
         blob_name="name",
         secrets=["foo"],
     )
     assert storage
     assert storage.flows == dict()
     assert storage.container == "test"
-    assert storage.connection_string_secret_name == "conn"
+    assert storage.connection_string_secret == "conn"
     assert storage.blob_name == "name"
     assert storage.secrets == ["foo"]
 
@@ -39,8 +39,8 @@ def test_serialize_azure_storage():
 @pytest.mark.parametrize(
     "secret_name,secret_arg",
     [
-        ("SECRET_NAME", "conn_string_value"),
-        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value"),
+        ("SECRET_NAME", "conn_string_value_one"),
+        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
     ],
 )
 def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
@@ -49,7 +49,7 @@ def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
     monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
 
     with context(secrets={secret_name: secret_arg}):
-        storage = Azure(container="test", connection_string_secret_name=secret_name)
+        storage = Azure(container="test", connection_string_secret=secret_name)
         client = storage._azure_block_blob_service()
         azure_client = storage._azure_block_blob_service
         assert storage.connection_string == secret_arg
@@ -61,13 +61,13 @@ def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
 @pytest.mark.parametrize(
     "secret_name,secret_arg",
     [
-        ("SECRET_NAME", "conn_string_value"),
-        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value"),
+        ("SECRET_NAME", "conn_string_value_one"),
+        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
     ],
 )
 def test_connection_string_property(secret_name, secret_arg):
     with context(secrets={secret_name: secret_arg}):
-        storage = Azure(container="test", connection_string_secret_name=secret_name)
+        storage = Azure(container="test", connection_string_secret=secret_name)
         assert storage.connection_string == secret_arg
 
 
