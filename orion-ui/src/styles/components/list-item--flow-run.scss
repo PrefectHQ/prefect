@@ -1,0 +1,30 @@
+@use '@/styles/components/list-item.scss';
+
+// For a later date... maybe
+// .list-item--flow-run {
+//   border-left: 5px solid;
+//   padding-left: 11px;
+// }
+
+.chart-container {
+  height: 52px;
+  max-width: 175px;
+}
+
+.item--title {
+  margin-bottom: 2px;
+}
+
+.item--duration {
+  text-align: center;
+  width: 100px;
+}
+
+.run-state {
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.tag-container {
+  margin-top: 2px;
+}
