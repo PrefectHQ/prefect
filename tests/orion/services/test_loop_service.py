@@ -96,8 +96,7 @@ async def test_early_stop():
     asyncio.create_task(service.start())
 
     dt = pendulum.now("UTC")
-    service.stop()
-    await service.wait_for_stop()
+    await service.stop()
     dt2 = pendulum.now("UTC")
 
     assert service.should_stop is False

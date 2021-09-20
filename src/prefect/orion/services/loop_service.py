@@ -108,20 +108,15 @@ class LoopService:
 
         await self.shutdown()
 
-    def stop(self) -> None:
+    async def stop(self) -> None:
         """
-        Gracefully stops a running LoopService. It may take until the end of its sleep time
-        for it to exit.
+        Gracefully stops a running LoopService and blocks until the service
+        stops (indicated by resetting the `should_stop` flag).
         """
         self.should_stop = True
 
-    async def wait_for_stop(self) -> None:
-        """
-        An awaitable check for whether the service has stopped.
-        """
         while self.should_stop:
             await asyncio.sleep(0.1)
-        return
 
     async def run_once(self) -> None:
         """
