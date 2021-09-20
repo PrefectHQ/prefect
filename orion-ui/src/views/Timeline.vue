@@ -44,7 +44,7 @@ import { default as dataset7 } from '../util/schematics/61_cluster_nodes.json'
   components: { Timeline }
 })
 export default class TimelineView extends Vue {
-  selected: string = '3 Nodes: ETL'
+  selected: string = '15 Random Nodes'
 
   search: string = ''
   showOptions: boolean = false
