@@ -106,7 +106,7 @@ class LoggingSettings(BaseSettings):
 
 class Settings(BaseSettings):
     class Config:
-        env_prefix = "PREFECT_"
+        env_prefix = SharedSettings.__config__.env_prefix
         frozen = True
 
     # home
