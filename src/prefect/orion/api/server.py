@@ -71,7 +71,7 @@ async def wait_for_service_shutdown():
                 task.cancel()
                 await task.result()
             except Exception as exc:
-                # `warn_on_on_service_failure` should be handled by the `done_callback`
+                # `on_service_exit` should handle logging exceptions
                 pass
 
 
