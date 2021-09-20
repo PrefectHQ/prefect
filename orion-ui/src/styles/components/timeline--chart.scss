@@ -7,10 +7,24 @@
   position: relative;
   width: 100%;
 
+  .pan-button {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+
+    &.left {
+      left: 0;
+    }
+
+    &.right {
+      right: 0;
+    }
+  }
+
   svg.timeline-axis {
     background-color: $white;
     position: sticky;
-    height: 24px;
+    height: 38px;
     top: 0;
     pointer-events: none;
     z-index: 2;

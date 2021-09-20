@@ -3,6 +3,20 @@
     <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
     <svg :id="id" ref="chart" class="timeline-chart" />
 
+    <i
+      class="pan-button left pi pi-lg pi-arrow-left-s-line text--grey-40"
+      @click="panLeft"
+    />
+    <!-- <Button class="" :icon="true">
+    </Button>
+
+    <Button class="" :icon="true">
+    </Button> -->
+    <i
+      class="pan-button right pi pi-lg pi-arrow-right-s-line text--grey-40"
+      @click="panRight"
+    />
+
     <div class="node-container">
       <div
         v-for="(item, i) in computedItems"
@@ -37,8 +51,6 @@ interface Item {
     width: string
   }
 }
-
-const capR = 2
 
 const formatMillisecond = d3.timeFormat('.%L'),
   formatSecond = d3.timeFormat(':%S'),
@@ -360,6 +372,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         (selection: any) => selection.remove()
       )
   }
+
+  panLeft(): void {}
+
+  panRight(): void {}
 }
 </script>
 
