@@ -7,17 +7,18 @@ from prefect.orion.schemas import filters
 def test_filters_must_provide_at_least_one_operator():
     class MyNewFilter(filters.PrefectFilterBaseModel):
         foo_: int = None
-        bar_: int = None
+        bar_: bool = None
 
     with pytest.raises(
         ValueError,
         match="Prefect Filter must have at least one operator with arguments",
     ):
         MyNewFilter()
+
     # should not raise
     MyNewFilter(foo_=1)
-    MyNewFilter(bar_=1)
-    MyNewFilter(foo_=1, bar_=1)
+    MyNewFilter(bar_=False)
+    MyNewFilter(foo_=1, bar_=False)
 
 
 @pytest.mark.parametrize(

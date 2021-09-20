@@ -229,6 +229,13 @@ class TestReadTaskRuns:
             ),
         )
         assert {res.id for res in result} == {task_run_3.id}
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                tags=schemas.filters.TaskRunFilterTags(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {task_run_1.id, task_run_2.id}
 
     async def test_read_task_runs_filters_by_task_run_states_any(
         self, flow_run, session
