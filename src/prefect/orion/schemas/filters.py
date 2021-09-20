@@ -51,7 +51,16 @@ class PrefectFilterBaseModel(PrefectBaseModel):
         return values
 
     @root_validator
-    def test_before_and_after_are_not_mutually_exclusive(cls, values):
+    def check_any_and_is_not_any_are_not_both_supplied(cls, values):
+        """For filters with any_ and not_any_, don't allow both fields to be provided by default"""
+        if values.get("any_") is not None and values.get("not_any_"):
+            raise ValueError(
+                f"Cannot provide Prefect Filter {cls.__name__!r} any_ and not_any_"
+            )
+        return values
+
+    @root_validator
+    def check_before_and_after_are_not_mutually_exclusive(cls, values):
         """For filters with before_ and after_, make sure they are not mutally exclusive by default"""
         if values.get("before_") is not None and values.get("after_") is not None:
             if values.get("before_") <= values.get("after_"):
@@ -116,9 +125,13 @@ class FlowFilter(PrefectFilterBaseModel):
 
 class FlowRunFilterIds(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of flow run ids to include")
+    not_any_: List[UUID] = Field(None, description="A list of flow run ids to exclude")
 
     def as_sql_filter(self):
-        return orm.FlowRun.id.in_(self.any_)
+        if self.any_ is not None:
+            return orm.FlowRun.id.in_(self.any_)
+        elif self.not_any_ is not None:
+            return orm.FlowRun.id.not_in(self.not_any_)
 
 
 class FlowRunFilterTags(PrefectFilterBaseModel):
