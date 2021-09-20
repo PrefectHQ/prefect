@@ -7,6 +7,9 @@ export declare interface Flow {
 export declare interface Deployment {
   id: string
   name: string
+  location: string
+  schedule: any
+  parameters: { [key: string]: any }[]
   tags: string[]
 }
 
