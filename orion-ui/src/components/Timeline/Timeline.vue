@@ -130,7 +130,12 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   >
 
   get numberIntervals(): number {
-    return Math.ceil(this.totalSeconds / intervals[this.interval])
+    return Math.ceil(
+      Math.max(
+        this.totalSeconds / intervals[this.interval],
+        this.width / this.intervalWidth
+      )
+    )
   }
 
   get numberRows(): number {
@@ -163,6 +168,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get chartWidth(): number {
+    console.log(this.numberIntervals)
     return (
       Math.max(this.numberIntervals * this.intervalWidth, this.width) -
       this.paddingY
@@ -201,8 +207,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   update(): void {
-    this.updateChart()
     this.updateScales()
+    this.updateChart()
     this.updateGrid()
     this.updateNodes()
   }
