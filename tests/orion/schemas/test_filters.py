@@ -25,7 +25,7 @@ def test_filters_must_provide_at_least_one_operator():
     "Filter",
     [filters.FlowFilterTags, filters.FlowRunFilterTags, filters.TaskRunFilterTags],
 )
-def test_all_and_is_null__filter_validation_does_not_allow_all_and_is_null(Filter):
+def test_all_and_is_null_filter_validation_does_not_allow_all_and_is_null(Filter):
     with pytest.raises(
         ValueError,
         match=f"Cannot provide Prefect Filter {Filter.__name__!r} all_ with is_null_ = True",
@@ -43,6 +43,18 @@ def test_any_and_is_null_filter_validation_does_not_allow_any_and_is_null(Filter
         match=f"Cannot provide Prefect Filter {Filter.__name__!r} any_ with is_null_ = True",
     ):
         Filter(any_=[uuid4()], is_null_=True)
+
+
+@pytest.mark.parametrize(
+    "Filter",
+    [filters.FlowRunFilterIds],
+)
+def test_any_and_not_any_filter_validation_does_not_allow_any_and_not_any(Filter):
+    with pytest.raises(
+        ValueError,
+        match=f"Cannot provide Prefect Filter {Filter.__name__!r} any_ and not_any_",
+    ):
+        Filter(any_=[uuid4()], not_any_=[uuid4()])
 
 
 @pytest.mark.parametrize(
