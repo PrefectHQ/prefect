@@ -9,6 +9,7 @@
         class="node correct-text"
         :class="[item.state.toLowerCase() + '-bg']"
         :style="item.style"
+        tabindex="0"
       />
     </div>
   </div>

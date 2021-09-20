@@ -1,3 +1,5 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
 .chart-container {
   height: 100%;
   position: relative;
@@ -22,6 +24,13 @@
     .node {
       position: absolute;
       border-radius: 8px;
+
+      &:focus,
+      &:hover {
+        border: 2px solid $primary;
+        box-shadow: $box-shadow-md;
+        outline: none;
+      }
     }
   }
 }
