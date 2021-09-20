@@ -153,6 +153,10 @@ body {
         .#{$color-key}-fill {
           fill: $color !important;
         }
+
+        .#{$color-key}-border {
+          border-color: $color;
+        }
       }
     }
   }
