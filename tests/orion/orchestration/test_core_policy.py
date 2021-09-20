@@ -218,7 +218,7 @@ class TestRetryingRule:
         )
 
         orm_run = await ctx.orm_run()
-        run_settings = await ctx.run_settings
+        run_settings = await ctx.run_settings()
         orm_run.run_count = 2
         run_settings.max_retries = 2
 
@@ -246,7 +246,7 @@ class TestRetryingRule:
         )
 
         orm_run = await ctx.orm_run()
-        run_settings = await ctx.run_settings
+        run_settings = await ctx.run_settings()
         orm_run.run_count = 3
         run_settings.max_retries = 2
 

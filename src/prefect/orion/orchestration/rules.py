@@ -112,7 +112,6 @@ class TaskOrchestrationContext(OrchestrationContext):
             raise ValueError("Run not found.")
         return run
 
-    @property
     async def run_settings(self) -> Dict:
         return (await self.orm_run()).empirical_policy
 
