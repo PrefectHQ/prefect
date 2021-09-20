@@ -7,7 +7,7 @@ to avoid instantiating the nested settings class until runtime.
 from pathlib import Path
 from datetime import timedelta
 from pydantic import BaseSettings, Field, SecretStr
-from typing import Optional
+from typing import Optional, Any, Dict
 
 
 class PrefectSettings(BaseSettings):
@@ -116,3 +116,15 @@ class Settings(PrefectSettings):
 
 
 settings = Settings()
+
+
+class NotSetType:
+    def __eq__(self, o: object) -> bool:
+        return isinstance(o, NotSetType)
+
+
+NOTSET = NotSetType()
+
+
+def drop_unset(**kwargs: Any) -> Dict[str, Any]:
+    return {key: value for key, value in kwargs.items() if value != NOTSET}
