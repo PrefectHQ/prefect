@@ -1,11 +1,11 @@
 import datetime
-from typing import Union
+from typing import Optional, Union
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship, declarative_mixin
+from sqlalchemy.orm import declarative_mixin, relationship
 
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
@@ -14,6 +14,7 @@ from prefect.orion.utilities.database import (
     Base,
     Pydantic,
     Timestamp,
+    get_dialect,
     now,
 )
 from prefect.orion.utilities.functions import ParameterSchema
@@ -149,12 +150,57 @@ class RunMixin:
         default=datetime.timedelta(0),
         nullable=False,
     )
-    total_time = Column(
-        sa.Interval(),
-        server_default="0",
-        default=datetime.timedelta(0),
-        nullable=False,
-    )
+
+    @hybrid_property
+    def total_run_time_estimate(self):
+        """Total run time is incremented in the database whenever a RUNNING
+        state is exited. To give up-to-date estimates, we estimate incremental
+        run time for any runs currently in a RUNNING state."""
+        if self.state and self.state_type == states.StateType.RUNNING:
+            return self.total_run_time + (pendulum.now() - self.state.timestamp)
+        else:
+            return self.total_run_time
+
+    @total_run_time_estimate.expression
+    def total_run_time_estimate(cls):
+        return sa.case(
+            (
+                cls.state_type == states.StateType.RUNNING,
+                cls.total_run_time + (now() - cls.state.timestamp),
+            ),
+            else_=cls.total_run_time,
+        )
+
+    @hybrid_property
+    def lateness_estimate(self) -> datetime.timedelta:
+        """Lateness is computed as the difference between the actual start time
+        and expected start time. To give up-to-date estimates, we estimate
+        lateness for any runs that don't have a start time and are not in a final state and
+        were expected to start already."""
+        if self.start_time:
+            return (self.start_time - self.expected_start_time).as_interval()
+        elif (
+            self.expected_start_time
+            and self.expected_start_time < pendulum.now("UTC")
+            and not self.state_type in states.TERMINAL_STATES
+        ):
+            return (pendulum.now("UTC") - self.expected_start_time).as_interval()
+        else:
+            return datetime.timedelta(0)
+
+    @lateness_estimate.expression
+    def lateness_estimate(cls):
+        return sa.case(
+            (
+                sa.and_(
+                    cls.state_type.in_(states.TERMINAL_STATES),
+                    cls.start_time.is_(None),
+                    cls.expected_start_time < now(),
+                ),
+                now() - cls.expected_start_time,
+            ),
+            else_=cls.start_time - cls.expected_start_time,
+        )
 
 
 class FlowRun(Base, RunMixin):

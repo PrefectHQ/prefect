@@ -30,7 +30,11 @@ async def create_task_run(
     # if there's no dynamic key, create the task run
     if not task_run.dynamic_key:
         model = orm.TaskRun(
-            **task_run.dict(shallow=True, exclude={"state"}), state=None
+            **task_run.dict(
+                shallow=True,
+                exclude={"state", "total_run_time_estimate", "lateness_estimate"},
+            ),
+            state=None
         )
         session.add(model)
         await session.flush()

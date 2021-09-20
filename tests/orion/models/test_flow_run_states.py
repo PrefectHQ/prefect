@@ -31,6 +31,7 @@ class TestCreateFlowRunState:
 
         assert flow_run.start_time is None
         assert flow_run.run_count == 0
+        assert flow_run.total_run_time == datetime.timedelta(0)
 
         dt = pendulum.now("UTC")
         frs2 = await models.flow_run_states.orchestrate_flow_run_state(
@@ -43,6 +44,7 @@ class TestCreateFlowRunState:
         assert flow_run.start_time == dt
         assert flow_run.run_count == 1
         assert flow_run.total_run_time == datetime.timedelta(0)
+        assert flow_run.total_run_time_estimate > datetime.timedelta(0)
 
         dt2 = pendulum.now("utc")
         frs3 = await models.flow_run_states.orchestrate_flow_run_state(
@@ -52,11 +54,12 @@ class TestCreateFlowRunState:
             # running / running isn't usually allowed
             apply_orchestration_rules=False,
         )
+        await session.commit()
         await session.refresh(flow_run)
-
         assert flow_run.start_time == dt
         assert flow_run.run_count == 2
         assert flow_run.total_run_time == (dt2 - dt)
+        assert flow_run.total_run_time_estimate > (dt2 - dt)
 
 
 class TestReadFlowRunState:
