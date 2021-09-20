@@ -351,7 +351,7 @@ class TestTaskRun:
 
 class TestTotalRunTimeEstimate:
     async def test_flow_run_total_run_time_estimate_matches_total_run_time(
-        self, session, flow, flow_run, flow_run_states
+        self, session, flow
     ):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
@@ -413,7 +413,6 @@ class TestTotalRunTimeEstimate:
         result = await session.execute(
             sa.select(orm.FlowRun.total_run_time_estimate).filter_by(id=fr.id)
         )
-
         assert (
             datetime.timedelta(seconds=59)
             < result.scalar()

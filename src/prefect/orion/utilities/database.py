@@ -354,6 +354,81 @@ def current_timestamp(element, compiler, **kwargs):
     return "CURRENT_TIMESTAMP"
 
 
+class date_add(FunctionElement):
+    """
+    Platform-independent way to add a date and an interval.
+    """
+
+    type = Timestamp()
+    name = "date_add"
+
+    def __init__(self, dt, interval):
+        self.dt = dt
+        self.interval = interval
+        super().__init__()
+
+
+@compiles(date_add)
+def date_add_generic(element, compiler, **kwargs):
+    return compiler.process(element.dt + element.interval)
+
+
+@compiles(date_add, "sqlite")
+def date_add_sqlite(element, compiler, **kwargs):
+    """
+    In sqlite, we represent intervals as datetimes after the epoch, following
+    SQLAlchemy convention for the Interval() type.
+    """
+    return compiler.process(
+        # convert to date
+        sa.func.strftime(
+            "%Y-%m-%d %H:%M:%f000",
+            sa.func.julianday(element.dt)
+            + (
+                sa.func.julianday(element.interval) - 2440587.5
+            ),  # the epoch in julian days
+        )
+    )
+
+
+class interval_add(FunctionElement):
+    """
+    Platform-independent way to add two intervals
+    """
+
+    type = sa.Interval()
+    name = "interval_add"
+
+    def __init__(self, i1, i2):
+        self.i1 = i1
+        self.i2 = i2
+        super().__init__()
+
+
+@compiles(interval_add)
+def interval_add_generic(element, compiler, **kwargs):
+    return compiler.process(element.i1 + element.i2)
+
+
+@compiles(interval_add, "sqlite")
+def interval_add_sqlite(element, compiler, **kwargs):
+    """
+    In sqlite, we represent intervals as datetimes after the epoch, following
+    SQLAlchemy convention for the Interval() type.
+
+    Therefore the sum of two intervals is
+
+    (i1 - epoch) + (i2 - epoch) = i1 + i2 - epoch
+    """
+    return compiler.process(
+        # convert to date
+        sa.func.strftime(
+            "%Y-%m-%d %H:%M:%f000",
+            sa.func.julianday(element.i1) + sa.func.julianday(element.i2) - 2440587.5,
+        )
+    )
+
+
 class date_diff(FunctionElement):
     """
     Platform-independent difference of dates. Computes d1 - d2.
@@ -380,11 +455,12 @@ def date_diff_sqlite(element, compiler, **kwargs):
     SQLAlchemy convention for the Interval() type.
     """
     return compiler.process(
+        # convert to date
         sa.func.strftime(
             "%Y-%m-%d %H:%M:%f000",
             # the epoch in julian days
             2440587.5
-            # the date difference in julian days
+            # plus the date difference in julian days
             + sa.func.julianday(element.d1) - sa.func.julianday(element.d2),
         )
     )
