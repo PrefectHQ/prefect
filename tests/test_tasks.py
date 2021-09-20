@@ -185,7 +185,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.result()
+            return future.run_id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = await get_result(flow_state)
@@ -231,7 +231,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.result()
+            return future.run_id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = await get_result(flow_state)
@@ -260,7 +260,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(1).result()
+            return foo(1).wait(), foo(1).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -275,7 +275,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result()
+            return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -292,7 +292,7 @@ class TestTaskCaching:
         def bar():
             foo(1)
             calls = repeat(foo(1), 5)
-            return [call.result() for call in calls]
+            return [call.wait() for call in calls]
 
         flow_state = bar()
         states = get_result(flow_state)
@@ -305,7 +305,7 @@ class TestTaskCaching:
 
         @flow
         def bar(x):
-            return foo(x).result()
+            return foo(x).wait()
 
         first_state = bar(1)
         second_state = bar(2)
@@ -326,7 +326,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(1).result()
+            return foo(1).wait(), foo(1).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -343,7 +343,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo("something").result(), foo("different").result()
+            return foo("something").wait(), foo("different").wait()
 
         first_state, second_state = get_result(bar())
         assert first_state.name == "Completed"
@@ -366,9 +366,9 @@ class TestTaskCaching:
         @flow
         def bar():
             return (
-                foo(1, 2, 3).result(),
-                foo(1, b=2).result(),
-                foo(c=3, a=1, b=2).result(),
+                foo(1, 2, 3).wait(),
+                foo(1, b=2).wait(),
+                foo(c=3, a=1, b=2).wait(),
             )
 
         flow_state = bar()
@@ -390,7 +390,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result()
+            return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -408,7 +408,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result()
+            return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -425,7 +425,7 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result(), foo(1).result()
+            return foo(1).wait(), foo(2).wait(), foo(1).wait()
 
         flow_state = bar()
         first_state, second_state, third_state = get_result(flow_state)
@@ -442,7 +442,7 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar(x):
-            return foo(x).result()
+            return foo(x).wait()
 
         first_state = bar(1)
         second_state = bar(2)
