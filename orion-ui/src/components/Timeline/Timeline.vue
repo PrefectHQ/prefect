@@ -108,13 +108,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
-  barSelection: SelectionType = null as unknown as d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    null
-  >
-
   gridSelection: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
     unknown,
@@ -140,19 +133,29 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   get numberRows(): number {
     return Math.ceil(
-      Math.max(this.items.length, this.height / this.intervalHeight)
+      Math.max(this.sortedItems.length, this.height / this.intervalHeight)
     )
   }
 
   get start(): Date {
     return new Date(
-      Math.min(...this.items.map((item) => new Date(item.start_time).getTime()))
+      new Date(
+        Math.min(
+          ...this.sortedItems.map((item) => new Date(item.start_time).getTime())
+        )
+      ).getTime() -
+        intervals[this.interval] * 1000
     )
   }
 
   get end(): Date {
     return new Date(
-      Math.max(...this.items.map((item) => new Date(item.end_time).getTime()))
+      new Date(
+        Math.max(
+          ...this.sortedItems.map((item) => new Date(item.end_time).getTime())
+        )
+      ).getTime() +
+        intervals[this.interval] * 1000
     )
   }
 
@@ -168,7 +171,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get chartWidth(): number {
-    console.log(this.numberIntervals)
     return (
       Math.max(this.numberIntervals * this.intervalWidth, this.width) -
       this.paddingY
@@ -176,15 +178,17 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get sortedItems(): Item[] {
-    return this.items.sort(
-      (a, b) =>
-        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
-    )
+    return this.items
+      .sort(
+        (a, b) =>
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      )
+      .filter((item: Item) => item.state !== 'PENDING' && item.start_time)
   }
 
   xAxis = (g: any) =>
     g
-      .style('transform', `translate(0,18px)`)
+      .style('transform', `translate(0,${this.intervalHeight}px)`)
       .call(
         d3
           .axisTop(this.xScale)
@@ -207,6 +211,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   update(): void {
+    console.log('items', this.sortedItems)
+    console.log('total seconds', this.totalSeconds)
+    console.log('chart height', this.chartHeight)
+    console.log('chart width', this.chartWidth)
+    console.log('intervals', this.numberIntervals)
+    console.log('rows', this.numberRows)
+    console.log('start', this.start)
+    console.log('end', this.end)
     this.updateScales()
     this.updateChart()
     this.updateGrid()
@@ -214,12 +226,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   updated(): void {
-    if (!this.svg || !this.barSelection) this.createChart()
+    if (!this.svg || !this.gridSelection) this.createChart()
   }
 
   updateScales(): void {
     // Generate x scale
-    this.xScale.domain([this.start, this.end]).range([0, this.chartWidth])
+    this.xScale
+      .domain([new Date(this.start), new Date(this.end)])
+      .range([this.intervalWidth, this.chartWidth - this.intervalWidth])
 
     this.xAxisGroup.call(this.xAxis)
   }
@@ -239,12 +253,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('width', '100%')
       .attr('height', '100%')
 
-    this.barSelection = this.svg
-      .append('g')
-      .style('transform', `translate(0, 24px)`)
     this.gridSelection = this.svg
       .append('g')
-      .style('transform', `translate(0, 24px)`)
+      .style('transform', `translate(0, 36px)`)
 
     this.xAxisGroup = this.svg.append('g')
   }
@@ -265,8 +276,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         style: {
           height: 8 + 'px',
           left: this.xScale(start) + 'px',
-          top: i * this.intervalHeight + this.intervalHeight + 'px',
-          transform: `translate(0, ${8}px)`,
+          top: i * this.intervalHeight + 'px',
+          transform: `translate(0, ${this.intervalHeight + 18}px)`,
           width: this.xScale(end) - this.xScale(start) + 'px'
         }
       }
@@ -287,37 +298,21 @@ export default class Timeline extends mixins(D3Base).with(Props) {
             .attr('stroke', 'var(--blue-20)')
             .attr('x1', 0)
             .attr('x2', this.chartWidth)
-            .attr(
-              'y1',
-              (d: any, i: number) =>
-                i * this.intervalHeight + this.intervalHeight
-            )
-            .attr(
-              'y2',
-              (d: any, i: number) =>
-                i * this.intervalHeight + this.intervalHeight
-            ),
+            .attr('y1', (d: any, i: number) => i * this.intervalHeight)
+            .attr('y2', (d: any, i: number) => i * this.intervalHeight),
         (selection: any) =>
           selection
             .attr('x1', 0)
             .attr('x2', this.chartWidth)
-            .attr(
-              'y1',
-              (d: any, i: number) =>
-                i * this.intervalHeight + this.intervalHeight
-            )
-            .attr(
-              'y2',
-              (d: any, i: number) =>
-                i * this.intervalHeight + this.intervalHeight
-            ),
+            .attr('y1', (d: any, i: number) => i * this.intervalHeight)
+            .attr('y2', (d: any, i: number) => i * this.intervalHeight),
         (selection: any) => selection.remove()
       )
 
     /* @ts-ignore */
     this.gridSelection
       .selectAll('.grid-line.grid-y')
-      .data(Array.from({ length: this.numberIntervals }, (x, i) => i))
+      .data(this.xScale.ticks())
       .join(
         (selection: any) =>
           selection
@@ -325,26 +320,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
             .attr('id', (d: any, i: number) => `x-${i}`)
             .attr('class', 'grid-line grid-y')
             .attr('stroke', 'var(--blue-20)')
-            .attr(
-              'x1',
-              (d: any, i: number) => i * this.intervalWidth + this.intervalWidth
-            )
-            .attr(
-              'x2',
-              (d: any, i: number) => i * this.intervalWidth + this.intervalWidth
-            )
+            .attr('x1', (d: any, i: number) => this.xScale(d))
+            .attr('x2', (d: any, i: number) => this.xScale(d))
             .attr('y1', 0)
             .attr('y2', this.chartHeight),
         (selection: any) =>
           selection
-            .attr(
-              'x1',
-              (d: any, i: number) => i * this.intervalWidth + this.intervalWidth
-            )
-            .attr(
-              'x2',
-              (d: any, i: number) => i * this.intervalWidth + this.intervalWidth
-            )
+            .attr('x1', (d: any, i: number) => this.xScale(d))
+            .attr('x2', (d: any, i: number) => this.xScale(d))
             .attr('y1', 0)
             .attr('y2', this.chartHeight),
         (selection: any) => selection.remove()
@@ -364,11 +347,11 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     font-family: $font--secondary;
 
     &:first-of-type {
-      text-anchor: start;
+      //   text-anchor: start;
     }
 
     &:last-of-type {
-      text-anchor: end;
+      //   text-anchor: end;
     }
   }
 }
