@@ -12,7 +12,12 @@ from typing import Optional
 
 class PrefectSettings(BaseSettings):
     """An eagerly-instantiated class of "top-level" settings that can be shared
-    among other classes."""
+    among other classes.
+
+    PLEASE NOTE: unless a setting is likely to be truly global and shared among
+    other settings objects, please add new settings to the `Settings` class at
+    the bottom of this file.
+    """
 
     class Config:
         env_prefix = "PREFECT_"
