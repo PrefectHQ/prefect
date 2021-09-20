@@ -4,6 +4,7 @@ import warnings
 from typing import Any
 
 import cloudpickle
+import pydantic
 
 from prefect.orion.serializers import register_serializer
 from prefect.orion.schemas.data import DataDocument
@@ -21,6 +22,17 @@ class JSONSerializer:
     @staticmethod
     def loads(blob: bytes) -> Any:
         return json.loads(blob.decode())
+
+
+@register_serializer("text")
+class TextSerializer:
+    @staticmethod
+    def dumps(data: str) -> bytes:
+        return data.encode()
+
+    @staticmethod
+    def loads(blob: bytes) -> str:
+        return blob.decode()
 
 
 @register_serializer("cloudpickle")
@@ -55,7 +67,13 @@ async def resolve_datadoc(datadoc: DataDocument, client: OrionClient) -> Any:
     while isinstance(result, DataDocument):
         if result.encoding == "orion":
             inner_doc_bytes = await client.retrieve_data(result)
-            result = DataDocument.parse_raw(inner_doc_bytes)
+            try:
+                result = DataDocument.parse_raw(inner_doc_bytes)
+            except pydantic.ValidationError as exc:
+                raise ValueError(
+                    "Expected `orion` encoded document to contain another data "
+                    "document but it could not be parsed."
+                ) from exc
         else:
             result = result.decode()
     return result
