@@ -45,7 +45,7 @@ import { default as dataset8 } from '../util/schematics/25_nodes_time_corrected.
   components: { Timeline }
 })
 export default class TimelineView extends Vue {
-  selected: string = '3 Nodes: ETL'
+  selected: string = '25 Nodes'
 
   search: string = ''
   showOptions: boolean = false
