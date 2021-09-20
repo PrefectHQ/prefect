@@ -324,6 +324,7 @@ class now(FunctionElement):
     Platform-independent "now" generator
     """
 
+    type = Timestamp()
     name = "now"
 
 
@@ -351,6 +352,42 @@ def current_timestamp(element, compiler, **kwargs):
     Generates the current timestamp in standard SQL
     """
     return "CURRENT_TIMESTAMP"
+
+
+class date_diff(FunctionElement):
+    """
+    Platform-independent difference of dates. Computes d1 - d2.
+    """
+
+    type = sa.Interval()
+    name = "date_diff"
+
+    def __init__(self, d1, d2):
+        self.d1 = d1
+        self.d2 = d2
+        super().__init__()
+
+
+@compiles(date_diff)
+def date_diff_generic(element, compiler, **kwargs):
+    return compiler.process(element.d1 - element.d2)
+
+
+@compiles(date_diff, "sqlite")
+def date_diff_sqlite(element, compiler, **kwargs):
+    """
+    In sqlite, we represent intervals as datetimes after the epoch, following
+    SQLAlchemy convention for the Interval() type.
+    """
+    return compiler.process(
+        sa.func.strftime(
+            "%Y-%m-%d %H:%M:%f000",
+            # the epoch in julian days
+            2440587.5
+            # the date difference in julian days
+            + sa.func.julianday(element.d1) - sa.func.julianday(element.d2),
+        )
+    )
 
 
 class json_contains(FunctionElement):

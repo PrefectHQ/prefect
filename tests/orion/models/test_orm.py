@@ -351,7 +351,7 @@ class TestTaskRun:
 
 class TestTotalRunTimeEstimate:
     async def test_flow_run_total_run_time_estimate_matches_total_run_time(
-        self, session, flow
+        self, session, flow, flow_run, flow_run_states
     ):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
@@ -375,6 +375,14 @@ class TestTotalRunTimeEstimate:
         assert fr.total_run_time == datetime.timedelta(seconds=3)
         assert fr.total_run_time_estimate == datetime.timedelta(seconds=3)
 
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.total_run_time_estimate).filter_by(id=fr.id)
+        )
+
+        assert result.scalar() == pendulum.duration(seconds=3)
+
     async def test_flow_run_total_run_time_estimate_includes_current_run(
         self, session, flow
     ):
@@ -397,6 +405,18 @@ class TestTotalRunTimeEstimate:
         assert (
             datetime.timedelta(seconds=59)
             < fr.total_run_time_estimate
+            < datetime.timedelta(seconds=60)
+        )
+
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.total_run_time_estimate).filter_by(id=fr.id)
+        )
+
+        assert (
+            datetime.timedelta(seconds=59)
+            < result.scalar()
             < datetime.timedelta(seconds=60)
         )
 
@@ -427,6 +447,14 @@ class TestTotalRunTimeEstimate:
         assert tr.total_run_time == datetime.timedelta(seconds=3)
         assert tr.total_run_time_estimate == datetime.timedelta(seconds=3)
 
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.TaskRun.total_run_time_estimate).filter_by(id=tr.id)
+        )
+
+        assert result.scalar() == datetime.timedelta(seconds=3)
+
     async def test_task_run_total_run_time_estimate_includes_current_run(
         self, session, flow_run
     ):
@@ -454,6 +482,18 @@ class TestTotalRunTimeEstimate:
             < datetime.timedelta(seconds=60)
         )
 
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.TaskRun.total_run_time_estimate).filter_by(id=tr.id)
+        )
+
+        assert (
+            datetime.timedelta(seconds=59)
+            < result.scalar()
+            < datetime.timedelta(seconds=60)
+        )
+
 
 class TestLateness:
     async def test_flow_run_lateness_when_scheduled(self, session, flow):
@@ -467,6 +507,17 @@ class TestLateness:
         assert (
             pendulum.duration(seconds=60)
             < fr.lateness_estimate
+            < pendulum.duration(seconds=61)
+        )
+
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.lateness_estimate).filter_by(id=fr.id)
+        )
+        assert (
+            pendulum.duration(seconds=60)
+            < result.scalar()
             < pendulum.duration(seconds=61)
         )
 
@@ -491,6 +542,17 @@ class TestLateness:
             < pendulum.duration(seconds=61)
         )
 
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.lateness_estimate).filter_by(id=fr.id)
+        )
+        assert (
+            pendulum.duration(seconds=60)
+            < result.scalar()
+            < pendulum.duration(seconds=61)
+        )
+
     async def test_flow_run_lateness_when_running(self, session, flow):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
@@ -508,6 +570,13 @@ class TestLateness:
         # running created a start time
         assert fr.lateness_estimate == pendulum.duration(seconds=5)
 
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.lateness_estimate).filter_by(id=fr.id)
+        )
+        assert result.scalar() == pendulum.duration(seconds=5)
+
     async def test_flow_run_lateness_when_terminal(self, session, flow):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
@@ -524,3 +593,34 @@ class TestLateness:
 
         # final states remove lateness even if the run never started
         assert fr.lateness_estimate == pendulum.duration(seconds=0)
+
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.lateness_estimate).filter_by(id=fr.id)
+        )
+        assert result.scalar() == pendulum.duration(seconds=0)
+
+    async def test_flow_run_lateness_is_zero_when_early(self, session, flow):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
+            ),
+        )
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Running(timestamp=dt.subtract(minutes=5)),
+        )
+
+        # running early results in zero lateness
+        assert fr.lateness_estimate == pendulum.duration(seconds=0)
+
+        # check SQL logic
+        await session.commit()
+        result = await session.execute(
+            sa.select(orm.FlowRun.lateness_estimate).filter_by(id=fr.id)
+        )
+        assert result.scalar() == pendulum.duration(seconds=0)

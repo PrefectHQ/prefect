@@ -15,6 +15,7 @@ from prefect.orion.utilities.database import (
     Pydantic,
     Timestamp,
     get_dialect,
+    date_diff,
     now,
 )
 from prefect.orion.utilities.functions import ParameterSchema
@@ -163,12 +164,21 @@ class RunMixin:
 
     @total_run_time_estimate.expression
     def total_run_time_estimate(cls):
-        return sa.case(
-            (
-                cls.state_type == states.StateType.RUNNING,
-                cls.total_run_time + (now() - cls.state.timestamp),
-            ),
-            else_=cls.total_run_time,
+        # use a correlated subquery to retrieve details from the state table
+        state_table = cls.state.property.target
+        return (
+            sa.select(
+                sa.case(
+                    (
+                        cls.state_type == states.StateType.RUNNING,
+                        cls.total_run_time + date_diff(now(), state_table.c.timestamp),
+                    ),
+                    else_=cls.total_run_time,
+                )
+            )
+            .select_from(state_table)
+            .where(cls.state_id == state_table.c.id)
+            .label("total_run_time_estimate")
         )
 
     @hybrid_property
@@ -177,12 +187,13 @@ class RunMixin:
         and expected start time. To give up-to-date estimates, we estimate
         lateness for any runs that don't have a start time and are not in a final state and
         were expected to start already."""
-        if self.start_time:
+        if self.start_time and self.start_time > self.expected_start_time:
             return (self.start_time - self.expected_start_time).as_interval()
         elif (
-            self.expected_start_time
+            self.start_time is None
+            and self.expected_start_time
             and self.expected_start_time < pendulum.now("UTC")
-            and not self.state_type in states.TERMINAL_STATES
+            and self.state_type not in states.TERMINAL_STATES
         ):
             return (pendulum.now("UTC") - self.expected_start_time).as_interval()
         else:
@@ -192,14 +203,18 @@ class RunMixin:
     def lateness_estimate(cls):
         return sa.case(
             (
+                cls.start_time > cls.expected_start_time,
+                date_diff(cls.start_time, cls.expected_start_time),
+            ),
+            (
                 sa.and_(
-                    cls.state_type.in_(states.TERMINAL_STATES),
                     cls.start_time.is_(None),
+                    cls.state_type.not_in(states.TERMINAL_STATES),
                     cls.expected_start_time < now(),
                 ),
-                now() - cls.expected_start_time,
+                date_diff(now(), cls.expected_start_time),
             ),
-            else_=cls.start_time - cls.expected_start_time,
+            else_=datetime.timedelta(0),
         )
 
 
