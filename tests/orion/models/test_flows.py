@@ -193,6 +193,13 @@ class TestReadFlows:
             ),
         )
         assert {res.id for res in result} == {flow_3.id}
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                tags=schemas.filters.FlowFilterTags(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {flow_1.id, flow_2.id}
 
     async def test_flows_filters_by_name_any(self, session):
         flow_1 = await models.flows.create_flow(

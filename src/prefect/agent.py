@@ -64,15 +64,12 @@ async def query_for_ready_flow_runs(
             next_scheduled_start_time=dict(
                 before_=pendulum.now("utc").add(seconds=prefetch_seconds)
             ),
+            deployment_ids=dict(is_null_=False),
         )
     )
 
     # Filter out runs that should not be submitted again but maintain ordering
     # TODO: Move this into the `FlowRunFilter` once it supports this
-    ready_runs = [
-        run
-        for run in scheduled_runs
-        if run.id not in submitted_ids and run.deployment_id is not None
-    ]
+    ready_runs = [run for run in scheduled_runs if run.id not in submitted_ids]
 
     return ready_runs

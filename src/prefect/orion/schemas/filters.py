@@ -25,7 +25,7 @@ class PrefectFilterBaseModel(PrefectBaseModel):
     @root_validator
     def check_at_least_one_operator_is_not_none(cls, values):
         """At least one operator must be specified in order to generate sql filters"""
-        if not any([val for val in values.values()]):
+        if not any([val is not None for val in values.values()]):
             raise ValueError(
                 f"Prefect Filter must have at least one operator with arguments.\n"
                 f"{cls.__name__!r} got operator input: {values}"
@@ -85,15 +85,13 @@ class FlowFilterTags(PrefectFilterBaseModel):
         example=["tag-1", "tag-2"],
         description="A list of tags. Flows will be returned only if their tags are a superset of the list",
     )
-    is_null_: bool = Field(
-        False, description="If true, only include flows without tags"
-    )
+    is_null_: bool = Field(None, description="If true, only include flows without tags")
 
     def as_sql_filter(self):
         if self.all_ is not None:
             return json_has_all_keys(orm.Flow.tags, self.all_)
-        elif self.is_null_:
-            return orm.Flow.tags == []
+        elif self.is_null_ is not None:
+            return orm.Flow.tags == [] if self.is_null_ else orm.Flow.tags != []
 
 
 class FlowFilter(PrefectFilterBaseModel):
@@ -130,14 +128,14 @@ class FlowRunFilterTags(PrefectFilterBaseModel):
         description="A list of tags. Flow runs will be returned only if their tags are a superset of the list",
     )
     is_null_: bool = Field(
-        False, description="If true, only include flow runs without tags"
+        None, description="If true, only include flow runs without tags"
     )
 
     def as_sql_filter(self):
         if self.all_ is not None:
             return json_has_all_keys(orm.FlowRun.tags, self.all_)
-        elif self.is_null_:
-            return orm.FlowRun.tags == []
+        elif self.is_null_ is not None:
+            return orm.FlowRun.tags == [] if self.is_null_ else orm.FlowRun.tags != []
 
 
 class FlowRunFilterDeploymentIds(PrefectFilterBaseModel):
@@ -145,14 +143,18 @@ class FlowRunFilterDeploymentIds(PrefectFilterBaseModel):
         None, description="A list of flow run deployment ids to include"
     )
     is_null_: bool = Field(
-        False, description="If true, only include flow runs without deployment ids"
+        None, description="If true, only include flow runs without deployment ids"
     )
 
     def as_sql_filter(self):
         if self.any_ is not None:
             return orm.FlowRun.deployment_id.in_(self.any_)
-        elif self.is_null_:
-            return orm.FlowRun.deployment_id == None
+        elif self.is_null_ is not None:
+            return (
+                orm.FlowRun.deployment_id == None
+                if self.is_null_
+                else orm.FlowRun.deployment_id != None
+            )
 
 
 class FlowRunFilterStateTypes(PrefectFilterBaseModel):
@@ -235,14 +237,18 @@ class FlowRunFilterParentTaskRunIds(PrefectFilterBaseModel):
         None, description="A list of flow run parent_task_run_ids to include"
     )
     is_null_: bool = Field(
-        False, description="If true, only include flow runs without parent_task_run_id"
+        None, description="If true, only include flow runs without parent_task_run_id"
     )
 
     def as_sql_filter(self):
         if self.any_ is not None:
             return orm.FlowRun.parent_task_run_id.in_(self.any_)
-        elif self.is_null_:
-            return orm.FlowRun.parent_task_run_id == None
+        elif self.is_null_ is not None:
+            return (
+                orm.FlowRun.parent_task_run_id == None
+                if self.is_null_
+                else orm.FlowRun.parent_task_run_id != None
+            )
 
 
 class FlowRunFilter(PrefectFilterBaseModel):
@@ -297,14 +303,14 @@ class TaskRunFilterTags(PrefectFilterBaseModel):
         description="A list of tags. Task runs will be returned only if their tags are a superset of the list",
     )
     is_null_: bool = Field(
-        False, description="If true, only include task runs without tags"
+        None, description="If true, only include task runs without tags"
     )
 
     def as_sql_filter(self):
         if self.all_ is not None:
             return json_has_all_keys(orm.TaskRun.tags, self.all_)
-        elif self.is_null_:
-            return orm.TaskRun.tags == []
+        elif self.is_null_ is not None:
+            return orm.TaskRun.tags == [] if self.is_null_ else orm.TaskRun.tags != []
 
 
 class TaskRunFilterStateTypes(PrefectFilterBaseModel):
