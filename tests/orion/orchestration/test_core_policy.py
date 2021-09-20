@@ -217,8 +217,10 @@ class TestRetryingRule:
             *intended_transition,
         )
 
-        ctx.run_settings.max_retries = 2
-        ctx.run.run_count = 2
+        orm_run = await ctx.orm_run()
+        run_settings = await ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -243,8 +245,10 @@ class TestRetryingRule:
             *intended_transition,
         )
 
-        ctx.run_settings.max_retries = 2
-        ctx.run.run_count = 3
+        orm_run = await ctx.orm_run()
+        run_settings = await ctx.run_settings
+        orm_run.run_count = 3
+        run_settings.max_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:

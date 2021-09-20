@@ -61,10 +61,6 @@ class OrchestrationContext(PrefectBaseModel):
     def validated_state_type(self) -> Optional[states.StateType]:
         return self.validated_state.type if self.validated_state else None
 
-    @property
-    def run_settings(self) -> Dict:
-        return self.run.empirical_policy
-
     def safe_copy(self):
         safe_copy = self.copy()
 
@@ -121,6 +117,10 @@ class TaskOrchestrationContext(OrchestrationContext):
             raise ValueError("Run not found.")
         return run
 
+    @property
+    async def run_settings(self) -> Dict:
+        return (await self.orm_run()).empirical_policy
+
 
 class FlowOrchestrationContext(OrchestrationContext):
     run_id: UUID
@@ -152,6 +152,10 @@ class FlowOrchestrationContext(OrchestrationContext):
         if not run:
             raise ValueError("Run not found.")
         return run
+
+    @property
+    async def run_settings(self) -> Dict:
+        return (await self.orm_run()).empirical_policy
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):

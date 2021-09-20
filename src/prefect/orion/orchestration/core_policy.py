@@ -107,8 +107,9 @@ class RetryPotentialFailures(BaseOrchestrationRule):
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        run_settings = context.run_settings
-        if context.run.run_count <= run_settings.max_retries:
+        run_settings = await context.run_settings
+        run_count = (await context.orm_run()).run_count
+        if run_count <= run_settings.max_retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
                     seconds=run_settings.retry_delay_seconds
