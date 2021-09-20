@@ -1,5 +1,4 @@
 import datetime
-import math
 import pendulum
 import pytest
 
