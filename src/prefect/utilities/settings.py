@@ -83,11 +83,7 @@ class OrionSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_"
         frozen = True
 
-    # database
-    # using `default_factory` avoids instantiating the default value until the parent
-    # settings class is instantiated
     database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-
     data: DataLocationSettings = Field(default_factory=DataLocationSettings)
     api: APISettings = Field(default_factory=APISettings)
     services: ServicesSettings = Field(default_factory=ServicesSettings)
@@ -102,7 +98,7 @@ class LoggingSettings(BaseSettings):
 
 
 class Settings(PrefectSettings):
-    # incorporates all settings from the PrefectSettings class
+    # note: incorporates all settings from the PrefectSettings class
 
     # logging
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
