@@ -29,7 +29,11 @@ async def create_flow_run(
     # if there's no idempotency key, just create the run
     if not flow_run.idempotency_key:
         model = orm.FlowRun(
-            **flow_run.dict(shallow=True, exclude={"state"}), state=None
+            **flow_run.dict(
+                shallow=True,
+                exclude={"state", "total_run_time_estimate", "lateness_estimate"},
+            ),
+            state=None,
         )
         session.add(model)
         await session.flush()

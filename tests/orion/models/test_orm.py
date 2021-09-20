@@ -1,3 +1,4 @@
+import datetime
 import pendulum
 import pytest
 import sqlalchemy as sa
@@ -346,3 +347,180 @@ class TestTaskRun:
         assert states[0].type.value == "PENDING"
         assert states[1].type.value == "RUNNING"
         assert states[2].type.value == "COMPLETED"
+
+
+class TestTotalRunTimeEstimate:
+    async def test_flow_run_total_run_time_estimate_matches_total_run_time(
+        self, session, flow
+    ):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Pending(timestamp=dt)
+            ),
+        )
+        # move into a running state for 3 seconds, then compelte
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+        )
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
+        )
+
+        assert fr.total_run_time == datetime.timedelta(seconds=3)
+        assert fr.total_run_time_estimate == datetime.timedelta(seconds=3)
+
+    async def test_flow_run_total_run_time_estimate_includes_current_run(
+        self, session, flow
+    ):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Pending(timestamp=dt)
+            ),
+        )
+        # move into a running state
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+        )
+
+        assert fr.total_run_time == datetime.timedelta(0)
+        # the estimated time is between 59 and 60 seconds
+        assert (
+            datetime.timedelta(seconds=59)
+            < fr.total_run_time_estimate
+            < datetime.timedelta(seconds=60)
+        )
+
+    async def test_task_run_total_run_time_estimate_matches_total_run_time(
+        self, session, flow_run
+    ):
+        dt = pendulum.now().subtract(minutes=1)
+        tr = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="a",
+                state=schemas.states.Pending(timestamp=dt),
+            ),
+        )
+        # move into a running state for 3 seconds, then compelte
+        await models.task_run_states.orchestrate_task_run_state(
+            session=session,
+            task_run_id=tr.id,
+            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+        )
+        await models.task_run_states.orchestrate_task_run_state(
+            session=session,
+            task_run_id=tr.id,
+            state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
+        )
+
+        assert tr.total_run_time == datetime.timedelta(seconds=3)
+        assert tr.total_run_time_estimate == datetime.timedelta(seconds=3)
+
+    async def test_task_run_total_run_time_estimate_includes_current_run(
+        self, session, flow_run
+    ):
+        dt = pendulum.now().subtract(minutes=1)
+        tr = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="a",
+                state=schemas.states.Pending(timestamp=dt),
+            ),
+        )
+        # move into a running state
+        await models.task_run_states.orchestrate_task_run_state(
+            session=session,
+            task_run_id=tr.id,
+            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+        )
+
+        assert tr.total_run_time == datetime.timedelta(0)
+        # the estimated time is between 59 and 60 seconds
+        assert (
+            datetime.timedelta(seconds=59)
+            < tr.total_run_time_estimate
+            < datetime.timedelta(seconds=60)
+        )
+
+
+class TestLateness:
+    async def test_flow_run_lateness_when_scheduled(self, session, flow):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
+            ),
+        )
+        assert (
+            pendulum.duration(seconds=60)
+            < fr.lateness_estimate
+            < pendulum.duration(seconds=61)
+        )
+
+    async def test_flow_run_lateness_when_pending(self, session, flow):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
+            ),
+        )
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Pending(timestamp=dt.add(seconds=1)),
+        )
+
+        # pending has no impact on lateness
+        assert (
+            pendulum.duration(seconds=60)
+            < fr.lateness_estimate
+            < pendulum.duration(seconds=61)
+        )
+
+    async def test_flow_run_lateness_when_running(self, session, flow):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
+            ),
+        )
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Running(timestamp=dt.add(seconds=5)),
+        )
+
+        # running created a start time
+        assert fr.lateness_estimate == pendulum.duration(seconds=5)
+
+    async def test_flow_run_lateness_when_terminal(self, session, flow):
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
+            ),
+        )
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Completed(timestamp=dt.add(seconds=5)),
+        )
+
+        # final states remove lateness even if the run never started
+        assert fr.lateness_estimate == pendulum.duration(seconds=0)
