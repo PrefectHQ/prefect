@@ -1,5 +1,6 @@
-from datetime import timedelta
 import os
+import textwrap
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -10,14 +11,18 @@ from prefect.deployments import (
     create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
+    load_flow_from_deployment,
     load_flow_from_script,
 )
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
-from prefect.flows import Flow
+from prefect.flows import Flow, flow
+from prefect.orion.schemas.core import Deployment
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.orion.serializers import D
 
 from .deployment_test_files.single_flow import hello_world as hello_world_flow
+
 
 TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
@@ -203,3 +208,109 @@ async def test_create_deployment_from_spec(orion_client):
 
     # Flow was loaded
     assert spec.flow is not None
+
+
+class TestLoadFlowFromDeployment:
+    @pytest.fixture
+    def flow_object(self):
+        @flow
+        def foo():
+            pass
+
+        return foo
+
+    @pytest.fixture
+    async def flow_id(self, flow_object, orion_client):
+        return await orion_client.create_flow(flow_object)
+
+    async def test_load_file_flow_from_deployment(
+        self, flow_id, orion_client, tmp_path
+    ):
+        (tmp_path / "flow-script.py").write_text(
+            textwrap.dedent(
+                """
+                from prefect import flow
+
+                @flow
+                def foo():
+                    pass
+                """
+            )
+        )
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=DataDocument(
+                encoding="file",
+                blob=str((tmp_path / "flow-script.py").absolute()).encode(),
+            ),
+        )
+        loaded_flow_object = await load_flow_from_deployment(
+            deployment, client=orion_client
+        )
+        assert isinstance(loaded_flow_object, Flow)
+        assert loaded_flow_object.name == "foo"
+
+    async def test_load_pickled_flow_from_deployment(
+        self, flow_object, flow_id, orion_client
+    ):
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=DataDocument.encode("cloudpickle", flow_object),
+        )
+        loaded_flow_object = await load_flow_from_deployment(
+            deployment, client=orion_client
+        )
+        assert flow_object == loaded_flow_object
+
+    async def test_load_persisted_flow_pickle_from_deployment(
+        self, flow_object, flow_id, orion_client
+    ):
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=await orion_client.persist_object(flow_object),
+        )
+        loaded_flow_object = await load_flow_from_deployment(
+            deployment, client=orion_client
+        )
+        assert isinstance(loaded_flow_object, Flow)
+        assert flow_object.name == loaded_flow_object.name
+
+    async def test_load_persisted_flow_script_from_deployment(
+        self, flow_object, flow_id, orion_client
+    ):
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=await orion_client.persist_object(
+                textwrap.dedent(
+                    """
+                    from prefect import flow
+
+                    @flow
+                    def foo():
+                        pass
+                    """
+                ),
+                encoder="text",
+            ),
+        )
+        loaded_flow_object = await load_flow_from_deployment(
+            deployment, client=orion_client
+        )
+        assert isinstance(loaded_flow_object, Flow)
+        assert flow_object.name == loaded_flow_object.name
+
+    async def test_load_bad_flow_scriptfrom_deployment(self, flow_id, orion_client):
+        deployment = Deployment(
+            name="test",
+            flow_id=flow_id,
+            flow_data=await orion_client.persist_object(
+                "test",
+                encoder="text",
+            ),
+        )
+        with pytest.raises(FlowScriptError):
+            await load_flow_from_deployment(deployment, client=orion_client)
