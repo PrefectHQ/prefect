@@ -10,11 +10,13 @@
   and agents or reuse an integration key to create multiple actions that can be used by many automation rules in Prefect***
 
 ## How it Works
+
 Prefect users can define automations for flow runs and agents and then be alerted in PagerDuty. Automations can be set up to notify about flow run state changes, SLAs on scheduled flow runs and the health of agents. With the 
 PagerDuty + Prefect integration you can set up an action(s) for one or more PagerDuty integration keys and then assign those actions to the automations. If a Prefect automation is triggered, Prefect will send an alert to the users incident queue in PagerDuty
 to be actioned as a typical PagerDuty alert. 
 
 ## Requirements
+
 ***The user can create or delete an action with the User level role***
 
 ## Support
@@ -22,9 +24,10 @@ to be actioned as a typical PagerDuty alert.
 If you need help with this integration, please contact ***help@prefect.io***. 
 
 ## Integration Walkthrough (Coming Soon...)
+
 ### In PagerDuty
 
-#### Integrating With a PagerDuty Service
+**Integrating With a PagerDuty Service**
 1. From the **Configuration** menu, select **Services**.
 2. There are two ways to add an integration to a service:
    * **If you are adding your integration to an existing service**: Click the **name** of the service you want to add the integration to. Then, select the **Integrations** tab and click the **New Integration** button.
@@ -39,6 +42,7 @@ for you to save as action. You have the option to change the severity for each o
 pre-configure actions with different severity levels on the same integration key to be used by different automation rules. 
 
 ## How to Test the Action
+
 1. In Prefect, navigate to Team > Automation Actions
 2. Test the action from this screen with the debug icon
 
