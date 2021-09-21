@@ -1,3 +1,4 @@
+import datetime
 from typing import Union
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -27,11 +28,9 @@ def update_run_details(
 
     # -- compute duration
     if initial_state:
-        state_duration = (
-            proposed_state.timestamp - initial_state.timestamp
-        ).total_seconds()
+        state_duration = proposed_state.timestamp - initial_state.timestamp
     else:
-        state_duration = 0
+        state_duration = datetime.timedelta(0)
 
     # -- set next scheduled start time
     if proposed_state.is_scheduled():
@@ -47,12 +46,12 @@ def update_run_details(
     # -- update duration if there's a start time
     if run.start_time:
         # increment the total duration
-        run.total_time_seconds += state_duration
+        run.total_time += state_duration
 
     # -- if exiting a running state...
     if initial_state and initial_state.is_running():
-        # increment the "run_time_seconds"
-        run.total_run_time_seconds += state_duration
+        # increment the run time
+        run.total_run_time += state_duration
 
     # -- if entering a running state...
     if proposed_state.is_running():
