@@ -23,7 +23,7 @@ class SQLiteQuery(Task):
     """
 
     def __init__(
-        self, db: str = None, query: str = None, data: tuple = None, **kwargs: Any
+        self, db: str = None, query: str = None, data: tuple = (), **kwargs: Any
     ):
         self.db = db
         self.query = query
