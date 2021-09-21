@@ -360,7 +360,7 @@ class TestTotalRunTimeEstimate:
                 flow_id=flow.id, state=schemas.states.Pending(timestamp=dt)
             ),
         )
-        # move into a running state for 3 seconds, then compelte
+        # move into a running state for 3 seconds, then complete
         await models.flow_run_states.orchestrate_flow_run_state(
             session=session,
             flow_run_id=fr.id,
@@ -431,7 +431,7 @@ class TestTotalRunTimeEstimate:
                 state=schemas.states.Pending(timestamp=dt),
             ),
         )
-        # move into a running state for 3 seconds, then compelte
+        # move into a running state for 3 seconds, then complete
         await models.task_run_states.orchestrate_task_run_state(
             session=session,
             task_run_id=tr.id,
@@ -492,6 +492,54 @@ class TestTotalRunTimeEstimate:
             < result.scalar()
             < datetime.timedelta(seconds=60)
         )
+
+    async def test_estimated_run_time_in_correlated_subquery(self, session, flow):
+        """
+        The estimated_run_time includes a .correlate() statement that ensures it can
+        be used as a correlated subquery within other selects or joins.
+        """
+        dt = pendulum.now().subtract(minutes=1)
+        fr = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, state=schemas.states.Pending(timestamp=dt)
+            ),
+        )
+        # move into a running state for 3 seconds, then complete
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Running(timestamp=dt.add(seconds=1)),
+        )
+        await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=fr.id,
+            state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
+        )
+
+        await session.commit()
+        query = (
+            sa.select(
+                orm.FlowRun.id, orm.FlowRun.estimated_run_time, orm.FlowRunState.type
+            )
+            .select_from(orm.FlowRun)
+            .join(orm.FlowRunState, orm.FlowRunState.id == orm.FlowRun.state_id)
+            .where(orm.FlowRun.id == fr.id)
+        )
+
+        # this query has only one FROM clause due to correlation
+        assert str(query).count("FROM") == 1
+        # this query has only one JOIN clause due to correlation
+        assert str(query).count("JOIN") == 1
+
+        result = await session.execute(query)
+        assert result.all() == [
+            (
+                fr.id,
+                datetime.timedelta(seconds=3),
+                schemas.states.StateType.COMPLETED,
+            )
+        ]
 
 
 class TestExpectedStartTimeDelta:

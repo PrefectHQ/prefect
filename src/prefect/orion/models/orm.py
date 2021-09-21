@@ -182,6 +182,9 @@ class RunMixin:
             )
             .select_from(state_table)
             .where(cls.state_id == state_table.c.id)
+            # add a correlate statement so this can reuse the `FROM` clause
+            # of any parent query
+            .correlate(cls, state_table)
             .label("estimated_run_time")
         )
 
