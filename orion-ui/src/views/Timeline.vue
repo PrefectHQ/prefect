@@ -29,6 +29,7 @@
       v-if="runs.length"
       :items="runs"
       :interval="interval"
+      :max-end-time="endTime"
       background-color="blue-5"
     />
   </div>
@@ -58,6 +59,14 @@ export default class TimelineView extends Vue {
   runs: TaskRun[] = []
   flowRuns: FlowRun[] = []
 
+  get flowRun(): undefined | FlowRun {
+    return this.flowRuns?.find((r) => r.id == this.selected)
+  }
+
+  get endTime(): undefined | string {
+    return this.flowRun?.end_time
+  }
+
   async getTaskRuns(id: string) {
     if (!this.selected) return
     const runs = await fetch('http://localhost:8000/task_runs/filter', {
@@ -67,7 +76,9 @@ export default class TimelineView extends Vue {
       },
       body: JSON.stringify({
         flow_runs: {
-          ids: [id]
+          id: {
+            any_: [id]
+          }
         }
       })
     })

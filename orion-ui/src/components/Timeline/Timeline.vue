@@ -94,6 +94,7 @@ class Props {
   backgroundColor = prop<string>({ required: false, default: null })
   interval = prop<string>({ required: false, default: 'minute' })
   items = prop<Item[]>({ required: true })
+  maxEndTime = prop<string>({ required: false, default: null })
   padding = prop<{
     top: Number
     bottom: Number
@@ -182,13 +183,17 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get end(): Date {
-    return new Date(
-      new Date(
-        Math.max(
-          ...this.sortedItems.map((item) => new Date(item.end_time).getTime())
+    return this.maxEndTime
+      ? new Date(this.maxEndTime)
+      : new Date(
+          new Date(
+            Math.max(
+              ...this.sortedItems.map((item) =>
+                item.end_time ? new Date(item.end_time).getTime() : Date.now()
+              )
+            )
+          ).getTime()
         )
-      ).getTime()
-    )
   }
 
   get totalSeconds(): number {
@@ -271,6 +276,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.xScale
       .domain([new Date(this.start), new Date(this.end)])
       .range([0, this.chartWidth])
+      .clamp()
 
     this.xAxisGroup.call(this.xAxis)
   }

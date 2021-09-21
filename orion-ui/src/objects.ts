@@ -19,6 +19,8 @@ export declare interface FlowRun {
   auto_scheduled: boolean
   deployment_id: string
   duration: number
+  start_time: string
+  end_time: string
   name: string
   state: string
   tags: string[]
