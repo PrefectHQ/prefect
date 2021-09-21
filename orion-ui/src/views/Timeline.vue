@@ -43,13 +43,14 @@ import Timeline from '../components/Timeline/Timeline.vue'
 @Options({
   components: { Timeline },
   watch: {
-    async selected() {
-      this.runs = await this.getTaskRuns()
+    async selected(val) {
+      this.runs = await this.getTaskRuns(val)
+      this.$router.push({ params: { id: val } })
     }
   }
 })
 export default class TimelineView extends Vue {
-  selected: string | null = null
+  selected: string | string[] | null = null
 
   interval: string = 'minute'
   intervals: string[] = ['second', 'minute', 'hour', 'day']
@@ -57,9 +58,8 @@ export default class TimelineView extends Vue {
   runs: TaskRun[] = []
   flowRuns: FlowRun[] = []
 
-  async getTaskRuns() {
+  async getTaskRuns(id: string) {
     if (!this.selected) return
-    console.log([this.selected])
     const runs = await fetch('http://localhost:8000/task_runs/filter', {
       method: 'POST',
       headers: {
@@ -67,7 +67,7 @@ export default class TimelineView extends Vue {
       },
       body: JSON.stringify({
         flow_runs: {
-          ids: [this.selected]
+          ids: [id]
         }
       })
     })
@@ -88,12 +88,10 @@ export default class TimelineView extends Vue {
 
     const result = await flow_runs.json()
     this.flowRuns = result
-    console.log(this.flowRuns)
 
-    console.log(
-      'no state details',
-      this.flowRuns.filter((r) => !r.state && r.state_type !== 'SCHEDULED')
-    )
+    if (this.$route.params.id) {
+      this.selected = this.$route.params.id
+    }
   }
 }
 </script>
