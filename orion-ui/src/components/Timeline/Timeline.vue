@@ -153,11 +153,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   >
 
   get numberIntervals(): number {
-    return Math.ceil(
-      Math.max(
-        this.totalSeconds / intervals[this.interval],
-        this.width / this.intervalWidth
-      )
+    return (
+      Math.ceil(
+        Math.max(
+          this.totalSeconds / intervals[this.interval],
+          this.width / this.intervalWidth
+        ) / this.intervalWidth
+      ) * this.intervalWidth
     )
   }
 
