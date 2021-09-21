@@ -28,14 +28,14 @@ async def ls(flow_name: List[str] = None):
             )
         }
 
-    table = Table("flow name", "id", "state", "updated")
+    table = Table("flow name", "id", "state", "timestamp")
     for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
         flow = flows_by_id[flow_run.flow_id]
         table.add_row(
             flow.name,
             str(flow_run.id),
             flow_run.state.type.value,
-            str(flow_run.state.updated),
+            str(flow_run.state.timestamp),
         )
 
     console.print(table)

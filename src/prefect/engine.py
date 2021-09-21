@@ -36,6 +36,7 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
+from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
 
@@ -82,7 +83,7 @@ def enter_flow_run_engine_from_flow_call(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
+def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
@@ -264,7 +265,9 @@ async def orchestrate_flow_run(
             executor=executor,
             sync_portal=sync_portal,
         ):
-            flow_call = partial(validate_arguments(flow.fn), **parameters)
+            flow_call = partial(
+                call_with_parameters, validate_arguments(flow.fn), parameters
+            )
             if flow.isasync:
                 result = await flow_call()
             else:
@@ -388,7 +391,7 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
-                result = task.fn(**parameters)
+                result = call_with_parameters(task.fn, parameters)
                 if task.isasync:
                     result = await result
         except Exception as exc:
@@ -529,3 +532,11 @@ async def raise_failed_state(state: State) -> None:
             f"Unexpected result for failure state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
+
+
+if __name__ == "__main__":
+    import sys
+
+    state = enter_flow_run_engine_from_subprocess(sys.argv[1])
+    print(repr(state))
+    print(get_result(state, raise_failures=False))
