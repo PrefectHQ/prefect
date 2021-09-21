@@ -48,27 +48,27 @@ async def start_services():
     if settings.orion.services.run_in_app:
         loop = asyncio.get_running_loop()
         service_instances = [services.agent.Agent(), services.scheduler.Scheduler()]
-        app.state.service_tasks = [
-            loop.create_task(service.start(), name=service.name)
+        app.state.services = {
+            service: loop.create_task(service.start(), name=service.name)
             for service in service_instances
-        ]
+        }
 
-        for service, task in zip(service_instances, app.state.service_tasks):
+        for service, task in app.state.services.items():
             logger.info(f"{service.name} service scheduled to start in-app")
             task.add_done_callback(partial(on_service_exit, service))
     else:
         logger.info(
             "In-app services have been disabled and will need to be run separately."
         )
-        app.state.service_tasks = None
+        app.state.services = None
 
 
 @app.on_event("shutdown")
 async def wait_for_service_shutdown():
-    if app.state.service_tasks:
-        for task in app.state.service_tasks:
+    if app.state.services:
+        for service, task in app.state.services.items():
             try:
-                task.cancel()
+                await service.stop()
                 await task.result()
             except Exception as exc:
                 # `on_service_exit` should handle logging exceptions
@@ -82,7 +82,7 @@ def on_service_exit(service, task):
     try:
         # Retrieving the result will raise the exception
         task.result()
-    except asyncio.CancelledError:
-        logger.info(f"{service.name} service stopped!")
     except Exception:
         logger.error(f"{service.name} service failed!", exc_info=True)
+    else:
+        logger.info(f"{service.name} service stopped!")
