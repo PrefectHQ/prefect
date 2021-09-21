@@ -270,9 +270,8 @@ class TestCountFlowsModels:
         read = await models.flows.read_flows(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("request_method", ["post", "get"])
     @pytest.mark.parametrize("kwargs,expected", params)
-    async def test_api_count(self, request_method, client, kwargs, expected):
+    async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = {}
         for k, v in kwargs.items():
             if k == "flow_filter":
@@ -283,7 +282,7 @@ class TestCountFlowsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await getattr(client, request_method)(
+        repsonse = await client.post(
             "/flows/count/",
             json=json.loads(
                 json.dumps(
@@ -306,8 +305,8 @@ class TestCountFlowsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flows/",
+        repsonse = await client.post(
+            "/flows/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -369,9 +368,8 @@ class TestCountFlowRunModels:
         read = await models.flow_runs.read_flow_runs(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("request_method", ["post", "get"])
     @pytest.mark.parametrize("kwargs,expected", params)
-    async def test_api_count(self, request_method, client, kwargs, expected):
+    async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = {}
         for k, v in kwargs.items():
             if k == "flow_filter":
@@ -382,7 +380,7 @@ class TestCountFlowRunModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await getattr(client, request_method)(
+        repsonse = await client.post(
             "/flow_runs/count/",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
@@ -402,8 +400,8 @@ class TestCountFlowRunModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flow_runs/",
+        repsonse = await client.post(
+            "/flow_runs/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -465,9 +463,8 @@ class TestCountTaskRunsModels:
         read = await models.task_runs.read_task_runs(session=session, **kwargs)
         assert len({r.id for r in read}) == expected
 
-    @pytest.mark.parametrize("request_method", ["post", "get"])
     @pytest.mark.parametrize("kwargs,expected", params)
-    async def test_api_count(self, request_method, client, kwargs, expected):
+    async def test_api_count(self, client, kwargs, expected):
         adjusted_kwargs = {}
         for k, v in kwargs.items():
             if k == "flow_filter":
@@ -477,7 +474,7 @@ class TestCountTaskRunsModels:
             elif k == "task_run_filter":
                 k = "task_runs"
             adjusted_kwargs[k] = v
-        repsonse = await getattr(client, request_method)(
+        repsonse = await client.post(
             "/task_runs/count/",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
@@ -497,8 +494,8 @@ class TestCountTaskRunsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/task_runs/",
+        repsonse = await client.post(
+            "/task_runs/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
