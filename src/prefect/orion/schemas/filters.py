@@ -63,7 +63,7 @@ class PrefectFilterBaseModel(PrefectBaseModel):
     def check_before_and_after_are_not_mutually_exclusive(cls, values):
         """For filters with before_ and after_, make sure they are not mutally exclusive by default"""
         if values.get("before_") is not None and values.get("after_") is not None:
-            if values.get("before_") <= values.get("after_"):
+            if values.get("before_") < values.get("after_"):
                 raise ValueError(
                     f"Cannot provide Prefect Filter {cls.__name__!r} where before_ is less than after_"
                 )
