@@ -98,7 +98,7 @@ async def flow_run(session, flow) -> models.orm.FlowRun:
 
 @pytest.fixture
 async def flow_run_state(session, flow_run) -> models.orm.FlowRunState:
-    flow_run.state = models.orm.FlowRunState(**schemas.states.Pending().dict())
+    flow_run.set_state(models.orm.FlowRunState(**schemas.states.Pending().dict()))
     await session.commit()
     return flow_run.state
 
@@ -117,7 +117,7 @@ async def task_run(session, flow_run) -> models.orm.TaskRun:
 
 @pytest.fixture
 async def task_run_state(session, task_run) -> models.orm.TaskRunState:
-    task_run.state = models.orm.TaskRunState(**schemas.states.Pending().dict())
+    task_run.set_state(models.orm.TaskRunState(**schemas.states.Pending().dict()))
     await session.commit()
     return task_run.state
 

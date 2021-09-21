@@ -85,7 +85,6 @@ async def read_deployment(
 
 
 @router.post("/filter")
-@router.get("/")
 async def read_deployments(
     pagination: schemas.filters.Pagination = Depends(),
     session: sa.orm.Session = Depends(dependencies.get_session),

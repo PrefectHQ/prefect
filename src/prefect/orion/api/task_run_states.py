@@ -51,7 +51,6 @@ async def read_task_run_state(
     return task_run_state
 
 
-@router.post("/filter")
 @router.get("/")
 async def read_task_run_states(
     task_run_id: UUID,
