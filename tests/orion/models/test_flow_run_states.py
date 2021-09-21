@@ -1,3 +1,4 @@
+import datetime
 from uuid import uuid4
 
 import pendulum
@@ -41,7 +42,7 @@ class TestCreateFlowRunState:
 
         assert flow_run.start_time == dt
         assert flow_run.run_count == 1
-        assert flow_run.total_run_time_seconds == 0
+        assert flow_run.total_run_time == datetime.timedelta(0)
 
         dt2 = pendulum.now("utc")
         frs3 = await models.flow_run_states.orchestrate_flow_run_state(
@@ -55,7 +56,7 @@ class TestCreateFlowRunState:
 
         assert flow_run.start_time == dt
         assert flow_run.run_count == 2
-        assert flow_run.total_run_time_seconds == (dt2 - dt).total_seconds()
+        assert flow_run.total_run_time == (dt2 - dt)
 
 
 class TestReadFlowRunState:
