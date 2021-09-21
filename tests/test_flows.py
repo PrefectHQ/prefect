@@ -12,7 +12,7 @@ from prefect.flows import Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.testing import exceptions_equal, check_for_type_errors
+from prefect.utilities.testing import exceptions_equal
 
 
 class TestFlow:
@@ -81,53 +81,6 @@ class TestDecorator:
         my_flow = flow(file_hash)
 
         assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
-
-    @pytest.mark.skipif(
-        parse_version(mypy.version.__version__) < parse_version("1.0"),
-        reason="mypy does not support PEP-612 https://github.com/python/mypy/issues/8645",
-    )
-    def test_decorator_return_type_with_correct_params(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-
-            check: Callable[[int, str], State] = foo
-            """
-        )
-
-    def test_decorator_return_type_coerced_to_state_sync(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-            
-            # Note, mypy does not support `ParamSpec` yet so it is coerced into `...`
-            check: Callable[..., State] = foo
-            """
-        )
-
-    def test_decorator_return_type_coerced_to_state_async(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable, Awaitable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-            
-            check: Callable[..., Awaitable[State]] = foo
-            """
-        )
 
 
 class TestFlowCall:
