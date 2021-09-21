@@ -265,9 +265,11 @@ async def orchestrate_flow_run(
             executor=executor,
             sync_portal=sync_portal,
         ):
-            flow_call = partial(
-                call_with_parameters, validate_arguments(flow.fn), parameters
-            )
+            # Validate the parameters before the call; raises an exception if invalid
+            if flow.should_validate_parameters:
+                parameters = flow.validate_parameters(parameters)
+
+            flow_call = partial(call_with_parameters, flow.fn, parameters)
             if flow.isasync:
                 result = await flow_call()
             else:
