@@ -206,32 +206,6 @@ class TestUpdateRunDetailsRule:
 
         assert run.total_run_time == datetime.timedelta(0)
 
-    @pytest.mark.parametrize("initial_state_type", set(states.StateType))
-    async def test_rule_always_updates_total_time(
-        self, session, run_type, initialize_orchestration, initial_state_type
-    ):
-        proposed_state_type = states.StateType.COMPLETED
-        intended_transition = (initial_state_type, proposed_state_type)
-        ctx = await initialize_orchestration(
-            session,
-            run_type,
-            *intended_transition,
-        )
-
-        now = pendulum.now()
-        run = ctx.run
-        run.start_time = now.subtract(seconds=42)
-        ctx.initial_state.timestamp = now.subtract(seconds=42)
-        ctx.proposed_state.timestamp = now
-        await session.commit()
-        await session.refresh(run)
-        assert run.total_run_time == datetime.timedelta(0)
-
-        async with UpdateRunDetails(ctx, *intended_transition) as ctx:
-            await ctx.validate_proposed_state()
-
-        assert run.total_time == datetime.timedelta(seconds=42)
-
     @pytest.mark.parametrize("proposed_state_type", TERMINAL_STATES)
     async def test_rule_sets_end_time_when_when_run_ends(
         self, session, run_type, initialize_orchestration, proposed_state_type

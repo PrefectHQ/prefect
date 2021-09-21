@@ -43,11 +43,6 @@ def update_run_details(
         else:
             run.expected_start_time = proposed_state.timestamp
 
-    # -- update duration if there's a start time
-    if run.start_time:
-        # increment the total duration
-        run.total_time += state_duration
-
     # -- if exiting a running state...
     if initial_state and initial_state.is_running():
         # increment the run time
