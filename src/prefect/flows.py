@@ -45,6 +45,7 @@ class Flow(Generic[P, R]):
         version: str = None,
         executor: BaseExecutor = None,
         description: str = None,
+        timeout_seconds: int = None
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -62,6 +63,7 @@ class Flow(Generic[P, R]):
         self.version = version or (file_hash(flow_file) if flow_file else None)
 
         self.parameters = parameter_schema(self.fn)
+        self.timeout_seconds = timeout_seconds
 
     @overload
     def __call__(
@@ -108,6 +110,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
+    timeout_seconds: int = None
     tags: Iterable[str] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
@@ -120,6 +123,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
+    timeout_seconds: int = None
 ):
     if __fn:
         return cast(
@@ -130,6 +134,7 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                timeout_seconds=timeout_seconds,
             ),
         )
     else:
@@ -141,5 +146,6 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                timeout_seconds=timeout_seconds,
             ),
         )
