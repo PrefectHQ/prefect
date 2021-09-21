@@ -179,9 +179,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         )
       ).getTime()
     )
-
-    //  -
-    //     intervals[this.interval] * 1000
   }
 
   get end(): Date {
@@ -192,9 +189,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         )
       ).getTime()
     )
-
-    //  +
-    //     intervals[this.interval] * 1000
   }
 
   get totalSeconds(): number {
