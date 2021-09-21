@@ -49,10 +49,7 @@ class SQLiteQuery(Task):
         query = cast(str, query)
         data = cast(tuple, data)
         with closing(sql.connect(db)) as conn, closing(conn.cursor()) as cursor:
-            if data is None:
-                cursor.execute(query)
-            else:
-                cursor.execute(query, data)
+            cursor.execute(query, () if data is None else data)
             out = cursor.fetchall()
             conn.commit()
         return out
