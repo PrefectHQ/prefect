@@ -20,11 +20,11 @@ async def ls(flow_name: List[str] = None):
     """
     flow_filter = FlowFilter(names=flow_name) if flow_name else None
     async with OrionClient() as client:
-        flow_runs = await client.read_flow_runs(flows=flow_filter)
+        flow_runs = await client.read_flow_runs(flow_filter=flow_filter)
         flows_by_id = {
             flow.id: flow
             for flow in await client.read_flows(
-                flows=FlowFilter(ids=[run.flow_id for run in flow_runs])
+                flow_filter=FlowFilter(ids=[run.flow_id for run in flow_runs])
             )
         }
 

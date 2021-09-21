@@ -47,7 +47,10 @@ def echo(x: str):
 async def start_services():
     if settings.orion.services.run_in_app:
         loop = asyncio.get_running_loop()
-        service_instances = [services.agent.Agent(), services.scheduler.Scheduler()]
+        service_instances = [
+            services.agent.AgentService(),
+            services.scheduler.Scheduler(),
+        ]
         app.state.service_tasks = [
             loop.create_task(service.start(), name=service.name)
             for service in service_instances

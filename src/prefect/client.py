@@ -142,11 +142,11 @@ class OrionClient:
     async def read_flows(
         self,
         *,
-        flows: schemas.filters.FlowFilter = None,
+        flow_filter: schemas.filters.FlowFilter = None,
     ) -> List[schemas.core.Flow]:
         body = {}
-        if flows:
-            body["flows"] = flows.dict(json_compatible=True)
+        if flow_filter:
+            body["flows"] = flow_filter.dict(json_compatible=True)
 
         response = await self.post(f"/flows/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
@@ -301,17 +301,17 @@ class OrionClient:
     async def read_flow_runs(
         self,
         *,
-        flows: schemas.filters.FlowFilter = None,
-        flow_runs: schemas.filters.FlowRunFilter = None,
-        task_runs: schemas.filters.TaskRunFilter = None,
+        flow_filter: schemas.filters.FlowFilter = None,
+        flow_run_filter: schemas.filters.FlowRunFilter = None,
+        task_run_filter: schemas.filters.TaskRunFilter = None,
     ) -> List[schemas.core.FlowRun]:
         body = {}
-        if flows:
-            body["flows"] = flows.dict(json_compatible=True)
-        if flow_runs:
-            body["flow_runs"] = flow_runs.dict(json_compatible=True)
-        if task_runs:
-            body["task_runs"] = task_runs.dict(json_compatible=True)
+        if flow_filter:
+            body["flows"] = flow_filter.dict(json_compatible=True)
+        if flow_run_filter:
+            body["flow_runs"] = flow_run_filter.dict(json_compatible=True)
+        if task_run_filter:
+            body["task_runs"] = task_run_filter.dict(json_compatible=True)
 
         response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())

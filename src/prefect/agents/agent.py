@@ -9,25 +9,22 @@ import anyio.to_process
 import pendulum
 from anyio.abc import TaskGroup, TaskStatus
 
-import prefect.engine
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import StateType
 from prefect.utilities.logging import get_logger
 
 
-class Agent:
+class OrionAgent:
     def __init__(
         self,
         prefetch_seconds: int,
-        query_fn: Callable[[FlowRunFilter], Awaitable[List[FlowRun]]],
         on_start: Callable[[], Awaitable] = None,
         on_shutdown: Callable[[], Awaitable] = None,
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.on_start = on_start
         self.on_shutdown = on_shutdown
-        self.query_fn = query_fn
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("orion.agent")
@@ -55,11 +52,13 @@ class Agent:
         ]
         return ready_runs
 
-    async def get_and_submit_flow_runs(self):
+    async def get_and_submit_flow_runs(
+        self, query_fn: Callable[[FlowRunFilter], Awaitable[List[FlowRun]]]
+    ):
         if not self.started:
             raise RuntimeError("Agent is not set up yet. Use `async with Agent()...`")
 
-        ready_runs = await self.query_fn(flow_runs=self.flow_run_query_filter())
+        ready_runs = await query_fn(flow_run_filter=self.flow_run_query_filter())
         submittable_runs = self.filter_flow_runs(ready_runs)
 
         for flow_run in submittable_runs:
@@ -102,6 +101,8 @@ class Agent:
                 self.logger.info(
                     f"Flow run '{state.state_details.flow_run_id}' completed."
                 )
+
+        import prefect.engine
 
         task = anyio.to_process.run_sync(
             prefect.engine.enter_flow_run_engine_from_subprocess,
