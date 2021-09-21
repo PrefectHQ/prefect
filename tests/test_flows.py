@@ -138,7 +138,6 @@ class TestFlowCall:
 
         state = foo(1, 2)
         assert isinstance(state, State)
-        assert state.is_completed()
         assert await get_result(state) == 6
         assert state.state_details.flow_run_id is not None
 
@@ -155,7 +154,6 @@ class TestFlowCall:
 
         state = await foo(1, 2)
         assert isinstance(state, State)
-        assert state.is_completed()
         assert await get_result(state) == 6
         assert state.state_details.flow_run_id is not None
 
@@ -174,7 +172,6 @@ class TestFlowCall:
             return x + sum(y) + zt.z
 
         state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert state.is_completed()
         assert get_result(state) == 10
 
     def test_call_with_variadic_args(self):
@@ -302,10 +299,8 @@ class TestFlowCall:
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
 
         child_run_id, child_state = await get_result(parent_state)
-        assert child_state.is_completed()
         assert await get_result(child_state) == 6
 
         async with OrionClient() as client:
@@ -330,10 +325,7 @@ class TestFlowCall:
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = get_result(parent_state)
-        assert child_state.is_completed()
         assert get_result(child_state) == 6
 
     async def test_async_flow_with_async_subflow_and_async_task(self):
@@ -351,8 +343,6 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
 
@@ -371,8 +361,6 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
 
@@ -391,7 +379,5 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
