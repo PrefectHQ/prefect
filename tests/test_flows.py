@@ -66,6 +66,16 @@ class TestFlow:
         )
         assert f.name == "my-fn"
 
+    def test_raises_clear_error_when_not_compatible_with_validator(self):
+        def my_fn(v__args):
+            pass
+
+        with pytest.raises(
+            ValueError,
+            match="Flow function is not compatible with `validate_parameters`",
+        ):
+            Flow(fn=my_fn)
+
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
