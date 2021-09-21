@@ -1,7 +1,6 @@
 import pytest
 
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
-from prefect.utilities.testing import check_for_type_errors
 
 
 class TestFlatDict:
