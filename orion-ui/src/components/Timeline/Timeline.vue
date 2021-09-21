@@ -1,7 +1,7 @@
 <template>
-  <div ref="container" class="chart-container" @scroll="handleScroll">
-    <!-- <i
-      v-if="showLeftScrollButton"
+  <div class="component-container">
+    <i
+      v-show="showLeftScrollButton"
       class="
         pan-button
         left
@@ -13,7 +13,7 @@
     />
 
     <i
-      v-if="showRightScrollButton"
+      v-show="showRightScrollButton"
       class="
         pan-button
         right
@@ -22,22 +22,24 @@
         cursor-pointer
       "
       @click="panRight"
-    /> -->
+    />
 
-    <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
+    <div ref="container" class="chart-container" @scroll="handleScroll">
+      <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
 
-    <svg :id="id" ref="chart" class="timeline-chart" />
+      <svg :id="id" ref="chart" class="timeline-chart" />
 
-    <div class="node-container">
-      <div
-        v-for="(item, i) in computedItems"
-        :key="item.id"
-        :id="`row-${i}`"
-        class="node correct-text"
-        :class="[item.state.type.toLowerCase() + '-bg']"
-        :style="item.style"
-        tabindex="0"
-      />
+      <div class="node-container">
+        <div
+          v-for="(item, i) in computedItems"
+          :key="item.id"
+          :id="`row-${i}`"
+          class="node correct-text"
+          :class="[item.state.type.toLowerCase() + '-bg']"
+          :style="item.style"
+          tabindex="0"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -408,7 +410,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 </style>
 
 <style lang="scss">
-.timeline-axis {
+svg.timeline-axis {
   .tick {
     font-size: 13px;
     font-family: $font--secondary;

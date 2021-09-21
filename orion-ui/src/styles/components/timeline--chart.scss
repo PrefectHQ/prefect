@@ -1,5 +1,26 @@
 @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
 
+.component-container {
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+  width: 100%;
+
+  .pan-button {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+
+    &.left {
+      left: 0;
+    }
+
+    &.right {
+      right: 0;
+    }
+  }
+}
+
 .chart-container {
   height: 100%;
   overscroll-behavior: contain;
@@ -16,20 +37,6 @@
     left: 0;
     right: 0;
     width: 100%;
-  }
-
-  .pan-button {
-    position: sticky;
-    z-index: 3;
-    top: 0;
-
-    &.left {
-      margin-right: auto;
-    }
-
-    &.right {
-      margin-left: auto;
-    }
   }
 
   svg.timeline-axis {
