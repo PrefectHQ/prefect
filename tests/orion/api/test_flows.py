@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4, UUID
 from httpx import request
 
@@ -128,7 +129,7 @@ class TestReadFlows:
         assert len(response.json()) == 2
 
     async def test_read_flows_applies_limit(self, flows, client):
-        response = await client.post("/flows/filter/", params=dict(limit=1))
+        response = await client.post("/flows/filter/", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -142,7 +143,11 @@ class TestReadFlows:
         )
         await session.commit()
 
-        flow_filter = {"flows": {"names": ["my-flow-1"]}}
+        flow_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
+            ).dict(json_compatible=True)
+        )
         response = await client.post("/flows/filter/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -162,7 +167,12 @@ class TestReadFlows:
         )
         await session.commit()
 
-        flow_filter = {"flow_runs": {"ids": [str(flow_run_1.id)]}}
+        flow_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[flow_run_1.id])
+            ).dict(json_compatible=True)
+        )
+
         response = await client.post("/flows/filter/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -188,7 +198,11 @@ class TestReadFlows:
         )
         await session.commit()
 
-        flow_filter = {"task_runs": {"ids": [str(task_run_1.id)]}}
+        flow_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
+            ).dict(json_compatible=True)
+        )
         response = await client.post("/flows/filter/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
@@ -198,7 +212,7 @@ class TestReadFlows:
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
         # should be re-written
-        response = await client.post("/flows/filter/", params=dict(offset=1))
+        response = await client.post("/flows/filter/", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"
