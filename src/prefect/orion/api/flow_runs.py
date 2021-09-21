@@ -56,6 +56,7 @@ async def update_flow_run(
 
 
 # must be defined before `GET /:id`
+@router.post("/count/filter")
 @router.get("/count")
 async def count_flow_runs(
     flows: schemas.filters.FlowFilter = None,
@@ -75,6 +76,7 @@ async def count_flow_runs(
 
 
 # insert other routes here so they are defined ahead of `GET /:id`
+@router.post("/history/filter")
 @router.get("/history")
 async def flow_run_history(
     history_start: datetime.datetime = Body(
@@ -119,6 +121,7 @@ async def read_flow_run(
     return flow_run
 
 
+@router.post("/filter")
 @router.get("/")
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
