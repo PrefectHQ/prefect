@@ -5,7 +5,7 @@ import mypy.version
 import pydantic
 import pytest
 
-from prefect import flow, get_result, task
+from prefect import flow, get_result, task, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
 from prefect.flows import Flow
@@ -348,3 +348,34 @@ class TestFlowCall:
 
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
+
+
+class TestFlowRunTags:
+    async def test_flow_run_tags_added_at_call(self, orion_client):
+        @flow
+        def my_flow():
+            pass
+
+        with tags("a", "b"):
+            state = my_flow()
+
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert set(flow_run.tags) == {"a", "b"}
+
+    async def test_flow_run_tags_added_to_subflows(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                return (my_subflow(),)
+
+        @flow
+        def my_subflow():
+            pass
+
+        with tags("a", "b"):
+            subflow_state = (await get_result(my_flow()))[0]
+
+        flow_run = await orion_client.read_flow_run(
+            subflow_state.state_details.flow_run_id
+        )
+        assert set(flow_run.tags) == {"a", "b", "c", "d"}

@@ -10,4 +10,4 @@ import prefect.serializers
 from prefect.orion.schemas.states import State
 from prefect.flows import flow
 from prefect.tasks import task
-from prefect.engine import get_result
+from prefect.engine import get_result, tags
