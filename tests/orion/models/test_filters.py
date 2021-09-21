@@ -282,8 +282,8 @@ class TestCountFlowsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flows/count",
+        repsonse = await client.post(
+            "/flows/count/",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -305,8 +305,8 @@ class TestCountFlowsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flows/",
+        repsonse = await client.post(
+            "/flows/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -380,8 +380,8 @@ class TestCountFlowRunModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flow_runs/count",
+        repsonse = await client.post(
+            "/flow_runs/count/",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -400,8 +400,8 @@ class TestCountFlowRunModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flow_runs/",
+        repsonse = await client.post(
+            "/flow_runs/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -474,8 +474,8 @@ class TestCountTaskRunsModels:
             elif k == "task_run_filter":
                 k = "task_runs"
             adjusted_kwargs[k] = v
-        repsonse = await client.get(
-            "/task_runs/count",
+        repsonse = await client.post(
+            "/task_runs/count/",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -494,8 +494,8 @@ class TestCountTaskRunsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/task_runs/",
+        repsonse = await client.post(
+            "/task_runs/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,

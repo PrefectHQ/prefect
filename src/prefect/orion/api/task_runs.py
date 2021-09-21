@@ -37,8 +37,7 @@ async def create_task_run(
     return model
 
 
-# must be defined before `GET /:id`
-@router.get("/count")
+@router.post("/count")
 async def count_task_runs(
     session: sa.orm.Session = Depends(dependencies.get_session),
     flows: schemas.filters.FlowFilter = None,
@@ -56,7 +55,7 @@ async def count_task_runs(
     )
 
 
-@router.get("/history")
+@router.post("/history")
 async def task_run_history(
     history_start: datetime.datetime = Body(
         ..., description="The history's start time."
@@ -100,7 +99,7 @@ async def read_task_run(
     return task_run
 
 
-@router.get("/")
+@router.post("/filter")
 async def read_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
     pagination: schemas.filters.Pagination = Depends(),
