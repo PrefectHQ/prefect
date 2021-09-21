@@ -76,18 +76,17 @@ class Flow(Generic[P, R]):
         self.should_validate_parameters = validate_parameters
 
         if self.should_validate_parameters:
-            # Create the validated function now so that incompatibility can be raised
-            # at declaration time rather than at runtime
+            # Try to create the validated function now so that incompatibility can be
+            # raised at declaration time rather than at runtime
+            # We cannot, however, store the validated function on the flow because it
+            # is not picklable in some environments
             try:
-                self.validated_fn = ValidatedFunction(self.fn, config=None)
+                ValidatedFunction(self.fn, config=None)
             except pydantic.ConfigError as exc:
                 raise ValueError(
                     "Flow function is not compatible with `validate_parameters`. "
                     "Disable validation or change the argument names."
                 ) from exc
-
-        else:
-            self.validated_fn = None
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -100,12 +99,10 @@ class Flow(Generic[P, R]):
             - FlowParameterError: if the parameters are not valid
 
         """
-        if not self.validated_fn:
-            raise ValueError("Parameter validation is not enabled for this flow.")
-
+        validated_fn = ValidatedFunction(self.fn, config=None)
         args, kwargs = parameters_to_positional_and_keyword(self.fn, parameters)
         try:
-            model = self.validated_fn.init_model_instance(*args, **kwargs)
+            model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
