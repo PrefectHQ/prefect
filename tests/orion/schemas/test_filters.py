@@ -67,8 +67,12 @@ def test_any_and_not_any_filter_validation_does_not_allow_any_and_not_any(Filter
     ],
 )
 def test_time_filters_before_must_be_greater_than_after(Filter):
+    now = pendulum.now("UTC")
     with pytest.raises(
         ValueError,
         match=f"Cannot provide Prefect Filter {Filter.__name__!r} where before_ is less than after_",
     ):
-        Filter(before_=pendulum.now("UTC"), after_=pendulum.now("UTC").add(days=1))
+        Filter(before_=now, after_=now.add(days=1))
+
+    # the same time should be allowed, in case you want to filter on only one time
+    Filter(before_=now, after_=now)
