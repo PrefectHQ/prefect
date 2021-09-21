@@ -55,9 +55,7 @@ async def update_flow_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
 
 
-# must be defined before `GET /:id`
 @router.post("/count")
-@router.get("/count")
 async def count_flow_runs(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -75,9 +73,7 @@ async def count_flow_runs(
     )
 
 
-# insert other routes here so they are defined ahead of `GET /:id`
 @router.post("/history")
-@router.get("/history")
 async def flow_run_history(
     history_start: datetime.datetime = Body(
         ..., description="The history's start time."
@@ -122,7 +118,6 @@ async def read_flow_run(
 
 
 @router.post("/filter")
-@router.get("/")
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
     pagination: schemas.filters.Pagination = Depends(),
