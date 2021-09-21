@@ -59,19 +59,10 @@ class TestReadTaskRunStateById:
         assert response.status_code == 404
 
 
-@pytest.mark.parametrize(
-    "request_method,request_endpoint",
-    [
-        ["post", "/task_run_states/filter/"],
-        ["get", "task_run_states/"],
-    ],
-)
 class TestReadTaskRunStateByTaskRunId:
-    async def test_read_task_run_state(
-        self, task_run, task_run_states, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, params=dict(task_run_id=task_run.id)
+    async def test_read_task_run_state(self, task_run, task_run_states, client):
+        response = await client.get(
+            "/task_run_states/", params=dict(task_run_id=task_run.id)
         )
         assert response.status_code == 200
         response_state_ids = {state["id"] for state in response.json()}

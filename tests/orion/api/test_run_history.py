@@ -121,7 +121,6 @@ async def data(database_engine):
         await session.commit()
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
 @pytest.mark.parametrize("route", ["/flow_runs/history/", "/task_runs/history/"])
 @pytest.mark.parametrize(
     "start,end,interval,expected_bins",
@@ -136,7 +135,6 @@ async def data(database_engine):
     ],
 )
 async def test_history(
-    request_method,
     client,
     route,
     start,
@@ -144,7 +142,7 @@ async def test_history(
     interval,
     expected_bins,
 ):
-    response = await getattr(client, request_method)(
+    response = await client.post(
         route,
         json=dict(
             history_start=str(start),
@@ -164,10 +162,9 @@ async def test_history(
     )
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
 @pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
-async def test_history_returns_maximum_items(request_method, client, route):
-    response = await getattr(client, request_method)(
+async def test_history_returns_maximum_items(client, route):
+    response = await client.post(
         f"/{route}/history",
         json=dict(
             history_start=str(dt),
@@ -186,9 +183,8 @@ async def test_history_returns_maximum_items(request_method, client, route):
     )
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
-async def test_daily_bins_flow_runs(request_method, client):
-    response = await getattr(client, request_method)(
+async def test_daily_bins_flow_runs(client):
+    response = await client.post(
         "/flow_runs/history/",
         json=dict(
             history_start=str(dt.subtract(days=5)),
@@ -252,9 +248,8 @@ async def test_daily_bins_flow_runs(request_method, client):
     ]
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
-async def test_weekly_bins_flow_runs(request_method, client):
-    response = await getattr(client, request_method)(
+async def test_weekly_bins_flow_runs(client):
+    response = await client.post(
         "/flow_runs/history/",
         json=dict(
             history_start=str(dt.subtract(days=16)),
@@ -303,9 +298,8 @@ async def test_weekly_bins_flow_runs(request_method, client):
     ]
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
-async def test_weekly_bins_with_filters_flow_runs(request_method, client):
-    response = await getattr(client, request_method)(
+async def test_weekly_bins_with_filters_flow_runs(client):
+    response = await client.post(
         "/flow_runs/history/",
         json=dict(
             history_start=str(dt.subtract(days=16)),
@@ -351,9 +345,8 @@ async def test_weekly_bins_with_filters_flow_runs(request_method, client):
     ]
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
-async def test_5_minute_bins_task_runs(request_method, client):
-    response = await getattr(client, request_method)(
+async def test_5_minute_bins_task_runs(client):
+    response = await client.post(
         "/task_runs/history/",
         json=dict(
             history_start=str(dt.subtract(minutes=5)),
@@ -398,9 +391,8 @@ async def test_5_minute_bins_task_runs(request_method, client):
     ]
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
-async def test_5_minute_bins_task_runs_with_filter(request_method, client):
-    response = await getattr(client, request_method)(
+async def test_5_minute_bins_task_runs_with_filter(client):
+    response = await client.post(
         "/task_runs/history/",
         json=dict(
             history_start=str(dt.subtract(minutes=5)),
@@ -444,11 +436,10 @@ async def test_5_minute_bins_task_runs_with_filter(request_method, client):
     ]
 
 
-@pytest.mark.parametrize("request_method", ["post", "get"])
 @pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
-async def test_last_bin_contains_end_date(request_method, client, route):
+async def test_last_bin_contains_end_date(client, route):
     """The last bin contains the end date, so its own end could be after the history end"""
-    response = await getattr(client, request_method)(
+    response = await client.post(
         f"/{route}/history",
         json=dict(
             history_start=str(dt),
