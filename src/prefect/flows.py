@@ -109,6 +109,25 @@ class Flow(Generic[P, R]):
 
         Returns:
             The final state of the flow run
+
+        Examples:
+
+            Define a flow
+
+            >>> @flow
+            >>> def my_flow(name):
+            >>>     print(f"hello {name}")
+            >>>     return f"goodbye {name}"
+
+            Run a flow
+
+            >>> my_flow("marvin")
+            hello marvin
+
+            Run a flow and get the returned result
+
+            >>> get_result(my_flow("marvin"))
+            "goodbye marvin"
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
@@ -146,7 +165,7 @@ def flow(
     """
     Decorator to designate a function as a Prefect workflow.
 
-    This decorator may be used for async or synchronous functions.
+    This decorator may be used for asynchronous or synchronous functions.
 
     Args:
         name: An optional name for the flow. If not provided, the name will be inferred
@@ -159,7 +178,7 @@ def flow(
         description: An optional string description for the flow.
 
     Returns:
-        A callable Flow object which, when called, will run the flow and return its
+        A callable `Flow` object which, when called, will run the flow and return its
         final state.
     """
     if __fn:
