@@ -30,7 +30,7 @@ class SQLiteQuery(Task):
         self.data = data
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("db", "query")
+    @defaults_from_attrs("db", "query", "data")
     def run(self, db: str = None, query: str = None, data: tuple = ()):
         """
         Args:
