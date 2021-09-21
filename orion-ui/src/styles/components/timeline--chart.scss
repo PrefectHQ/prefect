@@ -5,19 +5,30 @@
   overscroll-behavior: contain;
   overflow: auto;
   position: relative;
+  top: 0;
+  left: 0;
   width: 100%;
 
+  .controls {
+    background-color: $white;
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+  }
+
   .pan-button {
-    position: absolute;
+    position: sticky;
     z-index: 3;
     top: 0;
 
     &.left {
-      left: 0;
+      margin-right: auto;
     }
 
     &.right {
-      right: 0;
+      margin-left: auto;
     }
   }
 

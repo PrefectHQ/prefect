@@ -1,21 +1,32 @@
 <template>
-  <div ref="container" class="chart-container">
-    <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
-    <svg :id="id" ref="chart" class="timeline-chart" />
-
-    <i
-      class="pan-button left pi pi-lg pi-arrow-left-s-line text--grey-40"
+  <div ref="container" class="chart-container" @scroll="handleScroll">
+    <!-- <i
+      v-if="showLeftScrollButton"
+      class="
+        pan-button
+        left
+        pi pi-2x pi-arrow-left-s-line
+        text--grey-40
+        cursor-pointer
+      "
       @click="panLeft"
     />
-    <!-- <Button class="" :icon="true">
-    </Button>
 
-    <Button class="" :icon="true">
-    </Button> -->
     <i
-      class="pan-button right pi pi-lg pi-arrow-right-s-line text--grey-40"
+      v-if="showRightScrollButton"
+      class="
+        pan-button
+        right
+        pi pi-2x pi-arrow-right-s-line
+        text--grey-40
+        cursor-pointer
+      "
       @click="panRight"
-    />
+    /> -->
+
+    <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
+
+    <svg :id="id" ref="chart" class="timeline-chart" />
 
     <div class="node-container">
       <div
@@ -23,7 +34,7 @@
         :key="item.id"
         :id="`row-${i}`"
         class="node correct-text"
-        :class="[item.state.toLowerCase() + '-bg']"
+        :class="[item.state.type.toLowerCase() + '-bg']"
         :style="item.style"
         tabindex="0"
       />
@@ -32,19 +43,13 @@
 </template>
 
 <script lang="ts">
+import { TaskRun } from '@/objects'
 import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
 import { intervals } from '@/util/util'
 
-interface Item {
-  id: string
-  name: string
-  upstream_ids: string[]
-  state: string
-  tags: string[]
-  start_time: string
-  end_time: string
+interface Item extends TaskRun {
   style: {
     left: string
     top: string
@@ -116,6 +121,8 @@ class Props {
   }
 })
 export default class Timeline extends mixins(D3Base).with(Props) {
+  showLeftScrollButton: boolean = true
+  showRightScrollButton: boolean = true
   computedItems: Item[] = []
   intervalHeight: number = 24
   intervalWidth: number = 125
@@ -210,7 +217,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         (a, b) =>
           new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
       )
-      .filter((item: Item) => item.state !== 'PENDING' && item.start_time)
+      .filter((item: Item) => item.state_type !== 'PENDING' && item.start_time)
   }
 
   xAxis = (g: any): Selection => {
@@ -238,6 +245,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   mounted(): void {
+    console.log(this.items)
     this.createChart()
     this.update()
   }
@@ -373,9 +381,25 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       )
   }
 
-  panLeft(): void {}
+  handleScroll(): void {
+    // this.showLeftScrollButton = this.container.scrollLeft > 0
+    // this.showRightScrollButton =
+    //   this.container.scrollLeft < this.container.scrollWidth
+  }
 
-  panRight(): void {}
+  panLeft(): void {
+    this.container.scroll({
+      left: this.container.scrollLeft - this.intervalWidth,
+      behavior: 'smooth'
+    })
+  }
+
+  panRight(): void {
+    this.container.scroll({
+      left: this.container.scrollLeft + this.intervalWidth,
+      behavior: 'smooth'
+    })
+  }
 }
 </script>
 
