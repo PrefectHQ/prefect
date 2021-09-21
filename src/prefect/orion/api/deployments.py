@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
@@ -86,14 +87,17 @@ async def read_deployment(
 
 @router.post("/filter")
 async def read_deployments(
-    pagination: schemas.filters.Pagination = Depends(),
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
     Query for deployments
     """
     return await models.deployments.read_deployments(
-        session=session, offset=pagination.offset, limit=pagination.limit
+        session=session, offset=offset, limit=limit
     )
 
 
