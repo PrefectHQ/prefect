@@ -1,7 +1,7 @@
 """
 Client-side execution of flows and tasks
 """
-from contextlib import contextmanager, nullcontext
+from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
 from uuid import UUID
@@ -35,6 +35,7 @@ from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
+    asyncnullcontext,
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
@@ -270,11 +271,23 @@ async def orchestrate_flow_run(
             flow_call = partial(
                 call_with_parameters, validate_arguments(flow.fn), parameters
             )
-            if flow.isasync:
-                result = await flow_call()
-            else:
-                result = await run_sync_in_worker_thread(flow_call)
 
+            timeout_context = (
+                anyio.fail_after(flow.timeout_seconds)
+                if flow.timeout_seconds
+                else asyncnullcontext()
+            )
+
+            with timeout_context:
+                if flow.isasync:
+                    result = await flow_call()
+                else:
+                    result = await run_sync_in_worker_thread(flow_call)
+
+    except TimeoutError as exc:
+        state = Failed(
+            message=f"Flow run timed out after {flow.timeout_seconds} seconds"
+        )
     except Exception as exc:
         state = Failed(
             message="Flow run encountered an exception.",
