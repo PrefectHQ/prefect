@@ -83,6 +83,7 @@ class OrchestrationContext(PrefectBaseModel):
 
 class TaskOrchestrationContext(OrchestrationContext):
     run_id: UUID
+    orm_run: orm.TaskRun
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -106,18 +107,19 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    async def orm_run(self) -> orm.TaskRun:
-        run = await self.session.get(orm.TaskRun, self.task_run_id)
-        if not run:
-            raise ValueError("Run not found.")
-        return run
+    # async def orm_run(self) -> orm.TaskRun:
+    #     run = await self.session.get(orm.TaskRun, self.task_run_id)
+    #     if not run:
+    #         raise ValueError("Run not found.")
+    #     return run
 
     async def run_settings(self) -> Dict:
-        return (await self.orm_run()).empirical_policy
+        return (self.orm_run).empirical_policy
 
 
 class FlowOrchestrationContext(OrchestrationContext):
     run_id: UUID
+    orm_run: orm.FlowRun
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -141,15 +143,15 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    async def orm_run(self) -> orm.FlowRun:
-        run = await self.session.get(orm.FlowRun, self.flow_run_id)
-        if not run:
-            raise ValueError("Run not found.")
-        return run
+    # async def orm_run(self) -> orm.FlowRun:
+    #     run = await self.session.get(orm.FlowRun, self.flow_run_id)
+    #     if not run:
+    #         raise ValueError("Run not found.")
+    #     return run
 
     @property
     async def run_settings(self) -> Dict:
-        return (await self.orm_run()).empirical_policy
+        return (self.orm_run).empirical_policy
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):

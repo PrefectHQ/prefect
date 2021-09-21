@@ -59,6 +59,7 @@ async def orchestrate_flow_run_state(
         proposed_state=state,
         session=session,
         run_id=flow_run_id,
+        orm_run=run,
     )
 
     # apply orchestration rules and create the new flow run state
