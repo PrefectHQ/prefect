@@ -239,7 +239,7 @@ async def test_update_flow_run(orion_client):
     flow_run_id = await orion_client.create_flow_run(foo)
     flow_run = await orion_client.read_flow_run(flow_run_id)
 
-    exclude = {"updated", "lateness_estimate", "expected_start_time_delta_estimate"}
+    exclude = {"updated", "lateness_estimate", "estimated_start_time_delta"}
 
     # No mutation for unset fields
     await orion_client.update_flow_run(flow_run_id)
