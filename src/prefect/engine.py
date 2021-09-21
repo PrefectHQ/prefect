@@ -534,11 +534,8 @@ async def raise_failed_state(state: State) -> None:
 
 
 @contextmanager
-def tags(*new_tags: str, include_existing: bool = True) -> Set[str]:
+def tags(*new_tags: str) -> Set[str]:
     current_tags = TagsContext.get().current_tags
-    if include_existing:
-        new_tags = current_tags.union(new_tags)
-    else:
-        new_tags = set(new_tags)
+    new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags

@@ -395,13 +395,10 @@ class TestFlowRunTags:
         flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
         assert set(flow_run.tags) == {"a", "b"}
 
-    @pytest.mark.parametrize("include_existing", [True, False])
-    async def test_flow_run_tags_added_to_subflows(
-        self, orion_client, include_existing
-    ):
+    async def test_flow_run_tags_added_to_subflows(self, orion_client):
         @flow
         def my_flow():
-            with tags("c", "d", include_existing=True):
+            with tags("c", "d"):
                 return (my_subflow(),)
 
         @flow
@@ -414,8 +411,4 @@ class TestFlowRunTags:
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
         )
-        assert (
-            set(flow_run.tags) == {"a", "b", "c", "d"}
-            if include_existing
-            else {"c", "d"}
-        )
+        assert set(flow_run.tags) == {"a", "b", "c", "d"}
