@@ -1,11 +1,18 @@
 # import prefect
+import asyncio
+from functools import partial
+from sys import exc_info
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from prefect.orion import api
 from prefect.orion.schemas import schedules
+from prefect.orion import services
+from prefect import settings
+from prefect.utilities.logging import get_logger
 
 app = FastAPI(title="Prefect Orion", version="alpha")
+logger = get_logger("orion")
 
 # middleware
 app.add_middleware(
@@ -34,3 +41,47 @@ def hello():
 @app.get("/echo", tags=["debug"])
 def echo(x: str):
     return x
+
+
+@app.on_event("startup")
+async def start_services():
+    if settings.orion.services.run_in_app:
+        loop = asyncio.get_running_loop()
+        service_instances = [services.agent.Agent(), services.scheduler.Scheduler()]
+        app.state.services = {
+            service: loop.create_task(service.start(), name=service.name)
+            for service in service_instances
+        }
+
+        for service, task in app.state.services.items():
+            logger.info(f"{service.name} service scheduled to start in-app")
+            task.add_done_callback(partial(on_service_exit, service))
+    else:
+        logger.info(
+            "In-app services have been disabled and will need to be run separately."
+        )
+        app.state.services = None
+
+
+@app.on_event("shutdown")
+async def wait_for_service_shutdown():
+    if app.state.services:
+        await asyncio.gather(*[service.stop() for service in app.state.services])
+        try:
+            await asyncio.gather(*[task.stop() for task in app.state.services.values()])
+        except Exception as exc:
+            # `on_service_exit` should handle logging exceptions on exit
+            pass
+
+
+def on_service_exit(service, task):
+    """
+    Added as a callback for completion of services to log exit
+    """
+    try:
+        # Retrieving the result will raise the exception
+        task.result()
+    except Exception:
+        logger.error(f"{service.name} service failed!", exc_info=True)
+    else:
+        logger.info(f"{service.name} service stopped!")

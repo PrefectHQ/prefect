@@ -16,8 +16,15 @@ def get_call_parameters(
     bound_signature = inspect.signature(fn).bind(*call_args, **call_kwargs)
     bound_signature.apply_defaults()
     # We cast from `OrderedDict` to `dict` because Dask will not convert futures in an
-    # ordered dictionary to values during execution
+    # ordered dictionary to values during execution; this is the default behavior in
+    # Python 3.9 anyway.
     return dict(bound_signature.arguments)
+
+
+def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
+    bound_signature = inspect.signature(fn).bind_partial()
+    bound_signature.arguments = parameters
+    return fn(*bound_signature.args, **bound_signature.kwargs)
 
 
 def cloudpickle_wrapped_call(

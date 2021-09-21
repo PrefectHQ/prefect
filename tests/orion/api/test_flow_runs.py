@@ -249,7 +249,7 @@ class TestReadFlowRuns:
         return [flow_run_1, flow_run_2, flow_run_3]
 
     async def test_read_flow_runs(self, flow_runs, client):
-        response = await client.get("/flow_runs/")
+        response = await client.post("/flow_runs/filter")
         assert response.status_code == 200
         assert len(response.json()) == 3
 
@@ -298,12 +298,12 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
-        response = await client.get("/flow_runs/", params=dict(limit=1))
+        response = await client.post("/flow_runs/filter", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_flow_runs_returns_empty_list(self, client):
-        response = await client.get("/flow_runs/")
+        response = await client.post("/flow_runs/filter")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -331,8 +331,8 @@ class TestReadFlowRuns:
         )
         await session.commit()
 
-        response = await client.get(
-            "/flow_runs/",
+        response = await client.post(
+            "/flow_runs/filter/",
             json=dict(sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value),
             params=dict(limit=1),
         )
@@ -345,7 +345,7 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_sort_succeeds_for_all_sort_values(
         self, sort, flow_run, client
     ):
-        response = await client.get("/flow_runs/", json=dict(sort=sort))
+        response = await client.post("/flow_runs/filter", json=dict(sort=sort))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
