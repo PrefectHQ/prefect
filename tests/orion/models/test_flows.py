@@ -170,19 +170,38 @@ class TestReadFlows:
         # exact tag match
         result = await models.flows.read_flows(
             session=session,
-            flow_filter=schemas.filters.FlowFilter(tags_all=["db", "blue"]),
+            flow_filter=schemas.filters.FlowFilter(
+                tags=schemas.filters.FlowFilterTags(all_=["db", "blue"])
+            ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_1.id
+        assert {res.id for res in result} == {flow_1.id}
 
         # subset of tags match
         result = await models.flows.read_flows(
             session=session,
-            flow_filter=schemas.filters.FlowFilter(tags_all=["db"]),
+            flow_filter=schemas.filters.FlowFilter(
+                tags=schemas.filters.FlowFilterTags(all_=["db"])
+            ),
         )
         assert {res.id for res in result} == {flow_1.id, flow_2.id}
 
-    async def test_flows_filters_by_name(self, session):
+        # is_null_
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                tags=schemas.filters.FlowFilterTags(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {flow_3.id}
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(
+                tags=schemas.filters.FlowFilterTags(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {flow_1.id, flow_2.id}
+
+    async def test_flows_filters_by_name_any(self, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -197,18 +216,21 @@ class TestReadFlows:
         # filter based on flow names
         result = await models.flows.read_flows(
             session=session,
-            flow_filter=schemas.filters.FlowFilter(names=["my-flow-1"]),
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
+            ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_1.id
+        assert {res.id for res in result} == {flow_1.id}
 
         result = await models.flows.read_flows(
             session=session,
-            flow_filter=schemas.filters.FlowFilter(names=["my-flow-2", "my-flow-3"]),
+            flow_filter=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=["my-flow-2", "my-flow-3"])
+            ),
         )
         assert {res.id for res in result} == {flow_2.id, flow_3.id}
 
-    async def test_read_flows_filters_by_ids(self, session):
+    async def test_read_flows_filters_by_ids_any(self, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -223,14 +245,17 @@ class TestReadFlows:
         # filter based on flow ids
         result = await models.flows.read_flows(
             session=session,
-            flow_filter=schemas.filters.FlowFilter(ids=[flow_1.id]),
+            flow_filter=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow_1.id])
+            ),
         )
-        assert len(result) == 1
-        assert result[0].id == flow_1.id
+        assert {res.id for res in result} == {flow_1.id}
 
         result = await models.flows.read_flows(
             session=session,
-            flow_filter=schemas.filters.FlowFilter(ids=[flow_1.id, flow_2.id]),
+            flow_filter=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow_1.id, flow_2.id])
+            ),
         )
         assert {res.id for res in result} == {flow_1.id, flow_2.id}
 

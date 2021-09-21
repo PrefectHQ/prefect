@@ -36,6 +36,7 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
+from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
 
@@ -266,7 +267,9 @@ async def orchestrate_flow_run(
             executor=executor,
             sync_portal=sync_portal,
         ):
-            flow_call = partial(validate_arguments(flow.fn), **parameters)
+            flow_call = partial(
+                call_with_parameters, validate_arguments(flow.fn), parameters
+            )
             if flow.isasync:
                 result = await flow_call()
             else:
@@ -390,7 +393,7 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
-                result = task.fn(**parameters)
+                result = call_with_parameters(task.fn, parameters)
                 if task.isasync:
                     result = await result
         except Exception as exc:

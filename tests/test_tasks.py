@@ -159,6 +159,32 @@ class TestTaskCall:
         task_state = get_result(flow_state)
         assert get_result(task_state) == 2
 
+    def test_task_with_variadic_args(self):
+        @task
+        def foo(*foo, bar):
+            return foo, bar
+
+        @flow
+        def test_flow():
+            return foo(1, 2, 3, bar=4)
+
+        flow_state = test_flow()
+        task_state = get_result(flow_state)
+        assert get_result(task_state) == ((1, 2, 3), 4)
+
+    def test_task_with_variadic_keyword_args(self):
+        @task
+        def foo(foo, bar, **foobar):
+            return foo, bar, foobar
+
+        @flow
+        def test_flow():
+            return foo(1, 2, x=3, y=4, z=5)
+
+        flow_state = test_flow()
+        task_state = get_result(flow_state)
+        assert get_result(task_state) == (1, 2, dict(x=3, y=4, z=5))
+
 
 class TestTaskRetries:
     """

@@ -67,11 +67,18 @@ class APISettings(BaseSettings):
     # a default limit for queries
     default_limit: int = 200
 
+    host: str = "127.0.0.1"
+    port: int = 5000
+    uvicorn_log_level: str = "info"
+
 
 class ServicesSettings(BaseSettings):
     class Config:
         env_prefix = "PREFECT_ORION_SERVICES_"
         frozen = True
+
+    # run in app
+    run_in_app: bool = False
 
     # run scheduler every 60 seconds
     scheduler_loop_seconds: float = 60
@@ -81,6 +88,9 @@ class ServicesSettings(BaseSettings):
     scheduler_max_runs: int = 100
     # schedule at most three months into the future
     scheduler_max_future_seconds: int = timedelta(days=100).total_seconds()
+
+    # check for new runs every 10 seconds
+    agent_loop_seconds: float = 10
 
 
 class OrionSettings(BaseSettings):

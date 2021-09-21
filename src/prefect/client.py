@@ -86,10 +86,9 @@ class OrionClient:
 
     async def get(
         self,
-        url: httpx_types.URLTypes,
+        route: httpx_types.URLTypes,
         *,
         params: Union[httpx_types.QueryParamTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        json: Any = None,
         headers: Union[httpx_types.HeaderTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
         cookies: Union[httpx_types.CookieTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
         auth: Union[httpx_types.AuthTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
@@ -103,12 +102,10 @@ class OrionClient:
 
         **Parameters**: See `httpx.request`.
         """
-        response = await self._client.request(
-            "GET",
-            url,
+        response = await self._client.get(
+            route,
             **drop_unset(
                 params=params,
-                json=json,
                 headers=headers,
                 cookies=cookies,
                 auth=auth,
@@ -116,6 +113,9 @@ class OrionClient:
                 timeout=timeout,
             ),
         )
+        # TODO: We may not _always_ want to raise bad status codes but for now we will
+        #       because response.json() will throw misleading errors and this will ease
+        #       development
         response.raise_for_status()
         return response
 
@@ -148,7 +148,7 @@ class OrionClient:
         if flows:
             body["flows"] = flows.dict(json_compatible=True)
 
-        response = await self.get(f"/flows", json=body)
+        response = await self.post(f"/flows/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
 
     async def read_flow_by_name(
@@ -290,7 +290,7 @@ class OrionClient:
         return schemas.core.Deployment.parse_obj(response.json())
 
     async def read_deployments(self) -> schemas.core.Deployment:
-        response = await self.get(f"/deployments")
+        response = await self.post(f"/deployments/filter")
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
@@ -312,7 +312,7 @@ class OrionClient:
         if task_runs:
             body["task_runs"] = task_runs.dict(json_compatible=True)
 
-        response = await self.get(f"/flow_runs", json=body)
+        response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
 
     async def persist_data(
@@ -546,7 +546,7 @@ class OrionClient:
         self, task_run_id: UUID
     ) -> List[schemas.states.State]:
         response = await self.get(
-            "/task_run_states/", params=dict(task_run_id=task_run_id)
+            "/task_run_states", params=dict(task_run_id=task_run_id)
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
