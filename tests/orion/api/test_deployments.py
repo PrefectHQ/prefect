@@ -115,7 +115,7 @@ class TestCreateDeployment:
         )
 
         n_runs = await models.flow_runs.count_flow_runs(
-            session, flow_filter=schemas.filters.FlowFilter(ids=[flow.id])
+            session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
         assert n_runs == 100
 
@@ -139,7 +139,7 @@ class TestCreateDeployment:
         )
 
         n_runs = await models.flow_runs.count_flow_runs(
-            session, flow_filter=schemas.filters.FlowFilter(ids=[flow.id])
+            session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
         assert n_runs == 0
 
@@ -160,7 +160,7 @@ class TestCreateDeployment:
         )
 
         n_runs = await models.flow_runs.count_flow_runs(
-            session, flow_filter=schemas.filters.FlowFilter(ids=[flow.id])
+            session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
         assert n_runs == 0
 
@@ -350,17 +350,17 @@ class TestReadDeployments:
         )
 
     async def test_read_deployments(self, deployments, client):
-        response = await client.get("/deployments/")
+        response = await client.post("/deployments/filter/")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
     async def test_read_deployments_applies_limit(self, deployments, client):
-        response = await client.get("/deployments/", params=dict(limit=1))
+        response = await client.post("/deployments/filter/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
-        response = await client.get("/deployments/", params=dict(offset=1))
+        response = await client.post("/deployments/filter/", params=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -371,7 +371,7 @@ class TestReadDeployments:
         assert response.json()[0]["id"] == second_id
 
     async def test_read_deployments_returns_empty_list(self, client):
-        response = await client.get("/deployments/")
+        response = await client.post("/deployments/filter/")
         assert response.status_code == 200
         assert response.json() == []
 

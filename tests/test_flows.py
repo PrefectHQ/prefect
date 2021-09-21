@@ -177,6 +177,20 @@ class TestFlowCall:
         assert state.is_completed()
         assert get_result(state) == 10
 
+    def test_call_with_variadic_args(self):
+        @flow
+        def test_flow(*foo, bar):
+            return foo, bar
+
+        assert get_result(test_flow(1, 2, 3, bar=4)) == ((1, 2, 3), 4)
+
+    def test_call_with_variadic_keyword_args(self):
+        @flow
+        def test_flow(foo, bar, **foobar):
+            return foo, bar, foobar
+
+        assert get_result(test_flow(1, 2, x=3, y=4, z=5)) == (1, 2, dict(x=3, y=4, z=5))
+
     @pytest.mark.xfail(reason="Cloudpickle cannot serialize Pydantic errors")
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")

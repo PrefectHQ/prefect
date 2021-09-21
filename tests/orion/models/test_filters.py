@@ -223,29 +223,36 @@ class TestCountFlowsModels:
 
     params = [
         [{}, 3],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1", "f-2"])), 2],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1", "f-100"])), 1],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1"])), 1],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db"])), 2],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "blue"])), 1],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "red"])), 0],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"])), 3],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"])), 2],
-        # possibly odd behavior
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=[])), 2],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 1],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 1],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "blue"]))), 1],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "red"]))), 3],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
+            2,
+        ],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
         # next two check that filters are applied as an intersection not a union
-        [dict(task_run_filter=filters.TaskRunFilter(states=["FAILED"])), 1],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(states=["FAILED"]),
-                flow_run_filter=filters.FlowRunFilter(tags_all=["xyz"]),
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"])),
+                flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["xyz"])),
             ),
             0,
         ],
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    deployment_ids=[d_1_1_id, d_1_2_id]
+                    deployment_id=dict(any_=[d_1_1_id, d_1_2_id])
                 )
             ),
             1,
@@ -253,7 +260,7 @@ class TestCountFlowsModels:
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    deployment_ids=[d_1_1_id, d_3_1_id]
+                    deployment_id=dict(any_=[d_1_1_id, d_3_1_id])
                 )
             ),
             2,
@@ -282,8 +289,8 @@ class TestCountFlowsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flows/count",
+        repsonse = await client.post(
+            "/flows/count/",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -305,8 +312,8 @@ class TestCountFlowsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flows/",
+        repsonse = await client.post(
+            "/flows/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -321,29 +328,36 @@ class TestCountFlowRunModels:
 
     params = [
         [{}, 10],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1", "f-2"])), 8],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1", "f-100"])), 5],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1"])), 5],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db"])), 8],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "blue"])), 5],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "red"])), 0],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"])), 3],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"])), 3],
-        # possibly odd behavior
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=[])), 2],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 8],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 5],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 5],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 8],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "blue"]))), 5],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "red"]))), 3],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
+            3,
+        ],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
         # next two check that filters are applied as an intersection not a union
-        [dict(task_run_filter=filters.TaskRunFilter(states=["FAILED"])), 1],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(states=["FAILED"]),
-                flow_filter=filters.FlowFilter(tags_all=["xyz"]),
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"])),
+                flow_filter=filters.FlowFilter(tags=dict(all_=["xyz"])),
             ),
             0,
         ],
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    deployment_ids=[d_1_1_id, d_1_2_id]
+                    deployment_id=dict(any_=[d_1_1_id, d_1_2_id])
                 )
             ),
             3,
@@ -351,7 +365,7 @@ class TestCountFlowRunModels:
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    deployment_ids=[d_1_1_id, d_3_1_id]
+                    deployment_id=dict(any_=[d_1_1_id, d_3_1_id])
                 )
             ),
             3,
@@ -380,8 +394,8 @@ class TestCountFlowRunModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flow_runs/count",
+        repsonse = await client.post(
+            "/flow_runs/count/",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -400,8 +414,8 @@ class TestCountFlowRunModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/flow_runs/",
+        repsonse = await client.post(
+            "/flow_runs/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -416,29 +430,41 @@ class TestCountTaskRunsModels:
 
     params = [
         [{}, 7],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1", "f-2"])), 6],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1", "f-100"])), 3],
-        [dict(flow_filter=filters.FlowFilter(names=["f-1"])), 3],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db"])), 6],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "blue"])), 3],
-        [dict(flow_filter=filters.FlowFilter(tags_all=["db", "red"])), 0],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "red"])), 0],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=["db", "blue"])), 3],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 6],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 3],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 3],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 6],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "blue"]))), 3],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "red"]))), 0],
+        [
+            dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
+            3,
+        ],
         # possibly odd behavior
-        [dict(flow_run_filter=filters.FlowRunFilter(tags_all=[])), 1],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 1],
         # next two check that filters are applied as an intersection not a union
-        [dict(flow_run_filter=filters.FlowRunFilter(states=["COMPLETED"])), 4],
         [
             dict(
-                flow_run_filter=filters.FlowRunFilter(states=["COMPLETED"]),
-                flow_filter=filters.FlowFilter(tags_all=["xyz"]),
+                flow_run_filter=filters.FlowRunFilter(
+                    state_type=dict(any_=["COMPLETED"])
+                )
+            ),
+            4,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state_type=dict(any_=["COMPLETED"])
+                ),
+                flow_filter=filters.FlowFilter(tags=dict(all_=["xyz"])),
             ),
             0,
         ],
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    deployment_ids=[d_1_1_id, d_1_2_id]
+                    deployment_id=dict(any_=[d_1_1_id, d_1_2_id])
                 )
             ),
             3,
@@ -446,7 +472,7 @@ class TestCountTaskRunsModels:
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    deployment_ids=[d_1_1_id, d_3_1_id]
+                    deployment_id=dict(any_=[d_1_1_id, d_3_1_id])
                 )
             ),
             4,
@@ -474,8 +500,8 @@ class TestCountTaskRunsModels:
             elif k == "task_run_filter":
                 k = "task_runs"
             adjusted_kwargs[k] = v
-        repsonse = await client.get(
-            "/task_runs/count",
+        repsonse = await client.post(
+            "/task_runs/count/",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -494,8 +520,8 @@ class TestCountTaskRunsModels:
                 k = "task_runs"
             adjusted_kwargs[k] = v
 
-        repsonse = await client.get(
-            "/task_runs/",
+        repsonse = await client.post(
+            "/task_runs/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
