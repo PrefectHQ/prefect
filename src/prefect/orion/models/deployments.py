@@ -264,9 +264,10 @@ async def _insert_scheduled_flow_runs(
             # postgres supports `UPDATE ... FROM` syntax
             stmt = (
                 sa.update(orm.FlowRun)
-                .where(orm.FlowRunState.flow_run_id == orm.FlowRun.id)
                 .where(
-                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states])
+                    orm.FlowRun.id.in_(inserted_flow_run_ids),
+                    orm.FlowRunState.flow_run_id == orm.FlowRun.id,
+                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
                 )
                 .values(state_id=orm.FlowRunState.id)
                 # no need to synchronize as these flow runs are entirely new
@@ -284,10 +285,15 @@ async def _insert_scheduled_flow_runs(
                 .scalar_subquery()
             )
             stmt = (
-                sa.update(orm.FlowRun).values(state_id=subquery)
+                sa.update(orm.FlowRun)
+                .where(
+                    orm.FlowRun.id.in_(inserted_flow_run_ids),
+                )
+                .values(state_id=subquery)
                 # no need to synchronize as these flow runs are entirely new
                 .execution_options(synchronize_session=False)
             )
+
         await session.execute(stmt)
 
     return [r for r in runs if r.id in inserted_flow_run_ids]
