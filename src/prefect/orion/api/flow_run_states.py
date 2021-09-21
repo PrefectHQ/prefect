@@ -51,6 +51,7 @@ async def read_flow_run_state(
     return flow_run_state
 
 
+@router.post("/filter")
 @router.get("/")
 async def read_flow_run_states(
     flow_run_id: UUID,
