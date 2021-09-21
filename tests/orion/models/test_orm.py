@@ -350,7 +350,7 @@ class TestTaskRun:
 
 
 class TestTotalRunTimeEstimate:
-    async def test_flow_run_total_run_time_estimate_matches_total_run_time(
+    async def test_flow_run_estimated_run_time_matches_total_run_time(
         self, session, flow
     ):
         dt = pendulum.now().subtract(minutes=1)
@@ -373,17 +373,17 @@ class TestTotalRunTimeEstimate:
         )
 
         assert fr.total_run_time == datetime.timedelta(seconds=3)
-        assert fr.total_run_time_estimate == datetime.timedelta(seconds=3)
+        assert fr.estimated_run_time == datetime.timedelta(seconds=3)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.total_run_time_estimate).filter_by(id=fr.id)
+            sa.select(orm.FlowRun.estimated_run_time).filter_by(id=fr.id)
         )
 
         assert result.scalar() == pendulum.duration(seconds=3)
 
-    async def test_flow_run_total_run_time_estimate_includes_current_run(
+    async def test_flow_run_estimated_run_time_includes_current_run(
         self, session, flow
     ):
         dt = pendulum.now().subtract(minutes=1)
@@ -404,14 +404,14 @@ class TestTotalRunTimeEstimate:
         # the estimated time is between 59 and 60 seconds
         assert (
             datetime.timedelta(seconds=59)
-            < fr.total_run_time_estimate
+            < fr.estimated_run_time
             < datetime.timedelta(seconds=60)
         )
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.total_run_time_estimate).filter_by(id=fr.id)
+            sa.select(orm.FlowRun.estimated_run_time).filter_by(id=fr.id)
         )
         assert (
             datetime.timedelta(seconds=59)
@@ -419,7 +419,7 @@ class TestTotalRunTimeEstimate:
             < datetime.timedelta(seconds=60)
         )
 
-    async def test_task_run_total_run_time_estimate_matches_total_run_time(
+    async def test_task_run_estimated_run_time_matches_total_run_time(
         self, session, flow_run
     ):
         dt = pendulum.now().subtract(minutes=1)
@@ -444,17 +444,17 @@ class TestTotalRunTimeEstimate:
         )
 
         assert tr.total_run_time == datetime.timedelta(seconds=3)
-        assert tr.total_run_time_estimate == datetime.timedelta(seconds=3)
+        assert tr.estimated_run_time == datetime.timedelta(seconds=3)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.TaskRun.total_run_time_estimate).filter_by(id=tr.id)
+            sa.select(orm.TaskRun.estimated_run_time).filter_by(id=tr.id)
         )
 
         assert result.scalar() == datetime.timedelta(seconds=3)
 
-    async def test_task_run_total_run_time_estimate_includes_current_run(
+    async def test_task_run_estimated_run_time_includes_current_run(
         self, session, flow_run
     ):
         dt = pendulum.now().subtract(minutes=1)
@@ -477,14 +477,14 @@ class TestTotalRunTimeEstimate:
         # the estimated time is between 59 and 60 seconds
         assert (
             datetime.timedelta(seconds=59)
-            < tr.total_run_time_estimate
+            < tr.estimated_run_time
             < datetime.timedelta(seconds=60)
         )
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.TaskRun.total_run_time_estimate).filter_by(id=tr.id)
+            sa.select(orm.TaskRun.estimated_run_time).filter_by(id=tr.id)
         )
 
         assert (
@@ -505,16 +505,14 @@ class TestExpectedStartTimeDelta:
         )
         assert (
             pendulum.duration(seconds=60)
-            < fr.expected_start_time_delta_estimate
+            < fr.estimated_start_time_delta
             < pendulum.duration(seconds=61)
         )
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.expected_start_time_delta_estimate).filter_by(
-                id=fr.id
-            )
+            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert (
             pendulum.duration(seconds=60)
@@ -539,16 +537,14 @@ class TestExpectedStartTimeDelta:
         # pending has no impact on lateness
         assert (
             pendulum.duration(seconds=60)
-            < fr.expected_start_time_delta_estimate
+            < fr.estimated_start_time_delta
             < pendulum.duration(seconds=61)
         )
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.expected_start_time_delta_estimate).filter_by(
-                id=fr.id
-            )
+            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert (
             pendulum.duration(seconds=60)
@@ -571,14 +567,12 @@ class TestExpectedStartTimeDelta:
         )
 
         # running created a start time
-        assert fr.expected_start_time_delta_estimate == pendulum.duration(seconds=5)
+        assert fr.estimated_start_time_delta == pendulum.duration(seconds=5)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.expected_start_time_delta_estimate).filter_by(
-                id=fr.id
-            )
+            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=5)
 
@@ -597,14 +591,12 @@ class TestExpectedStartTimeDelta:
         )
 
         # final states remove lateness even if the run never started
-        assert fr.expected_start_time_delta_estimate == pendulum.duration(seconds=0)
+        assert fr.estimated_start_time_delta == pendulum.duration(seconds=0)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.expected_start_time_delta_estimate).filter_by(
-                id=fr.id
-            )
+            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)
 
@@ -623,13 +615,11 @@ class TestExpectedStartTimeDelta:
         )
 
         # running early results in zero lateness
-        assert fr.expected_start_time_delta_estimate == pendulum.duration(seconds=0)
+        assert fr.estimated_start_time_delta == pendulum.duration(seconds=0)
 
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.expected_start_time_delta_estimate).filter_by(
-                id=fr.id
-            )
+            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)

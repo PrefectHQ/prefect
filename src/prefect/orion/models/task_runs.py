@@ -34,8 +34,8 @@ async def create_task_run(
                 shallow=True,
                 exclude={
                     "state",
-                    "total_run_time_estimate",
-                    "expected_start_time_delta_estimate",
+                    "estimated_run_time",
+                    "estimated_start_time_delta",
                 },
             ),
             state=None

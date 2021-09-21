@@ -154,7 +154,7 @@ class RunMixin:
     )
 
     @hybrid_property
-    def total_run_time_estimate(self):
+    def estimated_run_time(self):
         """Total run time is incremented in the database whenever a RUNNING
         state is exited. To give up-to-date estimates, we estimate incremental
         run time for any runs currently in a RUNNING state."""
@@ -163,8 +163,8 @@ class RunMixin:
         else:
             return self.total_run_time
 
-    @total_run_time_estimate.expression
-    def total_run_time_estimate(cls):
+    @estimated_run_time.expression
+    def estimated_run_time(cls):
         # use a correlated subquery to retrieve details from the state table
         state_table = cls.state.property.target
         return (
@@ -182,11 +182,11 @@ class RunMixin:
             )
             .select_from(state_table)
             .where(cls.state_id == state_table.c.id)
-            .label("total_run_time_estimate")
+            .label("estimated_run_time")
         )
 
     @hybrid_property
-    def expected_start_time_delta_estimate(self) -> datetime.timedelta:
+    def estimated_start_time_delta(self) -> datetime.timedelta:
         """The delta to the expected start time (or "lateness") is computed as
         the difference between the actual start time and expected start time. To
         give up-to-date estimates, we estimate lateness for any runs that don't
@@ -204,8 +204,8 @@ class RunMixin:
         else:
             return datetime.timedelta(0)
 
-    @expected_start_time_delta_estimate.expression
-    def expected_start_time_delta_estimate(cls):
+    @estimated_start_time_delta.expression
+    def estimated_start_time_delta(cls):
         return sa.case(
             (
                 cls.start_time > cls.expected_start_time,
