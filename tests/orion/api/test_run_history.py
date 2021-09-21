@@ -305,7 +305,7 @@ async def test_weekly_bins_with_filters_flow_runs(client):
             history_start=str(dt.subtract(days=16)),
             history_end=str(dt.add(days=6)),
             history_interval_seconds=timedelta(days=7).total_seconds(),
-            flow_runs=dict(states=["FAILED", "SCHEDULED"]),
+            flow_runs=dict(state_type=dict(any_=["FAILED", "SCHEDULED"])),
         ),
     )
 
@@ -398,7 +398,7 @@ async def test_5_minute_bins_task_runs_with_filter(client):
             history_start=str(dt.subtract(minutes=5)),
             history_end=str(dt.add(minutes=15)),
             history_interval_seconds=timedelta(minutes=5).total_seconds(),
-            task_runs=dict(states=["COMPLETED", "RUNNING"]),
+            task_runs=dict(state_type=dict(any_=["COMPLETED", "RUNNING"])),
         ),
     )
 
