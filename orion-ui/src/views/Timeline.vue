@@ -82,9 +82,7 @@ export default class TimelineView extends Vue {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        order: {
-          start_time: {}
-        }
+        sort: 'EXPECTED_START_TIME_DESC'
       })
     })
 

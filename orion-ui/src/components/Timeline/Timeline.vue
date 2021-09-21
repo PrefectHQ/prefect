@@ -58,9 +58,9 @@ interface Item extends TaskRun {
 }
 
 const formatMillisecond = d3.timeFormat('.%L'),
-  formatSecond = d3.timeFormat(':%S'),
-  formatMinute = d3.timeFormat('%I:%M'),
-  formatHour = d3.timeFormat('%I %p'),
+  formatSecond = d3.timeFormat('%-I:%M:%S %p'),
+  formatMinute = d3.timeFormat('%-I:%M %p'),
+  formatHour = d3.timeFormat('%-I %p'),
   formatDay = d3.timeFormat('%a %d'),
   formatWeek = d3.timeFormat('%b %d'),
   formatMonth = d3.timeFormat('%B'),
