@@ -52,15 +52,12 @@ class Flow(Generic[P, R]):
         version: str = None,
         executor: BaseExecutor = None,
         description: str = None,
-        tags: Iterable[str] = None,
         validate_parameters: bool = True,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-
-        self.tags = set(tags if tags else [])
         self.executor = executor or LocalExecutor()
 
         self.description = description or inspect.getdoc(fn)
@@ -161,7 +158,6 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
-    tags: Iterable[str] = None,
     validate_parameters: bool = True,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
@@ -174,7 +170,6 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
-    tags: Iterable[str] = None,
     validate_parameters: bool = True,
 ):
     if __fn:
@@ -186,7 +181,6 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
-                tags=tags,
                 validate_parameters=validate_parameters,
             ),
         )
@@ -199,7 +193,6 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
-                tags=tags,
                 validate_parameters=validate_parameters,
             ),
         )
