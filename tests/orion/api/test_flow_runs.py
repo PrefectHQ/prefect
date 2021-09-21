@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 import pendulum
@@ -298,7 +299,7 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
-        response = await client.post("/flow_runs/filter", params=dict(limit=1))
+        response = await client.post("/flow_runs/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -333,11 +334,23 @@ class TestReadFlowRuns:
 
         response = await client.post(
             "/flow_runs/filter/",
-            json=dict(sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value),
-            params=dict(limit=1),
+            json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value
+            ),
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/filter/",
+            json=dict(
+                limit=1,
+                offset=1,
+                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_1.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
