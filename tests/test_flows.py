@@ -6,7 +6,7 @@ import pydantic
 from pydantic.decorator import validate_arguments
 import pytest
 
-from prefect import flow, get_result, task
+from prefect import flow, get_result, task, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
 from prefect.exceptions import FlowParameterError
@@ -14,7 +14,7 @@ from prefect.flows import Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.testing import exceptions_equal, check_for_type_errors
+from prefect.utilities.testing import exceptions_equal
 
 
 class TestFlow:
@@ -93,53 +93,6 @@ class TestDecorator:
         my_flow = flow(file_hash)
 
         assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
-
-    @pytest.mark.skipif(
-        parse_version(mypy.version.__version__) < parse_version("1.0"),
-        reason="mypy does not support PEP-612 https://github.com/python/mypy/issues/8645",
-    )
-    def test_decorator_return_type_with_correct_params(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-
-            check: Callable[[int, str], State] = foo
-            """
-        )
-
-    def test_decorator_return_type_coerced_to_state_sync(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-            
-            # Note, mypy does not support `ParamSpec` yet so it is coerced into `...`
-            check: Callable[..., State] = foo
-            """
-        )
-
-    def test_decorator_return_type_coerced_to_state_async(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable, Awaitable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-            
-            check: Callable[..., Awaitable[State]] = foo
-            """
-        )
 
 
 class TestFlowCall:
@@ -399,3 +352,34 @@ class TestFlowCall:
         assert isinstance(parent_state, State)
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
+
+
+class TestFlowRunTags:
+    async def test_flow_run_tags_added_at_call(self, orion_client):
+        @flow
+        def my_flow():
+            pass
+
+        with tags("a", "b"):
+            state = my_flow()
+
+        flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+        assert set(flow_run.tags) == {"a", "b"}
+
+    async def test_flow_run_tags_added_to_subflows(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                return (my_subflow(),)
+
+        @flow
+        def my_subflow():
+            pass
+
+        with tags("a", "b"):
+            subflow_state = (await get_result(my_flow()))[0]
+
+        flow_run = await orion_client.read_flow_run(
+            subflow_state.state_details.flow_run_id
+        )
+        assert set(flow_run.tags) == {"a", "b", "c", "d"}

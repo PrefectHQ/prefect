@@ -58,24 +58,15 @@ async def query_for_ready_flow_runs(
 ) -> List[FlowRun]:
     submitted_ids = submitted_ids or set()
 
-    scheduled_runs = await client.read_flow_runs(
+    ready_runs = await client.read_flow_runs(
         flow_runs=FlowRunFilter(
-            states=[StateType.SCHEDULED],
-            start_time_before=pendulum.now("utc").add(seconds=prefetch_seconds),
+            id=dict(not_any_=submitted_ids),
+            state_type=dict(any_=[StateType.SCHEDULED]),
+            next_scheduled_start_time=dict(
+                before_=pendulum.now("utc").add(seconds=prefetch_seconds)
+            ),
+            deployment_id=dict(is_null_=False),
         )
     )
-
-    # Filter out runs that should not be submitted again but maintain ordering
-    # TODO: Move this into the `FlowRunFilter` once it supports this
-    ready_runs = [
-        run
-        for run in scheduled_runs
-        if run.id not in submitted_ids
-        and run.deployment_id is not None
-        and (
-            run.state.state_details.scheduled_time
-            < pendulum.now("utc").add(seconds=prefetch_seconds)
-        )
-    ]
 
     return ready_runs

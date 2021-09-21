@@ -4,5 +4,5 @@ import prefect.orion.schemas.core
 import prefect.orion.schemas.data
 import prefect.orion.schemas.actions
 import prefect.orion.schemas.responses
-import prefect.orion.schemas.filters
+import prefect.orion.schemas.filters as filters
 import prefect.orion.schemas.sorting

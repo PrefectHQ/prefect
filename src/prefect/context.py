@@ -2,7 +2,7 @@
 This module contains async and thread safe variables for passing runtime context data
 """
 from contextvars import ContextVar
-from typing import Optional, Type, TypeVar, Union
+from typing import Optional, Type, TypeVar, Union, Set
 from uuid import UUID
 
 import pendulum
@@ -69,6 +69,17 @@ class TaskRunContext(RunContext):
     client: OrionClient
 
     __var__ = ContextVar("task_run")
+
+
+class TagsContext(ContextModel):
+    current_tags: Set[str] = Field(default_factory=set)
+
+    @classmethod
+    def get(cls) -> "TagsContext":
+        # Return an empty `TagsContext` instead of `None` if no context exists
+        return cls.__var__.get(TagsContext())
+
+    __var__ = ContextVar("tags")
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
