@@ -1,4 +1,4 @@
-import math
+import datetime
 import pendulum
 import pytest
 
@@ -164,15 +164,18 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
+        now = pendulum.now()
         run = await ctx.orm_run()
-        run.start_time = pendulum.now().subtract(seconds=42)
-        ctx.initial_state.timestamp = pendulum.now().subtract(seconds=42)
-        assert run.total_run_time_seconds == 0
+        run.start_time = now.subtract(seconds=42)
+        ctx.initial_state.timestamp = now.subtract(seconds=42)
+        ctx.proposed_state.timestamp = now
+        await session.commit()
+        assert run.total_run_time == datetime.timedelta(0)
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert math.ceil(run.total_run_time_seconds) == 42
+        assert run.total_run_time == datetime.timedelta(seconds=42)
 
     async def test_rule_doesnt_update_run_time_when_not_running(
         self,
@@ -189,15 +192,19 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
+        now = pendulum.now()
         run = await ctx.orm_run()
-        run.start_time = pendulum.now().subtract(seconds=42)
-        ctx.initial_state.timestamp = pendulum.now().subtract(seconds=42)
-        assert run.total_run_time_seconds == 0
+        run.start_time = now.subtract(seconds=42)
+        ctx.initial_state.timestamp = now.subtract(seconds=42)
+        ctx.proposed_state.timestamp = now
+        await session.commit()
+        await session.refresh(run)
+        assert run.total_run_time == datetime.timedelta(0)
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert math.ceil(run.total_run_time_seconds) == 0
+        assert run.total_run_time == datetime.timedelta(0)
 
     @pytest.mark.parametrize("initial_state_type", set(states.StateType))
     async def test_rule_always_updates_total_time(
@@ -211,15 +218,19 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
+        now = pendulum.now()
         run = await ctx.orm_run()
-        run.start_time = pendulum.now().subtract(seconds=42)
-        ctx.initial_state.timestamp = pendulum.now().subtract(seconds=42)
-        assert run.total_run_time_seconds == 0
+        run.start_time = now.subtract(seconds=42)
+        ctx.initial_state.timestamp = now.subtract(seconds=42)
+        ctx.proposed_state.timestamp = now
+        await session.commit()
+        await session.refresh(run)
+        assert run.total_run_time == datetime.timedelta(0)
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        assert math.ceil(run.total_time_seconds) == 42
+        assert run.total_time == datetime.timedelta(seconds=42)
 
     @pytest.mark.parametrize("proposed_state_type", TERMINAL_STATES)
     async def test_rule_sets_end_time_when_when_run_ends(
@@ -234,7 +245,7 @@ class TestUpdateRunDetailsRule:
         )
 
         run = await ctx.orm_run()
-        run.start_time = pendulum.now().subtract(seconds=4242)
+        run.start_time = pendulum.now().subtract(seconds=42)
         assert run.end_time is None
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
@@ -255,7 +266,7 @@ class TestUpdateRunDetailsRule:
         )
 
         run = await ctx.orm_run()
-        run.start_time = pendulum.now().subtract(seconds=4242)
+        run.start_time = pendulum.now().subtract(seconds=42)
         run.end_time = pendulum.now()
         assert run.end_time is not None
 
