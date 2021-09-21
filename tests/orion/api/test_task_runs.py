@@ -1,5 +1,6 @@
 import uuid
 from uuid import uuid4
+from httpx import post
 import pendulum
 
 import pytest
@@ -97,48 +98,65 @@ class TestReadTaskRuns:
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
     async def test_read_task_runs_applies_task_run_filter(self, task_run, client):
-        response = await client.post(
-            "/task_runs/filter/", json={"task_runs": {"ids": [str(task_run.id)]}}
+        task_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[task_run.id])
+            ).dict(json_compatible=True)
         )
+        response = await client.post("/task_runs/filter/", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await client.post(
-            "/task_runs/filter/", json={"task_runs": {"ids": [str(uuid4())]}}
+        bad_task_run_filter = dict(
+            task_runs=schemas.filters.TaskRunFilter(
+                id=schemas.filters.TaskRunFilterId(any_=[uuid4()])
+            ).dict(json_compatible=True)
         )
+        response = await client.post("/task_runs/filter/", json=bad_task_run_filter)
         assert response.status_code == 200
         assert response.json() == []
 
     async def test_read_task_runs_applies_flow_run_filter(self, task_run, client):
-        response = await client.post(
-            "/task_runs/filter/",
-            json={"flow_runs": {"ids": [str(task_run.flow_run_id)]}},
+        task_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[task_run.flow_run_id])
+            ).dict(json_compatible=True)
         )
+        response = await client.post("/task_runs/filter/", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await client.post(
-            "/task_runs/filter/", json={"flow_runs": {"ids": [str(uuid4())]}}
+        bad_task_run_filter = dict(
+            flow_runs=schemas.filters.FlowRunFilter(
+                id=schemas.filters.FlowRunFilterId(any_=[uuid4()])
+            ).dict(json_compatible=True)
         )
+        response = await client.post("/task_runs/filter/", json=bad_task_run_filter)
         assert response.status_code == 200
         assert response.json() == []
 
     async def test_read_task_runs_applies_flow_filter(self, flow, task_run, client):
-        response = await client.post(
-            "/task_runs/filter/", json={"flows": {"ids": [str(flow.id)]}}
+        task_run_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
+            ).dict(json_compatible=True)
         )
+        response = await client.post("/task_runs/filter/", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await client.post(
-            "/task_runs/filter/", json={"flows": {"ids": [str(uuid4())]}}
+        bad_task_run_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                id=schemas.filters.FlowFilterId(any_=[uuid4()])
+            ).dict(json_compatible=True)
         )
+        response = await client.post("/task_runs/filter/", json=bad_task_run_filter)
         assert response.status_code == 200
         assert response.json() == []
 
