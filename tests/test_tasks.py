@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import flow, get_result
+from prefect import flow, get_result, tags
 from prefect.engine import raise_failed_state
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
@@ -478,3 +478,99 @@ class TestCacheFunctionBuiltins:
         assert third_state.name == "Cached"
         assert get_result(first_state) != get_result(second_state)
         assert get_result(first_state) == get_result(third_state)
+
+
+class TestTaskRunTags:
+    async def test_task_run_tags_added_at_call(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b"}
+
+    async def test_task_run_tags_include_tags_on_task_object(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                future = my_task()
+
+            return future
+
+        @task(tags={"a", "b"})
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b", "c", "d"}
+
+    async def test_task_run_tags_include_flow_run_tags(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        with tags("a", "b"):
+            task_state = await get_result(my_flow())
+
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b", "c", "d"}
+
+    async def test_task_run_tags_not_added_outside_context(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                my_task()
+            future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert not task_run.tags
+
+    async def test_task_run_tags_respects_nesting(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                with tags("c", "d"):
+                    future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b", "c", "d"}

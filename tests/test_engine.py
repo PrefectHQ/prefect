@@ -105,6 +105,19 @@ class TestGetResult:
             == "hello"
         )
 
+    async def test_waits_for_futures(self):
+        assert (
+            await get_result(
+                PrefectFuture(
+                    flow_run_id=None,
+                    client=None,
+                    executor=None,
+                    _final_state=Completed(data=DataDocument.encode("json", "hello")),
+                )
+            )
+            == "hello"
+        )
+
     def test_works_in_sync_context(self):
         assert (
             get_result(Completed(data=DataDocument.encode("json", "hello"))) == "hello"
