@@ -81,7 +81,7 @@ class TestUserReturnValueToState:
             flow_run_id=None,
             client=None,
             executor=None,
-            _result=state,
+            _final_state=state,
         )
         result_state = await user_return_value_to_state(future)
         assert result_state.data.decode() is state
