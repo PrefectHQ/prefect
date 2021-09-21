@@ -3,11 +3,13 @@ from packaging.version import parse as parse_version
 
 import mypy.version
 import pydantic
+from pydantic.decorator import validate_arguments
 import pytest
 
 from prefect import flow, get_result, task
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
+from prefect.exceptions import FlowParameterError
 from prefect.flows import Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -188,7 +190,6 @@ class TestFlowCall:
 
         assert get_result(test_flow(1, 2, x=3, y=4, z=5)) == (1, 2, dict(x=3, y=4, z=5))
 
-    @pytest.mark.xfail(reason="Cloudpickle cannot serialize Pydantic errors")
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
@@ -199,10 +200,17 @@ class TestFlowCall:
 
         assert state.is_failed()
         with pytest.raises(
-            pydantic.error_wrappers.ValidationError,
+            FlowParameterError,
             match="value is not a valid integer",
         ):
             raise_failed_state(state)
+
+    def test_call_ignores_incompatible_parameter_types_if_asked(self):
+        @flow(version="test", validate_parameters=False)
+        def foo(x: int):
+            return x
+
+        assert get_result(foo(x="foo")) == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
