@@ -76,9 +76,7 @@ async def orchestrate_flow_run_state(
 
         validated_orm_state = await context.validate_proposed_state()
 
-        # assign to the ORM model to create the state
-        # and update the run
-        run.state = validated_orm_state
+        run.set_state(validated_orm_state)
         await session.flush()
 
     result = OrchestrationResult(
