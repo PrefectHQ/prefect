@@ -30,6 +30,15 @@
   left: 0;
   width: 100%;
 
+  // Hide scrollbars
+  scrollbar-width: none; // Edge
+  -ms-overflow-style: none; // Firefox
+
+  // Chrome, Safari
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
   .controls {
     background-color: $white;
     position: relative;
