@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import List, Literal
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion import schemas
@@ -13,30 +13,21 @@ class SetStateStatus(AutoEnum):
 
 
 class StateAcceptDetails(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
-
-    pass
+    type: Literal["accept_details"] = "accept_details"
 
 
 class StateRejectDetails(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
-
+    type: Literal["reject_details"] = "reject_details"
     reason: str = None
 
 
 class StateAbortDetails(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
-
+    type: Literal["abort_details"] = "abort_details"
     reason: str = None
 
 
 class StateWaitDetails(PrefectBaseModel):
-    class Config:
-        extra = "forbid"
-
+    type: Literal["wait_details"] = "wait_details"
     delay_seconds: int
     reason: str = None
 
