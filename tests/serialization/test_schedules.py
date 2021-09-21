@@ -133,24 +133,14 @@ def test_serialize_rrule_clocks():
     assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 0, 1)]
 
     weekdays = (rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR)
-    rr = rrule.rrule(
-        rrule.MONTHLY,
-        start,
-        byweekday=weekdays,
-        bysetpos=-1,
-    )
+    rr = rrule.rrule(rrule.MONTHLY, start, byweekday=weekdays, bysetpos=-1)
     t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
     assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 31, 0, 0)]
     t2 = serialize_and_deserialize(t)
     assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 31, 0, 0)]
 
     # Every weekday (BYDAY) for the next 8 weekdays (COUNT).
-    rr = rrule.rrule(
-        rrule.DAILY,
-        start,
-        byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR),
-        count=8,
-    )
+    rr = rrule.rrule(rrule.DAILY, start, byweekday=weekdays, count=8)
     t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
     assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
     assert len(t.next(10, after=start)) == 7
