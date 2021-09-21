@@ -247,12 +247,6 @@ async def orchestrate_flow_run(
     sync_portal: BlockingPortal,
 ) -> State:
     """
-    TODO: Note that pydantic will now coerce parameter types into the correct type
-          even if the user wants failure on inexact type matches. We may want to
-          implement a strict runtime typecheck with a configuration flag
-    TODO: `validate_arguments` can throw an error while wrapping `fn` if the
-          signature is not pydantic-compatible. We'll want to confirm that it will
-          work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
     await client.propose_state(Running(), flow_run_id=flow_run_id)
