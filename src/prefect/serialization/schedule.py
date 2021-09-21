@@ -1,7 +1,9 @@
+import typing
 from typing import Any
 
 from dateutil import rrule
 from marshmallow import fields, post_dump, post_load
+from marshmallow.fields import Field
 
 import prefect
 from prefect.utilities.serialization import (
@@ -90,6 +92,48 @@ class DatesClockSchema(ObjectSchema):
     labels = fields.List(fields.Str(), allow_none=True)
 
 
+class _WeekdayField(Field):
+    """
+    Marshmallow serializer for rrule weekday objects.
+    """
+
+    def _serialize(self, value, attr, obj, **kwargs):
+        if value is not None:
+            if isinstance(value, int):
+                return {"weekday": value, "n": None}
+            elif isinstance(value, rrule.weekday):
+                return {"weekday": value.weekday, "n": value.n}
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is not None:
+            return rrule.weekday(value["weekday"], value.get("n"))
+
+
+class _RRuleField(fields.List):
+    """
+    Marshmallow serializer for special rrule members.
+
+    The rrule constructor manipulates many of its args and overwrites them so the instance value
+    can be wildly different than what was originally passed in.
+    However, when it does this it also stores the original values in an '_original_rule' dict field.
+    So we pull the values from that dict. If it's not there then we know the attribute was not
+    actually passed in and we should use None.
+    """
+
+    def __init__(self, cls_or_instance: typing.Union[Field, type] = fields.Integer):
+        super().__init__(cls_or_instance, allow_none=True)
+
+    def _serialize(
+        self, value, attr, obj, **kwargs
+    ) -> typing.Optional[typing.List[typing.Any]]:
+        if value is not None:
+            # This turns e.g '_bymonth' into 'bymonth'
+            attr_no_underscore = attr[1:]
+            # Note we use get() here not [] b/c we want the value to be None if it doesn't exist
+            val = obj._original_rule.get(attr_no_underscore)
+            return super()._serialize(val, attr, obj, **kwargs)
+
+
 class RRuleSchema(ObjectSchema):
     class Meta:
         object_class = rrule.rrule
@@ -101,16 +145,16 @@ class RRuleSchema(ObjectSchema):
     _count = fields.Integer(allow_none=True)
     _until = DateTimeTZ(allow_none=True)
 
-    _bysetpos = fields.List(fields.Integer, allow_none=True)
-    _bymonth = fields.List(fields.Integer, allow_none=True)
-    _bymonthday = fields.List(fields.Integer, allow_none=True)
-    _byyearday = fields.List(fields.Integer, allow_none=True)
-    _byeaster = fields.List(fields.Integer, allow_none=True)
-    _byweekno = fields.List(fields.Integer, allow_none=True)
-    # _byweekno = ???
-    _byhour = fields.List(fields.Integer, allow_none=True)
-    _byminute = fields.List(fields.Integer, allow_none=True)
-    _bysecond = fields.List(fields.Integer, allow_none=True)
+    _bysetpos = _RRuleField()
+    _bymonth = _RRuleField()
+    _bymonthday = _RRuleField()
+    _byyearday = _RRuleField()
+    _byeaster = _RRuleField()
+    _byweekday = _RRuleField(_WeekdayField)
+    _byweekno = _RRuleField()
+    _byhour = _RRuleField()
+    _byminute = _RRuleField()
+    _bysecond = _RRuleField()
 
     @post_load
     def create_object(self, data: dict, **kwargs: Any) -> rrule.rrule:
@@ -127,9 +171,11 @@ class RRuleSchema(ObjectSchema):
         data["byyearday"] = data.pop("_byyearday")
         data["byeaster"] = data.pop("_byeaster")
         data["byweekno"] = data.pop("_byweekno")
+        data["byweekday"] = data.pop("_byweekday")
         data["byhour"] = data.pop("_byhour")
         data["byminute"] = data.pop("_byminute")
         data["bysecond"] = data.pop("_bysecond")
+
         base_obj = super().create_object(data, **kwargs)
         return base_obj
 

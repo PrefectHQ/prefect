@@ -125,16 +125,54 @@ def test_interval_clocks_with_exactly_one_minute_intervals_can_be_serialized():
 
 def test_serialize_rrule_clocks():
     start = pendulum.datetime(2020, 1, 1)
-    s = schedules.Schedule(
-        clocks=[clocks.RRuleClock(rrule_obj=rrule.rrule(rrule.DAILY, start))]
-    )
-    t = schedules.Schedule(
-        clocks=[clocks.RRuleClock(rrule_obj=rrule.rrule(rrule.MINUTELY, start))]
-    )
-    s2 = serialize_and_deserialize(s)
+
+    rr = rrule.rrule(rrule.MINUTELY, start)
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 0, 1)]
     t2 = serialize_and_deserialize(t)
-    assert s2.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
     assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 0, 1)]
+
+    weekdays = (rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR)
+    rr = rrule.rrule(
+        rrule.MONTHLY,
+        start,
+        byweekday=weekdays,
+        bysetpos=-1,
+    )
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 31, 0, 0)]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 31, 0, 0)]
+
+    # Every weekday (BYDAY) for the next 8 weekdays (COUNT).
+    rr = rrule.rrule(
+        rrule.DAILY,
+        start,
+        byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR),
+        count=8,
+    )
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
+    assert len(t.next(10, after=start)) == 7
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
+    assert len(t2.next(10, after=start)) == 7
+
+    # Every third year (INTERVAL) on the first Tuesday (BYDAY) after a Monday (BYMONTHDAY) in October.
+    rr = rrule.rrule(
+        rrule.YEARLY,
+        start,
+        interval=3,
+        bymonth=10,
+        byweekday=rrule.TU,
+        bymonthday=(2, 3, 4, 5, 6, 7, 8),
+    )
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    first = pendulum.datetime(2020, 10, 6, 0, 0)
+    second = pendulum.datetime(2023, 10, 3, 0, 0)
+    assert t.next(2, after=start) == [first, second]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=start) == [first, second]
 
 
 def test_serialize_multiple_clocks():
