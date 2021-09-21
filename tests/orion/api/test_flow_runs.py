@@ -259,7 +259,7 @@ class TestReadFlowRuns:
                 id=schemas.filters.FlowFilterId(any_=[flow.id])
             ).dict(json_compatible=True)
         )
-        response = await client.get("/flow_runs/", json=flow_run_filter)
+        response = await client.post("/flow_runs/filter/", json=flow_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 2
 
@@ -271,7 +271,7 @@ class TestReadFlowRuns:
                 id=schemas.filters.FlowRunFilterId(any_=[flow_runs[0].id])
             ).dict(json_compatible=True)
         )
-        response = await client.get("/flow_runs/", json=flow_run_filter)
+        response = await client.post("/flow_runs/filter/", json=flow_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
@@ -292,7 +292,7 @@ class TestReadFlowRuns:
                 id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
             ).dict(json_compatible=True)
         )
-        response = await client.get("/flow_runs/", json=flow_run_filter)
+        response = await client.post("/flow_runs/filter/", json=flow_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
