@@ -1,9 +1,9 @@
 """
 Client-side execution of flows and tasks
 """
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, TypeVar, Union, overload
+from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
 from uuid import UUID
 
 import pendulum
@@ -14,7 +14,7 @@ from anyio.from_thread import BlockingPortal
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext, TagsContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
@@ -108,6 +108,7 @@ async def create_then_begin_flow_run(
         flow,
         parameters=parameters,
         state=Pending(),
+        tags=TagsContext.get().current_tags,
     )
     return await begin_flow_run(
         flow=flow, parameters=parameters, flow_run_id=flow_run_id, client=client
@@ -211,6 +212,7 @@ async def create_and_begin_subflow_run(
         parameters=parameters,
         parent_task_run_id=parent_task_run_id,
         state=Pending(),
+        tags=TagsContext.get().current_tags,
     )
 
     terminal_state = await orchestrate_flow_run(
@@ -336,11 +338,11 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
-
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=Pending(),
+        extra_tags=TagsContext.get().current_tags,
     )
 
     future = await flow_run_context.executor.submit(
@@ -544,3 +546,11 @@ async def raise_failed_state(state: State) -> None:
             f"Unexpected result for failure state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
+
+
+@contextmanager
+def tags(*new_tags: str) -> Set[str]:
+    current_tags = TagsContext.get().current_tags
+    new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=new_tags):
+        yield new_tags
