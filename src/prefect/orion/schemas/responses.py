@@ -13,14 +13,30 @@ class SetStateStatus(AutoEnum):
 
 
 class StateAcceptDetails(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
     pass
 
 
 class StateRejectDetails(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
+    reason: str = None
+
+
+class StateAbortDetails(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
     reason: str = None
 
 
 class StateWaitDetails(PrefectBaseModel):
+    class Config:
+        extra = "forbid"
+
     delay_seconds: int
     reason: str = None
 
@@ -35,7 +51,3 @@ class HistoryResponse(PrefectBaseModel):
     interval_start: datetime.datetime
     interval_end: datetime.datetime
     states: List[HistoryResponseState]
-
-
-class StateAbortDetails(PrefectBaseModel):
-    reason: str = None
