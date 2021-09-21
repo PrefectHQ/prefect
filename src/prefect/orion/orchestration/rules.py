@@ -39,8 +39,6 @@ class OrchestrationContext(PrefectBaseModel):
     proposed_state: Optional[states.State]
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
-    task_run_id: Optional[UUID]
-    flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
@@ -82,17 +80,12 @@ class OrchestrationContext(PrefectBaseModel):
 
 
 class TaskOrchestrationContext(OrchestrationContext):
-    run_id: UUID
     orm_run: orm.TaskRun
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.task_run_id = self.run_id
 
     async def validate_proposed_state(self) -> orm.TaskRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.TaskRunState(
-                task_run_id=self.task_run_id,
+                task_run_id=self.orm_run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
@@ -113,17 +106,12 @@ class TaskOrchestrationContext(OrchestrationContext):
 
 
 class FlowOrchestrationContext(OrchestrationContext):
-    run_id: UUID
     orm_run: orm.FlowRun
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.flow_run_id = self.run_id
 
     async def validate_proposed_state(self) -> orm.FlowRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.FlowRunState(
-                flow_run_id=self.flow_run_id,
+                flow_run_id=self.orm_run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)

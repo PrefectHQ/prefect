@@ -55,11 +55,10 @@ async def orchestrate_flow_run_state(
         orchestration_rules = []
 
     context = FlowOrchestrationContext(
+        session=session,
+        orm_run=run,
         initial_state=initial_state,
         proposed_state=state,
-        session=session,
-        run_id=flow_run_id,
-        orm_run=run,
     )
 
     # apply orchestration rules and create the new flow run state
