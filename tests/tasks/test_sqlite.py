@@ -71,9 +71,9 @@ class TestSQLiteQuery:
         assert out.is_successful()
         assert out.result[task].result == [(12, "second"), (13, "third")]
 
-    def test_unparametrized_query_none_data(self, database):
+    def test_unparametrized_query_no_data(self, database):
         with Flow(name="test") as f:
-            task = SQLiteQuery(db=database)(query="SELECT * FROM TEST;", data=None)
+            task = SQLiteQuery(db=database)(query="SELECT * FROM TEST;", data=())
         out = f.run()
         assert out.is_successful()
         assert out.result[task].result == [(11, "first"), (12, "second"), (13, "third")]

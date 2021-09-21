@@ -31,7 +31,7 @@ class SQLiteQuery(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("db", "query")
-    def run(self, db: str = None, query: str = None, data: tuple = None):
+    def run(self, db: str = None, query: str = None, data: tuple = ()):
         """
         Args:
             - db (str, optional): the location of the database (.db) file;
@@ -49,7 +49,7 @@ class SQLiteQuery(Task):
         query = cast(str, query)
         data = cast(tuple, data)
         with closing(sql.connect(db)) as conn, closing(conn.cursor()) as cursor:
-            cursor.execute(query, () if data is None else data)
+            cursor.execute(query, data)
             out = cursor.fetchall()
             conn.commit()
         return out
