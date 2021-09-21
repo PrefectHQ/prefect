@@ -49,7 +49,7 @@ In more recent releases of Core your flow will default to using a `LocalResult` 
 from prefect import Flow
 from prefect.storage import Azure
 
-flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string="<my-connection-string>"))
+flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string_secret="<my-connection-string>"))
 
 flow.storage.build()
 ```
@@ -61,7 +61,7 @@ In more recent releases of Core your flow will default to using a `AzureResult` 
 :::
 
 :::tip Azure Credentials
-Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) which means both upload (build) and download (local agent) times need to have a working Azure connection string. Azure Storage will also look in the environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to the class directly.
+Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for Azure authentication in aim to upload (build) or download flows, so make sure to provide a  valid connection string for your Azure account. A connection string can be set as a [secret](https://docs.prefect.io/orchestration/concepts/secrets.html#secrets) or an environment variable `AZURE_STORAGE_CONNECTION_STRING` in run configuration if it is not passed as `connection_string_secret`.
 :::
 
 ## AWS S3
@@ -150,6 +150,7 @@ Bitbucket server users can point the `host` argument to their personal or organi
 
 :::tip Bitbucket Projects
 Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo must be associated with a Project. Bitbucket storage requires a `project` argument pointing to the correct project name.
+:::
 
 ## CodeCommit
 
