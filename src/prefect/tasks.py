@@ -39,7 +39,13 @@ def task_input_hash(context: "TaskRunContext", arguments: Dict[str, Any]):
 
 class Task(Generic[P, R]):
     """
-    Base class representing Prefect worktasks.
+    A Prefect task definition
+
+    See the `@task` decorator for usage details.
+
+    Wraps a user's function with an entrypoint to the Prefect engine. To preserve the
+    input and output signatures of the user's functions, we use the generic type
+    variables P and R for "Parameters" and "Return Type" respectively.
     """
 
     def __init__(
@@ -112,6 +118,57 @@ class Task(Generic[P, R]):
     def __call__(
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+        """
+        Run the task.
+
+        Must be called within a flow function.
+
+        If writing an async task, this call must be awaited.
+
+        Will create a new task run in the backing API and submit the task to the flow's
+        executor. This call only blocks execution while the task is being submitted,
+        once it is submitted, the flow function will continue executing. However, note
+        that the `LocalExecutor` does not implement parallel execution for sync tasks
+        and they are fully resolved on submission.
+
+        Args:
+            *args: Arguments are passed through to the user's function
+            **kwargs: Keyword arguments are passed through to the user's function
+
+        Returns:
+            A future allowing access to the state of the task
+
+        Examples:
+
+            Define a task
+
+            >>> @task
+            >>> def my_task():
+            >>>     return "hello"
+
+            Run a task in a flow
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     my_task()
+
+
+            Wait for a task to finish
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     my_task().wait()
+
+            Use the result from a task in a flow
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     print(get_result(my_task()))
+            >>> my_flow()
+            hello
+
+        """
+
         from prefect.engine import enter_task_run_engine
 
         # Convert the call args/kwargs to a parameter dict
@@ -158,6 +215,31 @@ def task(
     retries: int = 0,
     retry_delay_seconds: Union[float, int] = 0,
 ):
+    """
+    Decorator to designate a function as a task in a Prefect workflow.
+
+    This decorator may be used for asynchronous or synchronous functions.
+
+    Args:
+        name: An optional name for the task. If not provided, the name will be inferred
+            from the given function.
+        description: An optional string description for the task.
+        tags: An optional set of tags to be associated with runs of this task. These
+            tags are combined with any tags defined by a `prefect.tags` context at
+            task runtime.
+        cache_key_fn: An optional callable that, given the task run context and call
+            parameters, generates a string key. If the key matches a previous completed
+            state, that state result will be restored instead of running the task again.
+        cache_expiration: An optional amount of time indicating how long cached states
+            for this task should be restorable. If not provided, cached states will
+            never expire.
+        retries: An optional number of times to retry on task run failure
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            task after failure. This is only applicable if `retries` is nonzero.
+
+    Returns:
+        A callable `Task` object which, when called, will submit the task for execution.
+    """
     if __fn:
         return cast(
             Task[P, R],
