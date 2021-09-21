@@ -14,7 +14,7 @@ settings = prefect.settings.orion.services
 class Agent(LoopService):
     loop_seconds: float = settings.agent_loop_seconds
 
-    def __init__(self, loop_seconds: float = None):
+    def __init__(self, loop_seconds: float = settings.agent_loop_seconds):
         super().__init__(loop_seconds=loop_seconds)
         self.agent: Optional[OrionAgent] = None
 
@@ -26,7 +26,7 @@ class Agent(LoopService):
 
     async def setup(self) -> None:
         await super().setup()
-        self.agent = OrionAgent(prefetch_seconds=10)
+        self.agent = OrionAgent(prefetch_seconds=settings.agent_prefetch_seconds)
         await self.agent.start()
 
     async def shutdown(self) -> None:
@@ -37,4 +37,4 @@ class Agent(LoopService):
 
 
 if __name__ == "__main__":
-    asyncio.run(AgentService().start())
+    asyncio.run(Agent().start())

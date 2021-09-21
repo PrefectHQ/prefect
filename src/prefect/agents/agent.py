@@ -19,15 +19,11 @@ class OrionAgent:
     def __init__(
         self,
         prefetch_seconds: int,
-        on_start: Callable[[], Awaitable] = None,
-        on_shutdown: Callable[[], Awaitable] = None,
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
-        self.on_start = on_start
-        self.on_shutdown = on_shutdown
         self.submitting_flow_run_ids = set()
         self.started = False
-        self.logger = get_logger("orion.agent")
+        self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
 
     def flow_run_query_filter(self) -> FlowRunFilter:
@@ -126,8 +122,6 @@ class OrionAgent:
         self.task_group = anyio.create_task_group()
         self.lock = anyio.create_lock()
         await self.task_group.__aenter__()
-        if self.on_start:
-            await self.on_start()
 
     async def shutdown(self, *exc_info):
         self.started = False
@@ -135,8 +129,6 @@ class OrionAgent:
         self.task_group = None
         self.lock = None
         self.submitting_flow_run_ids = set()
-        if self.on_shutdown:
-            await self.on_shutdown()
 
     async def __aenter__(self):
         await self.start()

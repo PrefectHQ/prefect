@@ -85,8 +85,10 @@ class ServicesSettings(BaseSettings):
     # schedule at most three months into the future
     scheduler_max_future_seconds: int = timedelta(days=100).total_seconds()
 
-    # check for new runs every 10 seconds
-    agent_loop_seconds: float = 10
+    # check for new runs every X seconds
+    agent_loop_seconds: float = 5
+    # check for runs that are scheduled to start in the next X seconds
+    agent_prefetch_seconds: int = 10
 
 
 class OrionSettings(BaseSettings):

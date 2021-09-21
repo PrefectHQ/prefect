@@ -2,6 +2,7 @@ import typer
 import anyio
 from prefect.client import OrionClient
 
+from prefect import settings
 from prefect.agents import OrionAgent
 from prefect.cli.base import app, console
 from prefect.utilities.asyncio import sync_compatible
@@ -12,12 +13,12 @@ app.add_typer(agent_app)
 
 @agent_app.command()
 @sync_compatible
-async def start(max_workers: int = None):
+async def start():
     console.print("Starting agent...")
     running = True
     async with OrionClient() as client:
         async with OrionAgent(
-            prefetch_seconds=10,
+            prefetch_seconds=settings.orion.services.agent_prefetch_seconds,
         ) as agent:
             console.print("Agent started! Checking for flow runs...")
             while running:
@@ -25,7 +26,7 @@ async def start(max_workers: int = None):
                     await agent.get_and_submit_flow_runs(query_fn=client.read_flow_runs)
                 except KeyboardInterrupt:
                     running = False
-                await anyio.sleep(2)
+                await anyio.sleep(settings.orion.services.agent_loop_seconds)
     console.print("Agent stopped!")
 
 
