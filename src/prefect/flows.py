@@ -101,12 +101,14 @@ class Flow(Generic[P, R]):
 
         If writing an async flow, this call must be awaited.
 
+        Will create a new flow run in the backing API.
+
         Args:
-            args: Arguments are passed through to the user's function
-            kwargs: Keyword arguments are passed through to the user's function
+            *args: Arguments are passed through to the user's function
+            **kwargs: Keyword arguments are passed through to the user's function
 
         Returns:
-            State: The final state of the flow run
+            The final state of the flow run
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
@@ -157,8 +159,8 @@ def flow(
         description: An optional string description for the flow.
 
     Returns:
-        Flow: A new callable which, when called, will execute the flow and return its
-            final state.
+        A callable Flow object which, when called, will run the flow and return its
+        final state.
     """
     if __fn:
         return cast(
