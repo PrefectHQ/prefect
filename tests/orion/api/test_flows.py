@@ -116,36 +116,23 @@ class TestReadFlow:
         assert response.status_code == 404
 
 
-@pytest.mark.parametrize(
-    "request_method,request_endpoint",
-    [
-        ["post", "/flows/filter/"],
-        ["get", "/flows/"],
-    ],
-)
 class TestReadFlows:
     @pytest.fixture
     async def flows(self, client):
         await client.post("/flows/", json={"name": f"my-flow-1"})
         await client.post("/flows/", json={"name": f"my-flow-2"})
 
-    async def test_read_flows(self, flows, request_method, request_endpoint, client):
-        response = await client.get("/flows/")
+    async def test_read_flows(self, flows, client):
+        response = await client.post("/flows/filter")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    async def test_read_flows_applies_limit(
-        self, flows, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, params=dict(limit=1)
-        )
+    async def test_read_flows_applies_limit(self, flows, client):
+        response = await client.post("/flows/filter/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_read_flows_applies_flow_filter(
-        self, request_method, request_endpoint, client, session
-    ):
+    async def test_read_flows_applies_flow_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -156,16 +143,12 @@ class TestReadFlows:
         await session.commit()
 
         flow_filter = {"flows": {"names": ["my-flow-1"]}}
-        response = await getattr(client, request_method)(
-            request_endpoint, json=flow_filter
-        )
+        response = await client.post("/flows/filter/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
 
-    async def test_read_flows_applies_flow_run_filter(
-        self, request_method, request_endpoint, client, session
-    ):
+    async def test_read_flows_applies_flow_run_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -180,16 +163,12 @@ class TestReadFlows:
         await session.commit()
 
         flow_filter = {"flow_runs": {"ids": [str(flow_run_1.id)]}}
-        response = await getattr(client, request_method)(
-            request_endpoint, json=flow_filter
-        )
+        response = await client.post("/flows/filter/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
 
-    async def test_read_flows_applies_task_run_filter(
-        self, request_method, request_endpoint, client, session
-    ):
+    async def test_read_flows_applies_task_run_filter(self, client, session):
         flow_1 = await models.flows.create_flow(
             session=session,
             flow=schemas.core.Flow(name="my-flow-1", tags=["db", "blue"]),
@@ -210,30 +189,22 @@ class TestReadFlows:
         await session.commit()
 
         flow_filter = {"task_runs": {"ids": [str(task_run_1.id)]}}
-        response = await getattr(client, request_method)(
-            request_endpoint, json=flow_filter
-        )
+        response = await client.post("/flows/filter/", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
 
-    async def test_read_flows_offset(
-        self, flows, request_method, request_endpoint, client
-    ):
+    async def test_read_flows_offset(self, flows, client):
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
         # should be re-written
-        response = await getattr(client, request_method)(
-            request_endpoint, params=dict(offset=1)
-        )
+        response = await client.post("/flows/filter/", params=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"
 
-    async def test_read_flows_returns_empty_list(
-        self, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(request_endpoint)
+    async def test_read_flows_returns_empty_list(self, client):
+        response = await client.post("/flows/filter/")
         assert response.status_code == 200
         assert response.json() == []
 
