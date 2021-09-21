@@ -45,8 +45,7 @@ async def update_flow(
         )
 
 
-# must be defined before `GET /:id`
-@router.get("/count")
+@router.post("/count")
 async def count_flows(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -96,7 +95,7 @@ async def read_flow(
     return flow
 
 
-@router.get("/")
+@router.post("/filter")
 async def read_flows(
     pagination: schemas.filters.Pagination = Depends(),
     flows: schemas.filters.FlowFilter = None,

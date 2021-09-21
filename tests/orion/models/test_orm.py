@@ -36,7 +36,7 @@ async def many_flow_run_states(flow, session):
             for i in range(3)
         ]
 
-        flow_run.state = states[-1]
+        flow_run.set_state(states[-1])
 
         session.add_all(states)
     await session.commit()
@@ -73,7 +73,7 @@ async def many_task_run_states(flow_run, session):
             for i in range(3)
         ]
 
-        task_run.state = states[-1]
+        task_run.set_state(states[-1])
 
         session.add_all(states)
 
@@ -175,7 +175,7 @@ class TestFlowRun:
 
         # delete all states
         await session.execute(sa.delete(orm.FlowRunState))
-        flow_run.state = orm.FlowRunState(**schemas.states.Completed().dict())
+        flow_run.set_state(orm.FlowRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(orm.FlowRun, flow_run_id)
@@ -194,9 +194,9 @@ class TestFlowRun:
         # delete all states
         await session.execute(sa.delete(orm.FlowRunState))
 
-        flow_run.state = orm.FlowRunState(**schemas.states.Pending().dict())
-        flow_run.state = orm.FlowRunState(**schemas.states.Running().dict())
-        flow_run.state = orm.FlowRunState(**schemas.states.Completed().dict())
+        flow_run.set_state(orm.FlowRunState(**schemas.states.Pending().dict()))
+        flow_run.set_state(orm.FlowRunState(**schemas.states.Running().dict()))
+        flow_run.set_state(orm.FlowRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(orm.FlowRun, flow_run_id)
@@ -310,7 +310,7 @@ class TestTaskRun:
 
         # delete all states
         await session.execute(sa.delete(orm.TaskRunState))
-        task_run.state = orm.TaskRunState(**schemas.states.Completed().dict())
+        task_run.set_state(orm.TaskRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(orm.TaskRun, task_run_id)
@@ -329,9 +329,9 @@ class TestTaskRun:
         # delete all states
         await session.execute(sa.delete(orm.TaskRunState))
 
-        task_run.state = orm.TaskRunState(**schemas.states.Pending().dict())
-        task_run.state = orm.TaskRunState(**schemas.states.Running().dict())
-        task_run.state = orm.TaskRunState(**schemas.states.Completed().dict())
+        task_run.set_state(orm.TaskRunState(**schemas.states.Pending().dict()))
+        task_run.set_state(orm.TaskRunState(**schemas.states.Running().dict()))
+        task_run.set_state(orm.TaskRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(orm.TaskRun, task_run_id)
