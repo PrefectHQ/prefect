@@ -2,16 +2,16 @@
   <div class="d-flex flex-column">
     <div class="d-flex">
       <select v-model="selected" :search="true" class="mr-2">
-        <option v-for="(value, key) in datasets" :key="key" :value="key">
-          {{ key }}
+        <option v-for="run in flowRuns" :key="run.id" :value="run.id">
+          {{ run.id }}
         </option>
       </select>
 
-      <select v-model="interval">
+      <!-- <select v-model="interval">
         <option v-for="(value, key) in intervals" :key="key" :value="value">
           {{ value }}
         </option>
-      </select>
+      </select> -->
       <!-- <Select v-model="selected" :search="true" class="mr-2">
         <Option v-for="(value, key) in datasets" :key="key" :value="key">
           {{ key }}
@@ -24,52 +24,78 @@
         </Option>
       </Select> -->
     </div>
-    <Timeline :items="dataset" :interval="interval" background-color="blue-5" />
+
+    <Timeline
+      v-if="runs.length"
+      :items="runs"
+      :interval="interval"
+      background-color="blue-5"
+    />
   </div>
 </template>
 
 <script lang="ts">
+import { FlowRun, TaskRun } from '@/objects'
 import { Options, Vue } from 'vue-class-component'
 
 import Timeline from '../components/Timeline/Timeline.vue'
-import { default as dataset1 } from '../util/schematics/62_nodes.json'
-import { default as dataset2 } from '../util/schematics/50_linear_nodes.json'
-import { default as dataset3 } from '../util/schematics/etl.json'
-import { default as dataset4 } from '../util/schematics/1000_nodes.json'
-import { default as dataset5 } from '../util/schematics/15_nodes.json'
-import { default as dataset6 } from '../util/schematics/3_nodes.json'
-import { default as dataset7 } from '../util/schematics/61_cluster_nodes.json'
-import { default as dataset8 } from '../util/schematics/25_nodes_time_corrected.json'
 
 @Options({
-  components: { Timeline }
+  components: { Timeline },
+  watch: {
+    async selected() {
+      this.runs = await this.getTaskRuns()
+    }
+  }
 })
 export default class TimelineView extends Vue {
-  selected: string = '25 Nodes'
-
-  search: string = ''
-  showOptions: boolean = false
+  selected: string | null = null
 
   interval: string = 'minute'
   intervals: string[] = ['second', 'minute', 'hour', 'day']
 
-  datasets: { [key: string]: Items } = {
-    '3 Nodes: ETL': dataset3,
-    '50 Linear Nodes': dataset2,
-    '62 Random Nodes': dataset1,
-    '1000 Random Nodes': dataset4,
-    '15 Random Nodes': dataset5,
-    '3 Nodes': dataset6,
-    '61 Cluster Nodes': dataset7,
-    '25 Nodes': dataset8
+  runs: TaskRun[] = []
+  flowRuns: FlowRun[] = []
+
+  async getTaskRuns() {
+    if (!this.selected) return
+    console.log([this.selected])
+    const runs = await fetch('http://localhost:8000/task_runs/filter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        flow_runs: {
+          ids: [this.selected]
+        }
+      })
+    })
+
+    return await runs.json()
   }
 
-  get dataset(): Items {
-    return this.datasets[this.selected]
-  }
+  async mounted() {
+    const flow_runs = await fetch('http://localhost:8000/flow_runs/filter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        order: {
+          start_time: {}
+        }
+      })
+    })
 
-  mounted() {
-    console.log(this.datasets)
+    const result = await flow_runs.json()
+    this.flowRuns = result
+    console.log(this.flowRuns)
+
+    console.log(
+      'no state details',
+      this.flowRuns.filter((r) => !r.state && r.state_type !== 'SCHEDULED')
+    )
   }
 }
 </script>
