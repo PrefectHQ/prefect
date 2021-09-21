@@ -4,7 +4,7 @@ const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -80,7 +80,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.15.5)', link: '/api/latest/' },
+          { text: 'Latest (0.15.6)', link: '/api/latest/' },
           { text: '0.14.22', link: '/api/0.14.22/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: '0.12.6', link: '/api/0.12.6/' },

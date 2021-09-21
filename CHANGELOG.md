@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.15.6 <Badge text="beta" type="success" />
+
+Released on September 21, 2021.
+
+### Enhancements
+
+- Improve setting the Azure storage connection string - [#4955](https://github.com/PrefectHQ/prefect/pull/4955)
+- Allow disabling retries for a task with `max_retries=0` when retries are globally configured - [#4971](https://github.com/PrefectHQ/prefect/pull/4971)
+
+### Task Library
+
+- Allow Exasol Tasks to handle Prefect Secrets directly - [#4436](https://github.com/PrefectHQ/prefect/pull/4436)
+- Adding [Census](https://www.getcensus.com/) Syncs to the task library - [#4935](https://github.com/PrefectHQ/prefect/pull/4935)
+
+### Fixes
+
+- Fix bug where `LocalDaskExecutor` did not respond to a `PrefectSignal` - [#4924](https://github.com/PrefectHQ/prefect/pull/4924)
+- Fix `PostgresFetch` with headers for one row - [#4968](https://github.com/PrefectHQ/prefect/pull/4968)
+- Fix bug where `apply_map` could create acyclic flows - [#4970](https://github.com/PrefectHQ/prefect/pull/4970)
+
+### Contributors
+
+- [Donny Flynn](https://github.com/dflynn20)
+- [Noah Holm](https://github.com/noppaz)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.15.5 <Badge text="beta" type="success" />
 
 Released on September 2, 2021.

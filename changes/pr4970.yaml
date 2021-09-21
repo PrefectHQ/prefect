@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix bug where `apply_map` could create acyclic flows - [#4970](https://github.com/PrefectHQ/prefect/pull/4970)"
