@@ -89,5 +89,5 @@ class UpdateRunDetails(BaseUniversalRule):
         update_run_details(
             initial_state=context.initial_state,
             proposed_state=context.proposed_state,
-            run=await context.orm_run(),
+            run=context.orm_run,
         )

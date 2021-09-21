@@ -282,6 +282,7 @@ def initialize_orchestration(
             proposed_state=proposed_state,
             session=session,
             run_id=run.id,
+            orm_run=run,
         )
 
         return ctx

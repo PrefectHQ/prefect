@@ -57,6 +57,7 @@ async def orchestrate_task_run_state(
         proposed_state=state,
         session=session,
         run_id=task_run_id,
+        orm_run=run,
     )
 
     # apply orchestration rules and create the new task run state

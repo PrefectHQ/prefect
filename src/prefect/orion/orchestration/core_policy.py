@@ -108,7 +108,7 @@ class RetryPotentialFailures(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
     ) -> None:
         run_settings = await context.run_settings()
-        run_count = (await context.orm_run()).run_count
+        run_count = (context.orm_run).run_count
         if run_count <= run_settings.max_retries:
             retry_state = states.AwaitingRetry(
                 scheduled_time=pendulum.now("UTC").add(
@@ -156,7 +156,7 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: FlowOrchestrationContext,
     ) -> None:
-        parent_task_run_id = (await context.orm_run()).parent_task_run_id
+        parent_task_run_id = (context.orm_run).parent_task_run_id
         columns = {"type", "timestamp", "name", "message", "state_details", "data"}
         if parent_task_run_id is not None and validated_state is not None:
             flow_state_data = validated_state.dict(shallow=True)
