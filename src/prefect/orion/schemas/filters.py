@@ -70,14 +70,14 @@ class PrefectFilterBaseModel(PrefectBaseModel):
         return values
 
 
-class FlowFilterIds(PrefectFilterBaseModel):
+class FlowFilterId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of flow ids to include")
 
     def as_sql_filter(self):
         return orm.Flow.id.in_(self.any_)
 
 
-class FlowFilterNames(PrefectFilterBaseModel):
+class FlowFilterName(PrefectFilterBaseModel):
     any_: List[str] = Field(
         None,
         description="A list of flow names to include",
@@ -106,24 +106,24 @@ class FlowFilterTags(PrefectFilterBaseModel):
 class FlowFilter(PrefectFilterBaseModel):
     """Filter for flows. Only flows matching all criteria will be returned"""
 
-    ids: Optional[FlowFilterIds]
-    names: Optional[FlowFilterNames]
+    id: Optional[FlowFilterId]
+    name: Optional[FlowFilterName]
     tags: Optional[FlowFilterTags]
 
     def as_sql_filter(self) -> List:
         filters = []
 
-        if self.ids is not None:
-            filters.append(self.ids.as_sql_filter())
-        if self.names is not None:
-            filters.append(self.names.as_sql_filter())
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter())
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
 
         return sa.and_(*filters) if filters else sa.and_(True)
 
 
-class FlowRunFilterIds(PrefectFilterBaseModel):
+class FlowRunFilterId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of flow run ids to include")
     not_any_: List[UUID] = Field(None, description="A list of flow run ids to exclude")
 
@@ -151,7 +151,7 @@ class FlowRunFilterTags(PrefectFilterBaseModel):
             return orm.FlowRun.tags == [] if self.is_null_ else orm.FlowRun.tags != []
 
 
-class FlowRunFilterDeploymentIds(PrefectFilterBaseModel):
+class FlowRunFilterDeploymentId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(
         None, description="A list of flow run deployment ids to include"
     )
@@ -170,7 +170,7 @@ class FlowRunFilterDeploymentIds(PrefectFilterBaseModel):
             )
 
 
-class FlowRunFilterStateTypes(PrefectFilterBaseModel):
+class FlowRunFilterStateType(PrefectFilterBaseModel):
     any_: List[schemas.states.StateType] = Field(
         None, description="A list of flow run state_types to include"
     )
@@ -179,7 +179,7 @@ class FlowRunFilterStateTypes(PrefectFilterBaseModel):
         return orm.FlowRun.state_type.in_(self.any_)
 
 
-class FlowRunFilterFlowVersions(PrefectFilterBaseModel):
+class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
     any_: List[str] = Field(
         None, description="A list of flow run flow_versions to include"
     )
@@ -245,7 +245,7 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
             return orm.FlowRun.next_scheduled_start_time >= self.after_
 
 
-class FlowRunFilterParentTaskRunIds(PrefectFilterBaseModel):
+class FlowRunFilterParentTaskRunId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(
         None, description="A list of flow run parent_task_run_ids to include"
     )
@@ -267,42 +267,42 @@ class FlowRunFilterParentTaskRunIds(PrefectFilterBaseModel):
 class FlowRunFilter(PrefectFilterBaseModel):
     """Filter flow runs. Only flow runs matching all criteria will be returned"""
 
-    ids: Optional[FlowRunFilterIds]
+    id: Optional[FlowRunFilterId]
     tags: Optional[FlowRunFilterTags]
-    deployment_ids: Optional[FlowRunFilterDeploymentIds]
-    state_types: Optional[FlowRunFilterStateTypes]
-    flow_versions: Optional[FlowRunFilterFlowVersions]
+    deployment_id: Optional[FlowRunFilterDeploymentId]
+    state_type: Optional[FlowRunFilterStateType]
+    flow_version: Optional[FlowRunFilterFlowVersion]
     start_time: Optional[FlowRunFilterStartTime]
     expected_start_time: Optional[FlowRunFilterExpectedStartTime]
     next_scheduled_start_time: Optional[FlowRunFilterNextScheduledStartTime]
-    parent_task_run_ids: Optional[FlowRunFilterParentTaskRunIds]
+    parent_task_run_id: Optional[FlowRunFilterParentTaskRunId]
 
     def as_sql_filter(self) -> List:
         filters = []
 
-        if self.ids is not None:
-            filters.append(self.ids.as_sql_filter())
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
-        if self.deployment_ids is not None:
-            filters.append(self.deployment_ids.as_sql_filter())
-        if self.flow_versions is not None:
-            filters.append(self.flow_versions.as_sql_filter())
-        if self.state_types is not None:
-            filters.append(self.state_types.as_sql_filter())
+        if self.deployment_id is not None:
+            filters.append(self.deployment_id.as_sql_filter())
+        if self.flow_version is not None:
+            filters.append(self.flow_version.as_sql_filter())
+        if self.state_type is not None:
+            filters.append(self.state_type.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
         if self.expected_start_time is not None:
             filters.append(self.expected_start_time.as_sql_filter())
         if self.next_scheduled_start_time is not None:
             filters.append(self.next_scheduled_start_time.as_sql_filter())
-        if self.parent_task_run_ids is not None:
-            filters.append(self.parent_task_run_ids.as_sql_filter())
+        if self.parent_task_run_id is not None:
+            filters.append(self.parent_task_run_id.as_sql_filter())
 
         return sa.and_(*filters) if filters else sa.and_(True)
 
 
-class TaskRunFilterIds(PrefectFilterBaseModel):
+class TaskRunFilterId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of task run ids to include")
 
     def as_sql_filter(self):
@@ -326,7 +326,7 @@ class TaskRunFilterTags(PrefectFilterBaseModel):
             return orm.TaskRun.tags == [] if self.is_null_ else orm.TaskRun.tags != []
 
 
-class TaskRunFilterStateTypes(PrefectFilterBaseModel):
+class TaskRunFilterStateType(PrefectFilterBaseModel):
     any_: List[schemas.states.StateType] = Field(
         None, description="A list of task run state types to include"
     )
@@ -355,20 +355,20 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
 class TaskRunFilter(PrefectFilterBaseModel):
     """Filter task runs. Only task runs matching all criteria will be returned"""
 
-    ids: Optional[TaskRunFilterIds]
+    id: Optional[TaskRunFilterId]
     tags: Optional[TaskRunFilterTags]
-    state_types: Optional[TaskRunFilterStateTypes]
+    state_type: Optional[TaskRunFilterStateType]
     start_time: Optional[TaskRunFilterStartTime]
 
     def as_sql_filter(self) -> List:
         filters = []
 
-        if self.ids is not None:
-            filters.append(self.ids.as_sql_filter())
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
-        if self.state_types is not None:
-            filters.append(self.state_types.as_sql_filter())
+        if self.state_type is not None:
+            filters.append(self.state_type.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
 

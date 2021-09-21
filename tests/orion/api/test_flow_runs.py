@@ -256,7 +256,7 @@ class TestReadFlowRuns:
     async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
         flow_run_filter = dict(
             flows=schemas.filters.FlowFilter(
-                ids=schemas.filters.FlowFilterIds(any_=[flow.id])
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
             ).dict(json_compatible=True)
         )
         response = await client.get("/flow_runs/", json=flow_run_filter)
@@ -268,7 +268,7 @@ class TestReadFlowRuns:
     ):
         flow_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
-                ids=schemas.filters.FlowRunFilterIds(any_=[flow_runs[0].id])
+                id=schemas.filters.FlowRunFilterId(any_=[flow_runs[0].id])
             ).dict(json_compatible=True)
         )
         response = await client.get("/flow_runs/", json=flow_run_filter)
@@ -289,7 +289,7 @@ class TestReadFlowRuns:
 
         flow_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
-                ids=schemas.filters.TaskRunFilterIds(any_=[task_run_1.id])
+                id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
             ).dict(json_compatible=True)
         )
         response = await client.get("/flow_runs/", json=flow_run_filter)

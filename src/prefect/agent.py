@@ -60,12 +60,12 @@ async def query_for_ready_flow_runs(
 
     ready_runs = await client.read_flow_runs(
         flow_runs=FlowRunFilter(
-            ids=dict(not_any_=submitted_ids),
-            state_types=dict(any_=[StateType.SCHEDULED]),
+            id=dict(not_any_=submitted_ids),
+            state_type=dict(any_=[StateType.SCHEDULED]),
             next_scheduled_start_time=dict(
                 before_=pendulum.now("utc").add(seconds=prefetch_seconds)
             ),
-            deployment_ids=dict(is_null_=False),
+            deployment_id=dict(is_null_=False),
         )
     )
 

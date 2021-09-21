@@ -99,7 +99,7 @@ class TestReadTaskRuns:
     async def test_read_task_runs_applies_task_run_filter(self, task_run, client):
         task_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
-                ids=schemas.filters.TaskRunFilterIds(any_=[task_run.id])
+                id=schemas.filters.TaskRunFilterId(any_=[task_run.id])
             ).dict(json_compatible=True)
         )
         response = await client.get("/task_runs/", json=task_run_filter)
@@ -110,7 +110,7 @@ class TestReadTaskRuns:
 
         bad_task_run_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
-                ids=schemas.filters.TaskRunFilterIds(any_=[uuid4()])
+                id=schemas.filters.TaskRunFilterId(any_=[uuid4()])
             ).dict(json_compatible=True)
         )
         response = await client.get("/task_runs/", json=bad_task_run_filter)
@@ -120,7 +120,7 @@ class TestReadTaskRuns:
     async def test_read_task_runs_applies_flow_run_filter(self, task_run, client):
         task_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
-                ids=schemas.filters.FlowRunFilterIds(any_=[task_run.flow_run_id])
+                id=schemas.filters.FlowRunFilterId(any_=[task_run.flow_run_id])
             ).dict(json_compatible=True)
         )
         response = await client.get("/task_runs/", json=task_run_filter)
@@ -131,7 +131,7 @@ class TestReadTaskRuns:
 
         bad_task_run_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
-                ids=schemas.filters.FlowRunFilterIds(any_=[uuid4()])
+                id=schemas.filters.FlowRunFilterId(any_=[uuid4()])
             ).dict(json_compatible=True)
         )
         response = await client.get("/task_runs/", json=bad_task_run_filter)
@@ -141,7 +141,7 @@ class TestReadTaskRuns:
     async def test_read_task_runs_applies_flow_filter(self, flow, task_run, client):
         task_run_filter = dict(
             flows=schemas.filters.FlowFilter(
-                ids=schemas.filters.FlowFilterIds(any_=[flow.id])
+                id=schemas.filters.FlowFilterId(any_=[flow.id])
             ).dict(json_compatible=True)
         )
         response = await client.get("/task_runs/", json=task_run_filter)
@@ -152,7 +152,7 @@ class TestReadTaskRuns:
 
         bad_task_run_filter = dict(
             flows=schemas.filters.FlowFilter(
-                ids=schemas.filters.FlowFilterIds(any_=[uuid4()])
+                id=schemas.filters.FlowFilterId(any_=[uuid4()])
             ).dict(json_compatible=True)
         )
         response = await client.get("/task_runs/", json=bad_task_run_filter)
