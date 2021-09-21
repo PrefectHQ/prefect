@@ -31,9 +31,9 @@
 
       <div class="node-container">
         <div
-          v-for="(item, i) in computedItems"
+          v-for="item in computedItems"
           :key="item.id"
-          :id="`row-${i}`"
+          :id="`node-${item.id}`"
           class="node correct-text"
           :class="[item.state.type.toLowerCase() + '-bg']"
           :style="item.style"
@@ -219,7 +219,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   xAxis = (g: any): Selection => {
-    console.log(this.numberIntervals)
     return (
       g
         .attr('class', 'x-axis')
@@ -243,7 +242,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   mounted(): void {
-    console.log(this.items)
     this.createChart()
     this.update()
   }
@@ -312,17 +310,42 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   updateNodes(): void {
+    const rows: [number, number][] = []
+
     this.computedItems = [...this.sortedItems].map((item: Item, i: number) => {
       const start = new Date(item.start_time)
       const end = new Date(item.end_time)
+      const left = this.xScale(start)
+      const width = Math.max(16, this.xScale(end) - this.xScale(start))
+      let row = 0
+      while (true) {
+        const curr = rows[row]
+        // If no row at this index, we create one instead and place this node on it
+        if (curr) {
+          const [l, r] = curr
+          // If the left edge of this node is greater than the right boundary of the
+          // row, we can place it on this row
+          if (left > r) {
+            rows[row][1] = left + width
+            break
+          } else {
+            row++
+            continue
+          }
+        } else {
+          rows[row] = [left, left + width]
+          break
+        }
+      }
+
       return {
         ...item,
         style: {
           height: 8 + 'px',
-          left: this.xScale(start) + 'px',
-          top: i * this.intervalHeight + 'px',
+          left: left + 'px',
+          top: row * this.intervalHeight + 'px',
           transform: `translate(0, 44px)`, // 36px axis offset + height
-          width: Math.max(16, this.xScale(end) - this.xScale(start)) + 'px'
+          width: width + 'px'
         }
       }
     })
