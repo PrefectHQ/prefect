@@ -213,6 +213,7 @@ def test_azure_serialize_with_flows():
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
     assert serialized["blob_name"] == "name"
+    assert serialized["connection_string_secret"] == "conn"
     assert serialized["flows"] == {"test": "key"}
 
     deserialized = AzureSchema().load(serialized)
