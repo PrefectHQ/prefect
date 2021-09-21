@@ -276,7 +276,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.xScale
       .domain([new Date(this.start), new Date(this.end)])
       .range([0, this.chartWidth])
-      .clamp()
+      .clamp(true) // Makes sure we don't show values outside the domain
 
     this.xAxisGroup.call(this.xAxis)
   }
@@ -320,7 +320,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
     this.computedItems = [...this.sortedItems].map((item: Item, i: number) => {
       const start = new Date(item.start_time)
-      const end = new Date(item.end_time)
+      const end = item.end_time ? new Date(item.end_time) : new Date()
       const left = this.xScale(start)
       const width = Math.max(16, this.xScale(end) - this.xScale(start))
       let row = 0
