@@ -40,6 +40,7 @@ class AzureSchema(BaseStorageSchema):
         object_class = Azure
 
     container = fields.String(allow_none=False)
+    connection_string_secret = fields.String(allow_none=True)
     blob_name = fields.String(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
 

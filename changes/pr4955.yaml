@@ -1,0 +1,2 @@
+enhancement:
+  - "Update setting a connection string for Azure storage - [#4955](https://github.com/PrefectHQ/prefect/pull/4955)"
