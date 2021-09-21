@@ -1,9 +1,11 @@
 from typing import List
+import anyio
 from packaging.version import parse as parse_version
 
 import mypy.version
 import pydantic
 import pytest
+import time
 
 from prefect import flow, get_result, task, tags
 from prefect.client import OrionClient
@@ -426,3 +428,79 @@ class TestFlowRunTags:
             subflow_state.state_details.flow_run_id
         )
         assert set(flow_run.tags) == {"a", "b", "c", "d"}
+
+
+class TestFlowTimeouts:
+    def test_flows_fail_with_timeout(self):
+        @flow(timeout_seconds=0.1)
+        def my_flow():
+            time.sleep(1)
+
+        state = my_flow()
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+
+    async def test_async_flows_fail_with_timeout(self):
+        @flow(timeout_seconds=0.1)
+        async def my_flow():
+            await anyio.sleep(1)
+
+        state = await my_flow()
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+
+    def test_timeout_only_applies_if_exceeded(self):
+        @flow(timeout_seconds=0.5)
+        def my_flow():
+            time.sleep(0.1)
+
+        state = my_flow()
+        assert state.is_completed()
+
+    def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
+        """
+        Sync flows are not cancellable, we can stop waiting for the worker thread but
+        it will continue running in the background
+        """
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=0.1)
+        def my_flow():
+            time.sleep(0.25)
+            canary_file.touch()
+
+        t0 = time.time()
+        state = my_flow()
+        t1 = time.time()
+
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+        assert t1 - t0 < 0.2, "The engine returns without waiting"
+
+        # Unfortunately, the worker thread continues running and we cannot stop it from
+        # doing so. The canary file _will_ be created.
+        time.sleep(0.25)
+        assert canary_file.exists()
+
+    async def test_timeout_actually_stops_execution_for_async_flows(self, tmp_path):
+        """
+        Async flow runs are actually cancellable on timeout
+        """
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=0.1)
+        async def my_flow():
+            await anyio.sleep(0.25)
+            canary_file.touch()
+
+        t0 = time.time()
+        state = await my_flow()
+        t1 = time.time()
+
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+        assert t1 - t0 < 0.2, "The engine returns without waiting"
+
+        # Wait in case the flow is just sleeping
+        await anyio.sleep(0.5)
+        assert not canary_file.exists()

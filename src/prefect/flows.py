@@ -12,6 +12,7 @@ from typing import (
     Callable,
     Coroutine,
     Iterable,
+    Union,
     TypeVar,
     cast,
     overload,
@@ -45,7 +46,7 @@ class Flow(Generic[P, R]):
         version: str = None,
         executor: BaseExecutor = None,
         description: str = None,
-        timeout_seconds: int = None
+        timeout_seconds: Union[int, float] = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -63,7 +64,7 @@ class Flow(Generic[P, R]):
         self.version = version or (file_hash(flow_file) if flow_file else None)
 
         self.parameters = parameter_schema(self.fn)
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
 
     @overload
     def __call__(
@@ -110,8 +111,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
-    timeout_seconds: int = None
-    tags: Iterable[str] = None,
+    timeout_seconds: Union[int, float] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -123,7 +123,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
-    timeout_seconds: int = None
+    timeout_seconds: Union[int, float] = None,
 ):
     if __fn:
         return cast(
