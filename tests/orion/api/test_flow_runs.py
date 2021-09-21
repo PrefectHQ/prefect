@@ -225,6 +225,13 @@ class TestReadFlowRun:
         assert response.status_code == 404
 
 
+@pytest.mark.parametrize(
+    "request_method,request_endpoint",
+    [
+        ["post", "/flow_runs/filter/"],
+        ["get", "/flow_runs/"],
+    ],
+)
 class TestReadFlowRuns:
     @pytest.fixture
     async def flow_runs(self, flow, session):
@@ -248,30 +255,34 @@ class TestReadFlowRuns:
         await session.commit()
         return [flow_run_1, flow_run_2, flow_run_3]
 
-    async def test_read_flow_runs(self, flow_runs, client):
+    async def test_read_flow_runs(
+        self, flow_runs, request_method, request_endpoint, client
+    ):
         response = await client.get("/flow_runs/")
         assert response.status_code == 200
         assert len(response.json()) == 3
 
-    async def test_read_flow_runs_applies_flow_filter(self, flow, flow_runs, client):
-        response = await client.get(
-            "/flow_runs/", json=dict(flows=dict(ids=[str(flow.id)]))
+    async def test_read_flow_runs_applies_flow_filter(
+        self, flow, flow_runs, request_method, request_endpoint, client
+    ):
+        response = await getattr(client, request_method)(
+            request_endpoint, json=dict(flows=dict(ids=[str(flow.id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 2
 
     async def test_read_flow_runs_applies_flow_run_filter(
-        self, flow, flow_runs, client
+        self, flow, flow_runs, request_method, request_endpoint, client
     ):
-        response = await client.get(
-            "/flow_runs/", json=dict(flow_runs=dict(ids=[str(flow_runs[0].id)]))
+        response = await getattr(client, request_method)(
+            request_endpoint, json=dict(flow_runs=dict(ids=[str(flow_runs[0].id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
 
     async def test_read_flow_runs_applies_task_run_filter(
-        self, flow, flow_runs, client, session
+        self, flow, flow_runs, request_method, request_endpoint, client, session
     ):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
@@ -280,24 +291,30 @@ class TestReadFlowRuns:
             ),
         )
         await session.commit()
-        response = await client.get(
-            "/flow_runs/", json=dict(task_runs=dict(ids=[str(task_run_1.id)]))
+        response = await getattr(client, request_method)(
+            request_endpoint, json=dict(task_runs=dict(ids=[str(task_run_1.id)]))
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
-    async def test_read_flow_runs_applies_limit(self, flow_runs, client):
+    async def test_read_flow_runs_applies_limit(
+        self, flow_runs, request_method, request_endpoint, client
+    ):
         response = await client.get("/flow_runs/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_read_flow_runs_returns_empty_list(self, client):
+    async def test_read_flow_runs_returns_empty_list(
+        self, request_method, request_endpoint, client
+    ):
         response = await client.get("/flow_runs/")
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_read_flow_runs_applies_sort(self, session, flow, client):
+    async def test_read_flow_runs_applies_sort(
+        self, session, flow, request_method, request_endpoint, client
+    ):
         now = pendulum.now()
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
@@ -321,8 +338,8 @@ class TestReadFlowRuns:
         )
         await session.commit()
 
-        response = await client.get(
-            "/flow_runs/",
+        response = await getattr(client, request_method)(
+            request_endpoint,
             json=dict(sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value),
             params=dict(limit=1),
         )
@@ -333,7 +350,7 @@ class TestReadFlowRuns:
         "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
     )
     async def test_read_flow_runs_sort_succeeds_for_all_sort_values(
-        self, sort, flow_run, client
+        self, sort, flow_run, request_method, request_endpoint, client
     ):
         response = await client.get("/flow_runs/", json=dict(sort=sort))
         assert response.status_code == 200
