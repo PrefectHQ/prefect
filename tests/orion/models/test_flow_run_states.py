@@ -1,9 +1,11 @@
+import datetime
 from uuid import uuid4
 
 import pendulum
 import pytest
 
 from prefect.orion import models
+from prefect.orion import schemas
 from prefect.orion.schemas.states import Running, Scheduled, StateType
 
 
@@ -41,7 +43,7 @@ class TestCreateFlowRunState:
 
         assert flow_run.start_time == dt
         assert flow_run.run_count == 1
-        assert flow_run.total_run_time_seconds == 0
+        assert flow_run.total_run_time == datetime.timedelta(0)
 
         dt2 = pendulum.now("utc")
         frs3 = await models.flow_run_states.orchestrate_flow_run_state(
@@ -55,7 +57,28 @@ class TestCreateFlowRunState:
 
         assert flow_run.start_time == dt
         assert flow_run.run_count == 2
-        assert flow_run.total_run_time_seconds == (dt2 - dt).total_seconds()
+        assert flow_run.total_run_time == (dt2 - dt)
+
+    async def test_database_is_not_updated_when_no_transition_takes_place(
+        self, flow_run, session
+    ):
+
+        # place the run in a scheduled state in the future
+        frs = await models.flow_run_states.orchestrate_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+        )
+
+        # attempt to put the run in a pending state, which will tell the transition to WAIT
+        frs2 = await models.flow_run_states.orchestrate_flow_run_state(
+            session=session, flow_run_id=flow_run.id, state=Running()
+        )
+
+        assert frs2.status == schemas.responses.SetStateStatus.WAIT
+        # the original state remains in place
+        await session.refresh(flow_run)
+        assert flow_run.state.id == frs.state.id
 
 
 class TestReadFlowRunState:

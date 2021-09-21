@@ -1,10 +1,11 @@
-from typing import Union
+import datetime
+from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_mixin
 
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
@@ -130,7 +131,33 @@ class TaskRunStateCache(Base):
     )
 
 
-class FlowRun(Base):
+@declarative_mixin
+class RunMixin:
+    """
+    Common columns and logic for FlowRun and TaskRun models
+    """
+
+    state_type = Column(sa.Enum(states.StateType, name="state_type"))
+    run_count = Column(Integer, server_default="0", default=0, nullable=False)
+    expected_start_time = Column(Timestamp())
+    next_scheduled_start_time = Column(Timestamp())
+    start_time = Column(Timestamp())
+    end_time = Column(Timestamp())
+    total_run_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
+    )
+    total_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
+    )
+
+
+class FlowRun(Base, RunMixin):
     flow_id = Column(
         UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
     )
@@ -153,6 +180,7 @@ class FlowRun(Base):
         ),
         index=True,
     )
+    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
@@ -164,19 +192,6 @@ class FlowRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
-    run_count = Column(Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = Column(Timestamp())
-    next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
-    end_time = Column(Timestamp())
-    total_run_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-    total_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # -------------------------- relationships
 
@@ -194,6 +209,15 @@ class FlowRun(Base):
 
     @state.setter
     def state(self, value):
+        # because this is a slightly non-standard SQLAlchemy relationship, we
+        # prefer an explicit setter method to a setter property, because
+        # user expectations about SQLAlchemy attribute assignment might not be
+        # met, namely that an unrelated (from SQLAlchemy's perspective) field of
+        # the provided state is also modified. However, property assignment
+        # still works because the ORM model's __init__ depends on it.
+        return self.set_state(value)
+
+    def set_state(self, state: Optional[FlowRunState]):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -201,9 +225,9 @@ class FlowRun(Base):
         relationship, but because this is a one-to-one pointer to a
         one-to-many relationship, SQLAlchemy can't figure it out.
         """
-        if value and value.flow_run_id is None:
-            value.flow_run_id = self.id
-        self._state = value
+        if state is not None:
+            state.flow_run_id = self.id
+        self._state = state
 
     flow = relationship("Flow", back_populates="flow_runs", lazy="raise")
     task_runs = relationship(
@@ -219,23 +243,28 @@ class FlowRun(Base):
         foreign_keys=lambda: [FlowRun.parent_task_run_id],
     )
 
-    # unique index on flow id / idempotency key
-    __table__args__ = (
+    __table_args__ = (
         sa.Index(
             "uq_flow_run__flow_id_idempotency_key",
             flow_id,
             idempotency_key,
             unique=True,
         ),
-        sa.Index("ix_flow_run__expected_start_time_desc", expected_start_time.desc()),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            next_scheduled_start_time.asc(),
-        ),
     )
 
 
-class TaskRun(Base):
+# add indexes after table creation to use mixin columns
+sa.Index(
+    "ix_flow_run__expected_start_time_desc",
+    FlowRun.expected_start_time.desc(),
+)
+sa.Index(
+    "ix_flow_run__next_scheduled_start_time_asc",
+    FlowRun.next_scheduled_start_time.asc(),
+)
+
+
+class TaskRun(Base, RunMixin):
     flow_run_id = Column(
         UUID(),
         ForeignKey("flow_run.id", ondelete="cascade"),
@@ -274,19 +303,6 @@ class TaskRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
-    run_count = Column(Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = Column(Timestamp())
-    next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
-    end_time = Column(Timestamp())
-    total_run_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-    total_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
@@ -303,6 +319,15 @@ class TaskRun(Base):
 
     @state.setter
     def state(self, value):
+        # because this is a slightly non-standard SQLAlchemy relationship, we
+        # prefer an explicit setter method to a setter property, because
+        # user expectations about SQLAlchemy attribute assignment might not be
+        # met, namely that an unrelated (from SQLAlchemy's perspective) field of
+        # the provided state is also modified. However, property assignment
+        # still works because the ORM model's __init__ depends on it.
+        return self.set_state(value)
+
+    def set_state(self, state: Optional[TaskRunState]):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -310,9 +335,9 @@ class TaskRun(Base):
         relationship, but because this is a one-to-one pointer to a
         one-to-many relationship, SQLAlchemy can't figure it out.
         """
-        if value and value.task_run_id is None:
-            value.task_run_id = self.id
-        self._state = value
+        if state is not None:
+            state.task_run_id = self.id
+        self._state = state
 
     flow_run = relationship(
         FlowRun,
@@ -336,12 +361,18 @@ class TaskRun(Base):
             dynamic_key,
             unique=True,
         ),
-        sa.Index("ix_task_run__expected_start_time_desc", expected_start_time.desc()),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            next_scheduled_start_time.asc(),
-        ),
     )
+
+
+# add indexes after table creation to use mixin columns
+sa.Index(
+    "ix_task_run__expected_start_time_desc",
+    TaskRun.expected_start_time.desc(),
+)
+sa.Index(
+    "ix_task_run__next_scheduled_start_time_asc",
+    TaskRun.next_scheduled_start_time.asc(),
+)
 
 
 class Deployment(Base):
