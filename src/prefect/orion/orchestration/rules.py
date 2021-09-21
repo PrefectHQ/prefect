@@ -288,8 +288,9 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         self.context = context
 
     async def __aenter__(self):
-        await self.before_transition(self.context)
-        self.context.rule_signature.append(str(self.__class__))
+        if not self.nullified_transition():
+            await self.before_transition(self.context)
+            self.context.rule_signature.append(str(self.__class__))
         return self.context
 
     async def __aexit__(
@@ -298,11 +299,15 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        await self.after_transition(self.context)
-        self.context.finalization_signature.append(str(self.__class__))
+        if not self.nullified_transition():
+            await self.after_transition(self.context)
+            self.context.finalization_signature.append(str(self.__class__))
 
     async def before_transition(self, context) -> None:
         pass
 
     async def after_transition(self, context) -> None:
         pass
+
+    def nullified_transition(self) -> bool:
+        return self.context.proposed_state is None
