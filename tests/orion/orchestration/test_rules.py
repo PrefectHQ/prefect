@@ -807,7 +807,6 @@ class TestBaseUniversalRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -823,10 +822,10 @@ class TestBaseUniversalRule:
 
     @pytest.mark.parametrize(
         "intended_transition",
-        list(product([*states.StateType, None], [*states.StateType, None])),
+        list(product([*states.StateType, None], [*states.StateType])),
         ids=transition_names,
     )
-    async def test_universal_rules_always_fire(
+    async def test_universal_rules_always_fire_on_all_transitions(
         self, session, task_run, intended_transition
     ):
         side_effect = 0
@@ -856,7 +855,6 @@ class TestBaseUniversalRule:
             initial_state=initial_state,
             proposed_state=proposed_state,
             session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
             task_run_id=task_run.id,
         )
 
@@ -874,6 +872,62 @@ class TestBaseUniversalRule:
         assert side_effect == 2
         assert before_hook.call_count == 1
         assert after_hook.call_count == 1
+
+    @pytest.mark.parametrize(
+        "intended_transition",
+        list(product([*states.StateType, None], [None])),
+        ids=transition_names,
+    )
+    async def test_universal_rules_never_fire_on_nullified_transitions(
+        self, session, task_run, intended_transition
+    ):
+        # nullified transitions occur when the proposed state becomes None
+        # and nothing is written to the database
+
+        side_effect = 0
+        before_hook = MagicMock()
+        after_hook = MagicMock()
+
+        class IllustrativeUniversalRule(BaseUniversalRule):
+            async def before_transition(self, context):
+                nonlocal side_effect
+                side_effect += 1
+                before_hook()
+
+            async def after_transition(self, context):
+                nonlocal side_effect
+                side_effect += 1
+                after_hook()
+
+        initial_state_type, proposed_state_type = intended_transition
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = OrchestrationContext(
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+            session=session,
+            task_run_id=task_run.id,
+        )
+
+        universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
+
+        async with universal_rule as ctx:
+            mutated_state_type = random.choice(
+                list(set(states.StateType) - set(intended_transition))
+            )
+            mutated_state = await commit_task_run_state(
+                session, task_run, mutated_state_type
+            )
+            ctx.initial_state = mutated_state
+
+        assert side_effect == 0
+        assert before_hook.call_count == 0
+        assert after_hook.call_count == 0
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
