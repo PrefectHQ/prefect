@@ -90,53 +90,54 @@ class TestReadTaskRun:
 
 class TestReadTaskRuns:
     async def test_read_task_runs(self, task_run, client):
-        response = await client.get("/task_runs/")
+        response = await client.post("/task_runs/filter/")
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
     async def test_read_task_runs_applies_task_run_filter(self, task_run, client):
-        response = await client.get(
-            "/task_runs/", json={"task_runs": {"ids": [str(task_run.id)]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"task_runs": {"ids": [str(task_run.id)]}}
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await client.get(
-            "/task_runs/", json={"task_runs": {"ids": [str(uuid4())]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"task_runs": {"ids": [str(uuid4())]}}
         )
         assert response.status_code == 200
         assert response.json() == []
 
     async def test_read_task_runs_applies_flow_run_filter(self, task_run, client):
-        response = await client.get(
-            "/task_runs/", json={"flow_runs": {"ids": [str(task_run.flow_run_id)]}}
+        response = await client.post(
+            "/task_runs/filter/",
+            json={"flow_runs": {"ids": [str(task_run.flow_run_id)]}},
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await client.get(
-            "/task_runs/", json={"flow_runs": {"ids": [str(uuid4())]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"flow_runs": {"ids": [str(uuid4())]}}
         )
         assert response.status_code == 200
         assert response.json() == []
 
     async def test_read_task_runs_applies_flow_filter(self, flow, task_run, client):
-        response = await client.get(
-            "/task_runs/", json={"flows": {"ids": [str(flow.id)]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"flows": {"ids": [str(flow.id)]}}
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await client.get(
-            "/task_runs/", json={"flows": {"ids": [str(uuid4())]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"flows": {"ids": [str(uuid4())]}}
         )
         assert response.status_code == 200
         assert response.json() == []
@@ -161,8 +162,8 @@ class TestReadTaskRuns:
         )
         await session.commit()
 
-        response = await client.get(
-            "/task_runs/",
+        response = await client.post(
+            "/task_runs/filter/",
             json=dict(sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value),
             params=dict(
                 limit=1,
@@ -177,7 +178,7 @@ class TestReadTaskRuns:
     async def test_read_task_runs_succeeds_for_all_sort_values(
         self, sort, task_run, client
     ):
-        response = await client.get("/task_runs/", json=dict(sort=sort))
+        response = await client.post("/task_runs/filter", json=dict(sort=sort))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
