@@ -80,12 +80,12 @@ class OrchestrationContext(PrefectBaseModel):
 
 
 class TaskOrchestrationContext(OrchestrationContext):
-    orm_run: orm.TaskRun
+    run: orm.TaskRun
 
     async def validate_proposed_state(self) -> orm.TaskRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.TaskRunState(
-                task_run_id=self.orm_run.id,
+                task_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
@@ -102,16 +102,16 @@ class TaskOrchestrationContext(OrchestrationContext):
 
     @property
     def run_settings(self) -> Dict:
-        return self.orm_run.empirical_policy
+        return self.run.empirical_policy
 
 
 class FlowOrchestrationContext(OrchestrationContext):
-    orm_run: orm.FlowRun
+    run: orm.FlowRun
 
     async def validate_proposed_state(self) -> orm.FlowRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.FlowRunState(
-                flow_run_id=self.orm_run.id,
+                flow_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
@@ -128,7 +128,7 @@ class FlowOrchestrationContext(OrchestrationContext):
 
     @property
     def run_settings(self) -> Dict:
-        return self.orm_run.empirical_policy
+        return self.run.empirical_policy
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):

@@ -54,7 +54,7 @@ async def orchestrate_task_run_state(
 
     context = TaskOrchestrationContext(
         session=session,
-        orm_run=run,
+        run=run,
         initial_state=initial_state,
         proposed_state=state,
     )
