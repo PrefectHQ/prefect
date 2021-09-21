@@ -164,7 +164,7 @@ class FlowRun(Base, RunMixin):
     deployment_id = Column(
         UUID(), ForeignKey("deployment.id", ondelete="set null"), index=True
     )
-    flow_version = Column(String)
+    flow_version = Column(String, index=True)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = Column(String)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -261,6 +261,14 @@ sa.Index(
 sa.Index(
     "ix_flow_run__next_scheduled_start_time_asc",
     FlowRun.next_scheduled_start_time.asc(),
+)
+sa.Index(
+    "ix_flow_run__start_time",
+    FlowRun.start_time,
+)
+sa.Index(
+    "ix_flow_run__state_type",
+    FlowRun.state_type,
 )
 
 
@@ -372,6 +380,14 @@ sa.Index(
 sa.Index(
     "ix_task_run__next_scheduled_start_time_asc",
     TaskRun.next_scheduled_start_time.asc(),
+)
+sa.Index(
+    "ix_task_run__start_time",
+    TaskRun.start_time,
+)
+sa.Index(
+    "ix_task_run__state_type",
+    TaskRun.state_type,
 )
 
 

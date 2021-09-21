@@ -125,7 +125,7 @@ class OrionClient:
         return await self.get("/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
-        flow_data = schemas.actions.FlowCreate(name=flow.name, tags=flow.tags)
+        flow_data = schemas.actions.FlowCreate(name=flow.name)
         response = await self.post("/flows/", json=flow_data.dict(json_compatible=True))
 
         flow_id = response.json().get("id")
@@ -207,11 +207,10 @@ class OrionClient:
         flow: "Flow",
         parameters: Dict[str, Any] = None,
         context: dict = None,
-        extra_tags: Iterable[str] = None,
+        tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
     ) -> UUID:
-        tags = set(flow.tags).union(extra_tags or [])
         parameters = parameters or {}
         context = context or {}
 
@@ -226,7 +225,7 @@ class OrionClient:
             flow_version=flow.version,
             parameters=parameters,
             context=context,
-            tags=list(tags),
+            tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state,
         )

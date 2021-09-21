@@ -2,7 +2,7 @@ import datetime
 import pendulum
 import pytest
 
-from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
+from prefect.orion.orchestration.rules import TERMINAL_STATES
 from prefect.orion.orchestration.global_policy import (
     UpdateRunDetails,
 )
@@ -26,7 +26,7 @@ class TestUpdateRunDetailsRule:
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
             await ctx.validate_proposed_state()
 
-        run = await ctx.orm_run()
+        run = ctx.run
         assert run.state_type == proposed_state_type
 
     async def test_rule_sets_scheduled_time(
@@ -46,7 +46,7 @@ class TestUpdateRunDetailsRule:
             proposed_details={"scheduled_time": scheduled_time},
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         assert run.start_time is None
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
@@ -71,7 +71,7 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         assert run.start_time is None
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
@@ -95,7 +95,7 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         assert run.start_time is None
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
@@ -118,7 +118,7 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         assert run.run_count == 0
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
@@ -141,7 +141,7 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         run.run_count = 41
 
         async with UpdateRunDetails(ctx, *intended_transition) as ctx:
@@ -165,7 +165,7 @@ class TestUpdateRunDetailsRule:
         )
 
         now = pendulum.now()
-        run = await ctx.orm_run()
+        run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
         ctx.proposed_state.timestamp = now
@@ -193,7 +193,7 @@ class TestUpdateRunDetailsRule:
         )
 
         now = pendulum.now()
-        run = await ctx.orm_run()
+        run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
         ctx.proposed_state.timestamp = now
@@ -219,7 +219,7 @@ class TestUpdateRunDetailsRule:
         )
 
         now = pendulum.now()
-        run = await ctx.orm_run()
+        run = ctx.run
         run.start_time = now.subtract(seconds=42)
         ctx.initial_state.timestamp = now.subtract(seconds=42)
         ctx.proposed_state.timestamp = now
@@ -244,7 +244,7 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         run.start_time = pendulum.now().subtract(seconds=42)
         assert run.end_time is None
 
@@ -265,7 +265,7 @@ class TestUpdateRunDetailsRule:
             *intended_transition,
         )
 
-        run = await ctx.orm_run()
+        run = ctx.run
         run.start_time = pendulum.now().subtract(seconds=42)
         run.end_time = pendulum.now()
         assert run.end_time is not None
