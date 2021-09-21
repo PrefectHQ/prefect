@@ -182,13 +182,23 @@ class TestReadTaskRuns:
 
         response = await client.post(
             "/task_runs/filter/",
-            json=dict(sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value),
-            params=dict(
-                limit=1,
+            json=dict(
+                limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
             ),
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == str(task_run_2.id)
+
+        response = await client.post(
+            "/task_runs/filter/",
+            json=dict(
+                limit=1,
+                offset=1,
+                sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(task_run_1.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
