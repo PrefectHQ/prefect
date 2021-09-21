@@ -1,4 +1,6 @@
 import datetime
+from typing import Optional
+
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
@@ -207,6 +209,15 @@ class FlowRun(Base, RunMixin):
 
     @state.setter
     def state(self, value):
+        # because this is a slightly non-standard SQLAlchemy relationship, we
+        # prefer an explicit setter method to a setter property, because
+        # user expectations about SQLAlchemy attribute assignment might not be
+        # met, namely that an unrelated (from SQLAlchemy's perspective) field of
+        # the provided state is also modified. However, property assignment
+        # still works because the ORM model's __init__ depends on it.
+        return self.set_state(value)
+
+    def set_state(self, state: Optional[FlowRunState]):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -214,9 +225,9 @@ class FlowRun(Base, RunMixin):
         relationship, but because this is a one-to-one pointer to a
         one-to-many relationship, SQLAlchemy can't figure it out.
         """
-        if value and value.flow_run_id is None:
-            value.flow_run_id = self.id
-        self._state = value
+        if state is not None:
+            state.flow_run_id = self.id
+        self._state = state
 
     flow = relationship("Flow", back_populates="flow_runs", lazy="raise")
     task_runs = relationship(
@@ -316,6 +327,15 @@ class TaskRun(Base, RunMixin):
 
     @state.setter
     def state(self, value):
+        # because this is a slightly non-standard SQLAlchemy relationship, we
+        # prefer an explicit setter method to a setter property, because
+        # user expectations about SQLAlchemy attribute assignment might not be
+        # met, namely that an unrelated (from SQLAlchemy's perspective) field of
+        # the provided state is also modified. However, property assignment
+        # still works because the ORM model's __init__ depends on it.
+        return self.set_state(value)
+
+    def set_state(self, state: Optional[TaskRunState]):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -323,9 +343,9 @@ class TaskRun(Base, RunMixin):
         relationship, but because this is a one-to-one pointer to a
         one-to-many relationship, SQLAlchemy can't figure it out.
         """
-        if value and value.task_run_id is None:
-            value.task_run_id = self.id
-        self._state = value
+        if state is not None:
+            state.task_run_id = self.id
+        self._state = state
 
     flow_run = relationship(
         FlowRun,
