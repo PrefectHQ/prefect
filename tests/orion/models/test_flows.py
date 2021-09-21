@@ -217,7 +217,7 @@ class TestReadFlows:
         result = await models.flows.read_flows(
             session=session,
             flow_filter=schemas.filters.FlowFilter(
-                names=schemas.filters.FlowFilterNames(any_=["my-flow-1"])
+                name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
             ),
         )
         assert {res.id for res in result} == {flow_1.id}
@@ -225,7 +225,7 @@ class TestReadFlows:
         result = await models.flows.read_flows(
             session=session,
             flow_filter=schemas.filters.FlowFilter(
-                names=schemas.filters.FlowFilterNames(any_=["my-flow-2", "my-flow-3"])
+                name=schemas.filters.FlowFilterName(any_=["my-flow-2", "my-flow-3"])
             ),
         )
         assert {res.id for res in result} == {flow_2.id, flow_3.id}
@@ -246,7 +246,7 @@ class TestReadFlows:
         result = await models.flows.read_flows(
             session=session,
             flow_filter=schemas.filters.FlowFilter(
-                ids=schemas.filters.FlowFilterIds(any_=[flow_1.id])
+                id=schemas.filters.FlowFilterId(any_=[flow_1.id])
             ),
         )
         assert {res.id for res in result} == {flow_1.id}
@@ -254,7 +254,7 @@ class TestReadFlows:
         result = await models.flows.read_flows(
             session=session,
             flow_filter=schemas.filters.FlowFilter(
-                ids=schemas.filters.FlowFilterIds(any_=[flow_1.id, flow_2.id])
+                id=schemas.filters.FlowFilterId(any_=[flow_1.id, flow_2.id])
             ),
         )
         assert {res.id for res in result} == {flow_1.id, flow_2.id}

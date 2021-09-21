@@ -35,7 +35,7 @@ def test_all_and_is_null_filter_validation_does_not_allow_all_and_is_null(Filter
 
 @pytest.mark.parametrize(
     "Filter",
-    [filters.FlowRunFilterDeploymentIds, filters.FlowRunFilterParentTaskRunIds],
+    [filters.FlowRunFilterDeploymentId, filters.FlowRunFilterParentTaskRunId],
 )
 def test_any_and_is_null_filter_validation_does_not_allow_any_and_is_null(Filter):
     with pytest.raises(
@@ -47,7 +47,7 @@ def test_any_and_is_null_filter_validation_does_not_allow_any_and_is_null(Filter
 
 @pytest.mark.parametrize(
     "Filter",
-    [filters.FlowRunFilterIds],
+    [filters.FlowRunFilterId],
 )
 def test_any_and_not_any_filter_validation_does_not_allow_any_and_not_any(Filter):
     with pytest.raises(

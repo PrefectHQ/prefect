@@ -143,7 +143,7 @@ class TestReadFlows:
 
         flow_filter = dict(
             flows=schemas.filters.FlowFilter(
-                names=schemas.filters.FlowFilterNames(any_=["my-flow-1"])
+                name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
             ).dict(json_compatible=True)
         )
         response = await client.get("/flows/", json=flow_filter)
@@ -167,7 +167,7 @@ class TestReadFlows:
 
         flow_filter = dict(
             flow_runs=schemas.filters.FlowRunFilter(
-                ids=schemas.filters.FlowRunFilterIds(any_=[flow_run_1.id])
+                id=schemas.filters.FlowRunFilterId(any_=[flow_run_1.id])
             ).dict(json_compatible=True)
         )
 
@@ -198,7 +198,7 @@ class TestReadFlows:
 
         flow_filter = dict(
             task_runs=schemas.filters.TaskRunFilter(
-                ids=schemas.filters.TaskRunFilterIds(any_=[task_run_1.id])
+                id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
             ).dict(json_compatible=True)
         )
 

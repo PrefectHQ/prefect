@@ -115,7 +115,7 @@ class TestCreateDeployment:
         )
 
         n_runs = await models.flow_runs.count_flow_runs(
-            session, flow_filter=schemas.filters.FlowFilter(ids=dict(any_=[flow.id]))
+            session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
         assert n_runs == 100
 
@@ -139,7 +139,7 @@ class TestCreateDeployment:
         )
 
         n_runs = await models.flow_runs.count_flow_runs(
-            session, flow_filter=schemas.filters.FlowFilter(ids=dict(any_=[flow.id]))
+            session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
         assert n_runs == 0
 
@@ -160,7 +160,7 @@ class TestCreateDeployment:
         )
 
         n_runs = await models.flow_runs.count_flow_runs(
-            session, flow_filter=schemas.filters.FlowFilter(ids=dict(any_=[flow.id]))
+            session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
         assert n_runs == 0
 

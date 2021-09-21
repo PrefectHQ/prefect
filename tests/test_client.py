@@ -157,9 +157,9 @@ async def test_read_flow_runs_with_filtering(orion_client):
     fr_id_5 = await orion_client.create_flow_run(bar, state=Running())
 
     flows = await orion_client.read_flow_runs(
-        flows=schemas.filters.FlowFilter(names=dict(any_=["bar"])),
+        flows=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
         flow_runs=schemas.filters.FlowRunFilter(
-            state_types=dict(
+            state_type=dict(
                 any_=[
                     StateType.SCHEDULED,
                     StateType.RUNNING,
@@ -208,7 +208,7 @@ async def test_read_flows_with_filter(orion_client):
     flow_id_3 = await orion_client.create_flow(foobar)
 
     flows = await orion_client.read_flows(
-        flows=schemas.filters.FlowFilter(names=dict(any_=["foo", "bar"]))
+        flows=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
     )
     assert len(flows) == 2
     assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
