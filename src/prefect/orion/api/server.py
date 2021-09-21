@@ -66,13 +66,12 @@ async def start_services():
 @app.on_event("shutdown")
 async def wait_for_service_shutdown():
     if app.state.services:
-        for service, task in app.state.services.items():
-            try:
-                await service.stop()
-                await task.result()
-            except Exception as exc:
-                # `on_service_exit` should handle logging exceptions
-                pass
+        await asyncio.gather(*[service.stop() for service in app.state.services])
+        try:
+            await asyncio.gather(*[task.stop() for task in app.state.services.values()])
+        except Exception as exc:
+            # `on_service_exit` should handle logging exceptions on exit
+            pass
 
 
 def on_service_exit(service, task):
