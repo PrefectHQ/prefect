@@ -121,7 +121,7 @@ async def data(database_engine):
         await session.commit()
 
 
-@pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
+@pytest.mark.parametrize("route", ["/flow_runs/history/", "/task_runs/history/"])
 @pytest.mark.parametrize(
     "start,end,interval,expected_bins",
     [
@@ -134,9 +134,16 @@ async def data(database_engine):
         (dt, dt.add(days=1, hours=5), timedelta(minutes=15), 116),
     ],
 )
-async def test_history(client, route, start, end, interval, expected_bins):
-    response = await client.get(
-        f"/{route}/history",
+async def test_history(
+    client,
+    route,
+    start,
+    end,
+    interval,
+    expected_bins,
+):
+    response = await client.post(
+        route,
         json=dict(
             history_start=str(start),
             history_end=str(end),
@@ -157,7 +164,7 @@ async def test_history(client, route, start, end, interval, expected_bins):
 
 @pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
 async def test_history_returns_maximum_items(client, route):
-    response = await client.get(
+    response = await client.post(
         f"/{route}/history",
         json=dict(
             history_start=str(dt),
@@ -177,8 +184,8 @@ async def test_history_returns_maximum_items(client, route):
 
 
 async def test_daily_bins_flow_runs(client):
-    response = await client.get(
-        "/flow_runs/history",
+    response = await client.post(
+        "/flow_runs/history/",
         json=dict(
             history_start=str(dt.subtract(days=5)),
             history_end=str(dt.add(days=1)),
@@ -242,8 +249,8 @@ async def test_daily_bins_flow_runs(client):
 
 
 async def test_weekly_bins_flow_runs(client):
-    response = await client.get(
-        "/flow_runs/history",
+    response = await client.post(
+        "/flow_runs/history/",
         json=dict(
             history_start=str(dt.subtract(days=16)),
             history_end=str(dt.add(days=6)),
@@ -292,8 +299,8 @@ async def test_weekly_bins_flow_runs(client):
 
 
 async def test_weekly_bins_with_filters_flow_runs(client):
-    response = await client.get(
-        "/flow_runs/history",
+    response = await client.post(
+        "/flow_runs/history/",
         json=dict(
             history_start=str(dt.subtract(days=16)),
             history_end=str(dt.add(days=6)),
@@ -339,8 +346,8 @@ async def test_weekly_bins_with_filters_flow_runs(client):
 
 
 async def test_5_minute_bins_task_runs(client):
-    response = await client.get(
-        "/task_runs/history",
+    response = await client.post(
+        "/task_runs/history/",
         json=dict(
             history_start=str(dt.subtract(minutes=5)),
             history_end=str(dt.add(minutes=15)),
@@ -385,8 +392,8 @@ async def test_5_minute_bins_task_runs(client):
 
 
 async def test_5_minute_bins_task_runs_with_filter(client):
-    response = await client.get(
-        "/task_runs/history",
+    response = await client.post(
+        "/task_runs/history/",
         json=dict(
             history_start=str(dt.subtract(minutes=5)),
             history_end=str(dt.add(minutes=15)),
@@ -432,7 +439,7 @@ async def test_5_minute_bins_task_runs_with_filter(client):
 @pytest.mark.parametrize("route", ["flow_runs", "task_runs"])
 async def test_last_bin_contains_end_date(client, route):
     """The last bin contains the end date, so its own end could be after the history end"""
-    response = await client.get(
+    response = await client.post(
         f"/{route}/history",
         json=dict(
             history_start=str(dt),
