@@ -329,13 +329,6 @@ class TestReadDeploymentByName:
         assert response.status_code == 404
 
 
-@pytest.mark.parametrize(
-    "request_method,request_endpoint",
-    [
-        ["post", "/deployments/filter/"],
-        ["get", "/deployments/"],
-    ],
-)
 class TestReadDeployments:
     @pytest.fixture
     async def deployments(self, client, flow, flow_function):
@@ -356,28 +349,18 @@ class TestReadDeployments:
             ).dict(json_compatible=True),
         )
 
-    async def test_read_deployments(
-        self, deployments, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(request_endpoint)
+    async def test_read_deployments(self, deployments, client):
+        response = await client.post("/deployments/filter/")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
-    async def test_read_deployments_applies_limit(
-        self, request_method, request_endpoint, deployments, client
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, params=dict(limit=1)
-        )
+    async def test_read_deployments_applies_limit(self, deployments, client):
+        response = await client.post("/deployments/filter/", params=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
-    async def test_read_deployments_offset(
-        self, deployments, request_method, request_endpoint, client, session
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, params=dict(offset=1)
-        )
+    async def test_read_deployments_offset(self, deployments, client, session):
+        response = await client.post("/deployments/filter/", params=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -387,10 +370,8 @@ class TestReadDeployments:
         second_id = [str(i) for i in all_ids.scalars().all()][1]
         assert response.json()[0]["id"] == second_id
 
-    async def test_read_deployments_returns_empty_list(
-        self, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(request_endpoint)
+    async def test_read_deployments_returns_empty_list(self, client):
+        response = await client.post("/deployments/filter/")
         assert response.status_code == 200
         assert response.json() == []
 

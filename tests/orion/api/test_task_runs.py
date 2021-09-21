@@ -88,77 +88,61 @@ class TestReadTaskRun:
         assert response.status_code == 404
 
 
-@pytest.mark.parametrize(
-    "request_method,request_endpoint",
-    [
-        ["post", "/task_runs/filter/"],
-        ["get", "/task_runs/"],
-    ],
-)
 class TestReadTaskRuns:
-    async def test_read_task_runs(
-        self, task_run, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(request_endpoint)
+    async def test_read_task_runs(self, task_run, client):
+        response = await client.post("/task_runs/filter/")
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-    async def test_read_task_runs_applies_task_run_filter(
-        self, task_run, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, json={"task_runs": {"ids": [str(task_run.id)]}}
+    async def test_read_task_runs_applies_task_run_filter(self, task_run, client):
+        response = await client.post(
+            "/task_runs/filter/", json={"task_runs": {"ids": [str(task_run.id)]}}
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await getattr(client, request_method)(
-            request_endpoint, json={"task_runs": {"ids": [str(uuid4())]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"task_runs": {"ids": [str(uuid4())]}}
         )
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_read_task_runs_applies_flow_run_filter(
-        self, task_run, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, json={"flow_runs": {"ids": [str(task_run.flow_run_id)]}}
+    async def test_read_task_runs_applies_flow_run_filter(self, task_run, client):
+        response = await client.post(
+            "/task_runs/filter/",
+            json={"flow_runs": {"ids": [str(task_run.flow_run_id)]}},
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await getattr(client, request_method)(
-            request_endpoint, json={"flow_runs": {"ids": [str(uuid4())]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"flow_runs": {"ids": [str(uuid4())]}}
         )
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_read_task_runs_applies_flow_filter(
-        self, flow, task_run, request_method, request_endpoint, client
-    ):
-        response = await getattr(client, request_method)(
-            request_endpoint, json={"flows": {"ids": [str(flow.id)]}}
+    async def test_read_task_runs_applies_flow_filter(self, flow, task_run, client):
+        response = await client.post(
+            "/task_runs/filter/", json={"flows": {"ids": [str(flow.id)]}}
         )
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
         assert response.json()[0]["flow_run_id"] == str(task_run.flow_run_id)
 
-        response = await getattr(client, request_method)(
-            request_endpoint, json={"flows": {"ids": [str(uuid4())]}}
+        response = await client.post(
+            "/task_runs/filter/", json={"flows": {"ids": [str(uuid4())]}}
         )
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_read_task_runs_applies_sort(
-        self, flow_run, session, request_method, request_endpoint, client
-    ):
+    async def test_read_task_runs_applies_sort(self, flow_run, session, client):
         now = pendulum.now()
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
@@ -178,8 +162,8 @@ class TestReadTaskRuns:
         )
         await session.commit()
 
-        response = await getattr(client, request_method)(
-            request_endpoint,
+        response = await client.post(
+            "/task_runs/filter/",
             json=dict(sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value),
             params=dict(
                 limit=1,
@@ -192,9 +176,9 @@ class TestReadTaskRuns:
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
     )
     async def test_read_task_runs_succeeds_for_all_sort_values(
-        self, sort, task_run, request_method, request_endpoint, client
+        self, sort, task_run, client
     ):
-        response = await client.get("/task_runs/", json=dict(sort=sort))
+        response = await client.post("/task_runs/filter", json=dict(sort=sort))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
