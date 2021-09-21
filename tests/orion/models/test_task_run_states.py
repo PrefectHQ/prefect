@@ -4,7 +4,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.orion import models
+from prefect.orion import models, schemas
 from prefect.orion.schemas import states
 from prefect.orion.schemas.states import Failed, Running, Scheduled, State, StateType
 
@@ -107,6 +107,27 @@ class TestCreateTaskRunState:
         ).state
 
         assert new_state.type == StateType.FAILED
+
+    async def test_database_is_not_updated_when_no_transition_takes_place(
+        self, task_run, session
+    ):
+
+        # place the run in a scheduled state in the future
+        trs = await models.task_run_states.orchestrate_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+        )
+
+        # attempt to put the run in a pending state, which will tell the transition to WAIT
+        trs2 = await models.task_run_states.orchestrate_task_run_state(
+            session=session, task_run_id=task_run.id, state=Running()
+        )
+
+        assert trs2.status == schemas.responses.SetStateStatus.WAIT
+        # the original state remains in place
+        await session.refresh(task_run)
+        assert task_run.state.id == trs.state.id
 
 
 class TestReadTaskRunState:

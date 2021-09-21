@@ -74,8 +74,9 @@ async def orchestrate_task_run_state(
 
         validated_orm_state = await context.validate_proposed_state()
 
-        run.set_state(validated_orm_state)
-        await session.flush()
+        if validated_orm_state is not None:
+            run.set_state(validated_orm_state)
+            await session.flush()
 
     result = OrchestrationResult(
         state=validated_orm_state,
