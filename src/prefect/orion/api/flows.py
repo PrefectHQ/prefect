@@ -46,7 +46,7 @@ async def update_flow(
 
 
 # must be defined before `GET /:id`
-@router.post("/count/filter")
+@router.post("/count")
 @router.get("/count")
 async def count_flows(
     flows: schemas.filters.FlowFilter = None,
