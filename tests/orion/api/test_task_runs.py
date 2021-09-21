@@ -145,7 +145,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.FlowFilterId(any_=[flow.id])
             ).dict(json_compatible=True)
         )
-        response = await client.get("/task_runs/filter/", json=task_run_filter)
+        response = await client.post("/task_runs/filter/", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
