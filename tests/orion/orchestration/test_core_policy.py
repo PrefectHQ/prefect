@@ -217,8 +217,10 @@ class TestRetryingRule:
             *intended_transition,
         )
 
-        ctx.run_settings.max_retries = 2
-        ctx.run.run_count = 2
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -243,8 +245,10 @@ class TestRetryingRule:
             *intended_transition,
         )
 
-        ctx.run_settings.max_retries = 2
-        ctx.run.run_count = 3
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 3
+        run_settings.max_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -285,7 +289,8 @@ async def test_update_subflow_parent_task(
         ),
     )
 
-    ctx.run.parent_task_run_id = parent_task_run.id
+    run = ctx.run
+    run.parent_task_run_id = parent_task_run.id
 
     async with contextlib.AsyncExitStack() as stack:
         for rule in update_subflows_policy:
