@@ -489,19 +489,31 @@ async def user_return_value_to_state(
 
 
 @overload
-async def get_result(state: State[R], raise_failures: bool = True) -> R:
+async def get_result(
+    state_or_future: Union[PrefectFuture[R], State[R]], raise_failures: bool = True
+) -> R:
     ...
 
 
 @overload
 async def get_result(
-    state: State[R], raise_failures: bool = False
+    state_or_future: Union[PrefectFuture[R], State[R]], raise_failures: bool = False
 ) -> Union[R, Exception]:
     ...
 
 
 @sync_compatible
-async def get_result(state, raise_failures: bool = True):
+async def get_result(state_or_future, raise_failures: bool = True):
+    if isinstance(state_or_future, PrefectFuture):
+        state = await state_or_future.wait()
+    elif isinstance(state_or_future, State):
+        state = state_or_future
+    else:
+        raise TypeError(
+            f"Unexpected type {type(state_or_future).__name__!r} for `get_result`. "
+            "Expected `State` or `PrefectFuture`"
+        )
+
     if state.is_failed() and raise_failures:
         return await raise_failed_state(state)
 
