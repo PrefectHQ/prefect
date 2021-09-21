@@ -17,6 +17,8 @@ from typing import (
     overload,
     Generic,
     NoReturn,
+    Union,
+    Type,
 )
 
 from typing_extensions import ParamSpec
@@ -35,7 +37,13 @@ P = ParamSpec("P")  # The parameters of the flow
 
 class Flow(Generic[P, R]):
     """
-    Base class representing Prefect workflows.
+    A Prefect workflow definition
+
+    See the `@flow` decorator for usage details.
+
+    Wraps a user's function with an entrypoint to the Prefect engine. To preserve the
+    input and output signatures of the user's functions, we use the generic type
+    variables P and R for "Parameters" and "Return Type" respectively.
     """
 
     def __init__(
@@ -43,14 +51,14 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        executor: BaseExecutor = None,
+        executor: Union[Type[BaseExecutor], BaseExecutor] = LocalExecutor,
         description: str = None,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        self.executor = executor or LocalExecutor()
+        self.executor = executor() if isinstance(executor, type) else executor
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -88,6 +96,18 @@ class Flow(Generic[P, R]):
         *args: "P.args",
         **kwargs: "P.kwargs",
     ):
+        """
+        Run the flow.
+
+        If writing an async flow, this call must be awaited.
+
+        Args:
+            args: Arguments are passed through to the user's function
+            kwargs: Keyword arguments are passed through to the user's function
+
+        Returns:
+            State: The final state of the flow run
+        """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
         # Convert the call args/kwargs to a parameter dict
@@ -106,7 +126,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = None,
+    executor: BaseExecutor = LocalExecutor,
     description: str = None,
     tags: Iterable[str] = None,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
@@ -118,9 +138,28 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = None,
+    executor: BaseExecutor = LocalExecutor,
     description: str = None,
 ):
+    """
+    Decorator to designate a function as a Prefect workflow.
+
+    This decorator may be used for async or synchronous functions.
+
+    Args:
+        name: An optional name for the flow. If not provided, the name will be inferred
+            from the given function.
+        version: An optional version string for the flow, If not provided, we will
+            attempt to create a version string as a hash of the file containing the
+            wrapped function. If the file cannot be located, the version will be null.
+        executor: An optional executor to use for task execution within the flow. If
+            not provided, a `LocalExecutor` will be instantiated.
+        description: An optional string description for the flow.
+
+    Returns:
+        Flow: A new callable which, when called, will execute the flow and return its
+            final state.
+    """
     if __fn:
         return cast(
             Flow[P, R],
