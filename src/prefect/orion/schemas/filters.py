@@ -12,13 +12,6 @@ from prefect.orion.utilities.database import json_has_all_keys
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
-class Pagination(PrefectBaseModel):
-    limit: conint(
-        ge=0, le=prefect.settings.orion.api.default_limit
-    ) = prefect.settings.orion.api.default_limit
-    offset: conint(ge=0) = 0
-
-
 class PrefectFilterBaseModel(PrefectBaseModel):
     """Base model for Prefect filters"""
 
