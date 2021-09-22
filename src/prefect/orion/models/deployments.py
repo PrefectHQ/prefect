@@ -9,7 +9,6 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.orchestration.global_policy import update_run_details
 from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
@@ -201,9 +200,10 @@ async def _generate_scheduled_flow_runs(
                 scheduled_time=date,
                 message="Flow run scheduled",
             ),
+            state_type=schemas.states.StateType.SCHEDULED,
+            next_scheduled_start_time=date,
+            expected_start_time=date,
         )
-        # apply run details updates because this state won't go through the orchestration engine
-        update_run_details(initial_state=None, proposed_state=run.state, run=run)
         runs.append(run)
 
     return runs
