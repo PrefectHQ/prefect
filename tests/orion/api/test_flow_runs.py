@@ -211,7 +211,7 @@ class TestReadFlowRun:
     async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
         (
-            await models.flow_run_states.set_flow_run_state(
+            await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
                 state=states.State(id=state_id, type="RUNNING"),

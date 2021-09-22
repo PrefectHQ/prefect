@@ -178,7 +178,7 @@ async def set_flow_run_state(
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    orchestration_result = await models.flow_run_states.set_flow_run_state(
+    orchestration_result = await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=flow_run_id,
         # convert to a full State object

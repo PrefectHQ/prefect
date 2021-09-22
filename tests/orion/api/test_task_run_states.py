@@ -9,7 +9,7 @@ from prefect.orion import models, schemas
 class TestReadTaskRunStateById:
     async def test_read_task_run_state(self, task_run, client, session):
         # create a flow run state to read
-        result = await models.task_run_states.set_task_run_state(
+        result = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=schemas.states.Running(),
