@@ -406,7 +406,9 @@ class TestSetFlowRunState:
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
-    async def test_set_flow_run_state_force(self, flow_run, client, session):
+    async def test_set_flow_run_state_force_skips_orchestration(
+        self, flow_run, client, session
+    ):
         response1 = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
             json=dict(
