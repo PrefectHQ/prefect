@@ -260,25 +260,27 @@ async def orchestrate_flow_run(
     """
     await client.propose_state(Running(), flow_run_id=flow_run_id)
 
+    timeout_context = (
+        anyio.fail_after(flow.timeout_seconds)
+        if flow.timeout_seconds
+        else asyncnullcontext()
+    )
+
     try:
-        with FlowRunContext(
-            flow_run_id=flow_run_id,
-            flow=flow,
-            client=client,
-            executor=executor,
-            sync_portal=sync_portal,
-        ):
-            flow_call = partial(
-                call_with_parameters, validate_arguments(flow.fn), parameters
-            )
 
-            timeout_context = (
-                anyio.fail_after(flow.timeout_seconds)
-                if flow.timeout_seconds
-                else asyncnullcontext()
-            )
+        with timeout_context as timeout_scope:
 
-            with timeout_context:
+            with FlowRunContext(
+                flow_run_id=flow_run_id,
+                flow=flow,
+                client=client,
+                executor=executor,
+                sync_portal=sync_portal,
+                timeout_scope=timeout_scope,
+            ):
+                flow_call = partial(
+                    call_with_parameters, validate_arguments(flow.fn), parameters
+                )
                 if flow.isasync:
                     result = await flow_call()
                 else:
@@ -319,6 +321,9 @@ def enter_task_run_engine(
             f"Your task is async, but your flow is synchronous. Async tasks may "
             "only be called from async flows."
         )
+
+    if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
+        raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
         begin_task_run,

@@ -487,9 +487,6 @@ class TestFlowTimeouts:
         """
         Sync flow runs tasks will fail after a timeout which will cause the flow to exit
         """
-        # TODO: This test will emit a warning since the task will not begin as it is
-        #       submitted up to the parent event loop which has "timed out"
-        #       "RuntimeWarning: coroutine 'begin_task_run' was never awaited"
         canary_file = tmp_path / "canary"
         task_canary_file = tmp_path / "task_canary"
 
