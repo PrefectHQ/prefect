@@ -6,10 +6,9 @@ from uuid import UUID
 import sqlalchemy as sa
 
 from pydantic import Field
-from typing_extensions import Literal
 
 from prefect.orion.models import orm
-from prefect.orion.schemas import core, states
+from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
@@ -23,7 +22,9 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 TERMINAL_STATES = states.TERMINAL_STATES
 
 
-StateResponseDetails = Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
+StateResponseDetails = Union[
+    StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
+]
 
 
 class OrchestrationResult(PrefectBaseModel):
@@ -40,10 +41,6 @@ class OrchestrationContext(PrefectBaseModel):
     proposed_state: Optional[states.State]
     validated_state: Optional[states.State]
     session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
-    run: Optional[Union[core.TaskRun, core.FlowRun]]
-    run_type: Optional[Literal["task_run", "flow_run"]]
-    task_run_id: Optional[UUID]
-    flow_run_id: Optional[UUID]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
@@ -61,10 +58,6 @@ class OrchestrationContext(PrefectBaseModel):
     def validated_state_type(self) -> Optional[states.StateType]:
         return self.validated_state.type if self.validated_state else None
 
-    @property
-    def run_settings(self) -> Dict:
-        return self.run.empirical_policy
-
     def safe_copy(self):
         safe_copy = self.copy()
 
@@ -77,7 +70,6 @@ class OrchestrationContext(PrefectBaseModel):
         safe_copy.validated_state = (
             self.validated_state.copy() if self.validated_state else None
         )
-        safe_copy.run = self.run.copy()
         return safe_copy
 
     def entry_context(self):
@@ -90,17 +82,12 @@ class OrchestrationContext(PrefectBaseModel):
 
 
 class TaskOrchestrationContext(OrchestrationContext):
-    run_id: UUID
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.task_run_id = self.run_id
-        self.flow_run_id = self.run.flow_run_id
+    run: orm.TaskRun
 
     async def validate_proposed_state(self) -> orm.TaskRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.TaskRunState(
-                task_run_id=self.task_run_id,
+                task_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
@@ -115,24 +102,18 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    async def orm_run(self) -> orm.TaskRun:
-        run = await self.session.get(orm.TaskRun, self.task_run_id)
-        if not run:
-            raise ValueError("Run not found.")
-        return run
+    @property
+    def run_settings(self) -> Dict:
+        return self.run.empirical_policy
 
 
 class FlowOrchestrationContext(OrchestrationContext):
-    run_id: UUID
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self.flow_run_id = self.run_id
+    run: orm.FlowRun
 
     async def validate_proposed_state(self) -> orm.FlowRunState:
         if self.proposed_state is not None:
             validated_orm_state = orm.FlowRunState(
-                flow_run_id=self.flow_run_id,
+                flow_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
@@ -147,11 +128,9 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    async def orm_run(self) -> orm.FlowRun:
-        run = await self.session.get(orm.FlowRun, self.flow_run_id)
-        if not run:
-            raise ValueError("Run not found.")
-        return run
+    @property
+    def run_settings(self) -> Dict:
+        return self.run.empirical_policy
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
@@ -278,8 +257,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
-    FROM_STATES: Iterable = []
-    TO_STATES: Iterable = []
+    FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
+    TO_STATES: Iterable = ALL_ORCHESTRATION_STATES
 
     def __init__(
         self,

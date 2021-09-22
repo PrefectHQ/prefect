@@ -1,3 +1,4 @@
+import fastapi
 from typing import List
 from datetime import timedelta
 
@@ -10,7 +11,22 @@ from prefect.orion.schemas import core, states, responses
 from prefect.orion.utilities.database import get_session_factory
 from prefect.orion.schemas.states import StateType
 
-dt = pendulum.datetime(2021, 10, 1)
+dt = pendulum.datetime(2021, 7, 1)
+
+
+def parse_response(response: fastapi.Response, include=None):
+    assert response.status_code == 200
+    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+
+    # for each interval...
+    for p in parsed:
+        # sort states arrays for comparison
+        p.states = sorted(p.states, key=lambda s: s.state_name)
+        # grab only requested fields in the states aggregation, to make comparison simple
+        if include:
+            p.states = [dict(**s.dict(include=set(include))) for s in p.states]
+
+    return parsed
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -151,8 +167,7 @@ async def test_history(
         ),
     )
 
-    assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
+    parsed = parse_response(response)
     assert len(parsed) == expected_bins
     assert min([r.interval_start for r in parsed]) == start
     assert parsed[0].interval_end - parsed[0].interval_start == interval
@@ -193,56 +208,68 @@ async def test_daily_bins_flow_runs(client):
         ),
     )
 
-    assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
-
-    # sort states arrays for comparison
-    for p in parsed:
-        p.states = sorted(p.states, key=lambda s: s.name)
+    parsed = parse_response(
+        response, include={"state_name", "state_type", "count_runs"}
+    )
 
     assert parsed == [
         dict(
-            interval_start=pendulum.datetime(2021, 9, 26),
-            interval_end=pendulum.datetime(2021, 9, 27),
-            states=[dict(name="Failed", type=StateType.FAILED, count=1)],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 27),
-            interval_end=pendulum.datetime(2021, 9, 28),
+            interval_start=dt.subtract(days=5),
+            interval_end=dt.subtract(days=4),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=2),
-                dict(name="Failed", type=StateType.FAILED, count=1),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=1)
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 9, 28),
-            interval_end=pendulum.datetime(2021, 9, 29),
-            states=[dict(name="Completed", type=StateType.COMPLETED, count=2)],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 9, 29),
-            interval_end=pendulum.datetime(2021, 9, 30),
+            interval_start=dt.subtract(days=4),
+            interval_end=dt.subtract(days=3),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=2),
-                dict(name="Running", type=StateType.RUNNING, count=4),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=1),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 9, 30),
-            interval_end=pendulum.datetime(2021, 10, 1),
+            interval_start=dt.subtract(days=3),
+            interval_end=dt.subtract(days=2),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=2),
-                dict(name="Running", type=StateType.RUNNING, count=4),
-                dict(name="Scheduled", type=StateType.SCHEDULED, count=4),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=2
+                )
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 1),
-            interval_end=pendulum.datetime(2021, 10, 2),
+            interval_start=dt.subtract(days=2),
+            interval_end=dt.subtract(days=1),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=1),
-                dict(name="Running", type=StateType.RUNNING, count=2),
-                dict(name="Scheduled", type=StateType.SCHEDULED, count=4),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=2
+                ),
+                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=4),
+            ],
+        ),
+        dict(
+            interval_start=dt.subtract(days=1),
+            interval_end=dt,
+            states=[
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=2
+                ),
+                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=4),
+                dict(
+                    state_name="Scheduled", state_type=StateType.SCHEDULED, count_runs=4
+                ),
+            ],
+        ),
+        dict(
+            interval_start=dt,
+            interval_end=dt.add(days=1),
+            states=[
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=1
+                ),
+                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=2),
+                dict(
+                    state_name="Scheduled", state_type=StateType.SCHEDULED, count_runs=4
+                ),
             ],
         ),
     ]
@@ -258,41 +285,51 @@ async def test_weekly_bins_flow_runs(client):
         ),
     )
 
-    assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
-    # sort states arrays for comparison
-    for p in parsed:
-        p.states = sorted(p.states, key=lambda s: s.name)
+    parsed = parse_response(
+        response, include={"state_type", "state_name", "count_runs"}
+    )
 
     assert parsed == [
         dict(
-            interval_start=pendulum.datetime(2021, 9, 15),
-            interval_end=pendulum.datetime(2021, 9, 22),
+            interval_start=dt.subtract(days=16),
+            interval_end=dt.subtract(days=9),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=6),
-                dict(name="Failed", type=StateType.FAILED, count=4),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=6
+                ),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 9, 22),
-            interval_end=pendulum.datetime(2021, 9, 29),
+            interval_start=dt.subtract(days=9),
+            interval_end=dt.subtract(days=2),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=10),
-                dict(name="Failed", type=StateType.FAILED, count=4),
+                dict(
+                    state_name="Completed",
+                    state_type=StateType.COMPLETED,
+                    count_runs=10,
+                ),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 9, 29),
-            interval_end=pendulum.datetime(2021, 10, 6),
+            interval_start=dt.subtract(days=2),
+            interval_end=dt.add(days=5),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=5),
-                dict(name="Running", type=StateType.RUNNING, count=10),
-                dict(name="Scheduled", type=StateType.SCHEDULED, count=17),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
+                ),
+                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=10),
+                dict(
+                    state_name="Scheduled",
+                    state_type=StateType.SCHEDULED,
+                    count_runs=17,
+                ),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 6),
-            interval_end=pendulum.datetime(2021, 10, 13),
+            interval_start=dt.add(days=5),
+            interval_end=dt.add(days=12),
             states=[],
         ),
     ]
@@ -305,41 +342,43 @@ async def test_weekly_bins_with_filters_flow_runs(client):
             history_start=str(dt.subtract(days=16)),
             history_end=str(dt.add(days=6)),
             history_interval_seconds=timedelta(days=7).total_seconds(),
-            flow_runs=dict(states=["FAILED", "SCHEDULED"]),
+            flow_runs=dict(state_type=dict(any_=["FAILED", "SCHEDULED"])),
         ),
     )
 
-    assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
-    # sort states arrays for comparison
-    for p in parsed:
-        p.states = sorted(p.states, key=lambda s: s.name)
+    parsed = parse_response(
+        response, include={"state_type", "state_name", "count_runs"}
+    )
 
     assert parsed == [
         dict(
-            interval_start=pendulum.datetime(2021, 9, 15),
-            interval_end=pendulum.datetime(2021, 9, 22),
+            interval_start=dt.subtract(days=16),
+            interval_end=dt.subtract(days=9),
             states=[
-                dict(name="Failed", type=StateType.FAILED, count=4),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 9, 22),
-            interval_end=pendulum.datetime(2021, 9, 29),
+            interval_start=dt.subtract(days=9),
+            interval_end=dt.subtract(days=2),
             states=[
-                dict(name="Failed", type=StateType.FAILED, count=4),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=4),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 9, 29),
-            interval_end=pendulum.datetime(2021, 10, 6),
+            interval_start=dt.subtract(days=2),
+            interval_end=dt.add(days=5),
             states=[
-                dict(name="Scheduled", type=StateType.SCHEDULED, count=17),
+                dict(
+                    state_name="Scheduled",
+                    state_type=StateType.SCHEDULED,
+                    count_runs=17,
+                ),
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 6),
-            interval_end=pendulum.datetime(2021, 10, 13),
+            interval_start=dt.add(days=5),
+            interval_end=dt.add(days=12),
             states=[],
         ),
     ]
@@ -355,37 +394,41 @@ async def test_5_minute_bins_task_runs(client):
         ),
     )
 
-    assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
-    # sort states arrays for comparison
-    for p in parsed:
-        p.states = sorted(p.states, key=lambda s: s.name)
+    parsed = parse_response(
+        response, include={"state_type", "state_name", "count_runs"}
+    )
 
     assert parsed == [
         dict(
-            interval_start=pendulum.datetime(2021, 9, 30, 23, 55),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 0),
+            interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
             states=[],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 1, 0, 0),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 5),
-            states=[dict(name="Completed", type=StateType.COMPLETED, count=5)],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 1, 0, 5),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 10),
+            interval_start=pendulum.datetime(2021, 7, 1, 0, 0),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 5),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=5),
-                dict(name="Failed", type=StateType.FAILED, count=3),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
+                )
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 1, 0, 10),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 15),
+            interval_start=pendulum.datetime(2021, 7, 1, 0, 5),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 10),
             states=[
-                dict(name="Failed", type=StateType.FAILED, count=5),
-                dict(name="Running", type=StateType.RUNNING, count=1),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
+                ),
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=3),
+            ],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 7, 1, 0, 10),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
+            states=[
+                dict(state_name="Failed", state_type=StateType.FAILED, count_runs=5),
+                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=1),
             ],
         ),
     ]
@@ -398,39 +441,43 @@ async def test_5_minute_bins_task_runs_with_filter(client):
             history_start=str(dt.subtract(minutes=5)),
             history_end=str(dt.add(minutes=15)),
             history_interval_seconds=timedelta(minutes=5).total_seconds(),
-            task_runs=dict(states=["COMPLETED", "RUNNING"]),
+            task_runs=dict(state_type=dict(any_=["COMPLETED", "RUNNING"])),
         ),
     )
 
-    assert response.status_code == 200
-    parsed = pydantic.parse_obj_as(List[responses.HistoryResponse], response.json())
-    # sort states arrays for comparison
-    for p in parsed:
-        p.states = sorted(p.states, key=lambda s: s.name)
+    parsed = parse_response(
+        response, include={"state_type", "state_name", "count_runs"}
+    )
 
     assert parsed == [
         dict(
-            interval_start=pendulum.datetime(2021, 9, 30, 23, 55),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 0),
+            interval_start=pendulum.datetime(2021, 6, 30, 23, 55),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 0),
             states=[],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 1, 0, 0),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 5),
-            states=[dict(name="Completed", type=StateType.COMPLETED, count=5)],
-        ),
-        dict(
-            interval_start=pendulum.datetime(2021, 10, 1, 0, 5),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 10),
+            interval_start=pendulum.datetime(2021, 7, 1, 0, 0),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 5),
             states=[
-                dict(name="Completed", type=StateType.COMPLETED, count=5),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
+                )
             ],
         ),
         dict(
-            interval_start=pendulum.datetime(2021, 10, 1, 0, 10),
-            interval_end=pendulum.datetime(2021, 10, 1, 0, 15),
+            interval_start=pendulum.datetime(2021, 7, 1, 0, 5),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 10),
             states=[
-                dict(name="Running", type=StateType.RUNNING, count=1),
+                dict(
+                    state_name="Completed", state_type=StateType.COMPLETED, count_runs=5
+                ),
+            ],
+        ),
+        dict(
+            interval_start=pendulum.datetime(2021, 7, 1, 0, 10),
+            interval_end=pendulum.datetime(2021, 7, 1, 0, 15),
+            states=[
+                dict(state_name="Running", state_type=StateType.RUNNING, count_runs=1),
             ],
         ),
     ]
@@ -455,3 +502,122 @@ async def test_last_bin_contains_end_date(client, route):
     assert parsed[0].interval_end == dt.add(days=1)
     assert parsed[1].interval_start == dt.add(days=1)
     assert parsed[1].interval_end == dt.add(days=2)
+
+
+async def test_flow_run_lateness(client, session):
+
+    await session.execute("delete from flow where true;")
+
+    f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
+
+    # started 3 seconds late
+    fr = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=core.FlowRun(
+            flow_id=f.id, state=states.Pending(timestamp=dt.subtract(minutes=40))
+        ),
+    )
+    await models.flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=fr.id,
+        state=states.Running(timestamp=dt.subtract(minutes=39, seconds=57)),
+    )
+    await models.flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=fr.id,
+        state=states.Completed(timestamp=dt),
+        force=True,
+    )
+
+    # started 10 minutes late, still running
+    fr2 = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=core.FlowRun(
+            flow_id=f.id,
+            state=states.Scheduled(
+                scheduled_time=dt.subtract(minutes=15),
+            ),
+        ),
+    )
+    await models.flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=fr2.id,
+        state=states.Pending(timestamp=dt.subtract(minutes=6)),
+        force=True,
+    )
+    await models.flow_runs.set_flow_run_state(
+        session=session,
+        flow_run_id=fr2.id,
+        state=states.Running(timestamp=dt.subtract(minutes=5)),
+        force=True,
+    )
+
+    # never started
+    fr3 = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=core.FlowRun(
+            flow_id=f.id,
+            state=states.Scheduled(scheduled_time=dt.subtract(minutes=1)),
+        ),
+    )
+    fr4 = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=core.FlowRun(
+            flow_id=f.id,
+            state=states.Scheduled(scheduled_time=dt.subtract(seconds=25)),
+        ),
+    )
+
+    await session.commit()
+
+    response = await client.post(
+        "/flow_runs/history",
+        json=dict(
+            history_start=str(dt.subtract(days=1)),
+            history_end=str(dt.add(days=1)),
+            history_interval_seconds=timedelta(days=2).total_seconds(),
+            flows=dict(id=dict(any_=[str(f.id)])),
+        ),
+    )
+    parsed = parse_response(response)
+    interval = parsed[0]
+
+    assert interval.interval_start == dt.subtract(days=1)
+    assert interval.interval_end == dt.add(days=1)
+
+    # -------------------------------- COMPLETED
+
+    assert interval.states[0].state_type == StateType.COMPLETED
+    assert interval.states[0].count_runs == 1
+    assert interval.states[0].sum_estimated_run_time == timedelta(
+        minutes=39, seconds=57
+    )
+    assert interval.states[0].sum_estimated_lateness == timedelta(seconds=3)
+
+    # -------------------------------- RUNNING
+
+    assert interval.states[1].state_type == StateType.RUNNING
+    assert interval.states[1].count_runs == 1
+
+    expected_lateness = pendulum.now("UTC") - dt.subtract(minutes=5)
+    assert (
+        expected_lateness - timedelta(seconds=2)
+        < interval.states[1].sum_estimated_run_time
+        < expected_lateness
+    )
+    assert interval.states[1].sum_estimated_lateness == timedelta(seconds=600)
+
+    # -------------------------------- SCHEDULED
+
+    assert interval.states[2].state_type == StateType.SCHEDULED
+    assert interval.states[2].count_runs == 2
+    assert interval.states[2].sum_estimated_run_time == timedelta(0)
+
+    expected_lateness = (pendulum.now("UTC") - dt.subtract(minutes=1)) + (
+        pendulum.now("UTC") - dt.subtract(seconds=25)
+    )
+    assert (
+        expected_lateness - timedelta(seconds=2)
+        < interval.states[2].sum_estimated_lateness
+        < expected_lateness
+    )

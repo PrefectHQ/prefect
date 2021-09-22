@@ -6,9 +6,10 @@ from typing_extensions import Literal
 import pendulum
 import sqlalchemy as sa
 
+
+import pydantic
 from prefect.orion import models, schemas
-from prefect.orion.api import dependencies
-from prefect.orion.utilities.database import Timestamp, get_dialect, JSON, Base
+from prefect.orion.utilities.database import Timestamp, get_dialect
 from prefect.utilities.logging import get_logger
 
 logger = get_logger("orion.api")
@@ -27,6 +28,8 @@ def sqlite_timestamp_intervals(
     return (
         sa.text(
             r"""
+            -- recursive CTE to mimic the behavior of `generate_series`, 
+            -- which is only available as a compiled extension 
             WITH RECURSIVE intervals(interval_start, interval_end) AS (
                 VALUES(
                     strftime('%Y-%m-%d %H:%M:%f000', :start_time), 
@@ -102,12 +105,16 @@ async def run_history(
         make_timestamp_intervals = postgres_timestamp_intervals
         json_arr_agg = sa.func.jsonb_agg
         json_build_object = sa.func.jsonb_build_object
+        # unecessary for postgres
         json_cast = lambda x: x
+        greatest = sa.func.greatest
+
     elif get_dialect(session=session).name == "sqlite":
         make_timestamp_intervals = sqlite_timestamp_intervals
         json_arr_agg = sa.func.json_group_array
         json_build_object = sa.func.json_object
         json_cast = sa.func.json
+        greatest = sa.func.max
 
     # create a CTE for timestamp intervals
     intervals = make_timestamp_intervals(
@@ -116,61 +123,72 @@ async def run_history(
         history_interval,
     ).cte("intervals")
 
-    # apply filters to the flow runs
-    filtered_runs = run_filter_function(
+    # apply filters to the flow runs (and related states)
+    runs = run_filter_function(
         sa.select(
             run_model.id,
-            run_model.state_id,
             run_model.expected_start_time,
-            run_model.state_type,
-        ),
+            run_model.estimated_run_time,
+            run_model.estimated_start_time_delta,
+            state_model.type.label("state_type"),
+            state_model.name.label("state_name"),
+        )
+        .select_from(run_model)
+        .join(state_model, run_model.state_id == state_model.id),
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
-    ).alias("filtered_runs")
-
-    # outer join intervals to the filtered runs (and states) to create a dataset
-    # of each interval and any runs it contains. Aggregate the runs into a a JSON
-    # object that represents each state type / name / count.
+    ).alias("runs")
+    # outer join intervals to the filtered runs to create a dataset composed of
+    # every interval and the aggregate of all its runs. The runs aggregate is represented
+    # by a descriptive JSON object
     counts = (
         sa.select(
             intervals.c.interval_start,
             intervals.c.interval_end,
+            # build a JSON object, ignoring the case where the count of runs is 0
             sa.case(
-                (sa.func.count(filtered_runs.c.id) == 0, None),
+                (sa.func.count(runs.c.id) == 0, None),
                 else_=json_build_object(
-                    "type",
-                    state_model.type,
-                    "name",
-                    state_model.name,
-                    "count",
-                    sa.func.count(filtered_runs.c.id),
+                    "state_type",
+                    runs.c.state_type,
+                    "state_name",
+                    runs.c.state_name,
+                    "count_runs",
+                    sa.func.count(runs.c.id),
+                    # estimated run times only includes positive run times (to avoid any unexpected corner cases)
+                    "sum_estimated_run_time",
+                    sa.func.sum(
+                        greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
+                    ),
+                    # estimated lateness is the sum of any positive start time deltas
+                    "sum_estimated_lateness",
+                    sa.func.sum(
+                        greatest(
+                            0, sa.extract("epoch", runs.c.estimated_start_time_delta)
+                        )
+                    ),
                 ),
             ).label("state_agg"),
         )
         .select_from(intervals)
         .join(
-            filtered_runs,
+            runs,
             sa.and_(
-                filtered_runs.c.expected_start_time >= intervals.c.interval_start,
-                filtered_runs.c.expected_start_time < intervals.c.interval_end,
+                runs.c.expected_start_time >= intervals.c.interval_start,
+                runs.c.expected_start_time < intervals.c.interval_end,
             ),
-            isouter=True,
-        )
-        .join(
-            state_model,
-            filtered_runs.c.state_id == state_model.id,
             isouter=True,
         )
         .group_by(
             intervals.c.interval_start,
             intervals.c.interval_end,
-            state_model.type,
-            state_model.name,
+            runs.c.state_type,
+            runs.c.state_name,
         )
     ).alias("counts")
 
-    # aggregate all state counts into a single array for each interval,
+    # aggregate all state-aggregate objects into a single array for each interval,
     # ensuring that intervals with no runs have an empty array
     query = (
         sa.select(
@@ -189,6 +207,7 @@ async def run_history(
         .limit(500)
     )
 
+    # issue the query
     result = await session.execute(query)
     records = result.all()
 
@@ -198,6 +217,5 @@ async def run_history(
         records = [dict(r) for r in records]
         for r in records:
             r["states"] = json.loads(r["states"])
-        return records
-    else:
-        return records
+
+    return pydantic.parse_obj_as(List[schemas.responses.HistoryResponse], records)

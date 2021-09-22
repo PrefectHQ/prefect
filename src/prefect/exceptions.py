@@ -1,19 +1,19 @@
 from rich.traceback import Traceback
 
 
-class PrefectError(Exception):
+class PrefectException(Exception):
     pass
 
 
-class MissingFlowError(PrefectError):
+class MissingFlowError(PrefectException):
     pass
 
 
-class UnspecifiedFlowError(PrefectError):
+class UnspecifiedFlowError(PrefectException):
     pass
 
 
-class FlowScriptError(PrefectError):
+class FlowScriptError(PrefectException):
     def __init__(
         self,
         user_exc: Exception,
@@ -31,6 +31,10 @@ class FlowScriptError(PrefectError):
             self.user_exc.__traceback__.tb_next.tb_next.tb_next.tb_next,
         )
         return Traceback(trace, **kwargs)
+
+
+class FlowParameterError(PrefectException):
+    pass
 
 
 class PrefectSignal(BaseException):
