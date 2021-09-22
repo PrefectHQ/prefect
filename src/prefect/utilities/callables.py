@@ -21,10 +21,30 @@ def get_call_parameters(
     return dict(bound_signature.arguments)
 
 
-def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
+def parameters_to_positional_and_keyword(
+    fn: Callable, parameters: Dict[str, Any]
+) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
+    """
+    Convert a `parameters` dictionary to positional and keyword arguments
+
+    The function _must_ have an identical signature to the original function or this
+    will return an empty tuple and dict.
+    """
     bound_signature = inspect.signature(fn).bind_partial()
     bound_signature.arguments = parameters
-    return fn(*bound_signature.args, **bound_signature.kwargs)
+    return bound_signature.args, bound_signature.kwargs
+
+
+def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
+    """
+    Call a function with parameters extracted with `get_call_parameters`
+
+    The function _must_ have an identical signature to the original function or this
+    will fail. If you need to send to a function with a different signature, extract
+    the args/kwargs using `parameters_to_positional_and_keyword` directly
+    """
+    args, kwargs = parameters_to_positional_and_keyword(fn, parameters)
+    return fn(*args, **kwargs)
 
 
 def cloudpickle_wrapped_call(
