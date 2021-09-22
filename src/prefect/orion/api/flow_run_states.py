@@ -11,26 +11,6 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/flow_run_states", tags=["Flow Run States"])
 
 
-@router.post("/")
-async def create_flow_run_state(
-    flow_run_id: UUID = Body(...),
-    state: schemas.actions.StateCreate = Body(...),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.states.State:
-    """
-    Create a flow run state, invoking orchestration logic
-    """
-    return (
-        await models.flow_run_states.orchestrate_flow_run_state(
-            session=session,
-            # convert to a full State object
-            state=schemas.states.State.parse_obj(state),
-            flow_run_id=flow_run_id,
-            apply_orchestration_rules=False,
-        )
-    ).state
-
-
 @router.get("/{id}")
 async def read_flow_run_state(
     flow_run_state_id: UUID = Path(

@@ -211,7 +211,7 @@ class TestReadFlowRun:
     async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
         (
-            await models.flow_run_states.orchestrate_flow_run_state(
+            await models.flow_run_states.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
                 state=states.State(id=state_id, type="RUNNING"),
@@ -390,7 +390,7 @@ class TestSetFlowRunState:
     async def test_set_flow_run_state(self, flow_run, client, session):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(type="RUNNING", name="Test State"),
+            json=dict(state=dict(type="RUNNING", name="Test State")),
         )
         assert response.status_code == 201
 
@@ -405,3 +405,34 @@ class TestSetFlowRunState:
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
+
+    async def test_set_flow_run_state_force(self, flow_run, client, session):
+        response1 = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="SCHEDULED",
+                    name="Scheduled",
+                    state_details=dict(
+                        scheduled_time=str(pendulum.now().add(months=1))
+                    ),
+                )
+            ),
+        )
+        assert response1.status_code == 201
+
+        # trying to enter a running state fails
+        response2 = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Running")),
+        )
+        assert response2.status_code == 200
+        assert response2.json()["status"] == "WAIT"
+
+        # trying to enter a running state succeeds with force=True
+        response2 = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Running"), force=True),
+        )
+        assert response2.status_code == 201
+        assert response2.json()["status"] == "ACCEPT"

@@ -69,7 +69,7 @@ async def create_flow_run(
         model = result.scalar()
 
     if model.created >= now and flow_run.state:
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_run_states.set_flow_run_state(
             session=session, flow_run_id=model.id, state=flow_run.state
         )
     return model

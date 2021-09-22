@@ -72,7 +72,7 @@ async def create_task_run(
         model = result.scalar()
 
     if model.created >= now and task_run.state:
-        await models.task_run_states.orchestrate_task_run_state(
+        await models.task_run_states.set_task_run_state(
             session=session, task_run_id=model.id, state=task_run.state
         )
     return model

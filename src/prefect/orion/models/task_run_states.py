@@ -15,11 +15,11 @@ from prefect.orion.orchestration.rules import (
 )
 
 
-async def orchestrate_task_run_state(
+async def set_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
     state: schemas.states.State,
-    apply_orchestration_rules: bool = True,
+    force: bool = False,
 ) -> orm.TaskRunState:
     """Creates a new task run state
 
@@ -27,6 +27,9 @@ async def orchestrate_task_run_state(
         session (sa.orm.Session): a database session
         task_run_id (str): the task run id
         state (schemas.states.State): a task run state model
+        force (bool): if False, orchestration rules will be applied that may
+            alter or prevent the state transition. If True, orchestration rules are
+            not applied.
 
     Returns:
         orm.TaskRunState: the newly-created task run state
@@ -43,12 +46,12 @@ async def orchestrate_task_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    if apply_orchestration_rules:
+    if force:
+        orchestration_rules = []
+    else:
         orchestration_rules = CoreTaskPolicy.compile_transition_rules(
             *intended_transition
         )
-    else:
-        orchestration_rules = []
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 

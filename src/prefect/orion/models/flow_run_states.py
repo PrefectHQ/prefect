@@ -15,11 +15,11 @@ from prefect.orion.orchestration.rules import (
 )
 
 
-async def orchestrate_flow_run_state(
+async def set_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
     state: schemas.states.State,
-    apply_orchestration_rules: bool = True,
+    force: bool = False,
 ) -> orm.FlowRunState:
     """Creates a new flow run state
 
@@ -27,6 +27,9 @@ async def orchestrate_flow_run_state(
         session (sa.orm.Session): a database session
         flow_run_id (str): the flow run id
         state (schemas.states.State): a flow run state model
+        force (bool): if False, orchestration rules will be applied that may
+            alter or prevent the state transition. If True, orchestration rules are
+            not applied.
 
     Returns:
         orm.FlowRunState: the newly-created flow run state
@@ -47,12 +50,12 @@ async def orchestrate_flow_run_state(
 
     global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
 
-    if apply_orchestration_rules:
+    if force:
+        orchestration_rules = []
+    else:
         orchestration_rules = CoreFlowPolicy.compile_transition_rules(
             *intended_transition
         )
-    else:
-        orchestration_rules = []
 
     context = FlowOrchestrationContext(
         session=session,
