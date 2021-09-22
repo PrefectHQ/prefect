@@ -127,11 +127,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         rule_as_context_manager = IllustrativeRule(ctx, *intended_transition)
@@ -175,11 +173,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         minimal_rule = MinimalRule(ctx, *intended_transition)
@@ -220,11 +216,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         # each rule receives a context as an argument and yields it back after
@@ -285,11 +279,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         fizzling_rule = FizzlingRule(ctx, *intended_transition)
@@ -360,11 +352,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -418,11 +408,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -463,11 +451,9 @@ class TestBaseOrchestrationRule:
                 post_transition_hook()
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -504,11 +490,9 @@ class TestBaseOrchestrationRule:
                 post_transition_hook()
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -583,11 +567,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         # an ExitStack is a python builtin contstruction that allows us to
@@ -733,11 +715,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         # an ExitStack is a python builtin contstruction that allows us to
@@ -832,10 +812,9 @@ class TestBaseUniversalRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            task_run_id=task_run.id,
         )
 
         rule_as_context_manager = IllustrativeUniversalRule(ctx, *intended_transition)
@@ -880,10 +859,9 @@ class TestBaseUniversalRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            task_run_id=task_run.id,
         )
 
         universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
@@ -936,10 +914,9 @@ class TestBaseUniversalRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            task_run_id=task_run.id,
         )
 
         universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)

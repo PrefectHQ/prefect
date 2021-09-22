@@ -278,11 +278,10 @@ def initialize_orchestration(
             proposed_state = None
 
         ctx = context(
-            initial_state=initial_state,
-            proposed_state=proposed_state,
             session=session,
             run=run,
-            run_id=run.id,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
         )
 
         return ctx
