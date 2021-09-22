@@ -1,104 +1,151 @@
-import datetime
-from typing import Union
+from prefect.orion import models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
-    ALL_ORCHESTRATION_STATES,
     BaseUniversalRule,
     OrchestrationContext,
 )
-from prefect.orion.schemas import states
-from prefect.orion.models import orm
+
+COMMON_GLOBAL_RULES = lambda: [
+    SetRunStateType,
+    SetStartTime,
+    SetEndTime,
+    IncrementRunCount,
+    IncrementRunTime,
+    SetExpectedStartTime,
+    SetNextScheduledStartTime,
+    UpdateStateDetails,
+]
 
 
-class GlobalPolicy(BaseOrchestrationPolicy):
+class GlobalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
-        return [
-            UpdateRunDetails,
-            UpdateStateDetails,
-        ]
+        return COMMON_GLOBAL_RULES() + [UpdateSubflowParentTask]
 
 
-def update_run_details(
-    initial_state: ALL_ORCHESTRATION_STATES,
-    proposed_state: ALL_ORCHESTRATION_STATES,
-    run: Union[orm.FlowRun, orm.TaskRun],
-):
-
-    # -- record the new state's details
-    run.state_type = proposed_state.type
-
-    # -- compute duration
-    if initial_state:
-        state_duration = proposed_state.timestamp - initial_state.timestamp
-    else:
-        state_duration = datetime.timedelta(0)
-
-    # -- set next scheduled start time
-    if proposed_state.is_scheduled():
-        run.next_scheduled_start_time = proposed_state.state_details.scheduled_time
-
-    # -- set expected start time if this is the first state
-    if not run.expected_start_time:
-        if proposed_state.is_scheduled():
-            run.expected_start_time = run.next_scheduled_start_time
-        else:
-            run.expected_start_time = proposed_state.timestamp
-
-    # -- if exiting a running state...
-    if initial_state and initial_state.is_running():
-        # increment the run time
-        run.total_run_time += state_duration
-
-    # -- if entering a running state...
-    if proposed_state.is_running():
-        # increment the run count
-        run.run_count += 1
-        # set the start time
-        if run.start_time is None:
-            run.start_time = proposed_state.timestamp
-
-    # -- if entering a final state...
-    if proposed_state.is_final():
-        # if the run started, give it an end time (unless it has one)
-        if run.start_time and not run.end_time:
-            run.end_time = proposed_state.timestamp
-
-    # -- if exiting a final state...
-    if initial_state and initial_state.is_final():
-        # clear the end time
-        run.end_time = None
+class GlobalTaskPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return COMMON_GLOBAL_RULES()
 
 
-class UpdateRunDetails(BaseUniversalRule):
-    FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
+class SetRunStateType(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
 
-    async def before_transition(
-        self,
-        context: OrchestrationContext,
-    ) -> states.State:
+        # record the new state's type
+        context.run.state_type = context.proposed_state.type
 
-        # if no state transition is taking place, exit
-        if context.proposed_state is None:
-            return
 
-        update_run_details(
-            initial_state=context.initial_state,
-            proposed_state=context.proposed_state,
-            run=context.run,
-        )
+class SetStartTime(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        # if entering a running state and no start time is set...
+        if context.proposed_state.is_running() and context.run.start_time is None:
+            # set the start time
+            context.run.start_time = context.proposed_state.timestamp
+
+
+class SetEndTime(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        # if exiting a final state for a non-final state...
+        if (
+            context.initial_state
+            and context.initial_state.is_final()
+            and not context.proposed_state.is_final()
+        ):
+            # clear the end time
+            context.run.end_time = None
+
+        # if entering a final state...
+        if context.proposed_state.is_final():
+            # if the run has a start time and no end time, give it one
+            if context.run.start_time and not context.run.end_time:
+                context.run.end_time = context.proposed_state.timestamp
+
+
+class IncrementRunTime(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        # if exiting a running state...
+        if context.initial_state and context.initial_state.is_running():
+            # increment the run time by the time spent in the previous state
+            context.run.total_run_time += (
+                context.proposed_state.timestamp - context.initial_state.timestamp
+            )
+
+
+class IncrementRunCount(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+        # if entering a running state...
+        if context.proposed_state.is_running():
+            # increment the run count
+            context.run.run_count += 1
+
+
+class SetExpectedStartTime(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+
+        # set expected start time if this is the first state
+        if not context.run.expected_start_time:
+            if context.proposed_state.is_scheduled():
+                context.run.expected_start_time = (
+                    context.proposed_state.state_details.scheduled_time
+                )
+            else:
+                context.run.expected_start_time = context.proposed_state.timestamp
+
+
+class SetNextScheduledStartTime(BaseUniversalRule):
+    async def before_transition(self, context: OrchestrationContext) -> None:
+
+        # remove the next scheduled start time if exiting a scheduled state
+        if context.initial_state and context.initial_state.is_scheduled():
+            context.run.next_scheduled_start_time = None
+
+        # set next scheduled start time if entering a scheduled state
+        if context.proposed_state.is_scheduled():
+            context.run.next_scheduled_start_time = (
+                context.proposed_state.state_details.scheduled_time
+            )
+
+
+class UpdateSubflowParentTask(BaseUniversalRule):
+    """
+    Whenever a subflow changes state, it must update its parent task run's state.
+    """
+
+    async def after_transition(self, context: OrchestrationContext) -> None:
+
+        # only applies to flow runs with a parent task run id
+        if context.run.parent_task_run_id is not None:
+
+            # avoid mutation of the flow run state
+            subflow_parent_task_state = context.validated_state.copy(
+                reset_fields=True,
+                include={
+                    "type",
+                    "timestamp",
+                    "name",
+                    "message",
+                    "state_details",
+                    "data",
+                },
+            )
+
+            # set the task's "child flow run id" to be the subflow run id
+            subflow_parent_task_state.state_details.child_flow_run_id = context.run.id
+
+            await models.task_runs.set_task_run_state(
+                session=context.session,
+                task_run_id=context.run.parent_task_run_id,
+                state=subflow_parent_task_state,
+                force=True,
+            )
 
 
 class UpdateStateDetails(BaseUniversalRule):
-    FROM_STATES = ALL_ORCHESTRATION_STATES
-    TO_STATES = ALL_ORCHESTRATION_STATES
-
     async def before_transition(
         self,
         context: OrchestrationContext,
-    ) -> states.State:
-        flow_run = await context.flow_run
+    ) -> None:
         task_run = await context.task_run
+        flow_run = await context.flow_run
         context.proposed_state.state_details.flow_run_id = flow_run.id
         if task_run:
             context.proposed_state.state_details.task_run_id = task_run.id
