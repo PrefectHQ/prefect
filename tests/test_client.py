@@ -44,6 +44,7 @@ async def test_create_then_read_deployment(orion_client):
         name="test-deployment",
         flow_data=flow_data,
         schedule=schedule,
+        tags=["foo", "bar"],
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
@@ -51,6 +52,7 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.name == "test-deployment"
     assert lookup.flow_data == flow_data
     assert lookup.schedule == schedule
+    assert lookup.tags == ["foo", "bar"]
 
 
 async def test_read_deployment_by_name(orion_client):

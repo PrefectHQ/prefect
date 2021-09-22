@@ -19,9 +19,7 @@ class TestCreateDeployment:
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
         data = DeploymentCreate(
-            name="My Deployment",
-            flow_data=flow_data,
-            flow_id=flow.id,
+            name="My Deployment", flow_data=flow_data, flow_id=flow.id, tags=["foo"]
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -33,6 +31,9 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment_id
         )
         assert str(deployment.id) == deployment_id
+        assert deployment.name == "My Deployment"
+        assert deployment.tags == ["foo"]
+        assert deployment.flow_id == flow.id
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow, flow_function
