@@ -10,7 +10,7 @@ import prefect
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy
-from prefect.orion.orchestration.global_policy import GlobalPolicy
+from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
@@ -290,7 +290,7 @@ async def set_flow_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
+    global_rules = GlobalFlowPolicy.compile_transition_rules(*intended_transition)
 
     if force:
         orchestration_rules = []

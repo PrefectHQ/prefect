@@ -10,7 +10,6 @@ from prefect.orion.orchestration.core_policy import (
     CacheRetrieval,
     PreventTransitionsFromTerminalStates,
     RetryPotentialFailures,
-    UpdateSubflowParentTask,
     WaitForScheduledTime,
 )
 
@@ -255,47 +254,6 @@ class TestRetryingRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
-
-
-async def test_update_subflow_parent_task(
-    session,
-    initialize_orchestration,
-):
-    update_subflows_policy = [UpdateSubflowParentTask]
-    initial_state_type = states.StateType.RUNNING
-    proposed_state_type = states.StateType.FAILED
-    intended_transition = (initial_state_type, proposed_state_type)
-    ctx = await initialize_orchestration(
-        session,
-        "flow",
-        *intended_transition,
-    )
-
-    parent_flow = await models.flows.create_flow(
-        session=session, flow=actions.FlowCreate(name="subflow-parent")
-    )
-
-    parent_flow_run = await models.flow_runs.create_flow_run(
-        session=session,
-        flow_run=actions.FlowRunCreate(flow_id=parent_flow.id),
-    )
-
-    parent_task_run = await models.task_runs.create_task_run(
-        session=session,
-        task_run=actions.TaskRunCreate(
-            task_key="dummy-task", flow_run_id=parent_flow_run.id
-        ),
-    )
-
-    run = ctx.run
-    run.parent_task_run_id = parent_task_run.id
-
-    async with contextlib.AsyncExitStack() as stack:
-        for rule in update_subflows_policy:
-            ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
-        await ctx.validate_proposed_state()
-
-    assert parent_task_run.state.type == proposed_state_type
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
