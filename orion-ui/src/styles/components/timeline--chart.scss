@@ -39,15 +39,6 @@
     display: none;
   }
 
-  .controls {
-    background-color: $white;
-    position: relative;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-  }
-
   svg.timeline-axis {
     background-color: $white;
     position: sticky;
@@ -67,19 +58,15 @@
 
   .node-container {
     background-color: transparent;
-    // height: 100%;
-    // height: calc(100% - 24px);
     left: 0;
     position: absolute;
     top: 0;
-    // width: 100%;
-    // width: calc(100% - 24px);
     z-index: 1;
 
     .node {
       position: absolute;
       border-radius: 8px;
-      // will-change: width, left, top;
+      transition: all 250ms;
 
       &:focus,
       &:hover {

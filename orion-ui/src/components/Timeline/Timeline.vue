@@ -4,7 +4,7 @@
       class="pan-button left"
       icon="arrow-left-s-line"
       height="30px"
-      width="50px"
+      width="30px"
       :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
@@ -13,7 +13,7 @@
       class="pan-button right"
       icon="arrow-right-s-line"
       height="30px"
-      width="50px"
+      width="30px"
       :disabled="disableRightScrollButton"
       @click="panRight"
     />
@@ -205,7 +205,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   get chartHeight(): number {
     return (
       Math.max(this.numberRows * this.intervalHeight, this.height) -
-      this.paddingY
+      this.paddingY -
+      40
     )
   }
 
@@ -226,22 +227,20 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   xAxis = (g: any): Selection => {
-    return (
-      g
-        .attr('class', 'x-axis')
-        .style('transform', `translate(0,${this.intervalHeight}px)`)
-        .call(
-          d3
-            .axisTop(this.xScale)
-            .ticks(this.numberIntervals + 2)
-            /* @ts-ignore */
-            .tickFormat(formatLabel)
-            .tickSizeOuter(0)
-            .tickSizeInner(0)
-        )
-        /* @ts-ignore */
-        .call((g) => g.select('.domain').remove())
-    )
+    return g
+      .attr('class', 'x-axis')
+      .style('transform', `translate(0,${this.intervalHeight}px)`)
+      .transition()
+      .duration(250)
+      .call(
+        d3
+          .axisTop(this.xScale)
+          .ticks(this.numberIntervals + 2)
+          /* @ts-ignore */
+          .tickFormat(formatLabel)
+          .tickSizeOuter(0)
+          .tickSizeInner(0)
+      )
   }
 
   resize(): void {
@@ -443,6 +442,10 @@ svg.timeline-axis {
   .tick {
     font-size: 13px;
     font-family: $font--secondary;
+  }
+
+  .domain {
+    opacity: 0;
   }
 }
 </style>
