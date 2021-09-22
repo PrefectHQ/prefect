@@ -14,6 +14,7 @@ class GlobalPolicy(BaseOrchestrationPolicy):
     def priority():
         return [
             UpdateRunDetails,
+            UpdateStateDetails,
         ]
 
 
@@ -71,6 +72,7 @@ def update_run_details(
 class UpdateRunDetails(BaseUniversalRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
+
     async def before_transition(
         self,
         context: OrchestrationContext,
@@ -92,6 +94,6 @@ class UpdateStateDetails(BaseUniversalRule):
         self,
         context: OrchestrationContext,
     ) -> states.State:
-        context.proposed_state.state_details.flow_run_id = context.flow_run.id
+        context.proposed_state.state_details.flow_run_id = (await context.flow_run).id
         if context.task_run:
-            context.proposed_state.state_details.task_run_id = context.task_run.id
+            context.proposed_state.state_details.task_run_id = (await context.task_run).id
