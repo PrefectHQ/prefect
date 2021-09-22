@@ -348,7 +348,7 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
         None, description="Only include task runs starting at or after this time"
     )
     is_null_: bool = Field(
-        None, description="If true, only return flow runs without a start time"
+        None, description="If true, only return task runs without a start time"
     )
 
     def _get_filter_list(self):
