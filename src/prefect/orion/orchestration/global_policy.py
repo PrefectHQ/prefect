@@ -90,10 +90,15 @@ class UpdateRunDetails(BaseUniversalRule):
 
 
 class UpdateStateDetails(BaseUniversalRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
     async def before_transition(
         self,
         context: OrchestrationContext,
     ) -> states.State:
-        context.proposed_state.state_details.flow_run_id = (await context.flow_run).id
-        if context.task_run:
-            context.proposed_state.state_details.task_run_id = (await context.task_run).id
+        flow_run = await context.flow_run
+        task_run = await context.task_run
+        context.proposed_state.state_details.flow_run_id = flow_run.id
+        if task_run:
+            context.proposed_state.state_details.task_run_id = task_run.id
