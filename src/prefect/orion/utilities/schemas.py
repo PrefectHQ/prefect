@@ -194,9 +194,6 @@ class PrefectBaseModel(BaseModel):
     def copy(
         self: T, *, update: dict = None, reset_fields: bool = False, **kwargs
     ) -> T:
-        """
-        When an IDBaseModel is copied, it generates a new ID for the copy.
-        """
         if reset_fields:
             update = update or dict()
             for field in self._reset_fields():

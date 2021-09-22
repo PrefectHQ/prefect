@@ -55,7 +55,7 @@
       />
     </div>
 
-    <div class="font--secondary item--duration mr-1">
+    <div class="font--secondary item--duration mr-2">
       {{ duration }}
     </div>
 
@@ -66,6 +66,8 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { FlowRun } from '@/objects'
+import { secondsToApproximateString } from '@/util/util'
+
 import {
   default as RunHistoryChart,
   Bucket
@@ -81,13 +83,16 @@ class Props {
   components: { RunHistoryChart }
 })
 export default class ListItemFlowRun extends Vue.with(Props) {
-  taskRunCount: number = Math.floor(Math.random() * 100)
   sliceStart: number = Math.floor(Math.random() * 4)
 
   taskRunBuckets: Bucket[] = dataset_2.slice(
     this.sliceStart,
     this.sliceStart + 10
   )
+
+  get taskRunCount(): number {
+    return this.run.task_run_count
+  }
 
   get state(): string {
     return this.run.state.toLowerCase()
@@ -102,12 +107,9 @@ export default class ListItemFlowRun extends Vue.with(Props) {
   }
 
   get duration(): string {
-    const durations = ['1m 3s', '4hr 23m', '--']
-    return this.state == 'pending'
-      ? durations[2]
-      : this.state == 'running'
-      ? durations[0]
-      : durations[1]
+    return this.state == 'pending' || this.state == 'scheduled'
+      ? '--'
+      : secondsToApproximateString(this.run.duration)
   }
 }
 </script>
