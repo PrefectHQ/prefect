@@ -172,14 +172,14 @@ def flow(
     This decorator may be used for asynchronous or synchronous functions.
 
     Args:
-        name: An optional name for the flow. If not provided, the name will be inferred
+        name: An optional name for the flow; if not provided, the name will be inferred
             from the given function.
-        version: An optional version string for the flow, If not provided, we will
+        version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
-            wrapped function. If the file cannot be located, the version will be null.
-        executor: An optional executor to use for task execution within the flow. If
+            wrapped function; if the file cannot be located, the version will be null.
+        executor: An optional executor to use for task execution within the flow; if
             not provided, a `LocalExecutor` will be instantiated.
-        description: An optional string description for the flow. If not provided, the
+        description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
 
     Returns:

@@ -246,17 +246,17 @@ def task(
     This decorator may be used for asynchronous or synchronous functions.
 
     Args:
-        name: An optional name for the task. If not provided, the name will be inferred
+        name: An optional name for the task; if not provided, the name will be inferred
             from the given function.
         description: An optional string description for the task.
         tags: An optional set of tags to be associated with runs of this task. These
             tags are combined with any tags defined by a `prefect.tags` context at
             task runtime.
         cache_key_fn: An optional callable that, given the task run context and call
-            parameters, generates a string key. If the key matches a previous completed
+            parameters, generates a string key; if the key matches a previous completed
             state, that state result will be restored instead of running the task again.
         cache_expiration: An optional amount of time indicating how long cached states
-            for this task should be restorable. If not provided, cached states will
+            for this task should be restorable; if not provided, cached states will
             never expire.
         retries: An optional number of times to retry on task run failure
         retry_delay_seconds: An optional number of seconds to wait before retrying the
