@@ -517,16 +517,16 @@ async def test_flow_run_lateness(client, session):
             flow_id=f.id, state=states.Pending(timestamp=dt.subtract(minutes=40))
         ),
     )
-    await models.flow_run_states.orchestrate_flow_run_state(
+    await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=fr.id,
         state=states.Running(timestamp=dt.subtract(minutes=39, seconds=57)),
     )
-    await models.flow_run_states.orchestrate_flow_run_state(
+    await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=fr.id,
         state=states.Completed(timestamp=dt),
-        apply_orchestration_rules=False,
+        force=True,
     )
 
     # started 10 minutes late, still running
@@ -539,17 +539,17 @@ async def test_flow_run_lateness(client, session):
             ),
         ),
     )
-    await models.flow_run_states.orchestrate_flow_run_state(
+    await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=fr2.id,
         state=states.Pending(timestamp=dt.subtract(minutes=6)),
-        apply_orchestration_rules=False,
+        force=True,
     )
-    await models.flow_run_states.orchestrate_flow_run_state(
+    await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=fr2.id,
         state=states.Running(timestamp=dt.subtract(minutes=5)),
-        apply_orchestration_rules=False,
+        force=True,
     )
 
     # never started
