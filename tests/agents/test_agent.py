@@ -47,14 +47,18 @@ async def test_agent_submittable_flow_run_filter(orion_client, deployment):
         Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
     )
     fr_id_4 = await create_run_with_deployment(
+        Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
+    )
+    fr_id_5 = await create_run_with_deployment(
         Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
     )
-    fr_id_5 = await create_run_with_deployment(Running())
-    fr_id_6 = await create_run_with_deployment(Completed())
-    fr_id_7 = await orion_client.create_flow_run(foo, Scheduled())
+    fr_id_6 = await create_run_with_deployment(Running())
+    fr_id_7 = await create_run_with_deployment(Completed())
+    fr_id_8 = await orion_client.create_flow_run(foo, Scheduled())
 
     async with OrionAgent(prefetch_seconds=10) as agent:
         agent.submit_flow_run_to_subprocess = AsyncMock()  # do not actually run
+        agent.submitting_flow_run_ids.add(fr_id_4)  # add a submitting id to check skip
         submitted_flow_runs = await agent.get_and_submit_flow_runs(
             query_fn=orion_client.read_flow_runs
         )

@@ -28,25 +28,13 @@ class OrionAgent:
 
     def flow_run_query_filter(self) -> FlowRunFilter:
         return FlowRunFilter(
-            states=[StateType.SCHEDULED],
-            start_time_before=pendulum.now("utc").add(seconds=self.prefetch_seconds),
+            id=dict(not_any_=self.submitting_flow_run_ids),
+            state_type=dict(any_=[StateType.SCHEDULED]),
+            next_scheduled_start_time=dict(
+                before_=pendulum.now("utc").add(seconds=self.prefetch_seconds)
+            ),
+            deployment_id=dict(is_null_=False),
         )
-
-    def filter_flow_runs(self, flow_runs: List[FlowRun]) -> List[FlowRun]:
-        # Filter out runs that should not be submitted again but maintain ordering
-        # TODO: Move this into the `FlowRunFilter` once it supports this; this method
-        #       can then be removed entirely or just return the input in the base cls
-        ready_runs = [
-            run
-            for run in flow_runs
-            if run.id not in self.submitting_flow_run_ids
-            and run.deployment_id is not None
-            and (
-                run.state.state_details.scheduled_time
-                < pendulum.now("utc").add(seconds=self.prefetch_seconds)
-            )
-        ]
-        return ready_runs
 
     async def get_and_submit_flow_runs(
         self, query_fn: Callable[[FlowRunFilter], Awaitable[List[FlowRun]]]
@@ -54,8 +42,7 @@ class OrionAgent:
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with Agent()...`")
 
-        ready_runs = await query_fn(flow_run_filter=self.flow_run_query_filter())
-        submittable_runs = self.filter_flow_runs(ready_runs)
+        submittable_runs = await query_fn(flow_run_filter=self.flow_run_query_filter())
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
@@ -73,6 +60,7 @@ class OrionAgent:
         """
         Future hook for returning submission methods based on flow run configs
         """
+        # TODO: Add dispatching here and move submission functions out of the agent cls
         return self.submit_flow_run_to_subprocess
 
     async def submit_flow_run_to_subprocess(
