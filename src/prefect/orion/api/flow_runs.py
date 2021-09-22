@@ -165,17 +165,25 @@ async def delete_flow_run(
 async def set_flow_run_state(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
+    force: bool = Body(
+        False,
+        description=(
+            "If false, orchestration rules will be applied that may alter "
+            "or prevent the state transition. If True, orchestration rules are not applied."
+        ),
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    orchestration_result = await models.flow_run_states.orchestrate_flow_run_state(
+    orchestration_result = await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=flow_run_id,
         # convert to a full State object
         state=schemas.states.State.parse_obj(state),
+        force=force,
     )
 
     # set the 201 because a new state was created

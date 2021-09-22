@@ -361,12 +361,12 @@ class TestTotalRunTimeEstimate:
             ),
         )
         # move into a running state for 3 seconds, then complete
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Running(timestamp=dt.add(seconds=1)),
         )
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
@@ -394,7 +394,7 @@ class TestTotalRunTimeEstimate:
             ),
         )
         # move into a running state
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Running(timestamp=dt.add(seconds=1)),
@@ -432,12 +432,12 @@ class TestTotalRunTimeEstimate:
             ),
         )
         # move into a running state for 3 seconds, then complete
-        await models.task_run_states.orchestrate_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=tr.id,
             state=schemas.states.Running(timestamp=dt.add(seconds=1)),
         )
-        await models.task_run_states.orchestrate_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=tr.id,
             state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
@@ -467,7 +467,7 @@ class TestTotalRunTimeEstimate:
             ),
         )
         # move into a running state
-        await models.task_run_states.orchestrate_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=tr.id,
             state=schemas.states.Running(timestamp=dt.add(seconds=1)),
@@ -506,12 +506,12 @@ class TestTotalRunTimeEstimate:
             ),
         )
         # move into a running state for 3 seconds, then complete
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Running(timestamp=dt.add(seconds=1)),
         )
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Completed(timestamp=dt.add(seconds=4)),
@@ -576,7 +576,7 @@ class TestExpectedStartTimeDelta:
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Pending(timestamp=dt.add(seconds=1)),
@@ -608,7 +608,7 @@ class TestExpectedStartTimeDelta:
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Running(timestamp=dt.add(seconds=5)),
@@ -632,7 +632,7 @@ class TestExpectedStartTimeDelta:
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Completed(timestamp=dt.add(seconds=5)),
@@ -656,7 +656,7 @@ class TestExpectedStartTimeDelta:
                 flow_id=flow.id, state=schemas.states.Scheduled(scheduled_time=dt)
             ),
         )
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=fr.id,
             state=schemas.states.Running(timestamp=dt.subtract(minutes=5)),
