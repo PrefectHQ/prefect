@@ -76,7 +76,10 @@ async def create_flow_run(
 
     if model.created >= now and flow_run.state:
         await models.flow_runs.set_flow_run_state(
-            session=session, flow_run_id=model.id, state=flow_run.state
+            session=session,
+            flow_run_id=model.id,
+            state=flow_run.state,
+            force=True,
         )
     return model
 
