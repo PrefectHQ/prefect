@@ -1,19 +1,17 @@
 <template>
   <div class="component-container">
-    <Button
-      class="pan-button left"
-      icon="arrow-left-s-line"
-      height="30px"
-      width="30px"
+    <IconButton
+      class="pan-button left bg--white"
+      icon="pi pi-arrow-left-s-line pi-2x"
+      flat
       :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
 
-    <Button
-      class="pan-button right"
-      icon="arrow-right-s-line"
-      height="30px"
-      width="30px"
+    <IconButton
+      class="pan-button right bg--white"
+      icon="pi pi-arrow-right-s-line pi-2x"
+      flat
       :disabled="disableRightScrollButton"
       @click="panRight"
     />

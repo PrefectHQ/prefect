@@ -6,27 +6,6 @@
           {{ run.id }}
         </option>
       </select>
-
-      <Button icon="arrow-left-s-line" height="30px" width="30px" />
-
-      <Button icon="arrow-right-s-line" height="30px" width="30px" />
-
-      <!-- <select v-model="interval">
-        <option v-for="(value, key) in intervals" :key="key" :value="value">
-          {{ value }}
-        </option>
-      </select> -->
-      <!-- <Select v-model="selected" :search="true" class="mr-2">
-        <Option v-for="(value, key) in datasets" :key="key" :value="key">
-          {{ key }}
-        </Option>
-      </Select>
-
-      <Select v-model="interval">
-        <Option v-for="(value, key) in intervals" :key="key" :value="value">
-          {{ value }}
-        </Option>
-      </Select> -->
     </div>
 
     <Timeline
