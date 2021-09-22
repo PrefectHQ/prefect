@@ -380,3 +380,86 @@ class TaskRunFilter(PrefectFilterBaseModel):
             filters.append(self.start_time.as_sql_filter())
 
         return filters
+
+
+class DeploymentFilterId(PrefectFilterBaseModel):
+    any_: List[UUID] = Field(None, description="A list of deployment ids to include")
+
+    def _get_filter_list(self):
+        filters = []
+        if self.any_ is not None:
+            filters.append(orm.Deployment.id.in_(self.any_))
+        return filters
+
+
+class DeploymentFilterName(PrefectFilterBaseModel):
+    any_: List[str] = Field(
+        None,
+        description="A list of deployment names to include",
+        example=["my-deployment-1", "my-deployment-2"],
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.any_ is not None:
+            filters.append(orm.Deployment.name.in_(self.any_))
+        return filters
+
+
+class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
+    eq_: bool = Field(
+        None,
+        description="Only returns where deployment schedule is/is not active",
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.eq_ is not None:
+            filters.append(orm.Deployment.is_schedule_active.is_(self.eq_))
+        return filters
+
+
+# TODO
+# class DeploymentFilterTags(PrefectFilterBaseModel):
+#     all_: List[str] = Field(
+#         None,
+#         example=["tag-1", "tag-2"],
+#         description="A list of tags. Deployments will be returned only if their tags are a superset of the list",
+#     )
+#     is_null_: bool = Field(None, description="If true, only include deployments without tags")
+
+#     def _get_filter_list(self):
+#         filters = []
+#         if self.all_ is not None:
+#             filters.append(json_has_all_keys(orm.Deployment.tags, self.all_))
+#         if self.is_null_ is not None:
+#             filters.append(
+#                 orm.Deployment.tags == [] if self.is_null_ else orm.Deployment.tags != []
+#             )
+#         return filters
+
+# TODO -
+
+
+class DeploymentFilter(PrefectFilterBaseModel):
+    """Filter for deployments. Only deployments matching all criteria will be returned"""
+
+    id: Optional[DeploymentFilterId]
+    name: Optional[DeploymentFilterName]
+    is_schedule_active: Optional[DeploymentFilterIsScheduleActive]
+    # TODO - enable when deployments have tags
+    # tags: Optional[FlowFilterTags]
+
+    def _get_filter_list(self) -> List:
+        filters = []
+
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter())
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter())
+        if self.is_schedule_active is not None:
+            filters.append(self.is_schedule_active.as_sql_filter())
+        # if self.tags is not None:
+        #     filters.append(self.tags.as_sql_filter())
+
+        return filters
