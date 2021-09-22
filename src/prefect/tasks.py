@@ -109,10 +109,8 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
     ) -> PrefectFuture[T]:
-        """
-        `NoReturn` matches if a type can't be inferred for the function which stops a
-        sync function from matching the `Coroutine` overload
-        """
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
         ...
 
     @overload
@@ -144,8 +142,8 @@ class Task(Generic[P, R]):
         and they are fully resolved on submission.
 
         Args:
-            *args: Arguments are passed through to the user's function
-            **kwargs: Keyword arguments are passed through to the user's function
+            *args: Arguments to run the flow with
+            **kwargs: Keyword arguments to run the flow with
 
         Returns:
             A future allowing access to the state of the task
