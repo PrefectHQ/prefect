@@ -173,3 +173,12 @@ def Retrying(**kwargs) -> State:
         State: a Retrying state
     """
     return State(type=StateType.RUNNING, name="Retrying", **kwargs)
+
+
+def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+    """Convenience function for creating `Late` states.
+
+    Returns:
+        State: a Late state
+    """
+    return Scheduled(scheduled_time=scheduled_time, name="Late")
