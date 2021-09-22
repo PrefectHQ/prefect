@@ -166,7 +166,6 @@ class Task(Generic[P, R]):
             >>> def my_flow():
             >>>     my_task()
 
-
             Wait for a task to finish
 
             >>> @flow
@@ -181,6 +180,20 @@ class Task(Generic[P, R]):
             >>> my_flow()
             hello
 
+            Run an async task in an async flow
+
+            >>> @task
+            >>> async def my_async_task():
+            >>>     pass
+            >>> @flow
+            >>> async def my_flow():
+            >>>     await my_async_task()
+
+            Run a sync task in an async flow
+
+            >>> @flow
+            >>> async def my_flow():
+            >>>     my_task()
         """
 
         from prefect.engine import enter_task_run_engine
@@ -262,6 +275,12 @@ def task(
         >>> def add(x, y):
         >>>     return x + y
 
+        Define an async task
+
+        >>> @task
+        >>> async def add(x, y):
+        >>>     return x + y
+
         Define a task with tags and a description
 
         >>> @task(tags={"a", "b"}, description="This task is empty but its my first!")
@@ -291,6 +310,8 @@ def task(
         >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
         >>> def my_task():
         >>>     return "hello"
+
+
     """
     if __fn:
         return cast(
