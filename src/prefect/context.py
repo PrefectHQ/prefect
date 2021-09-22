@@ -6,7 +6,7 @@ from typing import Optional, Type, TypeVar, Union, Set
 from uuid import UUID
 
 import pendulum
-from anyio.abc import BlockingPortal
+from anyio.abc import BlockingPortal, CancelScope
 from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
@@ -58,6 +58,7 @@ class FlowRunContext(RunContext):
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
     sync_portal: Optional[BlockingPortal] = None
+    timeout_scope: Optional[CancelScope] = None
 
     __var__ = ContextVar("flow_run")
 
