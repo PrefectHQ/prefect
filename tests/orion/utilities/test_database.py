@@ -13,6 +13,9 @@ from prefect.orion.utilities.database import (
     JSON,
     Pydantic,
     Timestamp,
+    date_add,
+    date_diff,
+    interval_add,
     json_contains,
     json_has_all_keys,
     json_has_any_key,
@@ -323,3 +326,27 @@ class TestJSON:
         assert "json_each" in str(any_stmt)
         assert "?&" not in str(all_stmt)
         assert "json_each" in str(all_stmt)
+
+
+class TestDateFunctions:
+    async def test_date_add(self, session):
+        d1 = pendulum.datetime(2021, 1, 1)
+        i1 = datetime.timedelta(days=3, minutes=5)
+
+        result = await session.execute(sa.select(date_add(d1, i1)))
+        assert result.scalar() == pendulum.datetime(2021, 1, 4, 0, 5)
+
+    async def test_date_diff(self, session):
+        d1 = pendulum.datetime(2021, 1, 1)
+        d2 = pendulum.datetime(2021, 1, 4, 0, 5)
+
+        q = sa.select(date_diff(d2, d1))
+        z = q.compile(session.bind, compile_kwargs={"literal_binds": True})
+        result = await session.execute(q)
+        assert result.scalar() == datetime.timedelta(days=3, minutes=5)
+
+    async def test_interval_add(self, session):
+        i1 = datetime.timedelta(days=3)
+        i2 = datetime.timedelta(minutes=5)
+        result = await session.execute(sa.select(interval_add(i1, i2)))
+        assert result.scalar() == datetime.timedelta(days=3, minutes=5)

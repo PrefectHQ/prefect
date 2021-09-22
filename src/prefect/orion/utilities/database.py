@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import re
@@ -370,7 +371,9 @@ class date_add(FunctionElement):
 
 @compiles(date_add)
 def _date_add_generic(element, compiler, **kwargs):
-    return compiler.process(element.dt + element.interval)
+    return compiler.process(
+        sa.cast(element.dt, Timestamp()) + sa.cast(element.interval, sa.Interval())
+    )
 
 
 @compiles(date_add, "sqlite")
@@ -379,14 +382,25 @@ def _date_add_sqlite(element, compiler, **kwargs):
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
     """
+
+    dt = element.dt
+    if isinstance(dt, datetime.datetime):
+        dt = str(dt)
+
+    interval = element.interval
+    if isinstance(interval, datetime.timedelta):
+        interval = str(pendulum.datetime(1970, 1, 1) + interval)
+
     return compiler.process(
         # convert to date
         sa.func.strftime(
             "%Y-%m-%d %H:%M:%f000",
-            sa.func.julianday(element.dt)
+            sa.func.julianday(dt)
             + (
-                sa.func.julianday(element.interval) - 2440587.5
-            ),  # the epoch in julian days
+                # convert interval to fractional days after the epoch
+                sa.func.julianday(interval)
+                - 2440587.5
+            ),
         )
     )
 
@@ -407,7 +421,9 @@ class interval_add(FunctionElement):
 
 @compiles(interval_add)
 def _interval_add_generic(element, compiler, **kwargs):
-    return compiler.process(element.i1 + element.i2)
+    return compiler.process(
+        sa.cast(element.i1, sa.Interval()) + sa.cast(element.i2, sa.Interval())
+    )
 
 
 @compiles(interval_add, "sqlite")
@@ -420,11 +436,20 @@ def _interval_add_sqlite(element, compiler, **kwargs):
 
     (i1 - epoch) + (i2 - epoch) = i1 + i2 - epoch
     """
+
+    i1 = element.i1
+    if isinstance(i1, datetime.timedelta):
+        i1 = str(pendulum.datetime(1970, 1, 1) + i1)
+
+    i2 = element.i2
+    if isinstance(i2, datetime.timedelta):
+        i2 = str(pendulum.datetime(1970, 1, 1) + i2)
+
     return compiler.process(
         # convert to date
         sa.func.strftime(
             "%Y-%m-%d %H:%M:%f000",
-            sa.func.julianday(element.i1) + sa.func.julianday(element.i2) - 2440587.5,
+            sa.func.julianday(i1) + sa.func.julianday(i2) - 2440587.5,
         )
     )
 
@@ -445,7 +470,9 @@ class date_diff(FunctionElement):
 
 @compiles(date_diff)
 def _date_diff_generic(element, compiler, **kwargs):
-    return compiler.process(element.d1 - element.d2)
+    return compiler.process(
+        sa.cast(element.d1, Timestamp()) - sa.cast(element.d2, Timestamp())
+    )
 
 
 @compiles(date_diff, "sqlite")
@@ -454,6 +481,14 @@ def _date_diff_sqlite(element, compiler, **kwargs):
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
     """
+    d1 = element.d1
+    if isinstance(d1, datetime.datetime):
+        d1 = str(d1)
+
+    d2 = element.d2
+    if isinstance(d2, datetime.datetime):
+        d2 = str(d2)
+
     return compiler.process(
         # convert to date
         sa.func.strftime(
@@ -461,7 +496,7 @@ def _date_diff_sqlite(element, compiler, **kwargs):
             # the epoch in julian days
             2440587.5
             # plus the date difference in julian days
-            + sa.func.julianday(element.d1) - sa.func.julianday(element.d2),
+            + sa.func.julianday(d1) - sa.func.julianday(d2),
         )
     )
 
