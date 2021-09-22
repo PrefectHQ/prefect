@@ -14,7 +14,7 @@ from prefect.orion.orchestration.core_policy import (
     WaitForScheduledTime,
 )
 from prefect.orion.orchestration.global_policy import (
-    UpdateRunDetails,
+    GlobalPolicy,
 )
 from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
 from prefect.orion.schemas import states, actions
@@ -207,7 +207,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        retry_policy = [RetryPotentialFailures] + GlobalPolicy.priority()
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -235,7 +235,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        retry_policy = [RetryPotentialFailures] + GlobalPolicy.priority()
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)

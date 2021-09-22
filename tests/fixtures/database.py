@@ -205,20 +205,21 @@ async def commit_task_run_state(
         return None
     state_details = dict() if state_details is None else state_details
 
-    new_state = schemas.actions.StateCreate(
+    new_state = schemas.states.State(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
     )
 
-    orm_state = orm.TaskRunState(
+    result = await models.task_runs.set_task_run_state(
+        session=session,
         task_run_id=task_run.id,
-        **new_state.dict(shallow=True),
+        state=new_state,
+        force=True,
     )
 
-    session.add(orm_state)
-    await session.flush()
-    return orm_state.as_state()
+    await session.commit()
+    return result.state
 
 
 async def commit_flow_run_state(
@@ -228,20 +229,21 @@ async def commit_flow_run_state(
         return None
     state_details = dict() if state_details is None else state_details
 
-    new_state = schemas.actions.StateCreate(
+    new_state = schemas.states.State(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
     )
 
-    orm_state = orm.FlowRunState(
+    result = await models.flow_runs.set_flow_run_state(
+        session=session,
         flow_run_id=flow_run.id,
-        **new_state.dict(shallow=True),
+        state=new_state,
+        force=True,
     )
 
-    session.add(orm_state)
-    await session.flush()
-    return orm_state.as_state()
+    await session.commit()
+    return result.state
 
 
 @pytest.fixture
