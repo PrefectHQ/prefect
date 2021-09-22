@@ -345,7 +345,10 @@ class OrionClient:
         return datadoc.decode()
 
     async def set_flow_run_state(
-        self, flow_run_id: UUID, state: schemas.states.State, force: bool = False
+        self,
+        flow_run_id: UUID,
+        state: schemas.states.State,
+        force: bool = False,
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
@@ -470,7 +473,10 @@ class OrionClient:
             )
 
     async def set_task_run_state(
-        self, task_run_id: UUID, state: schemas.states.State, force: bool = False
+        self,
+        task_run_id: UUID,
+        state: schemas.states.State,
+        force: bool = False,
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
