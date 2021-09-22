@@ -13,9 +13,7 @@ from prefect.orion.orchestration.core_policy import (
     UpdateSubflowParentTask,
     WaitForScheduledTime,
 )
-from prefect.orion.orchestration.global_policy import (
-    UpdateRunDetails,
-)
+
 from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
 from prefect.orion.schemas import states, actions
 
@@ -207,7 +205,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        retry_policy = [RetryPotentialFailures]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -217,8 +215,10 @@ class TestRetryingRule:
             *intended_transition,
         )
 
-        ctx.run_settings.max_retries = 2
-        ctx.run.run_count = 2
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -233,7 +233,7 @@ class TestRetryingRule:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RetryPotentialFailures, UpdateRunDetails]
+        retry_policy = [RetryPotentialFailures]
         initial_state_type = states.StateType.RUNNING
         proposed_state_type = states.StateType.FAILED
         intended_transition = (initial_state_type, proposed_state_type)
@@ -243,8 +243,10 @@ class TestRetryingRule:
             *intended_transition,
         )
 
-        ctx.run_settings.max_retries = 2
-        ctx.run.run_count = 3
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 3
+        run_settings.max_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
@@ -285,7 +287,8 @@ async def test_update_subflow_parent_task(
         ),
     )
 
-    ctx.run.parent_task_run_id = parent_task_run.id
+    run = ctx.run
+    run.parent_task_run_id = parent_task_run.id
 
     async with contextlib.AsyncExitStack() as stack:
         for rule in update_subflows_policy:

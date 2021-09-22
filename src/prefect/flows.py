@@ -19,15 +19,22 @@ from typing import (
     NoReturn,
     Union,
     Type,
+    Dict,
 )
 
+import pydantic
+from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
 from prefect.executors import BaseExecutor, LocalExecutor
+from prefect.exceptions import FlowParameterError
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
-from prefect.utilities.callables import get_call_parameters
+from prefect.utilities.callables import (
+    get_call_parameters,
+    parameters_to_positional_and_keyword,
+)
 from prefect.utilities.hashing import file_hash
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
@@ -67,6 +74,7 @@ class Flow(Generic[P, R]):
         version: str = None,
         executor: Union[Type[BaseExecutor], BaseExecutor] = LocalExecutor,
         description: str = None,
+        validate_parameters: bool = True,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
@@ -84,6 +92,48 @@ class Flow(Generic[P, R]):
         self.version = version or (file_hash(flow_file) if flow_file else None)
 
         self.parameters = parameter_schema(self.fn)
+        self.should_validate_parameters = validate_parameters
+
+        if self.should_validate_parameters:
+            # Try to create the validated function now so that incompatibility can be
+            # raised at declaration time rather than at runtime
+            # We cannot, however, store the validated function on the flow because it
+            # is not picklable in some environments
+            try:
+                ValidatedFunction(self.fn, config=None)
+            except pydantic.ConfigError as exc:
+                raise ValueError(
+                    "Flow function is not compatible with `validate_parameters`. "
+                    "Disable validation or change the argument names."
+                ) from exc
+
+    def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate parameters that are going to be used to call the flow
+
+        Returns:
+            - A new dict of parameters
+
+        Raises
+            - FlowParameterError: if the parameters are not valid
+
+        """
+        validated_fn = ValidatedFunction(self.fn, config=None)
+        args, kwargs = parameters_to_positional_and_keyword(self.fn, parameters)
+        try:
+            model = validated_fn.init_model_instance(*args, **kwargs)
+        except pydantic.ValidationError as exc:
+            # We capture the pydantic exception and raise our own because the pydantic
+            # exception is not picklable when using a cythonized pydantic installation
+            raise FlowParameterError(str(exc))
+
+        # Get the updated parameter dict with cast values from the model
+        cast_parameters = {
+            k: v
+            for k, v in model._iter()
+            if k in model.__fields_set__ or model.__fields__[k].default_factory
+        }
+        return cast_parameters
 
     @overload
     def __call__(
@@ -167,7 +217,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = LocalExecutor,
     description: str = None,
-    tags: Iterable[str] = None,
+    validate_parameters: bool = True,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
 
@@ -179,6 +229,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = LocalExecutor,
     description: str = None,
+    validate_parameters: bool = True,
 ):
     """
     Decorator to designate a function as a Prefect workflow.
@@ -243,6 +294,7 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                validate_parameters=validate_parameters,
             ),
         )
     else:
@@ -254,5 +306,6 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                validate_parameters=validate_parameters,
             ),
         )
