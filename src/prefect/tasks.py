@@ -53,13 +53,32 @@ class Task(Generic[P, R]):
     """
     A Prefect task definition
 
-    See the `@task` decorator for usage details.
+    We recommend using the `@task` decorator for most use-cases.
 
-    Wraps a user's function with an entrypoint to the Prefect engine. To preserve the
-    input and output signatures of the user's functions, we use the generic type
-    variables P and R for "Parameters" and "Return Type" respectively.
+    Wraps a function with an entrypoint to the Prefect engine. To preserve the input
+    and output types, we use the generic type variables P and R for "Parameters" and
+    "Returns" respectively.
+
+    Args:
+        name: An optional name for the task; if not provided, the name will be inferred
+            from the given function.
+        description: An optional string description for the task.
+        tags: An optional set of tags to be associated with runs of this task. These
+            tags are combined with any tags defined by a `prefect.tags` context at
+            task runtime.
+        cache_key_fn: An optional callable that, given the task run context and call
+            parameters, generates a string key; if the key matches a previous completed
+            state, that state result will be restored instead of running the task again.
+        cache_expiration: An optional amount of time indicating how long cached states
+            for this task should be restorable; if not provided, cached states will
+            never expire.
+        retries: An optional number of times to retry on task run failure
+        retry_delay_seconds: An optional number of seconds to wait before retrying the
+            task after failure. This is only applicable if `retries` is nonzero.
     """
 
+    # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
+    #       exactly in the @task decorator
     def __init__(
         self,
         fn: Callable[P, R],
