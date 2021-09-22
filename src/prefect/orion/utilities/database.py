@@ -135,7 +135,7 @@ def setup_sqlite(conn, named=True):
         conn.execute("PRAGMA foreign_keys=ON")
 
 
-class UUIDDefault(FunctionElement):
+class GenerateUUID(FunctionElement):
     """
     Platform-independent UUID default generator.
     Note the actual functionality for this class is speficied in the
@@ -145,8 +145,9 @@ class UUIDDefault(FunctionElement):
     name = "uuid_default"
 
 
-@compiles(UUIDDefault, "postgresql")
-def _visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
+@compiles(GenerateUUID, "postgresql")
+@compiles(GenerateUUID)
+def _generate_uuid_postgresql(element, compiler, **kwargs):
     """
     Generates a random UUID in Postgres; requires the pgcrypto extension.
     """
@@ -154,8 +155,8 @@ def _visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
     return "(GEN_RANDOM_UUID())"
 
 
-@compiles(UUIDDefault)
-def _visit_custom_uuid_default(element, compiler, **kwargs):
+@compiles(GenerateUUID, "sqlite")
+def _generate_uuid_sqlite(element, compiler, **kwargs):
     """
     Generates a random UUID in other databases (SQLite) by concatenating
     bytes in a way that approximates a UUID hex representation. This is
@@ -330,7 +331,7 @@ class now(FunctionElement):
 
 
 @compiles(now, "sqlite")
-def _sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
+def _current_timestamp_sqlite(element, compiler, **kwargs):
     """
     Generates the current timestamp for SQLite
 
@@ -369,8 +370,9 @@ class date_add(FunctionElement):
         super().__init__()
 
 
+@compiles(date_add, "postgresql")
 @compiles(date_add)
-def _date_add_generic(element, compiler, **kwargs):
+def _date_add_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.cast(element.dt, Timestamp()) + sa.cast(element.interval, sa.Interval())
     )
@@ -419,8 +421,9 @@ class interval_add(FunctionElement):
         super().__init__()
 
 
+@compiles(interval_add, "postgresql")
 @compiles(interval_add)
-def _interval_add_generic(element, compiler, **kwargs):
+def _interval_add_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.cast(element.i1, sa.Interval()) + sa.cast(element.i2, sa.Interval())
     )
@@ -468,8 +471,9 @@ class date_diff(FunctionElement):
         super().__init__()
 
 
+@compiles(date_diff, "postgresql")
 @compiles(date_diff)
-def _date_diff_generic(element, compiler, **kwargs):
+def _date_diff_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.cast(element.d1, Timestamp()) - sa.cast(element.d2, Timestamp())
     )
@@ -511,6 +515,7 @@ class json_contains(FunctionElement):
         super().__init__()
 
 
+@compiles(json_contains, "postgresql")
 @compiles(json_contains)
 def _json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
@@ -561,6 +566,7 @@ class json_has_any_key(FunctionElement):
         super().__init__()
 
 
+@compiles(json_has_any_key, "postgresql")
 @compiles(json_has_any_key)
 def _json_has_any_key_postgresql(element, compiler, **kwargs):
 
@@ -600,6 +606,7 @@ class json_has_all_keys(FunctionElement):
         super().__init__()
 
 
+@compiles(json_has_all_keys, "postgresql")
 @compiles(json_has_all_keys)
 def _json_has_all_keys_postgresql(element, compiler, **kwargs):
     values_array = postgresql.array(element.values)
@@ -681,7 +688,7 @@ class Base(object):
     id = Column(
         UUID(),
         primary_key=True,
-        server_default=UUIDDefault(),
+        server_default=GenerateUUID(),
         default=uuid.uuid4,
     )
     created = Column(
