@@ -526,6 +526,16 @@ class TestReadFlowRuns:
                 ),
             ),
         )
+        flow_run_4 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                state=schemas.states.State(
+                    type="COMPLETED",
+                    name="My Completed State",
+                ),
+            ),
+        )
 
         # before_
         result = await models.flow_runs.read_flow_runs(
@@ -556,8 +566,27 @@ class TestReadFlowRuns:
                 )
             ),
         )
-        assert len(result) == 1
         assert {res.id for res in result} == {flow_run_3.id}
+
+        # is_null_
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                start_time=schemas.filters.FlowRunFilterStartTime(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_4.id}
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                start_time=schemas.filters.FlowRunFilterStartTime(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {
+            flow_run_1.id,
+            flow_run_2.id,
+            flow_run_3.id,
+        }
 
     async def test_read_flow_runs_filters_by_next_scheduled_start_time(
         self, flow, session

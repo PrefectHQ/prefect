@@ -181,15 +181,22 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
     after_: datetime.datetime = Field(
         None, description="Only include flow runs starting at or after this time"
     )
+    is_null_: bool = Field(
+        None, description="If true, only return flow runs without a start time"
+    )
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(orm.FlowRun.start_time.between(self.after_, self.before_))
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.FlowRun.start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.FlowRun.start_time >= self.after_)
+        if self.is_null_ is not None:
+            filters.append(
+                orm.FlowRun.start_time == None
+                if self.is_null_
+                else orm.FlowRun.start_time != None
+            )
         return filters
 
 
@@ -205,13 +212,9 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(
-                orm.FlowRun.expected_start_time.between(self.after_, self.before_)
-            )
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.FlowRun.expected_start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.FlowRun.expected_start_time >= self.after_)
         return filters
 
@@ -228,13 +231,9 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(
-                orm.FlowRun.next_scheduled_start_time.between(self.after_, self.before_)
-            )
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.FlowRun.next_scheduled_start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.FlowRun.next_scheduled_start_time >= self.after_)
         return filters
 
@@ -348,15 +347,22 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
     after_: datetime.datetime = Field(
         None, description="Only include task runs starting at or after this time"
     )
+    is_null_: bool = Field(
+        None, description="If true, only return task runs without a start time"
+    )
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(orm.TaskRun.start_time.between(self.after_, self.before_))
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.TaskRun.start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.TaskRun.start_time >= self.after_)
+        if self.is_null_ is not None:
+            filters.append(
+                orm.TaskRun.start_time == None
+                if self.is_null_
+                else orm.TaskRun.start_time != None
+            )
         return filters
 
 
