@@ -50,9 +50,9 @@ class OrionAgent:
 
     async def get_and_submit_flow_runs(
         self, query_fn: Callable[[FlowRunFilter], Awaitable[List[FlowRun]]]
-    ):
+    ) -> List[FlowRun]:
         if not self.started:
-            raise RuntimeError("Agent is not set up yet. Use `async with Agent()...`")
+            raise RuntimeError("Agent is not started. Use `async with Agent()...`")
 
         ready_runs = await query_fn(flow_run_filter=self.flow_run_query_filter())
         submittable_runs = self.filter_flow_runs(ready_runs)
@@ -65,8 +65,11 @@ class OrionAgent:
                 flow_run,
                 self.submitted_callback,
             )
+        return submittable_runs
 
-    def lookup_submission_method(self, flow_run: FlowRun) -> Callable[[FlowRun], None]:
+    def lookup_submission_method(
+        self, flow_run: FlowRun
+    ) -> Callable[[FlowRun], Awaitable[None]]:
         """
         Future hook for returning submission methods based on flow run configs
         """
@@ -120,14 +123,12 @@ class OrionAgent:
     async def start(self):
         self.started = True
         self.task_group = anyio.create_task_group()
-        self.lock = anyio.create_lock()
         await self.task_group.__aenter__()
 
     async def shutdown(self, *exc_info):
         self.started = False
         await self.task_group.__aexit__(*exc_info)
         self.task_group = None
-        self.lock = None
         self.submitting_flow_run_ids = set()
 
     async def __aenter__(self):
