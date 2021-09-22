@@ -187,11 +187,9 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(orm.FlowRun.start_time.between(self.after_, self.before_))
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.FlowRun.start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.FlowRun.start_time >= self.after_)
         if self.is_null_ is not None:
             filters.append(
@@ -214,13 +212,9 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(
-                orm.FlowRun.expected_start_time.between(self.after_, self.before_)
-            )
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.FlowRun.expected_start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.FlowRun.expected_start_time >= self.after_)
         return filters
 
@@ -237,13 +231,9 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(
-                orm.FlowRun.next_scheduled_start_time.between(self.after_, self.before_)
-            )
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.FlowRun.next_scheduled_start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.FlowRun.next_scheduled_start_time >= self.after_)
         return filters
 
@@ -363,11 +353,9 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
 
     def _get_filter_list(self):
         filters = []
-        if self.before_ and self.after_:
-            filters.append(orm.TaskRun.start_time.between(self.after_, self.before_))
-        if self.before_:
+        if self.before_ is not None:
             filters.append(orm.TaskRun.start_time <= self.before_)
-        if self.after_:
+        if self.after_ is not None:
             filters.append(orm.TaskRun.start_time >= self.after_)
         if self.is_null_ is not None:
             filters.append(
