@@ -1,20 +1,20 @@
 <template>
   <div class="component-container">
     <Button
-      v-show="showLeftScrollButton"
       class="pan-button left"
       icon="arrow-left-s-line"
       height="30px"
       width="50px"
+      :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
 
     <Button
-      v-show="showLeftScrollButton"
       class="pan-button right"
       icon="arrow-right-s-line"
       height="30px"
       width="50px"
+      :disabled="disableRightScrollButton"
       @click="panRight"
     />
 
@@ -118,8 +118,8 @@ class Props {
   }
 })
 export default class Timeline extends mixins(D3Base).with(Props) {
-  showLeftScrollButton: boolean = true
-  showRightScrollButton: boolean = true
+  disableLeftScrollButton: boolean = true
+  disableRightScrollButton: boolean = true
   computedItems: Item[] = []
   intervalHeight: number = 24
   intervalWidth: number = 125
@@ -251,6 +251,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   mounted(): void {
     this.createChart()
     this.update()
+    this.handleScroll()
   }
 
   update(): void {
@@ -412,9 +413,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   handleScroll(): void {
-    // this.showLeftScrollButton = this.container.scrollLeft > 0
-    // this.showRightScrollButton =
-    //   this.container.scrollLeft < this.container.scrollWidth
+    this.disableLeftScrollButton = this.container.scrollLeft <= 0
+    this.disableRightScrollButton =
+      this.container.scrollLeft >= this.container.scrollWidth
   }
 
   panLeft(): void {
