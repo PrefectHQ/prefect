@@ -1,7 +1,9 @@
 site_name: Prefect Orion
 nav:
     - Home: index.md
-    - Tutorial: tutorial.md
+    - 'Getting Started':
+        - Installation: installation.md
+        - Tutorial: tutorial.md
     - Concepts: concepts.md
     - FAQ: faq.md
     - API Reference: 404.md
