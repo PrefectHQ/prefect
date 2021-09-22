@@ -24,6 +24,7 @@ app.add_middleware(
 
 
 # routers
+app.include_router(api.admin.router)
 app.include_router(api.data.router)
 app.include_router(api.flows.router)
 app.include_router(api.flow_runs.router)
@@ -31,16 +32,6 @@ app.include_router(api.task_runs.router)
 app.include_router(api.flow_run_states.router)
 app.include_router(api.task_run_states.router)
 app.include_router(api.deployments.router)
-
-
-@app.get("/hello", tags=["debug"])
-def hello():
-    return "👋"
-
-
-@app.get("/echo", tags=["debug"])
-def echo(x: str):
-    return x
 
 
 @app.on_event("startup")
@@ -51,31 +42,30 @@ async def start_services():
             services.agent.Agent(),
             services.scheduler.Scheduler(),
         ]
-        app.state.service_tasks = [
-            loop.create_task(service.start(), name=service.name)
+        app.state.services = {
+            service: loop.create_task(service.start(), name=service.name)
             for service in service_instances
-        ]
+        }
 
-        for service, task in zip(service_instances, app.state.service_tasks):
+        for service, task in app.state.services.items():
             logger.info(f"{service.name} service scheduled to start in-app")
             task.add_done_callback(partial(on_service_exit, service))
     else:
         logger.info(
             "In-app services have been disabled and will need to be run separately."
         )
-        app.state.service_tasks = None
+        app.state.services = None
 
 
 @app.on_event("shutdown")
 async def wait_for_service_shutdown():
-    if app.state.service_tasks:
-        for task in app.state.service_tasks:
-            try:
-                task.cancel()
-                await task.result()
-            except Exception as exc:
-                # `on_service_exit` should handle logging exceptions
-                pass
+    if app.state.services:
+        await asyncio.gather(*[service.stop() for service in app.state.services])
+        try:
+            await asyncio.gather(*[task.stop() for task in app.state.services.values()])
+        except Exception as exc:
+            # `on_service_exit` should handle logging exceptions on exit
+            pass
 
 
 def on_service_exit(service, task):
@@ -85,7 +75,7 @@ def on_service_exit(service, task):
     try:
         # Retrieving the result will raise the exception
         task.result()
-    except asyncio.CancelledError:
-        logger.info(f"{service.name} service stopped!")
     except Exception:
         logger.error(f"{service.name} service failed!", exc_info=True)
+    else:
+        logger.info(f"{service.name} service stopped!")

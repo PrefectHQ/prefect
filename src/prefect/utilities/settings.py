@@ -67,6 +67,10 @@ class APISettings(BaseSettings):
     # a default limit for queries
     default_limit: int = 200
 
+    host: str = "127.0.0.1"
+    port: int = 5000
+    uvicorn_log_level: str = "info"
+
 
 class ServicesSettings(BaseSettings):
     class Config:

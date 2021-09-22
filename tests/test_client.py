@@ -27,7 +27,6 @@ async def test_create_then_read_flow(orion_client):
     lookup = await orion_client.read_flow(flow_id)
     assert isinstance(lookup, schemas.core.Flow)
     assert lookup.name == foo.name
-    assert lookup.tags == list(foo.tags)
 
 
 async def test_create_then_read_deployment(orion_client):
@@ -78,7 +77,7 @@ async def test_read_deployment_by_name(orion_client):
 
 
 async def test_create_then_read_flow_run(orion_client):
-    @flow(tags=["a", "b"])
+    @flow
     def foo():
         pass
 
@@ -87,12 +86,11 @@ async def test_create_then_read_flow_run(orion_client):
 
     lookup = await orion_client.read_flow_run(flow_run_id)
     assert isinstance(lookup, schemas.core.FlowRun)
-    assert lookup.tags == list(foo.tags)
     assert lookup.state.is_pending()
 
 
 async def test_create_then_read_flow_run_with_state(orion_client):
-    @flow(tags=["a", "b"])
+    @flow
     def foo():
         pass
 
@@ -126,7 +124,7 @@ async def test_set_then_read_flow_run_state(orion_client):
 
 
 async def test_read_flow_runs_without_filter(orion_client):
-    @flow(tags=["a", "b"])
+    @flow
     def foo():
         pass
 
@@ -156,12 +154,14 @@ async def test_read_flow_runs_with_filtering(orion_client):
     fr_id_5 = await orion_client.create_flow_run(bar, state=Running())
 
     flows = await orion_client.read_flow_runs(
-        flow_filter=schemas.filters.FlowFilter(names=["bar"]),
+        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
         flow_run_filter=schemas.filters.FlowRunFilter(
-            states=[
-                StateType.SCHEDULED,
-                StateType.RUNNING,
-            ]
+            state_type=dict(
+                any_=[
+                    StateType.SCHEDULED,
+                    StateType.RUNNING,
+                ]
+            )
         ),
     )
     assert len(flows) == 2
@@ -205,7 +205,7 @@ async def test_read_flows_with_filter(orion_client):
     flow_id_3 = await orion_client.create_flow(foobar)
 
     flows = await orion_client.read_flows(
-        flow_filter=schemas.filters.FlowFilter(names=["foo", "bar"])
+        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
     )
     assert len(flows) == 2
     assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
@@ -238,10 +238,12 @@ async def test_update_flow_run(orion_client):
     flow_run_id = await orion_client.create_flow_run(foo)
     flow_run = await orion_client.read_flow_run(flow_run_id)
 
+    exclude = {"updated", "lateness_estimate", "estimated_start_time_delta"}
+
     # No mutation for unset fields
     await orion_client.update_flow_run(flow_run_id)
     unchanged_flow_run = await orion_client.read_flow_run(flow_run_id)
-    assert unchanged_flow_run == flow_run
+    assert unchanged_flow_run.dict(exclude=exclude) == flow_run.dict(exclude=exclude)
 
     # Fields updated when set
     await orion_client.update_flow_run(

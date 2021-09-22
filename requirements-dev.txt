@@ -1,4 +1,6 @@
 black
+ipython
+mkdocs
 mypy @ git+git://github.com/python/mypy.git
 pytest
 pytest-asyncio
