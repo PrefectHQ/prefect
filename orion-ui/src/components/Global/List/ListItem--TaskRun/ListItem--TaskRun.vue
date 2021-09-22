@@ -7,7 +7,16 @@
       class="item--icon pi text--grey-40 align-self-start"
       :class="`pi-${state}`"
     />
-    <div class="item- ml-2 d-flex flex-column justify-center align-self-start">
+    <div
+      class="
+        item--title
+        ml-2
+        d-flex
+        flex-column
+        justify-center
+        align-self-start
+      "
+    >
       <h2>
         {{ run.name }}
       </h2>
