@@ -158,7 +158,7 @@ async def set_task_run_state(
     """Set a task run state, invoking any orchestration rules."""
 
     # create the state
-    orchestration_result = await models.task_run_states.set_task_run_state(
+    orchestration_result = await models.task_runs.set_task_run_state(
         session=session,
         task_run_id=task_run_id,
         # convert to a full State object

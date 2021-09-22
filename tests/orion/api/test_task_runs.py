@@ -74,7 +74,7 @@ class TestReadTaskRun:
     async def test_read_flow_run_with_state(self, task_run, client, session):
         state_id = uuid4()
         (
-            await models.task_run_states.set_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.State(id=state_id, type="RUNNING"),
@@ -261,7 +261,7 @@ class TestSetTaskRunState:
         await session.flush()
 
         (
-            await models.task_run_states.set_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.Running(),
@@ -289,7 +289,7 @@ class TestSetTaskRunState:
         await session.flush()
 
         (
-            await models.task_run_states.set_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.Running(),
