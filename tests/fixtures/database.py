@@ -132,18 +132,20 @@ async def flow_run_states(
         state_details=dict(scheduled_time=pendulum.now("UTC").subtract(seconds=1)),
     )
     scheduled_flow_run_state = (
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=scheduled_state,
+            force=True,
         )
     ).state
     running_state = schemas.states.Running()
     running_flow_run_state = (
-        await models.flow_run_states.orchestrate_flow_run_state(
+        await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=flow_run.id,
             state=running_state,
+            force=True,
         )
     ).state
     await session.commit()
@@ -159,18 +161,20 @@ async def task_run_states(
         timestamp=pendulum.now("UTC").subtract(seconds=5),
     )
     scheduled_task_run_state = (
-        await models.task_run_states.orchestrate_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=scheduled_state,
+            force=True,
         )
     ).state
     running_state = schemas.states.Running()
     running_task_run_state = (
-        await models.task_run_states.orchestrate_task_run_state(
+        await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=running_state,
+            force=True,
         )
     ).state
     await session.commit()

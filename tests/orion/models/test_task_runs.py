@@ -242,7 +242,7 @@ class TestReadTaskRuns:
             session=session,
             task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
         )
-        task_run_state_1 = await models.task_run_states.orchestrate_task_run_state(
+        task_run_state_1 = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_1.id,
             state=Scheduled(),
@@ -251,7 +251,7 @@ class TestReadTaskRuns:
             session=session,
             task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
         )
-        task_run_state_2 = await models.task_run_states.orchestrate_task_run_state(
+        task_run_state_2 = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run_2.id,
             state=schemas.states.Completed(),
