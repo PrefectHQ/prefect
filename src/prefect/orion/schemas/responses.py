@@ -1,5 +1,6 @@
 import datetime
-from typing import List, Literal
+from typing import List
+from prefect.utilities.compat import Literal
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion import schemas
