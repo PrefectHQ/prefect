@@ -145,7 +145,7 @@ class UUIDDefault(FunctionElement):
 
 
 @compiles(UUIDDefault, "postgresql")
-def visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
+def _visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
     """
     Generates a random UUID in Postgres; requires the pgcrypto extension.
     """
@@ -154,7 +154,7 @@ def visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
 
 
 @compiles(UUIDDefault)
-def visit_custom_uuid_default(element, compiler, **kwargs):
+def _visit_custom_uuid_default(element, compiler, **kwargs):
     """
     Generates a random UUID in other databases (SQLite) by concatenating
     bytes in a way that approximates a UUID hex representation. This is
@@ -329,7 +329,7 @@ class now(FunctionElement):
 
 
 @compiles(now, "sqlite")
-def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
+def _sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp for SQLite
 
@@ -347,7 +347,7 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
 
 
 @compiles(now)
-def current_timestamp(element, compiler, **kwargs):
+def _current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp in standard SQL
     """
@@ -369,12 +369,12 @@ class date_add(FunctionElement):
 
 
 @compiles(date_add)
-def date_add_generic(element, compiler, **kwargs):
+def _date_add_generic(element, compiler, **kwargs):
     return compiler.process(element.dt + element.interval)
 
 
 @compiles(date_add, "sqlite")
-def date_add_sqlite(element, compiler, **kwargs):
+def _date_add_sqlite(element, compiler, **kwargs):
     """
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
@@ -406,12 +406,12 @@ class interval_add(FunctionElement):
 
 
 @compiles(interval_add)
-def interval_add_generic(element, compiler, **kwargs):
+def _interval_add_generic(element, compiler, **kwargs):
     return compiler.process(element.i1 + element.i2)
 
 
 @compiles(interval_add, "sqlite")
-def interval_add_sqlite(element, compiler, **kwargs):
+def _interval_add_sqlite(element, compiler, **kwargs):
     """
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
@@ -444,12 +444,12 @@ class date_diff(FunctionElement):
 
 
 @compiles(date_diff)
-def date_diff_generic(element, compiler, **kwargs):
+def _date_diff_generic(element, compiler, **kwargs):
     return compiler.process(element.d1 - element.d2)
 
 
 @compiles(date_diff, "sqlite")
-def date_diff_sqlite(element, compiler, **kwargs):
+def _date_diff_sqlite(element, compiler, **kwargs):
     """
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
@@ -477,7 +477,7 @@ class json_contains(FunctionElement):
 
 
 @compiles(json_contains)
-def json_contains_postgresql(element, compiler, **kwargs):
+def _json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).contains(element.values),
         **kwargs,
@@ -485,7 +485,7 @@ def json_contains_postgresql(element, compiler, **kwargs):
 
 
 @compiles(json_contains, "sqlite")
-def json_contains_sqlite(element, compiler, **kwargs):
+def _json_contains_sqlite(element, compiler, **kwargs):
 
     json_values = []
     for v in element.values:
@@ -527,7 +527,7 @@ class json_has_any_key(FunctionElement):
 
 
 @compiles(json_has_any_key)
-def json_has_any_key_postgresql(element, compiler, **kwargs):
+def _json_has_any_key_postgresql(element, compiler, **kwargs):
 
     values_array = postgresql.array(element.values)
     # if the array is empty, postgres requires a type annotation
@@ -541,7 +541,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
 
 
 @compiles(json_has_any_key, "sqlite")
-def json_has_any_key_sqlite(element, compiler, **kwargs):
+def _json_has_any_key_sqlite(element, compiler, **kwargs):
     # attempt to match any of the provided values at least once
     json_each = sa.func.json_each(element.json_expr).alias("json_each")
     return compiler.process(
@@ -566,7 +566,7 @@ class json_has_all_keys(FunctionElement):
 
 
 @compiles(json_has_all_keys)
-def json_has_all_keys_postgresql(element, compiler, **kwargs):
+def _json_has_all_keys_postgresql(element, compiler, **kwargs):
     values_array = postgresql.array(element.values)
 
     # if the array is empty, postgres requires a type annotation
@@ -580,7 +580,7 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 
 
 @compiles(json_has_all_keys, "sqlite")
-def json_has_all_keys_sqlite(element, compiler, **kwargs):
+def _json_has_all_keys_sqlite(element, compiler, **kwargs):
     # attempt to match all of the provided values at least once
     # by applying an "any_key" match to each one individually
     return compiler.process(
