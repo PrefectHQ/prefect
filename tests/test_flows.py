@@ -460,7 +460,8 @@ class TestFlowTimeouts:
     def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
         """
         Sync flows are not cancellable, we can stop waiting for the worker thread but
-        it will continue running in the background
+        it will continue running the flow code in the background. This test ensures
+        that the engine continues without waiting for the sleeping flow to finish.
         """
         canary_file = tmp_path / "canary"
 
@@ -475,23 +476,53 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "timed out after 0.1 seconds" in state.message
-        assert t1 - t0 < 0.2, "The engine returns without waiting"
+        assert t1 - t0 < 0.2, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
         # doing so. The canary file _will_ be created.
         time.sleep(0.25)
         assert canary_file.exists()
 
-    async def test_timeout_actually_stops_execution_for_async_flows(self, tmp_path):
+    def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
-        Async flow runs are actually cancellable on timeout
+        Sync flow runs tasks will fail after a timeout which will cause the flow to exit
+        """
+        # TODO: This test will emit a warning since the task will not begin as it is
+        #       submitted up to the parent event loop which has "timed out"
+        #       "RuntimeWarning: coroutine 'begin_task_run' was never awaited"
+        canary_file = tmp_path / "canary"
+        task_canary_file = tmp_path / "task_canary"
+
+        @task
+        def my_task():
+            task_canary_file.touch()
+
+        @flow(timeout_seconds=0.1)
+        def my_flow():
+            time.sleep(0.25)
+            my_task()
+            canary_file.touch()  # Should not run
+
+        state = my_flow()
+
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+
+        # Wait in case the flow is just sleeping
+        time.sleep(0.5)
+        assert not canary_file.exists()
+        assert not task_canary_file.exists()
+
+    async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
+        """
+        Async flow runs can be cancelled after a timeout
         """
         canary_file = tmp_path / "canary"
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            await anyio.sleep(0.25)
-            canary_file.touch()
+            await anyio.sleep(0.5)
+            canary_file.touch()  # Should not run
 
         t0 = time.time()
         state = await my_flow()
@@ -499,7 +530,7 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "timed out after 0.1 seconds" in state.message
-        assert t1 - t0 < 0.2, "The engine returns without waiting"
+        assert t1 - t0 < 0.25, f"The engine returns without waiting; took {t1-t0}s"
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(0.5)
