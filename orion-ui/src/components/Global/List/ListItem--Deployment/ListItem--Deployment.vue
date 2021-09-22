@@ -1,5 +1,5 @@
 <template>
-  <list-item class="list-item--flow d-flex align-start justify-start">
+  <list-item class="list-item--deployment d-flex align-start justify-start">
     <i class="item--icon pi pi-map-pin-line text--grey-40 align-self-start" />
     <div
       class="
@@ -112,39 +112,11 @@
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
+import { secondsToString } from '@/util/util'
 import { Deployment } from '@/objects'
 
 class Props {
   deployment = prop<Deployment>({ required: true })
-}
-
-const secondsToString = (s: number) => {
-  const _y = 31536000,
-    _d = 86400,
-    _h = 3600,
-    _m = 60
-  const years = Math.floor(s / _y)
-  const days = Math.floor((s % _y) / _d)
-  const hours = Math.floor(((s % _y) % _d) / _h)
-  const minutes = Math.floor((((s % _y) % _d) % _h) / _m)
-  const seconds = (((s % _y) % _d) % _h) % _m
-
-  console.log(years, days, hours, minutes, seconds)
-  return (
-    (years
-      ? (years == 1 ? '' : years) + ` year${years !== 1 ? 's' : ''} `
-      : '') +
-    (days ? (days == 1 ? '' : days) + ` day${days !== 1 ? 's' : ''} ` : '') +
-    (hours
-      ? (hours == 1 ? '' : hours) + ` hour${hours !== 1 ? 's' : ''} `
-      : '') +
-    (minutes
-      ? (minutes == 1 ? '' : minutes) + ` minute${minutes !== 1 ? 's' : ''} `
-      : '') +
-    (seconds
-      ? (seconds == 1 ? '' : seconds) + ` second${seconds !== 1 ? 's' : ''} `
-      : '')
-  )
 }
 
 @Options({
@@ -167,7 +139,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
   }
 
   get schedule(): any {
-    return secondsToString(this.deployment.schedule)
+    return secondsToString(this.deployment.schedule, false)
   }
 
   get tags(): string[] {
