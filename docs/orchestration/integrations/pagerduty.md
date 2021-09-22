@@ -5,7 +5,7 @@
 * ***Notify on-call responders based on Prefect automation rules.***
 * ***Send event data from Prefect with links to the flow run and agents that triggered the event.***
 * ***Create high and low urgency incidents based on the severity of the event from the Prefect event payload.***
-* ***(Coming Soon...) Depending on your preference, either create multiple integrations in a PagerDuty Service for corresponding Prefect flows 
+* ***Depending on your preference, either create multiple integrations in a PagerDuty Service for corresponding Prefect flows 
   and agents or reuse an integration key to create multiple actions that can be used by many automation rules in Prefect***
 
 ## How it Works
@@ -22,7 +22,7 @@ The user can create or delete an action with the User level role.
 
 If you need help with this integration, please contact ***help@prefect.io***. 
 
-## Integration Walkthrough (Coming Soon...)
+## Integration Walkthrough
 
 ### In PagerDuty
 
