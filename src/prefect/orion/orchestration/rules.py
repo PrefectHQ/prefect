@@ -7,7 +7,7 @@ import sqlalchemy as sa
 
 from pydantic import Field
 
-from prefect.orion.models import orm
+from prefect.orion.models import orm, flow_runs
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
@@ -106,6 +106,17 @@ class TaskOrchestrationContext(OrchestrationContext):
     def run_settings(self) -> Dict:
         return self.run.empirical_policy
 
+    @property
+    async def task_run(self):
+        return self.run
+
+    @property
+    async def flow_run(self):
+        return await flow_runs.read_flow_run(
+            session=self.session,
+            flow_run_id=self.run.flow_run_id,
+        )
+
 
 class FlowOrchestrationContext(OrchestrationContext):
     run: orm.FlowRun
@@ -131,6 +142,14 @@ class FlowOrchestrationContext(OrchestrationContext):
     @property
     def run_settings(self) -> Dict:
         return self.run.empirical_policy
+
+    @property
+    async def task_run(self):
+        return None
+
+    @property
+    async def flow_run(self):
+        return self.run
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
