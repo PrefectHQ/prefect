@@ -26,9 +26,11 @@ class StateWaitDetails(PrefectBaseModel):
 
 
 class HistoryResponseState(PrefectBaseModel):
-    name: str
-    type: schemas.states.StateType
-    count: int
+    state_type: schemas.states.StateType
+    state_name: str
+    count_runs: int
+    sum_estimated_run_time: datetime.timedelta
+    sum_estimated_lateness: datetime.timedelta
 
 
 class HistoryResponse(PrefectBaseModel):
