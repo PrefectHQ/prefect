@@ -28,7 +28,6 @@
     <Timeline
       v-if="runs.length"
       :items="runs"
-      :interval="interval"
       :max-end-time="endTime"
       background-color="blue-5"
     />
@@ -44,17 +43,16 @@ import Timeline from '../components/Timeline/Timeline.vue'
 @Options({
   components: { Timeline },
   watch: {
-    async selected(val) {
-      this.runs = await this.getTaskRuns(val)
-      this.$router.push({ params: { id: val } })
+    async selected() {
+      this.startTaskRunInterval()
+      this.startFlowRunInterval()
     }
   }
 })
 export default class TimelineView extends Vue {
   selected: string | string[] | null = null
 
-  interval: string = 'minute'
-  intervals: string[] = ['second', 'minute', 'hour', 'day']
+  interval: ReturnType<typeof setInterval> | null = null
 
   runs: TaskRun[] = []
   flowRuns: FlowRun[] = []
@@ -65,6 +63,46 @@ export default class TimelineView extends Vue {
 
   get endTime(): undefined | string {
     return this.flowRun?.end_time
+  }
+
+  async startTaskRunInterval(): Promise<void> {
+    if (this.selected && typeof this.selected == 'string') {
+      this.runs = await this.getTaskRuns(this.selected)
+      this.$router.push({ params: { id: this.selected } })
+    }
+
+    if (this.flowRun?.state_type !== 'RUNNING') return
+    this.interval = setInterval(async () => {
+      if (this.selected && typeof this.selected == 'string') {
+        this.runs = await this.getTaskRuns(this.selected)
+      }
+    }, 3000)
+  }
+
+  async getFlowRun(id: string) {
+    const run = await fetch(`http://localhost:8000/flow_runs/${id}`)
+
+    const result = await run.json()
+
+    const index = this.flowRuns.findIndex((r) => r.id == result.id)
+
+    if (index) {
+      this.flowRuns[index] = result
+    }
+  }
+
+  async startFlowRunInterval() {
+    if (!this.flowRun) return
+    if (this.interval) clearInterval(this.interval)
+
+    console.log(this.flowRun)
+    if (this.flowRun.state_type == 'RUNNING') {
+      this.interval = setInterval(async () => {
+        if (this.selected && typeof this.selected == 'string') {
+          await this.getFlowRun(this.selected)
+        }
+      }, 3000)
+    }
   }
 
   async getTaskRuns(id: string) {
