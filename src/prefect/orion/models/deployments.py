@@ -204,6 +204,9 @@ async def _generate_scheduled_flow_runs(
         )
         # apply run details updates because this state won't go through the orchestration engine
         update_run_details(initial_state=None, proposed_state=run.state, run=run)
+        # do not set the `state_id` as it hasn't been created yet; it will be set
+        # when _insert_scheduled_flow_runs is called
+        run.state_id = None
         runs.append(run)
 
     return runs
