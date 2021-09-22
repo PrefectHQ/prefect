@@ -22,7 +22,9 @@ ALL_ORCHESTRATION_STATES = {*states.StateType, None}
 TERMINAL_STATES = states.TERMINAL_STATES
 
 
-StateResponseDetails = Union[StateAcceptDetails, StateWaitDetails, StateRejectDetails]
+StateResponseDetails = Union[
+    StateAcceptDetails, StateWaitDetails, StateRejectDetails, StateAbortDetails
+]
 
 
 class OrchestrationResult(PrefectBaseModel):
@@ -255,8 +257,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
-    FROM_STATES: Iterable = []
-    TO_STATES: Iterable = []
+    FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
+    TO_STATES: Iterable = ALL_ORCHESTRATION_STATES
 
     def __init__(
         self,
