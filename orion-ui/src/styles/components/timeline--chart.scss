@@ -79,6 +79,7 @@
     .node {
       position: absolute;
       border-radius: 8px;
+      // will-change: width, left, top;
 
       &:focus,
       &:hover {

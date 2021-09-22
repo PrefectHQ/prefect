@@ -92,7 +92,7 @@ type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 class Props {
   backgroundColor = prop<string>({ required: false, default: null })
-  interval = prop<string>({ required: false, default: 'minute' })
+  // interval = prop<string>({ required: false, default: 'minute' })
   items = prop<Item[]>({ required: true })
   maxEndTime = prop<string>({ required: false, default: null })
   padding = prop<{
@@ -153,6 +153,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     null
   >
 
+  get interval(): string {
+    return Object.entries(intervals)
+      .sort(([_a, a], [_b, b]) => b - a)
+      .reduce(([key, val], [_key, _val]) =>
+        this.totalSeconds < _val ? [_key, _val] : [key, val]
+      )[0]
+  }
+
   get numberIntervals(): number {
     return (
       Math.ceil(
@@ -183,17 +191,17 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get end(): Date {
-    return this.maxEndTime
-      ? new Date(this.maxEndTime)
-      : new Date(
-          new Date(
+    return new Date(
+      this.maxEndTime
+        ? this.maxEndTime
+        : new Date(
             Math.max(
               ...this.sortedItems.map((item) =>
                 item.end_time ? new Date(item.end_time).getTime() : Date.now()
               )
             )
           ).getTime()
-        )
+    )
   }
 
   get totalSeconds(): number {
@@ -256,6 +264,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     console.log('total seconds', this.totalSeconds)
     console.log('chart height', this.chartHeight)
     console.log('chart width', this.chartWidth)
+    console.log(`interval %c${this.interval}`, 'color: purple;')
     console.log('intervals', this.numberIntervals)
     console.log('rows', this.numberRows)
     console.log('start', this.start)
