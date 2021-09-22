@@ -312,3 +312,31 @@ class TestGlobalPolicyRules:
             await ctx.validate_proposed_state()
 
         assert run.end_time is None
+
+    async def test_rule_does_not_modify_end_time_when_transitioning_from_final_to_final(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        initial_state_type = states.StateType.COMPLETED
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+        )
+
+        dt = pendulum.now()
+
+        run = ctx.run
+        run.start_time = dt.subtract(seconds=42)
+        run.end_time = dt
+
+        assert run.end_time is not None
+
+        async with SetEndTime(ctx, *intended_transition) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert run.end_time == dt
