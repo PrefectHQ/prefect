@@ -7,6 +7,10 @@
         </option>
       </select>
 
+      <Button icon="arrow-left-s-line" height="30px" width="30px" />
+
+      <Button icon="arrow-right-s-line" height="30px" width="30px" />
+
       <!-- <select v-model="interval">
         <option v-for="(value, key) in intervals" :key="key" :value="value">
           {{ value }}
