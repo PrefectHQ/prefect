@@ -47,7 +47,10 @@ class SQLTimestampModel(DBBase):
     __tablename__ = "_test_timestamp_model"
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    ts = sa.Column(Timestamp)
+    ts_1 = sa.Column(Timestamp)
+    ts_2 = sa.Column(Timestamp)
+    i_1 = sa.Column(sa.Interval)
+    i_2 = sa.Column(sa.Interval)
 
 
 class SQLJSONModel(DBBase):
@@ -182,14 +185,14 @@ class TestPydantic:
 
 class TestTimestamp:
     async def test_error_if_naive_timestamp_passed(self, session):
-        model = SQLTimestampModel(ts=datetime.datetime(2000, 1, 1))
+        model = SQLTimestampModel(ts_1=datetime.datetime(2000, 1, 1))
         session.add(model)
         with pytest.raises(sa.exc.StatementError, match="(must have a timezone)"):
             await session.flush()
 
     async def test_timestamp_converted_to_utc(self, session):
         model = SQLTimestampModel(
-            ts=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
+            ts_1=datetime.datetime(2000, 1, 1, tzinfo=pendulum.timezone("EST"))
         )
         session.add(model)
         await session.flush()
@@ -199,8 +202,8 @@ class TestTimestamp:
 
         query = await session.execute(sa.select(SQLTimestampModel))
         results = query.scalars().all()
-        assert results[0].ts == model.ts
-        assert results[0].ts.tzinfo == pendulum.timezone("UTC")
+        assert results[0].ts_1 == model.ts_1
+        assert results[0].ts_1.tzinfo == pendulum.timezone("UTC")
 
 
 class TestJSON:
@@ -329,24 +332,64 @@ class TestJSON:
 
 
 class TestDateFunctions:
-    async def test_date_add(self, session):
-        d1 = pendulum.datetime(2021, 1, 1)
-        i1 = datetime.timedelta(days=3, minutes=5)
+    """Test combinations of Python literals and DB columns"""
 
-        result = await session.execute(sa.select(date_add(d1, i1)))
+    @pytest.fixture(autouse=True)
+    async def create_data(self, session):
+
+        model = SQLTimestampModel(
+            ts_1=pendulum.datetime(2021, 1, 1),
+            ts_2=pendulum.datetime(2021, 1, 4, 0, 5),
+            i_1=datetime.timedelta(days=3, minutes=5),
+            i_2=datetime.timedelta(hours=1, minutes=-17),
+        )
+        session.add(model)
+        await session.commit()
+
+    @pytest.mark.parametrize(
+        "ts_1, i_1",
+        [
+            (pendulum.datetime(2021, 1, 1), datetime.timedelta(days=3, minutes=5)),
+            (pendulum.datetime(2021, 1, 1), SQLTimestampModel.i_1),
+            (SQLTimestampModel.ts_1, datetime.timedelta(days=3, minutes=5)),
+            (SQLTimestampModel.ts_1, SQLTimestampModel.i_1),
+        ],
+    )
+    async def test_date_add(self, session, ts_1, i_1):
+        result = await session.execute(
+            sa.select(date_add(ts_1, i_1)).select_from(SQLTimestampModel)
+        )
         assert result.scalar() == pendulum.datetime(2021, 1, 4, 0, 5)
 
-    async def test_date_diff(self, session):
-        d1 = pendulum.datetime(2021, 1, 1)
-        d2 = pendulum.datetime(2021, 1, 4, 0, 5)
-
-        q = sa.select(date_diff(d2, d1))
-        z = q.compile(session.bind, compile_kwargs={"literal_binds": True})
-        result = await session.execute(q)
+    @pytest.mark.parametrize(
+        "ts_1, ts_2",
+        [
+            (pendulum.datetime(2021, 1, 1), pendulum.datetime(2021, 1, 4, 0, 5)),
+            (pendulum.datetime(2021, 1, 1), SQLTimestampModel.ts_2),
+            (SQLTimestampModel.ts_1, pendulum.datetime(2021, 1, 4, 0, 5)),
+            (SQLTimestampModel.ts_1, SQLTimestampModel.ts_2),
+        ],
+    )
+    async def test_date_diff(self, session, ts_1, ts_2):
+        result = await session.execute(
+            sa.select(date_diff(ts_2, ts_1)).select_from(SQLTimestampModel)
+        )
         assert result.scalar() == datetime.timedelta(days=3, minutes=5)
 
-    async def test_interval_add(self, session):
-        i1 = datetime.timedelta(days=3)
-        i2 = datetime.timedelta(minutes=5)
-        result = await session.execute(sa.select(interval_add(i1, i2)))
-        assert result.scalar() == datetime.timedelta(days=3, minutes=5)
+    @pytest.mark.parametrize(
+        "i_1, i_2",
+        [
+            (
+                datetime.timedelta(days=3, minutes=5),
+                datetime.timedelta(hours=1, minutes=-17),
+            ),
+            (datetime.timedelta(days=3, minutes=5), SQLTimestampModel.i_2),
+            (SQLTimestampModel.i_1, datetime.timedelta(hours=1, minutes=-17)),
+            (SQLTimestampModel.i_1, SQLTimestampModel.i_2),
+        ],
+    )
+    async def test_interval_add(self, session, i_1, i_2):
+        result = await session.execute(
+            sa.select(interval_add(i_1, i_2)).select_from(SQLTimestampModel)
+        )
+        assert result.scalar() == datetime.timedelta(days=3, minutes=48)
