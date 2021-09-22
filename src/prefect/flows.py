@@ -180,6 +180,34 @@ def flow(
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
         final state.
+
+    Examples:
+        Define a simple flow
+
+        >>> from prefect import flow
+        >>> @flow
+        >>> def add(x, y):
+        >>>     return x + y
+
+        Define a flow with a version and description
+
+        >>> @flow(version="first-flow", description="This flow is empty!")
+        >>> def my_flow():
+        >>>     pass
+
+        Define a flow with a custom name
+
+        >>> @flow(name="The Ultimate Flow")
+        >>> def my_flow():
+        >>>     pass
+
+        Define a flow that submits its tasks to dask
+
+        >>> from prefect.executors import DaskExecutor
+        >>> @flow(executor=DaskExecutor)
+        >>> def my_flow():
+        >>>     pass
+
     """
     if __fn:
         return cast(

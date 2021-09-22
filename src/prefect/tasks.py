@@ -40,6 +40,12 @@ P = ParamSpec("P")  # The parameters of the task
 
 
 def task_input_hash(context: "TaskRunContext", arguments: Dict[str, Any]):
+    """
+    A task cache key implementation which hashes all inputs to the task using a JSON or
+    cloudpickle serializer. If any arguments are not JSON serializable, the pickle
+    serializer is used as a fallback. If cloudpickle fails, this will return a null key
+    indicating that a cache key could not be generated for the given inputs.
+    """
     return hash_objects(context.task.fn, arguments)
 
 
@@ -148,12 +154,14 @@ class Task(Generic[P, R]):
 
             Define a task
 
+            >>> from prefect import task
             >>> @task
             >>> def my_task():
             >>>     return "hello"
 
             Run a task in a flow
 
+            >>> from prefect import flow
             >>> @flow
             >>> def my_flow():
             >>>     my_task()
@@ -245,6 +253,44 @@ def task(
 
     Returns:
         A callable `Task` object which, when called, will submit the task for execution.
+
+    Examples:
+        Define a simple task
+
+        >>> from prefect import task
+        >>> @task
+        >>> def add(x, y):
+        >>>     return x + y
+
+        Define a task with tags and a description
+
+        >>> @task(tags={"a", "b"}, description="This task is empty but its my first!")
+        >>> def my_task():
+        >>>     pass
+
+        Define a task with a custom name
+
+        >>> @task(name="The Ultimate Task")
+        >>> def my_task():
+        >>>     pass
+
+        Define a task that retries 3 times with a 5 second delay between attempts
+
+        >>> from random import randint
+        >>> @task(retries=3, retry_delay_seconds=5)
+        >>> def my_task():
+        >>>     x = randint(0, 5)
+        >>>     if x >= 3:  # Make a task that fails sometimes
+        >>>         raise ValueError("Retry me please!")
+        >>>     return x
+
+        Define a task that is cached for a day based on its inputs
+
+        >>> from prefect.tasks import task_input_hash
+        >>> from datetime import timedelta
+        >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
+        >>> def my_task():
+        >>>     return "hello"
     """
     if __fn:
         return cast(
