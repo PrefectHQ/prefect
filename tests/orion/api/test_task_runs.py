@@ -281,7 +281,9 @@ class TestSetTaskRunState:
         assert api_response.state.name == "Awaiting Retry"
         assert api_response.state.type == states.StateType.SCHEDULED
 
-    async def test_failed_can_be_set_with_force(self, task_run, client, session):
+    async def test_set_task_run_state_force_skips_orchestration(
+        self, task_run, client, session
+    ):
         # set max retries to 1
         # copy to trigger ORM updates
         task_run.empirical_policy = task_run.empirical_policy.copy()
