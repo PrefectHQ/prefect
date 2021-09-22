@@ -1,26 +1,20 @@
 <template>
   <div class="component-container">
-    <i
+    <Button
       v-show="showLeftScrollButton"
-      class="
-        pan-button
-        left
-        pi pi-2x pi-arrow-left-s-line
-        text--grey-40
-        cursor-pointer
-      "
+      class="pan-button left"
+      icon="arrow-left-s-line"
+      height="30px"
+      width="50px"
       @click="panLeft"
     />
 
-    <i
-      v-show="showRightScrollButton"
-      class="
-        pan-button
-        right
-        pi pi-2x pi-arrow-right-s-line
-        text--grey-40
-        cursor-pointer
-      "
+    <Button
+      v-show="showLeftScrollButton"
+      class="pan-button right"
+      icon="arrow-right-s-line"
+      height="30px"
+      width="50px"
       @click="panRight"
     />
 
@@ -425,14 +419,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   panLeft(): void {
     this.container.scroll({
-      left: this.container.scrollLeft - this.intervalWidth,
+      left: this.container.scrollLeft - this.width,
       behavior: 'smooth'
     })
   }
 
   panRight(): void {
     this.container.scroll({
-      left: this.container.scrollLeft + this.intervalWidth,
+      left: this.container.scrollLeft + this.width,
       behavior: 'smooth'
     })
   }
