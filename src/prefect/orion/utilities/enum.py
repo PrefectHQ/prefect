@@ -25,3 +25,6 @@ class AutoEnum(Enum):
         Exposes `enum.auto()` to avoid requiring a second import to use `AutoEnum`
         """
         return auto()
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}.{self.value}"
