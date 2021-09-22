@@ -288,13 +288,6 @@ module.exports = {
           ]
         },
         {
-          title: 'Integrations',
-          collapsable: true,
-          children: [
-            'integrations/pagerduty'
-          ]
-        },
-        {
           title: 'FAQ',
           collapsable: true,
           children: getChildren('docs/orchestration', 'faq')
