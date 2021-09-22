@@ -128,6 +128,12 @@ class Flow(Generic[P, R]):
 
             >>> get_result(my_flow("marvin"))
             "goodbye marvin"
+
+            Run a flow with additional tags
+
+            >>> from prefect import tags
+            >>> with tags("db", "blue"):
+            >>>    my_flow("foo")
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
@@ -187,6 +193,12 @@ def flow(
         >>> from prefect import flow
         >>> @flow
         >>> def add(x, y):
+        >>>     return x + y
+
+        Define an async flow
+
+        >>> @flow
+        >>> async def add(x, y):
         >>>     return x + y
 
         Define a flow with a version and description
