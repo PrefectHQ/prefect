@@ -75,10 +75,8 @@ class Flow(Generic[P, R]):
     def __call__(
         self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
     ) -> State[T]:
-        """
-        `NoReturn` matches if a type can't be inferred for the function which stops a
-        sync function from matching the `Coroutine` overload
-        """
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
         ...
 
     @overload
@@ -101,11 +99,11 @@ class Flow(Generic[P, R]):
 
         If writing an async flow, this call must be awaited.
 
-        Will create a new flow run in the backing API.
+        Will create a new flow run in the backing API
 
         Args:
-            *args: Arguments are passed through to the user's function
-            **kwargs: Keyword arguments are passed through to the user's function
+            *args: Arguments to run the flow with
+            **kwargs: Keyword arguments to run the flow with
 
         Returns:
             The final state of the flow run
