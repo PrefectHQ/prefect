@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import flow, get_result
+from prefect import flow, get_result, tags
 from prefect.engine import raise_failed_state
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State, StateType
@@ -159,6 +159,32 @@ class TestTaskCall:
         task_state = get_result(flow_state)
         assert get_result(task_state) == 2
 
+    def test_task_with_variadic_args(self):
+        @task
+        def foo(*foo, bar):
+            return foo, bar
+
+        @flow
+        def test_flow():
+            return foo(1, 2, 3, bar=4)
+
+        flow_state = test_flow()
+        task_state = get_result(flow_state)
+        assert get_result(task_state) == ((1, 2, 3), 4)
+
+    def test_task_with_variadic_keyword_args(self):
+        @task
+        def foo(foo, bar, **foobar):
+            return foo, bar, foobar
+
+        @flow
+        def test_flow():
+            return foo(1, 2, x=3, y=4, z=5)
+
+        flow_state = test_flow()
+        task_state = get_result(flow_state)
+        assert get_result(task_state) == (1, 2, dict(x=3, y=4, z=5))
+
 
 class TestTaskRetries:
     """
@@ -185,7 +211,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.result()
+            return future.run_id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = await get_result(flow_state)
@@ -231,7 +257,7 @@ class TestTaskRetries:
         @flow
         def test_flow():
             future = flaky_function()
-            return future.run_id, future.result()
+            return future.run_id, future.wait()
 
         flow_state = test_flow()
         task_run_id, task_run_state = await get_result(flow_state)
@@ -260,7 +286,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(1).result()
+            return foo(1).wait(), foo(1).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -275,7 +301,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result()
+            return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -292,7 +318,7 @@ class TestTaskCaching:
         def bar():
             foo(1)
             calls = repeat(foo(1), 5)
-            return [call.result() for call in calls]
+            return [call.wait() for call in calls]
 
         flow_state = bar()
         states = get_result(flow_state)
@@ -305,7 +331,7 @@ class TestTaskCaching:
 
         @flow
         def bar(x):
-            return foo(x).result()
+            return foo(x).wait()
 
         first_state = bar(1)
         second_state = bar(2)
@@ -326,7 +352,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(1).result()
+            return foo(1).wait(), foo(1).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -343,7 +369,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo("something").result(), foo("different").result()
+            return foo("something").wait(), foo("different").wait()
 
         first_state, second_state = get_result(bar())
         assert first_state.name == "Completed"
@@ -366,9 +392,9 @@ class TestTaskCaching:
         @flow
         def bar():
             return (
-                foo(1, 2, 3).result(),
-                foo(1, b=2).result(),
-                foo(c=3, a=1, b=2).result(),
+                foo(1, 2, 3).wait(),
+                foo(1, b=2).wait(),
+                foo(c=3, a=1, b=2).wait(),
             )
 
         flow_state = bar()
@@ -390,7 +416,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result()
+            return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -408,7 +434,7 @@ class TestTaskCaching:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result()
+            return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
         first_state, second_state = get_result(flow_state)
@@ -425,7 +451,7 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar():
-            return foo(1).result(), foo(2).result(), foo(1).result()
+            return foo(1).wait(), foo(2).wait(), foo(1).wait()
 
         flow_state = bar()
         first_state, second_state, third_state = get_result(flow_state)
@@ -442,7 +468,7 @@ class TestCacheFunctionBuiltins:
 
         @flow
         def bar(x):
-            return foo(x).result()
+            return foo(x).wait()
 
         first_state = bar(1)
         second_state = bar(2)
@@ -452,3 +478,99 @@ class TestCacheFunctionBuiltins:
         assert third_state.name == "Cached"
         assert get_result(first_state) != get_result(second_state)
         assert get_result(first_state) == get_result(third_state)
+
+
+class TestTaskRunTags:
+    async def test_task_run_tags_added_at_call(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b"}
+
+    async def test_task_run_tags_include_tags_on_task_object(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                future = my_task()
+
+            return future
+
+        @task(tags={"a", "b"})
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b", "c", "d"}
+
+    async def test_task_run_tags_include_flow_run_tags(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("c", "d"):
+                future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        with tags("a", "b"):
+            task_state = await get_result(my_flow())
+
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b", "c", "d"}
+
+    async def test_task_run_tags_not_added_outside_context(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                my_task()
+            future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert not task_run.tags
+
+    async def test_task_run_tags_respects_nesting(self, orion_client):
+        @flow
+        def my_flow():
+            with tags("a", "b"):
+                with tags("c", "d"):
+                    future = my_task()
+
+            return future
+
+        @task
+        def my_task():
+            pass
+
+        task_state = await get_result(my_flow())
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+        assert set(task_run.tags) == {"a", "b", "c", "d"}

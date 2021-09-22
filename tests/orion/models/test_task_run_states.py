@@ -1,17 +1,18 @@
+import datetime
 from uuid import uuid4
 
 import pendulum
 import pytest
 
-from prefect.orion import models
+from prefect.orion import models, schemas
 from prefect.orion.schemas import states
-from prefect.orion.schemas.states import State, StateType, Running, Scheduled, Failed
+from prefect.orion.schemas.states import Failed, Running, Scheduled, State, StateType
 
 
 class TestCreateTaskRunState:
     async def test_create_task_run_state_succeeds(self, task_run, session):
         task_run_state = (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Running(),
@@ -21,7 +22,7 @@ class TestCreateTaskRunState:
         assert task_run_state.type == StateType.RUNNING
 
     async def test_run_details_are_updated_entering_running(self, task_run, session):
-        trs = await models.task_run_states.orchestrate_task_run_state(
+        trs = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=Scheduled(),
@@ -33,7 +34,7 @@ class TestCreateTaskRunState:
         assert task_run.run_count == 0
 
         dt = pendulum.now("UTC")
-        trs2 = await models.task_run_states.orchestrate_task_run_state(
+        trs2 = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=Running(timestamp=dt),
@@ -41,10 +42,10 @@ class TestCreateTaskRunState:
         await session.refresh(task_run)
         assert task_run.start_time == dt
         assert task_run.run_count == 1
-        assert task_run.total_run_time_seconds == 0
+        assert task_run.total_run_time == datetime.timedelta(0)
 
         dt2 = pendulum.now("UTC")
-        trs3 = await models.task_run_states.orchestrate_task_run_state(
+        trs3 = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
             state=Running(timestamp=dt2),
@@ -53,7 +54,7 @@ class TestCreateTaskRunState:
         await session.refresh(task_run)
         assert task_run.start_time == dt
         assert task_run.run_count == 2
-        assert task_run.total_run_time_seconds == (dt2 - dt).total_seconds()
+        assert task_run.total_run_time == (dt2 - dt)
 
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
@@ -63,7 +64,7 @@ class TestCreateTaskRunState:
         await session.flush()
 
         (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Running(),
@@ -71,7 +72,7 @@ class TestCreateTaskRunState:
         ).state
 
         new_state = (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Failed(),
@@ -89,7 +90,7 @@ class TestCreateTaskRunState:
         await session.flush()
 
         (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Running(),
@@ -97,22 +98,43 @@ class TestCreateTaskRunState:
         ).state
 
         new_state = (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Failed(),
-                apply_orchestration_rules=False,
+                force=True,
             )
         ).state
 
         assert new_state.type == StateType.FAILED
+
+    async def test_database_is_not_updated_when_no_transition_takes_place(
+        self, task_run, session
+    ):
+
+        # place the run in a scheduled state in the future
+        trs = await models.task_runs.set_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+        )
+
+        # attempt to put the run in a pending state, which will tell the transition to WAIT
+        trs2 = await models.task_runs.set_task_run_state(
+            session=session, task_run_id=task_run.id, state=Running()
+        )
+
+        assert trs2.status == schemas.responses.SetStateStatus.WAIT
+        # the original state remains in place
+        await session.refresh(task_run)
+        assert task_run.state.id == trs.state.id
 
 
 class TestReadTaskRunState:
     async def test_read_task_run_state(self, task_run, session):
         # create a task run to read
         task_run_state = (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Running(),
@@ -155,7 +177,7 @@ class TestDeleteTaskRunState:
         # create a task run to read
 
         task_run_state = (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=Running(),

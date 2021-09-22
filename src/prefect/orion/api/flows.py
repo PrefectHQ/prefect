@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Path, Response, status
 
+from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
@@ -45,8 +46,7 @@ async def update_flow(
         )
 
 
-# must be defined before `GET /:id`
-@router.get("/count")
+@router.post("/count")
 async def count_flows(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
@@ -96,9 +96,12 @@ async def read_flow(
     return flow
 
 
-@router.get("/")
+@router.post("/filter")
 async def read_flows(
-    pagination: schemas.filters.Pagination = Depends(),
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
@@ -112,8 +115,8 @@ async def read_flows(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
-        offset=pagination.offset,
-        limit=pagination.limit,
+        offset=offset,
+        limit=limit,
     )
 
 
