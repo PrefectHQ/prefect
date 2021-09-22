@@ -167,7 +167,7 @@ class UpdateSubflowParentTask(BaseOrchestrationRule):
             subflow_parent_task_state = schemas.states.State(
                 **task_state_data,
             )
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_run_states.set_task_run_state(
                 session=context.session,
                 state=subflow_parent_task_state,
                 task_run_id=parent_task_run_id,

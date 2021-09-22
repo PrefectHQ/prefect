@@ -74,7 +74,7 @@ class TestReadTaskRun:
     async def test_read_flow_run_with_state(self, task_run, client, session):
         state_id = uuid4()
         (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_run_states.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.State(id=state_id, type="RUNNING"),
@@ -237,7 +237,7 @@ class TestSetTaskRunState:
     async def test_set_task_run_state(self, task_run, client, session):
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
-            json=dict(type="RUNNING", name="Test State"),
+            json=dict(state=dict(type="RUNNING", name="Test State")),
         )
         assert response.status_code == 201
 
@@ -261,7 +261,7 @@ class TestSetTaskRunState:
         await session.flush()
 
         (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_run_states.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.Running(),
@@ -272,7 +272,7 @@ class TestSetTaskRunState:
         # fail the running task run
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
-            json=dict(type="FAILED"),
+            json=dict(state=dict(type="FAILED")),
         )
         assert response.status_code == 201
 
@@ -280,3 +280,30 @@ class TestSetTaskRunState:
         assert api_response.status == responses.SetStateStatus.REJECT
         assert api_response.state.name == "Awaiting Retry"
         assert api_response.state.type == states.StateType.SCHEDULED
+
+    async def test_failed_can_be_set_with_force(self, task_run, client, session):
+        # set max retries to 1
+        # copy to trigger ORM updates
+        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy.max_retries = 1
+        await session.flush()
+
+        (
+            await models.task_run_states.set_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=states.Running(),
+            )
+        ).state
+        await session.commit()
+
+        # fail the running task run
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type="FAILED"), force=True),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+        assert api_response.state.type == states.StateType.FAILED
