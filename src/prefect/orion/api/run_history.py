@@ -132,7 +132,6 @@ async def run_history(
             run_model.estimated_start_time_delta,
             state_model.type.label("state_type"),
             state_model.name.label("state_name"),
-            state_model.timestamp.label("state_timestamp"),
         )
         .select_from(run_model)
         .join(state_model, run_model.state_id == state_model.id),
