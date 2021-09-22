@@ -3,11 +3,12 @@ name: Publish Documentation
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    name: Publish Documentation
     strategy:
       matrix:
         python-version: [ 3.8 ]
