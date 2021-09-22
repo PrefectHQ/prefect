@@ -385,3 +385,49 @@ class TestScheduledRuns:
             assert r.state_type == schemas.states.StateType.SCHEDULED
             assert r.expected_start_time is not None
             assert r.expected_start_time == r.next_scheduled_start_time
+
+    async def test_scheduling_multiple_batches_correctly_updates_runs(
+        self, session, deployment, flow_function, flow
+    ):
+        # ensures that updating flow run states works correctly and doesnt set
+        # any to None inadvertently
+        deployment_2 = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My second deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                flow_id=flow.id,
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+            ),
+        )
+
+        # delete all runs
+        await session.execute(sa.delete(models.orm.FlowRun))
+
+        # schedule runs
+        await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
+        )
+
+        result = await session.execute(
+            sa.select(sa.func.count(models.orm.FlowRun.id)).where(
+                models.orm.FlowRun.state_id.is_(None)
+            )
+        )
+        # no runs with missing states
+        assert result.scalar() == 0
+
+        # schedule more runs from a different deployment
+        await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment_2.id
+        )
+
+        result = await session.execute(
+            sa.select(sa.func.count(models.orm.FlowRun.id)).where(
+                models.orm.FlowRun.state_id.is_(None)
+            )
+        )
+        # no runs with missing states
+        assert result.scalar() == 0

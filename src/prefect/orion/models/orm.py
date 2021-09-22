@@ -1,10 +1,11 @@
-from typing import Union
+import datetime
+from typing import Optional
 
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import Column, ForeignKey, String, Integer, Float, Boolean
+from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_mixin, relationship
 
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
@@ -13,6 +14,9 @@ from prefect.orion.utilities.database import (
     Base,
     Pydantic,
     Timestamp,
+    interval_add,
+    get_dialect,
+    date_diff,
     now,
 )
 from prefect.orion.utilities.functions import ParameterSchema
@@ -130,14 +134,106 @@ class TaskRunStateCache(Base):
     )
 
 
-class FlowRun(Base):
+@declarative_mixin
+class RunMixin:
+    """
+    Common columns and logic for FlowRun and TaskRun models
+    """
+
+    state_type = Column(sa.Enum(states.StateType, name="state_type"))
+    run_count = Column(Integer, server_default="0", default=0, nullable=False)
+    expected_start_time = Column(Timestamp())
+    next_scheduled_start_time = Column(Timestamp())
+    start_time = Column(Timestamp())
+    end_time = Column(Timestamp())
+    total_run_time = Column(
+        sa.Interval(),
+        server_default="0",
+        default=datetime.timedelta(0),
+        nullable=False,
+    )
+
+    @hybrid_property
+    def estimated_run_time(self):
+        """Total run time is incremented in the database whenever a RUNNING
+        state is exited. To give up-to-date estimates, we estimate incremental
+        run time for any runs currently in a RUNNING state."""
+        if self.state and self.state_type == states.StateType.RUNNING:
+            return self.total_run_time + (pendulum.now() - self.state.timestamp)
+        else:
+            return self.total_run_time
+
+    @estimated_run_time.expression
+    def estimated_run_time(cls):
+        # use a correlated subquery to retrieve details from the state table
+        state_table = cls.state.property.target
+        return (
+            sa.select(
+                sa.case(
+                    (
+                        cls.state_type == states.StateType.RUNNING,
+                        interval_add(
+                            cls.total_run_time,
+                            date_diff(now(), state_table.c.timestamp),
+                        ),
+                    ),
+                    else_=cls.total_run_time,
+                )
+            )
+            .select_from(state_table)
+            .where(cls.state_id == state_table.c.id)
+            # add a correlate statement so this can reuse the `FROM` clause
+            # of any parent query
+            .correlate(cls, state_table)
+            .label("estimated_run_time")
+        )
+
+    @hybrid_property
+    def estimated_start_time_delta(self) -> datetime.timedelta:
+        """The delta to the expected start time (or "lateness") is computed as
+        the difference between the actual start time and expected start time. To
+        give up-to-date estimates, we estimate lateness for any runs that don't
+        have a start time and are not in a final state and were expected to
+        start already."""
+        if self.start_time and self.start_time > self.expected_start_time:
+            return (self.start_time - self.expected_start_time).as_interval()
+        elif (
+            self.start_time is None
+            and self.expected_start_time
+            and self.expected_start_time < pendulum.now("UTC")
+            and self.state_type not in states.TERMINAL_STATES
+        ):
+            return (pendulum.now("UTC") - self.expected_start_time).as_interval()
+        else:
+            return datetime.timedelta(0)
+
+    @estimated_start_time_delta.expression
+    def estimated_start_time_delta(cls):
+        return sa.case(
+            (
+                cls.start_time > cls.expected_start_time,
+                date_diff(cls.start_time, cls.expected_start_time),
+            ),
+            (
+                sa.and_(
+                    cls.start_time.is_(None),
+                    cls.state_type.not_in(states.TERMINAL_STATES),
+                    cls.expected_start_time < now(),
+                ),
+                date_diff(now(), cls.expected_start_time),
+            ),
+            else_=datetime.timedelta(0),
+        )
+
+
+class FlowRun(Base, RunMixin):
     flow_id = Column(
         UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
     )
     deployment_id = Column(
         UUID(), ForeignKey("deployment.id", ondelete="set null"), index=True
     )
-    flow_version = Column(String)
+    flow_version = Column(String, index=True)
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     idempotency_key = Column(String)
     context = Column(JSON, server_default="{}", default=dict, nullable=False)
@@ -153,6 +249,7 @@ class FlowRun(Base):
         ),
         index=True,
     )
+    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
@@ -164,19 +261,6 @@ class FlowRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
-    run_count = Column(Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = Column(Timestamp())
-    next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
-    end_time = Column(Timestamp())
-    total_run_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-    total_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-    auto_scheduled = Column(Boolean, server_default="0", default=False, nullable=False)
 
     # -------------------------- relationships
 
@@ -194,6 +278,15 @@ class FlowRun(Base):
 
     @state.setter
     def state(self, value):
+        # because this is a slightly non-standard SQLAlchemy relationship, we
+        # prefer an explicit setter method to a setter property, because
+        # user expectations about SQLAlchemy attribute assignment might not be
+        # met, namely that an unrelated (from SQLAlchemy's perspective) field of
+        # the provided state is also modified. However, property assignment
+        # still works because the ORM model's __init__ depends on it.
+        return self.set_state(value)
+
+    def set_state(self, state: Optional[FlowRunState]):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -201,9 +294,9 @@ class FlowRun(Base):
         relationship, but because this is a one-to-one pointer to a
         one-to-many relationship, SQLAlchemy can't figure it out.
         """
-        if value and value.flow_run_id is None:
-            value.flow_run_id = self.id
-        self._state = value
+        if state is not None:
+            state.flow_run_id = self.id
+        self._state = state
 
     flow = relationship("Flow", back_populates="flow_runs", lazy="raise")
     task_runs = relationship(
@@ -219,23 +312,36 @@ class FlowRun(Base):
         foreign_keys=lambda: [FlowRun.parent_task_run_id],
     )
 
-    # unique index on flow id / idempotency key
-    __table__args__ = (
+    __table_args__ = (
         sa.Index(
             "uq_flow_run__flow_id_idempotency_key",
             flow_id,
             idempotency_key,
             unique=True,
         ),
-        sa.Index("ix_flow_run__expected_start_time_desc", expected_start_time.desc()),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            next_scheduled_start_time.asc(),
-        ),
     )
 
 
-class TaskRun(Base):
+# add indexes after table creation to use mixin columns
+sa.Index(
+    "ix_flow_run__expected_start_time_desc",
+    FlowRun.expected_start_time.desc(),
+)
+sa.Index(
+    "ix_flow_run__next_scheduled_start_time_asc",
+    FlowRun.next_scheduled_start_time.asc(),
+)
+sa.Index(
+    "ix_flow_run__start_time",
+    FlowRun.start_time,
+)
+sa.Index(
+    "ix_flow_run__state_type",
+    FlowRun.state_type,
+)
+
+
+class TaskRun(Base, RunMixin):
     flow_run_id = Column(
         UUID(),
         ForeignKey("flow_run.id", ondelete="cascade"),
@@ -274,19 +380,6 @@ class TaskRun(Base):
         ),
         index=True,
     )
-    state_type = Column(sa.Enum(states.StateType, name="state_type"))
-    run_count = Column(Integer, server_default="0", default=0, nullable=False)
-    expected_start_time = Column(Timestamp())
-    next_scheduled_start_time = Column(Timestamp())
-    start_time = Column(Timestamp())
-    end_time = Column(Timestamp())
-    total_run_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-    total_time_seconds = Column(
-        Float, server_default="0.0", default=0.0, nullable=False
-    )
-
     # -------------------------- relationships
 
     # current states are eagerly loaded unless otherwise specified
@@ -303,6 +396,15 @@ class TaskRun(Base):
 
     @state.setter
     def state(self, value):
+        # because this is a slightly non-standard SQLAlchemy relationship, we
+        # prefer an explicit setter method to a setter property, because
+        # user expectations about SQLAlchemy attribute assignment might not be
+        # met, namely that an unrelated (from SQLAlchemy's perspective) field of
+        # the provided state is also modified. However, property assignment
+        # still works because the ORM model's __init__ depends on it.
+        return self.set_state(value)
+
+    def set_state(self, state: Optional[TaskRunState]):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -310,9 +412,9 @@ class TaskRun(Base):
         relationship, but because this is a one-to-one pointer to a
         one-to-many relationship, SQLAlchemy can't figure it out.
         """
-        if value and value.task_run_id is None:
-            value.task_run_id = self.id
-        self._state = value
+        if state is not None:
+            state.task_run_id = self.id
+        self._state = state
 
     flow_run = relationship(
         FlowRun,
@@ -336,12 +438,26 @@ class TaskRun(Base):
             dynamic_key,
             unique=True,
         ),
-        sa.Index("ix_task_run__expected_start_time_desc", expected_start_time.desc()),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            next_scheduled_start_time.asc(),
-        ),
     )
+
+
+# add indexes after table creation to use mixin columns
+sa.Index(
+    "ix_task_run__expected_start_time_desc",
+    TaskRun.expected_start_time.desc(),
+)
+sa.Index(
+    "ix_task_run__next_scheduled_start_time_asc",
+    TaskRun.next_scheduled_start_time.asc(),
+)
+sa.Index(
+    "ix_task_run__start_time",
+    TaskRun.start_time,
+)
+sa.Index(
+    "ix_task_run__state_type",
+    TaskRun.state_type,
+)
 
 
 class Deployment(Base):

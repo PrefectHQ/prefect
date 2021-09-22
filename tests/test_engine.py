@@ -81,7 +81,7 @@ class TestUserReturnValueToState:
             flow_run_id=None,
             client=None,
             executor=None,
-            _result=state,
+            _final_state=state,
         )
         result_state = await user_return_value_to_state(future)
         assert result_state.data.decode() is state
@@ -102,6 +102,19 @@ class TestGetResult:
     async def test_decodes_state_data(self):
         assert (
             await get_result(Completed(data=DataDocument.encode("json", "hello")))
+            == "hello"
+        )
+
+    async def test_waits_for_futures(self):
+        assert (
+            await get_result(
+                PrefectFuture(
+                    flow_run_id=None,
+                    client=None,
+                    executor=None,
+                    _final_state=Completed(data=DataDocument.encode("json", "hello")),
+                )
+            )
             == "hello"
         )
 
@@ -284,12 +297,13 @@ class TestOrchestrateTaskRun:
         # Mock sleep for a fast test; force transition into a new scheduled state so we
         # don't repeatedly propose the state
         async def reset_scheduled_time(*_):
-            await orion_client.create_task_run_state(
+            await orion_client.set_task_run_state(
                 task_run_id=task_run_id,
                 state=State(
                     type=StateType.SCHEDULED,
                     state_details=StateDetails(scheduled_time=pendulum.now("utc")),
                 ),
+                force=True,
             )
 
         sleep = AsyncMock(side_effect=reset_scheduled_time)
@@ -365,12 +379,13 @@ class TestOrchestrateTaskRun:
         # Mock sleep for a fast test; force transition into a new scheduled state so we
         # don't repeatedly propose the state
         async def reset_scheduled_time(*_):
-            await orion_client.create_task_run_state(
+            await orion_client.set_task_run_state(
                 task_run_id=task_run_id,
                 state=State(
                     type=StateType.SCHEDULED,
                     state_details=StateDetails(scheduled_time=pendulum.now("utc")),
                 ),
+                force=True,
             )
 
         sleep = AsyncMock(side_effect=reset_scheduled_time)
@@ -426,12 +441,13 @@ class TestOrchestrateFlowRun:
         # Mock sleep for a fast test; force transition into a new scheduled state so we
         # don't repeatedly propose the state
         async def reset_scheduled_time(*_):
-            await orion_client.create_flow_run_state(
+            await orion_client.set_flow_run_state(
                 flow_run_id=flow_run_id,
                 state=State(
                     type=StateType.SCHEDULED,
                     state_details=StateDetails(scheduled_time=pendulum.now("utc")),
                 ),
+                force=True,
             )
 
         sleep = AsyncMock(side_effect=reset_scheduled_time)

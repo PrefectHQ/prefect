@@ -9,7 +9,6 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.orchestration.global_policy import update_run_details
 from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
@@ -201,9 +200,10 @@ async def _generate_scheduled_flow_runs(
                 scheduled_time=date,
                 message="Flow run scheduled",
             ),
+            state_type=schemas.states.StateType.SCHEDULED,
+            next_scheduled_start_time=date,
+            expected_start_time=date,
         )
-        # apply run details updates because this state won't go through the orchestration engine
-        update_run_details(initial_state=None, proposed_state=run.state, run=run)
         runs.append(run)
 
     return runs
@@ -264,9 +264,10 @@ async def _insert_scheduled_flow_runs(
             # postgres supports `UPDATE ... FROM` syntax
             stmt = (
                 sa.update(orm.FlowRun)
-                .where(orm.FlowRunState.flow_run_id == orm.FlowRun.id)
                 .where(
-                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states])
+                    orm.FlowRun.id.in_(inserted_flow_run_ids),
+                    orm.FlowRunState.flow_run_id == orm.FlowRun.id,
+                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
                 )
                 .values(state_id=orm.FlowRunState.id)
                 # no need to synchronize as these flow runs are entirely new
@@ -284,10 +285,15 @@ async def _insert_scheduled_flow_runs(
                 .scalar_subquery()
             )
             stmt = (
-                sa.update(orm.FlowRun).values(state_id=subquery)
+                sa.update(orm.FlowRun)
+                .where(
+                    orm.FlowRun.id.in_(inserted_flow_run_ids),
+                )
+                .values(state_id=subquery)
                 # no need to synchronize as these flow runs are entirely new
                 .execution_options(synchronize_session=False)
             )
+
         await session.execute(stmt)
 
     return [r for r in runs if r.id in inserted_flow_run_ids]

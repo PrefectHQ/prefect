@@ -1,20 +1,21 @@
 """
 Client-side execution of flows and tasks
 """
-import time
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, TypeVar, Union, overload
+from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
 from uuid import UUID
 
 import pendulum
+import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
-from prefect.context import FlowRunContext, TaskRunContext
+from prefect.context import FlowRunContext, TaskRunContext, TagsContext
+from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, future_to_state, resolve_futures
@@ -35,14 +36,22 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
+from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
+from prefect.serializers import resolve_datadoc
 
 R = TypeVar("R")
 
 
-def enter_flow_run_engine(
+def enter_flow_run_engine_from_flow_call(
     flow: Flow, parameters: Dict[str, Any]
 ) -> Union[State, Awaitable[State]]:
+    """
+    Sync entrypoint for flow calls
+
+    This function does the heavy lifting of ensuring we can get into an async context
+    for flow run execution with minimal overhead.
+    """
     if TaskRunContext.get():
         raise RuntimeError(
             "Flows cannot be called from within tasks. Did you mean to call this "
@@ -53,7 +62,7 @@ def enter_flow_run_engine(
     is_subflow_run = parent_flow_run_context is not None
 
     begin_run = partial(
-        begin_subflow_run if is_subflow_run else begin_flow_run,
+        create_and_begin_subflow_run if is_subflow_run else create_then_begin_flow_run,
         flow=flow,
         parameters=parameters,
     )
@@ -74,31 +83,84 @@ def enter_flow_run_engine(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
+def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
+    """
+    Sync entrypoint for flow runs that have been submitted for execution by an agent
+
+    Differs from `enter_flow_run_engine_from_flow_call` in that we have a flow run id
+    but not a flow object. The flow must be retrieved before execution can begin.
+    Additionally, this assumes that the caller is always in a context without an event
+    loop as this should be called from a fresh process.
+    """
+    return anyio.run(retrieve_flow_then_begin_flow_run, flow_run_id)
+
+
 @inject_client
-async def begin_flow_run(
-    flow: Flow,
-    parameters: Dict[str, Any],
-    client: OrionClient,
+async def create_then_begin_flow_run(
+    flow: Flow, parameters: Dict[str, Any], client: OrionClient
 ) -> State:
     """
     Async entrypoint for flow calls
 
-    When flows are called, they
-    - create a flow run
-    - start an executor
-    - orchestrate the flow run (run the user-function and generate tasks)
-    - wait for tasks to complete / shutdown the executor
-    - set a terminal state for the flow run
-
-    This function then returns a fake future containing the terminal state.
-    # TODO: Flow calls should not return futures since they block.
+    Creates the flow run in the backend then enters the main flow rum engine
     """
     flow_run_id = await client.create_flow_run(
         flow,
         parameters=parameters,
         state=Pending(),
+        tags=TagsContext.get().current_tags,
+    )
+    return await begin_flow_run(
+        flow=flow, parameters=parameters, flow_run_id=flow_run_id, client=client
     )
 
+
+@inject_client
+async def retrieve_flow_then_begin_flow_run(
+    flow_run_id: UUID, client: OrionClient
+) -> State:
+    """
+    Async entrypoint for flow runs that have been submitted for execution by an agent
+
+    - Retrieves the deployment information
+    - Loads the flow object using deployment information
+    - Updates the flow run version
+    """
+    flow_run = await client.read_flow_run(flow_run_id)
+    deployment = await client.read_deployment(flow_run.deployment_id)
+    flow = await load_flow_from_deployment(deployment, client=client)
+
+    await client.update_flow_run(
+        flow_run_id=flow_run_id,
+        flow_version=flow.version,
+        parameters=flow_run.parameters,
+    )
+    await client.propose_state(Pending(), flow_run_id=flow_run_id)
+
+    return await begin_flow_run(
+        flow=flow,
+        parameters=flow_run.parameters,
+        flow_run_id=flow_run_id,
+        client=client,
+    )
+
+
+async def begin_flow_run(
+    flow_run_id: UUID,
+    flow: Flow,
+    parameters: Dict[str, Any],
+    client: OrionClient,
+) -> State:
+    """
+    Begins execution of a flow run; blocks until completion of the flow run
+
+    - Starts an executor
+    - Orchestrates the flow run (runs the user-function and generates tasks)
+    - Waits for tasks to complete / shutsdown the executor
+    - Sets a terminal state for the flow run
+
+    Returns the terminal state
+    """
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -123,7 +185,7 @@ async def begin_flow_run(
 
 
 @inject_client
-async def begin_subflow_run(
+async def create_and_begin_subflow_run(
     flow: Flow,
     parameters: Dict[str, Any],
     client: OrionClient,
@@ -132,11 +194,10 @@ async def begin_subflow_run(
     Async entrypoint for flows calls within a flow run
 
     Subflows differ from parent flows in that they
-    - use the existing parent flow executor
-    - create a dummy task for representation in the parent flow
+    - Use the existing parent flow executor
+    - Create a dummy task for representation in the parent flow
 
-    This function then returns a fake future containing the terminal state.
-    # TODO: Flow calls should not return futures since they block.
+    Returns the terminal state
     """
     parent_flow_run_context = FlowRunContext.get()
 
@@ -151,6 +212,7 @@ async def begin_subflow_run(
         parameters=parameters,
         parent_task_run_id=parent_task_run_id,
         state=Pending(),
+        tags=TagsContext.get().current_tags,
     )
 
     terminal_state = await orchestrate_flow_run(
@@ -187,12 +249,6 @@ async def orchestrate_flow_run(
     sync_portal: BlockingPortal,
 ) -> State:
     """
-    TODO: Note that pydantic will now coerce parameter types into the correct type
-          even if the user wants failure on inexact type matches. We may want to
-          implement a strict runtime typecheck with a configuration flag
-    TODO: `validate_arguments` can throw an error while wrapping `fn` if the
-          signature is not pydantic-compatible. We'll want to confirm that it will
-          work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
     await client.propose_state(Running(), flow_run_id=flow_run_id)
@@ -205,7 +261,11 @@ async def orchestrate_flow_run(
             executor=executor,
             sync_portal=sync_portal,
         ):
-            flow_call = partial(validate_arguments(flow.fn), **parameters)
+            # Validate the parameters before the call; raises an exception if invalid
+            if flow.should_validate_parameters:
+                parameters = flow.validate_parameters(parameters)
+
+            flow_call = partial(call_with_parameters, flow.fn, parameters)
             if flow.isasync:
                 result = await flow_call()
             else:
@@ -274,11 +334,11 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
-
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=Pending(),
+        extra_tags=TagsContext.get().current_tags,
     )
 
     future = await flow_run_context.executor.submit(
@@ -329,7 +389,7 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
-                result = task.fn(**parameters)
+                result = call_with_parameters(task.fn, parameters)
                 if task.isasync:
                     result = await result
         except Exception as exc:
@@ -427,19 +487,31 @@ async def user_return_value_to_state(
 
 
 @overload
-async def get_result(state: State[R], raise_failures: bool = True) -> R:
+async def get_result(
+    state_or_future: Union[PrefectFuture[R], State[R]], raise_failures: bool = True
+) -> R:
     ...
 
 
 @overload
 async def get_result(
-    state: State[R], raise_failures: bool = False
+    state_or_future: Union[PrefectFuture[R], State[R]], raise_failures: bool = False
 ) -> Union[R, Exception]:
     ...
 
 
 @sync_compatible
-async def get_result(state, raise_failures: bool = True):
+async def get_result(state_or_future, raise_failures: bool = True):
+    if isinstance(state_or_future, PrefectFuture):
+        state = await state_or_future.wait()
+    elif isinstance(state_or_future, State):
+        state = state_or_future
+    else:
+        raise TypeError(
+            f"Unexpected type {type(state_or_future).__name__!r} for `get_result`. "
+            "Expected `State` or `PrefectFuture`"
+        )
+
     if state.is_failed() and raise_failures:
         return await raise_failed_state(state)
 
@@ -472,17 +544,9 @@ async def raise_failed_state(state: State) -> None:
         )
 
 
-@inject_client
-async def resolve_datadoc(datadoc: DataDocument, client: OrionClient) -> Any:
-    if not isinstance(datadoc, DataDocument):
-        raise TypeError(
-            f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
-        )
-    result = datadoc
-    while isinstance(result, DataDocument):
-        if result.encoding == "orion":
-            inner_doc_bytes = await client.retrieve_data(result)
-            result = DataDocument.parse_raw(inner_doc_bytes)
-        else:
-            result = result.decode()
-    return result
+@contextmanager
+def tags(*new_tags: str) -> Set[str]:
+    current_tags = TagsContext.get().current_tags
+    new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=new_tags):
+        yield new_tags
