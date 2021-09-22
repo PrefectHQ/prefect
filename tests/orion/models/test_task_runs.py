@@ -303,6 +303,13 @@ class TestReadTaskRuns:
                 start_time=now.add(minutes=1),
             ),
         )
+        task_run_3 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key-2",
+            ),
+        )
 
         # before_
         result = await models.task_runs.read_task_runs(
@@ -352,6 +359,22 @@ class TestReadTaskRuns:
             ),
         )
         assert {res.id for res in result} == {task_run_1.id}
+
+        # is_null_
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                start_time=schemas.filters.TaskRunFilterStartTime(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {task_run_3.id}
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                start_time=schemas.filters.TaskRunFilterStartTime(is_null_=False)
+            ),
+        )
+        assert {res.id for res in result} == {task_run_1.id, task_run_2.id}
 
     async def test_read_task_runs_filters_by_flow_run_criteria(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(
