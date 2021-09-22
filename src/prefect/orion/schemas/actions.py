@@ -75,3 +75,16 @@ class FlowRunCreate(
 ):
     # FlowRunCreate states must be provided as StateCreate objects
     state: StateCreate = None
+
+
+SavedSearchCreate = schemas.core.SavedSearch.subclass(
+    name="SavedSearchCreate",
+    include_fields=[
+        "name",
+        "filter_obj",
+        "flow_filter_criteria",
+        "flow_run_filter_criteria",
+        "task_run_filter_criteria",
+        "deployment_filter_criteria",
+    ],
+)

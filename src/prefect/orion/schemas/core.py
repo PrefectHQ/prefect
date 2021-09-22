@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict, List, Union
+from typing import Dict, List
 from uuid import UUID
 
 from pydantic import Field
@@ -142,6 +142,23 @@ class Deployment(ORMBaseModel):
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
 
     # flow: Flow = None
+
+
+class SavedSearch(ORMBaseModel):
+    name: str
+    filter_obj: schemas.filters.SavedFilterObjectTypes
+    flow_filter_criteria: schemas.filters.FlowFilterCriteria = Field(
+        default_factory=schemas.filters.FlowFilterCriteria
+    )
+    flow_run_filter_criteria: schemas.filters.FlowRunFilterCriteria = Field(
+        default_factory=schemas.filters.FlowRunFilterCriteria
+    )
+    task_run_filter_criteria: schemas.filters.TaskRunFilterCriteria = Field(
+        default_factory=schemas.filters.TaskRunFilterCriteria
+    )
+    deployment_filter_criteria: schemas.filters.DeploymentFilterCriteria = Field(
+        default_factory=schemas.filters.DeploymentFilterCriteria
+    )
 
 
 Flow.update_forward_refs()

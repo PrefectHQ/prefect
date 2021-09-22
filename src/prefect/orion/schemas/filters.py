@@ -10,6 +10,7 @@ from prefect.orion import schemas
 from prefect.orion.models import orm
 from prefect.orion.utilities.database import json_has_all_keys
 from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.utilities.enum import AutoEnum
 
 
 class PrefectFilterBaseModel(PrefectBaseModel):
@@ -463,3 +464,37 @@ class DeploymentFilter(PrefectFilterBaseModel):
             filters.append(self.tags.as_sql_filter())
 
         return filters
+
+
+class SavedFilterObjectTypes(AutoEnum):
+    """Objects to which saved filters can be applied"""
+
+    FLOW = AutoEnum.auto()
+    FLOW_RUN = AutoEnum.auto()
+    TASK_RUN = AutoEnum.auto()
+    DEPLOYMENT = AutoEnum.auto()
+
+
+class BaseFilterCriteria(PrefectBaseModel):
+    """Filter criteria for common objects in the system"""
+
+    flow_filter: Optional[FlowFilter]
+    flow_run_filter: Optional[FlowRunFilter]
+    task_run_filter: Optional[TaskRunFilter]
+    deployment_filter: Optional[DeploymentFilter]
+
+
+class FlowFilterCriteria(BaseFilterCriteria):
+    """Criteria by which flows can be filtered"""
+
+
+class FlowRunFilterCriteria(BaseFilterCriteria):
+    """Criteria by which flow runs can be filtered"""
+
+
+class TaskRunFilterCriteria(BaseFilterCriteria):
+    """Criteria by which task runs can be filtered"""
+
+
+class DeploymentFilterCriteria(BaseFilterCriteria):
+    """Criteria by which deployments can be filtered"""
