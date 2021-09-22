@@ -79,7 +79,10 @@ async def create_task_run(
 
     if model.created >= now and task_run.state:
         await models.task_runs.set_task_run_state(
-            session=session, task_run_id=model.id, state=task_run.state
+            session=session,
+            task_run_id=model.id,
+            state=task_run.state,
+            force=True,
         )
     return model
 
