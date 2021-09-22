@@ -179,7 +179,8 @@ def flow(
             wrapped function. If the file cannot be located, the version will be null.
         executor: An optional executor to use for task execution within the flow. If
             not provided, a `LocalExecutor` will be instantiated.
-        description: An optional string description for the flow.
+        description: An optional string description for the flow. If not provided, the
+            description will be pulled from the docstring for the decorated function.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
