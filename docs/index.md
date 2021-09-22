@@ -16,6 +16,9 @@ Some words.
 
 All it requires is a few things, just follow the [tutorial](tutorial.md).
 
+- Installation
+- Tutorial
+
 ## [Concepts](concepts.md)
 
 Deep dive into our [concept docs](concepts.md) to really understand the power of the system.
