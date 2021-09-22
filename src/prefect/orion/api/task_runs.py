@@ -148,7 +148,7 @@ async def set_task_run_state(
     force: bool = Body(
         False,
         description=(
-            "if False, orchestration rules will be applied that may alter "
+            "If false, orchestration rules will be applied that may alter "
             "or prevent the state transition. If True, orchestration rules are not applied."
         ),
     ),
