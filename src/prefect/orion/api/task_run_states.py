@@ -11,26 +11,6 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/task_run_states", tags=["Task Run States"])
 
 
-@router.post("/")
-async def create_task_run_state(
-    task_run_id: UUID = Body(...),
-    state: schemas.actions.StateCreate = Body(...),
-    session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.states.State:
-    """
-    Create a task run state, disregarding orchestration logic
-    """
-    return (
-        await models.task_run_states.orchestrate_task_run_state(
-            session=session,
-            # convert to a full State object
-            state=schemas.states.State.parse_obj(state),
-            task_run_id=task_run_id,
-            apply_orchestration_rules=False,
-        )
-    ).state
-
-
 @router.get("/{id}")
 async def read_task_run_state(
     task_run_state_id: UUID = Path(
