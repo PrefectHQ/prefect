@@ -107,6 +107,7 @@ export default class TimelineView extends Vue {
 
   async getTaskRuns(id: string) {
     if (!this.selected) return
+    // TODO: Move polling to global utility functions that we can turn on/off
     const runs = await fetch('http://localhost:8000/task_runs/filter', {
       method: 'POST',
       headers: {
