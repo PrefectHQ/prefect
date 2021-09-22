@@ -8,7 +8,7 @@ async def test_hello_world(client):
 
 
 class TestSettings:
-    async def test_hello_world(self, client):
+    async def test_read_settings(self, client):
         response = await client.get("/admin/settings")
         assert response.status_code == 200
         parsed_settings = prefect.utilities.settings.Settings.parse_obj(
