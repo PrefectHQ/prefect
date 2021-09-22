@@ -7,7 +7,7 @@ from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declarative_mixin, relationship
 
-from prefect.orion.schemas import core, data, schedules, states
+from prefect.orion.schemas import core, data, schedules, states, filters
 from prefect.orion.utilities.database import (
     JSON,
     UUID,
@@ -478,4 +478,36 @@ class Deployment(Base):
             name,
             unique=True,
         ),
+    )
+
+
+class SavedSearch(Base):
+    name = Column(String, nullable=False, unique=True)
+    filter_obj = Column(
+        sa.Enum(filters.SavedFilterObjectTypes, name="saved_filter_obj_type"),
+        nullable=False,
+    )
+    flow_filter_criteria = Column(
+        Pydantic(filters.FlowFilterCriteria),
+        server_default="{}",
+        default=filters.FlowFilterCriteria,
+        nullable=False,
+    )
+    flow_run_filter_criteria = Column(
+        Pydantic(filters.FlowRunFilterCriteria),
+        server_default="{}",
+        default=filters.FlowRunFilterCriteria,
+        nullable=False,
+    )
+    task_run_filter_criteria = Column(
+        Pydantic(filters.TaskRunFilterCriteria),
+        server_default="{}",
+        default=filters.TaskRunFilterCriteria,
+        nullable=False,
+    )
+    deployment_filter_criteria = Column(
+        Pydantic(filters.DeploymentFilterCriteria),
+        server_default="{}",
+        default=filters.DeploymentFilterCriteria,
+        nullable=False,
     )
