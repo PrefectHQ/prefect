@@ -7,10 +7,8 @@ if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
 
     from mock import AsyncMock
-    from typing_extensions import Literal
 else:
     from unittest.mock import AsyncMock
-    from typing import Literal
 
 
 if sys.version_info < (3, 9):
