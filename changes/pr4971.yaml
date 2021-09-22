@@ -1,2 +1,0 @@
-enhancement:
-  - "Allow disabling retries for a task with `max_retries=0` when retries are globally configured - [#4971](https://github.com/PrefectHQ/prefect/pull/4971)"
