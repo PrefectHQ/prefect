@@ -406,6 +406,21 @@ class TestSetFlowRunState:
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
 
+    async def test_set_flow_run_errors_if_client_provides_timestamp(
+        self, flow_run, client
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="RUNNING",
+                    name="Test State",
+                    timestamp=str(pendulum.now().add(months=1)),
+                )
+            ),
+        )
+        assert response.status_code == 422
+
     async def test_set_flow_run_state_force_skips_orchestration(
         self, flow_run, client, session
     ):

@@ -78,7 +78,7 @@ class TestUserReturnValueToState:
         # flow state
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
-            flow_run_id=None,
+            run_id=None,
             client=None,
             executor=None,
             _final_state=state,
@@ -109,7 +109,7 @@ class TestGetResult:
         assert (
             await get_result(
                 PrefectFuture(
-                    flow_run_id=None,
+                    run_id=None,
                     client=None,
                     executor=None,
                     _final_state=Completed(data=DataDocument.encode("json", "hello")),

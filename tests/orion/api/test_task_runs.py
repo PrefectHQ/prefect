@@ -253,6 +253,21 @@ class TestSetTaskRunState:
         assert run.state.name == "Test State"
         assert run.run_count == 1
 
+    async def test_set_task_run_errors_if_client_provides_timestamp(
+        self, flow_run, client
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="RUNNING",
+                    name="Test State",
+                    timestamp=str(pendulum.now().add(months=1)),
+                )
+            ),
+        )
+        assert response.status_code == 422
+
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
         # copy to trigger ORM updates

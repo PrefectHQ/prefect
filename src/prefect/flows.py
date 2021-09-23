@@ -1,9 +1,9 @@
 """
 Base workflow class and decorator
-
-This file requires type-checking with pyright because mypy does not yet support PEP612
-See https://github.com/python/mypy/issues/8645
 """
+# This file requires type-checking with pyright because mypy does not yet support PEP612
+# See https://github.com/python/mypy/issues/8645
+
 import inspect
 from functools import update_wrapper, partial
 from typing import (
@@ -16,6 +16,8 @@ from typing import (
     overload,
     Generic,
     NoReturn,
+    Union,
+    Type,
     Dict,
 )
 
@@ -41,15 +43,35 @@ P = ParamSpec("P")  # The parameters of the flow
 
 class Flow(Generic[P, R]):
     """
-    Base class representing Prefect workflows.
+    A Prefect workflow definition
+
+    We recommend using the `@flow` decorator for most use-cases.
+
+    Wraps a function with an entrypoint to the Prefect engine. To preserve the input
+    and output types, we use the generic type variables P and R for "Parameters" and
+    "Returns" respectively.
+
+    Args:
+        fn: The function defining the workflow
+        name: An optional name for the flow; if not provided, the name will be inferred
+            from the given function.
+        version: An optional version string for the flow; if not provided, we will
+            attempt to create a version string as a hash of the file containing the
+            wrapped function; if the file cannot be located, the version will be null.
+        executor: An optional executor to use for task execution within the flow; if
+            not provided, a `LocalExecutor` will be instantiated.
+        description: An optional string description for the flow; if not provided, the
+            description will be pulled from the docstring for the decorated function.
     """
 
+    # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
+    #       exactly in the @flow decorator
     def __init__(
         self,
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        executor: BaseExecutor = None,
+        executor: Union[Type[BaseExecutor], BaseExecutor] = LocalExecutor,
         description: str = None,
         validate_parameters: bool = True,
     ):
@@ -57,7 +79,7 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        self.executor = executor or LocalExecutor()
+        self.executor = executor() if isinstance(executor, type) else executor
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -116,10 +138,8 @@ class Flow(Generic[P, R]):
     def __call__(
         self: "Flow[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
     ) -> State[T]:
-        """
-        `NoReturn` matches if a type can't be inferred for the function which stops a
-        sync function from matching the `Coroutine` overload
-        """
+        # `NoReturn` matches if a type can't be inferred for the function which stops a
+        # sync function from matching the `Coroutine` overload
         ...
 
     @overload
@@ -137,6 +157,45 @@ class Flow(Generic[P, R]):
         *args: "P.args",
         **kwargs: "P.kwargs",
     ):
+        """
+        Run the flow.
+
+        If writing an async flow, this call must be awaited.
+
+        Will create a new flow run in the backing API
+
+        Args:
+            *args: Arguments to run the flow with
+            **kwargs: Keyword arguments to run the flow with
+
+        Returns:
+            The final state of the flow run
+
+        Examples:
+
+            Define a flow
+
+            >>> @flow
+            >>> def my_flow(name):
+            >>>     print(f"hello {name}")
+            >>>     return f"goodbye {name}"
+
+            Run a flow
+
+            >>> my_flow("marvin")
+            hello marvin
+
+            Run a flow and get the returned result
+
+            >>> get_result(my_flow("marvin"))
+            "goodbye marvin"
+
+            Run a flow with additional tags
+
+            >>> from prefect import tags
+            >>> with tags("db", "blue"):
+            >>>    my_flow("foo")
+        """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
         # Convert the call args/kwargs to a parameter dict
@@ -155,7 +214,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = None,
+    executor: BaseExecutor = LocalExecutor,
     description: str = None,
     validate_parameters: bool = True,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
@@ -167,10 +226,64 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = None,
+    executor: BaseExecutor = LocalExecutor,
     description: str = None,
     validate_parameters: bool = True,
 ):
+    """
+    Decorator to designate a function as a Prefect workflow.
+
+    This decorator may be used for asynchronous or synchronous functions.
+
+    Args:
+        name: An optional name for the flow; if not provided, the name will be inferred
+            from the given function.
+        version: An optional version string for the flow; if not provided, we will
+            attempt to create a version string as a hash of the file containing the
+            wrapped function; if the file cannot be located, the version will be null.
+        executor: An optional executor to use for task execution within the flow; if
+            not provided, a `LocalExecutor` will be instantiated.
+        description: An optional string description for the flow; if not provided, the
+            description will be pulled from the docstring for the decorated function.
+
+    Returns:
+        A callable `Flow` object which, when called, will run the flow and return its
+        final state.
+
+    Examples:
+        Define a simple flow
+
+        >>> from prefect import flow
+        >>> @flow
+        >>> def add(x, y):
+        >>>     return x + y
+
+        Define an async flow
+
+        >>> @flow
+        >>> async def add(x, y):
+        >>>     return x + y
+
+        Define a flow with a version and description
+
+        >>> @flow(version="first-flow", description="This flow is empty!")
+        >>> def my_flow():
+        >>>     pass
+
+        Define a flow with a custom name
+
+        >>> @flow(name="The Ultimate Flow")
+        >>> def my_flow():
+        >>>     pass
+
+        Define a flow that submits its tasks to dask
+
+        >>> from prefect.executors import DaskExecutor
+        >>> @flow(executor=DaskExecutor)
+        >>> def my_flow():
+        >>>     pass
+
+    """
     if __fn:
         return cast(
             Flow[P, R],
