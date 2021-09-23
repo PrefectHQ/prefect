@@ -145,7 +145,7 @@
 
 <script lang="ts">
 import { Options, Vue, setup } from 'vue-class-component'
-import { Api, Endpoints, FlowFilter, Query } from '@/plugins/api'
+import { Api, Endpoints, FlowsFilter, Query } from '@/plugins/api'
 
 import {
   default as RunHistoryChart,
@@ -191,9 +191,7 @@ export default class Dashboard extends Vue {
 
   resultsTab: string = 'deployments'
 
-  flowsFilter: FlowFilter = {
-    id: { any_: ['574260d3-00e4-448e-9095-977a832241d3'] }
-  }
+  flowsFilter: FlowsFilter = {}
 
   flowsQuery: Query = Api.query(Endpoints.flows, this.flowsFilter, {
     pollInterval: 2000
