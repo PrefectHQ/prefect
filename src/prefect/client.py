@@ -430,6 +430,7 @@ class OrionClient:
 
         # Exchange the user data document for an orion data document
         if state.data:
+            state = state.copy()
             state.data = await self.persist_data(state.data.json().encode())
 
         # Attempt to set the state
@@ -465,8 +466,8 @@ class OrionClient:
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
-
             return server_state
+
         else:
             raise ValueError(
                 f"Received unexpected `SetStateStatus` from server: {response.status!r}"
