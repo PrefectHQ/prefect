@@ -434,7 +434,7 @@ class TestApplyMap:
         assert state.result[d].result == [3, 5, 7, 9]
 
     def test_apply_map_inputs_added_to_subflow_before_calling_func(self):
-        """We need to ensure all args to `appy_map` are added to the temporary
+        """We need to ensure all args to `apply_map` are added to the temporary
         subflow *before* calling the mapped func. Otherwise things like
         `case`/`resource_manager` statements that check the subgraph can get
         confused and create new edges that shouldn't exist, leading to cycles."""
@@ -458,6 +458,46 @@ class TestApplyMap:
 
         state = flow.run()
         assert state.result[c].result == [2, 6, 4]
+
+    @pytest.mark.parametrize("input_type", ["constant", "task"])
+    def test_apply_map_flatten_works(self, input_type):
+        def func(a):
+            return a * 2
+
+        @tasks.task
+        def nested_list():
+            return [[1], [1, 2], [1, 2, 3]]
+
+        constant_nested = nested_list.run()
+
+        with Flow("test") as flow:
+            nested = nested_list()
+            if input_type == "constant":
+                a = apply_map(func, edges.flatten(nested))
+            else:
+                a = apply_map(func, edges.flatten(constant_nested))
+
+        state = flow.run()
+        assert state.result[a].result == [2, 2, 4, 2, 4, 6]
+
+    def test_apply_map_mixed_edge_types(self):
+        @tasks.task
+        def get_mixed_types():
+            return 3, [1, 2, 3], [[1, 2], [3]]
+
+        @tasks.task
+        def identity(a, b, c):
+            return a, b, c
+
+        def func(u, m, f):
+            return identity(u, m, f)
+
+        with Flow("test") as flow:
+            m = get_mixed_types()
+            a = apply_map(func, edges.unmapped(m[0]), m[1], edges.flatten(m[2]))
+
+        state = flow.run()
+        assert state.result[a].result == [(3, 1, 1), (3, 2, 2), (3, 3, 3)]
 
 
 class TestAsTask:
