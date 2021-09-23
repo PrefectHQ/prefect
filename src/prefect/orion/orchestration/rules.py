@@ -332,7 +332,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         """
         Determines if a rule is invalid.
 
-        Invalid rules do nothing and no hooks upon entering or exiting a governed
+        Invalid rules do nothing and no hooks fire upon entering or exiting a governed
         context. Rules are invalid if the transition states types are not contained in
         `self.FROM_STATES` and `self.TO_STATES`, or if the context is proposing
         a transition that differs from the transition the rule was instantiated with.
@@ -448,7 +448,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         reason for aborting the transition is also provided.
 
         Args:
-            reason: The reason for delaying the transition
+            reason: The reason for aborting the transition
         """
 
         # don't run if the transition is already validated
