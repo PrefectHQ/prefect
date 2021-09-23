@@ -420,6 +420,7 @@ async def orchestrate_task_run(
         Running(state_details=StateDetails(cache_key=cache_key)),
         task_run_id=task_run_id,
     )
+    terminal_state = None
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
@@ -466,8 +467,12 @@ async def orchestrate_task_run(
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run_id)
 
+    # Display the local terminal state if we can because it wont have been serialized
+    # but fall back to the `state` object which will have a value even if the task did
+    # not run
+    display_state = terminal_state or state
     logger.info(
-        f"Task run {task_run_name!r} finished with state {prefect_repr(terminal_state)}"
+        f"Task run {task_run_name!r} finished with state {prefect_repr(display_state)}"
     )
     return state
 
