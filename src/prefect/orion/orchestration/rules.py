@@ -184,15 +184,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     Attributes:
         FROM_STATES: list of valid initial state types this rule governs
         TO_STATES: list of valid proposed state types this rule governs
+        context: the orchestration context
+        from_state_type: the state type a run is currently in
+        to_state_type: the proposed state type a run is transitioning into
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
             passed between rules
-        from_state_type: The state state type of the initial state, if this state type
-            is not contained in `FROM_STATES`, no hooks will fire
+        from_state_type: The state state type of the initial state of a run, if this
+            state type is not contained in `FROM_STATES`, no hooks will fire
         to_state_type: The state type of the proposed state before orchestration, if
             this state type is not contained in `TO_STATES`, no hooks will fire
-
     """
 
     FROM_STATES: Iterable = []
@@ -210,6 +212,15 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self._invalid_on_entry = None
 
     async def __aenter__(self) -> OrchestrationContext:
+        """
+        Enter an async runtime context governed by this rule.
+
+        The `with` statement will bind a governed `OrchestrationContext` to the target
+        specified by the `as` clause. If the transition proposed by the
+        `OrchestrationContext` is considered invalid on entry, entering this context
+        will do nothing. Otherwise, `self.before_transition` will fire.
+        """
+
         if await self.invalid():
             pass
         else:
@@ -224,6 +235,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        """
+        Exit the async runtime context governed by this rule.
+
+        One of three outcomes can happen upon exiting this rule's context depending on
+        the state of the rule. If the rule was found to be invalid on entry, nothing
+        happens. If the rule was valid on entry and continues to be valid on exit,
+        `self.after_transition` will fire. If the rule was valid on entry but invalid
+        on exit, the rule will "fizzle" and `self.cleanup` will fire in order to revert
+        any side-effects produced by `self.before_transition`.
+        """
+
         exit_context = self.context.exit_context()
         if await self.invalid():
             pass
