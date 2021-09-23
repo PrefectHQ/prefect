@@ -37,7 +37,7 @@ async def commit_task_run_state(
     ):
         state_details.update({"scheduled_time": pendulum.now()})
 
-    new_state = schemas.actions.StateCreate(
+    new_state = schemas.states.State(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
