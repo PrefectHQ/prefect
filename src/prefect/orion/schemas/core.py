@@ -104,6 +104,7 @@ class Deployment(ORMBaseModel):
     flow_data: schemas.data.DataDocument
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     is_schedule_active: bool = True
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
 
     # flow: Flow = None
 
