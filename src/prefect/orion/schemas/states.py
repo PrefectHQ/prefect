@@ -31,6 +31,8 @@ TERMINAL_STATES = {
 class StateDetails(PrefectBaseModel):
     flow_run_id: UUID = None
     task_run_id: UUID = None
+    # for task runs that represent subflows, the subflow's run ID
+    child_flow_run_id: UUID = None
     scheduled_time: datetime.datetime = None
     cache_key: str = None
     cache_expiration: datetime.datetime = None
@@ -103,6 +105,12 @@ class State(IDBaseModel, Generic[R]):
         update = update or {}
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
+
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __repr__(self) -> str:
+        return super().__repr__()
 
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
