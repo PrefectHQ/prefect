@@ -11,7 +11,6 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Iterable,
     TypeVar,
     cast,
     overload,
@@ -31,7 +30,7 @@ from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
-    parameters_to_positional_and_keyword,
+    parameters_to_args_kwargs,
 )
 from prefect.utilities.hashing import file_hash
 
@@ -97,7 +96,7 @@ class Flow(Generic[P, R]):
 
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
-        args, kwargs = parameters_to_positional_and_keyword(self.fn, parameters)
+        args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
