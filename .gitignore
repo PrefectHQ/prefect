@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# doc build artifacts
+docs/schema.json
+
 # C extensions
 *.so
 
