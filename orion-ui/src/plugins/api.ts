@@ -237,7 +237,7 @@ export class Query {
   endpoint: Endpoint
   pollInterval: number = 0
   loading = ref(false)
-  value: any = reactive({})
+  value: any = ref([])
 
   stopPolling(): void {
     if (this.interval) clearTimeout(this.interval)
