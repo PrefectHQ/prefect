@@ -63,6 +63,25 @@ class TestCreateTaskRun:
         assert str(task_run.id) == response.json()["id"]
         assert task_run.state.type == task_run_data.state.type
 
+    async def test_create_task_run_with_state_sets_timestamp_on_server(
+        self, flow_run, client, session
+    ):
+        response = await client.post(
+            "/task_runs/",
+            json=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="a",
+                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=response.json()["id"]
+        )
+        # the timestamp was overwritten
+        assert task_run.state.timestamp < pendulum.now()
+
 
 class TestReadTaskRun:
     async def test_read_task_run(self, flow_run, task_run, client):
