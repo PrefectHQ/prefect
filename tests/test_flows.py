@@ -265,20 +265,22 @@ class TestFlowCall:
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
-            state = child(x, y, z)
-            return state.state_details.flow_run_id, state
+            subflow_state = child(x, y, z)
+            return subflow_state.state_details.flow_run_id, subflow_state
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
 
-        child_run_id, child_state = await get_result(parent_state)
-        assert await get_result(child_state) == 6
+        subflow_id, wrapper_task_state = await get_result(parent_state)
+        assert await get_result(wrapper_task_state) == 6
 
         async with OrionClient() as client:
-            child_flow_run = await client.read_flow_run(child_run_id)
-        assert child_flow_run.id == child_run_id
+            child_flow_run = await client.read_flow_run(subflow_id)
+            virtual_task = await client.read_task_run(child_flow_run.parent_task_run_id)
+        assert virtual_task.state.state_details.child_flow_run_id == subflow_id
+        assert child_flow_run.parent_task_run_id == virtual_task.id
+        assert child_flow_run.id == subflow_id
         assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
-        assert child_flow_run.parent_task_run_id is not None
         assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
