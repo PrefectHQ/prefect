@@ -7,11 +7,11 @@ from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
 from uuid import UUID
 
 import pendulum
+import logging
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
-from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TaskRunContext, TagsContext
@@ -45,6 +45,9 @@ from prefect.serializers import resolve_datadoc
 from prefect.utilities.logging import get_logger, call_repr, prefect_repr
 
 R = TypeVar("R")
+
+
+logger = get_logger("engine")
 
 
 def enter_flow_run_engine_from_flow_call(
@@ -108,6 +111,7 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend then enters the main flow rum engine
     """
+    logger.info(f"Creating run for flow {flow.name!r}...")
     flow_run_id = await client.create_flow_run(
         flow,
         parameters=parameters,
@@ -165,6 +169,7 @@ async def begin_flow_run(
 
     Returns the terminal state
     """
+    logger.info(f"Beginning flow run for flow {flow.name!r}...")
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -183,6 +188,11 @@ async def begin_flow_run(
     await client.propose_state(
         state=terminal_state,
         flow_run_id=flow_run_id,
+    )
+
+    logger.log(
+        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
+        msg=f"Flow run finished with state {prefect_repr(terminal_state)}",
     )
 
     return terminal_state
@@ -205,6 +215,11 @@ async def create_and_begin_subflow_run(
     Returns the terminal state
     """
     parent_flow_run_context = FlowRunContext.get()
+
+    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+    logger.info(
+        f"Beginning subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r} with graph {call_repr(flow.fn, *args, **kwargs)}..."
+    )
 
     # Generate a task in the parent flow run to represent the result of the subflow run
     parent_task_run_id = await client.create_task_run(
@@ -244,6 +259,11 @@ async def create_and_begin_subflow_run(
         flow_run_id=flow_run_id,
     )
 
+    logger.log(
+        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
+        msg=f"Subflow run finished with state {prefect_repr(terminal_state)}",
+    )
+
     return terminal_state
 
 
@@ -273,7 +293,11 @@ async def orchestrate_flow_run(
             if flow.should_validate_parameters:
                 parameters = flow.validate_parameters(parameters)
 
-            flow_call = partial(call_with_parameters, flow.fn, parameters)
+            args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+            logger.info(
+                f"Executing flow {flow.name!r} with call {call_repr(flow.fn, *args, **kwargs)}..."
+            )
+            flow_call = partial(flow.fn, *args, **kwargs)
             if flow.isasync:
                 result = await flow_call()
             else:
@@ -342,6 +366,7 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
+    task_run_name = f"{task.name}-{task.dynamic_key}"
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
@@ -351,6 +376,10 @@ async def begin_task_run(
 
     args, kwargs = parameters_to_args_kwargs(task.fn, parameters)
     task_call_repr = call_repr(task.fn, *args, **kwargs)
+    logger.info(
+        f"Submitting task run {task_run_name!r} to executor with graph {task_call_repr}..."
+    )
+
     future = await flow_run_context.executor.submit(
         task_run_id,
         task_call_repr,
@@ -359,6 +388,7 @@ async def begin_task_run(
         task_run_id=task_run_id,
         flow_run_id=flow_run_context.flow_run_id,
         parameters=parameters,
+        task_run_name=task_run_name,
     )
 
     # Update the dynamic key so future task calls are distinguishable from this task run
@@ -373,6 +403,7 @@ async def orchestrate_task_run(
     task_run_id: UUID,
     flow_run_id: UUID,
     parameters: Dict[str, Any],
+    task_run_name: str,
     client: OrionClient,
 ) -> State:
     context = TaskRunContext(
@@ -400,6 +431,10 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
+                args, kwargs = parameters_to_args_kwargs(task.fn, parameters)
+                logger.info(
+                    f"Executing task {task_run_name!r} with call {call_repr(task.fn, *args, **kwargs)}..."
+                )
                 result = call_with_parameters(task.fn, parameters)
                 if task.isasync:
                     result = await result
@@ -425,9 +460,15 @@ async def orchestrate_task_run(
         state = await client.propose_state(terminal_state, task_run_id=task_run_id)
 
         if not state.is_final():
+            logger.info(
+                f"Task {task_run_name!r} received state {prefect_repr(state)} when proposing state {prefect_repr(terminal_state)} and will attempt to run again..."
+            )
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run_id)
 
+    logger.info(
+        f"Task run {task_run_name!r} finished with state {prefect_repr(terminal_state)}"
+    )
     return state
 
 
@@ -524,6 +565,18 @@ async def get_result(state_or_future, raise_failures: bool = True):
         )
 
     if state.is_failed() and raise_failures:
+
+        # Determine the state run type
+        if state.state_details and state.state_details.task_run_id:
+            run_type = "task run"
+        elif state.state_details and state.state_details.flow_run_id:
+            run_type = "flow run"
+        else:
+            run_type = "run"
+
+        logger.info(
+            f"Found failed state while retrieving result from {run_type}. Reraising the exception..."
+        )
         return await raise_failed_state(state)
 
     return await resolve_datadoc(state.data)
