@@ -52,7 +52,6 @@ class TaskRunCreate(
             "tags",
             "task_inputs",
             "upstream_task_run_ids",
-            "state",
         ],
     )
 ):
