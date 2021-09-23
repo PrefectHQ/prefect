@@ -1,6 +1,9 @@
 <template>
   <div>
     <row class="filter-row py-1" hide-scrollbars>
+      {{ flows }}
+    </row>
+    <row class="filter-row py-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
         :key="filter.label"
@@ -148,7 +151,9 @@
 </template>
 
 <script lang="ts">
-import { Options, Vue } from 'vue-class-component'
+import { Options, Vue, setup } from 'vue-class-component'
+import { Api, Endpoints, FlowFilter, Query } from '@/plugins/api'
+
 import {
   default as RunHistoryChart,
   Bucket
@@ -157,6 +162,7 @@ import {
 import BarChart from '@/components/BarChart/BarChart.vue'
 
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
+
 import { default as dataset_1 } from '@/util/run_history/24_hours.json'
 import { default as dataset_2 } from '@/util/run_history/design.json'
 import { default as lateness_dataset_1 } from '@/util/run_lateness/24_hours.json'
@@ -191,6 +197,25 @@ export default class Dashboard extends Vue {
   ]
 
   resultsTab: string = 'deployments'
+
+  flowsFilter: FlowFilter = {
+    id: { any_: ['574260d3-00e4-448e-9095-977a832241d3'] }
+  }
+
+  // flows: Query | null = null
+
+  flowsQuery: Query = setup(() =>
+    Api.register(Endpoints.flows, this.flowsFilter)
+  )
+
+  get flows() {
+    return this.flowsQuery.value
+  }
+
+  async mounted() {
+    // this.$api.query(Endpoints.flows, this.flowsFilter)
+    console.log(this.flowsQuery)
+  }
 
   get resultsCount(): number {
     return this.datasets[this.resultsTab].length

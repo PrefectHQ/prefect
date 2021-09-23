@@ -1,4 +1,4 @@
-import { App, Plugin, ref } from 'vue'
+import { App, Plugin, reactive } from 'vue'
 
 // const FLOW_RUNS = 'host:port/flow_runs/filter'
 // const FLOWs = 'host:port/flows/filter'
@@ -29,26 +29,6 @@ import { App, Plugin, ref } from 'vue'
             }
         })
 
-    Questions:
-        What's the right component interface? $queries feels generic.
-        Do we want to allow registering fetches in an apollo sort of way that extends the Vue instance or is inline fetching better?
-          • e.g. a pattern like this:
-            ```
-                @Options({
-                    queries: {
-                        // This should be 
-                        flow1: {
-                            query: FLOW,
-                            body() {
-                                return {  } // Some filters
-                            },
-                            pollInterval: 10
-                        }
-                    }
-                })
-                class MyComponent {}
-            ```
-            or without the class component:
             ```
                 export default  defineComponent({
                     queries: {
@@ -87,35 +67,13 @@ import { App, Plugin, ref } from 'vue'
                     }
                 }
             ```
-
-            export declare interface TaskRunFilter {
-  flow_run: {
-    [key: string]: any
-  }
-}
-
-class Queries {
-  public TASKRUN: string = ''
-
-  private query(endpoint: string, body: {[key: string]: any}) {
-    {fetch(endpoint, {headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}
-    setInterval(), stopPolling() {clearInterval(this.interval), refetch() {}}}
-  }
-  
-  TaskRun(parameters: TaskRunFilter) {
-    return this.query(parameters)
-  } 
-}
 */
-// enum Routes {
-//   count = 'count',
-//   filter = 'filter'
-// }
 
-// enum Flows {
-//   base = '/flows/',
-//   route = keyof Routes
-// }
+//TODO add ALL
+/*
+  A list where results will be returned only if they match all the values in the list
+*/
+declare type all_ = string[]
 
 /*
   A list where results will be returned if any of the values are included in the list
@@ -279,16 +237,20 @@ export interface QueryOptions {
 
 const base_url = 'http://localhost:8000'
 
-class Query {
+export class Query {
   base_url: string = base_url
   body: FilterBody = {}
   endpoint: Endpoint
   pollInterval: number = 0
-  value: any = ref()
+  value: any = reactive({})
 
   stopPolling(): void {}
   startPolling(): void {}
-  refetch(): void {}
+
+  async refetch(): Promise<any> {
+    this.value.value = await this.fetch()
+    return this.value.value
+  }
 
   get route(): string {
     return this.base_url + this.endpoint.url
@@ -325,12 +287,12 @@ class Query {
     }
 
     this.body = body
-
+    this.refetch()
     return this
   }
 }
 
-class Api {
+export class ApiBaseConstructor {
   base_url: string = base_url
   queries: Query[] = []
 
@@ -364,15 +326,19 @@ class Api {
   }
 }
 
+export const Api = new ApiBaseConstructor()
+
 declare module '@vue/runtime-core' {
   export interface ComponentCustomProperties {
-    $api: Api
+    $api: ApiBaseConstructor
   }
 }
 
 const ApiPlugin: Plugin = {
   install(app: App, options: any = {}) {
-    app.config.globalProperties.$api = new Api()
+    const api = Api
+    app.config.globalProperties.$api = api
+    app.provide('$api', api)
   }
 }
 
