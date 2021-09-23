@@ -65,7 +65,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flows' }"
         >
-          {{ datasets['flows'].length }}
+          {{ flows.length }}
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
@@ -107,11 +107,7 @@
     <transition name="fade" mode="out-in">
       <div v-if="resultsTab == 'flows'">
         <list>
-          <flow-list-item
-            v-for="flow in datasets['flows']"
-            :key="flow.id"
-            :flow="flow"
-          />
+          <flow-list-item v-for="flow in flows" :key="flow.id" :flow="flow" />
         </list>
       </div>
 
