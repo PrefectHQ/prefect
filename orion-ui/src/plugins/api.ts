@@ -108,10 +108,8 @@ export class Query {
 
   async refetch(): Promise<any> {
     this.loading.value = true
-    setTimeout(async () => {
-      this.value.value = await this.fetch()
-      this.loading.value = false
-    }, 5000)
+    this.value.value = await this.fetch()
+    this.loading.value = false
     return this.value.value
   }
 
