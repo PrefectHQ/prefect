@@ -4,6 +4,7 @@ import os
 import re
 from functools import partial
 from pathlib import Path
+from typing import Any, Callable
 
 import yaml
 
@@ -79,3 +80,30 @@ class RunContextInjector(logging.Filter):
         # TODO: Inject real information about the run into log records
         record.flow_run_id = "flow-run-id"
         return True
+
+
+def prefect_repr(obj: Any):
+    """
+    Get a repr of an object, preferring the `__prefect_repr__` dunder which will output
+    a more meaningful repr for some internal Prefect objects
+    """
+    if hasattr(obj, "__prefect_repr__"):
+        return obj.__prefect_repr__()
+    return repr(obj)
+
+
+def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
+    """
+    Generate a repr for a function call as "fn_name(arg_value, kwarg_name=kwarg_value)"
+    """
+    name = __fn.__name__
+    call_args = ", ".join(
+        [prefect_repr(arg) for arg in args]
+        + [f"{key}={prefect_repr(val)}" for key, val in kwargs.items()]
+    )
+
+    # Enforce a maximum length
+    if len(call_args) > 100:
+        call_args = call_args[:100] + "..."
+
+    return f"{name}({call_args})"
