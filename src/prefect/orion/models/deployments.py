@@ -92,10 +92,35 @@ async def read_deployment_by_name(
     return result.scalar()
 
 
+def _apply_deployment_filters(
+    query,
+    deploy_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: schemas.filters.FlowFilter = None,
+):
+    """
+    Applies filters to a deployment query as a combination of correlated
+    EXISTS subqueries.
+    """
+
+    if deploy_filter:
+        query = query.where(deploy_filter.as_sql_filter())
+
+    if flow_filter:
+        exists_clause = select(orm.Deployment.id).where(
+            orm.Deployment.flow_id == orm.Flow.id, flow_filter.as_sql_filter()
+        )
+
+        query = query.where(exists_clause.exists())
+
+    return query
+
+
 async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: schemas.filters.FlowFilter = None,
 ) -> List[orm.Deployment]:
     """Read deployments
 
@@ -109,6 +134,10 @@ async def read_deployments(
     """
 
     query = select(orm.Deployment).order_by(orm.Deployment.id)
+
+    query = _apply_deployment_filters(
+        query=query, deploy_filter=deployment_filter, flow_filter=flow_filter
+    )
 
     if offset is not None:
         query = query.offset(offset)
