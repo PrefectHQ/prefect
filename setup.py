@@ -11,7 +11,12 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     # CLI
-    entry_points={"console_scripts": ["prefect=prefect.cli:app"]},
+    entry_points={
+        "console_scripts": ["prefect=prefect.cli:app"],
+        "mkdocs.plugins": [
+            "render_swagger = prefect.utilities.render_swagger:SwaggerPlugin",
+        ],
+    },
     # Requirements
     python_requires=">=3.7",
     install_requires=install_requires,
