@@ -264,7 +264,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         """
         Implements a hook that can fire before a state is committed to the database.
 
-        This hook might produce side-effects or mutate the proposed state of a
+        This hook may produce side-effects or mutate the proposed state of a
         transition. The proposed state should only be mutated via the methods
         `self.reject_transition`, `self.abort_transition`, and `self.delay_transition`.
 
@@ -329,6 +329,18 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         pass
 
     async def invalid(self) -> bool:
+        """
+        Determines if a rule is invalid.
+
+        Invalid rules do nothing and no hooks upon entering or exiting a governed
+        context. Rules are invalid if the transition states types are not contained in
+        `self.FROM_STATES` and `self.TO_STATES`, or if the context is proposing
+        a transition that differs from the transition the rule was instantiated with.
+        (self.from_state_type, self.to_state_type)
+
+        Returns:
+            True if the rules in invalid, False otherwise.
+        """
         # invalid and fizzled states are mutually exclusive,
         # `_invalid_on_entry` holds this statefulness
         if self.from_state_type not in self.FROM_STATES:
@@ -341,11 +353,34 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         return self._invalid_on_entry
 
     async def fizzled(self) -> bool:
+        """
+        Determines if a rule is fizzled and side-effects need to be reverted.
+
+        Rules are fizzled if the transitions were valid on entry (thus firing
+        `self.before_transition`) but are invalid upon exiting the governed context,
+        most likely caused by another rule mutating the transition.
+
+        Returns:
+            True if the rule is fizzled, False otherwise.
+        """
+
         if self._invalid_on_entry:
             return False
         return await self.invalid_transition()
 
     async def invalid_transition(self) -> bool:
+        """
+        Determines if the transition proposed by the `OrchestrationContext` is invalid.
+
+        If the `OrchestrationContext` is attempting to manage a transition with this
+        rule that differs from the transition the rule was instantiated with, the
+        transition is considered to be invalid. Depending on the context, this either
+        renders the state of the rule "invalid" or "fizzled".
+
+        Returns:
+            True if the transition is invalid, False otherwise.
+        """
+
         initial_state_type = self.context.initial_state_type
         proposed_state_type = self.context.proposed_state_type
         return (self.from_state_type != initial_state_type) or (
