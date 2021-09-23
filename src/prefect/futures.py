@@ -37,11 +37,13 @@ class PrefectFuture(Generic[R]):
         client: OrionClient,
         executor: "BaseExecutor",
         task_run_id: UUID = None,
+        run_repr: str = None,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.flow_run_id = flow_run_id
         self.task_run_id = task_run_id
         self.run_id = self.task_run_id or self.flow_run_id
+        self.run_repr = run_repr
         self._client = client
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
@@ -91,6 +93,12 @@ class PrefectFuture(Generic[R]):
 
     def __hash__(self) -> int:
         return hash(self.run_id)
+
+    def __repr__(self) -> str:
+        return f"PrefectFuture(run_id='{self.run_id}')"
+
+    def __prefect_repr__(self) -> str:
+        return self.run_repr if self.run_repr else repr(self)
 
 
 async def future_to_data(future: PrefectFuture[R]) -> R:

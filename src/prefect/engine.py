@@ -36,9 +36,13 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import call_with_parameters
+from prefect.utilities.callables import (
+    call_with_parameters,
+    parameters_to_args_kwargs,
+)
 from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
+from prefect.utilities.logging import get_logger, call_repr, prefect_repr
 
 R = TypeVar("R")
 
@@ -345,8 +349,11 @@ async def begin_task_run(
         extra_tags=TagsContext.get().current_tags,
     )
 
+    args, kwargs = parameters_to_args_kwargs(task.fn, parameters)
+    task_call_repr = call_repr(task.fn, *args, **kwargs)
     future = await flow_run_context.executor.submit(
         task_run_id,
+        task_call_repr,
         orchestrate_task_run,
         task=task,
         task_run_id=task_run_id,

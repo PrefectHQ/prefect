@@ -24,6 +24,7 @@ class BaseExecutor:
     async def submit(
         self,
         run_id: str,
+        run_repr: str,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -89,6 +90,7 @@ class LocalExecutor(BaseExecutor):
     async def submit(
         self,
         run_id: str,
+        run_repr: str,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -104,6 +106,7 @@ class LocalExecutor(BaseExecutor):
 
         return PrefectFuture(
             task_run_id=run_id,
+            run_repr=run_repr,
             flow_run_id=self.flow_run_id,
             client=self.orion_client,
             executor=self,
@@ -132,6 +135,7 @@ class DaskExecutor(BaseExecutor):
     async def submit(
         self,
         run_id: str,
+        run_repr: str,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -148,6 +152,7 @@ class DaskExecutor(BaseExecutor):
 
         return PrefectFuture(
             task_run_id=run_id,
+            run_repr=run_repr,
             flow_run_id=self.flow_run_id,
             client=self.orion_client,
             executor=self,
