@@ -91,13 +91,35 @@ async def read_deployments(
         settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
     ),
     offset: int = Body(0, ge=0),
+    deployments: schemas.filters.DeploymentFilter = None,
+    flows: schemas.filters.FlowFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
     Query for deployments
     """
     return await models.deployments.read_deployments(
-        session=session, offset=offset, limit=limit
+        session=session,
+        offset=offset,
+        limit=limit,
+        deployment_filter=deployments,
+        flow_filter=flows,
+    )
+
+
+@router.post("/count")
+async def count_deployments(
+    deployments: schemas.filters.DeploymentFilter = None,
+    flows: schemas.filters.FlowFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> int:
+    """
+    Count deployments
+    """
+    return await models.deployments.count_deployments(
+        session=session,
+        deployment_filter=deployments,
+        flow_filter=flows,
     )
 
 
