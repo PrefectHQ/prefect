@@ -132,7 +132,8 @@ class DaskExecutor(BaseExecutor):
             (args, kwargs), resolve_fn=self._get_data_from_future
         )
 
-        self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
+        # Set the dask future key to the Prefect run id for inspection
+        self._futures[run_id] = self._client.submit(run_fn, *args, key=run_id, **kwargs)
 
         return PrefectFuture(
             task_run_id=run_id,
