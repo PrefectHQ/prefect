@@ -9,6 +9,7 @@ import prefect
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures
 from prefect.orion.schemas.states import State
+from prefect.utilities.logging import get_logger, prefect_repr
 
 T = TypeVar("T", bound="BaseExecutor")
 
@@ -18,6 +19,7 @@ class BaseExecutor:
         # Set on `start`
         self.flow_run_id: str = None
         self.orion_client: OrionClient = None
+        self.logger = get_logger("executor")
 
     async def submit(
         self,
@@ -39,14 +41,17 @@ class BaseExecutor:
         flow_run_id: str,
         orion_client: "OrionClient",
     ) -> T:
+        self.logger.info(f"Starting {prefect_repr(self)}...")
         self.flow_run_id = flow_run_id
         self.orion_client = orion_client
         try:
             yield self
         finally:
+            self.logger.info("Shutting down executor...")
             self.shutdown()
             self.flow_run_id = None
             self.orion_client = None
+            self.logger.info("Shutdown executor!")
 
     def shutdown(self) -> None:
         """
@@ -64,6 +69,9 @@ class BaseExecutor:
         If it is not finished after the timeout expires, `None` should be returned.
         """
         raise NotImplementedError()
+
+    def __prefect_repr__(self) -> str:
+        return type(self).__name__
 
 
 class LocalExecutor(BaseExecutor):
@@ -103,6 +111,9 @@ class LocalExecutor(BaseExecutor):
 
     async def wait(self, prefect_future: PrefectFuture, timeout: float = None) -> State:
         return self._results[prefect_future.run_id]
+
+    def __prefect_repr__(self) -> str:
+        return "local executor"
 
 
 class DaskExecutor(BaseExecutor):
@@ -176,7 +187,14 @@ class DaskExecutor(BaseExecutor):
     def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
         with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
             self._client = distributed.Client()
+            self.logger.info(
+                f"Dask dashboard available at {self._client.dashboard_link}"
+            )
             yield self
 
     def shutdown(self) -> None:
         self._client.close()
+
+    def __prefect_repr__(self) -> str:
+        # TODO: When connecting to an external cluster, extend this string
+        return "dask executor"
