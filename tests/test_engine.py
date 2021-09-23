@@ -314,6 +314,7 @@ class TestOrchestrateTaskRun:
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
             parameters={},
+            task_run_name="foo",
             client=orion_client,
         )
 
@@ -347,6 +348,7 @@ class TestOrchestrateTaskRun:
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
             parameters={},
+            task_run_name="foo",
             client=orion_client,
         )
 
@@ -397,6 +399,7 @@ class TestOrchestrateTaskRun:
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
             parameters={},
+            task_run_name="foo",
             client=orion_client,
         )
 
