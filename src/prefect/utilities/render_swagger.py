@@ -29,7 +29,10 @@ TEMPLATE = string.Template(
 <script>
     const ui = SwaggerUIBundle({
     url: '$path',
+    defaultModelsExpandDepth: -1,
     dom_id: '#swagger-ui',
+    docExpansion: 'none',
+    deepLinking: true,
     supportedSubmitMethods: [],
     })
 </script>
