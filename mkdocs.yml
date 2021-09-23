@@ -1,6 +1,19 @@
 site_name: Prefect Orion
+repo_url: https://github.com/PrefectHQ/orion
+edit_uri: edit/main/docs/
+theme:
+    name: material
+    favicon: img/favicon.ico
+    features:
+        - navigation.tabs
+    icon:
+        repo: fontawesome/brands/github
+    logo: img/logomark-light.svg
+    palette:
+        primary: blue
 plugins:
     - render_swagger
+    - search
 nav:
     - Home: index.md
     - 'Getting Started':
