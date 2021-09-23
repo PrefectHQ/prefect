@@ -204,9 +204,6 @@ async def _generate_scheduled_flow_runs(
             next_scheduled_start_time=date,
             expected_start_time=date,
         )
-        # do not set the `state_id` as it hasn't been created yet; it will be set
-        # when _insert_scheduled_flow_runs is called
-        run.state_id = None
         runs.append(run)
 
     return runs
