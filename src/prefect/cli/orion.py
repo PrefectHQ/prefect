@@ -1,3 +1,5 @@
+import json
+import os
 import typer
 import uvicorn
 
@@ -22,3 +24,16 @@ def start(
     object.__setattr__(settings.orion.services, "run_in_app", run_services)
     uvicorn.run(orion_fastapi_app, host=host, port=port, log_level=log_level.lower())
     console.print("Orion stopped!")
+
+
+@orion_app.command()
+def build_docs(schema_path: str = None):
+    if not schema_path:
+        schema_path = os.path.abspath(
+            os.path.join(__file__, "../../../../docs/schema.json")
+        )
+
+    schema = orion_fastapi_app.openapi()
+    with open(schema_path, "w") as f:
+        json.dump(schema, f)
+    console.print(f"OpenAPI schema written to {schema_path}")
