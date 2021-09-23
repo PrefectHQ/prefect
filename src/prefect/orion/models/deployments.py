@@ -32,7 +32,8 @@ async def create_deployment(
         .on_conflict_do_update(
             index_elements=["flow_id", "name"],
             set_=deployment.dict(
-                shallow=True, include={"schedule", "is_schedule_active", "flow_data"}
+                shallow=True,
+                include={"schedule", "is_schedule_active", "tags", "flow_data"},
             ),
         )
     )
@@ -194,7 +195,7 @@ async def _generate_scheduled_flow_runs(
             deployment_id=deployment_id,
             # parameters=,
             idempotency_key=f"scheduled {deployment.id} {date}",
-            tags=["auto-scheduled"],
+            tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,
             state=schemas.states.Scheduled(
                 scheduled_time=date,
@@ -220,6 +221,9 @@ async def _insert_scheduled_flow_runs(
 
     Returns a list of flow runs that were created
     """
+
+    if not runs:
+        return []
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
