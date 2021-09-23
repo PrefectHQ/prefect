@@ -150,7 +150,7 @@ class DaskExecutor(BaseExecutor):
         self._futures[run_id] = self._client.submit(run_fn, *args, key=run_id, **kwargs)
 
         return PrefectFuture(
-            run_fn=run_id,
+            run_id=run_id,
             run_repr=run_repr,
             client=self.orion_client,
             executor=self,
