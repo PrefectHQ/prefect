@@ -388,6 +388,19 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         )
 
     async def reject_transition(self, state: states.State, reason: str):
+        """
+        Rejects a proposed transition before the transition is validated.
+
+        This method will reject a proposed transition, mutating the proposed state to
+        the provided `state`. A reason for rejecting the transition is also passed on
+        to the `OrchestrationContext`. Rules that reject the transition will not fizzle,
+        despite the proposed state type changing.
+
+        Args:
+            state: The new proposed state
+            reason: The reason for rejecting the transition
+        """
+
         # don't run if the transition is already validated
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
@@ -399,6 +412,20 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.response_details = StateRejectDetails(reason=reason)
 
     async def delay_transition(self, delay_seconds: int, reason: str):
+        """
+        Delays a proposed transition before the transition is validated.
+
+        This method will delay a proposed transition, setting the proposed state to
+        `None`, signaling to the `OrchestrationContext` that no state should be
+        written to the database. The number of seconds a transition should be delayed is
+        passed to the `OrchestrationContext`. A reason for delaying the transition is
+        also provided.
+
+        Args:
+            delay_seconds: The number of seconds before the transition should delayed
+            reason: The reason for delaying the transition
+        """
+
         # don't run if the transition is already validated
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
@@ -412,6 +439,18 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         )
 
     async def abort_transition(self, reason: str):
+        """
+        Aborts a proposed transition before the transition is validated.
+
+        This method will abort a proposed transition, expecting no further action to
+        occur for this run. The proposed state is set to `None`, signaling to the
+        `OrchestrationContext` that no state should be written to the database. A
+        reason for aborting the transition is also provided.
+
+        Args:
+            reason: The reason for delaying the transition
+        """
+
         # don't run if the transition is already validated
         if self.context.validated_state:
             raise RuntimeError("The transition is already validated")
