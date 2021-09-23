@@ -8,11 +8,23 @@
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
 import NavBar from '@/components/ApplicationNav/NavBar.vue'
+import { Endpoints, FlowsFilter } from '@/plugins/api'
 
 @Options({
   components: { NavBar }
 })
-export default class App extends Vue {}
+export default class App extends Vue {
+  async mounted() {
+    console.log(this.$api)
+    const body: FlowsFilter = {
+      id: { any_: ['574260d3-00e4-448e-9095-977a832241d3'] }
+    }
+    const flows = this.$api.register(Endpoints.flows, body)
+    console.log(flows)
+    const data = await flows.fetch()
+    console.log(data)
+  }
+}
 </script>
 
 <style lang="scss">
