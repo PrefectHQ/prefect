@@ -95,7 +95,7 @@ async def read_deployment_by_name(
 
 def _apply_deployment_filters(
     query,
-    deploy_filter: schemas.filters.DeploymentFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
 ):
     """
@@ -103,8 +103,8 @@ def _apply_deployment_filters(
     EXISTS subqueries.
     """
 
-    if deploy_filter:
-        query = query.where(deploy_filter.as_sql_filter())
+    if deployment_filter:
+        query = query.where(deployment_filter.as_sql_filter())
 
     if flow_filter:
         exists_clause = select(orm.Deployment.id).where(
@@ -129,6 +129,8 @@ async def read_deployments(
         session (sa.orm.Session): A database session
         offset (int): Query offset
         limit(int): Query limit
+        deployment_filter (DeploymentFilter): only return deployment that match these filters
+        flow_filter (FlowFilter): only return deployments whose flows match these criteria
 
     Returns:
         List[orm.Deployment]: deployments
@@ -137,7 +139,7 @@ async def read_deployments(
     query = select(orm.Deployment).order_by(orm.Deployment.id)
 
     query = _apply_deployment_filters(
-        query=query, deploy_filter=deployment_filter, flow_filter=flow_filter
+        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
     )
 
     if offset is not None:
@@ -147,6 +149,32 @@ async def read_deployments(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+async def count_deployments(
+    session: sa.orm.Session,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: schemas.filters.FlowFilter = None,
+) -> int:
+    """Count deployments
+
+    Args:
+        session (sa.orm.Session): A database session
+        deployment_filter (DeploymentFilter): only count deployment that match these filters
+        flow_filter (FlowFilter): only count deployments whose flows match these criteria
+
+    Returns:
+        int: the number of deployments matching filters
+    """
+
+    query = select(sa.func.count(sa.text("*"))).select_from(orm.Deployment)
+
+    query = _apply_deployment_filters(
+        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+    )
+
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> bool:
