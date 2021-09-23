@@ -232,7 +232,6 @@ export const Endpoints: { [key: string]: Endpoint } = {
 
 export interface QueryOptions {
   pollInterval?: number
-  ignoreGlobalPolling?: boolean
 }
 
 const base_url = 'http://localhost:8000'
