@@ -327,8 +327,6 @@ def task(
         >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
         >>> def my_task():
         >>>     return "hello"
-
-
     """
     if __fn:
         return cast(
