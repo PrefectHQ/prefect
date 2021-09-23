@@ -11,13 +11,33 @@
     <router-link to="/settings" class="nav-item">
       <i class="pi pi-settings-5-fill pi-2x" />
     </router-link>
+
+    <a @click="toggleGlobalPolling" class="nav-item ml-auto cursor-pointer">
+      <i
+        class="pi pi-2x"
+        :class="pollingStopped ? 'pi-play-circle-fill' : 'pi-stop-circle-fill'"
+      />
+    </a>
   </div>
 </template>
 
 <script lang="ts">
 import { Vue } from 'vue-class-component'
+import { Api } from '@/plugins/api'
 
-export default class NavBar extends Vue {}
+export default class NavBar extends Vue {
+  pollingStopped: boolean = false
+
+  toggleGlobalPolling(): void {
+    if (this.pollingStopped) {
+      Api.startPolling()
+    } else {
+      Api.stopPolling()
+    }
+
+    this.pollingStopped = !this.pollingStopped
+  }
+}
 </script>
 
 <style lang="scss" scoped>
