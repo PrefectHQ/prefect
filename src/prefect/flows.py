@@ -11,7 +11,6 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Iterable,
     TypeVar,
     cast,
     overload,
@@ -53,7 +52,7 @@ class Flow(Generic[P, R]):
     "Returns" respectively.
 
     Args:
-        fn: The function defining the workflow
+        fn: The function defining the workflow.
         name: An optional name for the flow; if not provided, the name will be inferred
             from the given function.
         version: An optional version string for the flow; if not provided, we will
@@ -163,14 +162,14 @@ class Flow(Generic[P, R]):
 
         If writing an async flow, this call must be awaited.
 
-        Will create a new flow run in the backing API
+        Will create a new flow run in the backing API.
 
         Args:
-            *args: Arguments to run the flow with
-            **kwargs: Keyword arguments to run the flow with
+            *args: Arguments to run the flow with.
+            **kwargs: Keyword arguments to run the flow with.
 
         Returns:
-            The final state of the flow run
+            The final state of the flow run.
 
         Examples:
 
