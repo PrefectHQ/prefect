@@ -195,6 +195,7 @@ async def create_and_begin_subflow_run(
 
     Subflows differ from parent flows in that they
     - Use the existing parent flow executor
+    - Resolve futures in passed parameters into values
     - Create a dummy task for representation in the parent flow
 
     Returns the terminal state
@@ -206,6 +207,9 @@ async def create_and_begin_subflow_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
     )
+
+    # Resolve any task futures in the input
+    parameters = await resolve_futures(parameters)
 
     flow_run_id = await client.create_flow_run(
         flow,
