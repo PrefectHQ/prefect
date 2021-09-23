@@ -145,7 +145,7 @@
 
 <script lang="ts">
 import { Options, Vue, setup } from 'vue-class-component'
-import { Api, Endpoints, FlowsFilter, Query } from '@/plugins/api'
+import { Api, Endpoints, Query, FlowsFilter } from '@/plugins/api'
 
 import {
   default as RunHistoryChart,
