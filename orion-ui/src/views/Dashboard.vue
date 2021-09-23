@@ -144,7 +144,7 @@
 </template>
 
 <script lang="ts">
-import { Options, Vue, setup } from 'vue-class-component'
+import { Options, Vue } from 'vue-class-component'
 import { Api, Endpoints, Query, FlowsFilter } from '@/plugins/api'
 
 import {
