@@ -1,33 +1,33 @@
 import { App, Plugin, reactive, ref } from 'vue'
 
 /**
-  A list where results will be returned only if they match all the values in the list
-*/
+ * A list where results will be returned only if they match all the values in the list
+ */
 declare type all_ = string[]
 
 /**
-  A list where results will be returned if any of the values are included in the list
-*/
+ * A list where results will be returned if any of the values are included in the list
+ */
 declare type any_ = string[]
 
 /**
-  A list where results will be returned if values don't match any in the list
-*/
+ * A list where results will be returned if values don't match any in the list
+ */
 declare type not_any_ = string[]
 
 /**
-  If true, returns results whose key is null
-*/
+ * If true, returns results whose key is null
+ */
 declare type is_null_ = boolean
 
 /**
-  A date-time string to include results starting at or before this time
-*/
+ * A date-time string to include results starting at or before this time
+ */
 declare type before_ = string
 
 /**
-  A date-time string to include results starting at or after this time
-*/
+ * A date-time string to include results starting at or after this time
+ */
 declare type after_ = string
 
 /**
@@ -46,26 +46,26 @@ declare type offset = number
 interface FlowFilter {
   id?: {
     /**
-      A list of ids
-      Example: [ "abc-123", "def-456" ]
-    */
+     * A list of ids
+     * Example: [ "abc-123", "def-456" ]
+     */
     any_: any_
   }
   name?: {
     /**
-        A list of names
-        Example: [ "my-flow-1", "my-flow-2" ]
-      */
+     * A list of names
+     * Example: [ "my-flow-1", "my-flow-2" ]
+     */
     any_: any_
   }
   tags?: {
     /**
-      Results will be returned only if their tags are a superset of the list.
-    */
+     * Results will be returned only if their tags are a superset of the list.
+     */
     all_?: any_
     /**
-      If true, only include flows without tags
-    */
+     * If true, only include flows without tags
+     */
     is_null_: is_null_
   }
 }
@@ -77,12 +77,12 @@ interface FlowRunFilter {
   }
   tags?: {
     /**
-      Results will be returned only if their tags are a superset of the list.
-    */
+     * Results will be returned only if their tags are a superset of the list.
+     */
     all_?: all_
     /**
-      If true, only include flow runs without tags
-    */
+     * If true, only include flow runs without tags
+     */
     is_null_: is_null_
   }
   deployment_id?: {
@@ -96,15 +96,15 @@ interface FlowRunFilter {
     any_: any_
   }
   /**
-    Flow run actual starts
-  */
+   * Flow run actual starts
+   */
   start_time?: {
     before_: before_
     after_: after_
   }
   /**
-    Flow run scheduled starts
-  */
+   * Flow run scheduled starts
+   */
   expected_start_time?: {
     before_: before_
     after_: after_
@@ -126,12 +126,12 @@ interface TaskRunFilter {
   }
   tags?: {
     /**
-      Results will be returned only if their tags are a superset of the list.
-    */
+     * Results will be returned only if their tags are a superset of the list.
+     */
     all_?: all_
     /**
-      If true, only include flow runs without tags
-    */
+     * If true, only include flow runs without tags
+     */
     is_null_: is_null_
   }
   state_type?: {
@@ -323,9 +323,8 @@ export class Api {
   }
 
   /**
-    Returns an instance of the Query class and registers the query
-    if a poll interval is specified
-  */
+   * Returns an instance of the Query class and registers the query if a poll interval is specified
+   */
   static query(
     endpoint: Endpoint,
     body: FilterBody = {},
@@ -348,8 +347,6 @@ export class Api {
     return query
   }
 }
-
-// export const Api = new ApiBaseConstructor()
 
 declare module '@vue/runtime-core' {
   export interface ComponentCustomProperties {
