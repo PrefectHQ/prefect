@@ -1,69 +1,6 @@
 import { App, Plugin, reactive, ref } from 'vue'
 
 /*
-    Name: Api / $api
-    Objectives:
-        - Accessible from the component interface
-        - Allows polling
-        - Allows refetch outside of polling period
-        - Allows local polling to be stopped
-        - Allows global polling to be stopped
-        - Can automatically stop all data fetching when application is in the background
-        - Routes with references instead of strings so components don't have to what specific routes they're hitting
-            • e.g. component says `data(FLOW_RUNS)` which the plugin resolves to `host:port/flow_runs/filter`
-        - Provides loading keys for data?
-        - Data returned should be reactive
-
-        this.$query.refetch()
-
-        window.addEventListener('visibilitychange', () => {
-            if(window.hidden) {
-                this.$queries.global.stopPolling()
-            }
-        })
-
-            ```
-                export default  defineComponent({
-                    queries: {
-                        // This should be 
-                        flow1: {
-                            query: FLOW,
-                            body() {
-                                return {  } // Some filters
-                            },
-                            pollInterval: 10
-                        }
-                    }
-                })
-            ```
-            or use inline like this:
-            ```
-                @Options({})
-                class MyComponent {
-                    mounted() {
-                        const flows = this.$queries.register({
-                            query: FLOW,
-                            body: {}
-                            pollInterval: 10
-                        })
-
-                        this.flows.data
-                        this.flows.stopPolling()
-                    },
-                    setup() {
-                        this.$queries.globalStopPolling()
-
-                        const { data, stopPolling, refetch } = this.$queries.register({})
-                        const flowsReactive = ref(flows)
-
-                        return {data}
-                    }
-                }
-            ```
-*/
-
-//TODO add ALL
-/*
   A list where results will be returned only if they match all the values in the list
 */
 declare type all_ = string[]
@@ -364,3 +301,40 @@ const ApiPlugin: Plugin = {
 }
 
 export default ApiPlugin
+
+// ******************************************************************************************
+// Browser visibility API handler for global polling
+// ******************************************************************************************
+
+// Visibility change properties vary between browsers
+let hidden: string, visibilityChange: string
+
+declare interface DocumentExtended extends Document {
+  msHidden: boolean
+  webkitHidden: boolean
+}
+
+const handleVisibilityChange = async () => {
+  // This weird type casting is necessary because TypeScript can be really dumb sometimes.
+  if ((document as DocumentExtended)[hidden as keyof DocumentExtended]) {
+    Api.stopPolling()
+  } else Api.startPolling()
+}
+
+if (window) {
+  if (typeof (document as DocumentExtended).msHidden !== 'undefined') {
+    hidden = 'msHidden'
+    visibilityChange = 'msvisibilitychange'
+  } else if (
+    typeof (document as DocumentExtended).webkitHidden !== 'undefined'
+  ) {
+    hidden = 'webkitHidden'
+    visibilityChange = 'webkitvisibilitychange'
+  } else {
+    // Opera 12.10 and Firefox 18 and later
+    hidden = 'hidden'
+    visibilityChange = 'visibilitychange'
+  }
+
+  window.addEventListener(visibilityChange, handleVisibilityChange, false)
+}
