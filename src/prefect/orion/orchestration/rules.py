@@ -261,6 +261,24 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> states.State:
+        """
+        Implements a hook that can fire before a state is committed to the database.
+
+        This hook might produce side-effects or mutate the proposed state of a
+        transition. The proposed state should only be mutated via the methods
+        `self.reject_transition`, `self.abort_transition`, and `self.delay_transition`.
+
+        Args:
+            initial_state: The initial state of a transtion
+            proposed_state: The proposed state of a transition
+            context: A safe copy of the `OrchestrationContext`, with the exception of
+                `context.run`, mutating this context will have no effect on the broader
+                orchestration environment.
+
+        Returns:
+            None
+        """
+
         pass
 
     async def after_transition(
@@ -269,6 +287,19 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
+        """
+        Implements a hook that can fire after a state is committed to the database.
+
+        Args:
+            initial_state: The initial state of a transtion
+            validated_state: The governed state that has been committed to the database
+            context: A safe copy of the `OrchestrationContext`, with the exception of
+                `context.run`, mutating this context will have no effect on the broader
+                orchestration environment.
+
+        Returns:
+            None
+        """
         pass
 
     async def cleanup(
@@ -277,6 +308,24 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
+        """
+        Implements a hook that can fire after a state is committed to the database.
+
+        The intended use of this method is to revert side-effects produced by
+        `self.before_transition` when the transition is found to be invalid on exit.
+        This allows multiple rules to be gracefully run in sequence, without logic that
+        keeps track of all other rules that might govern a transition.
+
+        Args:
+            initial_state: The initial state of a transtion
+            validated_state: The governed state that has been committed to the database
+            context: A safe copy of the `OrchestrationContext`, with the exception of
+                `context.run`, mutating this context will have no effect on the broader
+                orchestration environment.
+
+        Returns:
+            None
+        """
         pass
 
     async def invalid(self) -> bool:
