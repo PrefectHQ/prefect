@@ -90,7 +90,7 @@ def enter_flow_run_engine_from_flow_call(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
+def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
@@ -614,3 +614,11 @@ def tags(*new_tags: str) -> Set[str]:
     new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags
+
+
+if __name__ == "__main__":
+    import sys
+
+    state = enter_flow_run_engine_from_subprocess(sys.argv[1])
+    print(repr(state))
+    print(get_result(state, raise_failures=False))
