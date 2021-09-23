@@ -1,5 +1,5 @@
 """
-Base workflow task class and decorator
+Workflow task class and decorator
 """
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
