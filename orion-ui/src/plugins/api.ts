@@ -1,100 +1,88 @@
 import { App, Plugin, reactive, ref } from 'vue'
 
-/*
+/**
   A list where results will be returned only if they match all the values in the list
 */
 declare type all_ = string[]
 
-/*
+/**
   A list where results will be returned if any of the values are included in the list
 */
 declare type any_ = string[]
 
-/*
+/**
   A list where results will be returned if values don't match any in the list
 */
 declare type not_any_ = string[]
 
-/*
+/**
   If true, returns results whose key is null
 */
 declare type is_null_ = boolean
 
-/*
+/**
   A date-time string to include results starting at or before this time
 */
 declare type before_ = string
 
-/*
+/**
   A date-time string to include results starting at or after this time
 */
 declare type after_ = string
 
-export interface FlowFilter {
+/**
+ * Max: 200
+ * Min: 0
+ * Default: 200
+ */
+declare type limit = number
+
+/**
+ * Min: 0
+ * Default: 0
+ */
+declare type offset = number
+
+interface FlowFilter {
   id?: {
-    /*
-        A list of ids
-        Example: [ "abc-123", "def-456" ]
-      */
+    /**
+      A list of ids
+      Example: [ "abc-123", "def-456" ]
+    */
     any_: any_
   }
   name?: {
-    /*
+    /**
         A list of names
         Example: [ "my-flow-1", "my-flow-2" ]
       */
     any_: any_
   }
   tags?: {
-    /*
-        Results will be returned only if their tags are a superset of the list.
+    /**
+      Results will be returned only if their tags are a superset of the list.
     */
     all_?: any_
-    /*
-        If true, only include flows without tags
-      */
+    /**
+      If true, only include flows without tags
+    */
     is_null_: is_null_
   }
-  flow_runs?: FlowRunsFilter
 }
 
-export interface TaskRunsFilter {
+interface FlowRunFilter {
   id?: {
     any_: any_
     not_any_: not_any_
   }
   tags?: {
-    /*
-        Results will be returned only if their tags are a superset of the list.
+    /**
+      Results will be returned only if their tags are a superset of the list.
     */
-    all_?: string[]
-    /*
-        If true, only include flow runs without tags
-      */
-    is_null_: is_null_
-  }
-  state_type?: {
-    any_: any_
-  }
-  start_time?: {
-    before_: before_
-    after_: after_
-  }
-}
-
-export interface FlowRunsFilter {
-  id?: {
-    any_: any_
-    not_any_: not_any_
-  }
-  tags?: {
-    /*
-        Results will be returned only if their tags are a superset of the list.
+    all_?: all_
+    /**
+      If true, only include flow runs without tags
     */
-    all_?: string[]
-    /*
-        If true, only include flow runs without tags
-      */
     is_null_: is_null_
   }
   deployment_id?: {
@@ -107,14 +95,14 @@ export interface FlowRunsFilter {
   flow_version?: {
     any_: any_
   }
-  /*
+  /**
     Flow run actual starts
   */
   start_time?: {
     before_: before_
     after_: after_
   }
-  /*
+  /**
     Flow run scheduled starts
   */
   expected_start_time?: {
@@ -129,7 +117,54 @@ export interface FlowRunsFilter {
     any_: any_
     is_null_: is_null_
   }
-  task_runs?: TaskRunsFilter
+}
+
+interface TaskRunFilter {
+  id?: {
+    any_: any_
+    not_any_: not_any_
+  }
+  tags?: {
+    /**
+      Results will be returned only if their tags are a superset of the list.
+    */
+    all_?: all_
+    /**
+      If true, only include flow runs without tags
+    */
+    is_null_: is_null_
+  }
+  state_type?: {
+    any_: any_
+  }
+  start_time?: {
+    before_: before_
+    after_: after_
+  }
+}
+
+export interface FlowsFilter {
+  limit?: limit
+  offset?: offset
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
+}
+
+export interface TaskRunsFilter {
+  limit?: limit
+  offset?: offset
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
+}
+
+export interface FlowRunsFilter {
+  limit?: limit
+  offset?: offset
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
 }
 
 export type Filters = {
@@ -241,7 +276,7 @@ export class Query {
   }
 }
 
-/*
+/**
   TODO: add destroy hook to remove queries from api.queries member
 */
 
@@ -257,7 +292,7 @@ export class Api {
     this.queries.forEach((query) => query.stopPolling())
   }
 
-  /*
+  /**
     Returns an instance of the Query class and registers the query
     if a poll interval is specified
   */
