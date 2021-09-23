@@ -238,14 +238,29 @@ export interface QueryOptions {
 const base_url = 'http://localhost:8000'
 
 export class Query {
-  base_url: string = base_url
+  private interval: ReturnType<typeof setInterval> | null = null
+  readonly base_url: string = base_url
+
   body: FilterBody = {}
   endpoint: Endpoint
   pollInterval: number = 0
   value: any = reactive({})
 
-  stopPolling(): void {}
-  startPolling(): void {}
+  stopPolling(): void {
+    if (this.interval) clearInterval(this.interval)
+  }
+
+  startPolling(): void {
+    // We clear the interval to make sure we're not polling
+    // more than expected
+    if (this.interval) clearInterval(this.interval)
+    if (!this.pollInterval) return
+
+    this.interval = setInterval(() => {
+      console.log(this.endpoint.url)
+      this.fetch()
+    }, this.pollInterval)
+  }
 
   async refetch(): Promise<any> {
     this.value.value = await this.fetch()
@@ -292,19 +307,27 @@ export class Query {
   }
 }
 
-export class ApiBaseConstructor {
-  base_url: string = base_url
-  queries: Query[] = []
+/*
+  TODO: add destroy hook to remove queries from api.queries member
+*/
 
-  /*
-    Makes an ad-hoc query with the given parameters
-    without registering the query object
-  */
-  async query(endpoint: Endpoint, body: FilterBody = {}): Promise<any> {
-    return await new Query(endpoint, body).fetch()
+export class Api {
+  base_url: string = base_url
+  static queries: Query[] = []
+
+  static startPolling(): void {
+    this.queries.forEach((query) => query.startPolling())
   }
 
-  register(
+  static stopPolling(): void {
+    this.queries.forEach((query) => query.stopPolling())
+  }
+
+  /*
+    Returns an instance of the Query class and registers the query
+    if a poll interval is specified
+  */
+  static query(
     endpoint: Endpoint,
     body: FilterBody = {},
     options: QueryOptions = {}
@@ -320,17 +343,18 @@ export class ApiBaseConstructor {
       throw new Error('Poll intervals cannot be less than 1000ms.')
 
     const query = new Query(endpoint, body, options)
-    this.queries.push(query)
+
+    if (options.pollInterval) this.queries.push(query)
 
     return query
   }
 }
 
-export const Api = new ApiBaseConstructor()
+// export const Api = new ApiBaseConstructor()
 
 declare module '@vue/runtime-core' {
   export interface ComponentCustomProperties {
-    $api: ApiBaseConstructor
+    $api: Api
   }
 }
 

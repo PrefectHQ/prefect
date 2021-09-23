@@ -1,5 +1,9 @@
 <template>
   <div>
+    <Button @click="refetch">Refetch</Button>
+    <Button @click="startPolling">Start polling</Button>
+    <Button @click="stopPolling">Stop polling</Button>
+
     <row class="filter-row py-1" hide-scrollbars>
       {{ flows }}
     </row>
@@ -202,27 +206,28 @@ export default class Dashboard extends Vue {
     id: { any_: ['574260d3-00e4-448e-9095-977a832241d3'] }
   }
 
-  // flows: Query | null = null
-
-  flowsQuery: Query = setup(() =>
-    Api.register(Endpoints.flows, this.flowsFilter)
-  )
+  flowsQuery: Query = Api.query(Endpoints.flows, this.flowsFilter, {
+    pollInterval: 2000
+  })
 
   get flows() {
-    return this.flowsQuery.value
-  }
-
-  async mounted() {
-    // this.$api.query(Endpoints.flows, this.flowsFilter)
-    console.log(this.flowsQuery)
+    return this.flowsQuery?.value
   }
 
   get resultsCount(): number {
     return this.datasets[this.resultsTab].length
   }
 
-  sayHello(): void {
-    alert('hello')
+  refetch(): void {
+    this.flowsQuery.refetch()
+  }
+
+  startPolling(): void {
+    this.flowsQuery.startPolling()
+  }
+
+  stopPolling(): void {
+    this.flowsQuery.stopPolling()
   }
 }
 </script>
