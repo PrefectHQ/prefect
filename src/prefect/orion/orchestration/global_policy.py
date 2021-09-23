@@ -142,4 +142,4 @@ class UpdateSubflowParentTask(BaseUniversalRule):
 class SetRunState(BaseUniversalRule):
     async def after_transition(self, context: OrchestrationContext) -> None:
         if context.validated_state is not None:
-            context.run.set_state(context.validated_state)
+            context.run.set_state(await context.orm_validated_state)
