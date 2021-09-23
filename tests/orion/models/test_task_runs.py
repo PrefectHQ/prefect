@@ -36,9 +36,7 @@ class TestCreateTaskRun:
     async def test_create_task_run_has_no_default_state(self, flow_run, session):
         task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
-                flow_run_id=flow_run.id, task_key="my-key"
-            ),
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
         )
         assert task_run.flow_run_id == flow_run.id
         assert task_run.state is None
@@ -47,7 +45,7 @@ class TestCreateTaskRun:
         state_id = uuid4()
         task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
+            task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 state=schemas.states.State(
@@ -69,7 +67,7 @@ class TestCreateTaskRun:
         # a new state
         new_task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
+            task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 state=schemas.states.State(type="SCHEDULED", name="My Scheduled State"),
@@ -91,7 +89,7 @@ class TestCreateTaskRun:
 
         scheduled_task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
+            task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 dynamic_key="TB12",
@@ -105,7 +103,7 @@ class TestCreateTaskRun:
 
         running_task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.actions.TaskRunCreate(
+            task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 dynamic_key="TB12",
