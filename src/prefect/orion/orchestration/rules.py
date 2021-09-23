@@ -134,6 +134,30 @@ class FlowOrchestrationContext(OrchestrationContext):
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
+    """
+    A discrete piece of orchestration logic that can govern a state transition.
+
+    An `OrchestrationRule` is a stateful context manager that directly governs a state
+    transition proposed in an `OrchestrationContext`. All rules have hooks that fire
+    before and after a new state is validated and committed to the database. These
+    hooks will fire as long as the state transition is considered "valid" and govern a
+    transition by either modifying the proposed state before it is validated or by
+    producing a side-effect.
+
+    Attributes:
+        FROM_STATES: list of valid initial state types this rule governs
+        TO_STATES: list of valid proposed state types this rule governs
+
+    Args:
+        context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
+            passed between rules
+        from_state_type: The state state type of the initial state, if this state type
+            is not contained in `FROM_STATES`, no hooks will fire
+        to_state_type: The state type of the proposed state before orchestration, if
+            this state type is not contained in `TO_STATES`, no hooks will fire
+
+    """
+
     FROM_STATES: Iterable = []
     TO_STATES: Iterable = []
 
