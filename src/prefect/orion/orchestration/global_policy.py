@@ -13,6 +13,7 @@ COMMON_GLOBAL_RULES = lambda: [
     IncrementRunTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
+    SetRunState,
 ]
 
 
@@ -136,3 +137,9 @@ class UpdateSubflowParentTask(BaseUniversalRule):
                 state=subflow_parent_task_state,
                 force=True,
             )
+
+
+class SetRunState(BaseUniversalRule):
+    async def after_transition(self, context: OrchestrationContext) -> None:
+        if context.validated_state is not None:
+            context.run.set_state(context.validated_state)
