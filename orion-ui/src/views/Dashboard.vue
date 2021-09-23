@@ -198,7 +198,7 @@ export default class Dashboard extends Vue {
   })
 
   get flows() {
-    return this.flowsQuery.value
+    return this.flowsQuery.value || []
   }
 
   get loading() {
