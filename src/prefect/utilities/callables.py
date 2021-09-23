@@ -21,7 +21,7 @@ def get_call_parameters(
     return dict(bound_signature.arguments)
 
 
-def parameters_to_positional_and_keyword(
+def parameters_to_args_kwargs(
     fn: Callable, parameters: Dict[str, Any]
 ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
     """
@@ -43,7 +43,7 @@ def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
     will fail. If you need to send to a function with a different signature, extract
     the args/kwargs using `parameters_to_positional_and_keyword` directly
     """
-    args, kwargs = parameters_to_positional_and_keyword(fn, parameters)
+    args, kwargs = parameters_to_args_kwargs(fn, parameters)
     return fn(*args, **kwargs)
 
 
