@@ -24,11 +24,13 @@ class TestCreateDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                tags=["foo", "bar"],
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
+        assert deployment.tags == ["foo", "bar"]
 
     async def test_create_deployment_updates_existing_deployment(
         self, session, flow, flow_function
@@ -47,6 +49,7 @@ class TestCreateDeployment:
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
+        assert deployment.tags == []
 
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
@@ -61,6 +64,7 @@ class TestCreateDeployment:
                 flow_data=flow_data,
                 schedule=schedule,
                 is_schedule_active=False,
+                tags=["foo", "bar"],
             ),
         )
         assert deployment.name == "My Deployment"
@@ -68,6 +72,7 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
+        assert deployment.tags == ["foo", "bar"]
 
     async def test_create_deployment_with_schedule(self, session, flow, flow_function):
         schedule = schemas.schedules.IntervalSchedule(
@@ -311,6 +316,43 @@ class TestScheduledRuns:
             session, deployment_id=deployment.id, max_runs=3
         )
         assert len(scheduled_runs) == 3
+
+    async def test_schedule_does_not_error_if_theres_no_schedule(
+        self, flow, flow_function, session
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                flow_id=flow.id,
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session, deployment_id=deployment.id, max_runs=3
+        )
+        assert scheduled_runs == []
+
+    @pytest.mark.parametrize("tags", [[], ["foo"]])
+    async def test_schedule_runs_applies_tags(self, tags, flow, flow_function, session):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                tags=tags,
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session, deployment_id=deployment.id, max_runs=2
+        )
+        assert len(scheduled_runs) == 2
+        for run in scheduled_runs:
+            assert run.tags == ["auto-scheduled"] + tags
 
     async def test_schedule_runs_with_end_time(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
