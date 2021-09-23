@@ -3,7 +3,8 @@ disable_existing_loggers: False
 
 formatters:
     simple:
-        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format: "%(asctime)s.%(msecs)03d | %(message)s"
+        datefmt: "%H:%M:%S"
 
     flow_run:
         format: "%(asctime)s - %(flow_run_id)s - %(levelname)s - %(message)s"
