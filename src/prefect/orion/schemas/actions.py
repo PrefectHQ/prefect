@@ -46,7 +46,6 @@ StateCreate = schemas.states.State.subclass(
     include_fields=[
         "type",
         "name",
-        "timestamp",
         "message",
         "data",
         "state_details",
