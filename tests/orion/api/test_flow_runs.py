@@ -29,6 +29,24 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
 
+    async def test_create_flow_run_with_state_sets_timestamp_on_server(
+        self, flow, client, session
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        # the timestamp was overwritten
+        assert flow_run.state.timestamp < pendulum.now()
+
     async def test_create_flow_run_without_state_yields_default_pending(
         self, flow, client, session
     ):
@@ -115,17 +133,18 @@ class TestCreateFlowRun:
         assert flow_run.parent_task_run_id == task_run.id
 
     async def test_create_flow_run_with_running_state(self, flow, client, session):
-        flow_run_data = dict(
+        flow_run_data = actions.FlowRunCreate(
             flow_id=str(flow.id),
-            state=states.Running().dict(json_compatible=True),
+            state=states.Running(),
         )
-        response = await client.post("/flow_runs/", json=flow_run_data)
+        response = await client.post(
+            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+        )
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
         )
         assert str(flow_run.id) == response.json()["id"]
-        assert str(flow_run.state.id) == flow_run_data["state"]["id"]
-        assert flow_run.state.type.value == flow_run_data["state"]["type"]
+        assert flow_run.state.type == flow_run_data.state.type
 
     async def test_create_flow_run_with_deployment_id(
         self, flow, client, session, flow_function
