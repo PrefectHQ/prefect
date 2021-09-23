@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import re
@@ -134,7 +135,7 @@ def setup_sqlite(conn, named=True):
         conn.execute("PRAGMA foreign_keys=ON")
 
 
-class UUIDDefault(FunctionElement):
+class GenerateUUID(FunctionElement):
     """
     Platform-independent UUID default generator.
     Note the actual functionality for this class is speficied in the
@@ -144,8 +145,9 @@ class UUIDDefault(FunctionElement):
     name = "uuid_default"
 
 
-@compiles(UUIDDefault, "postgresql")
-def visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
+@compiles(GenerateUUID, "postgresql")
+@compiles(GenerateUUID)
+def _generate_uuid_postgresql(element, compiler, **kwargs):
     """
     Generates a random UUID in Postgres; requires the pgcrypto extension.
     """
@@ -153,8 +155,8 @@ def visit_custom_uuid_default_for_postgres(element, compiler, **kwargs):
     return "(GEN_RANDOM_UUID())"
 
 
-@compiles(UUIDDefault)
-def visit_custom_uuid_default(element, compiler, **kwargs):
+@compiles(GenerateUUID, "sqlite")
+def _generate_uuid_sqlite(element, compiler, **kwargs):
     """
     Generates a random UUID in other databases (SQLite) by concatenating
     bytes in a way that approximates a UUID hex representation. This is
@@ -329,7 +331,7 @@ class now(FunctionElement):
 
 
 @compiles(now, "sqlite")
-def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
+def _current_timestamp_sqlite(element, compiler, **kwargs):
     """
     Generates the current timestamp for SQLite
 
@@ -347,7 +349,7 @@ def sqlite_microseconds_current_timestamp(element, compiler, **kwargs):
 
 
 @compiles(now)
-def current_timestamp(element, compiler, **kwargs):
+def _current_timestamp(element, compiler, **kwargs):
     """
     Generates the current timestamp in standard SQL
     """
@@ -368,25 +370,39 @@ class date_add(FunctionElement):
         super().__init__()
 
 
+@compiles(date_add, "postgresql")
 @compiles(date_add)
-def date_add_generic(element, compiler, **kwargs):
-    return compiler.process(element.dt + element.interval)
+def _date_add_postgresql(element, compiler, **kwargs):
+    return compiler.process(
+        sa.cast(element.dt, Timestamp()) + sa.cast(element.interval, sa.Interval())
+    )
 
 
 @compiles(date_add, "sqlite")
-def date_add_sqlite(element, compiler, **kwargs):
+def _date_add_sqlite(element, compiler, **kwargs):
     """
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
     """
+
+    dt = element.dt
+    if isinstance(dt, datetime.datetime):
+        dt = str(dt)
+
+    interval = element.interval
+    if isinstance(interval, datetime.timedelta):
+        interval = str(pendulum.datetime(1970, 1, 1) + interval)
+
     return compiler.process(
         # convert to date
         sa.func.strftime(
             "%Y-%m-%d %H:%M:%f000",
-            sa.func.julianday(element.dt)
+            sa.func.julianday(dt)
             + (
-                sa.func.julianday(element.interval) - 2440587.5
-            ),  # the epoch in julian days
+                # convert interval to fractional days after the epoch
+                sa.func.julianday(interval)
+                - 2440587.5
+            ),
         )
     )
 
@@ -405,13 +421,16 @@ class interval_add(FunctionElement):
         super().__init__()
 
 
+@compiles(interval_add, "postgresql")
 @compiles(interval_add)
-def interval_add_generic(element, compiler, **kwargs):
-    return compiler.process(element.i1 + element.i2)
+def _interval_add_postgresql(element, compiler, **kwargs):
+    return compiler.process(
+        sa.cast(element.i1, sa.Interval()) + sa.cast(element.i2, sa.Interval())
+    )
 
 
 @compiles(interval_add, "sqlite")
-def interval_add_sqlite(element, compiler, **kwargs):
+def _interval_add_sqlite(element, compiler, **kwargs):
     """
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
@@ -420,11 +439,20 @@ def interval_add_sqlite(element, compiler, **kwargs):
 
     (i1 - epoch) + (i2 - epoch) = i1 + i2 - epoch
     """
+
+    i1 = element.i1
+    if isinstance(i1, datetime.timedelta):
+        i1 = str(pendulum.datetime(1970, 1, 1) + i1)
+
+    i2 = element.i2
+    if isinstance(i2, datetime.timedelta):
+        i2 = str(pendulum.datetime(1970, 1, 1) + i2)
+
     return compiler.process(
         # convert to date
         sa.func.strftime(
             "%Y-%m-%d %H:%M:%f000",
-            sa.func.julianday(element.i1) + sa.func.julianday(element.i2) - 2440587.5,
+            sa.func.julianday(i1) + sa.func.julianday(i2) - 2440587.5,
         )
     )
 
@@ -443,17 +471,28 @@ class date_diff(FunctionElement):
         super().__init__()
 
 
+@compiles(date_diff, "postgresql")
 @compiles(date_diff)
-def date_diff_generic(element, compiler, **kwargs):
-    return compiler.process(element.d1 - element.d2)
+def _date_diff_postgresql(element, compiler, **kwargs):
+    return compiler.process(
+        sa.cast(element.d1, Timestamp()) - sa.cast(element.d2, Timestamp())
+    )
 
 
 @compiles(date_diff, "sqlite")
-def date_diff_sqlite(element, compiler, **kwargs):
+def _date_diff_sqlite(element, compiler, **kwargs):
     """
     In sqlite, we represent intervals as datetimes after the epoch, following
     SQLAlchemy convention for the Interval() type.
     """
+    d1 = element.d1
+    if isinstance(d1, datetime.datetime):
+        d1 = str(d1)
+
+    d2 = element.d2
+    if isinstance(d2, datetime.datetime):
+        d2 = str(d2)
+
     return compiler.process(
         # convert to date
         sa.func.strftime(
@@ -461,7 +500,7 @@ def date_diff_sqlite(element, compiler, **kwargs):
             # the epoch in julian days
             2440587.5
             # plus the date difference in julian days
-            + sa.func.julianday(element.d1) - sa.func.julianday(element.d2),
+            + sa.func.julianday(d1) - sa.func.julianday(d2),
         )
     )
 
@@ -476,8 +515,9 @@ class json_contains(FunctionElement):
         super().__init__()
 
 
+@compiles(json_contains, "postgresql")
 @compiles(json_contains)
-def json_contains_postgresql(element, compiler, **kwargs):
+def _json_contains_postgresql(element, compiler, **kwargs):
     return compiler.process(
         sa.type_coerce(element.json_expr, postgresql.JSONB).contains(element.values),
         **kwargs,
@@ -485,7 +525,7 @@ def json_contains_postgresql(element, compiler, **kwargs):
 
 
 @compiles(json_contains, "sqlite")
-def json_contains_sqlite(element, compiler, **kwargs):
+def _json_contains_sqlite(element, compiler, **kwargs):
 
     json_values = []
     for v in element.values:
@@ -526,8 +566,9 @@ class json_has_any_key(FunctionElement):
         super().__init__()
 
 
+@compiles(json_has_any_key, "postgresql")
 @compiles(json_has_any_key)
-def json_has_any_key_postgresql(element, compiler, **kwargs):
+def _json_has_any_key_postgresql(element, compiler, **kwargs):
 
     values_array = postgresql.array(element.values)
     # if the array is empty, postgres requires a type annotation
@@ -541,7 +582,7 @@ def json_has_any_key_postgresql(element, compiler, **kwargs):
 
 
 @compiles(json_has_any_key, "sqlite")
-def json_has_any_key_sqlite(element, compiler, **kwargs):
+def _json_has_any_key_sqlite(element, compiler, **kwargs):
     # attempt to match any of the provided values at least once
     json_each = sa.func.json_each(element.json_expr).alias("json_each")
     return compiler.process(
@@ -565,8 +606,9 @@ class json_has_all_keys(FunctionElement):
         super().__init__()
 
 
+@compiles(json_has_all_keys, "postgresql")
 @compiles(json_has_all_keys)
-def json_has_all_keys_postgresql(element, compiler, **kwargs):
+def _json_has_all_keys_postgresql(element, compiler, **kwargs):
     values_array = postgresql.array(element.values)
 
     # if the array is empty, postgres requires a type annotation
@@ -580,7 +622,7 @@ def json_has_all_keys_postgresql(element, compiler, **kwargs):
 
 
 @compiles(json_has_all_keys, "sqlite")
-def json_has_all_keys_sqlite(element, compiler, **kwargs):
+def _json_has_all_keys_sqlite(element, compiler, **kwargs):
     # attempt to match all of the provided values at least once
     # by applying an "any_key" match to each one individually
     return compiler.process(
@@ -646,7 +688,7 @@ class Base(object):
     id = Column(
         UUID(),
         primary_key=True,
-        server_default=UUIDDefault(),
+        server_default=GenerateUUID(),
         default=uuid.uuid4,
     )
     created = Column(
