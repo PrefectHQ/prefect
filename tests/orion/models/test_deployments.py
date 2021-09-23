@@ -1,4 +1,6 @@
 import datetime
+from unicodedata import name
+from orion.schemas import filters
 from tests.fixtures.database import session
 from uuid import uuid4
 import uuid
@@ -92,9 +94,62 @@ class TestCreateDeployment:
 
 
 class TestReadDeployment:
+    @pytest.fixture
+    async def deployment_id_1():
+        return uuid4()
+
+    @pytest.fixture
+    async def deployment_id_2():
+        return uuid4()
+
+    @pytest.fixture
+    async def deployment_id_3():
+        return uuid4()
+
+    @pytest.fixture
+    async def filter_data(
+        self,
+        session,
+        flow,
+        flow_function,
+        deployment_id_1,
+        deployment_id_2,
+        deployment_id_3,
+    ):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_1,
+                name="My Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+            ),
+        )
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_2,
+                name="Another Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+                tags=["tb12"],
+            ),
+        )
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_3,
+                name="Yet Another Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+                tags=["tb12", "goat"],
+                is_schedule_active=True,
+            ),
+        )
+
     async def test_read_deployment(self, session, flow, flow_function):
         # create a deployment to read
-
         flow_data = DataDocument.encode("cloudpickle", flow_function)
         deployment = await models.deployments.create_deployment(
             session=session,
@@ -111,6 +166,24 @@ class TestReadDeployment:
         )
         assert deployment.id == read_deployment.id
         assert deployment.name == read_deployment.name
+
+    async def test_read_deployment_filters_by_id(self, deployment_id_1, session):
+        result = await models.deployments.read_deployment(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                id=filters.DeploymentFilterId(any_=[deployment_id_1]),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_1}
+
+    async def test_read_deployment_filters_by_name(self, deployment_id_2, session):
+        result = await models.deployments.read_deployment(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                name=filters.DeploymentFilterName(any_=[deployment_id_2]),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_2}
 
     async def test_read_deployment_returns_none_if_does_not_exist(self, session):
         result = await models.deployments.read_deployment(
