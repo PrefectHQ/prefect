@@ -7,7 +7,6 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow
-from prefect import orion
 from prefect.client import OrionClient
 from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -157,8 +156,8 @@ async def test_read_flow_runs_with_filtering(orion_client):
     fr_id_5 = await orion_client.create_flow_run(bar, state=Running())
 
     flows = await orion_client.read_flow_runs(
-        flows=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
-        flow_runs=schemas.filters.FlowRunFilter(
+        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
+        flow_run_filter=schemas.filters.FlowRunFilter(
             state_type=dict(
                 any_=[
                     StateType.SCHEDULED,
@@ -208,7 +207,7 @@ async def test_read_flows_with_filter(orion_client):
     flow_id_3 = await orion_client.create_flow(foobar)
 
     flows = await orion_client.read_flows(
-        flows=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
+        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
     )
     assert len(flows) == 2
     assert all(isinstance(flow, schemas.core.Flow) for flow in flows)
