@@ -95,8 +95,7 @@ class LocalExecutor(BaseExecutor):
         self._results[run_id] = await run_fn(*args, **kwargs)
 
         return PrefectFuture(
-            task_run_id=run_id,
-            flow_run_id=self.flow_run_id,
+            run_id=run_id,
             client=self.orion_client,
             executor=self,
         )
@@ -135,8 +134,7 @@ class DaskExecutor(BaseExecutor):
         self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 
         return PrefectFuture(
-            task_run_id=run_id,
-            flow_run_id=self.flow_run_id,
+            run_id=run_id,
             client=self.orion_client,
             executor=self,
         )

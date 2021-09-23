@@ -33,15 +33,12 @@ R = TypeVar("R")
 class PrefectFuture(Generic[R]):
     def __init__(
         self,
-        flow_run_id: UUID,
+        run_id: UUID,
         client: OrionClient,
         executor: "BaseExecutor",
-        task_run_id: UUID = None,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
-        self.flow_run_id = flow_run_id
-        self.task_run_id = task_run_id
-        self.run_id = self.task_run_id or self.flow_run_id
+        self.run_id = run_id
         self._client = client
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
@@ -76,18 +73,12 @@ class PrefectFuture(Generic[R]):
 
     @sync_compatible
     async def get_state(self) -> State[R]:
-        run: Union[FlowRun, TaskRun]
+        task_run = await self._client.read_task_run(self.run_id)
 
-        if self.task_run_id:
-            run = await self._client.read_task_run(self.task_run_id)
+        if not task_run:
+            raise RuntimeError("Future has no associated task run in the server.")
 
-        else:
-            run = await self._client.read_flow_run(self.flow_run_id)
-
-        if not run:
-            raise RuntimeError("Future has no associated run in the server.")
-
-        return run.state
+        return task_run.state
 
     def __hash__(self) -> int:
         return hash(self.run_id)
