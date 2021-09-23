@@ -1,4 +1,4 @@
-import { App, Plugin, reactive } from 'vue'
+import { App, Plugin, reactive, ref } from 'vue'
 
 /*
     Name: Api / $api
@@ -236,6 +236,7 @@ export class Query {
   body: FilterBody = {}
   endpoint: Endpoint
   pollInterval: number = 0
+  loading = ref(false)
   value: any = reactive({})
 
   stopPolling(): void {
@@ -252,7 +253,11 @@ export class Query {
   }
 
   async refetch(): Promise<any> {
-    this.value.value = await this.fetch()
+    this.loading.value = true
+    setTimeout(async () => {
+      this.value.value = await this.fetch()
+      this.loading.value = false
+    }, 5000)
     return this.value.value
   }
 

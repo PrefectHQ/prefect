@@ -1,12 +1,5 @@
 <template>
   <div>
-    <Button @click="refetch">Refetch</Button>
-    <Button @click="startPolling">Start polling</Button>
-    <Button @click="stopPolling">Stop polling</Button>
-
-    <row class="filter-row py-1" hide-scrollbars>
-      {{ flows }}
-    </row>
     <row class="filter-row py-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
@@ -211,7 +204,11 @@ export default class Dashboard extends Vue {
   })
 
   get flows() {
-    return this.flowsQuery?.value
+    return this.flowsQuery.value
+  }
+
+  get loading() {
+    return this.flowsQuery.loading
   }
 
   get resultsCount(): number {
