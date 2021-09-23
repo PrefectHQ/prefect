@@ -1,33 +1,21 @@
 import { App, Plugin, reactive, ref } from 'vue'
 
-/**
- * A list where results will be returned only if they match all the values in the list
- */
+/** A list where results will be returned only if they match all the values in the list */
 declare type all_ = string[]
 
-/**
- * A list where results will be returned if any of the values are included in the list
- */
+/** A list where results will be returned if any of the values are included in the list */
 declare type any_ = string[]
 
-/**
- * A list where results will be returned if values don't match any in the list
- */
+/** A list where results will be returned if values don't match any in the list */
 declare type not_any_ = string[]
 
-/**
- * If true, returns results whose key is null
- */
+/** If true, returns results whose key is null */
 declare type is_null_ = boolean
 
-/**
- * A date-time string to include results starting at or before this time
- */
+/** A date-time string to include results starting at or before this time */
 declare type before_ = string
 
-/**
- * A date-time string to include results starting at or after this time
- */
+/** A date-time string to include results starting at or after this time */
 declare type after_ = string
 
 /**
