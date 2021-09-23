@@ -1,26 +1,29 @@
-import datetime
-from typing import Union
+from prefect.orion import models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
-    ALL_ORCHESTRATION_STATES,
     BaseUniversalRule,
     OrchestrationContext,
 )
-from prefect.orion.schemas import states
-from prefect.orion.models import orm
+
+COMMON_GLOBAL_RULES = lambda: [
+    SetRunStateType,
+    SetStartTime,
+    SetEndTime,
+    IncrementRunCount,
+    IncrementRunTime,
+    SetExpectedStartTime,
+    SetNextScheduledStartTime,
+]
 
 
-class GlobalPolicy(BaseOrchestrationPolicy):
+class GlobalFlowPolicy(BaseOrchestrationPolicy):
     def priority():
-        return [
-            SetRunStateType,
-            SetStartTime,
-            SetEndTime,
-            IncrementRunCount,
-            IncrementRunTime,
-            SetExpectedStartTime,
-            SetNextScheduledStartTime,
-        ]
+        return COMMON_GLOBAL_RULES() + [UpdateSubflowParentTask]
+
+
+class GlobalTaskPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return COMMON_GLOBAL_RULES()
 
 
 class SetRunStateType(BaseUniversalRule):
@@ -98,4 +101,38 @@ class SetNextScheduledStartTime(BaseUniversalRule):
         if context.proposed_state.is_scheduled():
             context.run.next_scheduled_start_time = (
                 context.proposed_state.state_details.scheduled_time
+            )
+
+
+class UpdateSubflowParentTask(BaseUniversalRule):
+    """
+    Whenever a subflow changes state, it must update its parent task run's state.
+    """
+
+    async def after_transition(self, context: OrchestrationContext) -> None:
+
+        # only applies to flow runs with a parent task run id
+        if context.run.parent_task_run_id is not None:
+
+            # avoid mutation of the flow run state
+            subflow_parent_task_state = context.validated_state.copy(
+                reset_fields=True,
+                include={
+                    "type",
+                    "timestamp",
+                    "name",
+                    "message",
+                    "state_details",
+                    "data",
+                },
+            )
+
+            # set the task's "child flow run id" to be the subflow run id
+            subflow_parent_task_state.state_details.child_flow_run_id = context.run.id
+
+            await models.task_runs.set_task_run_state(
+                session=context.session,
+                task_run_id=context.run.parent_task_run_id,
+                state=subflow_parent_task_state,
+                force=True,
             )
