@@ -15,6 +15,7 @@ from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
 from prefect.utilities.settings import NOTSET, NotSetType, drop_unset
+from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -68,6 +69,7 @@ class OrionClient:
             httpx_settings.setdefault("base_url", "http://orion")
 
         self._client = httpx.AsyncClient(**httpx_settings)
+        self.logger = get_logger("client")
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         # TODO: This function (and other httpx mirrors) should replicate the types like
