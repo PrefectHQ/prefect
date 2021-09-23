@@ -11,7 +11,10 @@ from prefect.orion import services
 from prefect import settings
 from prefect.utilities.logging import get_logger
 
-app = FastAPI(title="Prefect Orion", version="alpha")
+app = FastAPI(
+    title="Prefect Orion",
+    version="alpha",
+)
 logger = get_logger("orion")
 
 # middleware
