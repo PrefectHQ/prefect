@@ -271,8 +271,8 @@ class TestFlowCall:
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
 
-        subflow_id, wrapper_task_state = await get_result(parent_state)
-        assert await get_result(wrapper_task_state) == 6
+        subflow_id, subflow_state = await get_result(parent_state)
+        assert await get_result(subflow_state) == 6
 
         async with OrionClient() as client:
             child_flow_run = await client.read_flow_run(subflow_id)
