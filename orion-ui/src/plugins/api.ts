@@ -103,7 +103,7 @@ export class Query {
     if (this.interval) clearInterval(this.interval)
     if (!this.pollInterval) return
     await this.refetch()
-    this.interval = setTimeout(this.startPolling, this.pollInterval)
+    this.interval = setTimeout(() => this.startPolling(), this.pollInterval)
   }
 
   async refetch(): Promise<any> {
