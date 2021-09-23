@@ -1,13 +1,12 @@
 import contextlib
 from types import TracebackType
 from typing import Dict, Iterable, List, Optional, Type, Union
-from uuid import UUID
 
 import sqlalchemy as sa
 
 from pydantic import Field
 
-from prefect.orion.models import orm
+from prefect.orion.models import orm, task_run_states, flow_run_states
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
@@ -106,6 +105,13 @@ class TaskOrchestrationContext(OrchestrationContext):
     def run_settings(self) -> Dict:
         return self.run.empirical_policy
 
+    @property
+    async def orm_validated_state(self):
+        if self.validated_state is not None:
+            return await task_run_states.read_task_run_state(
+                self.session, self.validated_state.id
+            )
+
 
 class FlowOrchestrationContext(OrchestrationContext):
     run: orm.FlowRun
@@ -131,6 +137,13 @@ class FlowOrchestrationContext(OrchestrationContext):
     @property
     def run_settings(self) -> Dict:
         return self.run.empirical_policy
+
+    @property
+    async def orm_validated_state(self):
+        if self.validated_state is not None:
+            return await flow_run_states.read_flow_run_state(
+                self.session, self.validated_state.id
+            )
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
