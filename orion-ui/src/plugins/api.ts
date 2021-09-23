@@ -1,12 +1,5 @@
 import { App, Plugin, reactive } from 'vue'
 
-// const FLOW_RUNS = 'host:port/flow_runs/filter'
-// const FLOWs = 'host:port/flows/filter'
-
-// export default { FLOW_RUNS, FLOWS }
-
-// query({ ref: FLOWS, parameters: { deployment_ids: [''] } })
-
 /*
     Name: Api / $api
     Objectives:
@@ -246,19 +239,16 @@ export class Query {
   value: any = reactive({})
 
   stopPolling(): void {
-    if (this.interval) clearInterval(this.interval)
+    if (this.interval) clearTimeout(this.interval)
   }
 
-  startPolling(): void {
+  async startPolling(): Promise<void> {
     // We clear the interval to make sure we're not polling
     // more than expected
     if (this.interval) clearInterval(this.interval)
     if (!this.pollInterval) return
-
-    this.interval = setInterval(() => {
-      console.log(this.endpoint.url)
-      this.fetch()
-    }, this.pollInterval)
+    await this.refetch()
+    this.interval = setTimeout(this.startPolling, this.pollInterval)
   }
 
   async refetch(): Promise<any> {
@@ -295,13 +285,16 @@ export class Query {
 
     if (pollInterval !== 0 && pollInterval < 1000)
       throw new Error('Poll intervals cannot be less than 1000ms.')
+
+    this.body = body
+
     if (pollInterval > 0) {
       this.pollInterval = pollInterval
       this.startPolling()
+    } else {
+      this.refetch()
     }
 
-    this.body = body
-    this.refetch()
     return this
   }
 }
