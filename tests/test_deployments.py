@@ -200,7 +200,7 @@ async def test_create_deployment_from_spec(orion_client):
         flow_location=TEST_FILES_DIR / "single_flow.py",
         schedule=schedule,
         parameters={"foo": "bar"},
-        tags=["foo", "bar"]
+        tags=["foo", "bar"],
     )
     deployment_id = await create_deployment_from_spec(spec, client=orion_client)
 
