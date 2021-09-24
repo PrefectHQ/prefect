@@ -19,12 +19,31 @@
     <section
       v-for="section in settingsSections"
       :key="section.label"
-      class="mt-1"
+      class="mt-1 setting--section my-2"
     >
-      <h3 class="font-weight-semibold">{{ section.key }}</h3>
-      <code>
-        {{ section.content }}
-      </code>
+      <h3 class="font-weight-semibold setting--section-title my-1">
+        {{ section.key }}
+      </h3>
+      <section class="setting--section-content font--secondary caption">
+        <div class="pa-2">
+          <div v-for="_s in section.content" :key="_s.key">
+            <div v-if="Array.isArray(_s.content)">
+              <section
+                v-for="__s in _s.content"
+                :key="__s.key"
+                class="setting--section-subsection"
+              >
+                <span>{{ __s.key }}:</span>
+                <span class="ml-1">{{ __s.content }}</span>
+              </section>
+            </div>
+            <div v-else>
+              <span>{{ _s.key }}:</span>
+              <span class="ml-1">{{ _s.content }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
   </div>
 </template>
@@ -55,7 +74,7 @@ export default class Settings extends Vue {
     if (!this.settings) return []
     const settings: { [key: string]: any } = { ...this.settings, base: {} }
     Object.entries(settings).forEach(([key, value]) => {
-      if (value && typeof value == 'object' && !Array.isArray(value)) {
+      if (this.objectCheck(value)) {
         settings[key] = value
       } else {
         settings['base'][key] = value
@@ -68,6 +87,10 @@ export default class Settings extends Vue {
     )
   }
 
+  objectCheck(arg: any): boolean {
+    return arg && typeof arg == 'object' && !Array.isArray(arg)
+  }
+
   flatten(arr: [string, any][]): { key: string; content: any }[] {
     return arr.reduce((acc: { key: string; content: any }[], [key, value]) => {
       const obj: { key: string; content: any } = {
@@ -75,7 +98,7 @@ export default class Settings extends Vue {
         content: undefined
       }
 
-      if (value && typeof value == 'object' && !Array.isArray(value)) {
+      if (this.objectCheck(value)) {
         obj.content = this.flatten(Object.entries(value))
       } else {
         obj.content = value
@@ -95,4 +118,6 @@ export default class Settings extends Vue {
 }
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+@use '@/styles/views/settings';
+</style>
