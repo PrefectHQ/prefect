@@ -154,8 +154,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     by these orchestration rules. After using rules to enter a runtime context, the
     `OrchestrationContext` will contain a proposed state that has been governed by
     each rule, and at that point can validate the proposed state and commit it to
-    the database. Once a state has been validated, rules will call the
-    `self.after_transition` hook upon exiting the managed context.
+    the database. The validated state will be set on the context as
+    `context.validated_state`, and rules will call the `self.after_transition` hook
+    upon exiting the managed context.
 
     Examples:
 
@@ -276,8 +277,15 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Implements a hook that can fire before a state is committed to the database.
 
         This hook may produce side-effects or mutate the proposed state of a
-        transition. The proposed state should only be mutated via the methods
-        `self.reject_transition`, `self.abort_transition`, and `self.delay_transition`.
+        transition. This `before_transition` is the only opportunity a rule
+        will have to mutate the transition because upon exiting the context, the
+        proposed state is already validated and written to the database. To enforce this
+        the `context` passed to these methods is a copy which, if mutated, will not
+        modify the transition. Proposed states can only be mutated via the special
+        methods `self.reject_transition`, `self.delay_transition` and
+        `self.abort_transition`. These methods constrain the way transitions might
+        be modified by rules, and also pass the appropriate response metadata back
+        to the API.
 
         Args:
             initial_state: The initial state of a transtion
