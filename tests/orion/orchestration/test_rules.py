@@ -18,7 +18,6 @@ from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
     StateAbortDetails,
-    StateAcceptDetails,
     StateRejectDetails,
     StateWaitDetails,
 )
@@ -37,7 +36,7 @@ async def commit_task_run_state(
     ):
         state_details.update({"scheduled_time": pendulum.now()})
 
-    new_state = schemas.actions.StateCreate(
+    new_state = schemas.states.State(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
@@ -1166,3 +1165,16 @@ class TestOrchestrationContext:
             assert isinstance(orm_state, orm.TaskRunState)
         if run_type == "flow":
             assert isinstance(orm_state, orm.FlowRunState)
+
+    async def test_context_validation_sets_run_state(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        assert ctx.run.state.id != ctx.proposed_state.id
+        await ctx.validate_proposed_state()
+        assert ctx.run.state.id == ctx.validated_state.id
+        assert ctx.validated_state.id == ctx.proposed_state.id

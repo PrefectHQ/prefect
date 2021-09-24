@@ -10,7 +10,7 @@ import prefect
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy
-from prefect.orion.orchestration.global_policy import GlobalPolicy
+from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
@@ -76,7 +76,10 @@ async def create_flow_run(
 
     if model.created >= now and flow_run.state:
         await models.flow_runs.set_flow_run_state(
-            session=session, flow_run_id=model.id, state=flow_run.state
+            session=session,
+            flow_run_id=model.id,
+            state=flow_run.state,
+            force=True,
         )
     return model
 
@@ -287,7 +290,7 @@ async def set_flow_run_state(
     proposed_state_type = state.type if state else None
     intended_transition = (initial_state_type, proposed_state_type)
 
-    global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
+    global_rules = GlobalFlowPolicy.compile_transition_rules(*intended_transition)
 
     if force:
         orchestration_rules = []
@@ -317,11 +320,7 @@ async def set_flow_run_state(
 
         validated_orm_state = await context.validate_proposed_state()
 
-    # assign to the ORM model to create the state
-    # and update the run
-    if validated_orm_state is not None:
-        run.set_state(validated_orm_state)
-        await session.flush()
+    await session.flush()
 
     result = OrchestrationResult(
         state=validated_orm_state,

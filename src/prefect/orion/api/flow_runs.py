@@ -30,6 +30,9 @@ async def create_flow_run(
 
     If no state is provided, the flow run will be created in a PENDING state.
     """
+    # hydrate the input model into a full flow run / state model
+    flow_run = schemas.core.FlowRun(**flow_run.dict())
+
     if not flow_run.state:
         flow_run.state = schemas.states.Pending()
 
