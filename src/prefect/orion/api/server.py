@@ -47,6 +47,7 @@ async def start_services():
         service_instances = [
             services.agent.Agent(),
             services.scheduler.Scheduler(),
+            services.late_runs.MarkLateRuns(),
         ]
         app.state.services = {
             service: loop.create_task(service.start(), name=service.name)
