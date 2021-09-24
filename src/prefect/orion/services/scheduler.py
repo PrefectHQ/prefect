@@ -22,7 +22,7 @@ class Scheduler(LoopService):
         total_inserted_runs = 0
 
         async with self.session_factory() as session:
-            with session.begin():
+            async with session.begin():
                 last_id = None
                 while True:
                     query = (
