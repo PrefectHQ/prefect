@@ -28,6 +28,9 @@ async def create_task_run(
 
     If no state is provided, the task run will be created in a PENDING state.
     """
+    # hydrate the input model into a full task run / state model
+    task_run = schemas.core.TaskRun(**task_run.dict())
+
     if not task_run.state:
         task_run.state = schemas.states.Pending()
 

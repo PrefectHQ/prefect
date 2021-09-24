@@ -206,8 +206,8 @@ async def schedule_runs(
         start_time = pendulum.now("UTC")
     start_time = pendulum.instance(start_time)
     if end_time is None:
-        end_time = start_time.add(
-            seconds=prefect.settings.orion.services.scheduler_max_future_seconds
+        end_time = start_time + (
+            prefect.settings.orion.services.scheduler_max_scheduled_time
         )
     end_time = pendulum.instance(end_time)
 
