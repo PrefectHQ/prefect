@@ -2,19 +2,16 @@
 import asyncio
 from functools import partial
 from sys import exc_info
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from prefect.orion import api
-from prefect.orion.schemas import schedules
-from prefect.orion import services
+import prefect
 from prefect import settings
+from prefect.orion import api, services
 from prefect.utilities.logging import get_logger
 
-app = FastAPI(
-    title="Prefect Orion",
-    version="alpha",
-)
+app = FastAPI(title="Prefect Orion", version=prefect.__version__)
 logger = get_logger("orion")
 
 # middleware
