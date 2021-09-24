@@ -55,6 +55,54 @@
           Orion
         </span>
       </div>
+      <Button
+        v-if="!showResetSection"
+        color="primary"
+        height="36px"
+        width="100px"
+        class="mt-1"
+        @click="showResetSection = true"
+        miter
+      >
+        Show
+      </Button>
+
+      <section v-if="showResetSection">
+        <div> Are you sure you want to permanently delete your data? </div>
+        <div>
+          If so, type the word <span class="text--error">Confirm</span> to
+          proceed.
+        </div>
+
+        <Input
+          v-model="resetDatabaseConfirmation"
+          placeholder="Confirm"
+          class="my-2"
+          style="max-width: 400px"
+        />
+
+        <div>
+          <Button
+            color="primary"
+            height="36px"
+            :disabled="resetDatabaseConfirmation !== 'Confirm'"
+            miter
+          >
+            Reset Database
+          </Button>
+
+          <Button
+            color="secondary"
+            height="36px"
+            width="100px"
+            class="ml-2"
+            @click="showResetSection = false"
+            miter
+          >
+            Cancel
+          </Button>
+        </div>
+      </section>
     </section>
   </div>
 </template>
@@ -72,6 +120,9 @@ export default class Settings extends Vue {
     settings: Api.query(Endpoints.settings),
     version: Api.query(Endpoints.version)
   }
+
+  resetDatabaseConfirmation: string = ''
+  showResetSection: boolean = false
 
   get settings(): { [key: string]: any } {
     return this.queries.settings.response
