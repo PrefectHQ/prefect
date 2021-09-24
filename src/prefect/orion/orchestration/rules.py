@@ -146,6 +146,17 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     considered "valid" and govern a transition by either modifying the proposed state
     before it is validated or by producing a side-effect.
 
+    A state transition occurs whenever a Flow- or Task- run changes state, prompting
+    Orion to decide whether or not this transition can proceed. The current state of
+    the run is referred to as the "initial state", and the state a run is
+    attempting to transition into is the "proposed state". Together, the initial state
+    transitioning into the proposed state is the intended transition that is governed
+    by these orchestration rules. After using rules to enter a runtime context, the
+    `OrchestrationContext` will contain a proposed state that has been governed by
+    each rule, and at that point can validate the proposed state and commit it to
+    the database. Once a state has been validated, rules will call the
+    `self.after_transition` hook upon exiting the managed context.
+
     Examples:
 
         Create a rule
