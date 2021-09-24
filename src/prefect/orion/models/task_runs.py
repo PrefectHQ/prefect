@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
-from prefect.orion.orchestration.global_policy import GlobalPolicy
+from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.rules import (
     OrchestrationResult,
     TaskOrchestrationContext,
@@ -79,7 +79,10 @@ async def create_task_run(
 
     if model.created >= now and task_run.state:
         await models.task_runs.set_task_run_state(
-            session=session, task_run_id=model.id, state=task_run.state
+            session=session,
+            task_run_id=model.id,
+            state=task_run.state,
+            force=True,
         )
     return model
 
@@ -258,7 +261,7 @@ async def set_task_run_state(
             *intended_transition
         )
 
-    global_rules = GlobalPolicy.compile_transition_rules(*intended_transition)
+    global_rules = GlobalTaskPolicy.compile_transition_rules(*intended_transition)
 
     context = TaskOrchestrationContext(
         session=session,
@@ -281,11 +284,7 @@ async def set_task_run_state(
 
         validated_orm_state = await context.validate_proposed_state()
 
-    # assign to the ORM model to create the state
-    # and update the run
-    if validated_orm_state is not None:
-        run.set_state(validated_orm_state)
-        await session.flush()
+    await session.flush()
 
     result = OrchestrationResult(
         state=validated_orm_state,

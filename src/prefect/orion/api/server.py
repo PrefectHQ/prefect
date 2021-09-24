@@ -24,6 +24,7 @@ app.add_middleware(
 
 
 # routers
+app.include_router(api.admin.router)
 app.include_router(api.data.router)
 app.include_router(api.flows.router)
 app.include_router(api.flow_runs.router)
@@ -31,16 +32,6 @@ app.include_router(api.task_runs.router)
 app.include_router(api.flow_run_states.router)
 app.include_router(api.task_run_states.router)
 app.include_router(api.deployments.router)
-
-
-@app.get("/hello", tags=["debug"])
-def hello():
-    return "👋"
-
-
-@app.get("/echo", tags=["debug"])
-def echo(x: str):
-    return x
 
 
 @app.on_event("startup")

@@ -16,7 +16,7 @@ mock_client.read_flow_run_states.return_value = [Completed()]
 
 async def test_resolve_futures_transforms_future():
     future = PrefectFuture(
-        flow_run_id=uuid4(),
+        run_id=uuid4(),
         client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
@@ -27,7 +27,7 @@ async def test_resolve_futures_transforms_future():
 @pytest.mark.parametrize("typ", [list, tuple, set])
 async def test_resolve_futures_transforms_future_in_listlike_type(typ):
     future = PrefectFuture(
-        flow_run_id=uuid4(),
+        run_id=uuid4(),
         client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
@@ -39,7 +39,7 @@ async def test_resolve_futures_transforms_future_in_generator_type():
     def gen():
         yield "a"
         yield PrefectFuture(
-            flow_run_id=uuid4(),
+            run_id=uuid4(),
             client=None,
             executor=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
@@ -52,7 +52,7 @@ async def test_resolve_futures_transforms_future_in_generator_type():
 async def test_resolve_futures_transforms_future_in_nested_generator_types():
     def gen_a():
         yield PrefectFuture(
-            flow_run_id=uuid4(),
+            run_id=uuid4(),
             client=None,
             executor=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
@@ -69,13 +69,13 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types():
 @pytest.mark.parametrize("typ", [dict, OrderedDict])
 async def test_resolve_futures_transforms_future_in_dictlike_type(typ):
     key_future = PrefectFuture(
-        flow_run_id=uuid4(),
+        run_id=uuid4(),
         client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     value_future = PrefectFuture(
-        flow_run_id=uuid4(),
+        run_id=uuid4(),
         client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
@@ -93,7 +93,7 @@ async def test_resolve_futures_transforms_future_in_dataclass():
         b: int = 2
 
     future = PrefectFuture(
-        flow_run_id=uuid4(),
+        run_id=uuid4(),
         client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
@@ -109,7 +109,7 @@ async def test_resolves_futures_in_nested_collections():
         nested_dict: dict
 
     future = PrefectFuture(
-        flow_run_id=uuid4(),
+        run_id=uuid4(),
         client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),

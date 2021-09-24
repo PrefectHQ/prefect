@@ -9,7 +9,6 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.orchestration.global_policy import update_run_details
 from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
@@ -33,7 +32,8 @@ async def create_deployment(
         .on_conflict_do_update(
             index_elements=["flow_id", "name"],
             set_=deployment.dict(
-                shallow=True, include={"schedule", "is_schedule_active", "flow_data"}
+                shallow=True,
+                include={"schedule", "is_schedule_active", "tags", "flow_data"},
             ),
         )
     )
@@ -93,10 +93,35 @@ async def read_deployment_by_name(
     return result.scalar()
 
 
+def _apply_deployment_filters(
+    query,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: schemas.filters.FlowFilter = None,
+):
+    """
+    Applies filters to a deployment query as a combination of correlated
+    EXISTS subqueries.
+    """
+
+    if deployment_filter:
+        query = query.where(deployment_filter.as_sql_filter())
+
+    if flow_filter:
+        exists_clause = select(orm.Deployment.id).where(
+            orm.Deployment.flow_id == orm.Flow.id, flow_filter.as_sql_filter()
+        )
+
+        query = query.where(exists_clause.exists())
+
+    return query
+
+
 async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: schemas.filters.FlowFilter = None,
 ) -> List[orm.Deployment]:
     """Read deployments
 
@@ -104,12 +129,18 @@ async def read_deployments(
         session (sa.orm.Session): A database session
         offset (int): Query offset
         limit(int): Query limit
+        deployment_filter (DeploymentFilter): only return deployment that match these filters
+        flow_filter (FlowFilter): only return deployments whose flows match these criteria
 
     Returns:
         List[orm.Deployment]: deployments
     """
 
     query = select(orm.Deployment).order_by(orm.Deployment.id)
+
+    query = _apply_deployment_filters(
+        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+    )
 
     if offset is not None:
         query = query.offset(offset)
@@ -118,6 +149,32 @@ async def read_deployments(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+async def count_deployments(
+    session: sa.orm.Session,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
+    flow_filter: schemas.filters.FlowFilter = None,
+) -> int:
+    """Count deployments
+
+    Args:
+        session (sa.orm.Session): A database session
+        deployment_filter (DeploymentFilter): only count deployment that match these filters
+        flow_filter (FlowFilter): only count deployments whose flows match these criteria
+
+    Returns:
+        int: the number of deployments matching filters
+    """
+
+    query = select(sa.func.count(sa.text("*"))).select_from(orm.Deployment)
+
+    query = _apply_deployment_filters(
+        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+    )
+
+    result = await session.execute(query)
+    return result.scalar()
 
 
 async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> bool:
@@ -195,15 +252,16 @@ async def _generate_scheduled_flow_runs(
             deployment_id=deployment_id,
             # parameters=,
             idempotency_key=f"scheduled {deployment.id} {date}",
-            tags=["auto-scheduled"],
+            tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,
             state=schemas.states.Scheduled(
                 scheduled_time=date,
                 message="Flow run scheduled",
             ),
+            state_type=schemas.states.StateType.SCHEDULED,
+            next_scheduled_start_time=date,
+            expected_start_time=date,
         )
-        # apply run details updates because this state won't go through the orchestration engine
-        update_run_details(initial_state=None, proposed_state=run.state, run=run)
         runs.append(run)
 
     return runs
@@ -220,6 +278,9 @@ async def _insert_scheduled_flow_runs(
 
     Returns a list of flow runs that were created
     """
+
+    if not runs:
+        return []
 
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
