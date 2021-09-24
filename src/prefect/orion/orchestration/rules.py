@@ -1,7 +1,6 @@
 import contextlib
 from types import TracebackType
 from typing import Dict, Iterable, List, Optional, Type, Union
-from uuid import UUID
 
 import sqlalchemy as sa
 
@@ -91,6 +90,7 @@ class TaskOrchestrationContext(OrchestrationContext):
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
         else:
             validated_orm_state = None
         validated_state = (
@@ -117,6 +117,7 @@ class FlowOrchestrationContext(OrchestrationContext):
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
         else:
             validated_orm_state = None
         validated_state = (
