@@ -640,6 +640,32 @@ class TestTaskInputs:
             y=[],
         )
 
+    async def test_task_with_one_upstream_kwarg(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x + y
+
+        @flow
+        def test_flow():
+            a = foo(1)
+            b = foo(2)
+            c = bar(x=a, y=1)
+            return a, b, c
+
+        flow_state = test_flow()
+        a, b, c = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunInput(id=a.state_details.task_run_id)],
+            y=[],
+        )
+
     async def test_task_with_two_upstream(self, orion_client):
         @task
         def foo(x):
