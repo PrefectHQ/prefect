@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 # doc build artifacts
-docs/schema.json
+docs/api-ref/schema.json
 
 # C extensions
 *.so
