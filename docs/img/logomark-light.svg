@@ -1,0 +1,30 @@
+<svg id="prefect-light-logo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 464 745" aria-labelledby="light-logo-title light-logo-desc" role="img">
+    <title>Prefect</title>
+    <desc>Full light logo</desc>
+    <defs>
+        <linearGradient id="b" x1="17.3333333%" x2="86.5674218%" y1="20%" y2="88.1234369%">
+            <stop offset="0%" stop-color="#CEDBE5"/>
+            <stop offset="100%" stop-color="#A7BECF"/>
+        </linearGradient>
+        <path id="a" d="M232.25 115.966L.5.006v235.91z"/>
+        <linearGradient id="d" x1="16.0016827%" x2="132.003088%" y1="17.3332978%" y2="40.4566875%">
+            <stop offset="0%" stop-color="#F6F9FB"/>
+            <stop offset="100%" stop-color="#D7DFE4"/>
+        </linearGradient>
+        <linearGradient id="e" x1="16%" x2="68.2660803%" y1="17.3333109%" y2="105.421286%">
+            <stop offset="0%" stop-color="#F6F9FB"/>
+            <stop offset="100%" stop-color="#D7DFE4"/>
+        </linearGradient>
+    </defs>
+    <g fill="none" fill-rule="evenodd">
+        <g transform="translate(231 231)">
+            <mask id="c" fill="#fff">
+                <use xlink:href="#a"/>
+            </mask>
+            <use fill="url(#b)" xlink:href="#a"/>
+            <path fill="#0D3958" fill-opacity=".2" d="M30 220.646L.5 45.166v190.75zM202.5 101.085L.5.006v25.66z" mask="url(#c)"/>
+        </g>
+        <path fill="url(#d)" d="M14 742.37c.5-.26 212.76-103.17 213-103.3 2.93-1.65 4.53-2.18 4.6-7.4.01-.5-.1-400.655-.1-400.655C141.6 276.026 15 339.166 4 345.016c-3.5 1.861-4 3.65-4 6.15V732.17c0 8.5.5 17 14 10.2z"/>
+        <path fill="url(#e)" d="M463.25 119.997v226.969S31 130.79 16 122.916c-10-5.25-10-10.25 0-15.75 9.23-5.078 184.56-92.559 211.5-106 3.5-1.5 4.5-1.5 7.57-.3l223.78 112.05c3.15 1.75 4.15 3.25 4.4 7.081z"/>
+    </g>
+</svg>
