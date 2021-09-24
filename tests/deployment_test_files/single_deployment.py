@@ -7,4 +7,6 @@ DeploymentSpec(
     flow_location=pathlib.Path(__file__).parent / "single_flow.py",
     name="hello-world-daily",
     schedule=IntervalSchedule(interval=timedelta(days=1)),
+    parameters={"foo": "bar"},
+    tags=["foo", "bar"]
 )
