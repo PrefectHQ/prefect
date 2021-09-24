@@ -1,0 +1,25 @@
+/* styling that applies only to the Python API reference documentation */
+
+/* class headings */
+.doc-object.doc-class > .doc-heading { background-color: #f5f5f5; font-color: #42a5f5; font-size: 1.75em; font-weight: bold; padding-left: 8px; border-radius: 3px; border-left: solid 4px #3b8dff; margin-top: 32px; }
+
+/* Class section headings */
+[id$="-classes"] { border-bottom: solid 2px #3b8dff; font-weight: bold; border-radius: 3px; }
+
+/* Function section headings */
+[id$="-functions"] { border-bottom: solid 2px #3b8dff; font-weight: bold; border-radius: 3px; }
+
+/* method headings */
+.doc-object.doc-method > .doc-heading { background-color: #f5f5f5; font-color: #42a5f5; font-size: 1.15em; font-weight: bold; padding: 4px; padding-left: 8px; border-radius: 6px; margin-top: 32px; border-left: solid 3px #fe5196; }
+
+/* Method section headings */
+[id$="-methods"] { font-size: 1.2em; border-bottom: solid 2px #fe5196; }
+
+/* function headings */
+.doc-object.doc-function > .doc-heading { background-color: #f5f5f5; font-color: #42a5f5; font-size: 1.15em; font-weight: bold; padding-left: 8px; border-radius: 3px; border-left: solid 4px #3b8dff; margin-top: 32px; }
+
+/* special, private, property, and read-only tags */
+.doc-property { visibility: hidden; }
+
+/* arguments & returns tables */
+.doc-contents table td { font-size: 1.15em; }

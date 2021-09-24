@@ -23,6 +23,7 @@ theme:
     palette:
         primary: blue
 plugins:
+    - autorefs
     - mkdocstrings:
         handlers:
             python:
@@ -32,6 +33,8 @@ plugins:
                     show_category_heading: True
                     show_bases: False
                     heading_level: 1
+        watch:
+            - src/prefect/
     - render_swagger
     - search
 nav:
