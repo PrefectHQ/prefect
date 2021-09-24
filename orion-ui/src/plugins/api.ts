@@ -163,10 +163,6 @@ export class Query {
   }
 }
 
-/**
-  TODO: add destroy hook to remove queries from api.queries member
-*/
-
 export class Api {
   readonly base_url: string = base_url
   static readonly queries: Map<number, Query> = new Map()
