@@ -62,6 +62,12 @@ class Flow(Generic[P, R]):
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        validate_parameters: By default, parameters passed to flows are validated by
+            Pydantic. This will check that input values conform to the annotated types
+            on the function. Where possible, values will be coerced into the correct
+            type; for example, if a parameter is defined as `x: int` and "5" is passed,
+            it will be resolved to `5`. If set to `False`, no validation will be
+            performed on flow parameters.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -245,6 +251,12 @@ def flow(
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        validate_parameters: By default, parameters passed to flows are validated by
+            Pydantic. This will check that input values conform to the annotated types
+            on the function. Where possible, values will be coerced into the correct
+            type; for example, if a parameter is defined as `x: int` and "5" is passed,
+            it will be resolved to `5`. If set to `False`, no validation will be
+            performed on flow parameters.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -282,7 +294,6 @@ def flow(
         >>> @flow(executor=DaskExecutor)
         >>> def my_flow():
         >>>     pass
-
     """
     if __fn:
         return cast(
