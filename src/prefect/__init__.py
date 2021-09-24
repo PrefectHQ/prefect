@@ -13,4 +13,5 @@ from prefect.tasks import task
 from prefect.engine import get_result, tags
 
 from . import _version
-__version__ = _version.get_versions()['version']
+
+__version__ = _version.get_versions()["version"]
