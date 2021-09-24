@@ -1,3 +1,8 @@
+"""
+Data serializer implementations
+
+These serializers are registered for use with `DataDocument` types
+"""
 import base64
 import json
 import warnings

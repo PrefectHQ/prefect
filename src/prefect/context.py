@@ -1,5 +1,7 @@
 """
-This module contains async and thread safe variables for passing runtime context data
+Async and thread safe models for passing runtime context data.
+
+These contexts should never be directly mutated by the user.
 """
 from contextvars import ContextVar
 from typing import Optional, Type, TypeVar, Union, Set

@@ -1,3 +1,6 @@
+"""
+Task run futures.
+"""
 from collections import OrderedDict
 from collections.abc import Iterator as IteratorABC
 from dataclasses import fields, is_dataclass
@@ -8,7 +11,6 @@ from typing import (
     Awaitable,
     Callable,
     Optional,
-    Union,
     overload,
     cast,
     TypeVar,
@@ -25,13 +27,57 @@ from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
-    from prefect.orion.schemas.core import FlowRun, TaskRun
 
 
 R = TypeVar("R")
 
 
 class PrefectFuture(Generic[R]):
+    """
+    Represents the result of a computation happening in an executor.
+
+    When tasks are called, they are submitted to an executor which creates a future for
+    access to the state and result of the task.
+
+    Examples:
+        Define a task that returns a string
+
+        >>> from prefect import flow, task
+        >>> @task
+        >>> def my_task() -> str:
+        >>>     return "hello"
+
+        Calls of this task in a flow will return a future
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()  # PrefectFuture[str] includes result type
+        >>>     future.run_id  # UUID for the task run
+
+        Wait for the task to complete
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     final_state = future.wait()
+
+        Wait for a task to complete and retrieve its result
+
+        >>> from prefect import get_result
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     result = get_result(future)
+        >>>     assert result == "hello"
+
+        Retrieve the state of a task without waiting for completion
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     state = future.get_state()
+    """
+
     def __init__(
         self,
         run_id: UUID,
