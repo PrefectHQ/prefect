@@ -168,7 +168,7 @@ export class Query {
 */
 
 export class Api {
-  base_url: string = base_url
+  readonly base_url: string = base_url
   static queries: Map<number, Query> = new Map()
 
   static startPolling(): void {
