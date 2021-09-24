@@ -187,3 +187,59 @@ async def visit_collection(expr, visit_fn: Callable[[Any], Awaitable[Any]]):
 
     # if the object isn't a collection, apply visit_fn to it directly
     return await visit_fn(expr)
+
+
+async def visit_collection(
+    expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
+):
+    """
+    This function visits every element of an arbitrary Python collection and
+    applies `visit_fn` to each element. If `return_data=True`, a copy of the
+    data structure containing the results of `visit_fn` is returned. Note that
+    `return_data=True` may be slower due to the need to copy every object.
+
+    Args:
+        expr (Any): a Python object or expression
+        visit_fn (Callable[[Any], Awaitable[Any]]): an async function that
+            will be applied to every non-collection element of expr.
+        return_data (bool): if `True`, a copy of `expr` containing data modified
+            by `visit_fn` will be returned. This is slower than `return_data=False`
+            (the default).
+    """
+    # package the provided arguments for recursive calls
+    recurse = partial(visit_collection, visit_fn=visit_fn, return_data=return_data)
+
+    # Get the expression type; treat iterators like lists
+    typ = list if isinstance(expr, IteratorABC) else type(expr)
+    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
+
+    # do not visit mock objects
+    if isinstance(expr, Mock):
+        if return_data:
+            return expr
+
+    elif typ in (list, tuple, set):
+        result = [await recurse(o) for o in expr]
+        if return_data:
+            return typ(result)
+
+    elif typ in (dict, OrderedDict):
+        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
+        result = [[await recurse(k), await recurse(v)] for k, v in expr.items()]
+        if return_data:
+            return typ(result)
+
+    elif is_dataclass(expr) and not isinstance(expr, type):
+        result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
+        if return_data:
+            return typ(**result)
+
+    elif isinstance(expr, pydantic.BaseModel):
+        result = {f: await recurse(getattr(expr, f)) for f in expr.__fields__}
+        if return_data:
+            return typ(**result)
+
+    else:
+        result = await visit_fn(expr)
+        if return_data:
+            return result

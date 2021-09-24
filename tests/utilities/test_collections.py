@@ -34,6 +34,19 @@ async def negative_even_numbers(x):
     return x
 
 
+EVEN = set()
+
+
+async def visit_even_numbers(x):
+    if isinstance(x, int) and x % 2 == 0:
+        EVEN.add(x)
+
+
+@pytest.fixture(autouse=True)
+def clear_even_set():
+    EVEN.clear()
+
+
 @dataclass
 class SimpleDataclass:
     x: int
@@ -61,6 +74,30 @@ class TestVisitCollection:
             (SimplePydantic(x=1, y=2), SimplePydantic(x=1, y=-2)),
         ],
     )
-    async def test_visit_collection(self, inp, expected):
-        result = await visit_collection(inp, visit_fn=negative_even_numbers)
+    async def test_visit_collection_and_transform_data(self, inp, expected):
+        result = await visit_collection(
+            inp, visit_fn=negative_even_numbers, return_data=True
+        )
         assert result == expected
+
+    @pytest.mark.parametrize(
+        "inp,expected",
+        [
+            (3, set()),
+            (4, {4}),
+            ([3, 4], {4}),
+            ((3, 4), {4}),
+            ([3, 4, [5, [6]]], {4, 6}),
+            ({3: 4, 6: 7}, {4, 6}),
+            ({3: [4, {6: 7}]}, {4, 6}),
+            ({3, 4, 5}, {4}),
+            (SimpleDataclass(x=1, y=2), {2}),
+            (SimplePydantic(x=1, y=2), {2}),
+        ],
+    )
+    async def test_visit_collection(self, inp, expected):
+        result = await visit_collection(
+            inp, visit_fn=visit_even_numbers, return_data=False
+        )
+        assert result is None
+        assert EVEN == expected

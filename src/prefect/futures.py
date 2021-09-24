@@ -102,7 +102,7 @@ async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R
         else:
             return expr
 
-    return await visit_collection(expr, visit_fn=visit_fn)
+    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
 
 
 async def resolve_futures_to_states(
@@ -124,4 +124,4 @@ async def resolve_futures_to_states(
         else:
             return expr
 
-    return await visit_collection(expr, visit_fn=visit_fn)
+    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
