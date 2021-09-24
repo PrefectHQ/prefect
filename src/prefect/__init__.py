@@ -1,3 +1,8 @@
+# versioneer
+from . import _version
+
+__version__ = _version.get_versions()["version"]
+
 from prefect.utilities.settings import settings
 from prefect.utilities.logging import setup_logging
 
