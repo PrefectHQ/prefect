@@ -28,12 +28,20 @@ def start(
 
 @orion_app.command()
 def build_docs(schema_path: str = None):
+    """
+    Builds REST API reference documentation for static display.
+
+    Note that this command only functions properly with an editable install.
+    """
     if not schema_path:
         schema_path = os.path.abspath(
             os.path.join(__file__, "../../../../docs/schema.json")
         )
 
     schema = orion_fastapi_app.openapi()
+
+    # overwrite info for display purposes
+    schema["info"] = {}
     with open(schema_path, "w") as f:
         json.dump(schema, f)
     console.print(f"OpenAPI schema written to {schema_path}")

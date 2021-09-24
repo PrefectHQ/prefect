@@ -1,3 +1,4 @@
+import datetime
 import asyncio
 
 import pendulum
@@ -15,7 +16,7 @@ class Scheduler(LoopService):
     loop_seconds: float = settings.scheduler_loop_seconds
     deployment_batch_size: int = settings.scheduler_deployment_batch_size
     max_runs: int = settings.scheduler_max_runs
-    max_future_seconds: float = settings.scheduler_max_future_seconds
+    max_scheduled_time: datetime.timedelta = settings.scheduler_max_scheduled_time
 
     async def run_once(self):
         now = pendulum.now("UTC")
@@ -49,7 +50,7 @@ class Scheduler(LoopService):
                             session=session,
                             deployment_id=deployment.id,
                             start_time=now,
-                            end_time=now.add(seconds=self.max_future_seconds),
+                            end_time=now + self.max_scheduled_time,
                             max_runs=self.max_runs,
                         )
                         all_runs.extend(runs)
