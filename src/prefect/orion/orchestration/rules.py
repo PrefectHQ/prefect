@@ -264,12 +264,11 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     NOTE: In almost all cases, use the `BaseOrchestrationRule` base class instead.
 
     Beyond the orchestration rules implemented with the `BaseOrchestrationRule` ABC,
-    various bookkeeping metadata needs to be written to the database that is tightly
-    coupled to the state orchestration life cycle. This logic fires on every validated
-    transition. The `BaseUniversalRule` ABC implements a special rule with hooks that
-    fire before and after every transition, unless the proposed state is `None`,
-    indicating that no state should be written to the database. These hooks are free to
-    mutate the context directly, and should only be used with care.
+    Universal rules are not stateful, and fire their before- and after- transition hooks
+    on every state transition unless the proposed state is `None`, indicating that no
+    state should be written to the database. Because there are no guardrails in place
+    against directly mutating state or other parts of the orchestration context,
+    universal rules should only be used with care.
     """
 
     FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
