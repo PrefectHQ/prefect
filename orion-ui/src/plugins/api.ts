@@ -103,9 +103,7 @@ export class Query {
   }
 
   async startPolling(): Promise<void> {
-    // We clear the interval to make sure we're not polling
-    // more than expected
-    if (this.interval) clearTimeout(this.interval)
+    this.stopPolling()
     if (!this.pollInterval) return
     await this.fetch()
     this.interval = setTimeout(() => this.startPolling(), this.pollInterval)
