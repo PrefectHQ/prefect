@@ -111,7 +111,6 @@ export class Query {
   }
 
   async refetch(): Promise<any> {
-    console.log('refectching')
     this.loading.value = true
     this.value.value = await this.fetch()
     this.loading.value = false
