@@ -277,15 +277,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Implements a hook that can fire before a state is committed to the database.
 
         This hook may produce side-effects or mutate the proposed state of a
-        transition. This `before_transition` is the only opportunity a rule
-        will have to mutate the transition because upon exiting the context, the
-        proposed state is already validated and written to the database. To enforce this
-        the `context` passed to these methods is a copy which, if mutated, will not
-        modify the transition. Proposed states can only be mutated via the special
-        methods `self.reject_transition`, `self.delay_transition` and
-        `self.abort_transition`. These methods constrain the way transitions might
-        be modified by rules, and also pass the appropriate response metadata back
-        to the API.
+        transition using one of three methods: `self.reject_transition`,
+        `self.delay_transition`, and `self.abort_transition`.
 
         NOTE: As currently implemented, the `before_transition` hook is not
         perfectly isolated from mutating the transition. It is a standard instance
