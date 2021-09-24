@@ -7,7 +7,7 @@ import pytest
 from prefect import flow, get_result, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
-from prefect.orion.schemas.core import TaskRunInput
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import task, task_input_hash
@@ -636,7 +636,7 @@ class TestTaskInputs:
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
-            x=[TaskRunInput(id=a.state_details.task_run_id)],
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
             y=[],
         )
 
@@ -662,7 +662,7 @@ class TestTaskInputs:
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
-            x=[TaskRunInput(id=a.state_details.task_run_id)],
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
             y=[],
         )
 
@@ -688,8 +688,8 @@ class TestTaskInputs:
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
-            x=[TaskRunInput(id=a.state_details.task_run_id)],
-            y=[TaskRunInput(id=b.state_details.task_run_id)],
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
+            y=[TaskRunResult(id=b.state_details.task_run_id)],
         )
 
     async def test_task_with_two_upstream_from_same_task(self, orion_client):
@@ -713,8 +713,8 @@ class TestTaskInputs:
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
         assert task_run.task_inputs == dict(
-            x=[TaskRunInput(id=a.state_details.task_run_id)],
-            y=[TaskRunInput(id=a.state_details.task_run_id)],
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
+            y=[TaskRunResult(id=a.state_details.task_run_id)],
         )
 
     async def test_task_with_complex_upstream_structure(self, orion_client):
@@ -741,11 +741,11 @@ class TestTaskInputs:
 
         assert comparable_inputs(task_run.task_inputs) == dict(
             x={
-                TaskRunInput(id=a.state_details.task_run_id),
-                TaskRunInput(id=b.state_details.task_run_id),
+                TaskRunResult(id=a.state_details.task_run_id),
+                TaskRunResult(id=b.state_details.task_run_id),
             },
             y={
-                TaskRunInput(id=b.state_details.task_run_id),
-                TaskRunInput(id=c.state_details.task_run_id),
+                TaskRunResult(id=b.state_details.task_run_id),
+                TaskRunResult(id=c.state_details.task_run_id),
             },
         )

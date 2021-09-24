@@ -21,7 +21,7 @@ from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, future_to_state, resolve_futures
-from prefect.orion.schemas.core import TaskRunInput
+from prefect.orion.schemas import core
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -327,7 +327,9 @@ def enter_task_run_engine(
         return flow_run_context.sync_portal.call(begin_run)
 
 
-def collect_task_run_inputs(expr: Any, results: Set = None) -> Set[TaskRunInput]:
+def collect_task_run_inputs(
+    expr: Any, results: Set = None
+) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
     This function recurses through an expression to generate a set of any discernable
     task run inputs it finds in the data structure. It produces a set of all
@@ -338,11 +340,11 @@ def collect_task_run_inputs(expr: Any, results: Set = None) -> Set[TaskRunInput]
         results = set()
 
     if isinstance(expr, PrefectFuture):
-        results.add(TaskRunInput(id=expr.run_id))
+        results.add(TaskRunResult(id=expr.run_id))
 
     if isinstance(expr, State):
         if expr.state_details.task_run_id:
-            results.add(TaskRunInput(id=expr.state_details.task_run_id))
+            results.add(TaskRunResult(id=expr.state_details.task_run_id))
 
     # Get the expression type; treat iterators like lists
     typ = list if isinstance(expr, IteratorABC) else type(expr)
