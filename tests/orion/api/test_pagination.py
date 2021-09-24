@@ -3,7 +3,6 @@ import pytest
 from fastapi import FastAPI, Body
 
 from prefect import settings
-from prefect.orion.schemas.filters import Pagination
 
 
 @pytest.fixture
