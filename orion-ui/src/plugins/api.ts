@@ -169,7 +169,7 @@ export class Query {
 
 export class Api {
   readonly base_url: string = base_url
-  static queries: Map<number, Query> = new Map()
+  static readonly queries: Map<number, Query> = new Map()
 
   static startPolling(): void {
     Object.values(this.queries).forEach((query) => query.startPolling())
