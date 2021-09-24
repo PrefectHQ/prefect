@@ -187,7 +187,6 @@ export class Api {
     body: FilterBody = {},
     options: QueryOptions = {}
   ): Query {
-    console.log(this)
     if (!endpoint)
       throw new Error('You must provide an endpoint when registering a query.')
 
