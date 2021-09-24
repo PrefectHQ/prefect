@@ -1,22 +1,15 @@
 """
 Task run futures.
 """
-from collections import OrderedDict
-from collections.abc import Iterator as IteratorABC
-from dataclasses import fields, is_dataclass
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
+    Union,
     Optional,
     overload,
-    cast,
     TypeVar,
     Generic,
 )
-from unittest.mock import Mock
 from uuid import UUID
 
 import prefect
