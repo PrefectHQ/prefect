@@ -14,3 +14,9 @@ def hello():
 @router.get("/settings")
 def read_settings() -> prefect.utilities.settings.Settings:
     return prefect.settings
+
+
+@router.get("/version")
+def read_version() -> str:
+    """Returns the Prefect version number"""
+    return prefect.__version__
