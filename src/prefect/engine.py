@@ -570,6 +570,57 @@ async def get_result(state_or_future, raise_failures: bool = True):
 
     Returns:
         The result of the run represented by the state or future
+
+    Examples:
+        >>> from prefect import flow, task, get_result
+        >>> @task
+        >>> def my_task(x):
+        >>>     return x
+
+        Get the result from a task future in a flow
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     result = get_result(my_task("hello"))
+        >>>     print(result)
+        >>> my_flow()
+        hello
+
+        Get the result from a task state in a flow
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     state = my_task("hello").wait()
+        >>>     result = get_result(state)
+        >>>     print(result)
+        >>> my_flow()
+        hello
+
+        Get the result from a flow state
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     return "hello"
+        >>> get_result(my_flow())
+        hello
+
+        Get the result from a failed state
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     raise ValueError("oh no!")
+        >>> state = my_flow()  # Error is wrapped in FAILED state
+        >>> get_result(state)  # Raises `ValueError`
+
+        Get the result from a failed state without erroring
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     raise ValueError("oh no!")
+        >>> state = my_flow()
+        >>> result = get_result(state, raise_failures=False)
+        >>> print(result)
+        ValueError("oh no!")
     """
     if isinstance(state_or_future, PrefectFuture):
         state = await state_or_future.wait()
