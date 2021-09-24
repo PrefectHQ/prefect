@@ -109,7 +109,7 @@
     </div>
 
     <div v-if="resultsCount === 0" class="text-center my-8">
-      <h2> No results found </h2>
+      <h2> No Results Found </h2>
       <div v-if="resultsTab == 'deployments'" class="mt-2">
         Deployments can only be created using the Prefect CLI
       </div>
