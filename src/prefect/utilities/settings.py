@@ -11,13 +11,11 @@ from typing import Optional, Any, Dict
 
 
 class PrefectSettings(BaseSettings):
-    """An eagerly-instantiated class of "top-level" settings that can be shared
-    among other classes.
+    """ "Top-level" settings that can be shared among other classes."""
 
-    PLEASE NOTE: unless a setting is likely to be truly global and shared among
-    other settings objects, please add new settings to the `Settings` class at
-    the bottom of this file.
-    """
+    # PLEASE NOTE: unless a setting is likely to be truly global and shared among
+    # other settings objects, please add new settings to the `Settings` class at
+    # the bottom of this file.
 
     class Config:
         env_prefix = "PREFECT_"
@@ -36,6 +34,8 @@ SharedSettings = PrefectSettings()
 
 
 class DataLocationSettings(BaseSettings):
+    """Settings related to the Orion Data API"""
+
     class Config:
         env_prefix = "PREFECT_ORION_DATA_"
         frozen = True
@@ -46,6 +46,8 @@ class DataLocationSettings(BaseSettings):
 
 
 class DatabaseSettings(BaseSettings):
+    """Settings related to the Orion database"""
+
     class Config:
         env_prefix = "PREFECT_ORION_DATABASE_"
         frozen = True
@@ -63,6 +65,7 @@ class DatabaseSettings(BaseSettings):
 
 
 class APISettings(BaseSettings):
+    """Settings related to the Orion API"""
 
     # a default limit for queries
     default_limit: int = 200
@@ -73,6 +76,8 @@ class APISettings(BaseSettings):
 
 
 class ServicesSettings(BaseSettings):
+    """Settings related to Orion services"""
+
     class Config:
         env_prefix = "PREFECT_ORION_SERVICES_"
         frozen = True
@@ -89,7 +94,7 @@ class ServicesSettings(BaseSettings):
     # schedule up to 100 new runs per deployment
     scheduler_max_runs: int = 100
     # schedule at most three months into the future
-    scheduler_max_future_seconds: int = timedelta(days=100).total_seconds()
+    scheduler_max_scheduled_time: timedelta = timedelta(days=100)
 
     # -- Agent
 
@@ -107,6 +112,8 @@ class ServicesSettings(BaseSettings):
 
 
 class OrionSettings(BaseSettings):
+    """Settings related to Orion"""
+
     class Config:
         env_prefix = "PREFECT_ORION_"
         frozen = True
@@ -118,6 +125,8 @@ class OrionSettings(BaseSettings):
 
 
 class LoggingSettings(BaseSettings):
+    """Settings related to Logging"""
+
     class Config:
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
@@ -126,6 +135,8 @@ class LoggingSettings(BaseSettings):
 
 
 class Settings(PrefectSettings):
+    """Prefect Settings"""
+
     # note: incorporates all settings from the PrefectSettings class
 
     # logging
