@@ -154,7 +154,42 @@ class OrchestrationContext(PrefectBaseModel):
 
 
 class TaskOrchestrationContext(OrchestrationContext):
-    run: orm.TaskRun
+    """
+    A container for a Flow run state transition, governed by orchestration rules.
+
+    When a Flow- run attempts to change state, Orion has an opportunity
+    to decide whether this transition can proceed. All the relevant information
+    associated with the state transition is stored in an `OrchestrationContext`,
+    which is subsequently governed by nested orchestration rules implemented using
+    the `BaseOrchestrationRule` ABC.
+
+    `FlowOrchestrationContext` introduces the concept of a state being `None` in the
+    context of an intended state transition. An initial state can be `None` if a run
+    is is attempting to set a state for the first time. The proposed state might be
+    `None` if a rule governing the transition determines that no state change
+    should occur at all and nothing is written to the database.
+
+    Attributes:
+        session: a SQLAlchemy database session
+        run: the Flow run attempting to change state
+        initial_state: the initial state of the run
+        proposed_state: the proposed state the run is transitioning into
+        validated_state: a proposed state that has committed to the database
+        rule_signature: a record of rules that have fired on entry into a
+            managed context, currently only used for debugging purposes
+        finalization_signature: a record of rules that have fired on exit from a
+            managed context, currently only used for debugging purposes
+        response_status: a SetStateStatus object used to build the API response
+        response_details:a StateResponseDetails object use to build the API response
+
+    Args:
+        session: a SQLAlchemy database session
+        run: the Flow run attempting to change state
+        initial_state: the initial state of a run
+        proposed_state: the proposed state a run is transitioning into
+    """
+
+    run: orm.TaskRun = ...
 
     async def validate_proposed_state(self) -> orm.TaskRunState:
         if self.proposed_state is not None:
@@ -181,7 +216,42 @@ class TaskOrchestrationContext(OrchestrationContext):
 
 
 class FlowOrchestrationContext(OrchestrationContext):
-    run: orm.FlowRun
+    """
+    A container for a Task run state transition, governed by orchestration rules.
+
+    When a Task- run attempts to change state, Orion has an opportunity
+    to decide whether this transition can proceed. All the relevant information
+    associated with the state transition is stored in an `OrchestrationContext`,
+    which is subsequently governed by nested orchestration rules implemented using
+    the `BaseOrchestrationRule` ABC.
+
+    `TaskOrchestrationContext` introduces the concept of a state being `None` in the
+    context of an intended state transition. An initial state can be `None` if a run
+    is is attempting to set a state for the first time. The proposed state might be
+    `None` if a rule governing the transition determines that no state change
+    should occur at all and nothing is written to the database.
+
+    Attributes:
+        session: a SQLAlchemy database session
+        run: the Task run attempting to change state
+        initial_state: the initial state of the run
+        proposed_state: the proposed state the run is transitioning into
+        validated_state: a proposed state that has committed to the database
+        rule_signature: a record of rules that have fired on entry into a
+            managed context, currently only used for debugging purposes
+        finalization_signature: a record of rules that have fired on exit from a
+            managed context, currently only used for debugging purposes
+        response_status: a SetStateStatus object used to build the API response
+        response_details:a StateResponseDetails object use to build the API response
+
+    Args:
+        session: a SQLAlchemy database session
+        run: the Task run attempting to change state
+        initial_state: the initial state of a run
+        proposed_state: the proposed state a run is transitioning into
+    """
+
+    run: orm.FlowRun = ...
 
     async def validate_proposed_state(self) -> orm.FlowRunState:
         if self.proposed_state is not None:
