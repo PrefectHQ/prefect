@@ -212,7 +212,7 @@ export default class Dashboard extends Vue {
   }
 
   refetch(): void {
-    this.queries.flows.refetch()
+    this.queries.flows.fetch()
   }
 
   startPolling(): void {
