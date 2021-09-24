@@ -20,6 +20,12 @@ def read_settings() -> prefect.utilities.settings.Settings:
     return prefect.settings
 
 
+@router.get("/version")
+def read_version() -> str:
+    """Returns the Prefect version number"""
+    return prefect.__version__
+
+
 @router.delete(
     "/universe", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False
 )
