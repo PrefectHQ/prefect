@@ -148,6 +148,8 @@
         </list>
       </div>
     </transition>
+
+    <hr class="results-hr mt-3" />
   </div>
 </template>
 

@@ -79,6 +79,12 @@
   }
 }
 
+.results-hr {
+  background-color: $grey-20;
+  border: none;
+  height: 2px;
+}
+
 @media (max-width: map.get($breakpoints, 'md')) {
   .chart-section {
     grid-template-areas:
