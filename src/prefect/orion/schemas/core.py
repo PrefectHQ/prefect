@@ -82,7 +82,6 @@ class TaskRun(ORMBaseModel):
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     state_id: UUID = None
     task_inputs: Dict[str, List[TaskRunInput]] = Field(default_factory=dict)
-    upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
 
     state_id: UUID = None
     state_type: schemas.states.StateType = None

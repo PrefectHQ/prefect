@@ -366,9 +366,6 @@ class TaskRun(Base, RunMixin):
         nullable=False,
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    upstream_task_run_ids = Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
