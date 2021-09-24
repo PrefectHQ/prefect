@@ -3,6 +3,7 @@ repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
 extra_css:
     - stylesheets/syntax_highlights.css
+    - stylesheets/api_ref.css
 markdown_extensions:
     - codehilite
     - pymdownx.highlight:
@@ -13,12 +14,24 @@ theme:
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+    font:
+        text: Inter
+        code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
     logo: img/logomark-light.svg
     palette:
         primary: blue
 plugins:
+    - mkdocstrings:
+        handlers:
+            python:
+                rendering:
+                    show_root_heading: True
+                    show_object_full_path: True
+                    show_category_heading: True
+                    show_bases: False
+                    heading_level: 1
     - render_swagger
     - search
 nav:
@@ -29,5 +42,6 @@ nav:
     - Concepts: concepts.md
     - FAQ: faq.md
     - 'API Reference': 
-        - Orion REST API: rest-api.md
-        - Client API: client-api.md
+        - Prefect Python API: api-ref/client-api.md
+        - Orion REST API: api-ref/rest-api.md
+        - Orion Python API: api-ref/orion-api.md
