@@ -129,6 +129,11 @@ class OrchestrationContext(PrefectBaseModel):
     def entry_context(self):
         """
         A convenience method that generates input parameters for orchestration rules.
+
+        An `OrchestrationContext` defines a state transition that is managed by
+        orchestration rules which can fire hooks before a transition has been committed
+        to the database. These hooks have a consistent interface which can be generated
+        with this method.
         """
 
         safe_context = self.safe_copy()
@@ -137,6 +142,11 @@ class OrchestrationContext(PrefectBaseModel):
     def exit_context(self):
         """
         A convenience method that generates input parameters for orchestration rules.
+
+        An `OrchestrationContext` defines a state transition that is managed by
+        orchestration rules which can fire hooks after a transition has been committed
+        to the database. These hooks have a consistent interface which can be generated
+        with this method.
         """
 
         safe_context = self.safe_copy()
