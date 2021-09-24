@@ -7,8 +7,10 @@ Frequently Asked Questions.
 Answer 1
 
 ```python
-def awesome_function(*args, **kwargs):
-    return cool_num
+def func(x: int) -> None:
+    s = 'hello'
+    print(s) # comment
+    return x + 1
 ```
 
 ## Question 2
