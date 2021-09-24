@@ -117,7 +117,7 @@ export class Query {
     return this.value.value
   }
 
-  get route(): string {
+  private get route(): string {
     return this.base_url + this.endpoint.url
   }
 
