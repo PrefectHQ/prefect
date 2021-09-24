@@ -85,6 +85,8 @@ class ServicesSettings(BaseSettings):
     # run in app
     run_in_app: bool = False
 
+    # -- Scheduler
+
     # run scheduler every 60 seconds
     scheduler_loop_seconds: float = 60
     # batch deployments in groups of 100
@@ -94,10 +96,19 @@ class ServicesSettings(BaseSettings):
     # schedule at most three months into the future
     scheduler_max_scheduled_time: timedelta = timedelta(days=100)
 
+    # -- Agent
+
     # check for new runs every X seconds
     agent_loop_seconds: float = 5
     # check for runs that are scheduled to start in the next X seconds
     agent_prefetch_seconds: int = 10
+
+    # -- Late Runs
+
+    # check for late runs every 5 seconds
+    late_runs_loop_seconds: float = 5
+    # mark runs if they are 5 seconds late
+    mark_late_after: timedelta = timedelta(seconds=5)
 
 
 class OrionSettings(BaseSettings):
