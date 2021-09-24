@@ -202,7 +202,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
             passed between rules
-        from_state_type: The state state type of the initial state of a run, if this
+        from_state_type: The state type of the initial state of a run, if this
             state type is not contained in `FROM_STATES`, no hooks will fire
         to_state_type: The state type of the proposed state before orchestration, if
             this state type is not contained in `TO_STATES`, no hooks will fire
@@ -347,7 +347,6 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         context. Rules are invalid if the transition states types are not contained in
         `self.FROM_STATES` and `self.TO_STATES`, or if the context is proposing
         a transition that differs from the transition the rule was instantiated with.
-        (self.from_state_type, self.to_state_type)
 
         Returns:
             True if the rules in invalid, False otherwise.
@@ -433,7 +432,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         also provided.
 
         Args:
-            delay_seconds: The number of seconds before the transition should delayed
+            delay_seconds: The number of seconds the transition should be delayed
             reason: The reason for delaying the transition
         """
 
