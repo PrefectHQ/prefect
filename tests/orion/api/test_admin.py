@@ -21,3 +21,10 @@ class TestSettings:
         del prefect_settings["orion"]["database"]["connection_url"]
 
         assert parsed_settings == prefect_settings
+
+
+async def test_version(client):
+    response = await client.get("/admin/version")
+    assert response.status_code == 200
+    assert prefect.__version__
+    assert response.json() == prefect.__version__
