@@ -393,4 +393,3 @@ async def test_update_subflow_parent_task(
     assert parent_task_run.state.type == proposed_state_type
     # the parent task run points to the child subflow run
     assert parent_task_run.state.state_details.child_flow_run_id == ctx.run.id
-
