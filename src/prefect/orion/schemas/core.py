@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 from uuid import UUID
 
 from pydantic import Field
-
+from typing_extensions import Literal
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.functions import ParameterSchema
@@ -62,6 +62,11 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay_seconds: float = 0
 
 
+class TaskRunInput(PrefectBaseModel):
+    type: Literal["task_run"] = "task_run"
+    id: UUID
+
+
 class TaskRun(ORMBaseModel):
     flow_run_id: UUID
     task_key: str
@@ -72,7 +77,7 @@ class TaskRun(ORMBaseModel):
     empirical_policy: TaskRunPolicy = Field(default_factory=TaskRunPolicy)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     state_id: UUID = None
-    task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
+    task_inputs: Dict[str, List[TaskRunInput]] = Field(default_factory=dict)
     upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
 
     state_id: UUID = None

@@ -5,12 +5,17 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect import flow, get_result, tags
-from prefect.engine import raise_failed_state
 from prefect.client import OrionClient
-from prefect.orion.schemas.states import State, StateType
+from prefect.engine import raise_failed_state
+from prefect.orion.schemas.core import TaskRunInput
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
+
+
+def comparable_inputs(d):
+    return {k: set(v) for k, v in d.items()}
 
 
 class TestTaskCall:
@@ -574,3 +579,147 @@ class TestTaskRunTags:
             task_state.state_details.task_run_id
         )
         assert set(task_run.tags) == {"a", "b", "c", "d"}
+
+
+class TestTaskInputs:
+    async def test_task_with_no_upstreams(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def test_flow():
+            return foo(1)
+
+        flow_state = test_flow()
+        x = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(x.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(x=[])
+
+    async def test_task_with_multiple_args_no_upstreams(self, orion_client):
+        @task
+        def foo(x, *a, **k):
+            return x
+
+        @flow
+        def test_flow():
+            return foo(1)
+
+        flow_state = test_flow()
+        x = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(x.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(x=[], a=[], k=[])
+
+    async def test_task_with_one_upstream(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x + y
+
+        @flow
+        def test_flow():
+            a = foo(1)
+            b = foo(2)
+            c = bar(a, 1)
+            return a, b, c
+
+        flow_state = test_flow()
+        a, b, c = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunInput(id=a.state_details.task_run_id)],
+            y=[],
+        )
+
+    async def test_task_with_two_upstream(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x + y
+
+        @flow
+        def test_flow():
+            a = foo(1)
+            b = foo(2)
+            c = bar(a, b)
+            return a, b, c
+
+        flow_state = test_flow()
+        a, b, c = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunInput(id=a.state_details.task_run_id)],
+            y=[TaskRunInput(id=b.state_details.task_run_id)],
+        )
+
+    async def test_task_with_two_upstream_from_same_task(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x + y
+
+        @flow
+        def test_flow():
+            a = foo(1)
+            c = bar(a, a)
+            return a, c
+
+        flow_state = test_flow()
+        a, c = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(c.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunInput(id=a.state_details.task_run_id)],
+            y=[TaskRunInput(id=a.state_details.task_run_id)],
+        )
+
+    async def test_task_with_complex_upstream_structure(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(x, y):
+            return x, y
+
+        @flow
+        def test_flow():
+            a = foo(1)
+            b = foo(2)
+            c = foo(3)
+            d = bar([a, a, b], {3: b, 4: {5: {c, 4}}})
+            return a, b, c, d
+
+        flow_state = test_flow()
+        a, b, c, d = await get_result(flow_state)
+
+        task_run = await orion_client.read_task_run(d.state_details.task_run_id)
+
+        assert comparable_inputs(task_run.task_inputs) == dict(
+            x={
+                TaskRunInput(id=a.state_details.task_run_id),
+                TaskRunInput(id=b.state_details.task_run_id),
+            },
+            y={
+                TaskRunInput(id=b.state_details.task_run_id),
+                TaskRunInput(id=c.state_details.task_run_id),
+            },
+        )

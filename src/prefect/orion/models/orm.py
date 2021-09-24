@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Dict, List
 
 import pendulum
 import sqlalchemy as sa
@@ -360,9 +360,9 @@ class TaskRun(Base, RunMixin):
         nullable=False,
     )
     task_inputs = Column(
-        Pydantic(ParameterSchema),
+        Pydantic(Dict[str, List[core.TaskRunInput]]),
         server_default="{}",
-        default=ParameterSchema,
+        default=dict,
         nullable=False,
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
