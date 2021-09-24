@@ -215,31 +215,25 @@ async def visit_collection(
 
     # do not visit mock objects
     if isinstance(expr, Mock):
-        if return_data:
-            return expr
+        return expr if return_data else None
 
     elif typ in (list, tuple, set):
         result = [await recurse(o) for o in expr]
-        if return_data:
-            return typ(result)
+        return typ(result) if return_data else None
 
     elif typ in (dict, OrderedDict):
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         result = [[await recurse(k), await recurse(v)] for k, v in expr.items()]
-        if return_data:
-            return typ(result)
+        return typ(result) if return_data else None
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
-        if return_data:
-            return typ(**result)
+        return typ(**result) if return_data else None
 
     elif isinstance(expr, pydantic.BaseModel):
         result = {f: await recurse(getattr(expr, f)) for f in expr.__fields__}
-        if return_data:
-            return typ(**result)
+        return typ(**result) if return_data else None
 
     else:
         result = await visit_fn(expr)
-        if return_data:
-            return result
+        return result if return_data else None
