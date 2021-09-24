@@ -130,6 +130,6 @@ interface TaskRunFilter {
 }
 
 interface Endpoint {
-  method: 'POST' | 'GET'
+  method: 'POST' | 'GET' | 'DELETE' | 'PUT'
   url: string
 }
