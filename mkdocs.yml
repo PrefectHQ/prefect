@@ -1,6 +1,8 @@
 site_name: Prefect Orion
 repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
+extra_css:
+    - stylesheets/syntax_highlights.css
 markdown_extensions:
     - codehilite
     - pymdownx.highlight:
