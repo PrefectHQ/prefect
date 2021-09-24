@@ -287,6 +287,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         be modified by rules, and also pass the appropriate response metadata back
         to the API.
 
+        NOTE: As currently implemented, the `before_transition` hook is not
+        perfectly isolated from mutating the transition. It is a standard instance
+        method that has access to `self`, and therefore `self.context`. This should
+        never be modified directly. Furthermore, `context.run` is an ORM model, and
+        mutating the run can also cause unintended writes to the database.
+
         Args:
             initial_state: The initial state of a transtion
             proposed_state: The proposed state of a transition
