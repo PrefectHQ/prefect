@@ -129,6 +129,8 @@ class TestDeploymentSpecFromFile:
         assert spec.flow.name == "hello-world"
         assert spec.flow_name == "hello-world"
         assert spec.flow_location == str(TEST_FILES_DIR / "inline_deployment.py")
+        assert spec.parameters == {"foo": "bar"}
+        assert spec.tags == ["foo", "bar"]
 
     def test_spec_separate_from_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "single_deployment.py")
@@ -137,6 +139,8 @@ class TestDeploymentSpecFromFile:
         assert spec.name == "hello-world-daily"
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
         assert isinstance(spec.schedule, IntervalSchedule)
+        assert spec.parameters == {"foo": "bar"}
+        assert spec.tags == ["foo", "bar"]
 
     def test_multiple_specs_separate_from_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "multiple_deployments.py")
@@ -160,6 +164,8 @@ class TestDeploymentSpecFromFile:
         assert spec.name == "hello-world-deployment"
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
         assert isinstance(spec.schedule, IntervalSchedule)
+        assert spec.parameters == {"foo": "bar"}
+        assert spec.tags == ["foo", "bar"]
 
     def test_multiple_specs_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "multiple-deployments.yaml")
@@ -193,6 +199,8 @@ async def test_create_deployment_from_spec(orion_client):
         name="test",
         flow_location=TEST_FILES_DIR / "single_flow.py",
         schedule=schedule,
+        parameters={"foo": "bar"},
+        tags=["foo", "bar"]
     )
     deployment_id = await create_deployment_from_spec(spec, client=orion_client)
 
@@ -200,6 +208,8 @@ async def test_create_deployment_from_spec(orion_client):
     lookup = await orion_client.read_deployment(deployment_id)
     assert lookup.name == "test"
     assert lookup.schedule == schedule
+    assert lookup.parameters == {"foo": "bar"}
+    assert lookup.tags == ["foo", "bar"]
 
     # Location was encoded into a data document
     assert lookup.flow_data == DataDocument(

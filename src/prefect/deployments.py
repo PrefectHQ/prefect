@@ -149,6 +149,7 @@ async def create_deployment_from_spec(
         name=spec.name,
         schedule=spec.schedule,
         flow_data=flow_data,
+        parameters=spec.parameters,
         tags=spec.tags,
     )
 

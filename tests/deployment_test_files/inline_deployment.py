@@ -7,4 +7,4 @@ def hello_world(name="world"):
     print(f"Hello {name}!")
 
 
-DeploymentSpec(flow=hello_world, name="inline-deployment")
+DeploymentSpec(flow=hello_world, name="inline-deployment", parameters={"foo": "bar"}, tags=["foo", "bar"])
