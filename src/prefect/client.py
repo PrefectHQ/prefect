@@ -391,6 +391,7 @@ class OrionClient:
         flow_run_id: UUID,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
+        task_inputs: Dict[str, List[schemas.core.TaskRunInput]] = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])
 
@@ -407,6 +408,7 @@ class OrionClient:
                 retry_delay_seconds=task.retry_delay_seconds,
             ),
             state=state,
+            task_inputs=task_inputs,
         )
 
         response = await self.post(

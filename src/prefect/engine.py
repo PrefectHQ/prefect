@@ -1,24 +1,29 @@
 """
 Client-side execution of flows and tasks
 """
+from collections import OrderedDict
+from collections.abc import Iterator as IteratorABC
 from contextlib import contextmanager, nullcontext
+from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
+from typing import Any, Awaitable, Dict, List, Set, TypeVar, Union, cast, overload
+from unittest.mock import Mock
 from uuid import UUID
 
-import pendulum
 import anyio
+import pendulum
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
 from pydantic import validate_arguments
 
 from prefect.client import OrionClient, inject_client
-from prefect.context import FlowRunContext, TaskRunContext, TagsContext
+from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture, future_to_state, resolve_futures
+from prefect.orion.schemas.core import TaskRunInput
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -30,6 +35,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.orion.states import StateSet, is_state, is_state_iterable
+from prefect.serializers import resolve_datadoc
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
@@ -38,7 +44,6 @@ from prefect.utilities.asyncio import (
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
-from prefect.serializers import resolve_datadoc
 
 R = TypeVar("R")
 
@@ -324,6 +329,44 @@ def enter_task_run_engine(
         return flow_run_context.sync_portal.call(begin_run)
 
 
+def collect_task_run_inputs(expr: Any, results: Set = None) -> Set[TaskRunInput]:
+    """
+    This function recurses through an expression to generate a set of any discernable
+    task run inputs it finds in the data structure. It produces a set of all
+    inputs found.
+    """
+
+    if results is None:
+        results = set()
+
+    if isinstance(expr, PrefectFuture):
+        results.add(TaskRunInput(id=expr.run_id))
+
+    if isinstance(expr, State):
+        if expr.state_details.task_run_id:
+            results.add(TaskRunInput(id=expr.state_details.task_run_id))
+
+    # Get the expression type; treat iterators like lists
+    typ = list if isinstance(expr, IteratorABC) else type(expr)
+    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
+
+    if typ in (list, tuple, set):
+        for o in expr:
+            collect_task_run_inputs(o, results)
+
+    if typ in (dict, OrderedDict):
+        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
+        for k, v in expr.items():
+            collect_task_run_inputs(k, results)
+            collect_task_run_inputs(v, results)
+
+    if is_dataclass(expr) and not isinstance(expr, type):
+        for f in fields(expr):
+            collect_task_run_inputs(getattr(expr, f.name), results)
+
+    return results
+
+
 async def begin_task_run(
     task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
 ) -> PrefectFuture:
@@ -334,11 +377,13 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
+
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
+        task_inputs={k: collect_task_run_inputs(v) for k, v in parameters.items()},
     )
 
     future = await flow_run_context.executor.submit(
