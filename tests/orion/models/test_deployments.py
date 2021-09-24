@@ -484,7 +484,9 @@ class TestScheduledRuns:
             assert run.tags == ["auto-scheduled"] + tags
 
     @pytest.mark.parametrize("parameters", [{}, {"foo": "bar"}])
-    async def test_schedule_runs_applies_parameters(self, parameters, flow, flow_function, session):
+    async def test_schedule_runs_applies_parameters(
+        self, parameters, flow, flow_function, session
+    ):
         deployment = await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(

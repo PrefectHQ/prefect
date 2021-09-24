@@ -19,7 +19,11 @@ class TestCreateDeployment:
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
         data = DeploymentCreate(
-            name="My Deployment", flow_data=flow_data, flow_id=flow.id, tags=["foo"], parameters={"foo": "bar"}
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
