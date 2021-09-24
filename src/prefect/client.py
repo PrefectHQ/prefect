@@ -408,7 +408,7 @@ class OrionClient:
                 retry_delay_seconds=task.retry_delay_seconds,
             ),
             state=state,
-            task_inputs=task_inputs,
+            task_inputs=task_inputs or {},
         )
 
         response = await self.post(
