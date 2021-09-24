@@ -78,6 +78,9 @@ export const Endpoints: { [key: string]: Endpoint } = {
 }
 
 export interface QueryOptions {
+  /**
+   * This query will be sent every <pollInterval> milliseconds
+   */
   pollInterval?: number
 }
 
@@ -89,6 +92,7 @@ export class Query {
 
   body: FilterBody = {}
   endpoint: Endpoint
+  id: number
   pollInterval: number = 0
   loading = ref(false)
   value: any = ref(null)
@@ -135,8 +139,11 @@ export class Query {
   constructor(
     endpoint: Endpoint,
     body: FilterBody = {},
-    { pollInterval = 0 }: QueryOptions = { pollInterval: 0 }
+    { pollInterval = 0 }: QueryOptions = { pollInterval: 0 },
+    id: number
   ) {
+    this.id = id
+
     if (!endpoint)
       throw new Error('Query constructors must provide an endpoint.')
     this.endpoint = endpoint
@@ -163,14 +170,14 @@ export class Query {
 
 export class Api {
   base_url: string = base_url
-  static queries: Query[] = []
+  static queries: Map<number, Query> = new Map()
 
   static startPolling(): void {
-    this.queries.forEach((query) => query.startPolling())
+    Object.values(this.queries).forEach((query) => query.startPolling())
   }
 
   static stopPolling(): void {
-    this.queries.forEach((query) => query.stopPolling())
+    Object.values(this.queries).forEach((query) => query.stopPolling())
   }
 
   /**
@@ -181,6 +188,7 @@ export class Api {
     body: FilterBody = {},
     options: QueryOptions = {}
   ): Query {
+    console.log(this)
     if (!endpoint)
       throw new Error('You must provide an endpoint when registering a query.')
 
@@ -191,9 +199,12 @@ export class Api {
     )
       throw new Error('Poll intervals cannot be less than 1000ms.')
 
-    const query = new Query(endpoint, body, options)
+    const id = this.queries.size
+    const query = new Query(endpoint, body, options, id)
 
-    if (options.pollInterval) this.queries.push(query)
+    if (options.pollInterval) {
+      this.queries.set(id, query)
+    }
 
     return query
   }
@@ -210,6 +221,19 @@ const ApiPlugin: Plugin = {
     const api = Api
     app.config.globalProperties.$api = api
     app.provide('$api', api)
+
+    app.mixin({
+      unmounted() {
+        if (this.queries && typeof this.queries == 'object') {
+          Object.values(this.queries)
+            .filter((query) => query instanceof Query)
+            .forEach((query) => {
+              ;(query as Query).stopPolling()
+              Api.queries.delete((query as Query).id)
+            })
+        }
+      }
+    })
   }
 }
 

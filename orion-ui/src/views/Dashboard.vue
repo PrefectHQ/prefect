@@ -171,6 +171,14 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
   components: { BarChart, RunHistoryChart }
 })
 export default class Dashboard extends Vue {
+  flowsFilter: FlowsFilter = {}
+
+  queries: { [key: string]: Query } = {
+    flows: Api.query(Endpoints.flows, this.flowsFilter, {
+      pollInterval: 2000
+    })
+  }
+
   run_history_buckets: Bucket[] = dataset_2
 
   run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
@@ -191,18 +199,12 @@ export default class Dashboard extends Vue {
 
   resultsTab: string = 'deployments'
 
-  flowsFilter: FlowsFilter = {}
-
-  flowsQuery: Query = Api.query(Endpoints.flows, this.flowsFilter, {
-    pollInterval: 2000
-  })
-
   get flows() {
-    return this.flowsQuery.value || []
+    return this.queries.flows.value || []
   }
 
   get loading() {
-    return this.flowsQuery.loading
+    return this.queries.flows.loading
   }
 
   get resultsCount(): number {
@@ -210,15 +212,15 @@ export default class Dashboard extends Vue {
   }
 
   refetch(): void {
-    this.flowsQuery.refetch()
+    this.queries.flows.refetch()
   }
 
   startPolling(): void {
-    this.flowsQuery.startPolling()
+    this.queries.flows.startPolling()
   }
 
   stopPolling(): void {
-    this.flowsQuery.stopPolling()
+    this.queries.flows.stopPolling()
   }
 }
 </script>
