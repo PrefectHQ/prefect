@@ -108,6 +108,8 @@
       {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
     </div>
 
+    <h2 v-if="resultsCount === 0"> No results found </h2>
+
     <transition name="fade" mode="out-in">
       <div v-if="resultsTab == 'flows'">
         <list>
@@ -163,16 +165,6 @@ import {
 import BarChart from '@/components/BarChart/BarChart.vue'
 
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
-import { default as dataset_1 } from '@/util/run_history/24_hours.json'
-import { default as dataset_2 } from '@/util/run_history/design.json'
-import { default as lateness_dataset_1 } from '@/util/run_lateness/24_hours.json'
-import { default as duration_dataset_1 } from '@/util/run_duration/24_hours.json'
-
-// Temporary imports for dummy data
-import { default as flowList } from '@/util/objects/flows.json'
-import { default as deploymentList } from '@/util/objects/deployments.json'
-import { default as flowRunList } from '@/util/objects/flow_runs.json'
-import { default as taskRunList } from '@/util/objects/task_runs.json'
 
 @Options({
   components: { BarChart, RunHistoryChart }
@@ -180,14 +172,14 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
 export default class Dashboard extends Vue {
   run_history_buckets: Bucket[] = []
 
-  run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
-  run_duration_items: Item[] = duration_dataset_1.slice(0, 10)
+  run_lateness_items: Item[] = []
+  run_duration_items: Item[] = []
 
   datasets: { [key: string]: Flow[] | Deployment[] | FlowRun[] | TaskRun[] } = {
-    flows: flowList,
-    deployments: deploymentList,
-    'flow-runs': flowRunList,
-    'task-runs': taskRunList
+    flows: [],
+    deployments: [],
+    'flow-runs': [],
+    'task-runs': []
   }
 
   premadeFilters: { label: string; count: number | null }[] = [
