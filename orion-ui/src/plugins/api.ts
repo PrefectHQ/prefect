@@ -88,10 +88,10 @@ const base_url = 'http://localhost:8000'
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
+  readonly endpoint: Endpoint
   readonly base_url: string = base_url
 
   body: FilterBody = {}
-  endpoint: Endpoint
   id: number
   pollInterval: number = 0
   loading = ref(false)
