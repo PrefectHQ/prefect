@@ -84,17 +84,35 @@ class OrchestrationContext(PrefectBaseModel):
 
     @property
     def initial_state_type(self) -> Optional[states.StateType]:
+        """The state type of `self.initial_state` if it exists."""
+
         return self.initial_state.type if self.initial_state else None
 
     @property
     def proposed_state_type(self) -> Optional[states.StateType]:
+        """The state type of `self.proposed_state` if it exists."""
+
         return self.proposed_state.type if self.proposed_state else None
 
     @property
     def validated_state_type(self) -> Optional[states.StateType]:
+        """The state type of `self.validated_state` if it exists."""
         return self.validated_state.type if self.validated_state else None
 
     def safe_copy(self):
+        """
+        Creates a mostly-mutation-safe copy for use in orchestration rules.
+
+        Orchestration rules govern state transitions using information stored in
+        an `OrchestrationContext`. However, mutating objects stored on the context
+        directly can have unintended side-effects. To guard against this,
+        `self.safe_copy` can be used to pass information to orchestration rules
+        without risking mutation.
+
+        Returns:
+            A mutation-safe copy of the `OrchestrationContext`
+        """
+
         safe_copy = self.copy()
 
         safe_copy.initial_state = (
@@ -109,10 +127,18 @@ class OrchestrationContext(PrefectBaseModel):
         return safe_copy
 
     def entry_context(self):
+        """
+        A convenience method that generates input parameters for orchestration rules.
+        """
+
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.proposed_state, safe_context
 
     def exit_context(self):
+        """
+        A convenience method that generates input parameters for orchestration rules.
+        """
+
         safe_context = self.safe_copy()
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
