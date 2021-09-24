@@ -9,7 +9,7 @@
     </router-link>
 
     <router-link to="/settings" class="nav-item">
-      <i class="pi pi-settings-5-fill pi-2x" />
+      <i class="pi pi-settings-3-line pi-2x" />
     </router-link>
   </div>
 </template>
