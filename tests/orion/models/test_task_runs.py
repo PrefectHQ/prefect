@@ -5,7 +5,7 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.schemas.core import TaskRunInput
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import Scheduled
 
 
@@ -38,9 +38,9 @@ class TestCreateTaskRun:
         id1 = uuid4()
         id2 = uuid4()
         task_inputs = dict(
-            x=[TaskRunInput(id=id1)],
+            x=[TaskRunResult(id=id1)],
             y=[],
-            z=[TaskRunInput(id=id1), TaskRunInput(id=id2)],
+            z=[TaskRunResult(id=id1), TaskRunResult(id=id2)],
         )
 
         task_run = await models.task_runs.create_task_run(

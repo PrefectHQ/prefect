@@ -391,7 +391,16 @@ class OrionClient:
         flow_run_id: UUID,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
-        task_inputs: Dict[str, List[schemas.core.TaskRunInput]] = None,
+        task_inputs: Dict[
+            str,
+            List[
+                Union[
+                    schemas.core.TaskRunResult,
+                    schemas.core.Parameter,
+                    schemas.core.Constant,
+                ]
+            ],
+        ] = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])
 
