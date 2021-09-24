@@ -1,5 +1,5 @@
 """
-Orion's Flow- and Task- run orchestration machinery.
+Orion's flow- and task- run orchestration machinery.
 """
 
 import contextlib
@@ -51,7 +51,7 @@ class OrchestrationContext(PrefectBaseModel):
     use the Flow- or Task- specific subclasses, `FlowOrchestrationContext` and
     `TaskOrchestrationContext`.
 
-    When a Flow- or Task- run attempts to change state, Orion has an opportunity
+    When a flow- or task- run attempts to change state, Orion has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
     which is subsequently governed by nested orchestration rules implemented using
@@ -166,15 +166,15 @@ class OrchestrationContext(PrefectBaseModel):
 
 class TaskOrchestrationContext(OrchestrationContext):
     """
-    A container for a Flow run state transition, governed by orchestration rules.
+    A container for a task run state transition, governed by orchestration rules.
 
-    When a Flow- run attempts to change state, Orion has an opportunity
+    When a task- run attempts to change state, Orion has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
     which is subsequently governed by nested orchestration rules implemented using
     the `BaseOrchestrationRule` ABC.
 
-    `FlowOrchestrationContext` introduces the concept of a state being `None` in the
+    `TaskOrchestrationContext` introduces the concept of a state being `None` in the
     context of an intended state transition. An initial state can be `None` if a run
     is is attempting to set a state for the first time. The proposed state might be
     `None` if a rule governing the transition determines that no state change
@@ -182,7 +182,7 @@ class TaskOrchestrationContext(OrchestrationContext):
 
     Attributes:
         session: a SQLAlchemy database session
-        run: the Flow run attempting to change state
+        run: the task run attempting to change state
         initial_state: the initial state of the run
         proposed_state: the proposed state the run is transitioning into
         validated_state: a proposed state that has committed to the database
@@ -195,7 +195,7 @@ class TaskOrchestrationContext(OrchestrationContext):
 
     Args:
         session: a SQLAlchemy database session
-        run: the Flow run attempting to change state
+        run: the task run attempting to change state
         initial_state: the initial state of a run
         proposed_state: the proposed state a run is transitioning into
     """
@@ -244,15 +244,15 @@ class TaskOrchestrationContext(OrchestrationContext):
 
 class FlowOrchestrationContext(OrchestrationContext):
     """
-    A container for a Task run state transition, governed by orchestration rules.
+    A container for a flow run state transition, governed by orchestration rules.
 
-    When a Task- run attempts to change state, Orion has an opportunity
+    When a flow- run attempts to change state, Orion has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
     which is subsequently governed by nested orchestration rules implemented using
     the `BaseOrchestrationRule` ABC.
 
-    `TaskOrchestrationContext` introduces the concept of a state being `None` in the
+    `FlowOrchestrationContext` introduces the concept of a state being `None` in the
     context of an intended state transition. An initial state can be `None` if a run
     is is attempting to set a state for the first time. The proposed state might be
     `None` if a rule governing the transition determines that no state change
@@ -260,7 +260,7 @@ class FlowOrchestrationContext(OrchestrationContext):
 
     Attributes:
         session: a SQLAlchemy database session
-        run: the Task run attempting to change state
+        run: the flow run attempting to change state
         initial_state: the initial state of the run
         proposed_state: the proposed state the run is transitioning into
         validated_state: a proposed state that has committed to the database
@@ -273,7 +273,7 @@ class FlowOrchestrationContext(OrchestrationContext):
 
     Args:
         session: a SQLAlchemy database session
-        run: the Task run attempting to change state
+        run: the flow run attempting to change state
         initial_state: the initial state of a run
         proposed_state: the proposed state a run is transitioning into
     """
@@ -333,7 +333,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     considered "valid" and govern a transition by either modifying the proposed state
     before it is validated or by producing a side-effect.
 
-    A state transition occurs whenever a Flow- or Task- run changes state, prompting
+    A state transition occurs whenever a flow- or task- run changes state, prompting
     Orion to decide whether or not this transition can proceed. The current state of
     the run is referred to as the "initial state", and the state a run is
     attempting to transition into is the "proposed state". Together, the initial state
