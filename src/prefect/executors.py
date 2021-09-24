@@ -134,7 +134,9 @@ class DaskExecutor(BaseExecutor):
             else:
                 return expr
 
-        args, kwargs = await visit_collection((args, kwargs), visit_fn=visit_fn)
+        args, kwargs = await visit_collection(
+            (args, kwargs), visit_fn=visit_fn, return_data=True
+        )
 
         self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 

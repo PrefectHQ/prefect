@@ -347,7 +347,6 @@ async def collect_task_run_inputs(
         if isinstance(expr, State):
             if expr.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
-        return expr
 
     await visit_collection(expr, visit_fn=visit_fn)
 
