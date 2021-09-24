@@ -267,8 +267,19 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     Universal rules are not stateful, and fire their before- and after- transition hooks
     on every state transition unless the proposed state is `None`, indicating that no
     state should be written to the database. Because there are no guardrails in place
-    against directly mutating state or other parts of the orchestration context,
+    to prevent directly mutating state or other parts of the orchestration context,
     universal rules should only be used with care.
+
+    Attributes:
+        FROM_STATES: list of valid initial state types this rule governs
+        TO_STATES: list of valid proposed state types this rule governs
+        context: the orchestration context
+
+    Args:
+        context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
+            passed between rules
+        from_state_type: The state type of the initial state of a run
+        to_state_type: The state type of the proposed state before orchestration
     """
 
     FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
@@ -283,6 +294,16 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         self.context = context
 
     async def __aenter__(self):
+        """
+        Enter an async runtime context governed by this rule.
+
+        The `with` statement will bind a governed `OrchestrationContext` to the target
+        specified by the `as` clause. If the transition proposed by the
+        `OrchestrationContext` has been nullified on entry and `context.proposed_state`
+        is `None`, entering this context will do nothing. Otherwise
+        `self.before_transition` will fire.
+        """
+
         if not self.nullified_transition():
             await self.before_transition(self.context)
             self.context.rule_signature.append(str(self.__class__))
@@ -294,15 +315,53 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
+        """
+        Exit the async runtime context governed by this rule.
+
+        If the transition has been nullified upon exiting this rule's context, nothing
+        happens. Otherwise, `self.after_transition` will fire on every non-null
+        proposed_state.
+        """
+
         if not self.nullified_transition():
             await self.after_transition(self.context)
             self.context.finalization_signature.append(str(self.__class__))
 
     async def before_transition(self, context) -> None:
+        """
+        Implements a hook that fires before a state is committed to the database.
+
+        Args:
+            context: the `OrchestrationContext` that contains transition details
+
+        Returns:
+            None
+        """
+
         pass
 
     async def after_transition(self, context) -> None:
+        """
+        Implements a hook that can fire after a state is committed to the database.
+
+        Args:
+            context: the `OrchestrationContext` that contains transition details
+
+        Returns:
+            None
+        """
+
         pass
 
     def nullified_transition(self) -> bool:
+        """
+        Determines if the transition has been nullified.
+
+        Transitions are nullified if the proposed state is `None`, indicating that
+        nothing should be written to the database.
+
+        Returns:
+            True if the transition is nullified, False otherwise.
+        """
+
         return self.context.proposed_state is None
