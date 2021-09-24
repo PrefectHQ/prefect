@@ -74,6 +74,14 @@ export const Endpoints: { [key: string]: Endpoint } = {
   task_runs_count: {
     method: 'GET',
     url: '/task_runs/count/'
+  },
+  settings: {
+    method: 'GET',
+    url: '/admin/settings'
+  },
+  version: {
+    method: 'GET',
+    url: '/admin/version'
   }
 }
 
