@@ -284,11 +284,7 @@ async def set_task_run_state(
 
         validated_orm_state = await context.validate_proposed_state()
 
-    # assign to the ORM model to create the state
-    # and update the run
-    if validated_orm_state is not None:
-        run.set_state(validated_orm_state)
-        await session.flush()
+    await session.flush()
 
     result = OrchestrationResult(
         state=validated_orm_state,
