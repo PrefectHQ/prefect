@@ -1,5 +1,5 @@
 """
-Base workflow task class and decorator
+Workflow task class and decorator.
 """
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
@@ -72,7 +72,7 @@ class Task(Generic[P, R]):
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
-        retries: An optional number of times to retry on task run failure
+        retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
     """
@@ -161,11 +161,11 @@ class Task(Generic[P, R]):
         and they are fully resolved on submission.
 
         Args:
-            *args: Arguments to run the flow with
-            **kwargs: Keyword arguments to run the flow with
+            *args: Arguments to run the task with.
+            **kwargs: Keyword arguments to run the task with.
 
         Returns:
-            A future allowing access to the state of the task
+            A future allowing access to the state of the task.
 
         Examples:
 
@@ -327,8 +327,6 @@ def task(
         >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
         >>> def my_task():
         >>>     return "hello"
-
-
     """
     if __fn:
         return cast(
