@@ -10,7 +10,6 @@ from typing import Any, Awaitable, Dict, List, Set, TypeVar, Union, cast, overlo
 from uuid import UUID
 
 import anyio
-import pendulum
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
