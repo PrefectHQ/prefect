@@ -33,6 +33,21 @@ class OrchestrationResult(PrefectBaseModel):
 
 
 class OrchestrationContext(PrefectBaseModel):
+    """
+    A container for a state transition, governed by orchestration rules.
+
+    When a Flow- or Task- run attempts to change state, Orion has an opportunity
+    to decide whether this transition can proceed. All the relevant information
+    associated with the state transition is stored in an `OrchestrationContext`,
+    which is subsequently governed by nested orchestration rules implemented using
+    the `BaseOrchestrationRule` ABC.
+
+    `OrchestrationContext` introduces the concept of a state being `None` in the
+    context of an intended state transition. An initial state can be none if a run
+    is is attempting to set a state for the first time. The proposed state might be
+    `None` if a rule governing the transition determines that no state change
+    should occur at all and nothing is written to the database.
+    """
     class Config:
         arbitrary_types_allowed = True
 
