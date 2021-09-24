@@ -17,6 +17,10 @@ from prefect.orion.schemas import states
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against flow-run-state transitions in priority order.
+    """
+
     def priority():
         return [
             WaitForScheduledTime,
@@ -24,6 +28,10 @@ class CoreFlowPolicy(BaseOrchestrationPolicy):
 
 
 class CoreTaskPolicy(BaseOrchestrationPolicy):
+    """
+    Orchestration rules that run against task-run-state transitions in priority order.
+    """
+
     def priority():
         return [
             PreventTransitionsFromTerminalStates,
@@ -35,6 +43,10 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
 
 class CacheInsertion(BaseOrchestrationRule):
+    """
+    Caches completed states after they are validated.
+    """
+
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.COMPLETED]
 
@@ -56,6 +68,10 @@ class CacheInsertion(BaseOrchestrationRule):
 
 
 class CacheRetrieval(BaseOrchestrationRule):
+    """
+    Rejects running states if a completed state has been cached.
+    """
+
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.RUNNING]
 
@@ -96,6 +112,10 @@ class CacheRetrieval(BaseOrchestrationRule):
 
 
 class RetryPotentialFailures(BaseOrchestrationRule):
+    """
+    Rejects failed states and schedules a retry if the retry limit has not been reached.
+    """
+
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = [states.StateType.FAILED]
 
@@ -120,8 +140,7 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
-    Prevents transition from a scheduled state to a new state if the scheduled time is
-    in the future
+    Prevents transitions from scheduled states that happen too early.
     """
 
     FROM_STATES = [states.StateType.SCHEDULED]
@@ -145,6 +164,10 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 
 
 class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
+    """
+    Prevents transitions from terminal states.
+    """
+
     FROM_STATES = TERMINAL_STATES
     TO_STATES = ALL_ORCHESTRATION_STATES
 
