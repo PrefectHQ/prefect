@@ -4,6 +4,7 @@
       class="pan-button left bg--white"
       icon="pi pi-arrow-left-s-line pi-2x"
       flat
+      height="36px"
       :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
@@ -12,6 +13,7 @@
       class="pan-button right bg--white"
       icon="pi pi-arrow-right-s-line pi-2x"
       flat
+      height="36px"
       :disabled="disableRightScrollButton"
       @click="panRight"
     />
