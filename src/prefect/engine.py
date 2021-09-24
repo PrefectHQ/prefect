@@ -1,24 +1,29 @@
 """
 Client-side execution and orchestration of flows and tasks.
 """
+import pendulum
 from contextlib import contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
+from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
 from uuid import UUID
 
-import pendulum
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
-from pydantic import validate_arguments
 
+from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
-from prefect.context import FlowRunContext, TaskRunContext, TagsContext
+from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, future_to_state, resolve_futures
+from prefect.futures import (
+    PrefectFuture,
+    resolve_futures_to_data,
+    resolve_futures_to_states,
+)
+from prefect.orion.schemas import core
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -30,6 +35,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.orion.states import StateSet, is_state, is_state_iterable
+from prefect.serializers import resolve_datadoc
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
@@ -38,7 +44,6 @@ from prefect.utilities.asyncio import (
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
-from prefect.serializers import resolve_datadoc
 
 R = TypeVar("R")
 
@@ -228,7 +233,7 @@ async def create_and_begin_subflow_run(
         # Since a subflow run does not wait for all of its futures before exiting, we
         # wait for any returned futures to complete before setting the final state
         # of the flow
-        terminal_state.data = await resolve_futures(terminal_state.data)
+        terminal_state.data = await resolve_futures_to_data(terminal_state.data)
 
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.propose_state(
@@ -324,6 +329,30 @@ def enter_task_run_engine(
         return flow_run_context.sync_portal.call(begin_run)
 
 
+async def collect_task_run_inputs(
+    expr: Any, results: Set = None
+) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
+    """
+    This function recurses through an expression to generate a set of any discernable
+    task run inputs it finds in the data structure. It produces a set of all
+    inputs found.
+    """
+
+    inputs = set()
+
+    async def visit_fn(expr):
+        if isinstance(expr, PrefectFuture):
+            inputs.add(core.TaskRunResult(id=expr.run_id))
+
+        if isinstance(expr, State):
+            if expr.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
+
+    await visit_collection(expr, visit_fn=visit_fn)
+
+    return inputs
+
+
 async def begin_task_run(
     task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
 ) -> PrefectFuture:
@@ -334,11 +363,15 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
+
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
+        task_inputs={
+            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        },
     )
 
     future = await flow_run_context.executor.submit(
@@ -450,7 +483,7 @@ async def user_return_value_to_state(
         return result
 
     # Ensure any futures are resolved
-    result = await resolve_futures(result, resolve_fn=future_to_state)
+    result = await resolve_futures_to_states(result)
 
     # If we resolved a task future or futures into states, we will determine a new state
     # from their aggregate
