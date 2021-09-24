@@ -1,5 +1,5 @@
 import sqlalchemy as sa
-from fastapi import Depends, status
+from fastapi import Depends, status, Response, Body
 
 import prefect
 from prefect.utilities.logging import get_logger
@@ -26,12 +26,54 @@ def read_version() -> str:
     return prefect.__version__
 
 
-@router.delete(
-    "/universe", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False
-)
+@router.post("/database/clear", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_database(
     session: sa.orm.Session = Depends(dependencies.get_session),
+    confirm: bool = Body(
+        False,
+        embed=True,
+        description="Pass confirm=True to confirm you want to modify the database.",
+    ),
+    response: Response = None,
 ):
-    """Clears all database tables"""
+    """Clear all database tables without dropping them."""
+    if not confirm:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return
+
     for table in reversed(Base.metadata.sorted_tables):
         await session.execute(table.delete())
+
+
+@router.post("/database/drop", status_code=status.HTTP_204_NO_CONTENT)
+async def drop_database(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    confirm: bool = Body(
+        False,
+        embed=True,
+        description="Pass confirm=True to confirm you want to modify the database.",
+    ),
+    response: Response = None,
+):
+    """Drop all database objects."""
+    if not confirm:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return
+    await prefect.orion.utilities.database.drop_db(session.bind)
+
+
+@router.post("/database/create", status_code=status.HTTP_204_NO_CONTENT)
+async def create_database(
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    confirm: bool = Body(
+        False,
+        embed=True,
+        description="Pass confirm=True to confirm you want to modify the database.",
+    ),
+    response: Response = None,
+):
+    """Create all database objects."""
+    if not confirm:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return
+    await prefect.orion.utilities.database.create_db(session.bind)
