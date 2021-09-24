@@ -106,13 +106,13 @@ export class Query {
     // more than expected
     if (this.interval) clearTimeout(this.interval)
     if (!this.pollInterval) return
-    await this.refetch()
+    await this.fetch()
     this.interval = setTimeout(() => this.startPolling(), this.pollInterval)
   }
 
-  async refetch(): Promise<any> {
+  async fetch(): Promise<any> {
     this.loading.value = true
-    this.value.value = await this.fetch()
+    this.value.value = await this.http()
     this.loading.value = false
     return this.value.value
   }
@@ -121,7 +121,7 @@ export class Query {
     return this.base_url + this.endpoint.url
   }
 
-  async fetch(): Promise<any> {
+  private async http(): Promise<any> {
     return fetch(this.route, {
       headers: { 'Content-Type': 'application/json' },
       method: this.endpoint.method,
@@ -138,7 +138,7 @@ export class Query {
   constructor(
     endpoint: Endpoint,
     body: FilterBody = {},
-    { pollInterval }: QueryOptions = { pollInterval: 0 },
+    { pollInterval = 0 }: QueryOptions,
     id: number
   ) {
     this.id = id
@@ -156,7 +156,7 @@ export class Query {
       this.pollInterval = pollInterval
       this.startPolling()
     } else {
-      this.refetch()
+      this.fetch()
     }
 
     return this
