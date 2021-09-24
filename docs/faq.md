@@ -7,8 +7,11 @@ Frequently Asked Questions.
 Answer 1
 
 ```python
-def awesome_function(*args, **kwargs):
-    return cool_num
+def func(x: int) -> None:
+    "Docstring"
+    s = 'hello'
+    print(s)
+    return x + 1
 ```
 
 ## Question 2
