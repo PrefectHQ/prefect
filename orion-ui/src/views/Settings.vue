@@ -87,6 +87,7 @@
             height="36px"
             :disabled="resetDatabaseConfirmation !== 'Confirm'"
             miter
+            @click="resetDatabase"
           >
             Reset Database
           </Button>
@@ -96,8 +97,8 @@
             height="36px"
             width="100px"
             class="ml-2"
-            @click="showResetSection = false"
             miter
+            @click="showResetSection = false"
           >
             Cancel
           </Button>
@@ -149,6 +150,18 @@ export default class Settings extends Vue {
     )
   }
 
+  async resetDatabase(): Promise<void> {
+    const { error } = await Api.query(Endpoints.universe)
+    this.showConfirmationToast({
+      type: error ? 'error' : 'success',
+      content: error ? error : 'Database has been reset'
+    })
+  }
+
+  showConfirmationToast(options: { type: string; content: any }) {
+    // TODO: Add global toast notification
+  }
+
   objectCheck(arg: any): boolean {
     return arg && typeof arg == 'object' && !Array.isArray(arg)
   }
@@ -170,12 +183,6 @@ export default class Settings extends Vue {
 
       return acc
     }, [])
-  }
-
-  mounted() {
-    fetch('http://localhost:8000/admin/version', {
-      method: 'GET'
-    })
   }
 }
 </script>

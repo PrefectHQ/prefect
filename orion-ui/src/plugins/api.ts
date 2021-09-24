@@ -79,6 +79,10 @@ export const Endpoints: { [key: string]: Endpoint } = {
     method: 'GET',
     url: '/admin/settings'
   },
+  universe: {
+    method: 'DELETE',
+    url: '/admin/universe'
+  },
   version: {
     method: 'GET',
     url: '/admin/version'
@@ -143,6 +147,7 @@ export class Query {
       .then((res) => res)
       .then((res) => {
         if (res.status == 200) return res.json()
+        if (res.status == 204) return res
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
       .catch((err) => new Error(err))
