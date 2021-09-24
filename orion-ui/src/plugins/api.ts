@@ -96,7 +96,7 @@ export class Query {
   id: number
   pollInterval: number = 0
   loading = ref(false)
-  value: any = ref(null)
+  response: any = ref(null)
 
   stopPolling(): void {
     if (this.interval) clearTimeout(this.interval)
@@ -115,13 +115,13 @@ export class Query {
     this.loading.value = true
     this.error = null
     try {
-      this.value.value = await this.http()
+      this.response.value = await this.http()
     } catch (e) {
       this.error = e
     } finally {
       this.loading.value = false
     }
-    return this.value.value
+    return this.response.value
   }
 
   private get route(): string {
