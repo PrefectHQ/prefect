@@ -250,7 +250,7 @@ async def _generate_scheduled_flow_runs(
         run = schemas.core.FlowRun(
             flow_id=deployment.flow_id,
             deployment_id=deployment_id,
-            # parameters=,
+            parameters=deployment.parameters,
             idempotency_key=f"scheduled {deployment.id} {date}",
             tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,

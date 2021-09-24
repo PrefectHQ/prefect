@@ -468,6 +468,7 @@ class Deployment(Base):
         sa.Boolean, nullable=False, server_default="1", default=True
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = Column(Pydantic(data.DataDocument))
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
