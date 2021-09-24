@@ -1,3 +1,7 @@
+"""
+Orion's Flow- and Task- run orchestration machinery.
+"""
+
 import contextlib
 from types import TracebackType
 from typing import Dict, Iterable, List, Optional, Type, Union
@@ -17,7 +21,10 @@ from prefect.orion.schemas.responses import (
 )
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
+# all valid state types in the context of a task- or flow- run transition
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
+
+# all terminal states
 TERMINAL_STATES = states.TERMINAL_STATES
 
 
@@ -27,6 +34,10 @@ StateResponseDetails = Union[
 
 
 class OrchestrationResult(PrefectBaseModel):
+    """
+    A container for the output of state orchestration.
+    """
+
     state: Optional[states.State]
     status: SetStateStatus
     details: StateResponseDetails
