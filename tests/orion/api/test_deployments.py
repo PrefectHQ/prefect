@@ -601,9 +601,7 @@ class TestScheduleDeployment:
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
             start=pendulum.now(),
-            end=pendulum.now().add(
-                seconds=services_settings.scheduler_max_future_seconds
-            ),
+            end=pendulum.now() + services_settings.scheduler_max_scheduled_time,
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -620,9 +618,7 @@ class TestScheduleDeployment:
         expected_dates = await deployment.schedule.get_dates(
             n=5,
             start=pendulum.now(),
-            end=pendulum.now().add(
-                seconds=services_settings.scheduler_max_future_seconds
-            ),
+            end=pendulum.now() + services_settings.scheduler_max_scheduled_time,
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -640,9 +636,8 @@ class TestScheduleDeployment:
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
             start=pendulum.now().add(days=120),
-            end=pendulum.now().add(
-                days=120, seconds=services_settings.scheduler_max_future_seconds
-            ),
+            end=pendulum.now().add(days=120)
+            + services_settings.scheduler_max_scheduled_time,
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
