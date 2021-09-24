@@ -63,6 +63,9 @@ class Flow(Generic[P, R]):
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the flow. If the flow exceeds this runtime, it will be marked as failed.
+            Flow execution may continue until the next task is called.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -251,6 +254,9 @@ def flow(
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the flow. If the flow exceeds this runtime, it will be marked as failed.
+            Flow execution may continue until the next task is called.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its

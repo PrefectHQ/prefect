@@ -251,6 +251,15 @@ async def orchestrate_flow_run(
 ) -> State:
     """
     TODO: Implement state orchestation logic using return values from the API
+
+    Flow timeouts:
+        Since async flows are run directly in the main event loop, timeout behavior will
+        match that described by anyio. If the flow is awaiting something, it will
+        immediately return; otherwise, the next time it awaits it will exit. Sync flows
+        are being executor in a worker thread, which cannot be interrupted. The worker
+        thread will exit at the next task call. The worker thread also has access to the
+        status of the cancellation scope at `FlowRunContext.timeout_scope.cancel_called`
+        which allows it to raise a `TimeoutError` to respect the timeout.
     """
     await client.propose_state(Running(), flow_run_id=flow_run_id)
 
@@ -263,7 +272,6 @@ async def orchestrate_flow_run(
     try:
 
         with timeout_context as timeout_scope:
-
             with FlowRunContext(
                 flow_run_id=flow_run_id,
                 flow=flow,
