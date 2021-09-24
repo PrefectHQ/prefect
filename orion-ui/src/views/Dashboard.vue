@@ -104,11 +104,16 @@
       </Tab>
     </Tabs>
 
-    <div class="font--secondary caption my-2">
+    <div v-if="resultsCount > 0" class="font--secondary caption my-2">
       {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
     </div>
 
-    <h2 v-if="resultsCount === 0"> No results found </h2>
+    <div v-if="resultsCount === 0" class="text-center my-8">
+      <h2> No results found </h2>
+      <div v-if="resultsTab == 'deployments'" class="mt-2">
+        Deployments can only be created using the Prefect CLI
+      </div>
+    </div>
 
     <transition name="fade" mode="out-in">
       <div v-if="resultsTab == 'flows'">
