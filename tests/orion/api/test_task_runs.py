@@ -49,18 +49,38 @@ class TestCreateTaskRun:
         assert task_run.state.type == states.StateType.PENDING
 
     async def test_create_task_run_with_state(self, flow_run, client, session):
-        task_run_data = dict(
-            flow_run_id=str(flow_run.id),
+        task_run_data = schemas.actions.TaskRunCreate(
+            flow_run_id=flow_run.id,
             task_key="task-key",
-            state=states.Running().dict(json_compatible=True),
+            state=states.Running(),
         )
-        response = await client.post("/task_runs/", json=task_run_data)
+        response = await client.post(
+            "/task_runs/", json=task_run_data.dict(json_compatible=True)
+        )
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
         )
         assert str(task_run.id) == response.json()["id"]
-        assert str(task_run.state.id) == task_run_data["state"]["id"]
-        assert task_run.state.type.value == task_run_data["state"]["type"]
+        assert task_run.state.type == task_run_data.state.type
+
+    async def test_create_task_run_with_state_sets_timestamp_on_server(
+        self, flow_run, client, session
+    ):
+        response = await client.post(
+            "/task_runs/",
+            json=schemas.actions.TaskRunCreate(
+                flow_run_id=flow_run.id,
+                task_key="a",
+                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+        task_run = await models.task_runs.read_task_run(
+            session=session, task_run_id=response.json()["id"]
+        )
+        # the timestamp was overwritten
+        assert task_run.state.timestamp < pendulum.now()
 
 
 class TestReadTaskRun:
@@ -74,7 +94,7 @@ class TestReadTaskRun:
     async def test_read_flow_run_with_state(self, task_run, client, session):
         state_id = uuid4()
         (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.State(id=state_id, type="RUNNING"),
@@ -182,13 +202,23 @@ class TestReadTaskRuns:
 
         response = await client.post(
             "/task_runs/filter/",
-            json=dict(sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value),
-            params=dict(
-                limit=1,
+            json=dict(
+                limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
             ),
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == str(task_run_2.id)
+
+        response = await client.post(
+            "/task_runs/filter/",
+            json=dict(
+                limit=1,
+                offset=1,
+                sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(task_run_1.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
@@ -227,7 +257,7 @@ class TestSetTaskRunState:
     async def test_set_task_run_state(self, task_run, client, session):
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
-            json=dict(type="RUNNING", name="Test State"),
+            json=dict(state=dict(type="RUNNING", name="Test State")),
         )
         assert response.status_code == 201
 
@@ -243,6 +273,21 @@ class TestSetTaskRunState:
         assert run.state.name == "Test State"
         assert run.run_count == 1
 
+    async def test_set_task_run_errors_if_client_provides_timestamp(
+        self, flow_run, client
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="RUNNING",
+                    name="Test State",
+                    timestamp=str(pendulum.now().add(months=1)),
+                )
+            ),
+        )
+        assert response.status_code == 422
+
     async def test_failed_becomes_awaiting_retry(self, task_run, client, session):
         # set max retries to 1
         # copy to trigger ORM updates
@@ -251,7 +296,7 @@ class TestSetTaskRunState:
         await session.flush()
 
         (
-            await models.task_run_states.orchestrate_task_run_state(
+            await models.task_runs.set_task_run_state(
                 session=session,
                 task_run_id=task_run.id,
                 state=states.Running(),
@@ -262,7 +307,7 @@ class TestSetTaskRunState:
         # fail the running task run
         response = await client.post(
             f"/task_runs/{task_run.id}/set_state",
-            json=dict(type="FAILED"),
+            json=dict(state=dict(type="FAILED")),
         )
         assert response.status_code == 201
 
@@ -270,3 +315,32 @@ class TestSetTaskRunState:
         assert api_response.status == responses.SetStateStatus.REJECT
         assert api_response.state.name == "Awaiting Retry"
         assert api_response.state.type == states.StateType.SCHEDULED
+
+    async def test_set_task_run_state_force_skips_orchestration(
+        self, task_run, client, session
+    ):
+        # set max retries to 1
+        # copy to trigger ORM updates
+        task_run.empirical_policy = task_run.empirical_policy.copy()
+        task_run.empirical_policy.max_retries = 1
+        await session.flush()
+
+        (
+            await models.task_runs.set_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=states.Running(),
+            )
+        ).state
+        await session.commit()
+
+        # fail the running task run
+        response = await client.post(
+            f"/task_runs/{task_run.id}/set_state",
+            json=dict(state=dict(type="FAILED"), force=True),
+        )
+        assert response.status_code == 201
+
+        api_response = OrchestrationResult.parse_obj(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+        assert api_response.state.type == states.StateType.FAILED

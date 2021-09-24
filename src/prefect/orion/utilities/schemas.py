@@ -84,9 +84,9 @@ def pydantic_subclass(
 
 class PrefectBaseModel(BaseModel):
     class Config:
-        # when testing, extra attributes are prohibited to help
-        # catch unintentional errors; otherwise they are ignored.
-        extra = "forbid" if settings.test_mode else "ignore"
+        # extra attributes are forbidden in order to raise meaningful errors for
+        # bad API payloads
+        extra = "forbid"
 
         # prevent Pydantic from copying nested models on
         # validation, otherwise ORMBaseModel.copy() is run
@@ -194,9 +194,6 @@ class PrefectBaseModel(BaseModel):
     def copy(
         self: T, *, update: dict = None, reset_fields: bool = False, **kwargs
     ) -> T:
-        """
-        When an IDBaseModel is copied, it generates a new ID for the copy.
-        """
         if reset_fields:
             update = update or dict()
             for field in self._reset_fields():

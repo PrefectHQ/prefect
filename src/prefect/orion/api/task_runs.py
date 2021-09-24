@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -27,6 +28,9 @@ async def create_task_run(
 
     If no state is provided, the task run will be created in a PENDING state.
     """
+    # hydrate the input model into a full task run / state model
+    task_run = schemas.core.TaskRun(**task_run.dict())
+
     if not task_run.state:
         task_run.state = schemas.states.Pending()
 
@@ -102,7 +106,10 @@ async def read_task_run(
 @router.post("/filter")
 async def read_task_runs(
     sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
-    pagination: schemas.filters.Pagination = Depends(),
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
@@ -116,8 +123,8 @@ async def read_task_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
-        offset=pagination.offset,
-        limit=pagination.limit,
+        offset=offset,
+        limit=limit,
         sort=sort,
     )
 
@@ -141,17 +148,25 @@ async def delete_task_run(
 async def set_task_run_state(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
+    force: bool = Body(
+        False,
+        description=(
+            "If false, orchestration rules will be applied that may alter "
+            "or prevent the state transition. If True, orchestration rules are not applied."
+        ),
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
     # create the state
-    orchestration_result = await models.task_run_states.orchestrate_task_run_state(
+    orchestration_result = await models.task_runs.set_task_run_state(
         session=session,
         task_run_id=task_run_id,
         # convert to a full State object
         state=schemas.states.State.parse_obj(state),
+        force=force,
     )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:

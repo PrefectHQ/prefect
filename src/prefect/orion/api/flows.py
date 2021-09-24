@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Depends, HTTPException, Path, Response, status
 
+from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
@@ -22,6 +23,9 @@ async def create_flow(
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
     """
+    # hydrate the input model into a full flow model
+    flow = schemas.core.Flow(**flow.dict())
+
     now = pendulum.now("UTC")
     model = await models.flows.create_flow(session=session, flow=flow)
     if model.created >= now:
@@ -97,7 +101,10 @@ async def read_flow(
 
 @router.post("/filter")
 async def read_flows(
-    pagination: schemas.filters.Pagination = Depends(),
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
@@ -111,8 +118,8 @@ async def read_flows(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
-        offset=pagination.offset,
-        limit=pagination.limit,
+        offset=offset,
+        limit=limit,
     )
 
 
