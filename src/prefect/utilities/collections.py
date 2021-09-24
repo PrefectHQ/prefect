@@ -12,8 +12,11 @@ from typing import (
     Union,
     cast,
     Iterator,
+    Generic,
 )
+from dataclasses import dataclass
 
+T = TypeVar("T")
 KT = TypeVar("KT")
 VT = TypeVar("VT")
 
@@ -135,3 +138,21 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         if not batch:
             break
         yield batch
+
+
+@dataclass
+class Quote(Generic[T]):
+    """
+    Simple wrapper to mark an expression as a different type so it will not be coerced
+    by Prefect. For example, if you want to return a state from a flow without having
+    the flow assume that state.
+    """
+
+    expr: T
+
+    def unquote(self) -> T:
+        return self.expr
+
+
+def quote(expr: T) -> Quote[T]:
+    return Quote(expr)

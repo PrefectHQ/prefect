@@ -15,6 +15,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal, check_for_type_errors
+from prefect.utilities.collections import quote
 
 
 class TestFlow:
@@ -415,14 +416,14 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return (my_subflow(),)
+                return quote(my_subflow())
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = (await get_result(my_flow()))[0]
+            subflow_state = (await get_result(my_flow())).unquote()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -531,4 +532,65 @@ class TestFlowTimeouts:
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(0.5)
+        assert not canary_file.exists()
+
+    async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
+        """
+        Async flow runs can be cancelled after a timeout
+        """
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=0.1)
+        async def my_subflow():
+            await anyio.sleep(0.5)
+            canary_file.touch()  # Should not run
+
+        @flow
+        async def my_flow():
+            t0 = time.time()
+            subflow_state = await my_subflow()
+            t1 = time.time()
+            return t1 - t0, subflow_state
+
+        state = await my_flow()
+
+        runtime, subflow_state = await get_result(state)
+        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert runtime < 0.3, "The engine returns without waiting"
+
+        # Wait in case the flow is just sleeping
+        await anyio.sleep(0.5)
+        assert not canary_file.exists()
+
+    async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
+        """
+        Async flow runs can be cancelled after a timeout
+        """
+        canary_file = tmp_path / "canary"
+
+        @task
+        def timeout_noticing_task():
+            pass
+
+        @flow(timeout_seconds=0.1)
+        def my_subflow():
+            time.sleep(0.5)
+            timeout_noticing_task()
+            canary_file.touch()  # Should not run
+
+        @flow
+        def my_flow():
+            t0 = time.time()
+            subflow_state = my_subflow()
+            t1 = time.time()
+            return t1 - t0, subflow_state
+
+        state = my_flow()
+
+        runtime, subflow_state = await get_result(state)
+        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert runtime < 0.25, "The engine returns without waiting"
+
+        # Wait in case the flow is just sleeping
+        time.sleep(0.5)
         assert not canary_file.exists()
