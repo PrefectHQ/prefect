@@ -45,6 +45,17 @@
         </div>
       </section>
     </section>
+
+    <section class="mt-1">
+      <h3 class="font-weight-semibold">Reset database</h3>
+      <div class="d-flex align-end my-1 text--error">
+        <i class="pi pi-error-warning-line pi-lg" />
+        <span class="ml-1">
+          Resetting the database will permanently delete all data stored in
+          Orion
+        </span>
+      </div>
+    </section>
   </div>
 </template>
 
