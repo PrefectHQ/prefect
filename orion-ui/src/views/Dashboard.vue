@@ -200,7 +200,7 @@ export default class Dashboard extends Vue {
   resultsTab: string = 'deployments'
 
   get flows() {
-    return this.queries.flows.value || []
+    return this.queries.flows.response || []
   }
 
   get loading() {
