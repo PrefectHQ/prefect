@@ -92,6 +92,7 @@ export class Query {
   readonly base_url: string = base_url
 
   body: FilterBody = {}
+  error: string | unknown | null = null
   id: number
   pollInterval: number = 0
   loading = ref(false)
@@ -112,8 +113,14 @@ export class Query {
 
   async fetch(): Promise<any> {
     this.loading.value = true
-    this.value.value = await this.http()
-    this.loading.value = false
+    this.error = null
+    try {
+      this.value.value = await this.http()
+    } catch (e) {
+      this.error = e
+    } finally {
+      this.loading.value = false
+    }
     return this.value.value
   }
 
