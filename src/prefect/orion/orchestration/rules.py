@@ -273,7 +273,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: OrchestrationContext,
-    ) -> states.State:
+    ) -> None:
         """
         Implements a hook that can fire before a state is committed to the database.
 
