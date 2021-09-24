@@ -4,17 +4,19 @@ from packaging.version import parse as parse_version
 
 import mypy.version
 import pydantic
+from pydantic.decorator import validate_arguments
 import pytest
 import time
 
 from prefect import flow, get_result, task, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
+from prefect.exceptions import FlowParameterError
 from prefect.flows import Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
-from prefect.utilities.testing import exceptions_equal, check_for_type_errors
+from prefect.utilities.testing import exceptions_equal
 from prefect.utilities.collections import quote
 
 
@@ -67,6 +69,16 @@ class TestFlow:
         )
         assert f.name == "my-fn"
 
+    def test_raises_clear_error_when_not_compatible_with_validator(self):
+        def my_fn(v__args):
+            pass
+
+        with pytest.raises(
+            ValueError,
+            match="Flow function is not compatible with `validate_parameters`",
+        ):
+            Flow(fn=my_fn)
+
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
@@ -85,53 +97,6 @@ class TestDecorator:
 
         assert my_flow.version == file_hash(file_hash.__globals__["__file__"])
 
-    @pytest.mark.skipif(
-        parse_version(mypy.version.__version__) < parse_version("1.0"),
-        reason="mypy does not support PEP-612 https://github.com/python/mypy/issues/8645",
-    )
-    def test_decorator_return_type_with_correct_params(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-
-            check: Callable[[int, str], State] = foo
-            """
-        )
-
-    def test_decorator_return_type_coerced_to_state_sync(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-            
-            # Note, mypy does not support `ParamSpec` yet so it is coerced into `...`
-            check: Callable[..., State] = foo
-            """
-        )
-
-    def test_decorator_return_type_coerced_to_state_async(self):
-        check_for_type_errors(
-            """
-            from prefect import flow, State
-            from typing import Dict, Callable, Awaitable
-
-            @flow
-            def foo(x: int, y: str) -> Dict[int, str]:
-                return {x: y}
-            
-            check: Callable[..., Awaitable[State]] = foo
-            """
-        )
-
 
 class TestFlowCall:
     async def test_call_creates_flow_run_and_runs(self):
@@ -141,7 +106,6 @@ class TestFlowCall:
 
         state = foo(1, 2)
         assert isinstance(state, State)
-        assert state.is_completed()
         assert await get_result(state) == 6
         assert state.state_details.flow_run_id is not None
 
@@ -158,7 +122,6 @@ class TestFlowCall:
 
         state = await foo(1, 2)
         assert isinstance(state, State)
-        assert state.is_completed()
         assert await get_result(state) == 6
         assert state.state_details.flow_run_id is not None
 
@@ -177,7 +140,6 @@ class TestFlowCall:
             return x + sum(y) + zt.z
 
         state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert state.is_completed()
         assert get_result(state) == 10
 
     def test_call_with_variadic_args(self):
@@ -194,7 +156,6 @@ class TestFlowCall:
 
         assert get_result(test_flow(1, 2, x=3, y=4, z=5)) == (1, 2, dict(x=3, y=4, z=5))
 
-    @pytest.mark.xfail(reason="Cloudpickle cannot serialize Pydantic errors")
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
@@ -205,10 +166,17 @@ class TestFlowCall:
 
         assert state.is_failed()
         with pytest.raises(
-            pydantic.error_wrappers.ValidationError,
+            FlowParameterError,
             match="value is not a valid integer",
         ):
             raise_failed_state(state)
+
+    def test_call_ignores_incompatible_parameter_types_if_asked(self):
+        @flow(version="test", validate_parameters=False)
+        def foo(x: int):
+            return x
+
+        assert get_result(foo(x="foo")) == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -305,10 +273,8 @@ class TestFlowCall:
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
 
         child_run_id, child_state = await get_result(parent_state)
-        assert child_state.is_completed()
         assert await get_result(child_state) == 6
 
         async with OrionClient() as client:
@@ -333,10 +299,7 @@ class TestFlowCall:
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = get_result(parent_state)
-        assert child_state.is_completed()
         assert get_result(child_state) == 6
 
     async def test_async_flow_with_async_subflow_and_async_task(self):
@@ -354,8 +317,6 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
 
@@ -374,8 +335,6 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
 
@@ -394,8 +353,6 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        assert parent_state.is_completed()
-
         child_state = await get_result(parent_state)
         assert await get_result(child_state) == 6
 

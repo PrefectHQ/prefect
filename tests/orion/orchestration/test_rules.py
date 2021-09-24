@@ -12,8 +12,15 @@ from prefect.orion.orchestration.rules import (
     BaseOrchestrationRule,
     BaseUniversalRule,
     OrchestrationContext,
+    OrchestrationResult,
 )
 from prefect.orion.schemas import states
+from prefect.orion.schemas.responses import (
+    SetStateStatus,
+    StateAbortDetails,
+    StateRejectDetails,
+    StateWaitDetails,
+)
 
 
 async def commit_task_run_state(
@@ -29,7 +36,7 @@ async def commit_task_run_state(
     ):
         state_details.update({"scheduled_time": pendulum.now()})
 
-    new_state = schemas.actions.StateCreate(
+    new_state = schemas.states.State(
         type=state_type,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
         state_details=state_details,
@@ -49,6 +56,26 @@ def transition_names(transition):
     initial = f"{transition[0].name if transition[0] else None}"
     proposed = f" => {transition[1].name if transition[1] else None}"
     return initial + proposed
+
+
+class TestOrchestrationResult:
+    @pytest.mark.parametrize(
+        ["response_type", "response_details"],
+        [
+            (StateWaitDetails, StateWaitDetails(delay_seconds=20, reason="No!")),
+            (StateRejectDetails, StateRejectDetails(reason="I don't want to change!")),
+            (StateAbortDetails, StateAbortDetails(reason="I don't need to change!")),
+        ],
+        ids=["wait", "reject", "abort"],
+    )
+    async def test_details_are_not_improperly_coerced(
+        self, response_type, response_details
+    ):
+        status = SetStateStatus.ACCEPT
+        cast_result = OrchestrationResult(
+            status=status, details=response_details.dict()
+        )
+        assert isinstance(cast_result.details, response_type)
 
 
 class TestBaseOrchestrationRule:
@@ -99,11 +126,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         rule_as_context_manager = IllustrativeRule(ctx, *intended_transition)
@@ -147,11 +172,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         minimal_rule = MinimalRule(ctx, *intended_transition)
@@ -192,11 +215,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         # each rule receives a context as an argument and yields it back after
@@ -257,11 +278,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         fizzling_rule = FizzlingRule(ctx, *intended_transition)
@@ -332,11 +351,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -390,11 +407,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         mutating_rule = StateMutatingRule(ctx, *intended_transition)
@@ -435,11 +450,9 @@ class TestBaseOrchestrationRule:
                 post_transition_hook()
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -476,11 +489,9 @@ class TestBaseOrchestrationRule:
                 post_transition_hook()
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         state_enforcing_rule = StateEnforcingRule(ctx, *intended_transition)
@@ -555,11 +566,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         # an ExitStack is a python builtin contstruction that allows us to
@@ -705,11 +714,9 @@ class TestBaseOrchestrationRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            run=schemas.core.TaskRun.from_orm(task_run),
-            task_run_id=task_run.id,
         )
 
         # an ExitStack is a python builtin contstruction that allows us to
@@ -804,10 +811,9 @@ class TestBaseUniversalRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            task_run_id=task_run.id,
         )
 
         rule_as_context_manager = IllustrativeUniversalRule(ctx, *intended_transition)
@@ -852,10 +858,9 @@ class TestBaseUniversalRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            task_run_id=task_run.id,
         )
 
         universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
@@ -908,10 +913,9 @@ class TestBaseUniversalRule:
         )
 
         ctx = OrchestrationContext(
+            session=session,
             initial_state=initial_state,
             proposed_state=proposed_state,
-            session=session,
-            task_run_id=task_run.id,
         )
 
         universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
@@ -1161,3 +1165,16 @@ class TestOrchestrationContext:
             assert isinstance(orm_state, orm.TaskRunState)
         if run_type == "flow":
             assert isinstance(orm_state, orm.FlowRunState)
+
+    async def test_context_validation_sets_run_state(
+        self, session, run_type, initialize_orchestration
+    ):
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(session, run_type, *intended_transition)
+
+        assert ctx.run.state.id != ctx.proposed_state.id
+        await ctx.validate_proposed_state()
+        assert ctx.run.state.id == ctx.validated_state.id
+        assert ctx.validated_state.id == ctx.proposed_state.id

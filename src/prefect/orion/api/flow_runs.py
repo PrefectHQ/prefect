@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -29,6 +30,9 @@ async def create_flow_run(
 
     If no state is provided, the flow run will be created in a PENDING state.
     """
+    # hydrate the input model into a full flow run / state model
+    flow_run = schemas.core.FlowRun(**flow_run.dict())
+
     if not flow_run.state:
         flow_run.state = schemas.states.Pending()
 
@@ -120,7 +124,10 @@ async def read_flow_run(
 @router.post("/filter")
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
-    pagination: schemas.filters.Pagination = Depends(),
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
@@ -134,8 +141,8 @@ async def read_flow_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
-        offset=pagination.offset,
-        limit=pagination.limit,
+        offset=offset,
+        limit=limit,
         sort=sort,
     )
 
@@ -161,17 +168,25 @@ async def delete_flow_run(
 async def set_flow_run_state(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
+    force: bool = Body(
+        False,
+        description=(
+            "If false, orchestration rules will be applied that may alter "
+            "or prevent the state transition. If True, orchestration rules are not applied."
+        ),
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
     # create the state
-    orchestration_result = await models.flow_run_states.orchestrate_flow_run_state(
+    orchestration_result = await models.flow_runs.set_flow_run_state(
         session=session,
         flow_run_id=flow_run_id,
         # convert to a full State object
         state=schemas.states.State.parse_obj(state),
+        force=force,
     )
 
     # set the 201 because a new state was created

@@ -1,4 +1,5 @@
 import datetime
+import json
 from uuid import uuid4
 
 import pendulum
@@ -18,9 +19,7 @@ class TestCreateDeployment:
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
         data = DeploymentCreate(
-            name="My Deployment",
-            flow_data=flow_data,
-            flow_id=flow.id,
+            name="My Deployment", flow_data=flow_data, flow_id=flow.id, tags=["foo"]
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -32,6 +31,9 @@ class TestCreateDeployment:
             session=session, deployment_id=deployment_id
         )
         assert str(deployment.id) == deployment_id
+        assert deployment.name == "My Deployment"
+        assert deployment.tags == ["foo"]
+        assert deployment.flow_id == flow.id
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow, flow_function
@@ -331,36 +333,99 @@ class TestReadDeploymentByName:
 
 class TestReadDeployments:
     @pytest.fixture
-    async def deployments(self, client, flow, flow_function):
-        await client.post(
-            "/deployments/",
-            json=DeploymentCreate(
-                name="My Deployment",
+    async def deployment_id_1(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def deployment_id_2(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def deployments(
+        self, session, deployment_id_1, deployment_id_2, flow, flow_function
+    ):
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_1,
+                name="My Deployment X",
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 flow_id=flow.id,
-            ).dict(json_compatible=True),
+                is_schedule_active=True,
+            ),
         )
-        await client.post(
-            "/deployments/",
-            json=DeploymentCreate(
-                name="My Deployment 2",
+
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_2,
+                name="My Deployment Y",
                 flow_data=DataDocument.encode("cloudpickle", flow_function),
                 flow_id=flow.id,
-            ).dict(json_compatible=True),
+                is_schedule_active=False,
+            ),
         )
+        await session.commit()
 
     async def test_read_deployments(self, deployments, client):
         response = await client.post("/deployments/filter/")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
+    async def test_read_deployments_applies_filter(
+        self, deployments, deployment_id_1, deployment_id_2, flow, client
+    ):
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(any_=["My Deployment X"])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/deployments/filter/", json=deployment_filter)
+        assert response.status_code == 200
+        assert {deployment["id"] for deployment in response.json()} == {
+            str(deployment_id_1)
+        }
+
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(any_=["My Deployment 123"])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/deployments/filter/", json=deployment_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
+        deployment_filter = dict(
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=[flow.name])
+            ).dict(json_compatible=True)
+        )
+        response = await client.post("/deployments/filter/", json=deployment_filter)
+        assert response.status_code == 200
+        assert {deployment["id"] for deployment in response.json()} == {
+            str(deployment_id_1),
+            str(deployment_id_2),
+        }
+
+        deployment_filter = dict(
+            deployments=schemas.filters.DeploymentFilter(
+                name=schemas.filters.DeploymentFilterName(any_=["My Deployment X"])
+            ).dict(json_compatible=True),
+            flows=schemas.filters.FlowFilter(
+                name=schemas.filters.FlowFilterName(any_=["not a flow name"])
+            ).dict(json_compatible=True),
+        )
+        response = await client.post("/deployments/filter/", json=deployment_filter)
+        assert response.status_code == 200
+        assert len(response.json()) == 0
+
     async def test_read_deployments_applies_limit(self, deployments, client):
-        response = await client.post("/deployments/filter/", params=dict(limit=1))
+        response = await client.post("/deployments/filter/", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
-        response = await client.post("/deployments/filter/", params=dict(offset=1))
+        response = await client.post("/deployments/filter/", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -536,9 +601,7 @@ class TestScheduleDeployment:
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
             start=pendulum.now(),
-            end=pendulum.now().add(
-                seconds=services_settings.scheduler_max_future_seconds
-            ),
+            end=pendulum.now() + services_settings.scheduler_max_scheduled_time,
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -555,9 +618,7 @@ class TestScheduleDeployment:
         expected_dates = await deployment.schedule.get_dates(
             n=5,
             start=pendulum.now(),
-            end=pendulum.now().add(
-                seconds=services_settings.scheduler_max_future_seconds
-            ),
+            end=pendulum.now() + services_settings.scheduler_max_scheduled_time,
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -575,9 +636,8 @@ class TestScheduleDeployment:
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
             start=pendulum.now().add(days=120),
-            end=pendulum.now().add(
-                days=120, seconds=services_settings.scheduler_max_future_seconds
-            ),
+            end=pendulum.now().add(days=120)
+            + services_settings.scheduler_max_scheduled_time,
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)

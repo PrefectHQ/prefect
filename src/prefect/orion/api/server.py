@@ -2,16 +2,16 @@
 import asyncio
 from functools import partial
 from sys import exc_info
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from prefect.orion import api
-from prefect.orion.schemas import schedules
-from prefect.orion import services
+import prefect
 from prefect import settings
+from prefect.orion import api, services
 from prefect.utilities.logging import get_logger
 
-app = FastAPI(title="Prefect Orion", version="alpha")
+app = FastAPI(title="Prefect Orion", version=prefect.__version__)
 logger = get_logger("orion")
 
 # middleware
@@ -24,6 +24,7 @@ app.add_middleware(
 
 
 # routers
+app.include_router(api.admin.router)
 app.include_router(api.data.router)
 app.include_router(api.flows.router)
 app.include_router(api.flow_runs.router)
@@ -33,21 +34,14 @@ app.include_router(api.task_run_states.router)
 app.include_router(api.deployments.router)
 
 
-@app.get("/hello", tags=["debug"])
-def hello():
-    return "👋"
-
-
-@app.get("/echo", tags=["debug"])
-def echo(x: str):
-    return x
-
-
 @app.on_event("startup")
 async def start_services():
     if settings.orion.services.run_in_app:
         loop = asyncio.get_running_loop()
-        service_instances = [services.agent.Agent(), services.scheduler.Scheduler()]
+        service_instances = [
+            services.agent.Agent(),
+            services.scheduler.Scheduler(),
+        ]
         app.state.services = {
             service: loop.create_task(service.start(), name=service.name)
             for service in service_instances

@@ -6,6 +6,7 @@ import pendulum
 import sqlalchemy as sa
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
+from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
@@ -21,6 +22,10 @@ async def create_deployment(
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
     same name and flow_id already exists, the deployment is updated."""
+
+    # hydrate the input model into a full model
+    deployment = schemas.core.Deployment(**deployment.dict())
+
     now = pendulum.now()
     model = await models.deployments.create_deployment(
         session=session, deployment=deployment
@@ -86,14 +91,39 @@ async def read_deployment(
 
 @router.post("/filter")
 async def read_deployments(
-    pagination: schemas.filters.Pagination = Depends(),
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
+    deployments: schemas.filters.DeploymentFilter = None,
+    flows: schemas.filters.FlowFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
     Query for deployments
     """
     return await models.deployments.read_deployments(
-        session=session, offset=pagination.offset, limit=pagination.limit
+        session=session,
+        offset=offset,
+        limit=limit,
+        deployment_filter=deployments,
+        flow_filter=flows,
+    )
+
+
+@router.post("/count")
+async def count_deployments(
+    deployments: schemas.filters.DeploymentFilter = None,
+    flows: schemas.filters.FlowFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> int:
+    """
+    Count deployments
+    """
+    return await models.deployments.count_deployments(
+        session=session,
+        deployment_filter=deployments,
+        flow_filter=flows,
     )
 
 

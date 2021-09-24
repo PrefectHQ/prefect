@@ -1,3 +1,4 @@
+import json
 from uuid import uuid4
 
 import pendulum
@@ -27,6 +28,24 @@ class TestCreateFlowRun:
             session=session, flow_run_id=response.json()["id"]
         )
         assert flow_run.flow_id == flow.id
+
+    async def test_create_flow_run_with_state_sets_timestamp_on_server(
+        self, flow, client, session
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                state=states.Completed(timestamp=pendulum.now().add(months=1)),
+            ).dict(json_compatible=True),
+        )
+        assert response.status_code == 201
+
+        flow_run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=response.json()["id"]
+        )
+        # the timestamp was overwritten
+        assert flow_run.state.timestamp < pendulum.now()
 
     async def test_create_flow_run_without_state_yields_default_pending(
         self, flow, client, session
@@ -114,17 +133,18 @@ class TestCreateFlowRun:
         assert flow_run.parent_task_run_id == task_run.id
 
     async def test_create_flow_run_with_running_state(self, flow, client, session):
-        flow_run_data = dict(
+        flow_run_data = actions.FlowRunCreate(
             flow_id=str(flow.id),
-            state=states.Running().dict(json_compatible=True),
+            state=states.Running(),
         )
-        response = await client.post("/flow_runs/", json=flow_run_data)
+        response = await client.post(
+            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+        )
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
         )
         assert str(flow_run.id) == response.json()["id"]
-        assert str(flow_run.state.id) == flow_run_data["state"]["id"]
-        assert flow_run.state.type.value == flow_run_data["state"]["type"]
+        assert flow_run.state.type == flow_run_data.state.type
 
     async def test_create_flow_run_with_deployment_id(
         self, flow, client, session, flow_function
@@ -210,7 +230,7 @@ class TestReadFlowRun:
     async def test_read_flow_run_with_state(self, flow_run, client, session):
         state_id = uuid4()
         (
-            await models.flow_run_states.orchestrate_flow_run_state(
+            await models.flow_runs.set_flow_run_state(
                 session=session,
                 flow_run_id=flow_run.id,
                 state=states.State(id=state_id, type="RUNNING"),
@@ -298,7 +318,7 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_runs[1].id)
 
     async def test_read_flow_runs_applies_limit(self, flow_runs, client):
-        response = await client.post("/flow_runs/filter", params=dict(limit=1))
+        response = await client.post("/flow_runs/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -333,11 +353,23 @@ class TestReadFlowRuns:
 
         response = await client.post(
             "/flow_runs/filter/",
-            json=dict(sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value),
-            params=dict(limit=1),
+            json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value
+            ),
         )
         assert response.status_code == 200
         assert response.json()[0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/filter/",
+            json=dict(
+                limit=1,
+                offset=1,
+                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_1.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.FlowRunSort]
@@ -377,7 +409,7 @@ class TestSetFlowRunState:
     async def test_set_flow_run_state(self, flow_run, client, session):
         response = await client.post(
             f"/flow_runs/{flow_run.id}/set_state",
-            json=dict(type="RUNNING", name="Test State"),
+            json=dict(state=dict(type="RUNNING", name="Test State")),
         )
         assert response.status_code == 201
 
@@ -392,3 +424,51 @@ class TestSetFlowRunState:
         )
         assert run.state.type == states.StateType.RUNNING
         assert run.state.name == "Test State"
+
+    async def test_set_flow_run_errors_if_client_provides_timestamp(
+        self, flow_run, client
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="RUNNING",
+                    name="Test State",
+                    timestamp=str(pendulum.now().add(months=1)),
+                )
+            ),
+        )
+        assert response.status_code == 422
+
+    async def test_set_flow_run_state_force_skips_orchestration(
+        self, flow_run, client, session
+    ):
+        response1 = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(
+                    type="SCHEDULED",
+                    name="Scheduled",
+                    state_details=dict(
+                        scheduled_time=str(pendulum.now().add(months=1))
+                    ),
+                )
+            ),
+        )
+        assert response1.status_code == 201
+
+        # trying to enter a running state fails
+        response2 = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Running")),
+        )
+        assert response2.status_code == 200
+        assert response2.json()["status"] == "WAIT"
+
+        # trying to enter a running state succeeds with force=True
+        response2 = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Running"), force=True),
+        )
+        assert response2.status_code == 201
+        assert response2.json()["status"] == "ACCEPT"

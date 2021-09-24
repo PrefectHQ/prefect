@@ -84,7 +84,7 @@ def enter_flow_run_engine_from_flow_call(
         return parent_flow_run_context.sync_portal.call(begin_run)
 
 
-def enter_flow_run_engine_from_deployed_run(flow_run_id: UUID) -> State:
+def enter_flow_run_engine_from_subprocess(flow_run_id: UUID) -> State:
     """
     Sync entrypoint for flow runs that have been submitted for execution by an agent
 
@@ -250,12 +250,6 @@ async def orchestrate_flow_run(
     sync_portal: BlockingPortal,
 ) -> State:
     """
-    TODO: Note that pydantic will now coerce parameter types into the correct type
-          even if the user wants failure on inexact type matches. We may want to
-          implement a strict runtime typecheck with a configuration flag
-    TODO: `validate_arguments` can throw an error while wrapping `fn` if the
-          signature is not pydantic-compatible. We'll want to confirm that it will
-          work at Flow.__init__ so we can raise errors to users immediately
     TODO: Implement state orchestation logic using return values from the API
     """
     await client.propose_state(Running(), flow_run_id=flow_run_id)
@@ -278,9 +272,12 @@ async def orchestrate_flow_run(
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
             ):
-                flow_call = partial(
-                    call_with_parameters, validate_arguments(flow.fn), parameters
-                )
+                # Validate the parameters before the call; raises an exception if invalid
+                if flow.should_validate_parameters:
+                    parameters = flow.validate_parameters(parameters)
+
+                flow_call = partial(call_with_parameters, flow.fn, parameters)
+
                 if flow.isasync:
                     result = await flow_call()
                 else:
@@ -572,3 +569,11 @@ def tags(*new_tags: str) -> Set[str]:
     new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags
+
+
+if __name__ == "__main__":
+    import sys
+
+    state = enter_flow_run_engine_from_subprocess(sys.argv[1])
+    print(repr(state))
+    print(get_result(state, raise_failures=False))

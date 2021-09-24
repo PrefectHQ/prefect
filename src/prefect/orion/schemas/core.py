@@ -46,7 +46,8 @@ class FlowRun(ORMBaseModel):
     start_time: datetime.datetime = None
     end_time: datetime.datetime = None
     total_run_time: datetime.timedelta = datetime.timedelta(0)
-    total_time: datetime.timedelta = datetime.timedelta(0)
+    estimated_run_time: datetime.timedelta = datetime.timedelta(0)
+    estimated_start_time_delta: datetime.timedelta = datetime.timedelta(0)
     auto_scheduled: bool = False
 
     # relationships
@@ -88,7 +89,8 @@ class TaskRun(ORMBaseModel):
     start_time: datetime.datetime = None
     end_time: datetime.datetime = None
     total_run_time: datetime.timedelta = datetime.timedelta(0)
-    total_time: datetime.timedelta = datetime.timedelta(0)
+    estimated_run_time: datetime.timedelta = datetime.timedelta(0)
+    estimated_start_time_delta: datetime.timedelta = datetime.timedelta(0)
 
     # relationships
     # flow_run: FlowRun = None
@@ -102,6 +104,7 @@ class Deployment(ORMBaseModel):
     flow_data: schemas.data.DataDocument
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     is_schedule_active: bool = True
+    tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
 
     # flow: Flow = None
 
