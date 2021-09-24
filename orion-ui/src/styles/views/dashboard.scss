@@ -46,6 +46,15 @@
   column-gap: 16px;
   row-gap: 16px;
 
+  .run-history {
+    .no-data {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+
   .run-history,
   .run-lateness,
   .run-duration {

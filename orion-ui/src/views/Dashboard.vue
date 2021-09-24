@@ -9,8 +9,10 @@
       >
         <div class="d-flex justify-space-between align-center px-1">
           <div>
-            <span class="subheader">{{ filter.count }}</span>
-            <span class="ml-1">{{ filter.label }}</span>
+            <span class="font--secondary subheader">
+              {{ filter.count || '--' }}
+            </span>
+            <span class="ml-1 body">{{ filter.label }}</span>
           </div>
           <i class="pi pi-filter-3-line pi-lg" />
         </div>
@@ -25,17 +27,19 @@
 
         <div class="px-2 pb-1 flex-grow-1">
           <RunHistoryChart
+            v-if="run_history_buckets && run_history_buckets.length"
             :items="run_history_buckets"
             background-color="blue-5"
             show-axis
           />
+          <div v-else class="font--secondary subheader no-data"> -- </div>
         </div>
       </Card>
 
       <Card class="run-duration flex-grow-0" shadow="sm">
         <template v-slot:aside>
           <div class="pl-2 pt-1" style="width: 100px">
-            <div class="subheader">10-19m</div>
+            <div class="font--secondary subheader">--</div>
             <div class="body">Duration</div>
           </div>
         </template>
@@ -47,7 +51,7 @@
       <Card class="run-lateness flex-grow-0" shadow="sm">
         <template v-slot:aside>
           <div class="pl-2 pt-1" style="width: 100px">
-            <div class="subheader">1-59m</div>
+            <div class="font--secondary subheader">--</div>
             <div class="body">Lateness</div>
           </div>
         </template>
@@ -172,7 +176,7 @@ import { default as taskRunList } from '@/util/objects/task_runs.json'
   components: { BarChart, RunHistoryChart }
 })
 export default class Dashboard extends Vue {
-  run_history_buckets: Bucket[] = dataset_2
+  run_history_buckets: Bucket[] = []
 
   run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
   run_duration_items: Item[] = duration_dataset_1.slice(0, 10)
@@ -184,10 +188,10 @@ export default class Dashboard extends Vue {
     'task-runs': taskRunList
   }
 
-  premadeFilters: { label: string; count: number }[] = [
-    { label: 'Failed Runs', count: 15 },
-    { label: 'Late Runs', count: 25 },
-    { label: 'Upcoming Runs', count: 75 }
+  premadeFilters: { label: string; count: number | null }[] = [
+    { label: 'Failed Runs', count: null },
+    { label: 'Late Runs', count: null },
+    { label: 'Upcoming Runs', count: null }
   ]
 
   resultsTab: string = 'deployments'
