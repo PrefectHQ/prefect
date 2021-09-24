@@ -1,26 +1,28 @@
 """
 Client-side execution of flows and tasks
 """
-from collections import OrderedDict
-from collections.abc import Iterator as IteratorABC
+import pendulum
 from contextlib import contextmanager, nullcontext
-from dataclasses import fields, is_dataclass
 from functools import partial
-from typing import Any, Awaitable, Dict, List, Set, TypeVar, Union, cast, overload
+from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
 from uuid import UUID
 
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
-from pydantic import validate_arguments
 
+from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, future_to_state, resolve_futures
+from prefect.futures import (
+    PrefectFuture,
+    resolve_futures_to_data,
+    resolve_futures_to_states,
+)
 from prefect.orion.schemas import core
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
@@ -231,7 +233,7 @@ async def create_and_begin_subflow_run(
         # Since a subflow run does not wait for all of its futures before exiting, we
         # wait for any returned futures to complete before setting the final state
         # of the flow
-        terminal_state.data = await resolve_futures(terminal_state.data)
+        terminal_state.data = await resolve_futures_to_data(terminal_state.data)
 
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.propose_state(
@@ -327,7 +329,7 @@ def enter_task_run_engine(
         return flow_run_context.sync_portal.call(begin_run)
 
 
-def collect_task_run_inputs(
+async def collect_task_run_inputs(
     expr: Any, results: Set = None
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
@@ -336,35 +338,20 @@ def collect_task_run_inputs(
     inputs found.
     """
 
-    if results is None:
-        results = set()
+    inputs = set()
 
-    if isinstance(expr, PrefectFuture):
-        results.add(TaskRunResult(id=expr.run_id))
+    async def visit_fn(expr):
+        if isinstance(expr, PrefectFuture):
+            inputs.add(core.TaskRunResult(id=expr.run_id))
 
-    if isinstance(expr, State):
-        if expr.state_details.task_run_id:
-            results.add(TaskRunResult(id=expr.state_details.task_run_id))
+        if isinstance(expr, State):
+            if expr.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
+        return expr
 
-    # Get the expression type; treat iterators like lists
-    typ = list if isinstance(expr, IteratorABC) else type(expr)
-    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
+    await visit_collection(expr, visit_fn=visit_fn)
 
-    if typ in (list, tuple, set):
-        for o in expr:
-            collect_task_run_inputs(o, results)
-
-    if typ in (dict, OrderedDict):
-        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        for k, v in expr.items():
-            collect_task_run_inputs(k, results)
-            collect_task_run_inputs(v, results)
-
-    if is_dataclass(expr) and not isinstance(expr, type):
-        for f in fields(expr):
-            collect_task_run_inputs(getattr(expr, f.name), results)
-
-    return results
+    return inputs
 
 
 async def begin_task_run(
@@ -383,7 +370,9 @@ async def begin_task_run(
         flow_run_id=flow_run_context.flow_run_id,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
-        task_inputs={k: collect_task_run_inputs(v) for k, v in parameters.items()},
+        task_inputs={
+            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        },
     )
 
     future = await flow_run_context.executor.submit(
@@ -495,7 +484,7 @@ async def user_return_value_to_state(
         return result
 
     # Ensure any futures are resolved
-    result = await resolve_futures(result, resolve_fn=future_to_state)
+    result = await resolve_futures_to_states(result)
 
     # If we resolved a task future or futures into states, we will determine a new state
     # from their aggregate
