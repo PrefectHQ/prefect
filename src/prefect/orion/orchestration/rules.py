@@ -90,6 +90,7 @@ class TaskOrchestrationContext(OrchestrationContext):
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
         else:
             validated_orm_state = None
         validated_state = (
@@ -104,13 +105,6 @@ class TaskOrchestrationContext(OrchestrationContext):
     @property
     def run_settings(self) -> Dict:
         return self.run.empirical_policy
-
-    @property
-    async def orm_validated_state(self):
-        if self.validated_state is not None:
-            return await task_run_states.read_task_run_state(
-                self.session, self.validated_state.id
-            )
 
 
 class FlowOrchestrationContext(OrchestrationContext):
@@ -123,6 +117,7 @@ class FlowOrchestrationContext(OrchestrationContext):
                 **self.proposed_state.dict(shallow=True),
             )
             self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
         else:
             validated_orm_state = None
         validated_state = (
@@ -137,13 +132,6 @@ class FlowOrchestrationContext(OrchestrationContext):
     @property
     def run_settings(self) -> Dict:
         return self.run.empirical_policy
-
-    @property
-    async def orm_validated_state(self):
-        if self.validated_state is not None:
-            return await flow_run_states.read_flow_run_state(
-                self.session, self.validated_state.id
-            )
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):

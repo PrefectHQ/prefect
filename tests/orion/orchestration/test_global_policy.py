@@ -9,7 +9,6 @@ from prefect.orion.orchestration.global_policy import (
     SetEndTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
-    SetRunState,
     SetRunStateType,
     SetStartTime,
     UpdateSubflowParentTask,
@@ -395,23 +394,3 @@ async def test_update_subflow_parent_task(
     # the parent task run points to the child subflow run
     assert parent_task_run.state.state_details.child_flow_run_id == ctx.run.id
 
-
-@pytest.mark.parametrize("run_type", ["task", "flow"])
-async def test_set_run_state(
-    session,
-    initialize_orchestration,
-    run_type,
-):
-    initial_state_type = states.StateType.RUNNING
-    proposed_state_type = states.StateType.FAILED
-    intended_transition = (initial_state_type, proposed_state_type)
-    ctx = await initialize_orchestration(
-        session,
-        run_type,
-        *intended_transition,
-    )
-
-    assert ctx.run.state.id != ctx.proposed_state.id
-    async with SetRunState(ctx, *intended_transition) as ctx:
-        await ctx.validate_proposed_state()
-    assert ctx.run.state.id == ctx.validated_state.id
