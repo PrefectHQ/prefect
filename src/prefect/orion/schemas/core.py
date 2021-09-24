@@ -63,6 +63,10 @@ class TaskRunPolicy(PrefectBaseModel):
 
 
 class TaskRunInput(PrefectBaseModel):
+    # freeze TaskRunInputs to allow them to be placed in sets
+    class Config:
+        frozen = True
+
     type: Literal["task_run"] = "task_run"
     id: UUID
 
