@@ -138,7 +138,7 @@ export class Query {
   constructor(
     endpoint: Endpoint,
     body: FilterBody = {},
-    { pollInterval = 0 }: QueryOptions = { pollInterval: 0 },
+    { pollInterval }: QueryOptions = { pollInterval: 0 },
     id: number
   ) {
     this.id = id
