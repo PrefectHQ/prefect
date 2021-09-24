@@ -164,6 +164,102 @@ class OrchestrationContext(PrefectBaseModel):
         return safe_context.initial_state, safe_context.validated_state, safe_context
 
 
+class FlowOrchestrationContext(OrchestrationContext):
+    """
+    A container for a flow run state transition, governed by orchestration rules.
+
+    When a flow- run attempts to change state, Orion has an opportunity
+    to decide whether this transition can proceed. All the relevant information
+    associated with the state transition is stored in an `OrchestrationContext`,
+    which is subsequently governed by nested orchestration rules implemented using
+    the `BaseOrchestrationRule` ABC.
+
+    `FlowOrchestrationContext` introduces the concept of a state being `None` in the
+    context of an intended state transition. An initial state can be `None` if a run
+    is is attempting to set a state for the first time. The proposed state might be
+    `None` if a rule governing the transition determines that no state change
+    should occur at all and nothing is written to the database.
+
+    Attributes:
+        session: a SQLAlchemy database session
+        run: the flow run attempting to change state
+        initial_state: the initial state of the run
+        proposed_state: the proposed state the run is transitioning into
+        validated_state: a proposed state that has committed to the database
+        rule_signature: a record of rules that have fired on entry into a
+            managed context, currently only used for debugging purposes
+        finalization_signature: a record of rules that have fired on exit from a
+            managed context, currently only used for debugging purposes
+        response_status: a SetStateStatus object used to build the API response
+        response_details:a StateResponseDetails object use to build the API response
+
+    Args:
+        session: a SQLAlchemy database session
+        run: the flow run attempting to change state
+        initial_state: the initial state of a run
+        proposed_state: the proposed state a run is transitioning into
+    """
+
+    run: orm.FlowRun = ...
+
+    async def validate_proposed_state(self) -> orm.FlowRunState:
+        """
+        Validates a proposed state by committing it to the database.
+
+        After the `FlowOrchestrationContext` is governed by orchestration rules, the
+        proposed state can be validated: the proposed state is added to the current
+        SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
+        state. The state on the run is set to the validated state as well. If the
+        proposed state is `None` when this method is called, nothing happens.
+
+        Returns:
+            The validated orm.FlowRunState if a state is committed to the database.
+            None otherwise.
+        """
+
+        if self.proposed_state is not None:
+            validated_orm_state = orm.FlowRunState(
+                flow_run_id=self.run.id,
+                **self.proposed_state.dict(shallow=True),
+            )
+            self.session.add(validated_orm_state)
+            self.run.set_state(validated_orm_state)
+        else:
+            validated_orm_state = None
+        validated_state = (
+            validated_orm_state.as_state() if validated_orm_state else None
+        )
+
+        await self.session.flush()
+        self.validated_state = validated_state
+
+        return validated_orm_state
+
+    def safe_copy(self):
+        """
+        Creates a mostly-mutation-safe copy for use in orchestration rules.
+
+        Orchestration rules govern state transitions using information stored in
+        an `OrchestrationContext`. However, mutating objects stored on the context
+        directly can have unintended side-effects. To guard against this,
+        `self.safe_copy` can be used to pass information to orchestration rules
+        without risking mutation.
+
+        NOTE: `self.run` is an ORM model, and even when copied is unsafe to mutate
+
+        Returns:
+            A mutation-safe copy of `FlowOrchestrationContext`
+        """
+
+        return super().safe_copy()
+
+    @property
+    def run_settings(self) -> Dict:
+        """Run-level settings used to orchestrate the state transition."""
+
+        return self.run.empirical_policy
+
+
 class TaskOrchestrationContext(OrchestrationContext):
     """
     A container for a task run state transition, governed by orchestration rules.
@@ -235,83 +331,23 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return validated_orm_state
 
-    @property
-    def run_settings(self) -> Dict:
-        """Run-level settings used to orchestrate the state transition."""
-
-        return self.run.empirical_policy
-
-
-class FlowOrchestrationContext(OrchestrationContext):
-    """
-    A container for a flow run state transition, governed by orchestration rules.
-
-    When a flow- run attempts to change state, Orion has an opportunity
-    to decide whether this transition can proceed. All the relevant information
-    associated with the state transition is stored in an `OrchestrationContext`,
-    which is subsequently governed by nested orchestration rules implemented using
-    the `BaseOrchestrationRule` ABC.
-
-    `FlowOrchestrationContext` introduces the concept of a state being `None` in the
-    context of an intended state transition. An initial state can be `None` if a run
-    is is attempting to set a state for the first time. The proposed state might be
-    `None` if a rule governing the transition determines that no state change
-    should occur at all and nothing is written to the database.
-
-    Attributes:
-        session: a SQLAlchemy database session
-        run: the flow run attempting to change state
-        initial_state: the initial state of the run
-        proposed_state: the proposed state the run is transitioning into
-        validated_state: a proposed state that has committed to the database
-        rule_signature: a record of rules that have fired on entry into a
-            managed context, currently only used for debugging purposes
-        finalization_signature: a record of rules that have fired on exit from a
-            managed context, currently only used for debugging purposes
-        response_status: a SetStateStatus object used to build the API response
-        response_details:a StateResponseDetails object use to build the API response
-
-    Args:
-        session: a SQLAlchemy database session
-        run: the flow run attempting to change state
-        initial_state: the initial state of a run
-        proposed_state: the proposed state a run is transitioning into
-    """
-
-    run: orm.FlowRun = ...
-
-    async def validate_proposed_state(self) -> orm.FlowRunState:
+    def safe_copy(self):
         """
-        Validates a proposed state by committing it to the database.
+        Creates a mostly-mutation-safe copy for use in orchestration rules.
 
-        After the `FlowOrchestrationContext` is governed by orchestration rules, the
-        proposed state can be validated: the proposed state is added to the current
-        SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
-        state. The state on the run is set to the validated state as well. If the
-        proposed state is `None` when this method is called, nothing happens.
+        Orchestration rules govern state transitions using information stored in
+        an `OrchestrationContext`. However, mutating objects stored on the context
+        directly can have unintended side-effects. To guard against this,
+        `self.safe_copy` can be used to pass information to orchestration rules
+        without risking mutation.
+
+        NOTE: `self.run` is an ORM model, and even when copied is unsafe to mutate
 
         Returns:
-            The validated orm.FlowRunState if a state is committed to the database.
-            None otherwise.
+            A mutation-safe copy of `TaskOrchestrationContext`
         """
 
-        if self.proposed_state is not None:
-            validated_orm_state = orm.FlowRunState(
-                flow_run_id=self.run.id,
-                **self.proposed_state.dict(shallow=True),
-            )
-            self.session.add(validated_orm_state)
-            self.run.set_state(validated_orm_state)
-        else:
-            validated_orm_state = None
-        validated_state = (
-            validated_orm_state.as_state() if validated_orm_state else None
-        )
-
-        await self.session.flush()
-        self.validated_state = validated_state
-
-        return validated_orm_state
+        return super().safe_copy()
 
     @property
     def run_settings(self) -> Dict:
