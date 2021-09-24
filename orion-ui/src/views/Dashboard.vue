@@ -69,7 +69,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flows' }"
         >
-          {{ datasets['flows'].length }}
+          {{ flows.length }}
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
@@ -118,11 +118,7 @@
     <transition name="fade" mode="out-in">
       <div v-if="resultsTab == 'flows'">
         <list>
-          <flow-list-item
-            v-for="flow in datasets['flows']"
-            :key="flow.id"
-            :flow="flow"
-          />
+          <flow-list-item v-for="flow in flows" :key="flow.id" :flow="flow" />
         </list>
       </div>
 
@@ -162,6 +158,8 @@
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
+import { Api, Endpoints, Query, FlowsFilter } from '@/plugins/api'
+
 import {
   default as RunHistoryChart,
   Bucket
@@ -175,6 +173,14 @@ import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
   components: { BarChart, RunHistoryChart }
 })
 export default class Dashboard extends Vue {
+  flowsFilter: FlowsFilter = {}
+
+  queries: { [key: string]: Query } = {
+    flows: Api.query(Endpoints.flows, this.flowsFilter, {
+      pollInterval: 2000
+    })
+  }
+
   run_history_buckets: Bucket[] = []
 
   run_lateness_items: Item[] = []
@@ -195,12 +201,28 @@ export default class Dashboard extends Vue {
 
   resultsTab: string = 'deployments'
 
+  get flows() {
+    return this.queries.flows.response || []
+  }
+
+  get loading() {
+    return this.queries.flows.loading
+  }
+
   get resultsCount(): number {
     return this.datasets[this.resultsTab].length
   }
 
-  sayHello(): void {
-    alert('hello')
+  refetch(): void {
+    this.queries.flows.fetch()
+  }
+
+  startPolling(): void {
+    this.queries.flows.startPolling()
+  }
+
+  stopPolling(): void {
+    this.queries.flows.stopPolling()
   }
 }
 </script>
