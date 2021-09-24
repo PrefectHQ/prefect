@@ -1,6 +1,6 @@
 """
 Objects for specifying deployments for creation and utilities for working with
-deployments
+deployments.
 """
 
 import pathlib

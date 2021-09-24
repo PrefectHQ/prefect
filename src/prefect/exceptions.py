@@ -1,5 +1,5 @@
 """
-Prefect-specific exception types
+Prefect-specific exception types.
 """
 
 from rich.traceback import Traceback
@@ -7,7 +7,7 @@ from rich.traceback import Traceback
 
 class PrefectException(Exception):
     """
-    Base exception type for Prefect errors
+    Base exception type for Prefect errors.
     """
 
     pass
@@ -15,7 +15,7 @@ class PrefectException(Exception):
 
 class MissingFlowError(PrefectException):
     """
-    Raised when a given flow name is not found in the expected script
+    Raised when a given flow name is not found in the expected script.
     """
 
     pass
@@ -23,7 +23,7 @@ class MissingFlowError(PrefectException):
 
 class UnspecifiedFlowError(PrefectException):
     """
-    Raised when multiple flows are found in the expected script and no name is given
+    Raised when multiple flows are found in the expected script and no name is given.
     """
 
     pass
@@ -31,7 +31,7 @@ class UnspecifiedFlowError(PrefectException):
 
 class FlowScriptError(PrefectException):
     """
-    Raised when a script errors during evaluation while attempting to loading a flow
+    Raised when a script errors during evaluation while attempting to load a flow.
     """
 
     def __init__(
@@ -55,7 +55,7 @@ class FlowScriptError(PrefectException):
 
 class FlowParameterError(PrefectException):
     """
-    Raised when a value passed as a flow parameter does not pass validation
+    Raised when a value passed as a flow parameter does not pass validation.
     """
 
     pass
@@ -63,7 +63,7 @@ class FlowParameterError(PrefectException):
 
 class PrefectSignal(BaseException):
     """
-    Base type for signal-like exceptions that should never be caught by users
+    Base type for signal-like exceptions that should never be caught by users.
     """
 
     pass
@@ -71,7 +71,7 @@ class PrefectSignal(BaseException):
 
 class Abort(PrefectSignal):
     """
-    Raised when the API sends an 'ABORT' instruction during state proposal
+    Raised when the API sends an 'ABORT' instruction during state proposal.
 
     Indicates that the run should exit immediately.
     """

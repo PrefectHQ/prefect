@@ -1,5 +1,5 @@
 """
-Abstract class and implementations for executing task runs
+Abstract class and implementations for executing task runs.
 """
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, TypeVar
