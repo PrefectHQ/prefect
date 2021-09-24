@@ -192,6 +192,20 @@ class TaskOrchestrationContext(OrchestrationContext):
     run: orm.TaskRun = ...
 
     async def validate_proposed_state(self) -> orm.TaskRunState:
+        """
+        Validates a proposed state by committing it to the database.
+
+        After the `TaskOrchestrationContext` is governed by orchestration rules, the
+        proposed state can be validated: the proposed state is added to the current
+        SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
+        state. The state on the run is set to the validated state as well. If the
+        proposed state is `None` when this method is called, nothing happens.
+
+        Returns:
+            The validated orm.TaskRunState if a state is committed to the database.
+            None otherwise.
+        """
+
         if self.proposed_state is not None:
             validated_orm_state = orm.TaskRunState(
                 task_run_id=self.run.id,
@@ -254,6 +268,20 @@ class FlowOrchestrationContext(OrchestrationContext):
     run: orm.FlowRun = ...
 
     async def validate_proposed_state(self) -> orm.FlowRunState:
+        """
+        Validates a proposed state by committing it to the database.
+
+        After the `FlowOrchestrationContext` is governed by orchestration rules, the
+        proposed state can be validated: the proposed state is added to the current
+        SQLAlchemy session and is flushed. `self.validated_state` set to the flushed
+        state. The state on the run is set to the validated state as well. If the
+        proposed state is `None` when this method is called, nothing happens.
+
+        Returns:
+            The validated orm.FlowRunState if a state is committed to the database.
+            None otherwise.
+        """
+
         if self.proposed_state is not None:
             validated_orm_state = orm.FlowRunState(
                 flow_run_id=self.run.id,
