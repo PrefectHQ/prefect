@@ -226,6 +226,8 @@ class TaskOrchestrationContext(OrchestrationContext):
 
     @property
     def run_settings(self) -> Dict:
+        """Run-level settings used to orchestrate the state transition."""
+
         return self.run.empirical_policy
 
 
@@ -302,6 +304,8 @@ class FlowOrchestrationContext(OrchestrationContext):
 
     @property
     def run_settings(self) -> Dict:
+        """Run-level settings used to orchestrate the state transition."""
+
         return self.run.empirical_policy
 
 
