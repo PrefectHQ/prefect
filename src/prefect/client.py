@@ -1,3 +1,6 @@
+"""
+Client implementation for communicating with the Orion Server.
+"""
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple, Union
 from uuid import UUID
