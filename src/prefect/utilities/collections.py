@@ -149,46 +149,6 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         yield batch
 
 
-async def visit_collection(expr, visit_fn: Callable[[Any], Awaitable[Any]]):
-    """
-    This function visits every element of an arbitrary Python collection, applying `visit_fn`
-    to each element and replacing the element with the result of visit_fn.
-    """
-    # Ensure that the `visit_fn` is passed on recursive calls
-    recurse = partial(visit_collection, visit_fn=visit_fn)
-
-    # do not visit mock objects
-    if isinstance(expr, Mock):
-        return expr
-
-    # Get the expression type; treat iterators like lists
-    typ = list if isinstance(expr, IteratorABC) else type(expr)
-    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
-
-    # If it's a python collection, recursively create a collection of the same type with
-    # resolved futures
-
-    if typ in (list, tuple, set):
-        return typ([await recurse(o) for o in expr])
-
-    if typ in (dict, OrderedDict):
-        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        return typ([[await recurse(k), await recurse(v)] for k, v in expr.items()])
-
-    if is_dataclass(expr) and not isinstance(expr, type):
-        return typ(
-            **{f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)},
-        )
-
-    if isinstance(expr, pydantic.BaseModel):
-        return typ(
-            **{f: await recurse(getattr(expr, f)) for f in expr.__fields__},
-        )
-
-    # if the object isn't a collection, apply visit_fn to it directly
-    return await visit_fn(expr)
-
-
 async def visit_collection(
     expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
 ):
