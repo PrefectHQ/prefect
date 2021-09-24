@@ -6,7 +6,7 @@ import sqlalchemy as sa
 
 from pydantic import Field
 
-from prefect.orion.models import orm, task_run_states, flow_run_states
+from prefect.orion.models import orm
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
