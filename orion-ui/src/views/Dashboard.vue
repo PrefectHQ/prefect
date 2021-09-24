@@ -1,6 +1,6 @@
 <template>
   <div>
-    <row class="filter-row py-1" hide-scrollbars>
+    <row class="filter-row py-1 my-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
         :key="filter.label"
