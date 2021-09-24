@@ -4,13 +4,13 @@ import pytest
 
 from prefect.orion.orchestration.rules import TERMINAL_STATES
 from prefect.orion.orchestration.global_policy import (
-    SetRunStateType,
-    SetStartTime,
-    SetEndTime,
     IncrementRunCount,
     IncrementRunTime,
+    SetEndTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
+    SetRunStateType,
+    SetStartTime,
     UpdateSubflowParentTask,
 )
 from prefect.orion.schemas import states, core
@@ -393,3 +393,4 @@ async def test_update_subflow_parent_task(
     assert parent_task_run.state.type == proposed_state_type
     # the parent task run points to the child subflow run
     assert parent_task_run.state.state_details.child_flow_run_id == ctx.run.id
+
