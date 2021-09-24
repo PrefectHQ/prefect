@@ -48,7 +48,7 @@ class OrchestrationContext(PrefectBaseModel):
     A container for a state transition, governed by orchestration rules.
 
     NOTE: An `OrchestrationContext` should not be instantiated directly, instead
-    use the Flow- or Task- specific subclasses, `FlowOrchestrationContext` and
+    use the flow- or task- specific subclasses, `FlowOrchestrationContext` and
     `TaskOrchestrationContext`.
 
     When a flow- or task- run attempts to change state, Orion has an opportunity
