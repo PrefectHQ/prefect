@@ -8,9 +8,8 @@ Answer 1
 
 ```python
 def func(x: int) -> None:
-    "Docstring"
     s = 'hello'
-    print(s)
+    print(s) # comment
     return x + 1
 ```
 
