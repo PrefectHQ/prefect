@@ -36,6 +36,10 @@ class OrchestrationContext(PrefectBaseModel):
     """
     A container for a state transition, governed by orchestration rules.
 
+    NOTE: An `OrchestrationContext` should not be instantiated directly, instead
+    use the Flow- or Task- specific subclasses, `FlowOrchestrationContext` and
+    `TaskOrchestrationContext`.
+
     When a Flow- or Task- run attempts to change state, Orion has an opportunity
     to decide whether this transition can proceed. All the relevant information
     associated with the state transition is stored in an `OrchestrationContext`,
@@ -43,18 +47,36 @@ class OrchestrationContext(PrefectBaseModel):
     the `BaseOrchestrationRule` ABC.
 
     `OrchestrationContext` introduces the concept of a state being `None` in the
-    context of an intended state transition. An initial state can be none if a run
+    context of an intended state transition. An initial state can be `None` if a run
     is is attempting to set a state for the first time. The proposed state might be
     `None` if a rule governing the transition determines that no state change
     should occur at all and nothing is written to the database.
+
+    Attributes:
+        session: a SQLAlchemy database session
+        initial_state: the initial state of a run
+        proposed_state: the proposed state a run is transitioning into
+        validated_state: a proposed state that has committed to the database
+        rule_signature: a record of rules that have fired on entry into a
+            managed context, currently only used for debugging purposes
+        finalization_signature: a record of rules that have fired on exit from a
+            managed context, currently only used for debugging purposes
+        response_status: a SetStateStatus object used to build the API response
+        response_details:a StateResponseDetails object use to build the API response
+
+    Args:
+        session: a SQLAlchemy database session
+        initial_state: the initial state of a run
+        proposed_state: the proposed state a run is transitioning into
     """
+
     class Config:
         arbitrary_types_allowed = True
 
-    initial_state: Optional[states.State]
-    proposed_state: Optional[states.State]
+    session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]] = ...
+    initial_state: Optional[states.State] = ...
+    proposed_state: Optional[states.State] = ...
     validated_state: Optional[states.State]
-    session: Optional[Union[sa.orm.Session, sa.ext.asyncio.AsyncSession]]
     rule_signature: List[str] = Field(default_factory=list)
     finalization_signature: List[str] = Field(default_factory=list)
     response_status: SetStateStatus = Field(default=SetStateStatus.ACCEPT)
