@@ -7,7 +7,6 @@ from contextlib import contextmanager, nullcontext
 from dataclasses import fields, is_dataclass
 from functools import partial
 from typing import Any, Awaitable, Dict, List, Set, TypeVar, Union, cast, overload
-from unittest.mock import Mock
 from uuid import UUID
 
 import anyio
