@@ -425,7 +425,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(0.25)
+            time.sleep(0.5)
             canary_file.touch()
 
         t0 = time.time()
@@ -434,11 +434,11 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "timed out after 0.1 seconds" in state.message
-        assert t1 - t0 < 0.25, f"The engine returns without waiting; took {t1-t0}s"
+        assert t1 - t0 < 0.5, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
         # doing so. The canary file _will_ be created.
-        time.sleep(0.25)
+        time.sleep(0.5)
         assert canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
