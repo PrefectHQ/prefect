@@ -1,5 +1,5 @@
 """
-Client-side execution of flows and tasks
+Client-side execution and orchestration of flows and tasks.
 """
 import pendulum
 from contextlib import contextmanager, nullcontext

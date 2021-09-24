@@ -1,3 +1,6 @@
+"""
+Abstract class and implementations for executing task runs.
+"""
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, TypeVar
 from uuid import UUID
@@ -71,7 +74,7 @@ class LocalExecutor(BaseExecutor):
     """
     A simple executor that executes calls as they are submitted
 
-    If writing synchronous tasks, this executor will display no concurrency.
+    If writing synchronous tasks, this executor will have no concurrency.
     If writing async tasks, they will run concurrently as if using asyncio directly.
     """
 
