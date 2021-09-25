@@ -43,7 +43,14 @@ nav:
     - 'Getting Started':
         - Installation: installation.md
         - Tutorial: tutorial.md
-    - Concepts: concepts.md
+    - Concepts:
+        - Overview: concepts/overview.md
+        - Flows: concepts/flows.md
+        - Tasks: concepts/tasks.md
+        - States: concepts/states.md
+        - Executors: concepts/executors.md
+        - Deployments: concepts/deployments.md
+        - Schedules: concepts/schedules.md
     - FAQ: faq.md
     - 'API Reference': 
         - Prefect Python API: 
