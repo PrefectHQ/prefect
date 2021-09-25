@@ -5,6 +5,7 @@ extra_css:
     - stylesheets/syntax_highlights.css
     - stylesheets/api_ref.css
 markdown_extensions:
+    - admonition
     - codehilite
     - pymdownx.highlight:
         use_pygments: true
