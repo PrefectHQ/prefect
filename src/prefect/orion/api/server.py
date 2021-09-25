@@ -5,6 +5,7 @@ from sys import exc_info
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 import prefect
 from prefect import settings
@@ -34,6 +35,11 @@ app.include_router(api.task_run_states.router)
 app.include_router(api.deployments.router)
 
 
+@app.get("/")
+async def root_redirect():
+    return RedirectResponse(url="/docs")
+
+
 @app.on_event("startup")
 async def start_services():
     if settings.orion.services.run_in_app:
@@ -41,6 +47,7 @@ async def start_services():
         service_instances = [
             services.agent.Agent(),
             services.scheduler.Scheduler(),
+            services.late_runs.MarkLateRuns(),
         ]
         app.state.services = {
             service: loop.create_task(service.start(), name=service.name)
