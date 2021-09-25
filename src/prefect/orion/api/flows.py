@@ -54,6 +54,7 @@ async def count_flows(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
@@ -64,6 +65,7 @@ async def count_flows(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
     )
 
 
@@ -108,6 +110,7 @@ async def read_flows(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Flow]:
     """
@@ -118,6 +121,7 @@ async def read_flows(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
         offset=offset,
         limit=limit,
     )
