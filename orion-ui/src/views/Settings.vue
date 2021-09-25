@@ -158,7 +158,7 @@ export default class Settings extends Vue {
     })
   }
 
-  showConfirmationToast(options: { type: string; content: any }) {
+  showConfirmationToast(options: { type: string; content: any }): void {
     // TODO: Add global toast notification
   }
 
