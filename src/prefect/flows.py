@@ -1,5 +1,5 @@
 """
-Workflow class and decorator.
+Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
 """
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
@@ -43,12 +43,13 @@ P = ParamSpec("P")  # The parameters of the flow
 
 class Flow(Generic[P, R]):
     """
-    A Prefect workflow definition
+    A Prefect workflow definition.
 
-    We recommend using the `@flow` decorator for most use-cases.
+    !!! note
+        We recommend using the [`@flow` decorator][prefect.flows.flow] for most use-cases.
 
     Wraps a function with an entrypoint to the Prefect engine. To preserve the input
-    and output types, we use the generic type variables P and R for "Parameters" and
+    and output types, we use the generic type variables `P` and `R` for "Parameters" and
     "Returns" respectively.
 
     Args:
@@ -114,14 +115,14 @@ class Flow(Generic[P, R]):
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Validate parameters that are going to be used to call the flow
+        Validate parameters for compatibility with the flow by attempting to cast the inputs to the
+        associated types specified by the function's type annotations.
 
         Returns:
-            - A new dict of parameters
+            A new dict of parameters that have been cast to the appropriate types
 
-        Raises
-            - FlowParameterError: if the parameters are not valid
-
+        Raises:
+            FlowParameterError: if the provided parameters are not valid
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
         args, kwargs = parameters_to_positional_and_keyword(self.fn, parameters)
@@ -164,11 +165,9 @@ class Flow(Generic[P, R]):
         **kwargs: "P.kwargs",
     ):
         """
-        Run the flow.
+        Run the flow using the Prefect engine against a backing API (note this will create a new flow run in the backend).
 
         If writing an async flow, this call must be awaited.
-
-        Will create a new flow run in the backing API.
 
         Args:
             *args: Arguments to run the flow with.
@@ -200,7 +199,7 @@ class Flow(Generic[P, R]):
 
             >>> from prefect import tags
             >>> with tags("db", "blue"):
-            >>>    my_flow("foo")
+            >>>     my_flow("foo")
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
@@ -291,6 +290,7 @@ def flow(
         Define a flow that submits its tasks to dask
 
         >>> from prefect.executors import DaskExecutor
+        >>>
         >>> @flow(executor=DaskExecutor)
         >>> def my_flow():
         >>>     pass
