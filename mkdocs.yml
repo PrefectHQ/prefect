@@ -41,8 +41,10 @@ plugins:
 nav:
     - Home: index.md
     - 'Getting Started':
+        - Overview: getting-started/overview.md
         - Installation: getting-started/installation.md
-        - Quickstart: getting-started/quickstart.md
+        - Tutorials:
+            - tutorials/first-steps.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
