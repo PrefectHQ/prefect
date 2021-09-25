@@ -1,5 +1,5 @@
 """
-Client implementation for communicating with the Orion Server.
+Asynchronous client implementation for communicating with the [Orion REST API](/api-ref/rest-api/).
 """
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple, Union
@@ -17,22 +17,15 @@ from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
-from prefect.utilities.settings import NOTSET, NotSetType, drop_unset
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
 
-UseHttpxDefault = NotSetType
-USE_HTTPX_DEFAULT = NOTSET
-
-NoUpdate = NotSetType
-NO_UPDATE = NOTSET
-
 
 def inject_client(fn):
     """
-    Simple helper to provide a context managed client to a function
+    Simple helper to provide a context managed client to a asynchronous function.
 
     The decorated function _must_ take a `client` kwarg and if a client is passed when
     called it will be used instead of creating a new one, but it will not be context
@@ -52,6 +45,24 @@ def inject_client(fn):
 
 
 class OrionClient:
+    """
+    An asynchronous client for interacting with the [Orion REST API](/api-ref/rest-api/).
+
+    Args:
+        host: the Orion API URL
+        httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
+
+    Examples:
+
+        Say hello to an Orion server
+
+        >>> async with OrionClient() as client:
+        >>>     response = await client.hello()
+        >>>
+        >>> print(response.json())
+        👋
+    """
+
     def __init__(
         self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
     ) -> None:
@@ -73,8 +84,19 @@ class OrionClient:
         self._client = httpx.AsyncClient(**httpx_settings)
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
-        # TODO: This function (and other httpx mirrors) should replicate the types like
-        #       `OrionClient.get` for usability
+        """
+        Send a POST request to the provided route.
+
+        Args:
+            route: the path to make the request to
+            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
+
+        Raises:
+            httpx.HTTPStatusError: if a non-200 status code is returned
+
+        Returns:
+            an `httpx.Response` object
+        """
         response = await self._client.post(route, **kwargs)
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
@@ -83,39 +105,42 @@ class OrionClient:
         return response
 
     async def patch(self, route: str, **kwargs) -> httpx.Response:
+        """
+        Send a PATCH request to the provided route.
+
+        Args:
+            route: the path to make the request to
+            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
+
+        Raises:
+            httpx.HTTPStatusError: if a non-200 status code is returned
+
+        Returns:
+            an `httpx.Response` object
+        """
         response = await self._client.patch(route, **kwargs)
         response.raise_for_status()
         return response
 
     async def get(
         self,
-        route: httpx_types.URLTypes,
-        *,
-        params: Union[httpx_types.QueryParamTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        headers: Union[httpx_types.HeaderTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        cookies: Union[httpx_types.CookieTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        auth: Union[httpx_types.AuthTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        allow_redirects: Union[bool, UseHttpxDefault] = USE_HTTPX_DEFAULT,
-        timeout: Union[httpx_types.TimeoutTypes, UseHttpxDefault] = USE_HTTPX_DEFAULT,
+        route: str,
+        **kwargs,
     ) -> httpx.Response:
         """
-        Send a `GET` request
+        Send a GET request to the provided route.
 
-        Extends `httpx.AsyncClient.get` to accept JSON bodies
+        Args:
+            route: the path to make the request to
+            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
 
-        **Parameters**: See `httpx.request`.
+        Raises:
+            httpx.HTTPStatusError: if a non-200 status code is returned
+
+        Returns:
+            an `httpx.Response` object
         """
-        response = await self._client.get(
-            route,
-            **drop_unset(
-                params=params,
-                headers=headers,
-                cookies=cookies,
-                auth=auth,
-                allow_redirects=allow_redirects,
-                timeout=timeout,
-            ),
-        )
+        response = await self._client.get(route, **kwargs)
         # TODO: We may not _always_ want to raise bad status codes but for now we will
         #       because response.json() will throw misleading errors and this will ease
         #       development
@@ -125,20 +150,44 @@ class OrionClient:
     # API methods ----------------------------------------------------------------------
 
     async def hello(self) -> httpx.Response:
-        return await self.get("/hello")
+        """
+        Send a GET request to /hello for testing purposes.
+        """
+        return await self.get("/admin/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
+        """
+        Create a flow in Orion.
+
+        Args:
+            flow: a [Flow][prefect.flows.Flow] object
+
+        Raises:
+            httpx.RequestError: if a flow was not created for any reason
+
+        Returns:
+            the ID of the flow in the backend
+        """
         flow_data = schemas.actions.FlowCreate(name=flow.name)
         response = await self.post("/flows/", json=flow_data.dict(json_compatible=True))
 
         flow_id = response.json().get("id")
         if not flow_id:
-            raise Exception(f"Malformed response: {response}")
+            raise httpx.RequestError(f"Malformed response: {response}")
 
         # Return the id of the created flow
         return UUID(flow_id)
 
     async def read_flow(self, flow_id: UUID) -> schemas.core.Flow:
+        """
+        Query Orion for a flow by id.
+
+        Args:
+            flow_id: the flow ID of interest
+
+        Returns:
+            a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
+        """
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
 
@@ -158,6 +207,15 @@ class OrionClient:
         self,
         flow_name: str,
     ) -> schemas.core.Flow:
+        """
+        Query Orion for a flow by name.
+
+        Args:
+            flow_name: the name of a flow
+
+        Returns:
+            a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
+        """
         response = await self.get(f"/flows/name/{flow_name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
@@ -170,18 +228,21 @@ class OrionClient:
         state: schemas.states.State = None,
     ) -> UUID:
         """
-        Create a flow run for a deployment
+        Create a flow run for a deployment.
 
         Args:
-            - deployment: The deployment model to create the flow run from
-            - parameters: Parameter overrides for this flow run. Merged with the
+            deployment: The deployment model to create the flow run from
+            parameters: Parameter overrides for this flow run. Merged with the
                 deployment defaults
-            - context: Optional run context data
-            - state: The initial state for the run. If not provided, defaults to
+            context: Optional run context data
+            state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
 
+        Raises:
+            httpx.RequestError: if Orion does not successfully create a run for any reason
+
         Returns:
-            - UUID: The flow run id
+            The flow run id
         """
         parameters = parameters or {}
         context = context or {}
@@ -201,7 +262,7 @@ class OrionClient:
         )
         flow_run_id = response.json().get("id")
         if not flow_run_id:
-            raise Exception(f"Malformed response: {response}")
+            raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(flow_run_id)
 
@@ -214,6 +275,25 @@ class OrionClient:
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
     ) -> UUID:
+        """
+        Create a flow run for a flow.
+
+        Args:
+            flow: The flow model to create the flow run for
+            parameters: Parameter overrides for this flow run.
+            context: Optional run context data
+            tags: a list of tags to apply to this flow run
+            parent_task_run_id: if a subflow run is being created, the placeholder task run ID
+                of the parent flow
+            state: The initial state for the run. If not provided, defaults to
+                `Scheduled` for now. Should always be a `Scheduled` type.
+
+        Raises:
+            httpx.RequestError: if Orion does not successfully create a run for any reason
+
+        Returns:
+            The flow run id
+        """
         parameters = parameters or {}
         context = context or {}
 
@@ -238,22 +318,32 @@ class OrionClient:
         )
         flow_run_id = response.json().get("id")
         if not flow_run_id:
-            raise Exception(f"Malformed response: {response}")
+            raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(flow_run_id)
 
     async def update_flow_run(
-        self,
-        flow_run_id: UUID,
-        flow_version: Union[str, NoUpdate] = NO_UPDATE,
-        parameters: Union[Dict[str, Any], NoUpdate] = NO_UPDATE,
+        self, flow_run_id: UUID, flow_version: str = None, parameters: dict = None
     ) -> None:
+        """
+        Update a flow run's details.
 
-        flow_run_data = schemas.actions.FlowRunUpdate(
-            **drop_unset(flow_version=flow_version, parameters=parameters)
-        )
+        Args:
+            flow_run_id: the run ID to update
+            flow_version: a new version string for the flow run
+            parameters: a dictionary of updated parameter values for the run
 
-        await self.patch(
+        Returns:
+            an `httpx.Response` object from the PATCH request
+        """
+        params = {}
+        if flow_version is not None:
+            params["flow_version"] = flow_version
+        if parameters is not None:
+            params["parameters"] = parameters
+        flow_run_data = schemas.actions.FlowRunUpdate(**params)
+
+        return await self.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
@@ -266,6 +356,22 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         tags: List[str] = None,
     ) -> UUID:
+        """
+        Create a flow deployment in Orion.
+
+        Args:
+            flow_id: the flow ID to create a deployment for
+            name: the name of the deployment
+            flow_data: ??
+            schedule: an optional schedule to apply to the deployment
+            tags: an optional list of tags to apply to the deployment
+
+        Raises:
+            httpx.RequestError: if the deployment was not created for any reason
+
+        Returns:
+            the ID of the deployment in the backend
+        """
         deployment_create = schemas.actions.DeploymentCreate(
             flow_id=flow_id,
             name=name,
@@ -279,7 +385,7 @@ class OrionClient:
         )
         deployment_id = response.json().get("id")
         if not deployment_id:
-            raise Exception(f"Malformed response: {response}")
+            raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(deployment_id)
 
