@@ -51,6 +51,16 @@ class OrionClient:
     Args:
         host: the Orion API URL
         httpx_settings: an optional dictionary of settings to pass to the underlying `httpx.AsyncClient`
+
+    Examples:
+
+        Say hello to an Orion server
+
+        >>> async with OrionClient() as client:
+        >>>     response = await client.hello()
+        >>>
+        >>> print(response.json())
+        👋
     """
 
     def __init__(
@@ -143,7 +153,7 @@ class OrionClient:
         """
         Send a GET request to /hello for testing purposes.
         """
-        return await self.get("/hello")
+        return await self.get("/admin/hello")
 
     async def create_flow(self, flow: "Flow") -> UUID:
         """
@@ -333,7 +343,7 @@ class OrionClient:
             params["parameters"] = parameters
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
-        await self.patch(
+        return await self.patch(
             f"/flow_runs/{flow_run_id}",
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
