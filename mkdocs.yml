@@ -4,6 +4,10 @@ edit_uri: edit/main/docs/
 extra_css:
     - stylesheets/syntax_highlights.css
     - stylesheets/api_ref.css
+    - stylesheets/termynal.css
+extra_javascript:
+    - js/termynal.js
+    - js/custom.js
 markdown_extensions:
     - admonition
     - codehilite
