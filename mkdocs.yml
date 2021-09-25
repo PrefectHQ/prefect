@@ -45,6 +45,8 @@ nav:
     - Concepts: concepts.md
     - FAQ: faq.md
     - 'API Reference': 
-        - Prefect Python API: api-ref/client-api.md
+        - Prefect Python API: 
+            - 'prefect.flows': api-ref/prefect/flows.md
+            - 'prefect.tasks': api-ref/prefect/tasks.md
         - Orion REST API: api-ref/rest-api.md
         - Orion Python API: api-ref/orion-api.md
