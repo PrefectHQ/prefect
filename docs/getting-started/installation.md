@@ -41,8 +41,11 @@ pip install -e ".[dev]"
 
 To check that Prefect was installed correctly, you can test the CLI
 
-```bash
-prefect version
+<div class="termy">
 ```
+$ prefect version
+0+untagged.2037.g16e0b33.dirty
+```
+</div>
 
 Running this command should print a familiar looking version string to your console.
