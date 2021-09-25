@@ -1,3 +1,7 @@
+"""
+Orchestration logic that fires on state transitions.
+"""
+
 from typing import Optional
 
 import pendulum

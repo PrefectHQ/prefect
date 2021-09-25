@@ -1,5 +1,5 @@
 """
-This module contains bookkeeping logic that fires on every state transition.
+Bookkeeping logic that fires on every state transition.
 """
 
 from prefect.orion import models
