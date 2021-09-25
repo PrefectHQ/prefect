@@ -48,7 +48,7 @@ class TestCreateSavedSearch:
         # should be updated
         assert saved_search.filter_obj == filters.SavedFilterObjectTypes.TASK_RUN
         # should be removed
-        assert not saved_search.flow_filter_criteria
+        assert not saved_search.flow_filter_criteria.flow_filter.id
 
 
 class TestReadSavedSearch:

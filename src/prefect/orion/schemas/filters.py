@@ -478,10 +478,10 @@ class SavedFilterObjectTypes(AutoEnum):
 class BaseFilterCriteria(PrefectBaseModel):
     """Filter criteria for common objects in the system"""
 
-    flow_filter: Optional[FlowFilter]
-    flow_run_filter: Optional[FlowRunFilter]
-    task_run_filter: Optional[TaskRunFilter]
-    deployment_filter: Optional[DeploymentFilter]
+    flow_filter: FlowFilter = Field(default_factory=FlowFilter)
+    flow_run_filter: FlowRunFilter = Field(default_factory=FlowRunFilter)
+    task_run_filter: TaskRunFilter = Field(default_factory=TaskRunFilter)
+    deployment_filter: DeploymentFilter = Field(default_factory=DeploymentFilter)
 
 
 class FlowFilterCriteria(BaseFilterCriteria):
