@@ -19,9 +19,9 @@ All it requires is a few things, just follow the [tutorial](tutorial.md).
 - Installation
 - Tutorial
 
-## [Concepts](concepts.md)
+## [Concepts](concepts/overview.md)
 
-Deep dive into our [concept docs](concepts.md) to really understand the power of the system.
+Deep dive into our [concept docs](concepts/overview.md) to really understand the power of the system.
 
 ## [Frequently Asked Questions](faq.md)
 
