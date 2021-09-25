@@ -1,5 +1,6 @@
 """
 Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator](prefect.flows.flow) is preferred.
+Workflow class and decorator.
 """
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
@@ -11,7 +12,6 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Iterable,
     TypeVar,
     cast,
     overload,
@@ -54,7 +54,7 @@ class Flow(Generic[P, R]):
     "Returns" respectively.
 
     Args:
-        fn: The function defining the workflow
+        fn: The function defining the workflow.
         name: An optional name for the flow; if not provided, the name will be inferred
             from the given function.
         version: An optional version string for the flow; if not provided, we will
@@ -64,6 +64,12 @@ class Flow(Generic[P, R]):
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        validate_parameters: By default, parameters passed to flows are validated by
+            Pydantic. This will check that input values conform to the annotated types
+            on the function. Where possible, values will be coerced into the correct
+            type; for example, if a parameter is defined as `x: int` and "5" is passed,
+            it will be resolved to `5`. If set to `False`, no validation will be
+            performed on flow parameters.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -165,11 +171,11 @@ class Flow(Generic[P, R]):
         If writing an async flow, this call must be awaited.
 
         Args:
-            *args: Arguments to run the flow with
-            **kwargs: Keyword arguments to run the flow with
+            *args: Arguments to run the flow with.
+            **kwargs: Keyword arguments to run the flow with.
 
         Returns:
-            The final state of the flow run
+            The final state of the flow run.
 
         Examples:
 
@@ -245,6 +251,12 @@ def flow(
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        validate_parameters: By default, parameters passed to flows are validated by
+            Pydantic. This will check that input values conform to the annotated types
+            on the function. Where possible, values will be coerced into the correct
+            type; for example, if a parameter is defined as `x: int` and "5" is passed,
+            it will be resolved to `5`. If set to `False`, no validation will be
+            performed on flow parameters.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -283,7 +295,6 @@ def flow(
         >>> @flow(executor=DaskExecutor)
         >>> def my_flow():
         >>>     pass
-
     """
     if __fn:
         return cast(

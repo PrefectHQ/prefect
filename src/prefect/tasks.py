@@ -84,7 +84,7 @@ class Task(Generic[P, R]):
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
-        retries: An optional number of times to retry on task run failure
+        retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
     """
@@ -340,8 +340,6 @@ def task(
         >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
         >>> def my_task():
         >>>     return "hello"
-
-
     """
     if __fn:
         return cast(

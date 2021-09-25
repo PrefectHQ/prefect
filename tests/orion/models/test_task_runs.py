@@ -5,6 +5,7 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import Scheduled
 
 
@@ -32,6 +33,31 @@ class TestCreateTaskRun:
             session=session, task_run=fake_task_run
         )
         assert task_run_2.id == task_run.id
+
+    async def test_create_task_run_task_inputs(self, flow_run, session):
+        id1 = uuid4()
+        id2 = uuid4()
+        task_inputs = dict(
+            x=[TaskRunResult(id=id1)],
+            y=[],
+            z=[TaskRunResult(id=id1), TaskRunResult(id=id2)],
+        )
+
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                task_inputs=task_inputs,
+            ),
+        )
+        task_run_id = task_run.id
+
+        await session.commit()
+        session.expire_all()
+
+        task_run_2 = await models.task_runs.read_task_run(session, task_run_id)
+        assert task_run_2.task_inputs == task_inputs
 
     async def test_create_task_run_has_no_default_state(self, flow_run, session):
         task_run = await models.task_runs.create_task_run(
