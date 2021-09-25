@@ -7,7 +7,8 @@ function setupTermynal() {
     });
     const progressLiteralStart = "---> 100%";
     const promptLiteralStart = "$ ";
-    const customPromptLiteralStart = "# ";
+    const pythonPromptLiteralStart = ">>> ";
+    const pythonPromptBlockStart = "... ";
     const termynalActivateClass = "termy";
     let termynals = [];
 
@@ -63,18 +64,23 @@ function setupTermynal() {
                             class: "termynal-comment",
                             delay: 0
                         });
-                    } else if (line.startsWith(customPromptLiteralStart)) {
+                    } else if (line.startsWith(pythonPromptLiteralStart)) {
                         saveBuffer();
-                        const promptStart = line.indexOf(promptLiteralStart);
-                        if (promptStart === -1) {
-                            console.error("Custom prompt found but no end delimiter", line)
-                        }
-                        const prompt = line.slice(0, promptStart).replace(customPromptLiteralStart, "")
-                        let value = line.slice(promptStart + promptLiteralStart.length);
+                        const value = line.replace(pythonPromptLiteralStart, "").trimEnd();
                         useLines.push({
                             type: "input",
                             value: value,
-                            prompt: prompt
+                            prompt: ">>>"
+                        });
+                    } else if (line.startsWith(pythonPromptBlockStart)) {
+                        saveBuffer();
+                        // replace 4 space indents with 3 no-break space chars
+                        // termynal will add an additional prefix space so this will render as expected
+                        const value = line.replace(pythonPromptBlockStart, "").replace("    ", "\xa0\xa0\xa0").trimEnd();
+                        useLines.push({
+                            type: "input",
+                            value: value,
+                            prompt: "..."
                         });
                     } else {
                         buffer.push(line);
@@ -86,7 +92,7 @@ function setupTermynal() {
                 const termynal = new Termynal(div, {
                     lineData: useLines,
                     noInit: true,
-                    lineDelay: 500
+                    lineDelay: 250
                 });
                 termynals.push(termynal);
             });
