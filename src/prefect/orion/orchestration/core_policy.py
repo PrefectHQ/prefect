@@ -44,7 +44,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
 class CacheInsertion(BaseOrchestrationRule):
     """
-    Caches completed states after they are validated.
+    Caches completed states with cache keys after they are validated.
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -70,6 +70,10 @@ class CacheInsertion(BaseOrchestrationRule):
 class CacheRetrieval(BaseOrchestrationRule):
     """
     Rejects running states if a completed state has been cached.
+
+    This rule rejects transitions into a running state with a cache key if the key
+    has already been associated with a completed state in the cache table. The client
+    will be instructed to transition into the cached completed state instead.
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
@@ -114,6 +118,10 @@ class CacheRetrieval(BaseOrchestrationRule):
 class RetryPotentialFailures(BaseOrchestrationRule):
     """
     Rejects failed states and schedules a retry if the retry limit has not been reached.
+
+    This rule rejects transitions into a failed state if `max_retries` has been
+    set and the run count has not reached the specified limit. The client will be
+    instructed to transition into a scheduled state to retry task execution.
     """
 
     FROM_STATES = [states.StateType.RUNNING]
@@ -141,6 +149,12 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
     Prevents transitions from scheduled states that happen too early.
+
+    This rule enforces that all scheduled states will only start with the machine clock
+    used by the Orion instance. This rule will identify transitions from scheduled
+    states that are too early and nullify them. Instead, no state will be written to the
+    database and the client will be sent an instruction to wait for `delay_seconds`
+    before attempting the transition again.
     """
 
     FROM_STATES = [states.StateType.SCHEDULED]
@@ -166,6 +180,10 @@ class WaitForScheduledTime(BaseOrchestrationRule):
 class PreventTransitionsFromTerminalStates(BaseOrchestrationRule):
     """
     Prevents transitions from terminal states.
+
+    Orchestration logic in Orion assumes that once runs enter a terminal state, no
+    further action will be taken on them. This rule prevents unintended transitions out
+    of terminal states and sents an instruction to the client to abort any execution.
     """
 
     FROM_STATES = TERMINAL_STATES
