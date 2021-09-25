@@ -1,3 +1,7 @@
+"""
+This module contains bookkeeping logic that fires on every state transition.
+"""
+
 from prefect.orion import models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
@@ -17,16 +21,34 @@ COMMON_GLOBAL_RULES = lambda: [
 
 
 class GlobalFlowPolicy(BaseOrchestrationPolicy):
+    """
+    Global rules that run against flow-run-state transitions in priority order.
+
+    These rules are intended to run immediately before and after a state transition
+    is validated.
+    """
+
     def priority():
         return COMMON_GLOBAL_RULES() + [UpdateSubflowParentTask]
 
 
 class GlobalTaskPolicy(BaseOrchestrationPolicy):
+    """
+    Global rules that run against task-run-state transitions in priority order.
+
+    These rules are intended to run immediately before and after a state transition
+    is validated.
+    """
+
     def priority():
         return COMMON_GLOBAL_RULES()
 
 
 class SetRunStateType(BaseUniversalRule):
+    """
+    Updates the state type of a run on a state transition.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
 
         # record the new state's type
@@ -34,6 +56,10 @@ class SetRunStateType(BaseUniversalRule):
 
 
 class SetStartTime(BaseUniversalRule):
+    """
+    Records the time a run enters a running state for the first time.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
         # if entering a running state and no start time is set...
         if context.proposed_state.is_running() and context.run.start_time is None:
@@ -42,6 +68,14 @@ class SetStartTime(BaseUniversalRule):
 
 
 class SetEndTime(BaseUniversalRule):
+    """
+    Records the time a run enters a terminal state.
+
+    With normal client usage, a run will not transition out of a terminal state.
+    However, it's possible to force these transitions manually via the API. While
+    leaving a terminal state, this rule will unset the end time.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
         # if exiting a final state for a non-final state...
         if (
@@ -60,6 +94,10 @@ class SetEndTime(BaseUniversalRule):
 
 
 class IncrementRunTime(BaseUniversalRule):
+    """
+    Records the amount of time a run spends in the running state.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
         # if exiting a running state...
         if context.initial_state and context.initial_state.is_running():
@@ -70,6 +108,10 @@ class IncrementRunTime(BaseUniversalRule):
 
 
 class IncrementRunCount(BaseUniversalRule):
+    """
+    Records the number of times a run enters a running state. For use with retries.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
         # if entering a running state...
         if context.proposed_state.is_running():
@@ -78,6 +120,13 @@ class IncrementRunCount(BaseUniversalRule):
 
 
 class SetExpectedStartTime(BaseUniversalRule):
+    """
+    Estimates the time a state is expected to start running.
+
+    For scheduled states, this estimate is simply the scheduled time. For other states,
+    this is set to the time the proposed state was created by the client.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
 
         # set expected start time if this is the first state
@@ -91,6 +140,14 @@ class SetExpectedStartTime(BaseUniversalRule):
 
 
 class SetNextScheduledStartTime(BaseUniversalRule):
+    """
+    Records the scheduled time on a run.
+
+    When a run enters a scheduled state, `run.next_scheduled_start_time` is set to
+    the state's scheduled time. When leaving a scheduled state,
+    `run.next_scheduled_start_time` is unset.
+    """
+
     async def before_transition(self, context: OrchestrationContext) -> None:
 
         # remove the next scheduled start time if exiting a scheduled state
