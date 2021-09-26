@@ -1,41 +1,23 @@
-# First Steps
+# Flow and Task configuration
 
-Before we stand up our own Orion webserver and database, let's explore the building blocks of a Prefect workflow via an interactive Python session.  All code below is copy / pastable into your favorite async-compatible Python REPL.
+## Basic flow configuration
 
-## Define a basic flow
+Names, descriptions, versions.
 
-The simplest way to begin with Prefect is to annotate your favorite Python function using the [`@flow` decorator][prefect.flows.flow]:
+!!! note "Advanced configuration"
+    We will see more advanced flow configuration when we discuss deployments.
 
-```python
-from prefect import flow
+### Parameter type conversion
 
-@flow
-def my_favorite_function():
-    print("This function doesn't do much")
-    return 42
-```
+This will be particularly important when we use a standalone API to trigger our flow runs.
 
-Any function will work, including those that accept arguments:
+## Task configuration
 
-```python
-import requests
+Name, descriptions, versions.  But now we get to the feature set of Prefect and why you would use tasks at all - retries, caching.  
 
-@flow
-def send_post(url):
-    return requests.post(url).json()
-```
+!!! warning "The persistence of state"
+    Note that up until now we have run all of our workflows interactively; this means that our metadata store that includes things like
+    `Cached` states is torn down after we exit our Python session.  To persist sunch information across sessions, we need to standup a persistent database.
 
-## Run a basic flow
 
-Running a Prefect workflow manually is as easy as calling the annotated function:
-
-<div class="termy">
-```
->>> state = my_favorite_function()
-This function doesn't do much
-```
-</div>
-
-### Error handling
-
-## Run a basic flow with tasks
+Open questions about content order: parallel execution? subflows are maximally useful with a backend. standing up the DB / API / UI?

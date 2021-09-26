@@ -2,8 +2,9 @@ site_name: Prefect Orion
 repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
 extra_css:
-    - stylesheets/syntax_highlights.css
+    - stylesheets/admonitions.css
     - stylesheets/api_ref.css
+    - stylesheets/syntax_highlights.css
     - stylesheets/termynal.css
 extra_javascript:
     - js/termynal.js
@@ -49,6 +50,7 @@ nav:
         - Installation: getting-started/installation.md
         - Tutorials:
             - tutorials/first-steps.md
+            - tutorials/flow-configuration.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
