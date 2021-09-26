@@ -12,3 +12,5 @@
   --md-code-hl-comment-color: #a5b4be;
   --md-code-hl-variable-color: #e90;
 }
+
+.highlight .nd { color: #fe5196; }

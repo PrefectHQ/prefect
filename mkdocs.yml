@@ -68,4 +68,5 @@ nav:
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
         - Orion REST API: api-ref/rest-api.md
-        - Orion Python API: api-ref/orion-api.md
+        - Orion Python API: 
+            - 'orion.schemas.states': api-ref/orion/schemas/states.md
