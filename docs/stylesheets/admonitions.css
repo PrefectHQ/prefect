@@ -1,0 +1,6 @@
+/* styling that applies to Admonitions */
+/* see https://python-markdown.github.io/extensions/admonition/ */
+
+/* note admonition */
+.admonition.note { font-size: 1em; }
+.admonition.tip {}
