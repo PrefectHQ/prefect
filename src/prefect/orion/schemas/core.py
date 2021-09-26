@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 from uuid import UUID
 
 from pydantic import Field
@@ -139,7 +139,7 @@ class Deployment(ORMBaseModel):
     flow_data: schemas.data.DataDocument
     schedule: schemas.schedules.SCHEDULE_TYPES = None
     is_schedule_active: bool = True
-    parameters: Dict = Field(default_factory=dict)
+    parameters: Dict[str, Any] = Field(default_factory=dict)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
 
     # flow: Flow = None
