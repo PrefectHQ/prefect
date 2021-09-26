@@ -14,7 +14,7 @@ from prefect.orion.utilities.server import OrionRouter
 router = OrionRouter(prefix="/saved_searches", tags=["SavedSearchs"])
 
 
-@router.post("/")
+@router.put("/")
 async def create_saved_search(
     saved_search: schemas.actions.SavedSearchCreate,
     response: Response,

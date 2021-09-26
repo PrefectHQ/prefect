@@ -18,7 +18,7 @@ class TestCreateSavedSearch:
         data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
             json_compatible=True
         )
-        response = await client.post("/saved_searches/", json=data)
+        response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
         saved_search_id = response.json()["id"]
@@ -34,7 +34,7 @@ class TestCreateSavedSearch:
         data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
             json_compatible=True
         )
-        response = await client.post("/saved_searches/", json=data)
+        response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
         assert response.json()["filter_obj"] == "FLOW"
@@ -44,7 +44,7 @@ class TestCreateSavedSearch:
         data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW_RUN").dict(
             json_compatible=True
         )
-        response = await client.post("/saved_searches/", json=data)
+        response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 200
         assert response.json()["name"] == "My SavedSearch"
         assert response.json()["filter_obj"] == "FLOW_RUN"
@@ -59,7 +59,7 @@ class TestCreateSavedSearch:
         data = SavedSearchCreate(name="My SavedSearch", filter_obj="TASK_RUN").dict(
             json_compatible=True
         )
-        response = await client.post("/saved_searches/", json=data)
+        response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
         assert pendulum.parse(response.json()["created"]) >= now
@@ -73,7 +73,7 @@ class TestReadSavedSearch:
         data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
             json_compatible=True
         )
-        response = await client.post("/saved_searches/", json=data)
+        response = await client.put("/saved_searches/", json=data)
         saved_search_id = response.json()["id"]
 
         # make sure we we can read the saved_search correctly
@@ -135,7 +135,7 @@ class TestDeleteSavedSearch:
         data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
             json_compatible=True
         )
-        response = await client.post("/saved_searches/", json=data)
+        response = await client.put("/saved_searches/", json=data)
         saved_search_id = response.json()["id"]
 
         # delete the saved_search
