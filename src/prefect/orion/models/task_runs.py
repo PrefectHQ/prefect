@@ -106,6 +106,7 @@ def _apply_task_run_filters(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
     Applies filters to a task run query as a combination of correlated
@@ -115,7 +116,7 @@ def _apply_task_run_filters(
     if task_run_filter:
         query = query.where(task_run_filter.as_sql_filter())
 
-    if flow_filter or flow_run_filter:
+    if flow_filter or flow_run_filter or deployment_filter:
         exists_clause = select(orm.FlowRun).where(
             orm.FlowRun.id == orm.TaskRun.flow_run_id
         )
@@ -129,6 +130,11 @@ def _apply_task_run_filters(
                 orm.Flow.id == orm.FlowRun.flow_id,
             ).where(flow_filter.as_sql_filter())
 
+        if deployment_filter:
+            exists_clause = exists_clause.join(
+                orm.Deployment, orm.Deployment.id == orm.FlowRun.deployment_id
+            ).where(deployment_filter.as_sql_filter())
+
         query = query.where(exists_clause.exists())
 
     return query
@@ -139,6 +145,7 @@ async def read_task_runs(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
@@ -150,6 +157,7 @@ async def read_task_runs(
         flow_filter (FlowFilter): only select task runs whose flows match these filters
         flow_run_filter (FlowRunFilter): only select task runs whose flow runs match these filters
         task_run_filter (TaskRunFilter): only select task runs that match these filters
+        deployment_filter (DeploymentFilter): only select task runs whose deployments match these filters
         offset (int): Query offset
         limit (int): Query limit
         sort (schemas.sorting.TaskRunSort, optional) - Query sort
@@ -165,6 +173,7 @@ async def read_task_runs(
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     if offset is not None:
@@ -182,6 +191,7 @@ async def count_task_runs(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
     """Count task runs
 
@@ -190,7 +200,7 @@ async def count_task_runs(
         flow_filter (FlowFilter): only count task runs whose flows match these filters
         flow_run_filter (FlowRunFilter): only count task runs whose flow runs match these filters
         task_run_filter (TaskRunFilter): only count task runs that match these filters
-
+        deployment_filter (DeploymentFilter): only count task runs whose deployments match these filters
     Returns:
         int: count of task runs
     """
@@ -201,6 +211,7 @@ async def count_task_runs(
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     result = await session.execute(query)

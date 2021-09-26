@@ -348,6 +348,7 @@ class TestCountFlowRunModels:
             3,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 2],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -453,7 +454,7 @@ class TestCountTaskRunsModels:
             dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
             3,
         ],
-        # possibly odd behavior
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 3],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 1],
         # next two check that filters are applied as an intersection not a union
         [
