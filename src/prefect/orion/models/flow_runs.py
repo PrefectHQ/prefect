@@ -332,12 +332,12 @@ async def set_flow_run_state(
                 rule(context, *intended_transition)
             )
 
-        validated_orm_state = await context.validate_proposed_state()
+        await context.validate_proposed_state()
 
     await session.flush()
 
     result = OrchestrationResult(
-        state=validated_orm_state,
+        state=context.validated_state,
         status=context.response_status,
         details=context.response_details,
     )

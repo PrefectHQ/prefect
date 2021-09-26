@@ -213,8 +213,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         proposed state is `None` when this method is called, nothing happens.
 
         Returns:
-            The validated orm.FlowRunState if a state is committed to the database.
-            None otherwise.
+            None
         """
 
         if self.proposed_state is not None:
@@ -232,8 +231,6 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         await self.session.flush()
         self.validated_state = validated_state
-
-        return validated_orm_state
 
     def safe_copy(self):
         """
@@ -309,8 +306,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         proposed state is `None` when this method is called, nothing happens.
 
         Returns:
-            The validated orm.TaskRunState if a state is committed to the database.
-            None otherwise.
+            None
         """
 
         if self.proposed_state is not None:
@@ -328,8 +324,6 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         await self.session.flush()
         self.validated_state = validated_state
-
-        return validated_orm_state
 
     def safe_copy(self):
         """
