@@ -61,10 +61,11 @@ As we will see, this behavior is consistent across flow runs _and_ task runs and
 
 ## Run a basic flow with tasks
 
-Let's now add tasks to our flow so that we can orchestrate and monitor at a more granular level.  
+Let's now add tasks to our flow so that we can orchestrate and monitor at a more granular level.  Creating and adding tasks follows the exact same pattern as for flows - using the [`@task` decorator`][prefect.tasks.task] we annotate our favorite functions 
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
-    - one
-    - two
+    - [Flows](/concepts/flows/)
+    - [Tasks](/concepts/tasks/)
+    - [States](/concepts/states/
