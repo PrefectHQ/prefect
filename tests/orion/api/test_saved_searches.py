@@ -15,9 +15,9 @@ class TestCreateSavedSearch:
         client,
     ):
 
-        data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
-            json_compatible=True
-        )
+        data = SavedSearchCreate(
+            name="My SavedSearch",
+        ).dict(json_compatible=True)
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
@@ -28,26 +28,23 @@ class TestCreateSavedSearch:
         )
         assert str(saved_search.id) == saved_search_id
         assert saved_search.name == "My SavedSearch"
-        assert saved_search.filter_obj.value == "FLOW"
 
     async def test_create_saved_search_respects_name_uniqueness(self, client):
-        data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
-            json_compatible=True
-        )
+        data = SavedSearchCreate(
+            name="My SavedSearch",
+        ).dict(json_compatible=True)
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
-        assert response.json()["filter_obj"] == "FLOW"
         saved_search_id = response.json()["id"]
 
         # post different data, upsert should be respected
-        data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW_RUN").dict(
-            json_compatible=True
-        )
+        data = SavedSearchCreate(
+            name="My SavedSearch",
+        ).dict(json_compatible=True)
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 200
         assert response.json()["name"] == "My SavedSearch"
-        assert response.json()["filter_obj"] == "FLOW_RUN"
         assert response.json()["id"] == saved_search_id
 
     async def test_create_saved_search_populates_and_returned_created(
@@ -56,9 +53,9 @@ class TestCreateSavedSearch:
     ):
         now = pendulum.now(tz="UTC")
 
-        data = SavedSearchCreate(name="My SavedSearch", filter_obj="TASK_RUN").dict(
-            json_compatible=True
-        )
+        data = SavedSearchCreate(
+            name="My SavedSearch",
+        ).dict(json_compatible=True)
         response = await client.put("/saved_searches/", json=data)
         assert response.status_code == 201
         assert response.json()["name"] == "My SavedSearch"
@@ -70,9 +67,9 @@ class TestReadSavedSearch:
     async def test_read_saved_search(self, client):
 
         # first create a saved_search to read
-        data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
-            json_compatible=True
-        )
+        data = SavedSearchCreate(
+            name="My SavedSearch",
+        ).dict(json_compatible=True)
         response = await client.put("/saved_searches/", json=data)
         saved_search_id = response.json()["id"]
 
@@ -81,7 +78,6 @@ class TestReadSavedSearch:
         assert response.status_code == 200
         assert response.json()["id"] == saved_search_id
         assert response.json()["name"] == "My SavedSearch"
-        assert response.json()["filter_obj"] == "FLOW"
 
     async def test_read_saved_search_returns_404_if_does_not_exist(self, client):
         response = await client.get(f"/saved_searches/{uuid4()}")
@@ -94,14 +90,14 @@ class TestReadSavedSearchs:
         await models.saved_searches.create_saved_search(
             session=session,
             saved_search=schemas.core.SavedSearch(
-                name="My SavedSearch X", filter_obj="FLOW"
+                name="My SavedSearch X",
             ),
         )
 
         await models.saved_searches.create_saved_search(
             session=session,
             saved_search=schemas.core.SavedSearch(
-                name="My SavedSearch Y", filter_obj="DEPLOYMENT"
+                name="My SavedSearch Y",
             ),
         )
         await session.commit()
@@ -132,9 +128,9 @@ class TestReadSavedSearchs:
 class TestDeleteSavedSearch:
     async def test_delete_saved_search(self, client):
         # first create a saved_search to delete
-        data = SavedSearchCreate(name="My SavedSearch", filter_obj="FLOW").dict(
-            json_compatible=True
-        )
+        data = SavedSearchCreate(
+            name="My SavedSearch",
+        ).dict(json_compatible=True)
         response = await client.put("/saved_searches/", json=data)
         saved_search_id = response.json()["id"]
 
