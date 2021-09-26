@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 from uuid import UUID
 
 from pydantic import Field
-
+from typing_extensions import Literal
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.functions import ParameterSchema
@@ -62,6 +62,40 @@ class TaskRunPolicy(PrefectBaseModel):
     retry_delay_seconds: float = 0
 
 
+# TaskRunInput -- base class for task run inputs
+# Constant(TaskRunInput)
+# Parameter(TaskRunInput)
+# TaskRunResult(TaskRunInput)
+
+
+class TaskRunInput(PrefectBaseModel):
+    """
+    Base class for classes that represent inputs to task runs, which
+    could include, constants, parameters, or other task runs.
+    """
+
+    # freeze TaskRunInputs to allow them to be placed in sets
+    class Config:
+        frozen = True
+
+    input_type: str
+
+
+class TaskRunResult(TaskRunInput):
+    input_type: Literal["task_run"] = "task_run"
+    id: UUID
+
+
+class Parameter(TaskRunInput):
+    input_type: Literal["parameter"] = "parameter"
+    name: str
+
+
+class Constant(TaskRunInput):
+    input_type: Literal["constant"] = "constant"
+    type: str
+
+
 class TaskRun(ORMBaseModel):
     flow_run_id: UUID
     task_key: str
@@ -72,8 +106,9 @@ class TaskRun(ORMBaseModel):
     empirical_policy: TaskRunPolicy = Field(default_factory=TaskRunPolicy)
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
     state_id: UUID = None
-    task_inputs: ParameterSchema = Field(default_factory=ParameterSchema)
-    upstream_task_run_ids: Dict[str, UUID] = Field(default_factory=dict)
+    task_inputs: Dict[str, List[Union[TaskRunResult, Parameter, Constant]]] = Field(
+        default_factory=dict
+    )
 
     state_id: UUID = None
     state_type: schemas.states.StateType = None
