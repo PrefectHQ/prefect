@@ -592,6 +592,20 @@ class TestCountDeploymentModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-3"]))), 1],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    deployment_id=dict(any_=[d_1_1_id, d_1_2_id, uuid4()])
+                )
+            ),
+            2,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
