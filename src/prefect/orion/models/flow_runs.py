@@ -263,7 +263,8 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
 ) -> orm.FlowRunState:
-    """Creates a new flow run state
+    """
+    Creates a new flow run state.
 
     Args:
         session (sa.orm.Session): a database session
@@ -274,7 +275,7 @@ async def set_flow_run_state(
             not applied.
 
     Returns:
-        orm.FlowRunState: the newly-created flow run state
+        None
     """
     # load the flow run
     run = await models.flow_runs.read_flow_run(

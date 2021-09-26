@@ -229,7 +229,8 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
 ) -> orm.TaskRunState:
-    """Creates a new task run state
+    """
+    Creates a new task run state.
 
     Args:
         session (sa.orm.Session): a database session
@@ -240,7 +241,7 @@ async def set_task_run_state(
             not applied.
 
     Returns:
-        orm.TaskRunState: the newly-created task run state
+        None
     """
 
     # load the task run
