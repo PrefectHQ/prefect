@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Dict, List, Union
 
 import pendulum
 import sqlalchemy as sa
@@ -360,15 +360,14 @@ class TaskRun(Base, RunMixin):
         nullable=False,
     )
     task_inputs = Column(
-        Pydantic(ParameterSchema),
+        Pydantic(
+            Dict[str, List[Union[core.TaskRunResult, core.Parameter, core.Constant]]]
+        ),
         server_default="{}",
-        default=ParameterSchema,
+        default=dict,
         nullable=False,
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    upstream_task_run_ids = Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
