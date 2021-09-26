@@ -148,10 +148,10 @@ async def read_deployments(
         session (sa.orm.Session): A database session
         offset (int): Query offset
         limit(int): Query limit
-        flow_filter (FlowFilter): only return deployments whose flows match these criteria
-        flow_run_filter (FlowRunFilter): only return deployments whose flow runs match these criteria
-        task_run_filter (TaskRunFilter): only return deployments whose task runs match these criteria
-        deployment_filter (DeploymentFilter): only return deployment that match these filters
+        flow_filter (FlowFilter): only select deployments whose flows match these criteria
+        flow_run_filter (FlowRunFilter): only select deployments whose flow runs match these criteria
+        task_run_filter (TaskRunFilter): only select deployments whose task runs match these criteria
+        deployment_filter (DeploymentFilter): only select deployment that match these filters
 
 
     Returns:
@@ -188,10 +188,10 @@ async def count_deployments(
 
     Args:
         session (sa.orm.Session): A database session
-        flow_filter (FlowFilter): only return deployments whose flows match these criteria
-        flow_run_filter (FlowRunFilter): only return deployments whose flow runs match these criteria
-        task_run_filter (TaskRunFilter): only return deployments whose task runs match these criteria
-        deployment_filter (DeploymentFilter): only return deployment that match these filters
+        flow_filter (FlowFilter): only count deployments whose flows match these criteria
+        flow_run_filter (FlowRunFilter): only count deployments whose flow runs match these criteria
+        task_run_filter (TaskRunFilter): only count deployments whose task runs match these criteria
+        deployment_filter (DeploymentFilter): only count deployment that match these filters
 
     Returns:
         int: the number of deployments matching filters
