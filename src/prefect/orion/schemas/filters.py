@@ -466,15 +466,6 @@ class DeploymentFilter(PrefectFilterBaseModel):
         return filters
 
 
-class SavedFilterObjectTypes(AutoEnum):
-    """Objects to which saved filters can be applied"""
-
-    FLOW = AutoEnum.auto()
-    FLOW_RUN = AutoEnum.auto()
-    TASK_RUN = AutoEnum.auto()
-    DEPLOYMENT = AutoEnum.auto()
-
-
 class BaseFilterCriteria(PrefectBaseModel):
     """Filter criteria for common objects in the system"""
 

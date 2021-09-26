@@ -146,7 +146,6 @@ class Deployment(ORMBaseModel):
 
 class SavedSearch(ORMBaseModel):
     name: str
-    filter_obj: schemas.filters.SavedFilterObjectTypes
     flow_filter_criteria: schemas.filters.FlowFilterCriteria = Field(
         default_factory=schemas.filters.FlowFilterCriteria
     )

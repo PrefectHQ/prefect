@@ -32,7 +32,6 @@ async def create_saved_search(
             set_=saved_search.dict(
                 shallow=True,
                 include={
-                    "filter_obj",
                     "flow_filter_criteria",
                     "flow_run_filter_criteria",
                     "task_run_filter_criteria",

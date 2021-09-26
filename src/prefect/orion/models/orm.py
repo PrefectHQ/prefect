@@ -483,10 +483,6 @@ class Deployment(Base):
 
 class SavedSearch(Base):
     name = Column(String, nullable=False, unique=True)
-    filter_obj = Column(
-        sa.Enum(filters.SavedFilterObjectTypes, name="saved_filter_obj_type"),
-        nullable=False,
-    )
     flow_filter_criteria = Column(
         Pydantic(filters.FlowFilterCriteria),
         server_default="{}",
