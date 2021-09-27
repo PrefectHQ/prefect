@@ -13,89 +13,6 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 MAX_ITERATIONS = 10000
 
 
-class IntervalScheduleFilters(PrefectBaseModel):
-    """A collection of filters that can be applied to a date. Each filter
-    is defined as an inclusive set of dates or times: candidate dates
-    will pass the filter if they match all of the supplied criteria.
-    """
-
-    class Config:
-        schema_extra = dict(
-            example=dict(
-                months=[3, 6, 9, 12],
-                days_of_month=[15, -1],
-                days_of_week=[0, 1, 2, 3, 4],
-                hours_of_day=[9, 10, 11],
-                minutes_of_hour=[0, 15, 30, 45],
-            )
-        )
-
-    months: Set[conint(ge=1, le=12)] = None
-    days_of_month: Set[conint(ge=-31, le=31)] = None
-    days_of_week: Set[conint(ge=0, le=6)] = None
-    hours_of_day: Set[conint(ge=0, le=23)] = None
-    minutes_of_hour: Set[conint(ge=0, le=59)] = None
-
-    def dict(self, *args, **kwargs) -> dict:
-        kwargs.setdefault("exclude_unset", True)
-        return super().dict(*args, **kwargs)
-
-    @validator("days_of_month")
-    def zero_is_invalid_day_of_month(cls, v):
-        if v and 0 in v:
-            raise ValueError("0 is not a valid day of the month")
-        return v
-
-    def apply_filters(self, dt: pendulum.DateTime) -> bool:
-        """Evaluates whether a candidate date satisfies the filters.
-
-        Args:
-            dt (pendulum.DateTime): A candidate date
-
-        Returns:
-            bool: True if the datetime passes the filters; False otherwise
-        """
-        if self.months and dt.month not in self.months:
-            return False
-
-        if self.days_of_month:
-            negative_day = dt.day - dt.end_of("month").day - 1
-            if (
-                dt.day not in self.days_of_month
-                and negative_day not in self.days_of_month
-            ):
-                return False
-
-        if self.days_of_week and dt.weekday() not in self.days_of_week:
-            return False
-
-        if self.hours_of_day and dt.hour not in self.hours_of_day:
-            return False
-
-        if self.minutes_of_hour and dt.minute not in self.minutes_of_hour:
-            return False
-
-        return True
-
-
-class IntervalScheduleAdjustments(PrefectBaseModel):
-    """Adjusts a candidate date by modifying it to meet the supplied criteria."""
-
-    advance_to_next_weekday: bool = False
-
-    def dict(self, *args, **kwargs) -> dict:
-        kwargs.setdefault("exclude_unset", True)
-        return super().dict(*args, **kwargs)
-
-    def apply_adjustments(self, dt: pendulum.DateTime) -> pendulum.DateTime:
-        # advance to the next weekday day
-        if self.advance_to_next_weekday:
-            while dt.weekday() >= 5:
-                dt = dt.add(days=1)
-
-        return dt
-
-
 class IntervalSchedule(PrefectBaseModel):
     class Config:
         exclude_none = True
@@ -103,9 +20,6 @@ class IntervalSchedule(PrefectBaseModel):
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
-
-    filters: IntervalScheduleFilters = IntervalScheduleFilters()
-    adjustments: IntervalScheduleAdjustments = IntervalScheduleAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
@@ -179,13 +93,11 @@ class IntervalSchedule(PrefectBaseModel):
 
         while True:
 
-            # check filters
-            if self.filters.apply_filters(next_date):
-                next_date = self.adjustments.apply_adjustments(next_date)
-                # if the end date was exceeded, exit
-                if end and next_date > end:
-                    break
-                dates.append(next_date)
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+
+            dates.append(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
