@@ -16,7 +16,8 @@
     "types": [
       "webpack-env",
       "jest",
-      "d3"
+      "d3",
+      "@prefect/miter-design"
     ],
     "typeRoots": [
       "./types"

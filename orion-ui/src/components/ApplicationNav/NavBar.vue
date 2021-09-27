@@ -16,7 +16,6 @@
 
 <script lang="ts">
 import { Vue } from 'vue-class-component'
-import { Api } from '@/plugins/api'
 
 export default class NavBar extends Vue {}
 </script>
