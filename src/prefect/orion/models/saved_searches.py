@@ -6,15 +6,17 @@ from sqlalchemy import delete, select
 
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
+from prefect.orion.utilities.database import dialect_specific_insert
 
 
 async def create_saved_search(
     session: sa.orm.Session,
     saved_search: schemas.core.SavedSearch,
 ) -> orm.SavedSearch:
-    """Upserts a SavedSearch. If a SavedSearch with the same name
-    exists, all properties will be updated.
+    """
+    Upserts a SavedSearch.
+
+    If a SavedSearch with the same name exists, all properties will be updated.
 
     Args:
         session (sa.orm.Session): a database session
@@ -24,6 +26,7 @@ async def create_saved_search(
         orm.SavedSearch: the newly-created or updated SavedSearch
 
     """
+
     insert_stmt = (
         dialect_specific_insert(orm.SavedSearch)
         .values(**saved_search.dict(shallow=True, exclude_unset=True))
@@ -59,7 +62,8 @@ async def create_saved_search(
 async def read_saved_search(
     session: sa.orm.Session, saved_search_id: UUID
 ) -> orm.SavedSearch:
-    """Reads a SavedSearch by id
+    """
+    Reads a SavedSearch by id.
 
     Args:
         session (sa.orm.Session): A database session
@@ -68,6 +72,7 @@ async def read_saved_search(
     Returns:
         orm.SavedSearch: the SavedSearch
     """
+
     return await session.get(orm.SavedSearch, saved_search_id)
 
 
@@ -75,7 +80,8 @@ async def read_saved_search_by_name(
     session: sa.orm.Session,
     name: str,
 ) -> orm.SavedSearch:
-    """Reads a SavedSearch by name
+    """
+    Reads a SavedSearch by name.
 
     Args:
         session (sa.orm.Session): A database session
@@ -95,7 +101,8 @@ async def read_saved_searches(
     offset: int = None,
     limit: int = None,
 ) -> List[orm.SavedSearch]:
-    """Read SavedSearchs
+    """
+    Read SavedSearchs.
 
     Args:
         session (sa.orm.Session): A database session
@@ -118,7 +125,8 @@ async def read_saved_searches(
 
 
 async def delete_saved_search(session: sa.orm.Session, saved_search_id: UUID) -> bool:
-    """Delete a SavedSearch by id
+    """
+    Delete a SavedSearch by id.
 
     Args:
         session (sa.orm.Session): A database session
@@ -127,6 +135,7 @@ async def delete_saved_search(session: sa.orm.Session, saved_search_id: UUID) ->
     Returns:
         bool: whether or not the SavedSearch was deleted
     """
+
     result = await session.execute(
         delete(orm.SavedSearch).where(orm.SavedSearch.id == saved_search_id)
     )
