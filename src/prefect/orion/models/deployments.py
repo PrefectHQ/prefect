@@ -33,7 +33,13 @@ async def create_deployment(
             index_elements=["flow_id", "name"],
             set_=deployment.dict(
                 shallow=True,
-                include={"schedule", "is_schedule_active", "tags", "flow_data"},
+                include={
+                    "schedule",
+                    "is_schedule_active",
+                    "tags",
+                    "parameters",
+                    "flow_data",
+                },
             ),
         )
     )
@@ -284,7 +290,7 @@ async def _generate_scheduled_flow_runs(
         run = schemas.core.FlowRun(
             flow_id=deployment.flow_id,
             deployment_id=deployment_id,
-            # parameters=,
+            parameters=deployment.parameters,
             idempotency_key=f"scheduled {deployment.id} {date}",
             tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,

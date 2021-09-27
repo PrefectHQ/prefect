@@ -49,6 +49,7 @@ class TestCreateDeployment:
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
+        assert deployment.parameters == {}
         assert deployment.tags == []
 
         schedule = schemas.schedules.IntervalSchedule(
@@ -64,6 +65,7 @@ class TestCreateDeployment:
                 flow_data=flow_data,
                 schedule=schedule,
                 is_schedule_active=False,
+                parameters={"foo": "bar"},
                 tags=["foo", "bar"],
             ),
         )
@@ -72,6 +74,7 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert not deployment.is_schedule_active
         assert deployment.schedule == schedule
+        assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
 
     async def test_create_deployment_with_schedule(self, session, flow, flow_function):
@@ -510,6 +513,29 @@ class TestScheduledRuns:
         assert len(scheduled_runs) == 2
         for run in scheduled_runs:
             assert run.tags == ["auto-scheduled"] + tags
+
+    @pytest.mark.parametrize("parameters", [{}, {"foo": "bar"}])
+    async def test_schedule_runs_applies_parameters(
+        self, parameters, flow, flow_function, session
+    ):
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="My Deployment",
+                flow_data=DataDocument.encode("cloudpickle", flow_function),
+                schedule=schemas.schedules.IntervalSchedule(
+                    interval=datetime.timedelta(days=1)
+                ),
+                flow_id=flow.id,
+                parameters=parameters,
+            ),
+        )
+        scheduled_runs = await models.deployments.schedule_runs(
+            session, deployment_id=deployment.id, max_runs=2
+        )
+        assert len(scheduled_runs) == 2
+        for run in scheduled_runs:
+            assert run.parameters == parameters
 
     async def test_schedule_runs_with_end_time(self, flow, deployment, session):
         scheduled_runs = await models.deployments.schedule_runs(
