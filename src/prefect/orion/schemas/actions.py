@@ -18,6 +18,7 @@ DeploymentCreate = schemas.core.Deployment.subclass(
         "schedule",
         "is_schedule_active",
         "tags",
+        "parameters",
         "flow_data",
     ],
 )
@@ -51,7 +52,6 @@ class TaskRunCreate(
             "empirical_policy",
             "tags",
             "task_inputs",
-            "upstream_task_run_ids",
         ],
     )
 ):
@@ -76,3 +76,15 @@ class FlowRunCreate(
 ):
     # FlowRunCreate states must be provided as StateCreate objects
     state: StateCreate = None
+
+
+SavedSearchCreate = schemas.core.SavedSearch.subclass(
+    name="SavedSearchCreate",
+    include_fields=[
+        "name",
+        "flow_filter_criteria",
+        "flow_run_filter_criteria",
+        "task_run_filter_criteria",
+        "deployment_filter_criteria",
+    ],
+)

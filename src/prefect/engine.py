@@ -1,24 +1,43 @@
 """
-Client-side execution of flows and tasks
+Client-side execution and orchestration of flows and tasks.
+
+Engine process overview
+
+- The flow or task is called by the user
+    See `Flow.__call__`, `Task.__call__`
+
+- A synchronous engine function acts as an entrypoint to the async engine
+    See `enter_flow_run_engine`, `enter_task_run_engine`
+
+- The async engine creates a run via the API and prepares for execution of user-code
+    See `begin_flow_run`, `begin_task_run`
+
+- The run is orchestrated through states, calling the user's function as necessary
+    See `orchestrate_flow_run, `orchestrate_task_run`
 """
+import pendulum
 from contextlib import contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, TypeVar, Union, overload, Set
+from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
 from uuid import UUID
 
-import pendulum
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from anyio.from_thread import BlockingPortal
-from pydantic import validate_arguments
 
+from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
-from prefect.context import FlowRunContext, TaskRunContext, TagsContext
+from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, future_to_state, resolve_futures
+from prefect.futures import (
+    PrefectFuture,
+    resolve_futures_to_data,
+    resolve_futures_to_states,
+)
+from prefect.orion.schemas import core
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -30,6 +49,7 @@ from prefect.orion.schemas.states import (
     StateType,
 )
 from prefect.orion.states import StateSet, is_state, is_state_iterable
+from prefect.serializers import resolve_datadoc
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
@@ -39,7 +59,6 @@ from prefect.utilities.asyncio import (
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
-from prefect.serializers import resolve_datadoc
 
 R = TypeVar("R")
 
@@ -160,7 +179,8 @@ async def begin_flow_run(
     - Waits for tasks to complete / shutsdown the executor
     - Sets a terminal state for the flow run
 
-    Returns the terminal state
+    Returns:
+        The final state of the run
     """
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
@@ -198,7 +218,8 @@ async def create_and_begin_subflow_run(
     - Use the existing parent flow executor
     - Create a dummy task for representation in the parent flow
 
-    Returns the terminal state
+    Returns:
+        The final state of the run
     """
     parent_flow_run_context = FlowRunContext.get()
 
@@ -229,7 +250,7 @@ async def create_and_begin_subflow_run(
         # Since a subflow run does not wait for all of its futures before exiting, we
         # wait for any returned futures to complete before setting the final state
         # of the flow
-        terminal_state.data = await resolve_futures(terminal_state.data)
+        terminal_state.data = await resolve_futures_to_data(terminal_state.data)
 
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.propose_state(
@@ -250,9 +271,9 @@ async def orchestrate_flow_run(
     sync_portal: BlockingPortal,
 ) -> State:
     """
-    TODO: Implement state orchestation logic using return values from the API
+    Executes a flow run
 
-    Flow timeouts:
+    Note on flow timeouts:
         Since async flows are run directly in the main event loop, timeout behavior will
         match that described by anyio. If the flow is awaiting something, it will
         immediately return; otherwise, the next time it awaits it will exit. Sync flows
@@ -260,7 +281,11 @@ async def orchestrate_flow_run(
         thread will exit at the next task call. The worker thread also has access to the
         status of the cancellation scope at `FlowRunContext.timeout_scope.cancel_called`
         which allows it to raise a `TimeoutError` to respect the timeout.
+
+    Returns:
+        The final state of the run
     """
+    # TODO: Implement state orchestation logic using return values from the API
     await client.propose_state(Running(), flow_run_id=flow_run_id)
 
     timeout_context = (
@@ -309,6 +334,9 @@ async def orchestrate_flow_run(
 def enter_task_run_engine(
     task: Task, parameters: Dict[str, Any]
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
+    """
+    Sync entrypoint for task calls
+    """
     flow_run_context = FlowRunContext.get()
     if not flow_run_context:
         raise RuntimeError("Tasks cannot be called outside of a flow.")
@@ -351,6 +379,30 @@ def enter_task_run_engine(
         return flow_run_context.sync_portal.call(begin_run)
 
 
+async def collect_task_run_inputs(
+    expr: Any, results: Set = None
+) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
+    """
+    This function recurses through an expression to generate a set of any discernable
+    task run inputs it finds in the data structure. It produces a set of all
+    inputs found.
+    """
+
+    inputs = set()
+
+    async def visit_fn(expr):
+        if isinstance(expr, PrefectFuture):
+            inputs.add(core.TaskRunResult(id=expr.run_id))
+
+        if isinstance(expr, State):
+            if expr.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
+
+    await visit_collection(expr, visit_fn=visit_fn)
+
+    return inputs
+
+
 async def begin_task_run(
     task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
 ) -> PrefectFuture:
@@ -361,11 +413,15 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
+
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
+        task_inputs={
+            k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        },
     )
 
     future = await flow_run_context.executor.submit(
@@ -391,6 +447,31 @@ async def orchestrate_task_run(
     parameters: Dict[str, Any],
     client: OrionClient,
 ) -> State:
+    """
+    Execute a task run
+
+    This function should be submitted to an executor. We must construct the context here
+    instead of receiving it already populated since we may be in a new environment.
+
+    Proposes a RUNNING state, then
+    - if accepted, the task user function will be run
+    - if rejected, the received state will be returned
+
+    When the user function is run, the result will be used to determine a final state
+    - if an exception is encountered, it is trapped and stored in a FAILED state
+    - otherwise, `user_return_value_to_state` is used to determine the state
+
+    If the final state is COMPLETED, we generate a cache key as specified by the task
+
+    The final state is then proposed
+    - if accepted, this is the final state and will be returned
+    - if rejected and a new final state is provided, it will be returned
+    - if rejected and a non-final state is provided, we will attempt to enter a RUNNING
+        state again
+
+    Returns:
+        The final state of the run
+    """
     context = TaskRunContext(
         task_run_id=task_run_id,
         flow_run_id=flow_run_id,
@@ -477,7 +558,7 @@ async def user_return_value_to_state(
         return result
 
     # Ensure any futures are resolved
-    result = await resolve_futures(result, resolve_fn=future_to_state)
+    result = await resolve_futures_to_states(result)
 
     # If we resolved a task future or futures into states, we will determine a new state
     # from their aggregate
@@ -529,6 +610,79 @@ async def get_result(
 
 @sync_compatible
 async def get_result(state_or_future, raise_failures: bool = True):
+    """
+    Get the result (return value) of a flow run state or task run state/future.
+
+    If given a task run future, this function will block until completion of the task.
+
+    The result may need to be fetched from the API. Sometimes, the result is cached on
+    the state's data document, but if it has been serialized/deserialized it will no
+    longer be cached and this function will perform IO.
+
+    This function detects if it is being used in an async context. If contained in an
+    async function, it must be awaited.
+
+    Args:
+        state_or_future: The `State` or `PrefectFuture` to get the result from
+        raise_failures: By default, FAILURE states contain an exception result which
+            will be reraised when retrieved by this function. If you want to work with
+            the exception directly or reraise it yourself, this flag can be set to
+            return the exception object.
+
+    Returns:
+        The result of the run represented by the state or future
+
+    Examples:
+        >>> from prefect import flow, task, get_result
+        >>> @task
+        >>> def my_task(x):
+        >>>     return x
+
+        Get the result from a task future in a flow
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     result = get_result(my_task("hello"))
+        >>>     print(result)
+        >>> my_flow()
+        hello
+
+        Get the result from a task state in a flow
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     state = my_task("hello").wait()
+        >>>     result = get_result(state)
+        >>>     print(result)
+        >>> my_flow()
+        hello
+
+        Get the result from a flow state
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     return "hello"
+        >>> get_result(my_flow())
+        hello
+
+        Get the result from a failed state
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     raise ValueError("oh no!")
+        >>> state = my_flow()  # Error is wrapped in FAILED state
+        >>> get_result(state)  # Raises `ValueError`
+
+        Get the result from a failed state without erroring
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     raise ValueError("oh no!")
+        >>> state = my_flow()
+        >>> result = get_result(state, raise_failures=False)
+        >>> print(result)
+        ValueError("oh no!")
+    """
     if isinstance(state_or_future, PrefectFuture):
         state = await state_or_future.wait()
     elif isinstance(state_or_future, State):
@@ -547,6 +701,17 @@ async def get_result(state_or_future, raise_failures: bool = True):
 
 @sync_compatible
 async def raise_failed_state(state: State) -> None:
+    """
+    Given a FAILED state, raise the contained exception.
+
+    If not given a FAILED state, this function will return immediately.
+
+    If the state contains a result of multiple states, the first FAILED state will be
+    raised.
+
+    If the state is FAILED but does not contain an exception type result, a `TypeError`
+    will be raised.
+    """
     if not state.is_failed():
         return
 
@@ -573,15 +738,56 @@ async def raise_failed_state(state: State) -> None:
 
 @contextmanager
 def tags(*new_tags: str) -> Set[str]:
+    """
+    Context manager to add tags to flow and task run calls.
+
+    Tags are always combined with any existing tags.
+
+    Yields:
+        The current set of tags
+
+    Examples:
+        >>> from prefect import tags, task, flow
+        >>> @task
+        >>> def my_task():
+        >>>     pass
+
+        Run a task with tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("a", "b"):
+        >>>         my_task()  # has tags: a, b
+
+        Run a flow with tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     pass
+        >>> with tags("a", b"):
+        >>>     my_flow()  # has tags: a, b
+
+        Run a task with nested tag contexts
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("a", "b"):
+        >>>         with tags("c", "d"):
+        >>>             my_task()  # has tags: a, b, c, d
+        >>>         my_task()  # has tags: a, b
+
+        Inspect the current tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("c", "d"):
+        >>>         with tags("e", "f") as current_tags:
+        >>>              print(current_tags)
+        >>> with tags("a", b"):
+        >>>     my_flow()
+        {"a", "b", "c", "d", "e", "f"}
+    """
     current_tags = TagsContext.get().current_tags
     new_tags = current_tags.union(new_tags)
     with TagsContext(current_tags=new_tags):
         yield new_tags
-
-
-if __name__ == "__main__":
-    import sys
-
-    state = enter_flow_run_engine_from_subprocess(sys.argv[1])
-    print(repr(state))
-    print(get_result(state, raise_failures=False))

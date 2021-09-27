@@ -1,3 +1,6 @@
+"""
+Client implementation for communicating with the Orion Server.
+"""
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple, Union
 from uuid import UUID
@@ -261,6 +264,7 @@ class OrionClient:
         name: str,
         flow_data: DataDocument,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        parameters: Dict[str, Any] = None,
         tags: List[str] = None,
     ) -> UUID:
         deployment_create = schemas.actions.DeploymentCreate(
@@ -268,6 +272,7 @@ class OrionClient:
             name=name,
             schedule=schedule,
             flow_data=flow_data,
+            parameters=dict(parameters or {}),
             tags=list(tags or []),
         )
 
@@ -391,6 +396,16 @@ class OrionClient:
         flow_run_id: UUID,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
+        task_inputs: Dict[
+            str,
+            List[
+                Union[
+                    schemas.core.TaskRunResult,
+                    schemas.core.Parameter,
+                    schemas.core.Constant,
+                ]
+            ],
+        ] = None,
     ) -> UUID:
         tags = set(task.tags).union(extra_tags or [])
 
@@ -407,6 +422,7 @@ class OrionClient:
                 retry_delay_seconds=task.retry_delay_seconds,
             ),
             state=state,
+            task_inputs=task_inputs or {},
         )
 
         response = await self.post(
