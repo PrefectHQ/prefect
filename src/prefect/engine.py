@@ -3,17 +3,17 @@ Client-side execution and orchestration of flows and tasks.
 
 Engine process overview
 
-- The flow or task is called by the user
+- The flow or task is called by the user.
     See `Flow.__call__`, `Task.__call__`
 
-- A synchronous engine function acts as an entrypoint to the async engine
+- A synchronous engine function acts as an entrypoint to the async engine.
     See `enter_flow_run_engine`, `enter_task_run_engine`
 
-- The async engine creates a run via the API and prepares for execution of user-code
+- The async engine creates a run via the API and prepares for execution of user-code.
     See `begin_flow_run`, `begin_task_run`
 
-- The run is orchestrated through states, calling the user's function as necessary
-    See `orchestrate_flow_run, `orchestrate_task_run`
+- The run is orchestrated through states, calling the user's function as necessary.
+    See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import pendulum
 from contextlib import contextmanager, nullcontext
