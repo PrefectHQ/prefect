@@ -203,6 +203,8 @@ class UpdateStateDetails(BaseUniversalRule):
     ) -> None:
         task_run = await context.task_run
         flow_run = await context.flow_run
-        context.proposed_state.state_details.flow_run_id = flow_run.id
+
+        if flow_run:
+            context.proposed_state.state_details.flow_run_id = flow_run.id
         if task_run:
             context.proposed_state.state_details.task_run_id = task_run.id

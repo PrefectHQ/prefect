@@ -258,14 +258,11 @@ class FlowOrchestrationContext(OrchestrationContext):
 
     @property
     async def task_run(self):
-        return self.run
+        return None
 
     @property
     async def flow_run(self):
-        return await flow_runs.read_flow_run(
-            session=self.session,
-            flow_run_id=self.run.flow_run_id,
-        )
+        return self.run
 
 
 class TaskOrchestrationContext(OrchestrationContext):
@@ -362,11 +359,14 @@ class TaskOrchestrationContext(OrchestrationContext):
 
     @property
     async def task_run(self):
-        return None
+        return self.run
 
     @property
     async def flow_run(self):
-        return self.run
+        return await flow_runs.read_flow_run(
+            session=self.session,
+            flow_run_id=self.run.flow_run_id,
+        )
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
