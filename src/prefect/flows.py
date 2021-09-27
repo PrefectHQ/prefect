@@ -63,6 +63,9 @@ class Flow(Generic[P, R]):
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the flow. If the flow exceeds this runtime, it will be marked as failed.
+            Flow execution may continue until the next task is called.
         validate_parameters: By default, parameters passed to flows are validated by
             Pydantic. This will check that input values conform to the annotated types
             on the function. Where possible, values will be coerced into the correct
@@ -80,6 +83,7 @@ class Flow(Generic[P, R]):
         version: str = None,
         executor: Union[Type[BaseExecutor], BaseExecutor] = None,
         description: str = None,
+        timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
     ):
         if not callable(fn):
@@ -97,6 +101,8 @@ class Flow(Generic[P, R]):
         # Version defaults to a hash of the function's file
         flow_file = fn.__globals__.get("__file__")  # type: ignore
         self.version = version or (file_hash(flow_file) if flow_file else None)
+
+        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
 
         self.parameters = parameter_schema(self.fn)
         self.should_validate_parameters = validate_parameters
@@ -222,6 +228,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
+    timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
@@ -234,6 +241,7 @@ def flow(
     version: str = None,
     executor: BaseExecutor = None,
     description: str = None,
+    timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
 ):
     """
@@ -251,6 +259,9 @@ def flow(
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the flow. If the flow exceeds this runtime, it will be marked as failed.
+            Flow execution may continue until the next task is called.
         validate_parameters: By default, parameters passed to flows are validated by
             Pydantic. This will check that input values conform to the annotated types
             on the function. Where possible, values will be coerced into the correct
@@ -305,6 +316,7 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
             ),
         )
@@ -317,6 +329,7 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
             ),
         )

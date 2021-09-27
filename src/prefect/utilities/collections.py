@@ -1,15 +1,15 @@
-import pydantic
 import itertools
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
 from collections.abc import Sequence, Set
-from dataclasses import fields, is_dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from functools import partial
 from typing import (
     Any,
     Awaitable,
     Callable,
     Dict,
+    Generic,
     Iterable,
     Iterator,
     List,
@@ -18,14 +18,13 @@ from typing import (
     TypeVar,
     Union,
     cast,
-    TYPE_CHECKING,
 )
 from unittest.mock import Mock
-import prefect
 
-if TYPE_CHECKING:
-    from prefect.futures import PrefectFuture
+import pydantic
 
+
+T = TypeVar("T")
 KT = TypeVar("KT")
 VT = TypeVar("VT")
 
@@ -147,6 +146,24 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         if not batch:
             break
         yield batch
+
+
+@dataclass
+class Quote(Generic[T]):
+    """
+    Simple wrapper to mark an expression as a different type so it will not be coerced
+    by Prefect. For example, if you want to return a state from a flow without having
+    the flow assume that state.
+    """
+
+    expr: T
+
+    def unquote(self) -> T:
+        return self.expr
+
+
+def quote(expr: T) -> Quote[T]:
+    return Quote(expr)
 
 
 async def visit_collection(
