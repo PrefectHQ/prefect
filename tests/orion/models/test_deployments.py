@@ -97,62 +97,6 @@ class TestCreateDeployment:
 
 
 class TestReadDeployment:
-    @pytest.fixture
-    async def deployment_id_1(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def deployment_id_2(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def deployment_id_3(self):
-        return uuid4()
-
-    @pytest.fixture
-    async def filter_data(
-        self,
-        session,
-        flow,
-        flow_function,
-        deployment_id_1,
-        deployment_id_2,
-        deployment_id_3,
-    ):
-        flow_data = DataDocument.encode("cloudpickle", flow_function)
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                id=deployment_id_1,
-                name="My Deployment",
-                flow_data=flow_data,
-                flow_id=flow.id,
-                is_schedule_active=True,
-            ),
-        )
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                id=deployment_id_2,
-                name="Another Deployment",
-                flow_data=flow_data,
-                flow_id=flow.id,
-                tags=["tb12"],
-                is_schedule_active=True,
-            ),
-        )
-        await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                id=deployment_id_3,
-                name="Yet Another Deployment",
-                flow_data=flow_data,
-                flow_id=flow.id,
-                tags=["tb12", "goat"],
-                is_schedule_active=False,
-            ),
-        )
-
     async def test_read_deployment(self, session, flow, flow_function):
         # create a deployment to read
         flow_data = DataDocument.encode("cloudpickle", flow_function)
@@ -171,77 +115,6 @@ class TestReadDeployment:
         )
         assert deployment.id == read_deployment.id
         assert deployment.name == read_deployment.name
-
-    async def test_read_deployment_filters_by_id(
-        self, filter_data, deployment_id_1, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                id=filters.DeploymentFilterId(any_=[deployment_id_1]),
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_1}
-
-    async def test_read_deployment_filters_by_name(
-        self, filter_data, deployment_id_2, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                name=filters.DeploymentFilterName(any_=["Another Deployment"]),
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_2}
-
-    async def test_read_deployment_filters_by_schedule_active(
-        self, filter_data, deployment_id_3, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                is_schedule_active=filters.DeploymentFilterIsScheduleActive(eq_=False)
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_3}
-
-    async def test_read_deployment_filters_filters_by_tags(
-        self, filter_data, deployment_id_1, deployment_id_3, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                tags=filters.DeploymentFilterTags(all_=["goat"])
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_3}
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                tags=filters.DeploymentFilterTags(is_null_=True)
-            ),
-        )
-        assert {res.id for res in result} == {deployment_id_1}
-
-    async def test_read_deployment_filters_filters_by_flow_criteria(
-        self, filter_data, flow, deployment_id_3, session
-    ):
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                tags=filters.DeploymentFilterTags(all_=["goat"])
-            ),
-            flow_filter=filters.FlowFilter(id=filters.FlowFilterId(any_=[flow.id])),
-        )
-        assert {res.id for res in result} == {deployment_id_3}
-        result = await models.deployments.read_deployments(
-            session=session,
-            deployment_filter=filters.DeploymentFilter(
-                tags=filters.DeploymentFilterTags(all_=["goat"])
-            ),
-            flow_filter=filters.FlowFilter(id=filters.FlowFilterId(any_=[uuid4()])),
-        )
-        assert len(result) == 0
 
     async def test_read_deployment_returns_none_if_does_not_exist(self, session):
         result = await models.deployments.read_deployment(
@@ -318,46 +191,204 @@ class TestReadDeployment:
 
 class TestReadDeployments:
     @pytest.fixture
-    async def deployments(self, session, flow, flow_function):
+    async def deployment_id_1(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def deployment_id_2(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def deployment_id_3(self):
+        return uuid4()
+
+    @pytest.fixture
+    async def filter_data(
+        self,
+        session,
+        flow,
+        flow_function,
+        deployment_id_1,
+        deployment_id_2,
+        deployment_id_3,
+    ):
         flow_data = DataDocument.encode("cloudpickle", flow_function)
-
-        deployment_1 = await models.deployments.create_deployment(
+        await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="My Deployment-1",
+                id=deployment_id_1,
+                name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                is_schedule_active=True,
             ),
         )
-        deployment_2 = await models.deployments.create_deployment(
+        await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
-                name="My Deployment-2",
+                id=deployment_id_2,
+                name="Another Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                tags=["tb12"],
+                is_schedule_active=True,
             ),
         )
-        await session.commit()
-        return [deployment_1, deployment_2]
+        await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                id=deployment_id_3,
+                name="Yet Another Deployment",
+                flow_data=flow_data,
+                flow_id=flow.id,
+                tags=["tb12", "goat"],
+                is_schedule_active=False,
+            ),
+        )
 
-    async def test_read_deployments(self, deployments, session):
+    async def test_read_deployments(self, filter_data, session):
         read_deployments = await models.deployments.read_deployments(session=session)
-        assert len(read_deployments) == len(deployments)
+        assert len(read_deployments) == 3
 
-    async def test_read_deployments_applies_limit(self, deployments, session):
+    async def test_read_deployments_applies_limit(self, filter_data, session):
         read_deployments = await models.deployments.read_deployments(
             session=session, limit=1
         )
         assert len(read_deployments) == 1
 
-    async def test_read_deployments_applies_offset(self, deployments, session):
+    async def test_read_deployments_applies_offset(
+        self, deployment_id_1, filter_data, session
+    ):
         read_deployments = await models.deployments.read_deployments(
-            session=session, offset=1
+            session=session, offset=1, limit=1
         )
+        # sorts by name by default
+        assert {deployment.id for deployment in read_deployments} == {deployment_id_1}
 
     async def test_read_deployments_returns_empty_list(self, session):
         read_deployments = await models.deployments.read_deployments(session=session)
         assert len(read_deployments) == 0
+
+    async def test_read_deployment_filters_by_id(
+        self, filter_data, deployment_id_1, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                id=filters.DeploymentFilterId(any_=[deployment_id_1]),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_1}
+
+    async def test_read_deployment_filters_by_name(
+        self, filter_data, deployment_id_2, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                name=filters.DeploymentFilterName(any_=["Another Deployment"]),
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_2}
+
+    async def test_read_deployment_filters_by_schedule_active(
+        self, filter_data, deployment_id_3, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                is_schedule_active=filters.DeploymentFilterIsScheduleActive(eq_=False)
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
+
+    async def test_read_deployment_filters_filters_by_tags(
+        self, filter_data, deployment_id_1, deployment_id_3, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                tags=filters.DeploymentFilterTags(all_=["goat"])
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                tags=filters.DeploymentFilterTags(is_null_=True)
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_1}
+
+    async def test_read_deployment_filters_filters_by_flow_criteria(
+        self, filter_data, flow, deployment_id_3, session
+    ):
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                tags=filters.DeploymentFilterTags(all_=["goat"])
+            ),
+            flow_filter=filters.FlowFilter(id=filters.FlowFilterId(any_=[flow.id])),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
+        result = await models.deployments.read_deployments(
+            session=session,
+            deployment_filter=filters.DeploymentFilter(
+                tags=filters.DeploymentFilterTags(all_=["goat"])
+            ),
+            flow_filter=filters.FlowFilter(id=filters.FlowFilterId(any_=[uuid4()])),
+        )
+        assert len(result) == 0
+
+    async def test_read_deployment_filters_filters_by_flow_run_criteria(
+        self, filter_data, flow, deployment_id_3, session
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, deployment_id=deployment_id_3
+            ),
+        )
+        result = await models.deployments.read_deployments(
+            session=session,
+            flow_run_filter=filters.FlowRunFilter(
+                id=filters.FlowRunFilterId(any_=[flow_run.id])
+            ),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
+
+        result = await models.deployments.read_deployments(
+            session=session,
+            flow_run_filter=filters.FlowRunFilter(
+                id=filters.FlowRunFilterId(any_=[uuid4()])
+            ),
+        )
+        assert len(result) == 0
+
+    async def test_read_deployment_filters_filters_by_task_run_criteria(
+        self, filter_data, flow, deployment_id_3, session
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id, deployment_id=deployment_id_3
+            ),
+        )
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-task"),
+        )
+        result = await models.deployments.read_deployments(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(id=dict(any_=[task_run.id])),
+        )
+        assert {res.id for res in result} == {deployment_id_3}
+
+        result = await models.deployments.read_deployments(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(id=dict(any_=[uuid4()])),
+        )
+        assert len(result) == 0
 
 
 class TestDeleteDeployment:
