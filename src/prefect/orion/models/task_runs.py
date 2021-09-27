@@ -20,10 +20,12 @@ from prefect.orion.utilities.database import dialect_specific_insert
 async def create_task_run(
     session: sa.orm.Session, task_run: schemas.core.TaskRun
 ) -> orm.TaskRun:
-    """Creates a new task run. If a task run with the same flow_run_id,
-    task_key, and dynamic_key already exists, the existing task
-    run will be returned. If the provided task run has a state attached, it
-    will also be created.
+    """
+    Creates a new task run.
+
+    If a task run with the same flow_run_id, task_key, and dynamic_key already exists,
+    the existing task run will be returned. If the provided task run has a state
+    attached, it will also be created.
 
     Args:
         session (sa.orm.Session): a database session
@@ -32,6 +34,7 @@ async def create_task_run(
     Returns:
         orm.TaskRun: the newly-created or existing task run
     """
+
     now = pendulum.now("UTC")
     # if there's no dynamic key, create the task run
     if not task_run.dynamic_key:
@@ -88,7 +91,8 @@ async def create_task_run(
 
 
 async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskRun:
-    """Read a task run by id
+    """
+    Read a task run by id.
 
     Args:
         session (sa.orm.Session): a database session
@@ -97,6 +101,7 @@ async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskR
     Returns:
         orm.TaskRun: the task run
     """
+
     model = await session.get(orm.TaskRun, task_run_id)
     return model
 
@@ -109,8 +114,7 @@ def _apply_task_run_filters(
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
-    Applies filters to a task run query as a combination of correlated
-    EXISTS subqueries.
+    Applies filters to a task run query as a combination of EXISTS subqueries.
     """
 
     if task_run_filter:
@@ -150,14 +154,17 @@ async def read_task_runs(
     limit: int = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
 ) -> List[orm.TaskRun]:
-    """Read task runs
+    """
+    Read task runs.
 
     Args:
         session (sa.orm.Session): a database session
         flow_filter (FlowFilter): only select task runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only select task runs whose flow runs match these filters
+        flow_run_filter (FlowRunFilter): only select task runs whose flow runs match
+            these filters
         task_run_filter (TaskRunFilter): only select task runs that match these filters
-        deployment_filter (DeploymentFilter): only select task runs whose deployments match these filters
+        deployment_filter (DeploymentFilter): only select task runs whose deployments
+            match these filters
         offset (int): Query offset
         limit (int): Query limit
         sort (schemas.sorting.TaskRunSort, optional) - Query sort
@@ -193,17 +200,21 @@ async def count_task_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
-    """Count task runs
+    """
+    Count task runs.
 
     Args:
         session (sa.orm.Session): a database session
         flow_filter (FlowFilter): only count task runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only count task runs whose flow runs match these filters
+        flow_run_filter (FlowRunFilter): only count task runs whose flow runs match
+            these filters
         task_run_filter (TaskRunFilter): only count task runs that match these filters
-        deployment_filter (DeploymentFilter): only count task runs whose deployments match these filters
+        deployment_filter (DeploymentFilter): only count task runs whose deployments
+            match these filters
     Returns:
         int: count of task runs
     """
+
     query = select(sa.func.count(sa.text("*"))).select_from(orm.TaskRun)
 
     query = _apply_task_run_filters(
@@ -219,7 +230,8 @@ async def count_task_runs(
 
 
 async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
-    """Delete a task run by id
+    """
+    Delete a task run by id.
 
     Args:
         session (sa.orm.Session): a database session
@@ -228,6 +240,7 @@ async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
     Returns:
         bool: whether or not the task run was deleted
     """
+
     result = await session.execute(
         delete(orm.TaskRun).where(orm.TaskRun.id == task_run_id)
     )
