@@ -68,7 +68,8 @@ const storageKey = 'orion-color-mode'
 
       this.$toast.add({
         type: 'success',
-        content: 'Color theme has been saved'
+        content: 'Color theme has been saved',
+        timeout: 10000
       })
     }
   }
