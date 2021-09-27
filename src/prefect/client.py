@@ -186,7 +186,7 @@ class OrionClient:
             flow_id: the flow ID of interest
 
         Returns:
-            a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
+            a [Flow model][prefect.orion.schemas.core.Flow] representation of the flow
         """
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
