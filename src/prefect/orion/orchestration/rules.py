@@ -736,8 +736,6 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
             passed between rules
-        from_state_type: The state type of the initial state of a run
-        to_state_type: The state type of the proposed state before orchestration
     """
 
     FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
@@ -746,8 +744,6 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     def __init__(
         self,
         context: OrchestrationContext,
-        from_state_type: Optional[states.StateType],
-        to_state_type: Optional[states.StateType],
     ):
         self.context = context
 
