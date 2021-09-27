@@ -433,12 +433,8 @@ class TestReadDeployments:
         response = await client.post("/deployments/filter/", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
-
-        all_ids = await session.execute(
-            sa.select(models.orm.Deployment.id).order_by(models.orm.Deployment.id)
-        )
-        second_id = [str(i) for i in all_ids.scalars().all()][1]
-        assert response.json()[0]["id"] == second_id
+        # sorted by name by default
+        assert response.json()[0]["name"] == "My Deployment Y"
 
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter/")

@@ -101,8 +101,10 @@ async def read_deployment_by_name(
 
 def _apply_deployment_filters(
     query,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
     Applies filters to a deployment query as a combination of correlated
@@ -119,6 +121,21 @@ def _apply_deployment_filters(
 
         query = query.where(exists_clause.exists())
 
+    if flow_run_filter or task_run_filter:
+        exists_clause = select(orm.FlowRun).where(
+            orm.Deployment.id == orm.FlowRun.deployment_id
+        )
+
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+        if task_run_filter:
+            exists_clause = exists_clause.join(
+                orm.TaskRun,
+                orm.TaskRun.flow_run_id == orm.FlowRun.id,
+            ).where(task_run_filter.as_sql_filter())
+
+        query = query.where(exists_clause.exists())
+
     return query
 
 
@@ -126,8 +143,10 @@ async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> List[orm.Deployment]:
     """Read deployments
 
@@ -135,17 +154,24 @@ async def read_deployments(
         session (sa.orm.Session): A database session
         offset (int): Query offset
         limit(int): Query limit
-        deployment_filter (DeploymentFilter): only return deployment that match these filters
-        flow_filter (FlowFilter): only return deployments whose flows match these criteria
+        flow_filter (FlowFilter): only select deployments whose flows match these criteria
+        flow_run_filter (FlowRunFilter): only select deployments whose flow runs match these criteria
+        task_run_filter (TaskRunFilter): only select deployments whose task runs match these criteria
+        deployment_filter (DeploymentFilter): only select deployment that match these filters
+
 
     Returns:
         List[orm.Deployment]: deployments
     """
 
-    query = select(orm.Deployment).order_by(orm.Deployment.id)
+    query = select(orm.Deployment).order_by(orm.Deployment.name)
 
     query = _apply_deployment_filters(
-        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+        query=query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     if offset is not None:
@@ -159,15 +185,19 @@ async def read_deployments(
 
 async def count_deployments(
     session: sa.orm.Session,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
     """Count deployments
 
     Args:
         session (sa.orm.Session): A database session
-        deployment_filter (DeploymentFilter): only count deployment that match these filters
         flow_filter (FlowFilter): only count deployments whose flows match these criteria
+        flow_run_filter (FlowRunFilter): only count deployments whose flow runs match these criteria
+        task_run_filter (TaskRunFilter): only count deployments whose task runs match these criteria
+        deployment_filter (DeploymentFilter): only count deployment that match these filters
 
     Returns:
         int: the number of deployments matching filters
@@ -176,7 +206,11 @@ async def count_deployments(
     query = select(sa.func.count(sa.text("*"))).select_from(orm.Deployment)
 
     query = _apply_deployment_filters(
-        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+        query=query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     result = await session.execute(query)
