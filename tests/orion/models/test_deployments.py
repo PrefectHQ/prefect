@@ -535,7 +535,6 @@ class TestScheduledRuns:
         )
         assert len(scheduled_runs) == 2
         for run in scheduled_runs:
-            print(run.parameters, parameters)
             assert run.parameters == parameters
 
     async def test_schedule_runs_with_end_time(self, flow, deployment, session):
