@@ -18,6 +18,7 @@ DeploymentCreate = schemas.core.Deployment.subclass(
         "schedule",
         "is_schedule_active",
         "tags",
+        "parameters",
         "flow_data",
     ],
 )
