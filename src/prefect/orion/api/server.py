@@ -1,12 +1,14 @@
 # import prefect
 import asyncio
 from functools import partial
+import os
 from sys import exc_info
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 import prefect
 from prefect import settings
@@ -45,6 +47,11 @@ async def root_redirect():
     return RedirectResponse(url="/docs")
 
 
+app.mount("/static",
+          StaticFiles(directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")),
+          name="static")
+
+
 def openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -54,7 +61,7 @@ def openapi():
         routes=app.routes,
     )
     openapi_schema["info"]["x-logo"] = {
-        "url": "https://p199.p4.n0.cdn.getcloudapp.com/items/Wnu0vng9/ee73087e-e64c-4209-a7ec-ec5af49019dc.jpg"
+        "url": "static/logomark-color.png"
     }
     app.openapi_schema = openapi_schema
     return app.openapi_schema
