@@ -1,3 +1,4 @@
+from statistics import mode
 from uuid import uuid4
 import copy
 
@@ -258,6 +259,23 @@ class TestReadFlows:
             ),
         )
         assert {res.id for res in result} == {flow_1.id, flow_2.id}
+
+    async def test_read_flows_filters_by_deployment_criteria(
+        self, flow, deployment, session
+    ):
+        result = await models.flows.read_flows(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=dict(any_=[deployment.id])
+            ),
+        )
+        assert {res.id for res in result} == {flow.id}
+        result = await models.flows.read_flows(
+            session=session,
+            flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id])),
+            deployment_filter=schemas.filters.DeploymentFilter(id=dict(any_=[uuid4()])),
+        )
+        assert len(result) == 0
 
 
 class TestDeleteFlow:
