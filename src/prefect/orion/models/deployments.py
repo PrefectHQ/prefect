@@ -19,8 +19,8 @@ async def create_deployment(
     """Upserts a deployment.
 
     Args:
-        session (sa.orm.Session): a database session
-        deployment (schemas.core.Deployment): a deployment model
+        session: a database session
+        deployment: a deployment model
 
     Returns:
         orm.Deployment: the newly-created or updated deployment
@@ -69,8 +69,8 @@ async def read_deployment(
     """Reads a deployment by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        deployment_id (str): a deployment id
+        session: A database session
+        deployment_id: a deployment id
 
     Returns:
         orm.Deployment: the deployment
@@ -85,9 +85,9 @@ async def read_deployment_by_name(
     """Reads a deployment by name.
 
     Args:
-        session (sa.orm.Session): A database session
-        name (str): a deployment name
-        flow_name (str): the name of the flow the deployment belongs to
+        session: A database session
+        name: a deployment name
+        flow_name: the name of the flow the deployment belongs to
 
     Returns:
         orm.Deployment: the deployment
@@ -154,13 +154,13 @@ async def read_deployments(
     Read deployments.
 
     Args:
-        session (sa.orm.Session): A database session
-        offset (int): Query offset
-        limit(int): Query limit
-        flow_filter (FlowFilter): only select deployments whose flows match these criteria
-        flow_run_filter (FlowRunFilter): only select deployments whose flow runs match these criteria
-        task_run_filter (TaskRunFilter): only select deployments whose task runs match these criteria
-        deployment_filter (DeploymentFilter): only select deployment that match these filters
+        session: A database session
+        offset: Query offset
+        limi: Query limit
+        flow_filter: only select deployments whose flows match these criteria
+        flow_run_filter: only select deployments whose flow runs match these criteria
+        task_run_filter: only select deployments whose task runs match these criteria
+        deployment_filter: only select deployment that match these filters
 
 
     Returns:
@@ -197,11 +197,11 @@ async def count_deployments(
     Count deployments.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_filter (FlowFilter): only count deployments whose flows match these criteria
-        flow_run_filter (FlowRunFilter): only count deployments whose flow runs match these criteria
-        task_run_filter (TaskRunFilter): only count deployments whose task runs match these criteria
-        deployment_filter (DeploymentFilter): only count deployment that match these filters
+        session: A database session
+        flow_filter: only count deployments whose flows match these criteria
+        flow_run_filter: only count deployments whose flow runs match these criteria
+        task_run_filter: only count deployments whose task runs match these criteria
+        deployment_filter: only count deployment that match these filters
 
     Returns:
         int: the number of deployments matching filters
@@ -226,8 +226,8 @@ async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> boo
     Delete a deployment by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        deployment_id (str): a deployment id
+        session: A database session
+        deployment_id: a deployment id
 
     Returns:
         bool: whether or not the deployment was deleted
