@@ -16,7 +16,7 @@ async def create_deployment(
     session: sa.orm.Session,
     deployment: schemas.core.Deployment,
 ) -> orm.Deployment:
-    """Upserts a deployment
+    """Upserts a deployment.
 
     Args:
         session (sa.orm.Session): a database session
@@ -26,6 +26,7 @@ async def create_deployment(
         orm.Deployment: the newly-created or updated deployment
 
     """
+
     insert_stmt = (
         dialect_specific_insert(orm.Deployment)
         .values(**deployment.dict(shallow=True, exclude_unset=True))
@@ -65,7 +66,7 @@ async def create_deployment(
 async def read_deployment(
     session: sa.orm.Session, deployment_id: UUID
 ) -> orm.Deployment:
-    """Reads a deployment by id
+    """Reads a deployment by id.
 
     Args:
         session (sa.orm.Session): A database session
@@ -74,13 +75,14 @@ async def read_deployment(
     Returns:
         orm.Deployment: the deployment
     """
+
     return await session.get(orm.Deployment, deployment_id)
 
 
 async def read_deployment_by_name(
     session: sa.orm.Session, name: str, flow_name: str
 ) -> orm.Deployment:
-    """Reads a deployment by name
+    """Reads a deployment by name.
 
     Args:
         session (sa.orm.Session): A database session
@@ -90,6 +92,7 @@ async def read_deployment_by_name(
     Returns:
         orm.Deployment: the deployment
     """
+
     result = await session.execute(
         select(orm.Deployment)
         .join(orm.Flow, orm.Deployment.flow_id == orm.Flow.id)
@@ -107,8 +110,7 @@ def _apply_deployment_filters(
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
-    Applies filters to a deployment query as a combination of correlated
-    EXISTS subqueries.
+    Applies filters to a deployment query as a combination of EXISTS subqueries.
     """
 
     if deployment_filter:
@@ -148,7 +150,8 @@ async def read_deployments(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> List[orm.Deployment]:
-    """Read deployments
+    """
+    Read deployments.
 
     Args:
         session (sa.orm.Session): A database session
@@ -190,7 +193,8 @@ async def count_deployments(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
-    """Count deployments
+    """
+    Count deployments.
 
     Args:
         session (sa.orm.Session): A database session
@@ -218,7 +222,8 @@ async def count_deployments(
 
 
 async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> bool:
-    """Delete a deployment by id
+    """
+    Delete a deployment by id.
 
     Args:
         session (sa.orm.Session): A database session
@@ -227,6 +232,7 @@ async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> boo
     Returns:
         bool: whether or not the deployment was deleted
     """
+
     result = await session.execute(
         delete(orm.Deployment).where(orm.Deployment.id == deployment_id)
     )
