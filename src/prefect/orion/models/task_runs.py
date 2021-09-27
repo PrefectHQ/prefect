@@ -28,8 +28,8 @@ async def create_task_run(
     attached, it will also be created.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run (schemas.core.TaskRun): a task run model
+        session: a database session
+        task_run: a task run model
 
     Returns:
         orm.TaskRun: the newly-created or existing task run
@@ -95,8 +95,8 @@ async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskR
     Read a task run by id.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run_id (str): the task run id
+        session: a database session
+        task_run_id: the task run id
 
     Returns:
         orm.TaskRun: the task run
@@ -158,16 +158,14 @@ async def read_task_runs(
     Read task runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only select task runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only select task runs whose flow runs match
-            these filters
-        task_run_filter (TaskRunFilter): only select task runs that match these filters
-        deployment_filter (DeploymentFilter): only select task runs whose deployments
-            match these filters
-        offset (int): Query offset
-        limit (int): Query limit
-        sort (schemas.sorting.TaskRunSort, optional) - Query sort
+        session: a database session
+        flow_filter: only select task runs whose flows match these filters
+        flow_run_filter: only select task runs whose flow runs match these filters
+        task_run_filter: only select task runs that match these filters
+        deployment_filter: only select task runs whose deployments match these filters
+        offset: Query offset
+        limit: Query limit
+        sort: Query sort
 
     Returns:
         List[orm.TaskRun]: the task runs
@@ -204,13 +202,11 @@ async def count_task_runs(
     Count task runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only count task runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only count task runs whose flow runs match
-            these filters
-        task_run_filter (TaskRunFilter): only count task runs that match these filters
-        deployment_filter (DeploymentFilter): only count task runs whose deployments
-            match these filters
+        session: a database session
+        flow_filter: only count task runs whose flows match these filters
+        flow_run_filter: only count task runs whose flow runs match these filters
+        task_run_filter: only count task runs that match these filters
+        deployment_filter: only count task runs whose deployments match these filters
     Returns:
         int: count of task runs
     """
@@ -234,8 +230,8 @@ async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
     Delete a task run by id.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run_id (str): the task run id to delete
+        session: a database session
+        task_run_id: the task run id to delete
 
     Returns:
         bool: whether or not the task run was deleted
@@ -264,12 +260,11 @@ async def set_task_run_state(
     supplied to bypass a subset of orchestration logic.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run_id (str): the task run id
-        state (schemas.states.State): a task run state model
-        force (bool): if False, orchestration rules will be applied that may
-            alter or prevent the state transition. If True, orchestration rules are
-            not applied.
+        session: a database session
+        task_run_id: the task run id
+        state: a task run state model
+        force: if False, orchestration rules will be applied that may alter or prevent
+            the state transition. If True, orchestration rules are not applied.
 
     Returns:
         None

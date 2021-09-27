@@ -26,8 +26,8 @@ async def create_flow_run(
     If the provided flow run has a state attached, it will also be created.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_run (schemas.core.FlowRun): a flow run model
+        session: a database session
+        flow_run: a flow run model
 
     Returns:
         orm.FlowRun: the newly-created flow run
@@ -93,9 +93,9 @@ async def update_flow_run(
     Updates a flow run.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_run_id (UUID): the flow run id to update
-        flow_run (schemas.actions.FlowRun): a flow run model
+        session: a database session
+        flow_run_id: the flow run id to update
+        flow_run: a flow run model
 
     Returns:
         bool: whether or not matching rows were found to update
@@ -121,8 +121,8 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
     Reads a flow run by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_id (str): a flow run id
+        session: A database session
+        flow_run_id: a flow run id
 
     Returns:
         orm.FlowRun: the flow run
@@ -193,14 +193,14 @@ async def read_flow_runs(
     Read flow runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter, optional): only select flow runs whose flows match these filters
-        flow_run_filter (FlowRunFilter, optional): only select flow runs match these filters
-        task_run_filter (TaskRunFilter, optional): only select flow runs whose task runs match these filters
-        deployment_filter (DeploymentFilter, optional): only sleect flow runs whose deployments match these filters
-        offset (int, optional): Query offset
-        limit (int, optional): Query limit
-        sort (schemas.sorting.FlowRunSort, optional) - Query sort
+        session: a database session
+        flow_filter: only select flow runs whose flows match these filters
+        flow_run_filter: only select flow runs match these filters
+        task_run_filter: only select flow runs whose task runs match these filters
+        deployment_filter: only sleect flow runs whose deployments match these filters
+        offset: Query offset
+        limit: Query limit
+        sort: Query sort
 
     Returns:
         List[orm.FlowRun]: flow runs
@@ -237,11 +237,11 @@ async def count_flow_runs(
     Count flow runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only count flow runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only count flow runs that match these filters
-        task_run_filter (TaskRunFilter): only count flow runs whose task runs match these filters
-        deployment_filter (DeploymentFilter): only count flow runs whose deployments match these filters
+        session: a database session
+        flow_filter: only count flow runs whose flows match these filters
+        flow_run_filter: only count flow runs that match these filters
+        task_run_filter: only count flow runs whose task runs match these filters
+        deployment_filter: only count flow runs whose deployments match these filters
 
     Returns:
         int: count of flow runs
@@ -266,8 +266,8 @@ async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
     Delete a flow run by flow_run_id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_id (str): a flow run id
+        session: A database session
+        flow_run_id: a flow run id
 
     Returns:
         bool: whether or not the flow run was deleted
@@ -296,12 +296,11 @@ async def set_flow_run_state(
     supplied to bypass a subset of orchestration logic.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_run_id (str): the flow run id
-        state (schemas.states.State): a flow run state model
-        force (bool): if False, orchestration rules will be applied that may
-            alter or prevent the state transition. If True, orchestration rules are
-            not applied.
+        session: a database session
+        flow_run_id: the flow run id
+        state: a flow run state model
+        force: if False, orchestration rules will be applied that may alter or prevent
+            the state transition. If True, orchestration rules are not applied.
 
     Returns:
         None
