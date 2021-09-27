@@ -20,18 +20,21 @@ from prefect.orion.utilities.database import dialect_specific_insert
 async def create_task_run(
     session: sa.orm.Session, task_run: schemas.core.TaskRun
 ) -> orm.TaskRun:
-    """Creates a new task run. If a task run with the same flow_run_id,
-    task_key, and dynamic_key already exists, the existing task
-    run will be returned. If the provided task run has a state attached, it
-    will also be created.
+    """
+    Creates a new task run.
+
+    If a task run with the same flow_run_id, task_key, and dynamic_key already exists,
+    the existing task run will be returned. If the provided task run has a state
+    attached, it will also be created.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run (schemas.core.TaskRun): a task run model
+        session: a database session
+        task_run: a task run model
 
     Returns:
         orm.TaskRun: the newly-created or existing task run
     """
+
     now = pendulum.now("UTC")
     # if there's no dynamic key, create the task run
     if not task_run.dynamic_key:
@@ -88,15 +91,17 @@ async def create_task_run(
 
 
 async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskRun:
-    """Read a task run by id
+    """
+    Read a task run by id.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run_id (str): the task run id
+        session: a database session
+        task_run_id: the task run id
 
     Returns:
         orm.TaskRun: the task run
     """
+
     model = await session.get(orm.TaskRun, task_run_id)
     return model
 
@@ -109,8 +114,7 @@ def _apply_task_run_filters(
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
-    Applies filters to a task run query as a combination of correlated
-    EXISTS subqueries.
+    Applies filters to a task run query as a combination of EXISTS subqueries.
     """
 
     if task_run_filter:
@@ -150,17 +154,18 @@ async def read_task_runs(
     limit: int = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
 ) -> List[orm.TaskRun]:
-    """Read task runs
+    """
+    Read task runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only select task runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only select task runs whose flow runs match these filters
-        task_run_filter (TaskRunFilter): only select task runs that match these filters
-        deployment_filter (DeploymentFilter): only select task runs whose deployments match these filters
-        offset (int): Query offset
-        limit (int): Query limit
-        sort (schemas.sorting.TaskRunSort, optional) - Query sort
+        session: a database session
+        flow_filter: only select task runs whose flows match these filters
+        flow_run_filter: only select task runs whose flow runs match these filters
+        task_run_filter: only select task runs that match these filters
+        deployment_filter: only select task runs whose deployments match these filters
+        offset: Query offset
+        limit: Query limit
+        sort: Query sort
 
     Returns:
         List[orm.TaskRun]: the task runs
@@ -193,17 +198,19 @@ async def count_task_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
-    """Count task runs
+    """
+    Count task runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only count task runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only count task runs whose flow runs match these filters
-        task_run_filter (TaskRunFilter): only count task runs that match these filters
-        deployment_filter (DeploymentFilter): only count task runs whose deployments match these filters
+        session: a database session
+        flow_filter: only count task runs whose flows match these filters
+        flow_run_filter: only count task runs whose flow runs match these filters
+        task_run_filter: only count task runs that match these filters
+        deployment_filter: only count task runs whose deployments match these filters
     Returns:
         int: count of task runs
     """
+
     query = select(sa.func.count(sa.text("*"))).select_from(orm.TaskRun)
 
     query = _apply_task_run_filters(
@@ -219,15 +226,17 @@ async def count_task_runs(
 
 
 async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
-    """Delete a task run by id
+    """
+    Delete a task run by id.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run_id (str): the task run id to delete
+        session: a database session
+        task_run_id: the task run id to delete
 
     Returns:
         bool: whether or not the task run was deleted
     """
+
     result = await session.execute(
         delete(orm.TaskRun).where(orm.TaskRun.id == task_run_id)
     )
@@ -240,18 +249,25 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
 ) -> orm.TaskRunState:
-    """Creates a new task run state
+    """
+    Creates a new orchestrated task run state.
+
+    Setting a new state on a run is the one of the principal actions that is governed by
+    Orion's orchestration logic. Setting a new run state will not guarantee creation,
+    but instead trigger orchestration rules to govern the proposed `state` input. If
+    the state is considered valid, it will be written to the database. Otherwise, a
+    it's possible a different state, or no state, will be created. A `force` flag is
+    supplied to bypass a subset of orchestration logic.
 
     Args:
-        session (sa.orm.Session): a database session
-        task_run_id (str): the task run id
-        state (schemas.states.State): a task run state model
-        force (bool): if False, orchestration rules will be applied that may
-            alter or prevent the state transition. If True, orchestration rules are
-            not applied.
+        session: a database session
+        task_run_id: the task run id
+        state: a task run state model
+        force: if False, orchestration rules will be applied that may alter or prevent
+            the state transition. If True, orchestration rules are not applied.
 
     Returns:
-        orm.TaskRunState: the newly-created task run state
+        OrchestrationResult object
     """
 
     # load the task run
