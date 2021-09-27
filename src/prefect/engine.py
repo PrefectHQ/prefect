@@ -3,17 +3,17 @@ Client-side execution and orchestration of flows and tasks.
 
 Engine process overview
 
-- The flow or task is called by the user
+- The flow or task is called by the user.
     See `Flow.__call__`, `Task.__call__`
 
-- A synchronous engine function acts as an entrypoint to the async engine
+- A synchronous engine function acts as an entrypoint to the async engine.
     See `enter_flow_run_engine`, `enter_task_run_engine`
 
-- The async engine creates a run via the API and prepares for execution of user-code
+- The async engine creates a run via the API and prepares for execution of user-code.
     See `begin_flow_run`, `begin_task_run`
 
-- The run is orchestrated through states, calling the user's function as necessary
-    See `orchestrate_flow_run, `orchestrate_task_run`
+- The run is orchestrated through states, calling the user's function as necessary.
+    See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import pendulum
 from contextlib import contextmanager, nullcontext
@@ -55,6 +55,7 @@ from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
+    asyncnullcontext,
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
@@ -272,30 +273,53 @@ async def orchestrate_flow_run(
     """
     Executes a flow run
 
+    Note on flow timeouts:
+        Since async flows are run directly in the main event loop, timeout behavior will
+        match that described by anyio. If the flow is awaiting something, it will
+        immediately return; otherwise, the next time it awaits it will exit. Sync flows
+        are being executor in a worker thread, which cannot be interrupted. The worker
+        thread will exit at the next task call. The worker thread also has access to the
+        status of the cancellation scope at `FlowRunContext.timeout_scope.cancel_called`
+        which allows it to raise a `TimeoutError` to respect the timeout.
+
     Returns:
         The final state of the run
     """
     # TODO: Implement state orchestation logic using return values from the API
     await client.propose_state(Running(), flow_run_id=flow_run_id)
 
+    timeout_context = (
+        anyio.fail_after(flow.timeout_seconds)
+        if flow.timeout_seconds
+        else nullcontext()
+    )
+
     try:
-        with FlowRunContext(
-            flow_run_id=flow_run_id,
-            flow=flow,
-            client=client,
-            executor=executor,
-            sync_portal=sync_portal,
-        ):
-            # Validate the parameters before the call; raises an exception if invalid
-            if flow.should_validate_parameters:
-                parameters = flow.validate_parameters(parameters)
 
-            flow_call = partial(call_with_parameters, flow.fn, parameters)
-            if flow.isasync:
-                result = await flow_call()
-            else:
-                result = await run_sync_in_worker_thread(flow_call)
+        with timeout_context as timeout_scope:
+            with FlowRunContext(
+                flow_run_id=flow_run_id,
+                flow=flow,
+                client=client,
+                executor=executor,
+                sync_portal=sync_portal,
+                timeout_scope=timeout_scope,
+            ):
+                # Validate the parameters before the call; raises an exception if invalid
+                if flow.should_validate_parameters:
+                    parameters = flow.validate_parameters(parameters)
 
+                flow_call = partial(call_with_parameters, flow.fn, parameters)
+
+                if flow.isasync:
+                    result = await flow_call()
+                else:
+                    result = await run_sync_in_worker_thread(flow_call)
+
+    except TimeoutError as exc:
+        state = Failed(
+            message=f"Flow run timed out after {flow.timeout_seconds} seconds"
+        )
     except Exception as exc:
         state = Failed(
             message="Flow run encountered an exception.",
@@ -330,6 +354,9 @@ def enter_task_run_engine(
             f"Your task is async, but your flow is synchronous. Async tasks may "
             "only be called from async flows."
         )
+
+    if flow_run_context.timeout_scope and flow_run_context.timeout_scope.cancel_called:
+        raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
         begin_task_run,
