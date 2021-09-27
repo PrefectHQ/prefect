@@ -47,9 +47,13 @@ async def root_redirect():
     return RedirectResponse(url="/docs")
 
 
-app.mount("/static",
-          StaticFiles(directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")),
-          name="static")
+app.mount(
+    "/static",
+    StaticFiles(
+        directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
+    ),
+    name="static",
+)
 
 
 def openapi():
@@ -60,9 +64,7 @@ def openapi():
         version=API_VERSION,
         routes=app.routes,
     )
-    openapi_schema["info"]["x-logo"] = {
-        "url": "static/logomark-color.png"
-    }
+    openapi_schema["info"]["x-logo"] = {"url": "static/logomark-color.png"}
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
