@@ -21,8 +21,9 @@ from prefect.orion.utilities.database import dialect_specific_insert
 async def create_flow_run(
     session: sa.orm.Session, flow_run: schemas.core.FlowRun
 ) -> orm.FlowRun:
-    """Creates a new flow run. If the provided flow run has a state attached, it
-    will also be created.
+    """Creates a new flow run.
+
+    If the provided flow run has a state attached, it will also be created.
 
     Args:
         session (sa.orm.Session): a database session
@@ -31,6 +32,7 @@ async def create_flow_run(
     Returns:
         orm.FlowRun: the newly-created flow run
     """
+
     now = pendulum.now("UTC")
     # if there's no idempotency key, just create the run
     if not flow_run.idempotency_key:
@@ -88,7 +90,7 @@ async def update_flow_run(
     session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.actions.FlowRunUpdate
 ) -> bool:
     """
-    Updates a flow run
+    Updates a flow run.
 
     Args:
         session (sa.orm.Session): a database session
@@ -97,8 +99,8 @@ async def update_flow_run(
 
     Returns:
         bool: whether or not matching rows were found to update
-
     """
+
     if not isinstance(flow_run, schemas.actions.FlowRunUpdate):
         raise ValueError(
             f"Expected parameter flow_run to have type schemas.actions.FlowRunUpdate, got {type(flow_run)!r} instead"
@@ -115,7 +117,8 @@ async def update_flow_run(
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
-    """Reads a flow run by id
+    """
+    Reads a flow run by id.
 
     Args:
         session (sa.orm.Session): A database session
@@ -124,6 +127,7 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
     Returns:
         orm.FlowRun: the flow run
     """
+
     return await session.get(orm.FlowRun, flow_run_id)
 
 
@@ -135,8 +139,7 @@ def _apply_flow_run_filters(
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
-    Applies filters to a flow run query as a combination of correlated
-    EXISTS subqueries.
+    Applies filters to a flow run query as a combination of EXISTS subqueries.
     """
 
     if flow_run_filter:
@@ -186,7 +189,8 @@ async def read_flow_runs(
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
 ) -> List[orm.FlowRun]:
-    """Read flow runs
+    """
+    Read flow runs.
 
     Args:
         session (sa.orm.Session): a database session
@@ -229,7 +233,8 @@ async def count_flow_runs(
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
-    """Count flow runs
+    """
+    Count flow runs.
 
     Args:
         session (sa.orm.Session): a database session
@@ -241,6 +246,7 @@ async def count_flow_runs(
     Returns:
         int: count of flow runs
     """
+
     query = select(sa.func.count(sa.text("*"))).select_from(orm.FlowRun)
 
     query = _apply_flow_run_filters(
@@ -256,7 +262,8 @@ async def count_flow_runs(
 
 
 async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
-    """Delete a flow run by flow_run_id
+    """
+    Delete a flow run by flow_run_id.
 
     Args:
         session (sa.orm.Session): A database session
@@ -265,6 +272,7 @@ async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
     Returns:
         bool: whether or not the flow run was deleted
     """
+
     result = await session.execute(
         delete(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
     )
@@ -298,6 +306,7 @@ async def set_flow_run_state(
     Returns:
         None
     """
+
     # load the flow run
     run = await models.flow_runs.read_flow_run(
         session=session,
