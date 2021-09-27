@@ -16,6 +16,11 @@ from prefect.tasks import task
 from prefect.orion.schemas.schedules import IntervalSchedule
 
 
+async def test_hello(orion_client):
+    response = await orion_client.hello()
+    assert response.json() == "👋"
+
+
 async def test_create_then_read_flow(orion_client):
     @flow
     def foo():
@@ -43,6 +48,7 @@ async def test_create_then_read_deployment(orion_client):
         name="test-deployment",
         flow_data=flow_data,
         schedule=schedule,
+        parameters={"foo": "bar"},
         tags=["foo", "bar"],
     )
 
@@ -51,6 +57,7 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.name == "test-deployment"
     assert lookup.flow_data == flow_data
     assert lookup.schedule == schedule
+    assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
 
 

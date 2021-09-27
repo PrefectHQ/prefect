@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, List, Set
+from typing import Any, AnyStr, Dict, List, Set
 from uuid import UUID
 
 import yaml
@@ -52,6 +52,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
+    parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
 
@@ -172,6 +173,7 @@ async def create_deployment_from_spec(
         name=spec.name,
         schedule=spec.schedule,
         flow_data=flow_data,
+        parameters=spec.parameters,
         tags=spec.tags,
     )
 

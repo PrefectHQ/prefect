@@ -33,6 +33,7 @@ app.include_router(api.task_runs.router)
 app.include_router(api.flow_run_states.router)
 app.include_router(api.task_run_states.router)
 app.include_router(api.deployments.router)
+app.include_router(api.saved_searches.router)
 
 
 @app.get("/")
