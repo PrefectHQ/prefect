@@ -264,6 +264,7 @@ class OrionClient:
         name: str,
         flow_data: DataDocument,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        parameters: Dict[str, Any] = None,
         tags: List[str] = None,
     ) -> UUID:
         deployment_create = schemas.actions.DeploymentCreate(
@@ -271,6 +272,7 @@ class OrionClient:
             name=name,
             schedule=schedule,
             flow_data=flow_data,
+            parameters=dict(parameters or {}),
             tags=list(tags or []),
         )
 
