@@ -2,6 +2,7 @@ import inspect
 from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
+from contextlib import asynccontextmanager
 
 import anyio
 import sniffio
@@ -36,7 +37,7 @@ async def run_sync_in_worker_thread(
     """
     call = partial(__fn, *args, **kwargs)
     context = copy_context()  # Pass the context to the worker thread
-    return await anyio.to_thread.run_sync(context.run, call)
+    return await anyio.to_thread.run_sync(context.run, call, cancellable=True)
 
 
 def run_async_from_worker_thread(
@@ -109,3 +110,8 @@ def sync_compatible(async_fn: T) -> T:
 
     wrapper.aio = async_fn
     return wrapper
+
+
+@asynccontextmanager
+async def asyncnullcontext():
+    yield
