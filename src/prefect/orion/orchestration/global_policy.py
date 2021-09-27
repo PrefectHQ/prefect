@@ -121,7 +121,7 @@ class IncrementRunCount(BaseUniversalRule):
 
 class SetExpectedStartTime(BaseUniversalRule):
     """
-    Estimates the time a state is expected to start running.
+    Estimates the time a state is expected to start running if not set.
 
     For scheduled states, this estimate is simply the scheduled time. For other states,
     this is set to the time the proposed state was created by the client.
