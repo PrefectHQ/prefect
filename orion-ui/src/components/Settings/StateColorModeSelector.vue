@@ -65,6 +65,11 @@ const storageKey = 'orion-color-mode'
       })
 
       document.body.classList.add(val.toLowerCase() + '-color-mode')
+
+      this.$toast.add({
+        type: 'success',
+        content: 'Color theme has been saved'
+      })
     }
   }
 })

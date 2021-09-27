@@ -136,6 +136,7 @@ export default class Settings extends Vue {
   get settingsSections(): { [key: string]: any }[] {
     if (!this.settings) return []
     const settings: { [key: string]: any } = { ...this.settings, base: {} }
+    // Go one level down on orion section
     Object.entries(settings).forEach(([key, value]) => {
       if (this.objectCheck(value)) {
         settings[key] = value
@@ -160,6 +161,7 @@ export default class Settings extends Vue {
 
   showConfirmationToast(options: { type: string; content: any }): void {
     // TODO: Add global toast notification
+    this.$toast.add({ ...options, timeout: 5000 })
   }
 
   objectCheck(arg: any): boolean {
