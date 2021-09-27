@@ -344,9 +344,7 @@ async def set_flow_run_state(
             )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(
-                rule(context, *intended_transition)
-            )
+            context = await stack.enter_async_context(rule(context))
 
         await context.validate_proposed_state()
 
