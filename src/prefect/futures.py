@@ -1,47 +1,84 @@
-from collections import OrderedDict
-from collections.abc import Iterator as IteratorABC
-from dataclasses import fields, is_dataclass
-from functools import partial
+"""
+Task run futures.
+"""
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
-    Callable,
-    Optional,
     Union,
+    Optional,
     overload,
-    cast,
     TypeVar,
     Generic,
 )
-from unittest.mock import Mock
 from uuid import UUID
 
 import prefect
 from prefect.client import OrionClient
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
     from prefect.executors import BaseExecutor
-    from prefect.orion.schemas.core import FlowRun, TaskRun
 
 
 R = TypeVar("R")
 
 
 class PrefectFuture(Generic[R]):
+    """
+    Represents the result of a computation happening in an executor.
+
+    When tasks are called, they are submitted to an executor which creates a future for
+    access to the state and result of the task.
+
+    Examples:
+        Define a task that returns a string
+
+        >>> from prefect import flow, task
+        >>> @task
+        >>> def my_task() -> str:
+        >>>     return "hello"
+
+        Calls of this task in a flow will return a future
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()  # PrefectFuture[str] includes result type
+        >>>     future.run_id  # UUID for the task run
+
+        Wait for the task to complete
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     final_state = future.wait()
+
+        Wait for a task to complete and retrieve its result
+
+        >>> from prefect import get_result
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     result = get_result(future)
+        >>>     assert result == "hello"
+
+        Retrieve the state of a task without waiting for completion
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     future = my_task()
+        >>>     state = future.get_state()
+    """
+
     def __init__(
         self,
-        flow_run_id: UUID,
+        run_id: UUID,
         client: OrionClient,
         executor: "BaseExecutor",
-        task_run_id: UUID = None,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
-        self.flow_run_id = flow_run_id
-        self.task_run_id = task_run_id
-        self.run_id = self.task_run_id or self.flow_run_id
+        self.run_id = run_id
         self._client = client
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
@@ -76,72 +113,51 @@ class PrefectFuture(Generic[R]):
 
     @sync_compatible
     async def get_state(self) -> State[R]:
-        run: Union[FlowRun, TaskRun]
+        task_run = await self._client.read_task_run(self.run_id)
 
-        if self.task_run_id:
-            run = await self._client.read_task_run(self.task_run_id)
+        if not task_run:
+            raise RuntimeError("Future has no associated task run in the server.")
 
-        else:
-            run = await self._client.read_flow_run(self.flow_run_id)
-
-        if not run:
-            raise RuntimeError("Future has no associated run in the server.")
-
-        return run.state
+        return task_run.state
 
     def __hash__(self) -> int:
         return hash(self.run_id)
 
 
-async def future_to_data(future: PrefectFuture[R]) -> R:
-    return await prefect.get_result(await future.wait())
-
-
-async def future_to_state(future: PrefectFuture[R]) -> State[R]:
-    return await future.wait()
-
-
-async def resolve_futures(
-    expr, resolve_fn: Callable[[PrefectFuture], Awaitable[Any]] = future_to_data
-):
+async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
-    new collection with the same structure with futures resolved by `resolve_fn`.
+    new collection with the same structure with futures resolved to their results.
+    Resolving futures to their results may wait for execution to complete and require
+    communication with the API.
 
     Unsupported object types will be returned without modification.
-
-    By default, futures are resolved into their underlying data which may wait for
-    execution to complete. `resolve_fn` can be passed to convert `PrefectFutures` into
-    futures native to another executor.
     """
-    # Ensure that the `resolve_fn` is passed on recursive calls
-    recurse = partial(resolve_futures, resolve_fn=resolve_fn)
 
-    if isinstance(expr, PrefectFuture):
-        return await resolve_fn(expr)
+    async def visit_fn(expr):
+        if isinstance(expr, prefect.futures.PrefectFuture):
+            return await prefect.get_result(await expr.wait())
+        else:
+            return expr
 
-    if isinstance(expr, Mock):
-        # Explicitly do not coerce mock objects
-        return expr
+    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
 
-    # Get the expression type; treat iterators like lists
-    typ = list if isinstance(expr, IteratorABC) else type(expr)
-    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
 
-    # If it's a python collection, recursively create a collection of the same type with
-    # resolved futures
+async def resolve_futures_to_states(
+    expr: Union[PrefectFuture[R], Any]
+) -> Union[State, Any]:
+    """
+    Given a Python built-in collection, recursively find `PrefectFutures` and build a
+    new collection with the same structure with futures resolved to their final states.
+    Resolving futures to their final states may wait for execution to complete.
 
-    if typ in (list, tuple, set):
-        return typ([await recurse(o) for o in expr])
+    Unsupported object types will be returned without modification.
+    """
 
-    if typ in (dict, OrderedDict):
-        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
-        return typ([[await recurse(k), await recurse(v)] for k, v in expr.items()])
+    async def visit_fn(expr):
+        if isinstance(expr, prefect.futures.PrefectFuture):
+            return await expr.wait()
+        else:
+            return expr
 
-    if is_dataclass(expr) and not isinstance(expr, type):
-        return typ(
-            **{f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)},
-        )
-
-    # If not a supported type, just return it
-    return expr
+    return await visit_collection(expr, visit_fn=visit_fn, return_data=True)

@@ -106,6 +106,12 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
+    def __str__(self) -> str:
+        return self.__repr__()
+
+    def __repr__(self) -> str:
+        return super().__repr__()
+
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     """Convenience function for creating `Scheduled` states.
@@ -175,3 +181,12 @@ def Retrying(**kwargs) -> State:
         State: a Retrying state
     """
     return State(type=StateType.RUNNING, name="Retrying", **kwargs)
+
+
+def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+    """Convenience function for creating `Late` states.
+
+    Returns:
+        State: a Late state
+    """
+    return Scheduled(scheduled_time=scheduled_time, name="Late")

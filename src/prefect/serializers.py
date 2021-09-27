@@ -1,3 +1,8 @@
+"""
+Data serializer implementations
+
+These serializers are registered for use with `DataDocument` types
+"""
 import base64
 import json
 import warnings
@@ -13,7 +18,13 @@ from prefect.client import OrionClient, inject_client
 
 @register_serializer("json")
 class JSONSerializer:
-    """Wrapper for the `json` library to handle bytes instead of strings"""
+    """
+    Serializes data to JSON.
+
+    Input types must be compatible with the stdlib json library.
+
+    Wraps the `json` library to serialize to UTF-8 bytes instead of string types.
+    """
 
     @staticmethod
     def dumps(data: Any) -> bytes:
@@ -38,8 +49,10 @@ class TextSerializer:
 @register_serializer("cloudpickle")
 class PickleSerializer:
     """
-    Wrapper for `cloudpickle` to encode bytes in base64 for safe transmission and handle
-    objects that cannot be serialized without throwing an exception
+    Serializes arbitrary objects using the pickle protocol.
+
+    Wraps `cloudpickle` to encode bytes in base64 for safe transmission and handle
+    objects that cannot be serialized without throwing an exception.
     """
 
     @staticmethod
