@@ -454,6 +454,36 @@ class TestReadTaskRuns:
         )
         assert len(result) == 0
 
+    async def test_read_task_runs_filters_by_deployment_criteria(
+        self, deployment, session
+    ):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                flow_version="1.0",
+            ),
+        )
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run_1.id, task_key="my-key"),
+        )
+
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=dict(any_=[deployment.id])
+            ),
+        )
+        assert {res.id for res in result} == {task_run_1.id}
+
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(id=dict(any_=[uuid4()])),
+        )
+        assert len(result) == 0
+
     async def test_read_task_runs_filters_by_flow_and_flow_run_criteria(
         self, flow, flow_run, session
     ):

@@ -145,5 +145,21 @@ class Deployment(ORMBaseModel):
     # flow: Flow = None
 
 
+class SavedSearch(ORMBaseModel):
+    name: str
+    flow_filter_criteria: schemas.filters.FlowFilterCriteria = Field(
+        default_factory=schemas.filters.FlowFilterCriteria
+    )
+    flow_run_filter_criteria: schemas.filters.FlowRunFilterCriteria = Field(
+        default_factory=schemas.filters.FlowRunFilterCriteria
+    )
+    task_run_filter_criteria: schemas.filters.TaskRunFilterCriteria = Field(
+        default_factory=schemas.filters.TaskRunFilterCriteria
+    )
+    deployment_filter_criteria: schemas.filters.DeploymentFilterCriteria = Field(
+        default_factory=schemas.filters.DeploymentFilterCriteria
+    )
+
+
 Flow.update_forward_refs()
 FlowRun.update_forward_refs()
