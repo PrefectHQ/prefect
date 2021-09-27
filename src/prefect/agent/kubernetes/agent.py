@@ -113,11 +113,14 @@ class KubernetesAgent(Agent):
         )
         if image_pull_secrets is None:
             image_pull_secrets_env = os.getenv("IMAGE_PULL_SECRETS")
-            image_pull_secrets = (
-                [s.strip() for s in image_pull_secrets_env.split(",")]
-                if image_pull_secrets_env is not None
-                else None
-            )
+            if image_pull_secrets_env is not None and image_pull_secrets_env != '':
+                image_pull_secrets = (
+                    [s.strip() for s in image_pull_secrets_env.split(",")]
+                    if image_pull_secrets_env is not None
+                    else None
+                )
+            else:
+                image_pull_secrets = None
         self.image_pull_secrets = image_pull_secrets
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
