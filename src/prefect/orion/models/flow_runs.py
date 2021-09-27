@@ -303,7 +303,7 @@ async def set_flow_run_state(
             the state transition. If True, orchestration rules are not applied.
 
     Returns:
-        None
+        OrchestrationResult object
     """
 
     # load the flow run

@@ -267,7 +267,7 @@ async def set_task_run_state(
             the state transition. If True, orchestration rules are not applied.
 
     Returns:
-        None
+        OrchestrationResult object
     """
 
     # load the task run
