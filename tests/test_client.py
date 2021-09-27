@@ -16,6 +16,11 @@ from prefect.tasks import task
 from prefect.orion.schemas.schedules import IntervalSchedule
 
 
+async def test_hello(orion_client):
+    response = await orion_client.hello()
+    assert response.json() == "👋"
+
+
 async def test_create_then_read_flow(orion_client):
     @flow
     def foo():
