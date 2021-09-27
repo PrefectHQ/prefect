@@ -55,7 +55,7 @@ State(name='Failed', type=StateType.FAILED, message='Flow run encountered an exc
 ```
 </div>
 
-We see that in this situation the call still returns without raising an exception; however, in contrast to the completed state we now encounter a state of type `FAILED` signaling that something unexpected happened during execution.
+We see that in this situation the call still returns without raising an exception; however, in contrast to the 'Completed' state, we now encounter a 'Failed' state signaling that something unexpected happened during execution.
 
 As we will see, this behavior is consistent across flow runs _and_ task runs and allows users to respond to failure in a first-class way; whether by configuring orchestration rules in the Orion backend (e.g., retry logic) or by directly responding to failed states in client code.
 
