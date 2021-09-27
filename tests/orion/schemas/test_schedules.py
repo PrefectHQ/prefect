@@ -8,7 +8,6 @@ from pendulum import datetime, now
 from pydantic import ValidationError
 
 from prefect.orion.schemas.schedules import (
-    IntervalScheduleFilters,
     CronSchedule,
     IntervalSchedule,
     RRuleSchedule,
@@ -49,58 +48,6 @@ class TestCreateIntervalSchedule:
     def test_invalid_timezone(self):
         with pytest.raises(ValidationError, match="(Invalid timezone)"):
             IntervalSchedule(interval=timedelta(days=1), timezone="fake")
-
-
-class TestCreateScheduleFilters:
-    @pytest.mark.parametrize("x", [[], [1], [3, 6, 9, 12]])
-    def test_valid_months(self, x):
-        f = IntervalScheduleFilters(months=x)
-        assert f.months == set(x)
-
-    @pytest.mark.parametrize("x", [[-1], 1, [0], [3, 13]])
-    def test_invalid_months(self, x):
-        with pytest.raises(ValidationError):
-            IntervalScheduleFilters(months=x)
-
-    @pytest.mark.parametrize("x", [[], [1], [15, 31], [-1], [-1, 1], [-28]])
-    def test_valid_days_of_month(self, x):
-        f = IntervalScheduleFilters(days_of_month=x)
-        assert f.days_of_month == set(x)
-
-    @pytest.mark.parametrize("x", [1, [0], [-32, 1], [1, 32]])
-    def test_invalid_days_of_month(self, x):
-        with pytest.raises(ValidationError):
-            IntervalScheduleFilters(days_of_month=x)
-
-    @pytest.mark.parametrize("x", [[], [0], [0, 1, 2, 3, 4]])
-    def test_valid_days_of_week(self, x):
-        f = IntervalScheduleFilters(days_of_week=x)
-        assert f.days_of_week == set(x)
-
-    @pytest.mark.parametrize("x", [[-1], 1, [3, 7]])
-    def test_invalid_days_of_week(self, x):
-        with pytest.raises(ValidationError):
-            IntervalScheduleFilters(days_of_week=x)
-
-    @pytest.mark.parametrize("x", [[], [0], [0, 1, 2, 3, 4]])
-    def test_valid_hours_of_day(self, x):
-        f = IntervalScheduleFilters(hours_of_day=x)
-        assert f.hours_of_day == set(x)
-
-    @pytest.mark.parametrize("x", [[-1], 1, [1, 24]])
-    def test_invalid_hours_of_day(self, x):
-        with pytest.raises(ValidationError):
-            IntervalScheduleFilters(hours_of_day=x)
-
-    @pytest.mark.parametrize("x", [[], [0], [0, 1, 2, 3, 4]])
-    def test_valid_minutes_of_hour(self, x):
-        f = IntervalScheduleFilters(minutes_of_hour=x)
-        assert f.minutes_of_hour == set(x)
-
-    @pytest.mark.parametrize("x", [[-1], 1, [3, 60]])
-    def test_invalid_minutes_of_hour(self, x):
-        with pytest.raises(ValidationError):
-            IntervalScheduleFilters(minutes_of_hour=x)
 
 
 class TestIntervalSchedule:
@@ -163,102 +110,6 @@ class TestIntervalSchedule:
         dates = await clock.get_dates(n=5, start=datetime(2021, 7, 1))
         assert dates == [
             datetime(2021, 7, 1, 7, 24).add(hours=i * 17) for i in range(5)
-        ]
-
-    async def test_months_filter(self):
-        clock = IntervalSchedule(
-            interval=timedelta(days=10),
-            filters=dict(months=[1, 3]),
-        )
-        dates = await clock.get_dates(n=10, start=datetime(2020, 1, 1))
-        assert dates == [
-            datetime(2020, 1, 1),
-            datetime(2020, 1, 11),
-            datetime(2020, 1, 21),
-            datetime(2020, 1, 31),
-            datetime(2020, 3, 1),
-            datetime(2020, 3, 11),
-            datetime(2020, 3, 21),
-            datetime(2020, 3, 31),
-            datetime(2021, 1, 5),
-            datetime(2021, 1, 15),
-        ]
-
-    async def test_days_of_month_filter(self):
-        clock = IntervalSchedule(
-            interval=timedelta(days=1),
-            filters=dict(
-                months=[2, 4, 6, 8, 10, 12],
-                days_of_month=[1, 5],
-            ),
-        )
-        dates = await clock.get_dates(n=5, start=datetime(2021, 2, 2))
-        assert dates == [
-            datetime(2021, 2, 5),
-            datetime(2021, 4, 1),
-            datetime(2021, 4, 5),
-            datetime(2021, 6, 1),
-            datetime(2021, 6, 5),
-        ]
-
-    async def test_negative_days_of_month_filter(self):
-        clock = IntervalSchedule(
-            interval=timedelta(days=1),
-            filters=dict(days_of_month=[1, -5]),
-        )
-        dates = await clock.get_dates(n=8, start=datetime(2021, 1, 1))
-        assert dates == [
-            datetime(2021, 1, 1),
-            datetime(2021, 1, 27),
-            datetime(2021, 2, 1),
-            datetime(2021, 2, 24),
-            datetime(2021, 3, 1),
-            datetime(2021, 3, 27),
-            datetime(2021, 4, 1),
-            datetime(2021, 4, 26),
-        ]
-
-    async def test_days_of_week_filter(self):
-        clock = IntervalSchedule(
-            interval=timedelta(days=1),
-            anchor_date=datetime(2021, 1, 1, 12),
-            filters=dict(days_of_week=[2, 4]),
-        )
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
-        assert dates == [
-            datetime(2021, 1, 1, 12),
-            datetime(2021, 1, 6, 12),
-            datetime(2021, 1, 8, 12),
-            datetime(2021, 1, 13, 12),
-            datetime(2021, 1, 15, 12),
-        ]
-
-    async def test_hours_of_day_filter(self):
-        clock = IntervalSchedule(
-            interval=timedelta(hours=1),
-            filters=dict(hours_of_day=[11, 12, 13]),
-        )
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
-        assert dates == [
-            datetime(2021, 1, 1, 11),
-            datetime(2021, 1, 1, 12),
-            datetime(2021, 1, 1, 13),
-            datetime(2021, 1, 2, 11),
-            datetime(2021, 1, 2, 12),
-        ]
-
-    async def test_minutes_of_hour_filter(self):
-        clock = IntervalSchedule(
-            interval=timedelta(minutes=5),
-            filters=dict(minutes_of_hour=list(range(0, 15))),
-        )
-        dates = await clock.get_dates(n=5, start=datetime(2021, 1, 1))
-        assert dates == [
-            datetime(2021, 1, 1, 0),
-            datetime(2021, 1, 1, 0, 5),
-            datetime(2021, 1, 1, 0, 10),
-            datetime(2021, 1, 1, 1, 0),
-            datetime(2021, 1, 1, 1, 5),
         ]
 
 
