@@ -64,7 +64,7 @@ def openapi():
         version=API_VERSION,
         routes=app.routes,
     )
-    openapi_schema["info"]["x-logo"] = {"url": "static/logomark-color.png"}
+    openapi_schema["info"]["x-logo"] = {"url": "static/prefect-logo-mark-gradient.png"}
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
