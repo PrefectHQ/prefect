@@ -1,4 +1,5 @@
 import prefect
+from prefect.orion import models
 
 
 async def test_hello_world(client):
@@ -30,15 +31,46 @@ class TestSettings:
         assert parsed_settings == prefect_settings
 
 
-class TestClearDatabase:
-    async def test_clear_database(self, flow, flow_run, task_run, deployment, client):
-        for route_prefix in ("/flows", "/flow_runs", "/task_runs", "/deployments"):
-            response = await client.post(f"{route_prefix}/count")
-            assert response.json() > 0
+class TestDatabaseAdmin:
+    async def test_clear_database(
+        self, flow, flow_run, task_run, deployment, session, client
+    ):
+        for count in [
+            models.flows.count_flows,
+            models.flow_runs.count_flow_runs,
+            models.task_runs.count_task_runs,
+            models.deployments.count_deployments,
+        ]:
+            assert await count(session) > 0
 
-        response = await client.delete("/admin/universe")
+        response = await client.post("/admin/database/clear", json=dict(confirm=True))
         assert response.status_code == 204
 
-        for route_prefix in ("/flows", "/flow_runs", "/task_runs", "/deployments"):
-            response = await client.post(f"{route_prefix}/count")
-            assert response.json() == 0
+        for count in [
+            models.flows.count_flows,
+            models.flow_runs.count_flow_runs,
+            models.task_runs.count_task_runs,
+            models.deployments.count_deployments,
+        ]:
+            assert await count(session) == 0
+
+    async def test_clear_database_requires_confirmation(self, client):
+        response = await client.post("/admin/database/clear")
+        assert response.status_code == 400
+
+        response = await client.post("/admin/database/clear", json=dict(confirm=False))
+        assert response.status_code == 400
+
+    async def test_drop_database_requires_confirmation(self, client):
+        response = await client.post("/admin/database/drop")
+        assert response.status_code == 400
+
+        response = await client.post("/admin/database/drop", json=dict(confirm=False))
+        assert response.status_code == 400
+
+    async def test_create_database_requires_confirmation(self, client):
+        response = await client.post("/admin/database/create")
+        assert response.status_code == 400
+
+        response = await client.post("/admin/database/create", json=dict(confirm=False))
+        assert response.status_code == 400

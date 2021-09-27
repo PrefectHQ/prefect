@@ -19,7 +19,11 @@ class TestCreateDeployment:
         flow_data = DataDocument.encode("cloudpickle", flow_function)
 
         data = DeploymentCreate(
-            name="My Deployment", flow_data=flow_data, flow_id=flow.id, tags=["foo"]
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+            tags=["foo"],
+            parameters={"foo": "bar"},
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 201
@@ -34,6 +38,7 @@ class TestCreateDeployment:
         assert deployment.name == "My Deployment"
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
+        assert deployment.parameters == {"foo": "bar"}
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow, flow_function
@@ -428,12 +433,8 @@ class TestReadDeployments:
         response = await client.post("/deployments/filter/", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
-
-        all_ids = await session.execute(
-            sa.select(models.orm.Deployment.id).order_by(models.orm.Deployment.id)
-        )
-        second_id = [str(i) for i in all_ids.scalars().all()][1]
-        assert response.json()[0]["id"] == second_id
+        # sorted by name by default
+        assert response.json()[0]["name"] == "My Deployment Y"
 
     async def test_read_deployments_returns_empty_list(self, client):
         response = await client.post("/deployments/filter/")

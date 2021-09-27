@@ -238,6 +238,7 @@ class TestCountFlowsModels:
             2,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 1],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -290,6 +291,8 @@ class TestCountFlowsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -313,6 +316,8 @@ class TestCountFlowsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -343,6 +348,7 @@ class TestCountFlowRunModels:
             3,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 2],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -395,6 +401,8 @@ class TestCountFlowRunModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -415,6 +423,8 @@ class TestCountFlowRunModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -444,7 +454,7 @@ class TestCountTaskRunsModels:
             dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
             3,
         ],
-        # possibly odd behavior
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 3],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 1],
         # next two check that filters are applied as an intersection not a union
         [
@@ -502,6 +512,8 @@ class TestCountTaskRunsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
         repsonse = await client.post(
             "/task_runs/count/",
@@ -521,6 +533,8 @@ class TestCountTaskRunsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -578,6 +592,20 @@ class TestCountDeploymentModels:
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-3"]))), 1],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
         [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    deployment_id=dict(any_=[d_1_1_id, d_1_2_id, uuid4()])
+                )
+            ),
+            2,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -611,6 +639,10 @@ class TestCountDeploymentModels:
         for k, v in kwargs.items():
             if k == "flow_filter":
                 k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
             elif k == "deployment_filter":
                 k = "deployments"
             adjusted_kwargs[k] = v
@@ -632,6 +664,10 @@ class TestCountDeploymentModels:
         for k, v in kwargs.items():
             if k == "flow_filter":
                 k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
             elif k == "deployment_filter":
                 k = "deployments"
             adjusted_kwargs[k] = v

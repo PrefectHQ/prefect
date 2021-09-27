@@ -1,19 +1,39 @@
+"""
+Prefect-specific exception types.
+"""
+
 from rich.traceback import Traceback
 
 
 class PrefectException(Exception):
+    """
+    Base exception type for Prefect errors.
+    """
+
     pass
 
 
 class MissingFlowError(PrefectException):
+    """
+    Raised when a given flow name is not found in the expected script.
+    """
+
     pass
 
 
 class UnspecifiedFlowError(PrefectException):
+    """
+    Raised when multiple flows are found in the expected script and no name is given.
+    """
+
     pass
 
 
 class FlowScriptError(PrefectException):
+    """
+    Raised when a script errors during evaluation while attempting to load a flow.
+    """
+
     def __init__(
         self,
         user_exc: Exception,
@@ -34,12 +54,26 @@ class FlowScriptError(PrefectException):
 
 
 class FlowParameterError(PrefectException):
+    """
+    Raised when a value passed as a flow parameter does not pass validation.
+    """
+
     pass
 
 
 class PrefectSignal(BaseException):
+    """
+    Base type for signal-like exceptions that should never be caught by users.
+    """
+
     pass
 
 
 class Abort(PrefectSignal):
+    """
+    Raised when the API sends an 'ABORT' instruction during state proposal.
+
+    Indicates that the run should exit immediately.
+    """
+
     pass

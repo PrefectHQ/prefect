@@ -103,6 +103,7 @@ def _apply_flow_filters(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
     Applies filters to a flow query as a combination of correlated
@@ -111,6 +112,12 @@ def _apply_flow_filters(
 
     if flow_filter:
         query = query.where(flow_filter.as_sql_filter())
+
+    if deployment_filter:
+        exists_clause = select(orm.Deployment).where(
+            orm.Deployment.flow_id == orm.Flow.id, deployment_filter.as_sql_filter()
+        )
+        query = query.where(exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
         exists_clause = select(orm.FlowRun).where(orm.FlowRun.flow_id == orm.Flow.id)
@@ -134,6 +141,7 @@ async def read_flows(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
 ) -> List[orm.Flow]:
@@ -144,6 +152,7 @@ async def read_flows(
         flow_filter (FlowFilter): only select flows that match these filters
         flow_run_filter (FlowRunFilter): only select flows whose flow runs match these filters
         task_run_filter (TaskRunFilter): only select flows whose task runs match these filters
+        deployment_filter (DeploymentFilter): only select flows whose deployments match these filters
         offset (int): Query offset
         limit (int): Query limit
 
@@ -158,6 +167,7 @@ async def read_flows(
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     if offset is not None:
@@ -175,6 +185,7 @@ async def count_flows(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
     """Count flows
 
@@ -183,6 +194,7 @@ async def count_flows(
         flow_filter (FlowFilter): only count flows that match these filters
         flow_run_filter (FlowRunFilter): only count flows whose flow runs match these filters
         task_run_filter (TaskRunFilter): only count flows whose task runs match these filters
+        deployment_filter (DeploymentFilter): only count flows whose deployments match these filters
 
     Returns:
         int: count of flows
@@ -195,6 +207,7 @@ async def count_flows(
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     result = await session.execute(query)

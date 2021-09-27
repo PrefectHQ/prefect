@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from prefect.client import OrionClient
-from prefect.futures import PrefectFuture, resolve_futures
+from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.states import Completed
 from prefect.orion.schemas.data import DataDocument
 
@@ -21,7 +21,7 @@ async def test_resolve_futures_transforms_future():
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
-    assert await resolve_futures(future) == "foo"
+    assert await resolve_futures_to_data(future) == "foo"
 
 
 @pytest.mark.parametrize("typ", [list, tuple, set])
@@ -32,7 +32,9 @@ async def test_resolve_futures_transforms_future_in_listlike_type(typ):
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
-    assert await resolve_futures(typ(["a", future, "b"])) == typ(["a", "foo", "b"])
+    assert await resolve_futures_to_data(typ(["a", future, "b"])) == typ(
+        ["a", "foo", "b"]
+    )
 
 
 async def test_resolve_futures_transforms_future_in_generator_type():
@@ -46,7 +48,7 @@ async def test_resolve_futures_transforms_future_in_generator_type():
         )
         yield "b"
 
-    assert await resolve_futures(gen()) == ["a", "foo", "b"]
+    assert await resolve_futures_to_data(gen()) == ["a", "foo", "b"]
 
 
 async def test_resolve_futures_transforms_future_in_nested_generator_types():
@@ -63,7 +65,7 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types():
         yield gen_a()
         yield "b"
 
-    assert await resolve_futures(gen_b()) == [range(2), ["foo"], "b"]
+    assert await resolve_futures_to_data(gen_b()) == [range(2), ["foo"], "b"]
 
 
 @pytest.mark.parametrize("typ", [dict, OrderedDict])
@@ -80,7 +82,7 @@ async def test_resolve_futures_transforms_future_in_dictlike_type(typ):
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
-    assert await resolve_futures(
+    assert await resolve_futures_to_data(
         typ([("a", 1), (key_future, value_future), ("b", 2)])
     ) == typ([("a", 1), ("foo", "bar"), ("b", 2)])
 
@@ -98,7 +100,9 @@ async def test_resolve_futures_transforms_future_in_dataclass():
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
-    assert await resolve_futures(Foo(a=1, foo=future)) == Foo(a=1, foo="bar", b=2)
+    assert await resolve_futures_to_data(Foo(a=1, foo=future)) == Foo(
+        a=1, foo="bar", b=2
+    )
 
 
 async def test_resolves_futures_in_nested_collections():
@@ -114,6 +118,6 @@ async def test_resolves_futures_in_nested_collections():
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
-    assert await resolve_futures(
+    assert await resolve_futures_to_data(
         Foo(foo=future, nested_list=[[future]], nested_dict={"key": [future]})
     ) == Foo(foo="bar", nested_list=[["bar"]], nested_dict={"key": ["bar"]})
