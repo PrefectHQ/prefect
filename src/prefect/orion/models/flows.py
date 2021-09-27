@@ -16,8 +16,8 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
     If a flow with the same name already exists, the existing flow is returned.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow (schemas.core.Flow): a flow model
+        session: a database session
+        flow: a flow model
 
     Returns:
         orm.Flow: the newly-created or existing flow
@@ -52,9 +52,9 @@ async def update_flow(
     Updates a flow.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_id (UUID): the flow id to update
-        flow (schemas.actions.FlowUpdate): a flow update model
+        session: a database session
+        flow_id: the flow id to update
+        flow: a flow update model
 
     Returns:
         bool: whether or not matching rows were found to update
@@ -80,8 +80,8 @@ async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
     Reads a flow by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_id (UUID): a flow id
+        session: A database session
+        flow_id: a flow id
 
     Returns:
         orm.Flow: the flow
@@ -95,8 +95,8 @@ async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
     Reads a flow by name.
 
     Args:
-        session (sa.orm.Session): A database session
-        name (str): a flow name
+        session: A database session
+        name: a flow name
 
     Returns:
         orm.Flow: the flow
@@ -156,16 +156,13 @@ async def read_flows(
     Read multiple flows.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_filter (FlowFilter): only select flows that match these filters
-        flow_run_filter (FlowRunFilter): only select flows whose flow runs match these
-            filters
-        task_run_filter (TaskRunFilter): only select flows whose task runs match these
-            filters
-        deployment_filter (DeploymentFilter): only select flows whose deployments match
-            these filters
-        offset (int): Query offset
-        limit (int): Query limit
+        session: A database session
+        flow_filter: only select flows that match these filters
+        flow_run_filter: only select flows whose flow runs match these filters
+        task_run_filter: only select flows whose task runs match these filters
+        deployment_filter: only select flows whose deployments match these filters
+        offset: Query offset
+        limit: Query limit
 
     Returns:
         List[orm.Flow]: flows
@@ -202,14 +199,11 @@ async def count_flows(
     Count flows.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_filter (FlowFilter): only count flows that match these filters
-        flow_run_filter (FlowRunFilter): only count flows whose flow runs match these
-            filters
-        task_run_filter (TaskRunFilter): only count flows whose task runs match these
-            filters
-        deployment_filter (DeploymentFilter): only count flows whose deployments match
-            these filters
+        session: A database session
+        flow_filter: only count flows that match these filters
+        flow_run_filter: only count flows whose flow runs match these filters
+        task_run_filter: only count flows whose task runs match these filters
+        deployment_filter: only count flows whose deployments match these filters
 
     Returns:
         int: count of flows
@@ -234,8 +228,8 @@ async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
     Delete a flow by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_id (UUID): a flow id
+        session: A database session
+        flow_id: a flow id
 
     Returns:
         bool: whether or not the flow was deleted
