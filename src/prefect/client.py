@@ -200,7 +200,7 @@ class OrionClient:
             flow_id: the flow ID of interest
 
         Returns:
-            a fully hydrated [Flow model][prefect.orion.schemas.core.Flow]
+            a [Flow model][prefect.orion.schemas.core.Flow] representation of the flow
         """
         response = await self.get(f"/flows/{flow_id}")
         return schemas.core.Flow.parse_obj(response.json())
@@ -368,6 +368,7 @@ class OrionClient:
         name: str,
         flow_data: DataDocument,
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
+        parameters: Dict[str, Any] = None,
         tags: List[str] = None,
     ) -> UUID:
         """
@@ -376,7 +377,7 @@ class OrionClient:
         Args:
             flow_id: the flow ID to create a deployment for
             name: the name of the deployment
-            flow_data: ??
+            flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
 
@@ -391,6 +392,7 @@ class OrionClient:
             name=name,
             schedule=schedule,
             flow_data=flow_data,
+            parameters=dict(parameters or {}),
             tags=list(tags or []),
         )
 
