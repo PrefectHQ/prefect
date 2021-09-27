@@ -11,7 +11,10 @@ extra_javascript:
     - js/custom.js
 markdown_extensions:
     - admonition
+    - attr_list
     - codehilite
+    - md_in_html
+    - meta
     - pymdownx.highlight:
         use_pygments: true
     - pymdownx.superfences
@@ -20,6 +23,7 @@ theme:
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+        - navigation.instant
     font:
         text: Inter
         code: Source Code Pro
