@@ -230,7 +230,14 @@ async def set_task_run_state(
     force: bool = False,
 ) -> orm.TaskRunState:
     """
-    Creates a new task run state.
+    Creates a new orchestrated task run state.
+
+    Setting a new state on a run is the one of the principal actions that is governed by
+    Orion's orchestration logic. Setting a new run state will not guarantee creation,
+    but instead trigger orchestration rules to govern the proposed `state` input. If
+    the state is considered valid, it will be written to the database. Otherwise, a
+    it's possible a different state, or no state, will be created. A `force` flag is
+    supplied to bypass a subset of orchestration logic.
 
     Args:
         session (sa.orm.Session): a database session
