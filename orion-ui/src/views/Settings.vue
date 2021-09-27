@@ -152,15 +152,14 @@ export default class Settings extends Vue {
   }
 
   async resetDatabase(): Promise<void> {
-    const { error } = await Api.query(Endpoints.universe)
-    this.showConfirmationToast({
-      type: error ? 'error' : 'success',
-      content: error ? error : 'Database has been reset'
+    const query = await Api.query(Endpoints.universe).fetch()
+    this.showToast({
+      type: query.error ? 'error' : 'success',
+      content: query.error ? query.error : 'Database reset'
     })
   }
 
-  showConfirmationToast(options: { type: string; content: any }): void {
-    // TODO: Add global toast notification
+  showToast(options: { type: string; content: any }): void {
     this.$toast.add({ ...options, timeout: 5000 })
   }
 

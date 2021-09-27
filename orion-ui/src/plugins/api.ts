@@ -131,7 +131,7 @@ export class Query {
     } finally {
       this.loading.value = false
     }
-    return this.response.value
+    return this
   }
 
   private get route(): string {
@@ -150,7 +150,6 @@ export class Query {
         if (res.status == 204) return res
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
-      .catch((err) => new Error(err))
   }
 
   constructor(
@@ -173,8 +172,6 @@ export class Query {
     if (pollInterval > 0) {
       this.pollInterval = pollInterval
       this.startPolling()
-    } else {
-      this.fetch()
     }
 
     return this
