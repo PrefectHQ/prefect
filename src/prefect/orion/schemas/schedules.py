@@ -350,16 +350,13 @@ class RRuleSchedule(PrefectBaseModel):
             return "UTC"
         return v
 
-    @property
-    def rrule_obj(self):
-        obj = rrule.rrulestr(self.rrule, cache=True)
-        return obj
-
     def _rrule_dates_iterator(self):
-        if self.rrule_obj._cache_complete:
-            gen = self.rrule_obj._cache
+        """Imitates cache logic in the rrule library"""
+        rrule_obj = rrule.rrulestr(self.rrule, cache=True)
+        if rrule_obj._cache_complete:
+            gen = rrule_obj._cache
         else:
-            gen = self.rrule_obj
+            gen = rrule_obj
         yield from gen
 
     async def get_dates(
@@ -396,8 +393,7 @@ class RRuleSchedule(PrefectBaseModel):
         dates = []
         counter = 0
 
-        # for next_date in self._rrule_dates_iterator():
-        for next_date in self.rrule_obj:
+        for next_date in self._rrule_dates_iterator():
 
             next_date = pendulum.instance(next_date)
 
