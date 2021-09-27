@@ -7,7 +7,6 @@ import pytest
 from pydantic import BaseModel
 
 from prefect import flow
-from prefect import orion
 from prefect.client import OrionClient
 from prefect.orion import schemas
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -15,6 +14,11 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled, Pending, Running, StateType
 from prefect.tasks import task
 from prefect.orion.schemas.schedules import IntervalSchedule
+
+
+async def test_hello(orion_client):
+    response = await orion_client.hello()
+    assert response.json() == "👋"
 
 
 async def test_create_then_read_flow(orion_client):
@@ -44,6 +48,8 @@ async def test_create_then_read_deployment(orion_client):
         name="test-deployment",
         flow_data=flow_data,
         schedule=schedule,
+        parameters={"foo": "bar"},
+        tags=["foo", "bar"],
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
@@ -51,6 +57,8 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.name == "test-deployment"
     assert lookup.flow_data == flow_data
     assert lookup.schedule == schedule
+    assert lookup.parameters == {"foo": "bar"}
+    assert lookup.tags == ["foo", "bar"]
 
 
 async def test_read_deployment_by_name(orion_client):
@@ -155,8 +163,8 @@ async def test_read_flow_runs_with_filtering(orion_client):
     fr_id_5 = await orion_client.create_flow_run(bar, state=Running())
 
     flows = await orion_client.read_flow_runs(
-        flows=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
-        flow_runs=schemas.filters.FlowRunFilter(
+        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
+        flow_run_filter=schemas.filters.FlowRunFilter(
             state_type=dict(
                 any_=[
                     StateType.SCHEDULED,
@@ -206,7 +214,7 @@ async def test_read_flows_with_filter(orion_client):
     flow_id_3 = await orion_client.create_flow(foobar)
 
     flows = await orion_client.read_flows(
-        flows=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
+        flow_filter=schemas.filters.FlowFilter(name=dict(any_=["foo", "bar"]))
     )
     assert len(flows) == 2
     assert all(isinstance(flow, schemas.core.Flow) for flow in flows)

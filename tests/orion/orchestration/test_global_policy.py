@@ -4,13 +4,13 @@ import pytest
 
 from prefect.orion.orchestration.rules import TERMINAL_STATES
 from prefect.orion.orchestration.global_policy import (
-    SetRunStateType,
-    SetStartTime,
-    SetEndTime,
     IncrementRunCount,
     IncrementRunTime,
+    SetEndTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
+    SetRunStateType,
+    SetStartTime,
     UpdateSubflowParentTask,
 )
 from prefect.orion.schemas import states, core

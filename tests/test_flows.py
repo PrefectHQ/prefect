@@ -1,10 +1,12 @@
 from typing import List
+import anyio
 from packaging.version import parse as parse_version
 
 import mypy.version
 import pydantic
 from pydantic.decorator import validate_arguments
 import pytest
+import time
 
 from prefect import flow, get_result, task, tags
 from prefect.client import OrionClient
@@ -15,6 +17,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
+from prefect.utilities.collections import quote
 
 
 class TestFlow:
@@ -372,16 +375,181 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return (my_subflow(),)
+                return quote(my_subflow())
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = (await get_result(my_flow()))[0]
+            subflow_state = (await get_result(my_flow())).unquote()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
         )
         assert set(flow_run.tags) == {"a", "b", "c", "d"}
+
+
+class TestFlowTimeouts:
+    def test_flows_fail_with_timeout(self):
+        @flow(timeout_seconds=0.1)
+        def my_flow():
+            time.sleep(1)
+
+        state = my_flow()
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+
+    async def test_async_flows_fail_with_timeout(self):
+        @flow(timeout_seconds=0.1)
+        async def my_flow():
+            await anyio.sleep(1)
+
+        state = await my_flow()
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+
+    def test_timeout_only_applies_if_exceeded(self):
+        @flow(timeout_seconds=0.5)
+        def my_flow():
+            time.sleep(0.1)
+
+        state = my_flow()
+        assert state.is_completed()
+
+    def test_timeout_does_not_wait_for_completion_for_sync_flows(self, tmp_path):
+        """
+        Sync flows are not cancellable, we can stop waiting for the worker thread but
+        it will continue running the flow code in the background. This test ensures
+        that the engine continues without waiting for the sleeping flow to finish.
+        """
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=0.1)
+        def my_flow():
+            time.sleep(0.5)
+            canary_file.touch()
+
+        t0 = time.time()
+        state = my_flow()
+        t1 = time.time()
+
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+        assert t1 - t0 < 0.5, f"The engine returns without waiting; took {t1-t0}s"
+
+        # Unfortunately, the worker thread continues running and we cannot stop it from
+        # doing so. The canary file _will_ be created.
+        time.sleep(0.5)
+        assert canary_file.exists()
+
+    def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
+        """
+        Sync flow runs tasks will fail after a timeout which will cause the flow to exit
+        """
+        canary_file = tmp_path / "canary"
+        task_canary_file = tmp_path / "task_canary"
+
+        @task
+        def my_task():
+            task_canary_file.touch()
+
+        @flow(timeout_seconds=0.1)
+        def my_flow():
+            time.sleep(0.25)
+            my_task()
+            canary_file.touch()  # Should not run
+
+        state = my_flow()
+
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+
+        # Wait in case the flow is just sleeping
+        time.sleep(0.5)
+        assert not canary_file.exists()
+        assert not task_canary_file.exists()
+
+    async def test_timeout_stops_execution_after_await_for_async_flows(self, tmp_path):
+        """
+        Async flow runs can be cancelled after a timeout
+        """
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=0.1)
+        async def my_flow():
+            await anyio.sleep(0.5)
+            canary_file.touch()  # Should not run
+
+        t0 = time.time()
+        state = await my_flow()
+        t1 = time.time()
+
+        assert state.is_failed()
+        assert "timed out after 0.1 seconds" in state.message
+        assert t1 - t0 < 0.5, f"The engine returns without waiting; took {t1-t0}s"
+
+        # Wait in case the flow is just sleeping
+        await anyio.sleep(0.5)
+        assert not canary_file.exists()
+
+    async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
+        """
+        Async flow runs can be cancelled after a timeout
+        """
+        canary_file = tmp_path / "canary"
+
+        @flow(timeout_seconds=0.1)
+        async def my_subflow():
+            await anyio.sleep(0.5)
+            canary_file.touch()  # Should not run
+
+        @flow
+        async def my_flow():
+            t0 = time.time()
+            subflow_state = await my_subflow()
+            t1 = time.time()
+            return t1 - t0, subflow_state
+
+        state = await my_flow()
+
+        runtime, subflow_state = await get_result(state)
+        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert runtime < 0.5, "The engine returns without waiting"
+
+        # Wait in case the flow is just sleeping
+        await anyio.sleep(0.5)
+        assert not canary_file.exists()
+
+    async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
+        """
+        Async flow runs can be cancelled after a timeout
+        """
+        canary_file = tmp_path / "canary"
+
+        @task
+        def timeout_noticing_task():
+            pass
+
+        @flow(timeout_seconds=0.1)
+        def my_subflow():
+            time.sleep(0.5)
+            timeout_noticing_task()
+            canary_file.touch()  # Should not run
+
+        @flow
+        def my_flow():
+            t0 = time.time()
+            subflow_state = my_subflow()
+            t1 = time.time()
+            return t1 - t0, subflow_state
+
+        state = my_flow()
+
+        runtime, subflow_state = await get_result(state)
+        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert runtime < 0.5, "The engine returns without waiting"
+
+        # Wait in case the flow is just sleeping
+        time.sleep(0.5)
+        assert not canary_file.exists()

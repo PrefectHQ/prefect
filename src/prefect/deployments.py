@@ -1,10 +1,15 @@
+"""
+Objects for specifying deployments for creation and utilities for working with
+deployments.
+"""
+
 import pathlib
 import runpy
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Set
+from typing import Any, AnyStr, Dict, List, Set
 from uuid import UUID
 
 import yaml
@@ -29,13 +34,27 @@ class DeploymentSpec(PrefectBaseModel):
 
     The flow object or flow location must be provided. If a flow object is not provided,
     `load_flow` must be called to load the flow from the given flow location.
+
+    Args:
+        name: The name of the deployment
+        flow: The flow object to associate with the deployment
+        flow_name: The name of the flow to associated with the deployment. Only required
+            if loading the flow from a `flow_location` with multiple flows. Inferred
+            from `flow` if provided.
+        flow_location: The path to a script containing the flow to associate with the
+            deployment. Inferred from `flow` if provided.
+        schedule: An optional schedule instance to use with the deployment.
+        tags: An optional set of tags to assign to the deployment.
+
     """
 
     name: str
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
+    parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
+    tags: List[str] = None
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -95,10 +114,17 @@ def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
     If the script has multiple flows in it, a flow name must be provided to specify
     the flow to return.
 
+    Args:
+        script_path: A path to a Python script containing flows
+        flow_name: An optional flow name to look for in the script
+
+    Returns:
+        The flow object from the script
+
     Raises:
-        - MissingFlowError: If no flows exist in the script
-        - MissingFlowError: If a flow name is provided and that flow does not exist
-        - UnspecifiedFlowError: If multiple flows exist but no flow name was provided
+        MissingFlowError: If no flows exist in the script
+        MissingFlowError: If a flow name is provided and that flow does not exist
+        UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
     try:
         variables = runpy.run_path(script_path)
@@ -147,6 +173,8 @@ async def create_deployment_from_spec(
         name=spec.name,
         schedule=spec.schedule,
         flow_data=flow_data,
+        parameters=spec.parameters,
+        tags=spec.tags,
     )
 
     return deployment_id

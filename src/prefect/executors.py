@@ -1,13 +1,17 @@
+"""
+Abstract class and implementations for executing task runs.
+"""
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, TypeVar
 from uuid import UUID
+from prefect.utilities.collections import visit_collection
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
 import prefect
 from prefect.client import OrionClient
-from prefect.futures import PrefectFuture, resolve_futures
+from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.states import State
 
 T = TypeVar("T", bound="BaseExecutor")
@@ -70,7 +74,7 @@ class LocalExecutor(BaseExecutor):
     """
     A simple executor that executes calls as they are submitted
 
-    If writing synchronous tasks, this executor will display no concurrency.
+    If writing synchronous tasks, this executor will have no concurrency.
     If writing async tasks, they will run concurrently as if using asyncio directly.
     """
 
@@ -89,14 +93,13 @@ class LocalExecutor(BaseExecutor):
             raise RuntimeError("The executor must be started before submitting work.")
 
         # Block until all upstreams are resolved
-        args, kwargs = await resolve_futures((args, kwargs))
+        args, kwargs = await resolve_futures_to_data((args, kwargs))
 
         # Run the function immediately and store the result in memory
         self._results[run_id] = await run_fn(*args, **kwargs)
 
         return PrefectFuture(
-            task_run_id=run_id,
-            flow_run_id=self.flow_run_id,
+            run_id=run_id,
             client=self.orion_client,
             executor=self,
         )
@@ -128,15 +131,20 @@ class DaskExecutor(BaseExecutor):
         if not self._client:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        args, kwargs = await resolve_futures(
-            (args, kwargs), resolve_fn=self._get_data_from_future
+        async def visit_fn(expr):
+            if isinstance(expr, PrefectFuture):
+                return await self._get_data_from_future(expr)
+            else:
+                return expr
+
+        args, kwargs = await visit_collection(
+            (args, kwargs), visit_fn=visit_fn, return_data=True
         )
 
         self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 
         return PrefectFuture(
-            task_run_id=run_id,
-            flow_run_id=self.flow_run_id,
+            run_id=run_id,
             client=self.orion_client,
             executor=self,
         )

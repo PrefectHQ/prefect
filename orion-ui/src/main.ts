@@ -3,6 +3,7 @@ import App from './App.vue'
 import './registerServiceWorker'
 import router from './router'
 import store from './store'
+import api from './plugins/api'
 
 // Global components
 import ButtonCard from '@/components/Global/Button--Card/Button--Card.vue'
@@ -28,7 +29,7 @@ const defaultClass = 'default-color-mode'
 const colorMode = storedMode ? storedMode + '-color-mode' : defaultClass
 document.body.classList.add(colorMode)
 
-const app = createApp(App).use(MiterDesign).use(store).use(router)
+const app = createApp(App).use(MiterDesign).use(store).use(router).use(api)
 
 app.component('button-card', ButtonCard)
 app.component('rounded-button', ButtonRounded)
