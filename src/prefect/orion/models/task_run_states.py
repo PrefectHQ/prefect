@@ -14,8 +14,8 @@ async def read_task_run_state(
     Reads a task run state by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        task_run_state_id (str): a task run state id
+        session: A database session
+        task_run_state_id: a task run state id
 
     Returns:
         orm.TaskRunState: the task state
@@ -31,8 +31,8 @@ async def read_task_run_states(
     Reads task runs states for a task run.
 
     Args:
-        session (sa.orm.Session): A database session
-        task_run_id (str): the task run id
+        session: A database session
+        task_run_id: the task run id
 
     Returns:
         List[orm.TaskRunState]: the task run states
@@ -54,8 +54,8 @@ async def delete_task_run_state(
     Delete a task run state by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        task_run_state_id (str): a task run state id
+        session: A database session
+        task_run_state_id: a task run state id
 
     Returns:
         bool: whether or not the task run state was deleted

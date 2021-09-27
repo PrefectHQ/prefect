@@ -14,8 +14,8 @@ async def read_flow_run_state(
     Reads a flow run state by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_state_id (str): a flow run state id
+        session: A database session
+        flow_run_state_id: a flow run state id
 
     Returns:
         orm.FlowRunState: the flow state
@@ -31,8 +31,8 @@ async def read_flow_run_states(
     Reads flow runs states for a flow run.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_id (str): the flow run id
+        session: A database session
+        flow_run_id: the flow run id
 
     Returns:
         List[orm.FlowRunState]: the flow run states
@@ -54,8 +54,8 @@ async def delete_flow_run_state(
     Delete a flow run state by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_state_id (str): a flow run state id
+        session: A database session
+        flow_run_state_id: a flow run state id
 
     Returns:
         bool: whether or not the flow run state was deleted
