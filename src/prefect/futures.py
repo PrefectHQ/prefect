@@ -127,12 +127,11 @@ class PrefectFuture(Generic[R]):
 async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
-    new collection with the same structure with futures resolved by `visit_fn`.
+    new collection with the same structure with futures resolved to their results.
+    Resolving futures to their results may wait for execution to complete and require
+    communication with the API.
 
     Unsupported object types will be returned without modification.
-
-    Futures are resolved into their underlying data, which may wait for
-    execution to complete.
     """
 
     async def visit_fn(expr):
@@ -149,12 +148,10 @@ async def resolve_futures_to_states(
 ) -> Union[State, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
-    new collection with the same structure with futures resolved by `visit_fn`.
+    new collection with the same structure with futures resolved to their final states.
+    Resolving futures to their final states may wait for execution to complete.
 
     Unsupported object types will be returned without modification.
-
-    By default, futures are resolved into their underlying states, which may wait for
-    execution to complete.
     """
 
     async def visit_fn(expr):

@@ -81,7 +81,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        executor: Union[Type[BaseExecutor], BaseExecutor] = LocalExecutor,
+        executor: Union[Type[BaseExecutor], BaseExecutor] = None,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -90,6 +90,7 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
+        executor = executor or LocalExecutor()
         self.executor = executor() if isinstance(executor, type) else executor
 
         self.description = description or inspect.getdoc(fn)
@@ -225,7 +226,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = LocalExecutor,
+    executor: BaseExecutor = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -238,7 +239,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = LocalExecutor,
+    executor: BaseExecutor = None,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
