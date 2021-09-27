@@ -1,3 +1,5 @@
+import time
+from dateutil import rrule
 from datetime import timedelta
 
 import pendulum
@@ -9,7 +11,10 @@ from prefect.orion.schemas.schedules import (
     IntervalScheduleFilters,
     CronSchedule,
     IntervalSchedule,
+    RRuleSchedule,
 )
+
+dt = pendulum.datetime(2020, 1, 1)
 
 
 class TestCreateIntervalSchedule:
@@ -490,3 +495,207 @@ class TestCronScheduleDaylightSavingsTime:
         # constant 9am start
         assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
         assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
+
+
+class TestCreateRRuleSchedule:
+    async def test_rrule_is_required(self):
+        with pytest.raises(ValidationError, match="(field required)"):
+            RRuleSchedule()
+
+    async def test_create_from_rrule_str(self):
+        assert RRuleSchedule(rrule="FREQ=DAILY")
+
+    async def test_create_from_rrule_obj(self):
+        s = RRuleSchedule.from_rrule(rrule.rrulestr("FREQ=DAILY"))
+        assert "RRULE:FREQ=DAILY" in s.rrule
+        s = RRuleSchedule.from_rrule(rrule.rrule(freq=rrule.MONTHLY))
+        assert "RRULE:FREQ=MONTHLY" in s.rrule
+
+    async def test_default_timezone_is_utc(self):
+        s = RRuleSchedule(rrule="FREQ=DAILY")
+        assert s.timezone == "UTC"
+
+    async def test_create_without_dtstart(self):
+        # avoid minute boundaries for stringifying time
+        while pendulum.now().second == 59 and pendulum.now().microsecond > 750000:
+            time.sleep(0.25)
+
+        s = RRuleSchedule(rrule="FREQ=DAILY")
+        assert pendulum.now().strftime("%Y%m%dT%H%M") in str(s.rrule)
+        assert s.timezone == "UTC"
+
+    async def test_create_with_dtstart(self):
+        s = RRuleSchedule(rrule=r"DTSTART:20210905T000000\nFREQ=DAILY")
+        assert "DTSTART:20210905T000000" in str(s.rrule)
+        assert s.timezone == "UTC"
+
+    async def test_create_with_timezone(self):
+        s = RRuleSchedule(rrule=r"FREQ=DAILY", timezone="America/New_York")
+        assert s.timezone == "America/New_York"
+
+
+class TestRRuleSchedule:
+    @pytest.mark.parametrize(
+        "start_date",
+        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+    )
+    async def test_daily_with_start_date(self, start_date):
+        s = RRuleSchedule.from_rrule(rrule.rrule(freq=rrule.DAILY, dtstart=start_date))
+        dates = await s.get_dates(5, start=start_date)
+        assert dates == [start_date.add(days=i) for i in range(5)]
+
+    @pytest.mark.parametrize(
+        "start_date",
+        [datetime(2018, 1, 1), datetime(2021, 2, 2), datetime(2025, 3, 3)],
+    )
+    async def test_daily_with_end_date(self, start_date):
+        s = RRuleSchedule.from_rrule(rrule.rrule(freq=rrule.DAILY, dtstart=start_date))
+        dates = await s.get_dates(
+            5, start=start_date, end=start_date.add(days=2, hours=-1)
+        )
+        assert dates == [start_date.add(days=i) for i in range(2)]
+
+    async def test_rrule_returns_nothing_before_dtstart(self):
+        s = RRuleSchedule.from_rrule(
+            rrule.rrule(freq=rrule.DAILY, dtstart=pendulum.datetime(2030, 1, 1))
+        )
+        dates = await s.get_dates(5, start=pendulum.now("UTC"))
+        assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
+
+    async def test_rrule_returns_nothing_before_dtstart(self):
+        s = RRuleSchedule.from_rrule(
+            rrule.rrule(freq=rrule.DAILY, dtstart=pendulum.datetime(2030, 1, 1))
+        )
+        dates = await s.get_dates(5, start=pendulum.now("UTC"))
+        assert dates == [pendulum.datetime(2030, 1, 1).add(days=i) for i in range(5)]
+
+    @pytest.mark.parametrize(
+        "rrule_obj,rrule_str,expected_dts",
+        [
+            # Every third year (INTERVAL) on the first Tuesday (BYDAY) after a Monday (BYMONTHDAY) in October.
+            (
+                rrule.rrule(
+                    rrule.YEARLY,
+                    dt,
+                    interval=3,
+                    bymonth=10,
+                    byweekday=rrule.TU,
+                    bymonthday=(2, 3, 4, 5, 6, 7, 8),
+                ),
+                "DTSTART:20200101T000000\nRRULE:FREQ=YEARLY;INTERVAL=3;BYMONTH=10;BYMONTHDAY=2,3,4,5,6,7,8;BYDAY=TU",
+                [
+                    pendulum.datetime(2020, 10, 6, 0, 0),
+                    pendulum.datetime(2023, 10, 3, 0, 0),
+                    pendulum.datetime(2026, 10, 6, 0, 0),
+                ],
+            ),
+            # every minute
+            (
+                rrule.rrule(rrule.MINUTELY, dt),
+                "DTSTART:20200101T000000\nRRULE:FREQ=MINUTELY",
+                [
+                    dt.add(minutes=0),
+                    dt.add(minutes=1),
+                    dt.add(minutes=2),
+                ],
+            ),
+            # last weekday of every other month
+            (
+                rrule.rrule(
+                    rrule.MONTHLY,
+                    dt,
+                    interval=2,
+                    byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR),
+                    bysetpos=-1,
+                ),
+                "DTSTART:20200101T000000\nRRULE:FREQ=MONTHLY;INTERVAL=2;BYSETPOS=-1;BYDAY=MO,TU,WE,TH,FR",
+                [
+                    pendulum.datetime(2020, 1, 31),
+                    pendulum.datetime(2020, 3, 31),
+                    pendulum.datetime(2020, 5, 29),
+                ],
+            ),
+            # Every weekday (BYDAY) for the next 8 weekdays (COUNT).
+            (
+                rrule.rrule(
+                    rrule.DAILY,
+                    dt,
+                    byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR),
+                    count=8,
+                ),
+                "DTSTART:20200101T000000\nRRULE:FREQ=DAILY;COUNT=8;BYDAY=MO,TU,WE,TH,FR",
+                [
+                    pendulum.datetime(2020, 1, 1),
+                    pendulum.datetime(2020, 1, 2),
+                    pendulum.datetime(2020, 1, 3),
+                ],
+            ),
+            # Every three weeks on Sunday until 9/23/2021
+            (
+                rrule.rrule(
+                    rrule.WEEKLY,
+                    dt,
+                    byweekday=rrule.SU,
+                    interval=3,
+                    until=pendulum.datetime(2021, 9, 23),
+                ),
+                "DTSTART:20200101T000000\nRRULE:FREQ=WEEKLY;INTERVAL=3;UNTIL=20210923T000000;BYDAY=SU",
+                [
+                    pendulum.datetime(2020, 1, 5),
+                    pendulum.datetime(2020, 1, 26),
+                    pendulum.datetime(2020, 2, 16),
+                ],
+            ),
+            # every week at 9:13:54
+            (
+                rrule.rrule(rrule.WEEKLY, dt, byhour=9, byminute=13, bysecond=54),
+                "DTSTART:20200101T000000\nRRULE:FREQ=WEEKLY;BYHOUR=9;BYMINUTE=13;BYSECOND=54",
+                [
+                    pendulum.datetime(2020, 1, 1, 9, 13, 54),
+                    pendulum.datetime(2020, 1, 8, 9, 13, 54),
+                    pendulum.datetime(2020, 1, 15, 9, 13, 54),
+                ],
+            ),
+            # every year on the 7th and 16th week, on the first weekday
+            (
+                rrule.rrule(rrule.YEARLY, dt, byweekno=(7, 16), byweekday=rrule.WE),
+                "DTSTART:20200101T000000\nRRULE:FREQ=YEARLY;BYWEEKNO=7,16;BYDAY=WE",
+                [
+                    pendulum.datetime(2020, 2, 12),
+                    pendulum.datetime(2020, 4, 15),
+                    pendulum.datetime(2021, 2, 17),
+                ],
+            ),
+        ],
+    )
+    async def test_rrule(self, rrule_obj, rrule_str, expected_dts):
+        s = RRuleSchedule.from_rrule(rrule_obj)
+        assert s.dict()["rrule"] == rrule_str
+        dates = await s.get_dates(n=3, start=dt)
+        assert dates == expected_dts
+
+    async def test_rrule_with_count(self):
+        # Every weekday (BYDAY) for the next 8 weekdays (COUNT).
+        s = RRuleSchedule.from_rrule(
+            rrule.rrule(
+                rrule.DAILY,
+                dt,
+                byweekday=(rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR),
+                count=8,
+            )
+        )
+        assert (
+            s.dict()["rrule"]
+            == "DTSTART:20200101T000000\nRRULE:FREQ=DAILY;COUNT=8;BYDAY=MO,TU,WE,TH,FR"
+        )
+        dates = await s.get_dates(n=100, start=dt)
+        assert dates == [
+            dt.add(days=0),
+            dt.add(days=1),
+            dt.add(days=2),
+            dt.add(days=5),
+            dt.add(days=6),
+            dt.add(days=7),
+            dt.add(days=8),
+            dt.add(days=9),
+        ]

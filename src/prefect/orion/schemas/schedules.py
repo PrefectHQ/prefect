@@ -5,6 +5,7 @@ from typing import List, Set, Union
 import pendulum
 import pytz
 from croniter import croniter
+from dateutil import rrule
 from pydantic import Field, conint, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -321,4 +322,105 @@ class CronSchedule(PrefectBaseModel):
         return dates
 
 
-SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule]
+class RRuleSchedule(PrefectBaseModel):
+
+    rrule: str
+    timezone: str = Field(None, example="America/New_York")
+
+    @classmethod
+    def from_rrule(cls, rrule: rrule.rrule):
+        if rrule._dtstart.tzinfo is not None:
+            timezone = rrule._dtstart.tzinfo.name
+        else:
+            timezone = "UTC"
+        return RRuleSchedule(rrule=str(rrule), timezone=timezone)
+
+    @validator("rrule", pre=True, always=True)
+    def set_start_date(cls, v, *, values, **kwargs):
+        # if the rrule string doesn't include a start date, create one using `now`
+        if "DTSTART" not in v:
+            v = f'DTSTART{pendulum.now().strftime("%Y%m%dT%H%M%S")}\n{v}'
+        return v
+
+    @validator("timezone", always=True)
+    def valid_timezone(cls, v):
+        if v and v not in pendulum.tz.timezones:
+            raise ValueError(f'Invalid timezone: "{v}"')
+        elif v is None:
+            return "UTC"
+        return v
+
+    @property
+    def rrule_obj(self):
+        obj = rrule.rrulestr(self.rrule, cache=True)
+        return obj
+
+    def _rrule_dates_iterator(self):
+        if self.rrule_obj._cache_complete:
+            gen = self.rrule_obj._cache
+        else:
+            gen = self.rrule_obj
+        yield from gen
+
+    async def get_dates(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> List[datetime.datetime]:
+        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or after
+                this date. Defaults to the current date.
+            end (datetime.datetime, optional): No returned date will exceed this date.
+
+        Returns:
+            List[pendulum.DateTime]: a list of dates
+        """
+        if start is None:
+            start = pendulum.now(self.timezone or "UTC")
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
+        elif self.timezone:
+            start = start.in_tz(self.timezone)
+
+        dates = []
+        counter = 0
+
+        # for next_date in self._rrule_dates_iterator():
+        for next_date in self.rrule_obj:
+
+            next_date = pendulum.instance(next_date)
+
+            # if the start date has not been reached, continue
+            if next_date < start:
+                continue
+
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+
+            dates.append(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
+            counter += 1
+
+            # yield event loop control
+            await asyncio.sleep(0)
+
+        return dates
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
