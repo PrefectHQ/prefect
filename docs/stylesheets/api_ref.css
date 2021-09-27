@@ -26,3 +26,6 @@
 
 /* arguments & returns tables */
 .doc-contents table td { font-size: 1.15em; }
+
+/* bold the argument name column */
+.doc-contents table td:nth-child(1) { font-weight: bold; }
