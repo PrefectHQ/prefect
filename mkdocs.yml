@@ -58,6 +58,7 @@ nav:
             - tutorials/futures-and-parallelism.md
             - tutorials/orion.md
             - tutorials/deployments.md
+            - tutorials/rest.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md

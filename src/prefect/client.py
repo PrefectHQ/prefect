@@ -317,7 +317,7 @@ class OrionClient:
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
 
-        flow_run_data = schemas.actions.FlowRunCreate(
+        flow_run_create = schemas.actions.FlowRunCreate(
             flow_id=flow_id,
             flow_version=flow.version,
             parameters=parameters,
@@ -327,9 +327,9 @@ class OrionClient:
             state=state,
         )
 
-        response = await self.post(
-            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
-        )
+        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+
+        response = await self.post("/flow_runs/", json=flow_run_create_json)
         flow_run_id = response.json().get("id")
         if not flow_run_id:
             raise httpx.RequestError(f"Malformed response: {response}")
