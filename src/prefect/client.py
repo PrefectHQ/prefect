@@ -593,8 +593,6 @@ class OrionClient:
             return state
 
         elif response.status == schemas.responses.SetStateStatus.ABORT:
-            state = await self.read_task_run(task_run_id)
-            breakpoint()
             raise exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
