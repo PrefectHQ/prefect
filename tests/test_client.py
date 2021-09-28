@@ -273,7 +273,9 @@ async def test_create_then_read_task_run(orion_client):
         pass
 
     flow_run_id = await orion_client.create_flow_run(foo)
-    task_run_id = await orion_client.create_task_run(bar, flow_run_id=flow_run_id)
+    task_run_id = await orion_client.create_task_run(
+        bar, flow_run_id=flow_run_id, dynamic_key="0"
+    )
     assert isinstance(task_run_id, UUID)
 
     lookup = await orion_client.read_task_run(task_run_id)

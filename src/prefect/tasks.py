@@ -231,7 +231,7 @@ class Task(Generic[P, R]):
         parameters = get_call_parameters(self.fn, args, kwargs)
 
         # Stash the current dynamic key to pass along to the engine
-        dynamic_key = self._dynamic_key
+        dynamic_key = str(self._dynamic_key)
 
         # Update the dynamic key so future task calls are distinguishable from this one
         self.update_dynamic_key()
