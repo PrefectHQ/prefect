@@ -35,8 +35,7 @@
           <span class="text--grey-80">{{ location }}</span>
         </span>
 
-        <!-- Hiding these for now since they're not in the design but I think we'll need them -->
-        <!-- <Tag
+        <Tag
           v-for="tag in tags"
           :key="tag"
           color="secondary-pressed"
@@ -45,7 +44,7 @@
           flat
         >
           {{ tag }}
-        </Tag> -->
+        </Tag>
       </div>
     </div>
 
@@ -131,7 +130,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
   search: string = ''
 
   get location(): string {
-    return this.deployment.location
+    return this.deployment.flow_data.blob || '--'
   }
 
   get parameters(): { [key: string]: any }[] {
@@ -160,10 +159,6 @@ export default class ListItemDeployment extends Vue.with(Props) {
     return this.parameters.filter(
       (p) => p.name.includes(this.search) || p.type.includes(this.search)
     )
-  }
-
-  mounted() {
-    console.log(this.deployment)
   }
 }
 </script>
