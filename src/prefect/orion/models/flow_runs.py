@@ -21,16 +21,18 @@ from prefect.orion.utilities.database import dialect_specific_insert
 async def create_flow_run(
     session: sa.orm.Session, flow_run: schemas.core.FlowRun
 ) -> orm.FlowRun:
-    """Creates a new flow run. If the provided flow run has a state attached, it
-    will also be created.
+    """Creates a new flow run.
+
+    If the provided flow run has a state attached, it will also be created.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_run (schemas.core.FlowRun): a flow run model
+        session: a database session
+        flow_run: a flow run model
 
     Returns:
         orm.FlowRun: the newly-created flow run
     """
+
     now = pendulum.now("UTC")
     # if there's no idempotency key, just create the run
     if not flow_run.idempotency_key:
@@ -88,17 +90,17 @@ async def update_flow_run(
     session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.actions.FlowRunUpdate
 ) -> bool:
     """
-    Updates a flow run
+    Updates a flow run.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_run_id (UUID): the flow run id to update
-        flow_run (schemas.actions.FlowRun): a flow run model
+        session: a database session
+        flow_run_id: the flow run id to update
+        flow_run: a flow run model
 
     Returns:
         bool: whether or not matching rows were found to update
-
     """
+
     if not isinstance(flow_run, schemas.actions.FlowRunUpdate):
         raise ValueError(
             f"Expected parameter flow_run to have type schemas.actions.FlowRunUpdate, got {type(flow_run)!r} instead"
@@ -115,15 +117,17 @@ async def update_flow_run(
 
 
 async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
-    """Reads a flow run by id
+    """
+    Reads a flow run by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_id (str): a flow run id
+        session: A database session
+        flow_run_id: a flow run id
 
     Returns:
         orm.FlowRun: the flow run
     """
+
     return await session.get(orm.FlowRun, flow_run_id)
 
 
@@ -132,14 +136,21 @@ def _apply_flow_run_filters(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
-    Applies filters to a flow run query as a combination of correlated
-    EXISTS subqueries.
+    Applies filters to a flow run query as a combination of EXISTS subqueries.
     """
 
     if flow_run_filter:
         query = query.where(flow_run_filter.as_sql_filter())
+
+    if deployment_filter:
+        exists_clause = select(orm.Deployment).where(
+            orm.Deployment.id == orm.FlowRun.deployment_id,
+            deployment_filter.as_sql_filter(),
+        )
+        query = query.where(exists_clause.exists())
 
     if flow_filter or task_run_filter:
 
@@ -173,20 +184,23 @@ async def read_flow_runs(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
 ) -> List[orm.FlowRun]:
-    """Read flow runs
+    """
+    Read flow runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter, optional): only select flow runs whose flows match these filters
-        flow_run_filter (FlowRunFilter, optional): only select flow runs match these filters
-        task_run_filter (TaskRunFilter, optional): only select flow runs whose task runs match these filters
-        offset (int, optional): Query offset
-        limit (int, optional): Query limit
-        sort (schemas.sorting.FlowRunSort, optional) - Query sort
+        session: a database session
+        flow_filter: only select flow runs whose flows match these filters
+        flow_run_filter: only select flow runs match these filters
+        task_run_filter: only select flow runs whose task runs match these filters
+        deployment_filter: only sleect flow runs whose deployments match these filters
+        offset: Query offset
+        limit: Query limit
+        sort: Query sort
 
     Returns:
         List[orm.FlowRun]: flow runs
@@ -199,6 +213,7 @@ async def read_flow_runs(
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     if offset is not None:
@@ -216,18 +231,22 @@ async def count_flow_runs(
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
-    """Count flow runs
+    """
+    Count flow runs.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_filter (FlowFilter): only count flow runs whose flows match these filters
-        flow_run_filter (FlowRunFilter): only count flow runs that match these filters
-        task_run_filter (TaskRunFilter): only count flow runs whose task runs match these filters
+        session: a database session
+        flow_filter: only count flow runs whose flows match these filters
+        flow_run_filter: only count flow runs that match these filters
+        task_run_filter: only count flow runs whose task runs match these filters
+        deployment_filter: only count flow runs whose deployments match these filters
 
     Returns:
         int: count of flow runs
     """
+
     query = select(sa.func.count(sa.text("*"))).select_from(orm.FlowRun)
 
     query = _apply_flow_run_filters(
@@ -235,6 +254,7 @@ async def count_flow_runs(
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     result = await session.execute(query)
@@ -242,15 +262,17 @@ async def count_flow_runs(
 
 
 async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
-    """Delete a flow run by flow_run_id
+    """
+    Delete a flow run by flow_run_id.
 
     Args:
-        session (sa.orm.Session): A database session
-        flow_run_id (str): a flow run id
+        session: A database session
+        flow_run_id: a flow run id
 
     Returns:
         bool: whether or not the flow run was deleted
     """
+
     result = await session.execute(
         delete(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
     )
@@ -263,19 +285,27 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
 ) -> orm.FlowRunState:
-    """Creates a new flow run state
+    """
+    Creates a new orchestrated flow run state.
+
+    Setting a new state on a run is the one of the principal actions that is governed by
+    Orion's orchestration logic. Setting a new run state will not guarantee creation,
+    but instead trigger orchestration rules to govern the proposed `state` input. If
+    the state is considered valid, it will be written to the database. Otherwise, a
+    it's possible a different state, or no state, will be created. A `force` flag is
+    supplied to bypass a subset of orchestration logic.
 
     Args:
-        session (sa.orm.Session): a database session
-        flow_run_id (str): the flow run id
-        state (schemas.states.State): a flow run state model
-        force (bool): if False, orchestration rules will be applied that may
-            alter or prevent the state transition. If True, orchestration rules are
-            not applied.
+        session: a database session
+        flow_run_id: the flow run id
+        state: a flow run state model
+        force: if False, orchestration rules will be applied that may alter or prevent
+            the state transition. If True, orchestration rules are not applied.
 
     Returns:
-        orm.FlowRunState: the newly-created flow run state
+        OrchestrationResult object
     """
+
     # load the flow run
     run = await models.flow_runs.read_flow_run(
         session=session,
@@ -314,16 +344,14 @@ async def set_flow_run_state(
             )
 
         for rule in global_rules:
-            context = await stack.enter_async_context(
-                rule(context, *intended_transition)
-            )
+            context = await stack.enter_async_context(rule(context))
 
-        validated_orm_state = await context.validate_proposed_state()
+        await context.validate_proposed_state()
 
     await session.flush()
 
     result = OrchestrationResult(
-        state=validated_orm_state,
+        state=context.validated_state,
         status=context.response_status,
         details=context.response_details,
     )

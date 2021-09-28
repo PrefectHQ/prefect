@@ -1,5 +1,5 @@
 """
-Base workflow class and decorator
+Module containing the base workflow class and decorator - for most use cases, using the [`@flow` decorator][prefect.flows.flow] is preferred.
 """
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
@@ -11,7 +11,6 @@ from typing import (
     Awaitable,
     Callable,
     Coroutine,
-    Iterable,
     TypeVar,
     cast,
     overload,
@@ -44,16 +43,17 @@ P = ParamSpec("P")  # The parameters of the flow
 
 class Flow(Generic[P, R]):
     """
-    A Prefect workflow definition
+    A Prefect workflow definition.
 
-    We recommend using the `@flow` decorator for most use-cases.
+    !!! note
+        We recommend using the [`@flow` decorator][prefect.flows.flow] for most use-cases.
 
     Wraps a function with an entrypoint to the Prefect engine. To preserve the input
-    and output types, we use the generic type variables P and R for "Parameters" and
+    and output types, we use the generic type variables `P` and `R` for "Parameters" and
     "Returns" respectively.
 
     Args:
-        fn: The function defining the workflow
+        fn: The function defining the workflow.
         name: An optional name for the flow; if not provided, the name will be inferred
             from the given function.
         version: An optional version string for the flow; if not provided, we will
@@ -63,6 +63,15 @@ class Flow(Generic[P, R]):
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the flow. If the flow exceeds this runtime, it will be marked as failed.
+            Flow execution may continue until the next task is called.
+        validate_parameters: By default, parameters passed to flows are validated by
+            Pydantic. This will check that input values conform to the annotated types
+            on the function. Where possible, values will be coerced into the correct
+            type; for example, if a parameter is defined as `x: int` and "5" is passed,
+            it will be resolved to `5`. If set to `False`, no validation will be
+            performed on flow parameters.
     """
 
     # NOTE: These parameters (types, defaults, and docstrings) should be duplicated
@@ -72,14 +81,16 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        executor: Union[Type[BaseExecutor], BaseExecutor] = LocalExecutor,
+        executor: Union[Type[BaseExecutor], BaseExecutor] = None,
         description: str = None,
+        timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
     ):
         if not callable(fn):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
+        executor = executor or LocalExecutor()
         self.executor = executor() if isinstance(executor, type) else executor
 
         self.description = description or inspect.getdoc(fn)
@@ -90,6 +101,8 @@ class Flow(Generic[P, R]):
         # Version defaults to a hash of the function's file
         flow_file = fn.__globals__.get("__file__")  # type: ignore
         self.version = version or (file_hash(flow_file) if flow_file else None)
+
+        self.timeout_seconds = float(timeout_seconds) if timeout_seconds else None
 
         self.parameters = parameter_schema(self.fn)
         self.should_validate_parameters = validate_parameters
@@ -109,14 +122,14 @@ class Flow(Generic[P, R]):
 
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Validate parameters that are going to be used to call the flow
+        Validate parameters for compatibility with the flow by attempting to cast the inputs to the
+        associated types specified by the function's type annotations.
 
         Returns:
-            - A new dict of parameters
+            A new dict of parameters that have been cast to the appropriate types
 
-        Raises
-            - FlowParameterError: if the parameters are not valid
-
+        Raises:
+            FlowParameterError: if the provided parameters are not valid
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
         args, kwargs = parameters_to_positional_and_keyword(self.fn, parameters)
@@ -159,18 +172,16 @@ class Flow(Generic[P, R]):
         **kwargs: "P.kwargs",
     ):
         """
-        Run the flow.
+        Run the flow using the Prefect engine against a backing API (note this will create a new flow run in the backend).
 
         If writing an async flow, this call must be awaited.
 
-        Will create a new flow run in the backing API
-
         Args:
-            *args: Arguments to run the flow with
-            **kwargs: Keyword arguments to run the flow with
+            *args: Arguments to run the flow with.
+            **kwargs: Keyword arguments to run the flow with.
 
         Returns:
-            The final state of the flow run
+            The final state of the flow run.
 
         Examples:
 
@@ -195,7 +206,7 @@ class Flow(Generic[P, R]):
 
             >>> from prefect import tags
             >>> with tags("db", "blue"):
-            >>>    my_flow("foo")
+            >>>     my_flow("foo")
         """
         from prefect.engine import enter_flow_run_engine_from_flow_call
 
@@ -215,8 +226,9 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = LocalExecutor,
+    executor: BaseExecutor = None,
     description: str = None,
+    timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
 ) -> Callable[[Callable[P, R]], Flow[P, R]]:
     ...
@@ -227,8 +239,9 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = LocalExecutor,
+    executor: BaseExecutor = None,
     description: str = None,
+    timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
 ):
     """
@@ -246,6 +259,15 @@ def flow(
             not provided, a `LocalExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
+        timeout_seconds: An optional number of seconds indicating a maximum runtime for
+            the flow. If the flow exceeds this runtime, it will be marked as failed.
+            Flow execution may continue until the next task is called.
+        validate_parameters: By default, parameters passed to flows are validated by
+            Pydantic. This will check that input values conform to the annotated types
+            on the function. Where possible, values will be coerced into the correct
+            type; for example, if a parameter is defined as `x: int` and "5" is passed,
+            it will be resolved to `5`. If set to `False`, no validation will be
+            performed on flow parameters.
 
     Returns:
         A callable `Flow` object which, when called, will run the flow and return its
@@ -280,10 +302,10 @@ def flow(
         Define a flow that submits its tasks to dask
 
         >>> from prefect.executors import DaskExecutor
+        >>>
         >>> @flow(executor=DaskExecutor)
         >>> def my_flow():
         >>>     pass
-
     """
     if __fn:
         return cast(
@@ -294,6 +316,7 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
             ),
         )
@@ -306,6 +329,7 @@ def flow(
                 version=version,
                 executor=executor,
                 description=description,
+                timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
             ),
         )

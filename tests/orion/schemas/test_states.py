@@ -8,6 +8,7 @@ from prefect.orion.schemas.states import (
     AwaitingRetry,
     Completed,
     Failed,
+    Late,
     Pending,
     Retrying,
     Running,
@@ -141,6 +142,19 @@ class TestStateConvenienceFunctions:
     def test_awaiting_retry_without_scheduled_time_defaults_to_now(self):
         dt1 = pendulum.now("UTC")
         state = AwaitingRetry()
+        dt2 = pendulum.now("UTC")
+        assert dt1 < state.state_details.scheduled_time < dt2
+
+    def test_late(self):
+        dt = pendulum.now("UTC")
+        state = Late(scheduled_time=dt)
+        assert state.type == StateType.SCHEDULED
+        assert state.name == "Late"
+        assert state.state_details.scheduled_time == dt
+
+    def test_late_without_scheduled_time_defaults_to_now(self):
+        dt1 = pendulum.now("UTC")
+        state = Late()
         dt2 = pendulum.now("UTC")
         assert dt1 < state.state_details.scheduled_time < dt2
 
