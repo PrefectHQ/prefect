@@ -1,7 +1,16 @@
 const _y = 31536000, // Seconds in a year
   _d = 86400, // Seconds in a day
   _h = 3600, // Seconds in an hour
-  _m = 60 // Seconds in a minute
+  _m = 60, // Seconds in a minute
+  _s = 1
+
+export const intervals: { [key: string]: number } = {
+  year: _y,
+  day: _d,
+  hour: _h,
+  minute: _m,
+  second: _s
+}
 
 const aggregateSeconds = (s: number): { [key: string]: number } => {
   const years = Math.floor(s / _y)
