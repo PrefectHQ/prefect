@@ -1,6 +1,6 @@
 # First Steps
 
-Before we stand up our own Orion webserver and database, let's explore the building blocks of a Prefect workflow via an interactive Python session.  All code below is copy / pastable into your favorite async-compatible Python REPL.
+Before we stand up our own Orion webserver, database, and UI let's explore the building blocks of a Prefect workflow via an interactive Python session.  All code below is copy / pastable into your favorite async-compatible Python REPL.
 
 ## Define a basic flow
 
@@ -24,6 +24,18 @@ import requests
 def send_post(url):
     return requests.post(url).json()
 ```
+
+!!! note "Asynchronous functions"
+    Even asynchronous functions work with Prefect!  We can alter the above example to be fully asynchronous using the `httpx` library:
+    ```python
+    import httpx
+
+    @flow
+    async def send_post(url):
+        with httpx.AsyncClient() as client:
+            return await client.post(url).json()
+    ```
+    This is a more advanced use case and will be covered in future tutorials.
 
 ## Run a basic flow
 
@@ -61,7 +73,40 @@ As we will see, this behavior is consistent across flow runs _and_ task runs and
 
 ## Run a basic flow with tasks
 
-Let's now add tasks to our flow so that we can orchestrate and monitor at a more granular level.  Creating and adding tasks follows the exact same pattern as for flows - using the [`@task` decorator`][prefect.tasks.task] we annotate our favorite functions 
+Let's now add some tasks to our flow so that we can orchestrate and monitor at a more granular level.  Creating and adding tasks follows the exact same pattern as for flows - using the [`@task` decorator][prefect.tasks.task] we annotate our favorite functions:
+
+```python
+from prefect import task, flow
+
+import requests
+
+
+@task
+def extract_url_content(url, params=None):
+    return requests.get(url, params=params).content
+
+
+@task
+def is_trending(trending_page, repo="prefect"):
+    is_trending = repo.encode() in trending_page
+    is_phrase = 'not ' if not is_trending else ' '
+    print(f"{repo} is {is_phrase}trending.")
+    return is_trending
+
+
+@flow
+def repo_trending_check(url="https://github.com/trending/python", 
+                        window="daily"):
+    content = extract_url_content(url, params={"since": window})
+    return is_trending(content)
+```
+
+As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  We can then
+call our flow function just as before and see the printed output - Prefect will manage all the relevant intermediate state.
+
+!!! warning "Combining task code with arbitrary Python code"
+    Notice in the above example that *all* of our Python logic is encapsulated within task functions. This is not a strict requirement, 
+    but is a more advanced use case.
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
