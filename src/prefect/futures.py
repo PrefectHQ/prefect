@@ -103,9 +103,9 @@ class PrefectFuture(Generic[R]):
         if self._final_state:
             return self._final_state
 
-        state = await self.get_state()
-        if (state.is_completed() or state.is_failed()) and state.data:
-            return state
+        #        state = await self.get_state()
+        #        if (state.is_completed() or state.is_failed()) and state.data:
+        #            return state
 
         self._final_state = await self._executor.wait(self, timeout)
 
@@ -137,7 +137,7 @@ async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R
 
     async def visit_fn(expr):
         if isinstance(expr, prefect.futures.PrefectFuture):
-            return await prefect.get_result(await expr.wait())
+            return (await expr.wait()).result
         else:
             return expr
 
