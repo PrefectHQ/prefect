@@ -1,4 +1,3 @@
-import datetime
 from typing import List
 from uuid import UUID
 
@@ -20,8 +19,11 @@ async def create_saved_search(
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.SavedSearch:
-    """Gracefully creates a new saved search from the provided schema. If a saved search with the
-    same name already exists, the saved search's fields are replaced."""
+    """Gracefully creates a new saved search from the provided schema.
+
+    If a saved search with the same name already exists, the saved search's fields are
+    replaced.
+    """
 
     # hydrate the input model into a full model
     saved_search = schemas.core.SavedSearch(**saved_search.dict())
@@ -43,7 +45,7 @@ async def read_saved_search(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.SavedSearch:
     """
-    Get a saved search by id
+    Get a saved search by id.
     """
     saved_search = await models.saved_searches.read_saved_search(
         session=session, saved_search_id=saved_search_id
@@ -64,7 +66,7 @@ async def read_saved_searches(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.SavedSearch]:
     """
-    Query for saved searches
+    Query for saved searches.
     """
     return await models.saved_searches.read_saved_searches(
         session=session,
@@ -79,7 +81,7 @@ async def delete_saved_search(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Delete a saved search by id
+    Delete a saved search by id.
     """
     result = await models.saved_searches.delete_saved_search(
         session=session, saved_search_id=saved_search_id
