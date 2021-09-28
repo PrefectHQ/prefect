@@ -816,7 +816,7 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        rule_as_context_manager = IllustrativeUniversalRule(ctx, *intended_transition)
+        rule_as_context_manager = IllustrativeUniversalRule(ctx)
         context_call = MagicMock()
 
         # rules govern logic by being used as a context manager
@@ -863,7 +863,7 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
+        universal_rule = IllustrativeUniversalRule(ctx)
 
         async with universal_rule as ctx:
             mutated_state_type = random.choice(
@@ -918,7 +918,7 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
+        universal_rule = IllustrativeUniversalRule(ctx)
 
         async with universal_rule as ctx:
             mutated_state_type = random.choice(

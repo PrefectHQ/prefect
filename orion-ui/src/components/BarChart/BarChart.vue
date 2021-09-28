@@ -81,8 +81,8 @@ export default class BarChart extends mixins(D3Base).with(Props) {
 
   updateScales(): void {
     // Generate x scale
-    const start = this.items[0].interval_start
-    const end = this.items[this.items.length - 1].interval_end
+    const start = this.items?.[0]?.interval_start
+    const end = this.items?.[this.items.length - 1]?.interval_end
 
     this.xScale.domain([new Date(start), new Date(end)]).range([0, this.width])
 

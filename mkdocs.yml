@@ -2,11 +2,19 @@ site_name: Prefect Orion
 repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
 extra_css:
-    - stylesheets/syntax_highlights.css
+    - stylesheets/admonitions.css
     - stylesheets/api_ref.css
+    - stylesheets/syntax_highlights.css
+    - stylesheets/termynal.css
+extra_javascript:
+    - js/termynal.js
+    - js/custom.js
 markdown_extensions:
     - admonition
+    - attr_list
     - codehilite
+    - md_in_html
+    - meta
     - pymdownx.highlight:
         use_pygments: true
     - pymdownx.superfences
@@ -15,6 +23,7 @@ theme:
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+        - navigation.instant
     font:
         text: Inter
         code: Source Code Pro
@@ -41,8 +50,15 @@ plugins:
 nav:
     - Home: index.md
     - 'Getting Started':
+        - Overview: getting-started/overview.md
         - Installation: getting-started/installation.md
-        - Quickstart: getting-started/quickstart.md
+        - Tutorials:
+            - tutorials/first-steps.md
+            - tutorials/flow-configuration.md
+            - tutorials/futures-and-parallelism.md
+            - tutorials/orion.md
+            - tutorials/deployments.md
+            - tutorials/rest.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -61,5 +77,24 @@ nav:
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
+        - Orion Python API: 
+            - 'Models':
+                - 'orion.models.deployments': api-ref/orion/models/deployments.md
+                - 'orion.models.flows': api-ref/orion/models/flows.md
+                - 'orion.models.flow_runs': api-ref/orion/models/flow_runs.md
+                - 'orion.models.orm': api-ref/orion/models/orm.md
+                - 'orion.models.task_runs': api-ref/orion/models/task_runs.md
+            - 'Orchestration':
+                - 'orion.orchestration.core_policy': api-ref/orion/orchestration/core_policy.md
+                - 'orion.orchestration.global_policy': api-ref/orion/orchestration/global_policy.md
+                - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
+                - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
+            - 'Schemas':
+                - 'orion.schemas.core': api-ref/orion/schemas/core.md
+                - 'orion.schemas.data': api-ref/orion/schemas/data.md
+                - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
+                - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
+                - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
+                - 'orion.schemas.sorting': api-ref/orion/schemas/sorting.md
+                - 'orion.schemas.states': api-ref/orion/schemas/states.md
         - Orion REST API: api-ref/rest-api.md
-        - Orion Python API: api-ref/orion-api.md
