@@ -228,6 +228,49 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test"):
             raise_failed_state(task_run_state)
 
+    def test_flow_state_defaults_to_task_states_when_no_return_failure(self):
+        @task
+        def fail():
+            raise ValueError("Test")
+
+        @flow(version="test")
+        def foo():
+            fail()
+            fail()
+            return None
+
+        flow_state = foo()
+
+        assert flow_state.is_failed()
+
+        # The task run states are returned as the data of the flow state
+        task_run_states = get_result(flow_state, raise_failures=False)
+        assert len(task_run_states) == 2
+        assert all(isinstance(state, State) for state in task_run_states)
+        task_run_state = task_run_states[0]
+        assert task_run_state.is_failed()
+        with pytest.raises(ValueError, match="Test"):
+            raise_failed_state(task_run_states[0])
+
+    def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
+        @task
+        def succeed():
+            return "foo"
+
+        @flow(version="test")
+        def foo():
+            succeed()
+            succeed()
+            return None
+
+        flow_state = foo()
+
+        # The task run states are returned as the data of the flow state
+        task_run_states = get_result(flow_state)
+        assert len(task_run_states) == 2
+        assert all(isinstance(state, State) for state in task_run_states)
+        assert get_result(task_run_states[0]) == "foo"
+
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
         def fail1():
