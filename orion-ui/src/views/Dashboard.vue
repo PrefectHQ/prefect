@@ -167,10 +167,15 @@ import {
 
 import BarChart from '@/components/BarChart/BarChart.vue'
 
-import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
+import { Flow, FlowRun, Deployment, TaskRun } from '@/types/objects'
 
 @Options({
-  components: { BarChart, RunHistoryChart }
+  components: { BarChart, RunHistoryChart },
+  watch: {
+    resultsTab(val) {
+      this.$router.push({ hash: `#${val}` })
+    }
+  }
 })
 export default class Dashboard extends Vue {
   flowsFilter: FlowsFilter = {}
@@ -201,7 +206,7 @@ export default class Dashboard extends Vue {
     { label: 'Upcoming Runs', count: null }
   ]
 
-  resultsTab: string = 'flows'
+  resultsTab: string | null = null
 
   get flows(): Flow[] {
     return this.queries.flows?.response || []
@@ -224,19 +229,12 @@ export default class Dashboard extends Vue {
   }
 
   get resultsCount(): number {
+    if (!this.resultsTab) return 0
     return this.queries[this.resultsTab].response?.length || 0
   }
 
-  refetch(): void {
-    this.queries.flows.fetch()
-  }
-
-  startPolling(): void {
-    this.queries.flows.startPolling()
-  }
-
-  stopPolling(): void {
-    this.queries.flows.stopPolling()
+  created() {
+    this.resultsTab = this.$route.hash?.substr(1) || 'flows'
   }
 }
 </script>

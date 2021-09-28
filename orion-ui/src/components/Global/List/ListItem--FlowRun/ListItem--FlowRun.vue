@@ -50,6 +50,7 @@
 
     <div v-breakpoints="'md'" class="chart-container mr-2">
       <RunHistoryChart
+        v-if="false"
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
       />
@@ -65,15 +66,13 @@
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import { FlowRun } from '@/objects'
+import { FlowRun } from '@/types/objects'
 import { secondsToApproximateString } from '@/util/util'
 
 import {
   default as RunHistoryChart,
   Bucket
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
-
-import { default as dataset_2 } from '@/util/run_history/design.json'
 
 class Props {
   run = prop<FlowRun>({ required: true })
@@ -85,17 +84,14 @@ class Props {
 export default class ListItemFlowRun extends Vue.with(Props) {
   sliceStart: number = Math.floor(Math.random() * 4)
 
-  taskRunBuckets: Bucket[] = dataset_2.slice(
-    this.sliceStart,
-    this.sliceStart + 10
-  )
+  taskRunBuckets: Bucket[] = []
 
   get taskRunCount(): number {
     return this.run.task_run_count
   }
 
   get state(): string {
-    return this.run.state.toLowerCase()
+    return this.run.state.type.toLowerCase()
   }
 
   get tags(): string[] {
@@ -107,6 +103,7 @@ export default class ListItemFlowRun extends Vue.with(Props) {
   }
 
   get duration(): string {
+    console.log(this.run.duration)
     return this.state == 'pending' || this.state == 'scheduled'
       ? '--'
       : secondsToApproximateString(this.run.duration)
