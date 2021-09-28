@@ -23,7 +23,7 @@ The Orion REST API adheres to the following guidelines:
 - Filtering, sorting, and pagination parameters are provided in the request body of `POST` requests where applicable
     - Pagination parameters are `limit` and `offset`
     - Sorting is specified with a single `sort` parameter
-    - See more information on filtering below
+    - See more information on [filtering](#filtering) below
 - **HTTP verbs**:
     - `GET`, `PUT` and `DELETE` requests are always idempotent; `POST` and `PATCH` are not guaranteed to be idempotent
     - `GET` requests can not receive information from the request body
