@@ -91,7 +91,9 @@ export default class ListItemTaskRun extends Vue.with(Props) {
   get duration(): string {
     return this.state == 'pending' || this.state == 'scheduled'
       ? '--'
-      : secondsToApproximateString(this.run.duration)
+      : this.run.total_run_time
+      ? secondsToApproximateString(this.run.total_run_time)
+      : secondsToApproximateString(this.run.estimated_run_time)
   }
 }
 </script>
