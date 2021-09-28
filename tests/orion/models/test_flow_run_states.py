@@ -20,6 +20,7 @@ class TestCreateFlowRunState:
         ).state
         assert flow_run_state.name == "Running"
         assert flow_run_state.type == StateType.RUNNING
+        assert flow_run_state.state_details.flow_run_id == flow_run.id
 
     async def test_run_details_are_updated_entering_running(self, flow_run, session):
         frs = await models.flow_runs.set_flow_run_state(
