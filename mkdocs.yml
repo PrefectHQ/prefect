@@ -2,8 +2,15 @@ site_name: Prefect Orion
 repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
 extra_css:
+    - stylesheets/admonitions.css
+    - stylesheets/api_ref.css
     - stylesheets/syntax_highlights.css
+    - stylesheets/termynal.css
+extra_javascript:
+    - js/termynal.js
+    - js/custom.js
 markdown_extensions:
+    - admonition
     - codehilite
     - pymdownx.highlight:
         use_pygments: true
@@ -13,21 +20,58 @@ theme:
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+    font:
+        text: Inter
+        code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
     logo: img/logomark-light.svg
     palette:
         primary: blue
 plugins:
+    - autorefs
+    - mkdocstrings:
+        handlers:
+            python:
+                rendering:
+                    show_root_heading: True
+                    show_object_full_path: True
+                    show_category_heading: True
+                    show_bases: False
+                    heading_level: 1
+        watch:
+            - src/prefect/
     - render_swagger
     - search
 nav:
     - Home: index.md
     - 'Getting Started':
-        - Installation: installation.md
-        - Tutorial: tutorial.md
-    - Concepts: concepts.md
+        - Overview: getting-started/overview.md
+        - Installation: getting-started/installation.md
+        - Tutorials:
+            - tutorials/first-steps.md
+            - tutorials/flow-configuration.md
+            - tutorials/futures-and-parallelism.md
+            - tutorials/orion.md
+            - tutorials/deployments.md
+    - Concepts:
+        - Overview: concepts/overview.md
+        - Flows: concepts/flows.md
+        - Tasks: concepts/tasks.md
+        - States: concepts/states.md
+        - Executors: concepts/executors.md
+        - Deployments: concepts/deployments.md
+        - Schedules: concepts/schedules.md
     - FAQ: faq.md
     - 'API Reference': 
-        - Orion REST API: rest-api.md
-        - Client API: client-api.md
+        - Prefect Python API: 
+            - 'prefect.client': api-ref/prefect/client.md
+            - 'prefect.engine': api-ref/prefect/engine.md
+            - 'prefect.executors': api-ref/prefect/executors.md
+            - 'prefect.flows': api-ref/prefect/flows.md
+            - 'prefect.futures': api-ref/prefect/futures.md
+            - 'prefect.serializers': api-ref/prefect/serializers.md
+            - 'prefect.tasks': api-ref/prefect/tasks.md
+        - Orion REST API: api-ref/rest-api.md
+        - Orion Python API: 
+            - 'orion.schemas.states': api-ref/orion/schemas/states.md
