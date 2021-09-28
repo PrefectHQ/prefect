@@ -333,14 +333,9 @@ class RRuleSchedule(PrefectBaseModel):
             timezone = rrule._dtstart.tzinfo.name
         else:
             timezone = "UTC"
+        # convert dtstart to UTC because rrule doesn't handle timezones
+        rrule = rrule.replace(dtstart=pendulum.instance(rrule._dtstart).in_tz("UTC"))
         return RRuleSchedule(rrule=str(rrule), timezone=timezone)
-
-    @validator("rrule", pre=True, always=True)
-    def set_start_date(cls, v, *, values, **kwargs):
-        # if the rrule string doesn't include a start date, create one using `now`
-        if "DTSTART" not in v:
-            v = f'DTSTART{pendulum.now().strftime("%Y%m%dT%H%M%S")}\n{v}'
-        return v
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):
@@ -379,6 +374,8 @@ class RRuleSchedule(PrefectBaseModel):
         """
         if start is None:
             start = pendulum.now(self.timezone or "UTC")
+        else:
+            start = start.in_tz(self.timezone)
 
         if n is None:
             # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
@@ -387,15 +384,12 @@ class RRuleSchedule(PrefectBaseModel):
             else:
                 n = 1
 
-        elif self.timezone:
-            start = start.in_tz(self.timezone)
-
         dates = []
         counter = 0
 
         for next_date in self._rrule_dates_iterator():
 
-            next_date = pendulum.instance(next_date)
+            next_date = pendulum.instance(next_date).in_tz(self.timezone)
 
             # if the start date has not been reached, continue
             if next_date < start:
