@@ -189,8 +189,8 @@ export default class NotFound extends Vue {
   }
 
   private uniqueElementFilter(value: HTMLElement, index: number, self: HTMLElement[]) {
-  return self.indexOf(value) === index;
-}
+    return self.indexOf(value) === index;
+  }
 
 }
 </script>
