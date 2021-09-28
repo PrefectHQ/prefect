@@ -172,6 +172,8 @@ export class Query {
     if (pollInterval > 0) {
       this.pollInterval = pollInterval
       this.startPolling()
+    } else {
+      this.fetch()
     }
 
     return this
