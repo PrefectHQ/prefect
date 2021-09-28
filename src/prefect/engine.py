@@ -19,7 +19,7 @@ import pendulum
 from contextlib import contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from anyio import start_blocking_portal
@@ -227,6 +227,7 @@ async def create_and_begin_subflow_run(
     parent_task_run_id = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
+        dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
     )
 
     flow_run_id = await client.create_flow_run(
