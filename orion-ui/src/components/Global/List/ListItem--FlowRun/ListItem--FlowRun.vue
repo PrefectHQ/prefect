@@ -103,7 +103,7 @@ export default class ListItemFlowRun extends Vue.with(Props) {
   }
 
   get duration(): string {
-    console.log(this.run.duration)
+    console.log(this.run)
     return this.state == 'pending' || this.state == 'scheduled'
       ? '--'
       : secondsToApproximateString(this.run.duration)
