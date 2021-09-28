@@ -319,7 +319,7 @@ class TestOrchestrateTaskRun:
 
         sleep.assert_awaited_once()
         assert state.is_completed()
-        assert await get_result(state) == 1
+        assert state.result == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, flow_run_id, monkeypatch
@@ -352,7 +352,7 @@ class TestOrchestrateTaskRun:
 
         sleep.assert_not_called()
         assert state.is_completed()
-        assert await get_result(state) == 1
+        assert state.result == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, monkeypatch, orion_client, flow_run_id
@@ -401,7 +401,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Check for a proper final result
-        assert await get_result(state) == 1
+        assert state.result == 1
 
         # Assert that the sleep was called
         # due to network time and rounding, the expected sleep time will be less than
