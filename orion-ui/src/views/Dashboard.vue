@@ -79,27 +79,27 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ datasets['deployments'].length }}
+          {{ deployments.length }}
         </span>
       </Tab>
-      <Tab href="flow-runs" class="subheader">
+      <Tab href="flow_runs" class="subheader">
         <i class="pi pi-flow-run pi-lg mr-1" />
         Flow Runs
         <span
           class="result-badge caption ml-1"
-          :class="{ active: resultsTab == 'flow-runs' }"
+          :class="{ active: resultsTab == 'flow_runs' }"
         >
-          {{ datasets['flow-runs'].length }}
+          {{ flow_runs.length }}
         </span>
       </Tab>
-      <Tab href="task-runs" class="subheader">
+      <Tab href="task_runs" class="subheader">
         <i class="pi pi-task pi-lg mr-1" />
         Task Runs
         <span
           class="result-badge caption ml-1"
-          :class="{ active: resultsTab == 'task-runs' }"
+          :class="{ active: resultsTab == 'task_runs' }"
         >
-          {{ datasets['task-runs'].length }}
+          {{ task_runs.length }}
         </span>
       </Tab>
     </Tabs>
@@ -125,26 +125,26 @@
       <div v-else-if="resultsTab == 'deployments'">
         <list>
           <deployment-list-item
-            v-for="deployment in datasets['deployments']"
+            v-for="deployment in deployments"
             :key="deployment.id"
             :deployment="deployment"
           />
         </list>
       </div>
-      <div v-else-if="resultsTab == 'flow-runs'">
+      <div v-else-if="resultsTab == 'flow_runs'">
         <list>
           <flow-run-list-item
-            v-for="run in datasets['flow-runs']"
+            v-for="run in flow_runs"
             :key="run.id"
             :run="run"
           />
         </list>
       </div>
 
-      <div v-else-if="resultsTab == 'task-runs'">
+      <div v-else-if="resultsTab == 'task_runs'">
         <list>
           <task-run-list-item
-            v-for="run in datasets['task-runs']"
+            v-for="run in task_runs"
             :key="run.id"
             :run="run"
           />
@@ -176,8 +176,17 @@ export default class Dashboard extends Vue {
   flowsFilter: FlowsFilter = {}
 
   queries: { [key: string]: Query } = {
+    deployments: Api.query(Endpoints.deployments, this.flowsFilter, {
+      pollInterval: 10000
+    }),
     flows: Api.query(Endpoints.flows, this.flowsFilter, {
-      pollInterval: 2000
+      pollInterval: 10000
+    }),
+    flow_runs: Api.query(Endpoints.flow_runs, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    task_runs: Api.query(Endpoints.task_runs, this.flowsFilter, {
+      pollInterval: 10000
     })
   }
 
@@ -185,13 +194,6 @@ export default class Dashboard extends Vue {
 
   run_lateness_items: Item[] = []
   run_duration_items: Item[] = []
-
-  datasets: { [key: string]: Flow[] | Deployment[] | FlowRun[] | TaskRun[] } = {
-    flows: [],
-    deployments: [],
-    'flow-runs': [],
-    'task-runs': []
-  }
 
   premadeFilters: { label: string; count: number | null }[] = [
     { label: 'Failed Runs', count: null },
@@ -201,8 +203,20 @@ export default class Dashboard extends Vue {
 
   resultsTab: string = 'flows'
 
-  get flows() {
-    return this.queries.flows.response || []
+  get flows(): Flow[] {
+    return this.queries.flows?.response || []
+  }
+
+  get deployments(): Deployment[] {
+    return this.queries.deployments?.response || []
+  }
+
+  get flow_runs(): FlowRun[] {
+    return this.queries.flow_runs?.response || []
+  }
+
+  get task_runs(): TaskRun[] {
+    return this.queries.task_runs?.response || []
   }
 
   get loading() {
@@ -210,7 +224,7 @@ export default class Dashboard extends Vue {
   }
 
   get resultsCount(): number {
-    return this.datasets[this.resultsTab].length
+    return this.queries[this.resultsTab].response?.length || 0
   }
 
   refetch(): void {
