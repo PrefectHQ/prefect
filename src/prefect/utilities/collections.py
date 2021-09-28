@@ -207,6 +207,9 @@ async def visit_collection(
     elif isinstance(expr, prefect.orion.schemas.states.State):
         return expr
 
+    elif isinstance(expr, prefect.orion.schemas.data.DataDocument):
+        return expr
+
     elif is_dataclass(expr) and not isinstance(expr, type):
         result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
         return typ(**result) if return_data else None

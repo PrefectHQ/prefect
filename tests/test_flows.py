@@ -272,7 +272,7 @@ class TestFlowCall:
         parent_flow_run_id = parent_state.state_details.flow_run_id
         assert isinstance(parent_state, State)
 
-        child_run_id, child_state = parent_state.result
+        subflow_id, child_state = parent_state.result
         assert child_state.result == 6
 
         async with OrionClient() as client:
@@ -588,9 +588,7 @@ class TestFlowParameterTypes:
         def my_flow(x):
             return x
 
-        assert get_result(my_flow(ParameterTestModel(data=1))) == ParameterTestModel(
-            data=1
-        )
+        assert my_flow(ParameterTestModel(data=1)).result == ParameterTestModel(data=1)
 
     @pytest.mark.parametrize(
         "data", ([1, 2, 3], {"foo": "bar"}, {"x", "y"}, 1, "foo", ParameterTestEnum.X)
@@ -600,4 +598,4 @@ class TestFlowParameterTypes:
         def my_flow(x):
             return x
 
-        assert get_result(my_flow(data)) == data
+        assert my_flow(data).result == data
