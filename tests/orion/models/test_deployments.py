@@ -24,12 +24,14 @@ class TestCreateDeployment:
                 name="My Deployment",
                 flow_data=flow_data,
                 flow_id=flow.id,
+                parameters={"foo": "bar"},
                 tags=["foo", "bar"],
             ),
         )
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
         assert deployment.flow_data == flow_data
+        assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
 
     async def test_create_deployment_updates_existing_deployment(
@@ -45,6 +47,7 @@ class TestCreateDeployment:
                 flow_id=flow.id,
             ),
         )
+        original_update_time = deployment.updated
 
         assert deployment.name == "My Deployment"
         assert deployment.flow_id == flow.id
@@ -76,6 +79,7 @@ class TestCreateDeployment:
         assert deployment.schedule == schedule
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
+        assert deployment.updated > original_update_time
 
     async def test_create_deployment_with_schedule(self, session, flow, flow_function):
         schedule = schemas.schedules.IntervalSchedule(
