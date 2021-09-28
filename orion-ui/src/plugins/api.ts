@@ -51,6 +51,18 @@ export const Endpoints: { [key: string]: Endpoint } = {
     method: 'POST',
     url: '/flows/count/'
   },
+  deployment: {
+    method: 'GET',
+    url: '/deployments/'
+  },
+  deployments: {
+    method: 'POST',
+    url: '/deployments/filter/'
+  },
+  deployments_count: {
+    method: 'POST',
+    url: '/deployments/count/'
+  },
   flow_run: {
     method: 'GET',
     url: '/flow_runs/'
@@ -68,20 +80,20 @@ export const Endpoints: { [key: string]: Endpoint } = {
     url: '/task_runs/'
   },
   task_runs: {
-    method: 'GET',
+    method: 'POST',
     url: '/task_runs/filter/'
   },
   task_runs_count: {
-    method: 'GET',
+    method: 'POST',
     url: '/task_runs/count/'
   },
   settings: {
     method: 'GET',
     url: '/admin/settings'
   },
-  universe: {
-    method: 'DELETE',
-    url: '/admin/universe'
+  database_clear: {
+    method: 'POST',
+    url: '/admin/database/clear'
   },
   version: {
     method: 'GET',
