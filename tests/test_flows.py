@@ -1,10 +1,7 @@
 from typing import List
 import anyio
-from packaging.version import parse as parse_version
-
-import mypy.version
+import enum
 import pydantic
-from pydantic.decorator import validate_arguments
 import pytest
 import time
 
@@ -556,3 +553,51 @@ class TestFlowTimeouts:
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
         assert not canary_file.exists()
+
+
+class ParameterTestModel(pydantic.BaseModel):
+    data: int
+
+
+class ParameterTestClass:
+    pass
+
+
+class ParameterTestEnum(enum.Enum):
+    X = 1
+    Y = 2
+
+
+class TestFlowParameterTypes:
+    def test_flow_parameters_cannot_be_custom_types(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        with pytest.raises(
+            FlowParameterError,
+            match=(
+                "Flow parameters must be JSON serializable. "
+                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
+            ),
+        ):
+            my_flow(ParameterTestClass())
+
+    def test_flow_parameters_can_be_pydantic_types(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        assert get_result(my_flow(ParameterTestModel(data=1))) == ParameterTestModel(
+            data=1
+        )
+
+    @pytest.mark.parametrize(
+        "data", ([1, 2, 3], {"foo": "bar"}, {"x", "y"}, 1, "foo", ParameterTestEnum.X)
+    )
+    def test_flow_parameters_can_be_jsonable_python_types(self, data):
+        @flow
+        def my_flow(x):
+            return x
+
+        assert get_result(my_flow(data)) == data
