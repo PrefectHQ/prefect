@@ -2,7 +2,7 @@
   {
     "upstream_ids": [],
     "name": "Woodlake",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["officia", "quis", "enim", "reprehenderit", "sunt"],
     "id": "bc8daa2c-48ee-4599-ba0c-aa926e0033f2",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -11,7 +11,7 @@
   {
     "upstream_ids": ["bc8daa2c-48ee-4599-ba0c-aa926e0033f2"],
     "name": "Longoria",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["culpa", "non"],
     "id": "3064f188-d241-4fb6-a9e6-ede93fc44a61",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -20,7 +20,7 @@
   {
     "upstream_ids": ["bc8daa2c-48ee-4599-ba0c-aa926e0033f2"],
     "name": "Harrodsburg",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": [],
     "id": "7bf3bd8f-a926-4fa4-8be9-bfd49bded1b5",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -29,7 +29,7 @@
   {
     "upstream_ids": ["bc8daa2c-48ee-4599-ba0c-aa926e0033f2"],
     "name": "Interlochen",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["tempor", "consectetur", "ipsum", "fugiat"],
     "id": "806b49c1-54a2-4cb7-94f0-2aef282e4a0c",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -38,7 +38,7 @@
   {
     "upstream_ids": ["bc8daa2c-48ee-4599-ba0c-aa926e0033f2"],
     "name": "Watchtower",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["amet", "voluptate"],
     "id": "3ac3485f-a08c-43b4-ae6a-bb2c0a86f51c",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -47,7 +47,7 @@
   {
     "upstream_ids": ["bc8daa2c-48ee-4599-ba0c-aa926e0033f2"],
     "name": "Springville",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "16ab8969-3ac2-4c55-9e58-9eb8ea8ec258",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -56,7 +56,7 @@
   {
     "upstream_ids": ["3064f188-d241-4fb6-a9e6-ede93fc44a61"],
     "name": "Leyner",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["nostrud"],
     "id": "d2d334c1-c18c-4a1d-a330-a9103b1789ca",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -65,7 +65,7 @@
   {
     "upstream_ids": ["3064f188-d241-4fb6-a9e6-ede93fc44a61"],
     "name": "Newcastle",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["ullamco", "nostrud", "ad", "ad", "est"],
     "id": "a5a73c96-9eba-4f21-9249-5b3daab6bc50",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -74,7 +74,7 @@
   {
     "upstream_ids": ["3064f188-d241-4fb6-a9e6-ede93fc44a61"],
     "name": "Wakulla",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["dolore", "laboris", "est"],
     "id": "c0494bdf-d0b9-4519-adeb-0b669182516a",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -83,7 +83,7 @@
   {
     "upstream_ids": ["7bf3bd8f-a926-4fa4-8be9-bfd49bded1b5"],
     "name": "Calvary",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["qui", "dolor", "commodo", "cillum", "non"],
     "id": "ee59c019-714b-4601-8bf4-6355de470fdf",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -92,7 +92,7 @@
   {
     "upstream_ids": ["7bf3bd8f-a926-4fa4-8be9-bfd49bded1b5"],
     "name": "Noblestown",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["deserunt", "laboris"],
     "id": "d07ef31b-371e-4da7-837a-c24b5665af32",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -101,7 +101,7 @@
   {
     "upstream_ids": ["7bf3bd8f-a926-4fa4-8be9-bfd49bded1b5"],
     "name": "Motley",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["fugiat", "id", "consectetur", "Lorem"],
     "id": "0e96e174-361d-45f8-bb0e-d2693ece3ede",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -110,7 +110,7 @@
   {
     "upstream_ids": ["806b49c1-54a2-4cb7-94f0-2aef282e4a0c"],
     "name": "Bannock",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["Lorem", "aliqua"],
     "id": "d846dbd6-94fe-46e0-bb30-eeb693ca2f5c",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -119,7 +119,7 @@
   {
     "upstream_ids": ["806b49c1-54a2-4cb7-94f0-2aef282e4a0c"],
     "name": "Succasunna",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["nostrud", "excepteur", "pariatur", "pariatur"],
     "id": "80f8fdc7-d6ea-4c62-8a1c-13cb1a921827",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -128,7 +128,7 @@
   {
     "upstream_ids": ["806b49c1-54a2-4cb7-94f0-2aef282e4a0c"],
     "name": "Whitestone",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["aute", "ea", "non", "voluptate"],
     "id": "3fb88d33-2e88-46ea-93b9-d96f405f2a37",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -137,7 +137,7 @@
   {
     "upstream_ids": ["3ac3485f-a08c-43b4-ae6a-bb2c0a86f51c"],
     "name": "Collins",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["ea", "sit"],
     "id": "81a55770-cfd9-4fac-967b-28401f165b10",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -146,7 +146,7 @@
   {
     "upstream_ids": ["3ac3485f-a08c-43b4-ae6a-bb2c0a86f51c"],
     "name": "Woodburn",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["adipisicing", "irure", "adipisicing", "minim", "nulla"],
     "id": "1e2e9406-08c0-43ab-b61a-e66ea07cfa70",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -155,7 +155,7 @@
   {
     "upstream_ids": ["3ac3485f-a08c-43b4-ae6a-bb2c0a86f51c"],
     "name": "National",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["do", "pariatur", "veniam"],
     "id": "58a5666b-1c48-4168-b388-3ed24b8e66f4",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -164,7 +164,7 @@
   {
     "upstream_ids": ["16ab8969-3ac2-4c55-9e58-9eb8ea8ec258"],
     "name": "Bluetown",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["sunt", "anim", "laborum"],
     "id": "c6ecd34a-1fe8-4b66-82a9-84b8b5da1d0c",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -173,7 +173,7 @@
   {
     "upstream_ids": ["16ab8969-3ac2-4c55-9e58-9eb8ea8ec258"],
     "name": "Troy",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["non", "eiusmod", "sit", "nulla"],
     "id": "e7dfd4b3-af75-44ae-9331-1cf9c75190e3",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -182,7 +182,7 @@
   {
     "upstream_ids": ["16ab8969-3ac2-4c55-9e58-9eb8ea8ec258"],
     "name": "Gasquet",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["officia"],
     "id": "0ee40632-9439-431b-a387-48ba6429e6ef",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -191,7 +191,7 @@
   {
     "upstream_ids": ["d2d334c1-c18c-4a1d-a330-a9103b1789ca"],
     "name": "Ladera",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["id", "aliquip", "qui", "minim", "commodo"],
     "id": "70bf00eb-5c2b-459b-85b6-b9a9ad797ef4",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -200,7 +200,7 @@
   {
     "upstream_ids": ["d2d334c1-c18c-4a1d-a330-a9103b1789ca"],
     "name": "Tibbie",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["ipsum", "laborum", "officia", "id"],
     "id": "f1617704-3bb5-44aa-b1dc-ef8b49ecdc3a",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -209,7 +209,7 @@
   {
     "upstream_ids": ["d2d334c1-c18c-4a1d-a330-a9103b1789ca"],
     "name": "Ironton",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["tempor", "ad", "voluptate", "adipisicing"],
     "id": "bba99243-b2ca-48cb-8b9b-0395272b6929",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -218,7 +218,7 @@
   {
     "upstream_ids": ["a5a73c96-9eba-4f21-9249-5b3daab6bc50"],
     "name": "Bynum",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "3cdf3d73-1070-4325-945b-1a95140c17f6",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -227,7 +227,7 @@
   {
     "upstream_ids": ["a5a73c96-9eba-4f21-9249-5b3daab6bc50"],
     "name": "Hartsville/Hartley",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": [],
     "id": "8bd45e3d-0ec3-409c-984d-b2e292a30b5f",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -236,7 +236,7 @@
   {
     "upstream_ids": ["a5a73c96-9eba-4f21-9249-5b3daab6bc50"],
     "name": "Elbert",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "c8aa5a12-4efb-458f-a200-3f2cedddb7ca",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -245,7 +245,7 @@
   {
     "upstream_ids": ["c0494bdf-d0b9-4519-adeb-0b669182516a"],
     "name": "Cowiche",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["consequat", "esse"],
     "id": "16fd01cf-a26e-492d-b5e6-40b572663540",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -254,7 +254,7 @@
   {
     "upstream_ids": ["c0494bdf-d0b9-4519-adeb-0b669182516a"],
     "name": "Fivepointville",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["eiusmod", "id", "anim"],
     "id": "c6644582-0357-4935-abe1-d5532f3d472e",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -263,7 +263,7 @@
   {
     "upstream_ids": ["c0494bdf-d0b9-4519-adeb-0b669182516a"],
     "name": "Jacumba",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "fbdd8512-ae5e-4025-b167-40a8fcba784b",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -272,7 +272,7 @@
   {
     "upstream_ids": ["ee59c019-714b-4601-8bf4-6355de470fdf"],
     "name": "Bridgetown",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["laboris", "ipsum", "sunt", "non"],
     "id": "683f5a2e-4ed4-4e3d-ab3d-03d9ec611845",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -281,7 +281,7 @@
   {
     "upstream_ids": ["ee59c019-714b-4601-8bf4-6355de470fdf"],
     "name": "Evergreen",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["aliqua", "tempor"],
     "id": "f2ae6fac-b4df-413f-9f48-92fa7743e74e",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -290,7 +290,7 @@
   {
     "upstream_ids": ["ee59c019-714b-4601-8bf4-6355de470fdf"],
     "name": "Orick",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": [],
     "id": "a09b035d-3130-4a8e-94b9-3cf4fda25bf2",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -299,7 +299,7 @@
   {
     "upstream_ids": ["d07ef31b-371e-4da7-837a-c24b5665af32"],
     "name": "Welch",
-    "state": "failed",
+    "state": "FAILED",
     "tags": [],
     "id": "1a77b0fc-285a-41ef-8017-b1b5b4c450fd",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -308,7 +308,7 @@
   {
     "upstream_ids": ["d07ef31b-371e-4da7-837a-c24b5665af32"],
     "name": "Riner",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["adipisicing", "sint"],
     "id": "53c2ec7a-ac8e-4128-831c-898a9bc5700d",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -317,7 +317,7 @@
   {
     "upstream_ids": ["d07ef31b-371e-4da7-837a-c24b5665af32"],
     "name": "Wildwood",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["tempor", "ut"],
     "id": "a73bf224-8996-43f9-99b9-662e5111289f",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -326,7 +326,7 @@
   {
     "upstream_ids": ["0e96e174-361d-45f8-bb0e-d2693ece3ede"],
     "name": "Elwood",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["aliquip", "ut", "irure"],
     "id": "7247bebf-3c08-485f-8562-4616694858cb",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -335,7 +335,7 @@
   {
     "upstream_ids": ["0e96e174-361d-45f8-bb0e-d2693ece3ede"],
     "name": "Westerville",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["minim", "duis", "veniam", "laboris"],
     "id": "c0d3106c-beeb-4a25-8e32-518e93688e2a",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -344,7 +344,7 @@
   {
     "upstream_ids": ["0e96e174-361d-45f8-bb0e-d2693ece3ede"],
     "name": "Roy",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["consequat", "veniam"],
     "id": "d007aca1-2570-410b-992a-ff5354cd77be",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -353,7 +353,7 @@
   {
     "upstream_ids": ["d846dbd6-94fe-46e0-bb30-eeb693ca2f5c"],
     "name": "Tioga",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["aute", "quis", "nostrud", "laboris", "amet"],
     "id": "6e215798-335f-41b2-8de3-669236cac2a8",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -362,7 +362,7 @@
   {
     "upstream_ids": ["d846dbd6-94fe-46e0-bb30-eeb693ca2f5c"],
     "name": "Brule",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["ullamco", "do", "consectetur", "et", "proident"],
     "id": "4ba84df3-8f7c-4df0-bbda-1cca4950a8ef",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -371,7 +371,7 @@
   {
     "upstream_ids": ["d846dbd6-94fe-46e0-bb30-eeb693ca2f5c"],
     "name": "Manitou",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["consectetur", "minim", "magna"],
     "id": "8f52f217-172c-438d-8cbb-2902e2854910",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -380,7 +380,7 @@
   {
     "upstream_ids": ["80f8fdc7-d6ea-4c62-8a1c-13cb1a921827"],
     "name": "Sutton",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["proident", "ipsum", "adipisicing", "pariatur"],
     "id": "ba42ea09-0083-428f-86d3-effdf2ade4f6",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -389,7 +389,7 @@
   {
     "upstream_ids": ["80f8fdc7-d6ea-4c62-8a1c-13cb1a921827"],
     "name": "Oneida",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["laboris"],
     "id": "590023ad-3efe-4557-a4c3-8fde715a11b4",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -398,7 +398,7 @@
   {
     "upstream_ids": ["80f8fdc7-d6ea-4c62-8a1c-13cb1a921827"],
     "name": "Farmers",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["officia"],
     "id": "df6f6071-dd1a-4a8d-92cf-5af629dc8b30",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -407,7 +407,7 @@
   {
     "upstream_ids": ["3fb88d33-2e88-46ea-93b9-d96f405f2a37"],
     "name": "Enetai",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["enim"],
     "id": "ed7ad970-4eb0-4265-b811-1dc93c4ff33c",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -416,7 +416,7 @@
   {
     "upstream_ids": ["3fb88d33-2e88-46ea-93b9-d96f405f2a37"],
     "name": "Marienthal",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["eu", "aliqua"],
     "id": "b4a609c0-8c78-4966-b755-e97b21d61c8e",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -425,7 +425,7 @@
   {
     "upstream_ids": ["3fb88d33-2e88-46ea-93b9-d96f405f2a37"],
     "name": "Ernstville",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["ea"],
     "id": "d8b8dd67-fc33-4a8b-9b49-845ed6b09a3b",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -434,7 +434,7 @@
   {
     "upstream_ids": ["81a55770-cfd9-4fac-967b-28401f165b10"],
     "name": "Calverton",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["proident", "duis", "aute", "occaecat"],
     "id": "04c0007e-92f9-4d9c-97bf-cae67955b888",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -443,7 +443,7 @@
   {
     "upstream_ids": ["81a55770-cfd9-4fac-967b-28401f165b10"],
     "name": "Rosewood",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["laborum"],
     "id": "060d1f06-2c5c-4eb8-b2a7-6613fa89ec2e",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -452,7 +452,7 @@
   {
     "upstream_ids": ["81a55770-cfd9-4fac-967b-28401f165b10"],
     "name": "Fairacres",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["aute", "nostrud", "nostrud"],
     "id": "36bb450a-7386-4f36-a6e1-a4412f618775",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -461,7 +461,7 @@
   {
     "upstream_ids": ["1e2e9406-08c0-43ab-b61a-e66ea07cfa70"],
     "name": "Fredericktown",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["laboris"],
     "id": "e143fba2-1826-4596-afbb-84b0b78a79ad",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -470,7 +470,7 @@
   {
     "upstream_ids": ["1e2e9406-08c0-43ab-b61a-e66ea07cfa70"],
     "name": "Goochland",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["occaecat", "deserunt", "eiusmod", "consectetur", "do"],
     "id": "b62c04c1-ce07-4133-9572-518cf150c950",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -479,7 +479,7 @@
   {
     "upstream_ids": ["1e2e9406-08c0-43ab-b61a-e66ea07cfa70"],
     "name": "Munjor",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["reprehenderit", "velit"],
     "id": "55cfb060-3ca3-47cd-a5ea-364e662557de",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -488,7 +488,7 @@
   {
     "upstream_ids": ["58a5666b-1c48-4168-b388-3ed24b8e66f4"],
     "name": "Sunbury",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["duis", "amet", "excepteur"],
     "id": "9e5b7af9-f8c7-454e-aded-0236114b73eb",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -497,7 +497,7 @@
   {
     "upstream_ids": ["58a5666b-1c48-4168-b388-3ed24b8e66f4"],
     "name": "Smock",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["excepteur", "ex", "sint"],
     "id": "0f5eb5f4-433d-48a2-a398-b28d6dcc8484",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -506,7 +506,7 @@
   {
     "upstream_ids": ["58a5666b-1c48-4168-b388-3ed24b8e66f4"],
     "name": "Vandiver",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["laborum", "labore", "ipsum"],
     "id": "67c6d020-20b7-426c-ac35-d5d568a08976",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -515,7 +515,7 @@
   {
     "upstream_ids": ["c6ecd34a-1fe8-4b66-82a9-84b8b5da1d0c"],
     "name": "Frank",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["eu"],
     "id": "d51e2005-0128-453c-8b36-58826ec82529",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -524,7 +524,7 @@
   {
     "upstream_ids": ["c6ecd34a-1fe8-4b66-82a9-84b8b5da1d0c"],
     "name": "Hiwasse",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["cillum", "sunt", "velit", "adipisicing"],
     "id": "79983e78-f98b-4b20-80e3-344bb19e75b8",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -533,7 +533,7 @@
   {
     "upstream_ids": ["c6ecd34a-1fe8-4b66-82a9-84b8b5da1d0c"],
     "name": "Lopezo",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["quis", "ea", "nostrud"],
     "id": "69d583d4-59ad-4221-8a0e-ca394bbae08f",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -542,7 +542,7 @@
   {
     "upstream_ids": ["e7dfd4b3-af75-44ae-9331-1cf9c75190e3"],
     "name": "Glendale",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["duis", "aliqua", "magna", "quis"],
     "id": "aee21316-b662-4ac1-85e8-408b26701c35",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -551,7 +551,7 @@
   {
     "upstream_ids": ["e7dfd4b3-af75-44ae-9331-1cf9c75190e3"],
     "name": "Downsville",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["exercitation"],
     "id": "3ecde53a-106d-480f-bbf5-12fc7b9a6a9d",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -560,7 +560,7 @@
   {
     "upstream_ids": ["e7dfd4b3-af75-44ae-9331-1cf9c75190e3"],
     "name": "Blende",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["duis", "adipisicing", "exercitation", "aliqua", "do"],
     "id": "409fd78e-35c6-43c9-a44f-86f276b9b143",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -569,7 +569,7 @@
   {
     "upstream_ids": ["0ee40632-9439-431b-a387-48ba6429e6ef"],
     "name": "Galesville",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["et", "non", "laboris", "culpa", "aute"],
     "id": "7231dd02-ce5c-4c8b-92c2-9ad8d4380acd",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -578,7 +578,7 @@
   {
     "upstream_ids": ["0ee40632-9439-431b-a387-48ba6429e6ef"],
     "name": "Finderne",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["pariatur", "ut", "deserunt"],
     "id": "841d8fbd-efda-40a0-982e-cc4a4c034252",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -587,7 +587,7 @@
   {
     "upstream_ids": ["0ee40632-9439-431b-a387-48ba6429e6ef"],
     "name": "Martell",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "b51793a3-e1e2-4afb-b862-fce7b425f602",
     "start_time": "2021-01-01T04:00:00.000Z",
