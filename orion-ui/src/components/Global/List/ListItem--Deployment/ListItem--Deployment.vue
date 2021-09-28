@@ -113,7 +113,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
-import { Deployment } from '@/types/objects'
+import { Deployment, IntervalSchedule, CronSchedule } from '@/types/objects'
 
 class Props {
   deployment = prop<Deployment>({ required: true })
@@ -144,8 +144,10 @@ export default class ListItemDeployment extends Vue.with(Props) {
     )
   }
 
-  get schedule(): any {
-    return secondsToString(this.deployment.schedule, false)
+  get schedule(): string {
+    if ('interval' in this.deployment.schedule)
+      return secondsToString(this.deployment.schedule.interval, false)
+    return '--'
   }
 
   get tags(): string[] {
