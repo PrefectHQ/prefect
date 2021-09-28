@@ -610,6 +610,12 @@ class OrionClient:
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
+            if server_state.data:
+                datadoc = DataDocument.parse_raw(
+                    await self.retrieve_data(server_state.data)
+                )
+                datadoc.decode()  # caches data
+                server_state.data = datadoc
             return server_state
         else:
             raise ValueError(
