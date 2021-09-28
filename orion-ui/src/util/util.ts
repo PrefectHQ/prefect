@@ -17,7 +17,7 @@ const aggregateSeconds = (s: number): { [key: string]: number } => {
   const days = Math.floor((s % _y) / _d)
   const hours = Math.floor(((s % _y) % _d) / _h)
   const minutes = Math.floor((((s % _y) % _d) % _h) / _m)
-  const seconds = (((s % _y) % _d) % _h) % _m
+  const seconds = Math.ceil((((s % _y) % _d) % _h) % _m)
 
   return { years, days, hours, minutes, seconds }
 }
