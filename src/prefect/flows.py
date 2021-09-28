@@ -175,6 +175,8 @@ class Flow(Generic[P, R]):
         """
         Run the flow using the Prefect engine against a backing API (note this will create a new flow run in the backend).
 
+        Flow parameter values must be serializable by Pydantic.
+
         If writing an async flow, this call must be awaited.
 
         Args:
@@ -259,6 +261,8 @@ def flow(
     Decorator to designate a function as a Prefect workflow.
 
     This decorator may be used for asynchronous or synchronous functions.
+
+    Flow parameters must be serializable by Pydantic.
 
     Args:
         name: An optional name for the flow; if not provided, the name will be inferred
