@@ -147,6 +147,8 @@ export default class ListItemDeployment extends Vue.with(Props) {
   get schedule(): string {
     if ('interval' in this.deployment.schedule)
       return secondsToString(this.deployment.schedule.interval, false)
+
+    // TODO: add parsing for cron and RR schedules
     return '--'
   }
 
