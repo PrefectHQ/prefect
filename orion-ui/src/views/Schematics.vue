@@ -1,34 +1,22 @@
 <template>
   <div>
     <div class="search-bar">
-      <div class="search-input" tabindex="-1">
-        <input
-          v-model="search"
-          type="text"
-          name="Node search"
-          class="px-2 py-1"
-          placeholder="Search for a task..."
-        />
+      <Select
+        v-model="search"
+        name="Node search"
+        search
+        placeholder="Search for a task..."
+      >
+        <Option v-for="(value, key) in dataset" :key="key" :value="value.id">
+          {{ value.name }}
+        </Option>
+      </Select>
 
-        <div class="search-options" tabindex="-1">
-          <div
-            v-for="item in filteredDataset"
-            :key="item.id"
-            class="option px-2 py-1"
-            tabindex="0"
-            @click="handleSelectSearchOption(item)"
-            @keyup.enter="handleSelectSearchOption(item)"
-          >
-            {{ item.name }}
-          </div>
-        </div>
-      </div>
-
-      <select v-model="selected" class="ml-2">
-        <option v-for="(value, key) in datasets" :key="key" :value="key">
+      <Select v-model="selected" class="ml-2">
+        <Option v-for="(value, key) in datasets" :key="key" :value="key">
           {{ key }}
-        </option>
-      </select>
+        </Option>
+      </Select>
     </div>
 
     <div>
@@ -55,6 +43,9 @@ import { default as dataset7 } from '../util/schematics/61_cluster_nodes.json'
   watch: {
     dataset() {
       this.search = ''
+    },
+    search(val) {
+      this.handleSelectSearchOption(this.dataset.find((d: Item) => d.id == val))
     }
   }
 })
@@ -80,13 +71,8 @@ export default class Schematics extends Vue {
     return this.datasets[this.selected]
   }
 
-  get filteredDataset(): Items {
-    return this.dataset.filter((item: Item) =>
-      item.name.toLowerCase().includes(this.search.toLowerCase())
-    )
-  }
-
   handleSelectSearchOption(item: Item) {
+    if (!item) return
     this.search = item.name
     ;(this.schematic as unknown as InstanceType<typeof Schematic>)?.panToNode(
       item
@@ -106,55 +92,5 @@ export default class Schematics extends Vue {
   left: 100px;
   z-index: 2;
   display: flex;
-
-  .search-input {
-    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
-    position: relative;
-    width: 300px;
-
-    input {
-      border: thin solid var(--grey-4);
-      border-radius: 4px;
-      outline: none;
-      transition: all 150ms;
-      width: 100%;
-
-      &:focus {
-        outline: none;
-        border: thin solid var(--primary);
-        box-shadow: none;
-      }
-    }
-
-    .search-options {
-      box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06),
-        0px 1px 3px rgba(0, 0, 0, 0.1);
-      display: none;
-      left: 2px;
-      position: absolute;
-      max-height: 40vh;
-      overflow: auto;
-      width: calc(100% - 4px);
-
-      .option {
-        background-color: var(--white);
-        cursor: pointer;
-        transition: all 25ms;
-
-        &:hover,
-        &:focus {
-          background-color: var(--primary);
-          color: white;
-        }
-      }
-    }
-
-    &:focus,
-    &:focus-within {
-      .search-options {
-        display: block;
-      }
-    }
-  }
 }
 </style>
