@@ -294,6 +294,32 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="bar"):
             raise_failed_state(states[1])
 
+    def test_flow_state_default_handles_nested_failures(self):
+        @task
+        def fail_task():
+            raise ValueError("foo")
+
+        @flow
+        def fail_flow():
+            fail_task()
+
+        @flow
+        def wrapper_flow():
+            fail_flow()
+
+        @flow(version="test")
+        def foo():
+            wrapper_flow()
+            return None
+
+        flow_state = foo()
+        states = get_result(flow_state, raise_failures=False)
+        assert len(states) == 1
+        state = states[0]
+        assert isinstance(state, State)
+        with pytest.raises(ValueError, match="foo"):
+            raise_failed_state(state)
+
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
         def fail1():
