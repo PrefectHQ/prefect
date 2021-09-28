@@ -70,13 +70,13 @@
       <section v-if="showResetSection">
         <div> Are you sure you want to permanently delete your data? </div>
         <div>
-          If so, type the word <span class="text--error">Confirm</span> to
+          If so, type the word <span class="text--error">CONFIRM</span> to
           proceed.
         </div>
 
         <Input
           v-model="resetDatabaseConfirmation"
-          placeholder="Confirm"
+          placeholder="CONFIRM"
           class="my-2"
           style="max-width: 400px"
         />
@@ -85,7 +85,7 @@
           <Button
             color="primary"
             height="36px"
-            :disabled="resetDatabaseConfirmation !== 'Confirm'"
+            :disabled="resetDatabaseConfirmation !== 'CONFIRM'"
             miter
             @click="resetDatabase"
           >
