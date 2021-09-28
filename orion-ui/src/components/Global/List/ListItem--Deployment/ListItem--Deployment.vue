@@ -113,7 +113,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
-import { Deployment } from '@/objects'
+import { Deployment } from '@/types/objects'
 
 class Props {
   deployment = prop<Deployment>({ required: true })
@@ -150,6 +150,10 @@ export default class ListItemDeployment extends Vue.with(Props) {
     return this.parameters.filter(
       (p) => p.name.includes(this.search) || p.type.includes(this.search)
     )
+  }
+
+  mounted() {
+    console.log(this.deployment)
   }
 }
 </script>
