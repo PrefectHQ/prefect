@@ -199,7 +199,7 @@ export default class Dashboard extends Vue {
     { label: 'Upcoming Runs', count: null }
   ]
 
-  resultsTab: string = 'deployments'
+  resultsTab: string = 'flows'
 
   get flows() {
     return this.queries.flows.response || []
