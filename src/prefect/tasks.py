@@ -230,20 +230,23 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        # Stash the current dynamic key to pass along to the engine
-        dynamic_key = str(self._dynamic_key)
+        # Get the dynamic key for this call
+        dynamic_key = self.get_and_update_dynamic_key()
 
         # Update the dynamic key so future task calls are distinguishable from this one
-        self.update_dynamic_key()
-
         return enter_task_run_engine(self, parameters, dynamic_key)
 
-    def update_dynamic_key(self):
+    def get_and_update_dynamic_key(self) -> str:
         """
-        Callback when tasks are called to distinguish repeated calls in the backend
+        When tasks are called, they call this method to get a key unique to that task
+        call; this allows the backend to distinguish repeated task calls.
         """
+        current_key = str(self._dynamic_key)
+
         # Increment the key
         self._dynamic_key += 1
+
+        return current_key
 
 
 @overload
