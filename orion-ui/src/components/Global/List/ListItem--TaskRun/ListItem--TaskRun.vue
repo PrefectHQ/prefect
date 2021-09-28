@@ -61,7 +61,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToApproximateString } from '@/util/util'
-import { TaskRun } from '@/objects'
+import { TaskRun } from '@/types/objects'
 
 class Props {
   run = prop<TaskRun>({ required: true })
@@ -72,7 +72,8 @@ export default class ListItemTaskRun extends Vue.with(Props) {
   sliceStart: number = Math.floor(Math.random() * 4)
 
   get state(): string {
-    return this.run.state.toLowerCase()
+    console.log(this.run)
+    return this.run.state.type.toLowerCase()
   }
 
   get tags(): string[] {
