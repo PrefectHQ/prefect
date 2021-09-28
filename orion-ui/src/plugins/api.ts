@@ -1,11 +1,21 @@
 import { App, Plugin, ref } from 'vue'
 
+export interface DeploymentsFilter {
+  limit?: limit
+  offset?: offset
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
+}
+
 export interface FlowsFilter {
   limit?: limit
   offset?: offset
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
 }
 
 export interface TaskRunsFilter {
@@ -14,6 +24,7 @@ export interface TaskRunsFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
 }
 
 export interface FlowRunsFilter {
@@ -22,6 +33,7 @@ export interface FlowRunsFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
 }
 
 type Filters = {
