@@ -256,11 +256,9 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         return self.run.empirical_policy
 
-    @property
     async def task_run(self):
         return None
 
-    @property
     async def flow_run(self):
         return self.run
 
@@ -357,11 +355,9 @@ class TaskOrchestrationContext(OrchestrationContext):
 
         return self.run.empirical_policy
 
-    @property
     async def task_run(self):
         return self.run
 
-    @property
     async def flow_run(self):
         return await flow_runs.read_flow_run(
             session=self.session,
