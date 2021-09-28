@@ -72,7 +72,6 @@ export default class ListItemTaskRun extends Vue.with(Props) {
   sliceStart: number = Math.floor(Math.random() * 4)
 
   get state(): string {
-    console.log(this.run)
     return this.run.state.type.toLowerCase()
   }
 
