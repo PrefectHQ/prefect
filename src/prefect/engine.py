@@ -253,7 +253,7 @@ async def create_and_begin_subflow_run(
         terminal_state.data = await resolve_futures_to_data(terminal_state.data)
 
     # Update the flow to the terminal state _after_ the executor has shut down
-    await client.propose_state(
+    terminal_state = await client.propose_state(
         state=terminal_state,
         flow_run_id=flow_run_id,
     )
