@@ -5,7 +5,7 @@ from typing import List, Set, Union
 import pendulum
 import pytz
 from croniter import croniter
-from dateutil import rrule
+from dateutil import rrule, tz as dateutil_tz
 from pydantic import Field, conint, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
@@ -175,7 +175,7 @@ class IntervalSchedule(PrefectBaseModel):
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
 
         counter = 0
-        dates = []
+        dates = set()
 
         while True:
 
@@ -185,7 +185,10 @@ class IntervalSchedule(PrefectBaseModel):
                 # if the end date was exceeded, exit
                 if end and next_date > end:
                     break
-                dates.append(next_date)
+
+                # check for duplicates; weird things can happen with DST
+                if next_date not in dates:
+                    dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -198,7 +201,7 @@ class IntervalSchedule(PrefectBaseModel):
             # yield event loop control
             await asyncio.sleep(0)
 
-        return dates
+        return sorted(dates)
 
 
 class CronSchedule(PrefectBaseModel):
@@ -297,7 +300,7 @@ class CronSchedule(PrefectBaseModel):
             start_localized += datetime.timedelta(seconds=1)
 
         cron = croniter(self.cron, start_localized, day_or=self.day_or)  # type: ignore
-        dates = []
+        dates = set()
         counter = 0
 
         while True:
@@ -306,9 +309,9 @@ class CronSchedule(PrefectBaseModel):
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
-            # check for duplicates; weird things can happen with DST and cron
+            # check for duplicates; weird things can happen with DST
             if next_date not in dates:
-                dates.append(next_date)
+                dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -319,10 +322,24 @@ class CronSchedule(PrefectBaseModel):
             # yield event loop control
             await asyncio.sleep(0)
 
-        return dates
+        return sorted(dates)
 
 
 class RRuleSchedule(PrefectBaseModel):
+    """
+    RRule schedule, based on the iCalendar standard
+    ([RFC 5545](https://datatracker.ietf.org/doc/html/rfc5545)) as
+    implemented in `dateutils.rrule`.
+
+    RRules are appropriate for any kind of calendar-date manipulation, including
+    irregular intervals, repetition, exclusions, week day or day-of-month
+    adjustments, and more.
+
+    Note that as a calendar-oriented standard, `RRuleSchedules` are sensitive to
+    to the initial timezone provided. A 9am daily schedule with a daylight savings
+    time-aware start date will maintain a local 9am time through DST boundaries;
+    a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
+    """
 
     rrule: str
     timezone: str = Field(None, example="America/New_York")
@@ -334,8 +351,22 @@ class RRuleSchedule(PrefectBaseModel):
         else:
             timezone = "UTC"
         # convert dtstart to UTC because rrule doesn't handle timezones
-        rrule = rrule.replace(dtstart=pendulum.instance(rrule._dtstart).in_tz("UTC"))
+        # rrule = rrule.replace(dtstart=pendulum.instance(rrule._dtstart).in_tz("UTC"))
         return RRuleSchedule(rrule=str(rrule), timezone=timezone)
+
+    def to_rrule(self):
+        """
+        Since rrule doesn't properly serialize/deserialize timezones, we localize dates here
+        """
+        rrule_obj = rrule.rrulestr(self.rrule, cache=True)
+        kwargs = dict(
+            dtstart=rrule_obj._dtstart.replace(tzinfo=dateutil_tz.gettz(self.timezone))
+        )
+        if rrule_obj._until:
+            kwargs.update(
+                until=rrule_obj._until.replace(tzinfo=dateutil_tz.gettz(self.timezone)),
+            )
+        return rrule_obj.replace(**kwargs)
 
     @validator("timezone", always=True)
     def valid_timezone(cls, v):
@@ -344,15 +375,6 @@ class RRuleSchedule(PrefectBaseModel):
         elif v is None:
             return "UTC"
         return v
-
-    def _rrule_dates_iterator(self):
-        """Imitates cache logic in the rrule library"""
-        rrule_obj = rrule.rrulestr(self.rrule, cache=True)
-        if rrule_obj._cache_complete:
-            gen = rrule_obj._cache
-        else:
-            gen = rrule_obj
-        yield from gen
 
     async def get_dates(
         self,
@@ -384,22 +406,21 @@ class RRuleSchedule(PrefectBaseModel):
             else:
                 n = 1
 
-        dates = []
+        dates = set()
         counter = 0
 
-        for next_date in self._rrule_dates_iterator():
+        # pass count = None to account for discrepancies with duplicates around DST boundaries
+        for next_date in self.to_rrule().xafter(start, count=None, inc=True):
 
             next_date = pendulum.instance(next_date).in_tz(self.timezone)
-
-            # if the start date has not been reached, continue
-            if next_date < start:
-                continue
 
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
 
-            dates.append(next_date)
+            # check for duplicates; weird things can happen with DST
+            if next_date not in dates:
+                dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -410,7 +431,7 @@ class RRuleSchedule(PrefectBaseModel):
             # yield event loop control
             await asyncio.sleep(0)
 
-        return dates
+        return sorted(dates)
 
 
 SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
