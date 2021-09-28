@@ -197,6 +197,10 @@ class UpdateSubflowParentTask(BaseUniversalRule):
 
 
 class UpdateStateDetails(BaseUniversalRule):
+    """
+    Update a state's references to a corresponding flow- or task- run.
+    """
+
     async def before_transition(
         self,
         context: OrchestrationContext,
