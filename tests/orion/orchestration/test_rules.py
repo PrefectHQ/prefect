@@ -816,7 +816,7 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        rule_as_context_manager = IllustrativeUniversalRule(ctx, *intended_transition)
+        rule_as_context_manager = IllustrativeUniversalRule(ctx)
         context_call = MagicMock()
 
         # rules govern logic by being used as a context manager
@@ -863,7 +863,7 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
+        universal_rule = IllustrativeUniversalRule(ctx)
 
         async with universal_rule as ctx:
             mutated_state_type = random.choice(
@@ -918,7 +918,7 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        universal_rule = IllustrativeUniversalRule(ctx, *intended_transition)
+        universal_rule = IllustrativeUniversalRule(ctx)
 
         async with universal_rule as ctx:
             mutated_state_type = random.choice(
@@ -1153,18 +1153,14 @@ class TestOrchestrationContext:
         await ctx.validate_proposed_state()
         assert ctx.validated_state_type == ctx.proposed_state_type
 
-    async def test_context_validation_returns_orm_state(
+    async def test_context_validation_returns_none(
         self, session, run_type, initialize_orchestration
     ):
         initial_state_type = states.StateType.PENDING
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
-        orm_state = await ctx.validate_proposed_state()
-        if run_type == "task":
-            assert isinstance(orm_state, orm.TaskRunState)
-        if run_type == "flow":
-            assert isinstance(orm_state, orm.FlowRunState)
+        assert await ctx.validate_proposed_state() is None
 
     async def test_context_validation_sets_run_state(
         self, session, run_type, initialize_orchestration

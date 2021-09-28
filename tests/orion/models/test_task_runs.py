@@ -5,6 +5,7 @@ import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import Scheduled
 
 
@@ -32,6 +33,31 @@ class TestCreateTaskRun:
             session=session, task_run=fake_task_run
         )
         assert task_run_2.id == task_run.id
+
+    async def test_create_task_run_task_inputs(self, flow_run, session):
+        id1 = uuid4()
+        id2 = uuid4()
+        task_inputs = dict(
+            x=[TaskRunResult(id=id1)],
+            y=[],
+            z=[TaskRunResult(id=id1), TaskRunResult(id=id2)],
+        )
+
+        task_run = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                task_inputs=task_inputs,
+            ),
+        )
+        task_run_id = task_run.id
+
+        await session.commit()
+        session.expire_all()
+
+        task_run_2 = await models.task_runs.read_task_run(session, task_run_id)
+        assert task_run_2.task_inputs == task_inputs
 
     async def test_create_task_run_has_no_default_state(self, flow_run, session):
         task_run = await models.task_runs.create_task_run(
@@ -425,6 +451,36 @@ class TestReadTaskRuns:
             flow_filter=schemas.filters.FlowFilter(
                 id=schemas.filters.FlowFilterId(any_=[uuid4()])
             ),
+        )
+        assert len(result) == 0
+
+    async def test_read_task_runs_filters_by_deployment_criteria(
+        self, deployment, session
+    ):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=deployment.flow_id,
+                deployment_id=deployment.id,
+                flow_version="1.0",
+            ),
+        )
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(flow_run_id=flow_run_1.id, task_key="my-key"),
+        )
+
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=dict(any_=[deployment.id])
+            ),
+        )
+        assert {res.id for res in result} == {task_run_1.id}
+
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(id=dict(any_=[uuid4()])),
         )
         assert len(result) == 0
 
