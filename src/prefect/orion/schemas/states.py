@@ -110,7 +110,12 @@ class State(IDBaseModel, Generic[R]):
         return self.__repr__()
 
     def __repr__(self) -> str:
-        return super().__repr__()
+        msg = f"State(name='{self.name}', type={self.type}"
+        if self.message:
+            msg += f", message='{self.message}')"
+        else:
+            msg += ")"
+        return msg
 
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
@@ -181,3 +186,12 @@ def Retrying(**kwargs) -> State:
         State: a Retrying state
     """
     return State(type=StateType.RUNNING, name="Retrying", **kwargs)
+
+
+def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+    """Convenience function for creating `Late` states.
+
+    Returns:
+        State: a Late state
+    """
+    return Scheduled(scheduled_time=scheduled_time, name="Late")
