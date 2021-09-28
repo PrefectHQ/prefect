@@ -39,9 +39,9 @@ class TestTaskCall:
             return foo(1)
 
         flow_state = bar()
-        task_state = get_result(flow_state)
+        task_state = flow_state.result
         assert isinstance(task_state, State)
-        assert get_result(task_state) == 1
+        assert task_state.result == 1
 
     async def test_async_task_called_inside_async_flow(self):
         @task
