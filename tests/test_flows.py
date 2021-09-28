@@ -271,6 +271,29 @@ class TestFlowCall:
         assert all(isinstance(state, State) for state in task_run_states)
         assert get_result(task_run_states[0]) == "foo"
 
+    def test_flow_state_default_includes_subflow_states(self):
+        @task
+        def succeed():
+            return "foo"
+
+        @flow
+        def fail():
+            raise ValueError("bar")
+
+        @flow(version="test")
+        def foo():
+            succeed()
+            fail()
+            return None
+
+        flow_state = foo()
+        states = get_result(flow_state, raise_failures=False)
+        assert len(states) == 2
+        assert all(isinstance(state, State) for state in states)
+        assert get_result(states[0]) == "foo"
+        with pytest.raises(ValueError, match="bar"):
+            raise_failed_state(states[1])
+
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
         def fail1():

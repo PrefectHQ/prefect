@@ -17,6 +17,7 @@ from prefect.executors import BaseExecutor
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.tasks import Task
+from prefect.orion.schemas.states import State
 
 T = TypeVar("T")
 
@@ -58,7 +59,8 @@ class FlowRunContext(RunContext):
     flow_run_id: UUID
     client: OrionClient
     executor: BaseExecutor
-    task_run_futures: List[PrefectFuture] = []
+    task_run_futures: List[PrefectFuture] = Field(default_factory=list)
+    subflow_states: List[State] = Field(default_factory=list)
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
     sync_portal: Optional[BlockingPortal] = None
