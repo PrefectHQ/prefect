@@ -4,13 +4,33 @@ export declare interface Flow {
   tags: string[]
 }
 
+export declare interface Schedule {
+  adjustments: { [key: string]: any }
+  anchor_date: string
+  filters: { [key: string]: any }
+  timezone: string | null
+}
+
+export declare interface IntervalSchedule extends Schedule {
+  interval: number
+}
+
+export declare interface CronSchedule extends Schedule {
+  cron: number
+}
+
 export declare interface Deployment {
   id: string
   name: string
   location: string
-  schedule: any
-  parameters: { [key: string]: any }[]
+  schedule: Schedule | IntervalSchedule | CronSchedule
+  parameters: { [key: string]: any }
   tags: string[]
+  created: string
+  flow_data: { [key: string]: any }
+  flow_id: string
+  is_schedule_active: boolean
+  updated: string
 }
 
 export declare interface State {
