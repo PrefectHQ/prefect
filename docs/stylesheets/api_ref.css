@@ -1,8 +1,5 @@
 /* styling that applies only to the Python API reference documentation */
 
-/* note admonition */
-.admonition.note { font-size: 1em; }
-
 /* class headings */
 .doc-object.doc-class > .doc-heading { background-color: #f5f5f5; font-color: #42a5f5; font-size: 1.75em; font-weight: bold; padding-left: 8px; border-radius: 3px; border-left: solid 4px #3b8dff; margin-top: 32px; padding: 4px; }
 
@@ -10,7 +7,7 @@
 [id$="-classes"] { border-bottom: solid 2px #3b8dff; font-weight: bold; border-radius: 3px; }
 
 /* Function section headings */
-[id$="-functions"] { border-bottom: solid 2px #3b8dff; font-weight: bold; border-radius: 3px; }
+[id$="-functions"] { border-bottom: solid 2px #3b8dff; font-weight: bold; border-radius: 3px; padding-left: 8px; }
 
 /* method headings */
 .doc-object.doc-method > .doc-heading { background-color: #f5f5f5; font-color: #42a5f5; font-size: 1.15em; font-weight: bold; padding: 4px; padding-left: 8px; border-radius: 6px; margin-top: 32px; border-left: solid 3px #fe5196; }
