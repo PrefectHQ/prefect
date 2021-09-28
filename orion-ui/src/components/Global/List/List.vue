@@ -1,10 +1,6 @@
 <template>
   <ol class="list">
-    <slot>
-      <list-item>Item 1</list-item>
-      <list-item>Item 2</list-item>
-      <list-item>Item 3</list-item>
-    </slot>
+    <slot> </slot>
   </ol>
 </template>
 

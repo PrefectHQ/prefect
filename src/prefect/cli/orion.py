@@ -35,7 +35,7 @@ def build_docs(schema_path: str = None):
     """
     if not schema_path:
         schema_path = os.path.abspath(
-            os.path.join(__file__, "../../../../docs/schema.json")
+            os.path.join(__file__, "../../../../docs/api-ref/schema.json")
         )
 
     schema = orion_fastapi_app.openapi()
