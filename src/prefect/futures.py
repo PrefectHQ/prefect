@@ -114,6 +114,7 @@ class PrefectFuture(Generic[R]):
     @sync_compatible
     async def get_state(self) -> State[R]:
         task_run = await self._client.read_task_run(self.run_id)
+        breakpoint()
 
         if not task_run:
             raise RuntimeError("Future has no associated task run in the server.")
