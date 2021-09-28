@@ -157,6 +157,10 @@ body {
         .#{$color-key}-border {
           border-color: $color;
         }
+
+        .#{$color-key}-stroke {
+          stroke: $color !important;
+        }
       }
     }
   }
