@@ -11,15 +11,18 @@
         :key="key"
         :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
         class="node d-flex align-stretch justify-start"
-        :class="node.data.state"
+        :class="node.data.state.toLowerCase() + '-border'"
         tabindex="0"
         @focus.self="panToNode(node)"
       >
         <div
           class="d-flex align-center justify-center border px-1"
-          :class="node.data.state"
+          :class="[
+            node.data.state.toLowerCase() + '-bg',
+            node.data.state.toLowerCase() + '-border'
+          ]"
         >
-          <i class="pi text--white pi-2x" :class="iconMap(node.data.state)" />
+          <i class="pi text--white pi-lg" :class="iconMap(node.data.state)" />
         </div>
 
         <div class="d-flex align-center justify-center px-1">
@@ -67,12 +70,6 @@ import { curveMiter } from './curveMiter'
 
 class Props {
   items = prop<Item[]>({ required: true })
-}
-
-const iconMap: { [key: string]: string } = {
-  success: 'pi-check-line',
-  failed: 'pi-error-warning-line',
-  pending: 'pi-loader-2-line'
 }
 
 @Options<Schematic>({
@@ -157,7 +154,7 @@ export default class Schematic extends Vue.with(Props) {
   }
 
   iconMap(state: string) {
-    return iconMap[state] || 'remove'
+    return `pi-${state.toLowerCase()}`
   }
 
   toggleTree(node: SchematicNode) {
@@ -271,7 +268,10 @@ export default class Schematic extends Vue.with(Props) {
           (selection: any) => {
             const g = selection.append('linearGradient')
             g.attr('id', (d: Link, i: number) => d.source.data.name + i)
-              .attr('class', (d: Link) => d.source.data.state)
+              .attr(
+                'class',
+                (d: Link) => `${d.source.data.state.toLowerCase()}-text`
+              )
               .attr('gradientUnits', 'userSpaceOnUse')
               .attr('x1', (d: Link) => calcGradientCoord(d).x1)
               .attr('y1', (d: Link) => calcGradientCoord(d).y1)
@@ -304,7 +304,10 @@ export default class Schematic extends Vue.with(Props) {
           (selection: any) => {
             selection
               .attr('id', (d: Link, i: number) => d.source.data.name + i)
-              .attr('class', (d: Link) => d.source.data.state)
+              .attr(
+                'class',
+                (d: Link) => `${d.source.data.state.toLowerCase()}-text`
+              )
               .attr('gradientUnits', 'userSpaceOnUse')
               .attr('x1', (d: Link) => calcGradientCoord(d).x1)
               .attr('y1', (d: Link) => calcGradientCoord(d).y1)
@@ -339,12 +342,9 @@ export default class Schematic extends Vue.with(Props) {
           selection
             .append('path')
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-            .attr('class', (d: Link) =>
-              this.useLinearGradient
-                ? d.source.data.state == 'pending'
-                  ? d.source.data.state
-                  : null
-                : d.source.data.state
+            .attr(
+              'class',
+              (d: Link) => `${d.source.data.state.toLowerCase()}-stroke`
             )
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
@@ -365,12 +365,9 @@ export default class Schematic extends Vue.with(Props) {
         (selection: any) =>
           selection
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-            .attr('class', (d: Link) =>
-              this.useLinearGradient
-                ? d.source.data.state == 'pending'
-                  ? d.source.data.state
-                  : null
-                : d.source.data.state
+            .attr(
+              'class',
+              (d: Link) => `${d.source.data.state.toLowerCase()}-stroke`
             )
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
@@ -496,7 +493,8 @@ export default class Schematic extends Vue.with(Props) {
   }
 
   &:focus {
-    border: 2px solid;
+    border-width: 2px;
+    border-style: solid;
     transition: border-color 150ms;
     outline: none;
   }
@@ -506,30 +504,6 @@ export default class Schematic extends Vue.with(Props) {
     border-bottom-left-radius: inherit;
     margin-left: -2px;
     height: 100%;
-
-    &.success {
-      background-color: var(--completed);
-    }
-
-    &.failed {
-      background-color: var(--failed);
-    }
-
-    &.pending {
-      background-color: var(--pending);
-    }
-  }
-
-  &.success {
-    border-color: var(--completed);
-  }
-
-  &.failed {
-    border-color: var(--failed);
-  }
-
-  &.pending {
-    border-color: var(--pending);
   }
 
   .collapse-button {
