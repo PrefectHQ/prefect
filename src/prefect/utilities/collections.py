@@ -1,19 +1,30 @@
 import itertools
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
+from collections.abc import Iterator as IteratorABC
 from collections.abc import Sequence, Set
+from dataclasses import dataclass, fields, is_dataclass
+from functools import partial
 from typing import (
     Any,
+    Awaitable,
+    Callable,
     Dict,
+    Generic,
     Iterable,
+    Iterator,
     List,
     Tuple,
     Type,
     TypeVar,
     Union,
     cast,
-    Iterator,
 )
+from unittest.mock import Mock
 
+import pydantic
+
+
+T = TypeVar("T")
 KT = TypeVar("KT")
 VT = TypeVar("VT")
 
@@ -135,3 +146,71 @@ def batched_iterable(iterable: Iterable[T], size: int) -> Iterator[Tuple[T, ...]
         if not batch:
             break
         yield batch
+
+
+@dataclass
+class Quote(Generic[T]):
+    """
+    Simple wrapper to mark an expression as a different type so it will not be coerced
+    by Prefect. For example, if you want to return a state from a flow without having
+    the flow assume that state.
+    """
+
+    expr: T
+
+    def unquote(self) -> T:
+        return self.expr
+
+
+def quote(expr: T) -> Quote[T]:
+    return Quote(expr)
+
+
+async def visit_collection(
+    expr, visit_fn: Callable[[Any], Awaitable[Any]], return_data: bool = False
+):
+    """
+    This function visits every element of an arbitrary Python collection and
+    applies `visit_fn` to each element. If `return_data=True`, a copy of the
+    data structure containing the results of `visit_fn` is returned. Note that
+    `return_data=True` may be slower due to the need to copy every object.
+
+    Args:
+        expr (Any): a Python object or expression
+        visit_fn (Callable[[Any], Awaitable[Any]]): an async function that
+            will be applied to every non-collection element of expr.
+        return_data (bool): if `True`, a copy of `expr` containing data modified
+            by `visit_fn` will be returned. This is slower than `return_data=False`
+            (the default).
+    """
+    # package the provided arguments for recursive calls
+    recurse = partial(visit_collection, visit_fn=visit_fn, return_data=return_data)
+
+    # Get the expression type; treat iterators like lists
+    typ = list if isinstance(expr, IteratorABC) else type(expr)
+    typ = cast(type, typ)  # mypy treats this as 'object' otherwise and complains
+
+    # do not visit mock objects
+    if isinstance(expr, Mock):
+        return expr if return_data else None
+
+    elif typ in (list, tuple, set):
+        result = [await recurse(o) for o in expr]
+        return typ(result) if return_data else None
+
+    elif typ in (dict, OrderedDict):
+        assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
+        result = [[await recurse(k), await recurse(v)] for k, v in expr.items()]
+        return typ(result) if return_data else None
+
+    elif is_dataclass(expr) and not isinstance(expr, type):
+        result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
+        return typ(**result) if return_data else None
+
+    elif isinstance(expr, pydantic.BaseModel):
+        result = {f: await recurse(getattr(expr, f)) for f in expr.__fields__}
+        return typ(**result) if return_data else None
+
+    else:
+        result = await visit_fn(expr)
+        return result if return_data else None

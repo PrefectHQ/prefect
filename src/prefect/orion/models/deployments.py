@@ -16,16 +16,17 @@ async def create_deployment(
     session: sa.orm.Session,
     deployment: schemas.core.Deployment,
 ) -> orm.Deployment:
-    """Upserts a deployment
+    """Upserts a deployment.
 
     Args:
-        session (sa.orm.Session): a database session
-        deployment (schemas.core.Deployment): a deployment model
+        session: a database session
+        deployment: a deployment model
 
     Returns:
         orm.Deployment: the newly-created or updated deployment
 
     """
+
     insert_stmt = (
         dialect_specific_insert(orm.Deployment)
         .values(**deployment.dict(shallow=True, exclude_unset=True))
@@ -33,7 +34,13 @@ async def create_deployment(
             index_elements=["flow_id", "name"],
             set_=deployment.dict(
                 shallow=True,
-                include={"schedule", "is_schedule_active", "tags", "flow_data"},
+                include={
+                    "schedule",
+                    "is_schedule_active",
+                    "tags",
+                    "parameters",
+                    "flow_data",
+                },
             ),
         )
     )
@@ -59,31 +66,33 @@ async def create_deployment(
 async def read_deployment(
     session: sa.orm.Session, deployment_id: UUID
 ) -> orm.Deployment:
-    """Reads a deployment by id
+    """Reads a deployment by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        deployment_id (str): a deployment id
+        session: A database session
+        deployment_id: a deployment id
 
     Returns:
         orm.Deployment: the deployment
     """
+
     return await session.get(orm.Deployment, deployment_id)
 
 
 async def read_deployment_by_name(
     session: sa.orm.Session, name: str, flow_name: str
 ) -> orm.Deployment:
-    """Reads a deployment by name
+    """Reads a deployment by name.
 
     Args:
-        session (sa.orm.Session): A database session
-        name (str): a deployment name
-        flow_name (str): the name of the flow the deployment belongs to
+        session: A database session
+        name: a deployment name
+        flow_name: the name of the flow the deployment belongs to
 
     Returns:
         orm.Deployment: the deployment
     """
+
     result = await session.execute(
         select(orm.Deployment)
         .join(orm.Flow, orm.Deployment.flow_id == orm.Flow.id)
@@ -95,12 +104,13 @@ async def read_deployment_by_name(
 
 def _apply_deployment_filters(
     query,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ):
     """
-    Applies filters to a deployment query as a combination of correlated
-    EXISTS subqueries.
+    Applies filters to a deployment query as a combination of EXISTS subqueries.
     """
 
     if deployment_filter:
@@ -113,6 +123,21 @@ def _apply_deployment_filters(
 
         query = query.where(exists_clause.exists())
 
+    if flow_run_filter or task_run_filter:
+        exists_clause = select(orm.FlowRun).where(
+            orm.Deployment.id == orm.FlowRun.deployment_id
+        )
+
+        if flow_run_filter:
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+        if task_run_filter:
+            exists_clause = exists_clause.join(
+                orm.TaskRun,
+                orm.TaskRun.flow_run_id == orm.FlowRun.id,
+            ).where(task_run_filter.as_sql_filter())
+
+        query = query.where(exists_clause.exists())
+
     return query
 
 
@@ -120,26 +145,36 @@ async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> List[orm.Deployment]:
-    """Read deployments
+    """
+    Read deployments.
 
     Args:
-        session (sa.orm.Session): A database session
-        offset (int): Query offset
-        limit(int): Query limit
-        deployment_filter (DeploymentFilter): only return deployment that match these filters
-        flow_filter (FlowFilter): only return deployments whose flows match these criteria
+        session: A database session
+        offset: Query offset
+        limi: Query limit
+        flow_filter: only select deployments whose flows match these criteria
+        flow_run_filter: only select deployments whose flow runs match these criteria
+        task_run_filter: only select deployments whose task runs match these criteria
+        deployment_filter: only select deployment that match these filters
+
 
     Returns:
         List[orm.Deployment]: deployments
     """
 
-    query = select(orm.Deployment).order_by(orm.Deployment.id)
+    query = select(orm.Deployment).order_by(orm.Deployment.name)
 
     query = _apply_deployment_filters(
-        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+        query=query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     if offset is not None:
@@ -153,15 +188,20 @@ async def read_deployments(
 
 async def count_deployments(
     session: sa.orm.Session,
-    deployment_filter: schemas.filters.DeploymentFilter = None,
     flow_filter: schemas.filters.FlowFilter = None,
+    flow_run_filter: schemas.filters.FlowRunFilter = None,
+    task_run_filter: schemas.filters.TaskRunFilter = None,
+    deployment_filter: schemas.filters.DeploymentFilter = None,
 ) -> int:
-    """Count deployments
+    """
+    Count deployments.
 
     Args:
-        session (sa.orm.Session): A database session
-        deployment_filter (DeploymentFilter): only count deployment that match these filters
-        flow_filter (FlowFilter): only count deployments whose flows match these criteria
+        session: A database session
+        flow_filter: only count deployments whose flows match these criteria
+        flow_run_filter: only count deployments whose flow runs match these criteria
+        task_run_filter: only count deployments whose task runs match these criteria
+        deployment_filter: only count deployment that match these filters
 
     Returns:
         int: the number of deployments matching filters
@@ -170,7 +210,11 @@ async def count_deployments(
     query = select(sa.func.count(sa.text("*"))).select_from(orm.Deployment)
 
     query = _apply_deployment_filters(
-        query=query, deployment_filter=deployment_filter, flow_filter=flow_filter
+        query=query,
+        flow_filter=flow_filter,
+        flow_run_filter=flow_run_filter,
+        task_run_filter=task_run_filter,
+        deployment_filter=deployment_filter,
     )
 
     result = await session.execute(query)
@@ -178,15 +222,17 @@ async def count_deployments(
 
 
 async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> bool:
-    """Delete a deployment by id
+    """
+    Delete a deployment by id.
 
     Args:
-        session (sa.orm.Session): A database session
-        deployment_id (str): a deployment id
+        session: A database session
+        deployment_id: a deployment id
 
     Returns:
         bool: whether or not the deployment was deleted
     """
+
     result = await session.execute(
         delete(orm.Deployment).where(orm.Deployment.id == deployment_id)
     )
@@ -250,7 +296,7 @@ async def _generate_scheduled_flow_runs(
         run = schemas.core.FlowRun(
             flow_id=deployment.flow_id,
             deployment_id=deployment_id,
-            # parameters=,
+            parameters=deployment.parameters,
             idempotency_key=f"scheduled {deployment.id} {date}",
             tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,
