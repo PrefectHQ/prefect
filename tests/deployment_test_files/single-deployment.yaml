@@ -2,3 +2,8 @@ name: hello-world-deployment
 flow_location: ./single_flow.py
 schedule:
   interval: 360
+parameters:
+  foo: bar
+tags:
+  - foo
+  - bar

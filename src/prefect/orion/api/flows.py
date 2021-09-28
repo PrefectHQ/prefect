@@ -23,6 +23,9 @@ async def create_flow(
     """Gracefully creates a new flow from the provided schema. If a flow with the
     same name already exists, the existing flow is returned.
     """
+    # hydrate the input model into a full flow model
+    flow = schemas.core.Flow(**flow.dict())
+
     now = pendulum.now("UTC")
     model = await models.flows.create_flow(session=session, flow=flow)
     if model.created >= now:
@@ -51,6 +54,7 @@ async def count_flows(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
@@ -61,6 +65,7 @@ async def count_flows(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
     )
 
 
@@ -105,6 +110,7 @@ async def read_flows(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Flow]:
     """
@@ -115,6 +121,7 @@ async def read_flows(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
         offset=offset,
         limit=limit,
     )

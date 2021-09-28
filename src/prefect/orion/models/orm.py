@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Dict, List, Union
 
 import pendulum
 import sqlalchemy as sa
@@ -7,7 +7,7 @@ from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declarative_mixin, relationship
 
-from prefect.orion.schemas import core, data, schedules, states
+from prefect.orion.schemas import core, data, schedules, states, filters
 from prefect.orion.utilities.database import (
     JSON,
     UUID,
@@ -360,15 +360,14 @@ class TaskRun(Base, RunMixin):
         nullable=False,
     )
     task_inputs = Column(
-        Pydantic(ParameterSchema),
+        Pydantic(
+            Dict[str, List[Union[core.TaskRunResult, core.Parameter, core.Constant]]]
+        ),
         server_default="{}",
-        default=ParameterSchema,
+        default=dict,
         nullable=False,
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    upstream_task_run_ids = Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
 
     # TODO remove this foreign key for significant delete performance gains
     state_id = Column(
@@ -468,6 +467,7 @@ class Deployment(Base):
         sa.Boolean, nullable=False, server_default="1", default=True
     )
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = Column(Pydantic(data.DataDocument))
 
     flow = relationship(Flow, back_populates="deployments", lazy="raise")
@@ -479,4 +479,32 @@ class Deployment(Base):
             name,
             unique=True,
         ),
+    )
+
+
+class SavedSearch(Base):
+    name = Column(String, nullable=False, unique=True)
+    flow_filter_criteria = Column(
+        Pydantic(filters.FlowFilterCriteria),
+        server_default="{}",
+        default=filters.FlowFilterCriteria,
+        nullable=False,
+    )
+    flow_run_filter_criteria = Column(
+        Pydantic(filters.FlowRunFilterCriteria),
+        server_default="{}",
+        default=filters.FlowRunFilterCriteria,
+        nullable=False,
+    )
+    task_run_filter_criteria = Column(
+        Pydantic(filters.TaskRunFilterCriteria),
+        server_default="{}",
+        default=filters.TaskRunFilterCriteria,
+        nullable=False,
+    )
+    deployment_filter_criteria = Column(
+        Pydantic(filters.DeploymentFilterCriteria),
+        server_default="{}",
+        default=filters.DeploymentFilterCriteria,
+        nullable=False,
     )

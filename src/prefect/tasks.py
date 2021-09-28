@@ -1,5 +1,5 @@
 """
-Base workflow task class and decorator
+Module containing the base workflow task class and decorator - for most use cases, using the [`@task` decorator][prefect.tasks.task] is preferred.
 """
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
@@ -39,24 +39,36 @@ R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
 
 
-def task_input_hash(context: "TaskRunContext", arguments: Dict[str, Any]):
+def task_input_hash(
+    context: "TaskRunContext", arguments: Dict[str, Any]
+) -> Optional[str]:
     """
     A task cache key implementation which hashes all inputs to the task using a JSON or
     cloudpickle serializer. If any arguments are not JSON serializable, the pickle
     serializer is used as a fallback. If cloudpickle fails, this will return a null key
     indicating that a cache key could not be generated for the given inputs.
+
+    Arguments:
+        context: the active `TaskRunContext`
+        arguments: a dictionary of arguments to be passed to the underlying task
+
+    Returns:
+        a string hash if hashing succeeded, else `None`
     """
     return hash_objects(context.task.fn, arguments)
 
 
 class Task(Generic[P, R]):
     """
-    A Prefect task definition
+    A Prefect task definition.
 
-    We recommend using the `@task` decorator for most use-cases.
+    !!! note
+        We recommend using [the `@task` decorator][prefect.tasks.task] for most use-cases.
 
-    Wraps a function with an entrypoint to the Prefect engine. To preserve the input
-    and output types, we use the generic type variables P and R for "Parameters" and
+    Wraps a function with an entrypoint to the Prefect engine. Calling this class within a flow function
+    creates a new task run.
+
+    To preserve the input and output types, we use the generic type variables P and R for "Parameters" and
     "Returns" respectively.
 
     Args:
@@ -72,7 +84,7 @@ class Task(Generic[P, R]):
         cache_expiration: An optional amount of time indicating how long cached states
             for this task should be restorable; if not provided, cached states will
             never expire.
-        retries: An optional number of times to retry on task run failure
+        retries: An optional number of times to retry on task run failure.
         retry_delay_seconds: An optional number of seconds to wait before retrying the
             task after failure. This is only applicable if `retries` is nonzero.
     """
@@ -148,9 +160,7 @@ class Task(Generic[P, R]):
         self, *args: Any, **kwargs: Any
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
-        Run the task.
-
-        Must be called within a flow function.
+        Run the task - must be called within a flow function.
 
         If writing an async task, this call must be awaited.
 
@@ -161,11 +171,11 @@ class Task(Generic[P, R]):
         and they are fully resolved on submission.
 
         Args:
-            *args: Arguments to run the flow with
-            **kwargs: Keyword arguments to run the flow with
+            *args: Arguments to run the task with
+            **kwargs: Keyword arguments to run the task with
 
         Returns:
-            A future allowing access to the state of the task
+            A future allowing asynchronous access to the state of the task
 
         Examples:
 
@@ -194,6 +204,7 @@ class Task(Generic[P, R]):
             >>> @flow
             >>> def my_flow():
             >>>     print(get_result(my_task()))
+            >>>
             >>> my_flow()
             hello
 
@@ -202,6 +213,7 @@ class Task(Generic[P, R]):
             >>> @task
             >>> async def my_async_task():
             >>>     pass
+            >>>
             >>> @flow
             >>> async def my_flow():
             >>>     await my_async_task()
@@ -287,7 +299,6 @@ def task(
     Examples:
         Define a simple task
 
-        >>> from prefect import task
         >>> @task
         >>> def add(x, y):
         >>>     return x + y
@@ -313,6 +324,7 @@ def task(
         Define a task that retries 3 times with a 5 second delay between attempts
 
         >>> from random import randint
+        >>>
         >>> @task(retries=3, retry_delay_seconds=5)
         >>> def my_task():
         >>>     x = randint(0, 5)
@@ -324,11 +336,10 @@ def task(
 
         >>> from prefect.tasks import task_input_hash
         >>> from datetime import timedelta
+        >>>
         >>> @task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
         >>> def my_task():
         >>>     return "hello"
-
-
     """
     if __fn:
         return cast(

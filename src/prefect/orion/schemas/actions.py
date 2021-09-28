@@ -18,22 +18,8 @@ DeploymentCreate = schemas.core.Deployment.subclass(
         "schedule",
         "is_schedule_active",
         "tags",
-        "flow_data",
-    ],
-)
-
-FlowRunCreate = schemas.core.FlowRun.subclass(
-    name="FlowRunCreate",
-    include_fields=[
-        "flow_id",
-        "deployment_id",
-        "flow_version",
         "parameters",
-        "context",
-        "tags",
-        "idempotency_key",
-        "state",
-        "parent_task_run_id",
+        "flow_data",
     ],
 )
 
@@ -52,19 +38,53 @@ StateCreate = schemas.states.State.subclass(
     ],
 )
 
-TaskRunCreate = schemas.core.TaskRun.subclass(
-    name="TaskRunCreate",
+
+class TaskRunCreate(
+    schemas.core.TaskRun.subclass(
+        name="TaskRunCreate",
+        include_fields=[
+            "flow_run_id",
+            "task_key",
+            "dynamic_key",
+            "cache_key",
+            "cache_expiration",
+            "task_version",
+            "empirical_policy",
+            "tags",
+            "task_inputs",
+        ],
+    )
+):
+    # TaskRunCreate states must be provided as StateCreate objects
+    state: StateCreate = None
+
+
+class FlowRunCreate(
+    schemas.core.FlowRun.subclass(
+        name="FlowRunCreate",
+        include_fields=[
+            "flow_id",
+            "deployment_id",
+            "flow_version",
+            "parameters",
+            "context",
+            "tags",
+            "idempotency_key",
+            "parent_task_run_id",
+        ],
+    )
+):
+    # FlowRunCreate states must be provided as StateCreate objects
+    state: StateCreate = None
+
+
+SavedSearchCreate = schemas.core.SavedSearch.subclass(
+    name="SavedSearchCreate",
     include_fields=[
-        "flow_run_id",
-        "task_key",
-        "dynamic_key",
-        "cache_key",
-        "cache_expiration",
-        "task_version",
-        "empirical_policy",
-        "tags",
-        "task_inputs",
-        "upstream_task_run_ids",
-        "state",
+        "name",
+        "flow_filter_criteria",
+        "flow_run_filter_criteria",
+        "task_run_filter_criteria",
+        "deployment_filter_criteria",
     ],
 )

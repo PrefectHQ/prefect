@@ -22,6 +22,10 @@ async def create_deployment(
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
     same name and flow_id already exists, the deployment is updated."""
+
+    # hydrate the input model into a full model
+    deployment = schemas.core.Deployment(**deployment.dict())
+
     now = pendulum.now()
     model = await models.deployments.create_deployment(
         session=session, deployment=deployment
@@ -91,13 +95,43 @@ async def read_deployments(
         settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
     ),
     offset: int = Body(0, ge=0),
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
     Query for deployments
     """
     return await models.deployments.read_deployments(
-        session=session, offset=offset, limit=limit
+        session=session,
+        offset=offset,
+        limit=limit,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+        deployment_filter=deployments,
+    )
+
+
+@router.post("/count")
+async def count_deployments(
+    flows: schemas.filters.FlowFilter = None,
+    flow_runs: schemas.filters.FlowRunFilter = None,
+    task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> int:
+    """
+    Count deployments
+    """
+    return await models.deployments.count_deployments(
+        session=session,
+        flow_filter=flows,
+        flow_run_filter=flow_runs,
+        task_run_filter=task_runs,
+        deployment_filter=deployments,
     )
 
 

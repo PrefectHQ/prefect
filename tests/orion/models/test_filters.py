@@ -53,6 +53,7 @@ async def data(database_engine, flow_function):
                 flow_id=f_1.id,
                 flow_data=flow_data,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
+                is_schedule_active=True,
             )
         )
         d_1_2 = await create_deployment(
@@ -61,6 +62,7 @@ async def data(database_engine, flow_function):
                 name="d-1-2",
                 flow_data=flow_data,
                 flow_id=f_1.id,
+                is_schedule_active=False,
             )
         )
         d_3_1 = await create_deployment(
@@ -70,6 +72,7 @@ async def data(database_engine, flow_function):
                 flow_data=flow_data,
                 flow_id=f_3.id,
                 schedule=schedules.IntervalSchedule(interval=timedelta(days=1)),
+                is_schedule_active=True,
             )
         )
 
@@ -235,6 +238,7 @@ class TestCountFlowsModels:
             2,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 1],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -287,6 +291,8 @@ class TestCountFlowsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -310,6 +316,8 @@ class TestCountFlowsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -340,6 +348,7 @@ class TestCountFlowRunModels:
             3,
         ],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 2],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -392,6 +401,8 @@ class TestCountFlowRunModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -412,6 +423,8 @@ class TestCountFlowRunModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
@@ -441,7 +454,7 @@ class TestCountTaskRunsModels:
             dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
             3,
         ],
-        # possibly odd behavior
+        [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 3],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 1],
         # next two check that filters are applied as an intersection not a union
         [
@@ -499,6 +512,8 @@ class TestCountTaskRunsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
         repsonse = await client.post(
             "/task_runs/count/",
@@ -518,10 +533,147 @@ class TestCountTaskRunsModels:
                 k = "flow_runs"
             elif k == "task_run_filter":
                 k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
             "/task_runs/filter",
+            json=json.loads(
+                json.dumps(
+                    adjusted_kwargs,
+                    default=pydantic.json.pydantic_encoder,
+                )
+            ),
+        )
+        assert len({r["id"] for r in repsonse.json()}) == expected
+
+
+class TestCountDeploymentModels:
+
+    params = [
+        [{}, 3],
+        [
+            dict(deployment_filter=filters.DeploymentFilter(name=dict(any_=["d-1-1"]))),
+            1,
+        ],
+        [
+            dict(
+                deployment_filter=filters.DeploymentFilter(
+                    name=dict(any_=["d-1-1", "d-1-2"])
+                )
+            ),
+            2,
+        ],
+        [
+            dict(
+                deployment_filter=filters.DeploymentFilter(name=dict(any_=["zaphod"]))
+            ),
+            0,
+        ],
+        [
+            dict(
+                deployment_filter=filters.DeploymentFilter(
+                    is_schedule_active=dict(eq_=True)
+                )
+            ),
+            2,
+        ],
+        [
+            dict(
+                deployment_filter=filters.DeploymentFilter(
+                    is_schedule_active=dict(eq_=False)
+                )
+            ),
+            1,
+        ],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 2],
+        [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-3"]))), 1],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db"]))), 2],
+        [dict(flow_filter=filters.FlowFilter(tags=dict(all_=["db", "red"]))), 0],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    deployment_id=dict(any_=[d_1_1_id, d_1_2_id, uuid4()])
+                )
+            ),
+            2,
+        ],
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+            ),
+            1,
+        ],
+        # next two check that filters are applied as an intersection not a union
+        [
+            dict(
+                deployment_filter=filters.DeploymentFilter(name=dict(any_=["d-1-1"])),
+                flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"])),
+            ),
+            1,
+        ],
+        [
+            dict(
+                deployment_filter=filters.DeploymentFilter(name=dict(any_=["d-1-1"])),
+                flow_filter=filters.FlowFilter(name=dict(any_=["f-2"])),
+            ),
+            0,
+        ],
+    ]
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_models_count(self, session, kwargs, expected):
+        count = await models.deployments.count_deployments(session=session, **kwargs)
+        assert count == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_models_read(self, session, kwargs, expected):
+        read = await models.deployments.read_deployments(session=session, **kwargs)
+        assert len({r.id for r in read}) == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_api_count(self, client, kwargs, expected):
+        adjusted_kwargs = {}
+        for k, v in kwargs.items():
+            if k == "flow_filter":
+                k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
+            adjusted_kwargs[k] = v
+
+        repsonse = await client.post(
+            "/deployments/count/",
+            json=json.loads(
+                json.dumps(
+                    adjusted_kwargs,
+                    default=pydantic.json.pydantic_encoder,
+                )
+            ),
+        )
+        assert repsonse.json() == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_api_read(self, client, kwargs, expected):
+        adjusted_kwargs = {}
+        for k, v in kwargs.items():
+            if k == "flow_filter":
+                k = "flows"
+            elif k == "flow_run_filter":
+                k = "flow_runs"
+            elif k == "task_run_filter":
+                k = "task_runs"
+            elif k == "deployment_filter":
+                k = "deployments"
+            adjusted_kwargs[k] = v
+
+        repsonse = await client.post(
+            "/deployments/filter",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,

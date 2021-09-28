@@ -10,13 +10,7 @@ from prefect.orion import schemas
 from prefect.orion.models import orm
 from prefect.orion.utilities.database import json_has_all_keys
 from prefect.orion.utilities.schemas import PrefectBaseModel
-
-
-class Pagination(PrefectBaseModel):
-    limit: conint(
-        ge=0, le=prefect.settings.orion.api.default_limit
-    ) = prefect.settings.orion.api.default_limit
-    offset: conint(ge=0) = 0
+from prefect.orion.utilities.enum import AutoEnum
 
 
 class PrefectFilterBaseModel(PrefectBaseModel):
@@ -387,3 +381,111 @@ class TaskRunFilter(PrefectFilterBaseModel):
             filters.append(self.start_time.as_sql_filter())
 
         return filters
+
+
+class DeploymentFilterId(PrefectFilterBaseModel):
+    any_: List[UUID] = Field(None, description="A list of deployment ids to include")
+
+    def _get_filter_list(self):
+        filters = []
+        if self.any_ is not None:
+            filters.append(orm.Deployment.id.in_(self.any_))
+        return filters
+
+
+class DeploymentFilterName(PrefectFilterBaseModel):
+    any_: List[str] = Field(
+        None,
+        description="A list of deployment names to include",
+        example=["my-deployment-1", "my-deployment-2"],
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.any_ is not None:
+            filters.append(orm.Deployment.name.in_(self.any_))
+        return filters
+
+
+class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
+    eq_: bool = Field(
+        None,
+        description="Only returns where deployment schedule is/is not active",
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.eq_ is not None:
+            filters.append(orm.Deployment.is_schedule_active.is_(self.eq_))
+        return filters
+
+
+class DeploymentFilterTags(PrefectFilterBaseModel):
+    all_: List[str] = Field(
+        None,
+        example=["tag-1", "tag-2"],
+        description="A list of tags. Deployments will be returned only if their tags are a superset of the list",
+    )
+    is_null_: bool = Field(
+        None, description="If true, only include deployments without tags"
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.all_ is not None:
+            filters.append(json_has_all_keys(orm.Deployment.tags, self.all_))
+        if self.is_null_ is not None:
+            filters.append(
+                orm.Deployment.tags == []
+                if self.is_null_
+                else orm.Deployment.tags != []
+            )
+        return filters
+
+
+class DeploymentFilter(PrefectFilterBaseModel):
+    """Filter for deployments. Only deployments matching all criteria will be returned"""
+
+    id: Optional[DeploymentFilterId]
+    name: Optional[DeploymentFilterName]
+    is_schedule_active: Optional[DeploymentFilterIsScheduleActive]
+    tags: Optional[DeploymentFilterTags]
+
+    def _get_filter_list(self) -> List:
+        filters = []
+
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter())
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter())
+        if self.is_schedule_active is not None:
+            filters.append(self.is_schedule_active.as_sql_filter())
+        if self.tags is not None:
+            filters.append(self.tags.as_sql_filter())
+
+        return filters
+
+
+class BaseFilterCriteria(PrefectBaseModel):
+    """Filter criteria for common objects in the system"""
+
+    flow_filter: FlowFilter = Field(default_factory=FlowFilter)
+    flow_run_filter: FlowRunFilter = Field(default_factory=FlowRunFilter)
+    task_run_filter: TaskRunFilter = Field(default_factory=TaskRunFilter)
+    deployment_filter: DeploymentFilter = Field(default_factory=DeploymentFilter)
+
+
+class FlowFilterCriteria(BaseFilterCriteria):
+    """Criteria by which flows can be filtered"""
+
+
+class FlowRunFilterCriteria(BaseFilterCriteria):
+    """Criteria by which flow runs can be filtered"""
+
+
+class TaskRunFilterCriteria(BaseFilterCriteria):
+    """Criteria by which task runs can be filtered"""
+
+
+class DeploymentFilterCriteria(BaseFilterCriteria):
+    """Criteria by which deployments can be filtered"""

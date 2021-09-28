@@ -22,7 +22,7 @@ class TestCreateFlowRun:
     async def test_create_flow_run_has_no_default_state(self, flow, session):
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id),
+            flow_run=schemas.core.FlowRun(flow_id=flow.id),
         )
         assert flow_run.flow_id == flow.id
         assert flow_run.state is None
@@ -31,7 +31,7 @@ class TestCreateFlowRun:
         state_id = uuid4()
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
+            flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 state=schemas.states.State(
                     id=state_id, type="RUNNING", name="My Running State"
@@ -54,7 +54,7 @@ class TestCreateFlowRun:
 
         scheduled_flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
+            flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 idempotency_key="TB12",
                 state=schemas.states.State(
@@ -67,7 +67,7 @@ class TestCreateFlowRun:
 
         running_flow_run = await models.flow_runs.create_flow_run(
             session=session,
-            flow_run=schemas.actions.FlowRunCreate(
+            flow_run=schemas.core.FlowRun(
                 flow_id=flow.id,
                 idempotency_key="TB12",
                 state=schemas.states.State(
@@ -881,6 +881,33 @@ class TestReadFlowRuns:
             flow_filter=schemas.filters.FlowFilter(
                 id=schemas.filters.FlowFilterId(any_=[uuid4()])
             ),
+        )
+        assert len(result) == 0
+
+    async def test_read_flow_runs_filters_by_deployment_criteria(
+        self, flow, deployment, session
+    ):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=schemas.states.State(
+                    type="SCHEDULED",
+                ),
+            ),
+        )
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(
+                id=dict(any_=[deployment.id])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_1.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            deployment_filter=schemas.filters.DeploymentFilter(id=dict(any_=[uuid4()])),
         )
         assert len(result) == 0
 
