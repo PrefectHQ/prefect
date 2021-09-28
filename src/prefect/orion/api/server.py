@@ -1,18 +1,24 @@
 # import prefect
 import asyncio
 from functools import partial
+import os
 from sys import exc_info
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 import prefect
 from prefect import settings
 from prefect.orion import api, services
 from prefect.utilities.logging import get_logger
 
-app = FastAPI(title="Prefect Orion", version=prefect.__version__)
+API_TITLE = "Prefect Orion"
+API_VERSION = prefect.__version__
+
+app = FastAPI(title=API_TITLE, version=API_VERSION)
 logger = get_logger("orion")
 
 # middleware
@@ -36,9 +42,34 @@ app.include_router(api.deployments.router)
 app.include_router(api.saved_searches.router)
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def root_redirect():
     return RedirectResponse(url="/docs")
+
+
+app.mount(
+    "/static",
+    StaticFiles(
+        directory=os.path.join(os.path.dirname(os.path.realpath(__file__)), "static")
+    ),
+    name="static",
+)
+
+
+def openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=API_TITLE,
+        version=API_VERSION,
+        routes=app.routes,
+    )
+    openapi_schema["info"]["x-logo"] = {"url": "static/prefect-logo-mark-gradient.png"}
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = openapi
 
 
 @app.on_event("startup")
