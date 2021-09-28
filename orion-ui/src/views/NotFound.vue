@@ -188,8 +188,8 @@ export default class NotFound extends Vue {
     return Math.floor(Math.random() * (max - min + 1) + min)
   }
 
-  private uniqueElementFilter(value: HTMLElement, index: number, self: HTMLElement[]) {
-    return self.indexOf(value) === index;
+  private uniqueElementFilter(value: HTMLElement, index: number, array: HTMLElement[]) {
+    return array.indexOf(value) === index;
   }
 
 }
