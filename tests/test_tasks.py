@@ -307,6 +307,28 @@ class TestTaskCaching:
         assert second_state.name == "Cached"
         assert second_state.result == first_state.result
 
+    def test_cache_hits_within_flows_are_cached_and_hydrated(self):
+        @task(cache_key_fn=lambda *_: "cache hit")
+        def foo(x):
+            return x
+
+        @flow
+        def bar():
+            one = foo(1)
+            two = foo(one)
+            three = foo(two)
+            return one, two, three
+
+        flow_state = bar()
+        first_state, second_state, third_state = flow_state.result
+        assert first_state.name == "Completed"
+        assert second_state.name == "Cached"
+        assert third_state.name == "Cached"
+
+        assert first_state.result == 1
+        assert second_state.result == 1
+        assert third_state.result is None
+
     def test_many_repeated_cache_hits_within_flows_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
         def foo(x):
@@ -319,7 +341,7 @@ class TestTaskCaching:
             return [call.wait() for call in calls]
 
         flow_state = bar()
-        states = get_result(flow_state)
+        states = flow_state.result
         assert all(state.name == "Cached" for state in states)
 
     def test_cache_hits_between_flows_are_cached(self):

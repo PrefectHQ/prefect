@@ -610,7 +610,6 @@ class OrionClient:
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
-
             return server_state
         else:
             raise ValueError(
