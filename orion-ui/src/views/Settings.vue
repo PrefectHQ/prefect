@@ -19,7 +19,7 @@
     <section
       v-for="section in settingsSections"
       :key="section.label"
-      class="mt-1 setting--section my-2"
+      class="mt-4 setting--section my-2"
     >
       <h3 class="font-weight-semibold setting--section-title my-1">
         {{ section.key }}
@@ -46,7 +46,7 @@
       </section>
     </section>
 
-    <section class="mt-1">
+    <section class="mt-4">
       <h3 class="font-weight-semibold">Reset database</h3>
       <div class="d-flex align-end my-1 text--error">
         <i class="pi pi-error-warning-line pi-lg" />
