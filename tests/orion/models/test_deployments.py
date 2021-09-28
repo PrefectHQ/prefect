@@ -1,6 +1,7 @@
 import datetime
 from unicodedata import name
 from tests.fixtures.database import session
+import time
 from uuid import uuid4
 
 import pendulum
@@ -54,6 +55,8 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert deployment.parameters == {}
         assert deployment.tags == []
+
+        time.sleep(1)
 
         schedule = schemas.schedules.IntervalSchedule(
             interval=datetime.timedelta(days=1)
