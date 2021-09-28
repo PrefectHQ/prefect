@@ -117,6 +117,16 @@ class State(IDBaseModel, Generic[R]):
             msg += ")"
         return msg
 
+    def __hash__(self) -> int:
+        return hash(
+            (
+                getattr(self.state_details, "flow_run_id", None),
+                getattr(self.state_details, "task_run_id", None),
+                self.timestamp,
+                self.type,
+            )
+        )
+
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     """Convenience function for creating `Scheduled` states.
