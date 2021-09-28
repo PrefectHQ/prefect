@@ -1,0 +1,79 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
+.component-container {
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+  width: 100%;
+
+  .pan-button {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+
+    &.left {
+      left: 0;
+    }
+
+    &.right {
+      right: 0;
+    }
+  }
+}
+
+.chart-container {
+  height: 100%;
+  overscroll-behavior: contain;
+  overflow: auto;
+  position: relative;
+  top: 0;
+  left: 0;
+  width: 100%;
+
+  // Hide scrollbars
+  scrollbar-width: none; // Edge
+  -ms-overflow-style: none; // Firefox
+
+  // Chrome, Safari
+  ::-webkit-scrollbar {
+    display: none;
+  }
+
+  svg.timeline-axis {
+    background-color: $white;
+    position: sticky;
+    height: 38px;
+    top: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  svg.timeline-chart {
+    position: absolute;
+    height: 100%;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .node-container {
+    background-color: transparent;
+    left: 0;
+    position: absolute;
+    top: 0;
+    z-index: 1;
+
+    .node {
+      position: absolute;
+      border-radius: 8px;
+      transition: all 250ms;
+
+      &:focus,
+      &:hover {
+        border: 2px solid $primary;
+        box-shadow: $box-shadow-md;
+        outline: none;
+      }
+    }
+  }
+}

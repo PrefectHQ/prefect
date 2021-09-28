@@ -110,7 +110,12 @@ class State(IDBaseModel, Generic[R]):
         return self.__repr__()
 
     def __repr__(self) -> str:
-        return super().__repr__()
+        msg = f"State(name='{self.name}', type={self.type}"
+        if self.message:
+            msg += f", message='{self.message}')"
+        else:
+            msg += ")"
+        return msg
 
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
