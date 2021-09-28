@@ -116,14 +116,18 @@ class State(IDBaseModel, Generic[R]):
         The result relies on the str of the data document and may not always
             be resolved to the concrete value
         """
-        attrs = {}
+        attrs = {"type": self.type.value}
+
         if self.name.lower() != self.type.value.lower():
             attrs["name"] = repr(self.name)
         if self.data is not None:
             attrs["result"] = str(self.data)
+        if self.message:
+            attrs["message"] = repr(self.message)
+
         attr_str = ", ".join(f"{key}={val}" for key, val in attrs.items())
-        friendly_type = self.type.value.capitalize()
-        return f"{friendly_type}({attr_str})"
+
+        return f"State({attr_str})"
 
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
@@ -194,3 +198,12 @@ def Retrying(**kwargs) -> State:
         State: a Retrying state
     """
     return State(type=StateType.RUNNING, name="Retrying", **kwargs)
+
+
+def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
+    """Convenience function for creating `Late` states.
+
+    Returns:
+        State: a Late state
+    """
+    return Scheduled(scheduled_time=scheduled_time, name="Late")

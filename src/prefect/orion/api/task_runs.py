@@ -28,6 +28,9 @@ async def create_task_run(
 
     If no state is provided, the task run will be created in a PENDING state.
     """
+    # hydrate the input model into a full task run / state model
+    task_run = schemas.core.TaskRun(**task_run.dict())
+
     if not task_run.state:
         task_run.state = schemas.states.Pending()
 
@@ -44,6 +47,7 @@ async def count_task_runs(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
 ) -> int:
     """
     Count task runs
@@ -53,6 +57,7 @@ async def count_task_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
     )
 
 
@@ -70,6 +75,7 @@ async def task_run_history(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.responses.HistoryResponse]:
     return await run_history.run_history(
@@ -81,6 +87,7 @@ async def task_run_history(
         flows=flows,
         flow_runs=flow_runs,
         task_runs=task_runs,
+        deployments=deployments,
     )
 
 
@@ -110,6 +117,7 @@ async def read_task_runs(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.TaskRun]:
     """
@@ -120,6 +128,7 @@ async def read_task_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
         offset=offset,
         limit=limit,
         sort=sort,

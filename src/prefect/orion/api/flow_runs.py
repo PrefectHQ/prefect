@@ -30,6 +30,9 @@ async def create_flow_run(
 
     If no state is provided, the flow run will be created in a PENDING state.
     """
+    # hydrate the input model into a full flow run / state model
+    flow_run = schemas.core.FlowRun(**flow_run.dict())
+
     if not flow_run.state:
         flow_run.state = schemas.states.Pending()
 
@@ -61,6 +64,7 @@ async def count_flow_runs(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
@@ -71,6 +75,7 @@ async def count_flow_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
     )
 
 
@@ -88,6 +93,7 @@ async def flow_run_history(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.responses.HistoryResponse]:
     return await run_history.run_history(
@@ -99,6 +105,7 @@ async def flow_run_history(
         flows=flows,
         flow_runs=flow_runs,
         task_runs=task_runs,
+        deployments=deployments,
     )
 
 
@@ -128,6 +135,7 @@ async def read_flow_runs(
     flows: schemas.filters.FlowFilter = None,
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
+    deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRun]:
     """
@@ -138,6 +146,7 @@ async def read_flow_runs(
         flow_filter=flows,
         flow_run_filter=flow_runs,
         task_run_filter=task_runs,
+        deployment_filter=deployments,
         offset=offset,
         limit=limit,
         sort=sort,
