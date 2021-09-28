@@ -304,7 +304,7 @@ async def orchestrate_flow_run(
                 executor=executor,
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
-            ):
+            ) as flow_run_context:
                 # Validate the parameters before the call; raises an exception if invalid
                 if flow.should_validate_parameters:
                     parameters = flow.validate_parameters(parameters)
@@ -326,6 +326,11 @@ async def orchestrate_flow_run(
             data=DataDocument.encode("cloudpickle", exc),
         )
     else:
+        if result is None:
+            # All tasks are reference tasks if there is no return value
+            # If there are no tasks, use `None` instead of an empty iterable
+            result = list(flow_run_context.task_run_futures) or None
+
         state = await user_return_value_to_state(result, serializer="cloudpickle")
 
     return state
@@ -432,6 +437,9 @@ async def begin_task_run(
         flow_run_id=flow_run_context.flow_run_id,
         parameters=parameters,
     )
+
+    # Track the task run future in the flow run context
+    flow_run_context.task_run_futures.append(future)
 
     # Update the dynamic key so future task calls are distinguishable from this task run
     task.update_dynamic_key()
