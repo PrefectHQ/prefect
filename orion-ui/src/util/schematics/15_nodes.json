@@ -2,7 +2,7 @@
   {
     "upstream_ids": [],
     "name": "Idledale",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["in", "incididunt", "nisi", "aute"],
     "id": "1a3a0d87-440e-4405-b9fb-3dc2bbe45ee5",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -11,7 +11,7 @@
   {
     "upstream_ids": [],
     "name": "Brethren",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["officia", "reprehenderit", "ad", "magna"],
     "id": "ff3798c5-bb99-4dc0-a1c7-49626d834c10",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -20,7 +20,7 @@
   {
     "upstream_ids": [],
     "name": "Hillsboro",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["irure", "esse"],
     "id": "284055d4-06e6-48aa-956c-1a1a0bb931a5",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -29,7 +29,7 @@
   {
     "upstream_ids": [],
     "name": "Biehle",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "c58a5001-aac3-4749-9196-43ef15bfa368",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -38,7 +38,7 @@
   {
     "upstream_ids": [],
     "name": "Osage",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["ipsum", "deserunt", "nulla", "magna"],
     "id": "230edac4-792d-4ce5-9d6f-f7830696ac4f",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -47,7 +47,7 @@
   {
     "upstream_ids": [],
     "name": "Hendersonville",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["mollit", "dolore"],
     "id": "af9111e9-4cd6-4e87-b47f-805e8dbe7a5e",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -56,7 +56,7 @@
   {
     "upstream_ids": ["1a3a0d87-440e-4405-b9fb-3dc2bbe45ee5"],
     "name": "Orovada",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["sint"],
     "id": "22aee3bd-52d2-409d-81c0-700b791bd5d4",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -65,7 +65,7 @@
   {
     "upstream_ids": ["284055d4-06e6-48aa-956c-1a1a0bb931a5"],
     "name": "Bethpage",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["exercitation", "dolore", "occaecat"],
     "id": "f665bd59-460a-4b2e-81aa-822bf4974278",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -74,7 +74,7 @@
   {
     "upstream_ids": ["284055d4-06e6-48aa-956c-1a1a0bb931a5"],
     "name": "Kula",
-    "state": "pending",
+    "state": "PENDING",
     "tags": [],
     "id": "210bb5e2-4db2-4326-9955-ca1ca48995ce",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -83,7 +83,7 @@
   {
     "upstream_ids": ["1a3a0d87-440e-4405-b9fb-3dc2bbe45ee5"],
     "name": "Dyckesville",
-    "state": "failed",
+    "state": "FAILED",
     "tags": ["nisi", "aute"],
     "id": "fbf8ebbe-e408-493b-8691-d8533950b33b",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -92,7 +92,7 @@
   {
     "upstream_ids": ["284055d4-06e6-48aa-956c-1a1a0bb931a5"],
     "name": "Frank",
-    "state": "failed",
+    "state": "FAILED",
     "tags": [],
     "id": "d3274017-3ff3-4d3a-96b8-d91d14d71d64",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -101,7 +101,7 @@
   {
     "upstream_ids": ["f665bd59-460a-4b2e-81aa-822bf4974278"],
     "name": "Whitmer",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": [],
     "id": "6fc9ee61-cb98-4698-8e42-78778500c093",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -110,7 +110,7 @@
   {
     "upstream_ids": ["af9111e9-4cd6-4e87-b47f-805e8dbe7a5e"],
     "name": "Rodanthe",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["labore"],
     "id": "b4152007-4f0c-4bdd-81a6-ee1992e5f00a",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -119,7 +119,7 @@
   {
     "upstream_ids": ["f665bd59-460a-4b2e-81aa-822bf4974278"],
     "name": "Kimmell",
-    "state": "success",
+    "state": "COMPLETED",
     "tags": ["ipsum", "et", "nostrud"],
     "id": "163af33b-a9dc-4d22-8f00-d0f3bd7379e9",
     "start_time": "2021-01-01T04:00:00.000Z",
@@ -128,7 +128,7 @@
   {
     "upstream_ids": ["af9111e9-4cd6-4e87-b47f-805e8dbe7a5e"],
     "name": "Linganore",
-    "state": "pending",
+    "state": "PENDING",
     "tags": ["enim"],
     "id": "71ab0da8-7779-402e-bfaf-97caa99986e9",
     "start_time": "2021-01-01T04:00:00.000Z",

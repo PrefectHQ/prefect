@@ -46,6 +46,15 @@
   column-gap: 16px;
   row-gap: 16px;
 
+  .run-history {
+    .no-data {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+
   .run-history,
   .run-lateness,
   .run-duration {
@@ -68,6 +77,12 @@
   .run-duration {
     grid-area: duration;
   }
+}
+
+.results-hr {
+  background-color: $grey-20;
+  border: none;
+  height: 2px;
 }
 
 @media (max-width: map.get($breakpoints, 'md')) {

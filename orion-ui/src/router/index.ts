@@ -23,6 +23,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/Schematics.vue')
   },
   {
+    path: '/timeline/:id?',
+    name: 'Timeline',
+    component: () => import('../views/Timeline.vue')
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue')

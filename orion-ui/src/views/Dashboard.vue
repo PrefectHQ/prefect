@@ -1,6 +1,6 @@
 <template>
   <div>
-    <row class="filter-row py-1" hide-scrollbars>
+    <row class="filter-row py-1 my-1" hide-scrollbars>
       <button-card
         v-for="filter in premadeFilters"
         :key="filter.label"
@@ -9,8 +9,10 @@
       >
         <div class="d-flex justify-space-between align-center px-1">
           <div>
-            <span class="subheader">{{ filter.count }}</span>
-            <span class="ml-1">{{ filter.label }}</span>
+            <span class="font--secondary subheader">
+              {{ filter.count || '--' }}
+            </span>
+            <span class="ml-1 body">{{ filter.label }}</span>
           </div>
           <i class="pi pi-filter-3-line pi-lg" />
         </div>
@@ -25,17 +27,19 @@
 
         <div class="px-2 pb-1 flex-grow-1">
           <RunHistoryChart
+            v-if="run_history_buckets && run_history_buckets.length"
             :items="run_history_buckets"
             background-color="blue-5"
             show-axis
           />
+          <div v-else class="font--secondary subheader no-data"> -- </div>
         </div>
       </Card>
 
       <Card class="run-duration flex-grow-0" shadow="sm">
         <template v-slot:aside>
           <div class="pl-2 pt-1" style="width: 100px">
-            <div class="subheader">10-19m</div>
+            <div class="font--secondary subheader">--</div>
             <div class="body">Duration</div>
           </div>
         </template>
@@ -47,7 +51,7 @@
       <Card class="run-lateness flex-grow-0" shadow="sm">
         <template v-slot:aside>
           <div class="pl-2 pt-1" style="width: 100px">
-            <div class="subheader">1-59m</div>
+            <div class="font--secondary subheader">--</div>
             <div class="body">Lateness</div>
           </div>
         </template>
@@ -100,8 +104,15 @@
       </Tab>
     </Tabs>
 
-    <div class="font--secondary caption my-2">
+    <div v-if="resultsCount > 0" class="font--secondary caption my-2">
       {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+    </div>
+
+    <div v-if="resultsCount === 0" class="text-center my-8">
+      <h2> No Results Found </h2>
+      <div v-if="resultsTab == 'deployments'" class="mt-2">
+        Deployments can only be created using the Prefect CLI
+      </div>
     </div>
 
     <transition name="fade" mode="out-in">
@@ -140,6 +151,8 @@
         </list>
       </div>
     </transition>
+
+    <hr class="results-hr mt-3" />
   </div>
 </template>
 
@@ -156,17 +169,6 @@ import BarChart from '@/components/BarChart/BarChart.vue'
 
 import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
 
-import { default as dataset_1 } from '@/util/run_history/24_hours.json'
-import { default as dataset_2 } from '@/util/run_history/design.json'
-import { default as lateness_dataset_1 } from '@/util/run_lateness/24_hours.json'
-import { default as duration_dataset_1 } from '@/util/run_duration/24_hours.json'
-
-// Temporary imports for dummy data
-import { default as flowList } from '@/util/objects/flows.json'
-import { default as deploymentList } from '@/util/objects/deployments.json'
-import { default as flowRunList } from '@/util/objects/flow_runs.json'
-import { default as taskRunList } from '@/util/objects/task_runs.json'
-
 @Options({
   components: { BarChart, RunHistoryChart }
 })
@@ -179,25 +181,25 @@ export default class Dashboard extends Vue {
     })
   }
 
-  run_history_buckets: Bucket[] = dataset_2
+  run_history_buckets: Bucket[] = []
 
-  run_lateness_items: Item[] = lateness_dataset_1.slice(0, 10)
-  run_duration_items: Item[] = duration_dataset_1.slice(0, 10)
+  run_lateness_items: Item[] = []
+  run_duration_items: Item[] = []
 
   datasets: { [key: string]: Flow[] | Deployment[] | FlowRun[] | TaskRun[] } = {
-    flows: flowList,
-    deployments: deploymentList,
-    'flow-runs': flowRunList,
-    'task-runs': taskRunList
+    flows: [],
+    deployments: [],
+    'flow-runs': [],
+    'task-runs': []
   }
 
-  premadeFilters: { label: string; count: number }[] = [
-    { label: 'Failed Runs', count: 15 },
-    { label: 'Late Runs', count: 25 },
-    { label: 'Upcoming Runs', count: 75 }
+  premadeFilters: { label: string; count: number | null }[] = [
+    { label: 'Failed Runs', count: null },
+    { label: 'Late Runs', count: null },
+    { label: 'Upcoming Runs', count: null }
   ]
 
-  resultsTab: string = 'deployments'
+  resultsTab: string = 'flows'
 
   get flows() {
     return this.queries.flows.response || []
