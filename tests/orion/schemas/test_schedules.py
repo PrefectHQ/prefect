@@ -332,13 +332,6 @@ class TestCronSchedule:
 
 
 class TestIntervalScheduleDaylightSavingsTime:
-    """
-    Tests that DST boundaries are respected and also serialized appropriately
-
-    If serialize = True, the clock is serialized and deserialized to ensure that TZ info
-    survives.
-    """
-
     async def test_interval_schedule_always_has_the_right_offset(self):
         """
         Tests the situation where a long duration has passed since the start date that crosses a DST boundary;
@@ -389,10 +382,10 @@ class TestIntervalScheduleDaylightSavingsTime:
         dt = datetime(2018, 11, 3, 23, tz="America/New_York")
         s = IntervalSchedule(interval=timedelta(hours=1), timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
-        # repeat the 1am run in local time
-        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 1, 2]
-        # runs every hour UTC
-        assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 6, 7]
+
+        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
+        # skips an hour UTC - note interval clocks skip the "6"
+        assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
 
     async def test_interval_schedule_daily_start_daylight_savings_time_forward(self):
         """
@@ -463,9 +456,8 @@ class TestCronScheduleDaylightSavingsTime:
         s = CronSchedule(cron="0 * * * *", timezone="America/New_York")
         dates = await s.get_dates(n=5, start=dt)
 
-        # repeat the 1am run in local time
         assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
-        # runs every hour UTC
+        # skips an hour UTC - note cron clocks skip the "5"
         assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 6, 7, 8]
 
     async def test_cron_schedule_daily_start_daylight_savings_time_forward(self):
@@ -498,6 +490,87 @@ class TestCronScheduleDaylightSavingsTime:
         assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
 
 
+class TestRRuleScheduleDaylightSavingsTime:
+    async def test_rrule_schedule_hourly_daylight_savings_time_forward_with_UTC(
+        self,
+    ):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+        """
+        dt = datetime(2018, 3, 11, 4, tz="UTC")
+        s = RRuleSchedule.from_rrule(rrule.rrule(rrule.HOURLY, dtstart=dt))
+        dates = await s.get_dates(n=5, start=dt)
+        assert dates[0].tzinfo.name == "UTC"
+        # skip 2am
+        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        # constant hourly clock in utc time
+        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+
+    async def test_rrule_schedule_hourly_daylight_savings_time_forward(self):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+        """
+        dt = datetime(2018, 3, 10, 23, tz="America/New_York")
+        s = RRuleSchedule.from_rrule(rrule.rrule(rrule.HOURLY, dtstart=dt))
+        dates = await s.get_dates(n=5, start=dt)
+        # skip 2am
+        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 3, 4]
+        # constant hourly clock in utc time
+        assert [d.in_tz("UTC").hour for d in dates] == [4, 5, 6, 7, 8]
+
+    async def test_rrule_schedule_hourly_daylight_savings_time_backward(self):
+        """
+        11/4/2018, at 2am, America/New_York switched clocks back an hour.
+        """
+        dt = datetime(2018, 11, 3, 23, tz="America/New_York")
+        s = RRuleSchedule.from_rrule(rrule.rrule(rrule.HOURLY, dtstart=dt))
+        dates = await s.get_dates(n=5, start=dt)
+        assert [d.in_tz("America/New_York").hour for d in dates] == [23, 0, 1, 2, 3]
+        # skips an hour UTC - note rrule clocks skip the "6"
+        assert [d.in_tz("UTC").hour for d in dates] == [3, 4, 5, 7, 8]
+
+    async def test_rrule_schedule_daily_start_daylight_savings_time_forward(self):
+        """
+        On 3/11/2018, at 2am, America/New_York switched clocks forward an hour.
+
+        Confirm that a clock for 9am America/New_York stays 9am through the switch.
+        """
+        dt = datetime(2018, 3, 8, 9, tz="America/New_York")
+        s = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=dt))
+
+        dates = await s.get_dates(n=5, start=dt)
+        # constant 9am start
+        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
+        # utc time shifts
+        assert [d.in_tz("UTC").hour for d in dates] == [14, 14, 14, 13, 13]
+
+    async def test_rrule_schedule_daily_start_daylight_savings_time_backward(self):
+        """
+        On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
+
+        Confirm that a clock for 9am America/New_York stays 9am through the switch.
+        """
+        dt = datetime(2018, 11, 1, 9, tz="America/New_York")
+        s = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=dt))
+        dates = await s.get_dates(n=5, start=dt)
+        # constant 9am start
+        assert [d.in_tz("America/New_York").hour for d in dates] == [9, 9, 9, 9, 9]
+        assert [d.in_tz("UTC").hour for d in dates] == [13, 13, 13, 14, 14]
+
+    async def test_rrule_schedule_daily_start_daylight_savings_time_backward_utc(self):
+        """
+        On 11/4/2018, at 2am, America/New_York switched clocks back an hour.
+
+        Confirm that a clock for 9am UTC stays 9am through the switch.
+        """
+        dt = datetime(2018, 11, 1, 9, tz="UTC")
+        s = RRuleSchedule.from_rrule(rrule.rrule(rrule.DAILY, dtstart=dt))
+        dates = await s.get_dates(n=5, start=dt)
+        # constant 9am start
+        assert [d.in_tz("America/New_York").hour for d in dates] == [5, 5, 5, 4, 4]
+        assert [d.in_tz("UTC").hour for d in dates] == [9, 9, 9, 9, 9]
+
+
 class TestCreateRRuleSchedule:
     async def test_rrule_is_required(self):
         with pytest.raises(ValidationError, match="(field required)"):
@@ -511,6 +584,15 @@ class TestCreateRRuleSchedule:
         assert "RRULE:FREQ=DAILY" in s.rrule
         s = RRuleSchedule.from_rrule(rrule.rrule(freq=rrule.MONTHLY))
         assert "RRULE:FREQ=MONTHLY" in s.rrule
+
+    async def test_create_from_rrule_obj_reads_timezone(self):
+        s = RRuleSchedule.from_rrule(
+            rrule.rrule(
+                rrule.DAILY,
+                dtstart=pendulum.datetime(2020, 1, 1, tz="America/New_York"),
+            )
+        )
+        assert s.timezone == "America/New_York"
 
     async def test_default_timezone_is_utc(self):
         s = RRuleSchedule(rrule=RRDaily)
@@ -530,7 +612,8 @@ class TestCreateRRuleSchedule:
         dates = await s.get_dates(5)
         assert dates[0].tz.name == "America/New_York"
         assert dates == [
-            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(5)
+            pendulum.now("America/New_York").start_of("day").add(days=i + 1)
+            for i in range(5)
         ]
 
 
@@ -637,7 +720,7 @@ class TestRRuleSchedule:
                     dt,
                     byweekday=rrule.SU,
                     interval=3,
-                    until=pendulum.datetime(2021, 9, 23),
+                    until=pendulum.datetime(2021, 9, 23, tz="UTC"),
                 ),
                 "DTSTART:20200101T000000\nRRULE:FREQ=WEEKLY;INTERVAL=3;UNTIL=20210923T000000;BYDAY=SU",
                 [
