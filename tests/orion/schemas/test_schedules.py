@@ -15,6 +15,7 @@ from prefect.orion.schemas.schedules import (
 )
 
 dt = pendulum.datetime(2020, 1, 1)
+RRDaily = "FREQ=DAILY"
 
 
 class TestCreateIntervalSchedule:
@@ -503,7 +504,7 @@ class TestCreateRRuleSchedule:
             RRuleSchedule()
 
     async def test_create_from_rrule_str(self):
-        assert RRuleSchedule(rrule="FREQ=DAILY")
+        assert RRuleSchedule(rrule=RRDaily)
 
     async def test_create_from_rrule_obj(self):
         s = RRuleSchedule.from_rrule(rrule.rrulestr("FREQ=DAILY"))
@@ -512,26 +513,25 @@ class TestCreateRRuleSchedule:
         assert "RRULE:FREQ=MONTHLY" in s.rrule
 
     async def test_default_timezone_is_utc(self):
-        s = RRuleSchedule(rrule="FREQ=DAILY")
-        assert s.timezone == "UTC"
-
-    async def test_create_without_dtstart(self):
-        # avoid minute boundaries for stringifying time
-        while pendulum.now().second == 59 and pendulum.now().microsecond > 750000:
-            time.sleep(0.25)
-
-        s = RRuleSchedule(rrule="FREQ=DAILY")
-        assert pendulum.now().strftime("%Y%m%dT%H%M") in str(s.rrule)
+        s = RRuleSchedule(rrule=RRDaily)
         assert s.timezone == "UTC"
 
     async def test_create_with_dtstart(self):
-        s = RRuleSchedule(rrule=r"DTSTART:20210905T000000\nFREQ=DAILY")
+        s = RRuleSchedule(rrule="DTSTART:20210905T000000\nFREQ=DAILY")
         assert "DTSTART:20210905T000000" in str(s.rrule)
         assert s.timezone == "UTC"
 
     async def test_create_with_timezone(self):
-        s = RRuleSchedule(rrule=r"FREQ=DAILY", timezone="America/New_York")
+        s = RRuleSchedule(
+            rrule="DTSTART:20210101T000000\nFREQ=DAILY", timezone="America/New_York"
+        )
         assert s.timezone == "America/New_York"
+
+        dates = await s.get_dates(5)
+        assert dates[0].tz.name == "America/New_York"
+        assert dates == [
+            pendulum.now("UTC").start_of("day").add(days=i + 1) for i in range(5)
+        ]
 
 
 class TestRRuleSchedule:
