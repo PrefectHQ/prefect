@@ -106,7 +106,7 @@ class TestFlowCall:
 
         state = foo(1, 2)
         assert isinstance(state, State)
-        assert await get_result(state) == 6
+        assert state.result == 6
         assert state.state_details.flow_run_id is not None
 
         async with OrionClient() as client:
@@ -122,7 +122,7 @@ class TestFlowCall:
 
         state = await foo(1, 2)
         assert isinstance(state, State)
-        assert await get_result(state) == 6
+        assert state.result == 6
         assert state.state_details.flow_run_id is not None
 
         async with OrionClient() as client:
@@ -140,21 +140,21 @@ class TestFlowCall:
             return x + sum(y) + zt.z
 
         state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert get_result(state) == 10
+        assert state.result == 10
 
     def test_call_with_variadic_args(self):
         @flow
         def test_flow(*foo, bar):
             return foo, bar
 
-        assert get_result(test_flow(1, 2, 3, bar=4)) == ((1, 2, 3), 4)
+        assert test_flow(1, 2, 3, bar=4).result == ((1, 2, 3), 4)
 
     def test_call_with_variadic_keyword_args(self):
         @flow
         def test_flow(foo, bar, **foobar):
             return foo, bar, foobar
 
-        assert get_result(test_flow(1, 2, x=3, y=4, z=5)) == (1, 2, dict(x=3, y=4, z=5))
+        assert test_flow(1, 2, x=3, y=4, z=5).result == (1, 2, dict(x=3, y=4, z=5))
 
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
@@ -176,7 +176,7 @@ class TestFlowCall:
         def foo(x: int):
             return x
 
-        assert get_result(foo(x="foo")) == "foo"
+        assert foo(x="foo").result == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -189,8 +189,7 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
-        result = get_result(state, raise_failures=False)
-        assert exceptions_equal(result, error)
+        assert exceptions_equal(state.result, error)
 
     def test_final_state_respects_returned_state(sel):
         @flow(version="test")
@@ -205,7 +204,7 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed()
-        assert get_result(state, raise_failures=False) == "hello!"
+        assert state.result == "hello!"
         assert state.message == "Test returned state"
 
     def test_flow_state_reflects_returned_task_run_state(self):
@@ -222,9 +221,10 @@ class TestFlowCall:
         assert flow_state.is_failed()
 
         # The task run state is returned as the data of the flow state
-        task_run_state = get_result(flow_state, raise_failures=False)
+        task_run_state = flow_state.result
         assert isinstance(task_run_state, State)
         assert task_run_state.is_failed()
+        assert isinstance(task_run_state.result, ValueError)
         with pytest.raises(ValueError, match="Test"):
             raise_failed_state(task_run_state)
 
@@ -274,8 +274,8 @@ class TestFlowCall:
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
 
-        child_run_id, child_state = await get_result(parent_state)
-        assert await get_result(child_state) == 6
+        child_run_id, child_state = parent_state.result
+        assert child_state.result == 6
 
         async with OrionClient() as client:
             child_flow_run = await client.read_flow_run(child_run_id)

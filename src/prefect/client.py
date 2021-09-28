@@ -571,7 +571,11 @@ class OrionClient:
 
         # Exchange the user data document for an orion data document
         if state.data:
-            state.data = await self.persist_data(state.data.json().encode())
+            # the returned data doc is effectively a nested data doc
+            # unnest to keep the data in-memory
+            persisted_data_rep = await self.persist_data(state.data.json().encode())
+            persisted_data_rep._cache_data(state.data.decode())
+            state.data = persisted_data_rep
 
         # Attempt to set the state
         if task_run_id:

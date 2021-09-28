@@ -51,6 +51,10 @@ class State(IDBaseModel, Generic[R]):
     data: DataDocument[R] = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
 
+    @property
+    def result(self):
+        return getattr(self.data, "_data", None)
+
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
         """If a name is not provided, use the type"""
