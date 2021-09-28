@@ -25,14 +25,24 @@
           align-bottom
         "
       >
-        <span class="mr-2 text-truncate">
-          <span class="text--grey-40">Schedule: </span>
-          <span class="text--grey-80"> Every {{ schedule }}</span>
+        <span class="mr-2 caption text-truncate d-flex align-center">
+          <i class="pi pi-calendar-line pi-sm text--grey-20" />
+          <span
+            class="text--grey-80 ml--half font--primary"
+            style="min-width: 0px"
+          >
+            Every {{ schedule }}
+          </span>
         </span>
 
-        <span class="mr-2 text-truncate">
-          <span class="text--grey-40">Location: </span>
-          <span class="text--grey-80">{{ location }}</span>
+        <span class="mr-2 caption text-truncate d-flex align-center">
+          <i class="pi pi-global-line pi-sm text--grey-20" />
+          <span
+            class="text--grey-80 ml--half font--primary"
+            style="min-width: 0px"
+          >
+            {{ location }}
+          </span>
         </span>
 
         <Tag
