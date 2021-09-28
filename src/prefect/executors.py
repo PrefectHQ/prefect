@@ -9,7 +9,7 @@ import prefect
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures
 from prefect.orion.schemas.states import State
-from prefect.utilities.logging import get_logger, prefect_repr
+from prefect.utilities.logging import get_logger
 
 T = TypeVar("T", bound="BaseExecutor")
 
@@ -42,7 +42,7 @@ class BaseExecutor:
         flow_run_id: str,
         orion_client: "OrionClient",
     ) -> T:
-        self.logger.info(f"Starting {prefect_repr(self)}...")
+        self.logger.info(f"Starting {self}...")
         self.flow_run_id = flow_run_id
         self.orion_client = orion_client
         try:
@@ -71,7 +71,7 @@ class BaseExecutor:
         """
         raise NotImplementedError()
 
-    def __prefect_repr__(self) -> str:
+    def __str__(self) -> str:
         return type(self).__name__
 
 
@@ -113,9 +113,6 @@ class LocalExecutor(BaseExecutor):
 
     async def wait(self, prefect_future: PrefectFuture, timeout: float = None) -> State:
         return self._results[prefect_future.run_id]
-
-    def __prefect_repr__(self) -> str:
-        return "local executor"
 
 
 class DaskExecutor(BaseExecutor):
@@ -197,7 +194,3 @@ class DaskExecutor(BaseExecutor):
 
     def shutdown(self) -> None:
         self._client.close()
-
-    def __prefect_repr__(self) -> str:
-        # TODO: When connecting to an external cluster, extend this string
-        return "dask executor"

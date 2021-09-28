@@ -8,7 +8,7 @@ from pydantic import Field, validator, root_validator
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
-from prefect.utilities.logging import prefect_repr
+
 
 R = TypeVar("R")
 
@@ -107,20 +107,20 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
-    def __prefect_repr__(self) -> str:
+    def __str__(self) -> str:
         """
         Generates a nice state representation for user display
         e.g. Completed(name="My Custom Name", result=10)
 
         The name is only included if different from the state type
-        The result relies on the `prefect_repr` of the data document and may not always
+        The result relies on the str of the data document and may not always
             be resolved to the concrete value
         """
         attrs = {}
         if self.name.lower() != self.type.value.lower():
             attrs["name"] = repr(self.name)
         if self.data is not None:
-            attrs["result"] = prefect_repr(self.data)
+            attrs["result"] = str(self.data)
         attr_str = ", ".join(f"{key}={val}" for key, val in attrs.items())
         friendly_type = self.type.value.capitalize()
         return f"{friendly_type}({attr_str})"

@@ -18,7 +18,7 @@ from prefect.context import FlowRunContext, TaskRunContext, TagsContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
 from prefect.flows import Flow
-from prefect.futures import PrefectFuture, future_to_state, resolve_futures
+from prefect.futures import PrefectFuture, future_to_state, resolve_futures, call_repr
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -42,7 +42,7 @@ from prefect.utilities.callables import (
 )
 from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
-from prefect.utilities.logging import get_logger, call_repr, prefect_repr
+from prefect.utilities.logging import get_logger
 
 R = TypeVar("R")
 
@@ -192,7 +192,7 @@ async def begin_flow_run(
 
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Flow run finished with state {prefect_repr(terminal_state)}",
+        msg=f"Flow run finished with state {terminal_state}",
     )
 
     return terminal_state
@@ -261,7 +261,7 @@ async def create_and_begin_subflow_run(
 
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Subflow run finished with state {prefect_repr(terminal_state)}",
+        msg=f"Subflow run finished with state {terminal_state}",
     )
 
     return terminal_state
@@ -462,7 +462,7 @@ async def orchestrate_task_run(
 
         if not state.is_final():
             logger.info(
-                f"Task {task_run_name!r} received state {prefect_repr(state)} when proposing state {prefect_repr(terminal_state)} and will attempt to run again..."
+                f"Task {task_run_name!r} received state {state} when proposing state {terminal_state} and will attempt to run again..."
             )
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run_id)
@@ -471,9 +471,7 @@ async def orchestrate_task_run(
     # but fall back to the `state` object which will have a value even if the task did
     # not run
     display_state = terminal_state or state
-    logger.info(
-        f"Task run {task_run_name!r} finished with state {prefect_repr(display_state)}"
-    )
+    logger.info(f"Task run {task_run_name!r} finished with state {display_state}")
     return state
 
 
