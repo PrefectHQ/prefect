@@ -98,7 +98,7 @@
         </div>
 
         <p class="font--secondary caption">
-          {{ parameter.parameter }}
+          {{ parameter.value }}
         </p>
 
         <hr
@@ -135,7 +135,13 @@ export default class ListItemDeployment extends Vue.with(Props) {
   }
 
   get parameters(): { [key: string]: any }[] {
-    return this.deployment.parameters
+    return Object.entries(this.deployment.parameters).reduce(
+      (arr: { [key: string]: any }[], [key, value]) => [
+        ...arr,
+        { name: key, value: value, type: typeof value }
+      ],
+      []
+    )
   }
 
   get schedule(): any {
