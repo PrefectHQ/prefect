@@ -88,8 +88,8 @@ class PrefectFuture(Generic[R]):
     def __repr__(self) -> str:
         return f"PrefectFuture(run_id='{self.run_id}')"
 
-    def __prefect_repr__(self) -> str:
-        return self.run_repr if self.run_repr else repr(self)
+    def __str__(self) -> str:
+        return self.run_repr
 
 
 async def future_to_data(future: PrefectFuture[R]) -> R:
@@ -144,3 +144,30 @@ async def resolve_futures(
 
     # If not a supported type, just return it
     return expr
+
+
+def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
+    """
+    Generate a repr for a function call as "fn_name(arg_value, kwarg_name=kwarg_value)"
+    """
+
+    def arg_repr(expr) -> str:
+        """
+        Simple repr for arguments with special handling for futures
+        """
+        if isinstance(expr, PrefectFuture):
+            return str(expr)
+        else:
+            return repr(expr)
+
+    name = __fn.__name__
+    call_args = ", ".join(
+        [arg_repr(arg) for arg in args]
+        + [f"{key}={arg_repr(val)}" for key, val in kwargs.items()]
+    )
+
+    # Enforce a maximum length
+    if len(call_args) > 100:
+        call_args = call_args[:100] + "..."
+
+    return f"{name}({call_args})"

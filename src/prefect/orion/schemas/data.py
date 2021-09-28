@@ -6,7 +6,7 @@ from prefect import settings
 from prefect.orion.serializers import lookup_serializer
 from prefect.orion.utilities.filesystem import FILE_SYSTEM_SCHEMES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.utilities.logging import prefect_repr
+
 
 T = TypeVar("T", bound="DataDocument")  # Generic for DataDocument class types
 D = TypeVar("D", bound=Any)  # Generic for DataDocument data types
@@ -69,9 +69,9 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     def has_cached_data(self):
         return hasattr(self, "_data")
 
-    def __prefect_repr__(self) -> str:
+    def __str__(self) -> str:
         if self.has_cached_data():
-            return prefect_repr(self._data)
+            return repr(self._data)
         else:
             return repr(self)
 
