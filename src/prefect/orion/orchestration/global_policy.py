@@ -201,8 +201,8 @@ class UpdateStateDetails(BaseUniversalRule):
         self,
         context: OrchestrationContext,
     ) -> None:
-        task_run = await context.task_run
-        flow_run = await context.flow_run
+        task_run = await context.task_run()
+        flow_run = await context.flow_run()
 
         if flow_run:
             context.proposed_state.state_details.flow_run_id = flow_run.id
