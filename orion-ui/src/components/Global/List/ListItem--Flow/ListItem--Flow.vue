@@ -41,6 +41,7 @@
 
     <div v-breakpoints="'md'" class="chart-container">
       <RunHistoryChart
+        v-if="false"
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
       />
@@ -50,13 +51,11 @@
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import { Flow } from '@/objects'
+import { Flow } from '@/types/objects'
 import {
   default as RunHistoryChart,
   Bucket
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
-
-import { default as dataset_2 } from '@/util/run_history/design.json'
 
 class Props {
   flow = prop<Flow>({ required: true })
@@ -64,15 +63,10 @@ class Props {
 
 @Options({ components: { RunHistoryChart } })
 export default class ListItemFlow extends Vue.with(Props) {
-  sliceStart: number = Math.floor(Math.random() * 4)
+  taskRunBuckets: Bucket[] = []
 
-  taskRunBuckets: Bucket[] = dataset_2.slice(
-    this.sliceStart,
-    this.sliceStart + 10
-  )
-
-  flowRunCount: number = 25
-  taskRunCount: number = 139
+  flowRunCount: number = 0
+  taskRunCount: number = 0
 }
 </script>
 
