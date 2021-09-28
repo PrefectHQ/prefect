@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 from pydantic import Field
 
-from prefect.orion.models import orm
+from prefect.orion.models import orm, flow_runs
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
@@ -256,6 +256,12 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         return self.run.empirical_policy
 
+    async def task_run(self):
+        return None
+
+    async def flow_run(self):
+        return self.run
+
 
 class TaskOrchestrationContext(OrchestrationContext):
     """
@@ -348,6 +354,15 @@ class TaskOrchestrationContext(OrchestrationContext):
         """Run-level settings used to orchestrate the state transition."""
 
         return self.run.empirical_policy
+
+    async def task_run(self):
+        return self.run
+
+    async def flow_run(self):
+        return await flow_runs.read_flow_run(
+            session=self.session,
+            flow_run_id=self.run.flow_run_id,
+        )
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
