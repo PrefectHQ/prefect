@@ -13,13 +13,26 @@ export declare interface Deployment {
   tags: string[]
 }
 
+export declare interface State {
+  id: string
+  type: string
+  message: string
+  state_details: { [key: string]: any }
+  timestamp: string
+  name: string
+}
+
 export declare interface FlowRun {
   id: string
   flow_id: string
+  auto_scheduled: boolean
   deployment_id: string
   duration: number
+  start_time: string
+  end_time: string
   name: string
-  state: string
+  state_type: string
+  state: State
   tags: string[]
   task_run_count: number
 }
@@ -28,7 +41,10 @@ export declare interface TaskRun {
   id: string
   flow_run_id: string
   name: string
-  state: string
+  start_time: string
+  end_time: string
+  state_type: string
+  state: State
   duration: number
   sub_flow_run_id: string
   tags: string[]
