@@ -21,6 +21,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/schematics',
     name: 'Schematics',
     component: () => import('../views/Schematics.vue')
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('../views/NotFound.vue')
   }
 ]
 
