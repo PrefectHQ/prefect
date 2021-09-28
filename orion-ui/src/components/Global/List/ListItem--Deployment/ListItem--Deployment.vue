@@ -61,10 +61,18 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
-      <Button outlined class="mr-1" @click="parametersDrawerActive = true">
+      <Button
+        outlined
+        height="36px"
+        width="160px"
+        class="mr-1 text--grey-80"
+        @click="parametersDrawerActive = true"
+      >
         View Parameters
       </Button>
-      <Button outlined>Quick Run</Button>
+      <Button outlined miter height="36px" width="105px" class="text--grey-80">
+        Quick Run
+      </Button>
     </div>
   </list-item>
 
