@@ -22,7 +22,6 @@ export declare interface CronSchedule extends Schedule {
 export declare interface Deployment {
   id: string
   name: string
-  location: string
   schedule: Schedule | IntervalSchedule | CronSchedule
   parameters: { [key: string]: any }
   tags: string[]
