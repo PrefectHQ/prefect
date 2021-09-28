@@ -5,6 +5,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
+import json
 from functools import update_wrapper, partial
 from typing import (
     Any,
@@ -174,6 +175,8 @@ class Flow(Generic[P, R]):
         """
         Run the flow using the Prefect engine against a backing API (note this will create a new flow run in the backend).
 
+        Flow parameter values must be serializable by Pydantic.
+
         If writing an async flow, this call must be awaited.
 
         Args:
@@ -213,6 +216,16 @@ class Flow(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
+        # Check for serializability of parameters
+        for key, value in parameters.items():
+            try:
+                json.dumps(value, default=pydantic.json.pydantic_encoder)
+            except:
+                raise FlowParameterError(
+                    f"Flow parameters must be JSON serializable. Parameter {key!r} is "
+                    f"of unserializable type {type(value).__name__!r}"
+                )
+
         return enter_flow_run_engine_from_flow_call(self, parameters)
 
 
@@ -248,6 +261,8 @@ def flow(
     Decorator to designate a function as a Prefect workflow.
 
     This decorator may be used for asynchronous or synchronous functions.
+
+    Flow parameters must be serializable by Pydantic.
 
     Args:
         name: An optional name for the flow; if not provided, the name will be inferred
