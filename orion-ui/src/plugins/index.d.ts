@@ -7,6 +7,9 @@ type any_ = string[]
 /** A list where results will be returned if values don't match any in the list */
 type not_any_ = string[]
 
+/** Matches on boolean equality */
+type eq_ = boolean
+
 /** If true, returns results whose key is null */
 type is_null_ = boolean
 
@@ -28,6 +31,36 @@ type limit = number
  * Default: 0
  */
 type offset = number
+
+interface DeploymentFilter {
+  id?: {
+    /**
+     * A list of ids
+     * Example: [ "abc-123", "def-456" ]
+     */
+    any_: any_
+  }
+  name?: {
+    /**
+     * A list of names
+     * Example: [ "my-flow-1", "my-flow-2" ]
+     */
+    any_: any_
+  }
+  tags?: {
+    /**
+     * Results will be returned only if their tags are a superset of the list.
+     */
+    all_?: any_
+    /**
+     * If true, only include flows without tags
+     */
+    is_null_: is_null_
+  }
+  is_schedule_active: {
+    eq_: eq_
+  }
+}
 
 interface FlowFilter {
   id?: {
