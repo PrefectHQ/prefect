@@ -116,7 +116,7 @@ class State(IDBaseModel, Generic[R]):
         The result relies on the str of the data document and may not always
             be resolved to the concrete value
         """
-        attrs = {"type": self.type.value}
+        attrs = {}
 
         if self.name.lower() != self.type.value.lower():
             attrs["name"] = repr(self.name)
@@ -126,8 +126,8 @@ class State(IDBaseModel, Generic[R]):
             attrs["message"] = repr(self.message)
 
         attr_str = ", ".join(f"{key}={val}" for key, val in attrs.items())
-
-        return f"State({attr_str})"
+        friendly_type = self.type.value.capitalize()
+        return f"{friendly_type}({attr_str})"
 
 
 def Scheduled(scheduled_time: datetime.datetime = None, **kwargs) -> State:
