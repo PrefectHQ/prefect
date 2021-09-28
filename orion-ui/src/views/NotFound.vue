@@ -153,20 +153,32 @@ export default class NotFound extends Vue {
   }
 
   private startAnimation() {
-    const delay = this.randomNumber(2, 3) * 1000
+    const delay = this.randomNumber(3, 4) * 1000
 
-    this.interval = window.setTimeout(this.animateRandomCircle, delay)
+    this.interval = window.setTimeout(() => {
+      this.animateRandomCircles()
+      this.startAnimation()
+    }, delay)
   }
 
-  private animateRandomCircle() {
+  private animateRandomCircles() {
+    const circles = [];
+
+    while(circles.length < 3) {
+      const index = this.randomNumber(0, this.circles.length - 1)
+      const circle = this.circles[index];
+      
+      circles.push(circle);
+    }
+
+    circles.filter(this.uniqueElementFilter).forEach(this.animateCircle)
+  }
+
+  private animateCircle(circle: HTMLElement) {
     const animationClass = 'not-found__circle--animate'
-    const index = this.randomNumber(0, this.circles.length - 1)
-    const circle = this.circles[index];
 
     circle.addEventListener('animationend', () => {
       circle.classList.remove(animationClass)
-
-      this.startAnimation()
     }, { once: true })
 
     circle.classList.add(animationClass)
@@ -174,6 +186,10 @@ export default class NotFound extends Vue {
 
   private randomNumber(min: number, max: number) {
     return Math.floor(Math.random() * (max - min + 1) + min)
+  }
+
+  private uniqueElementFilter(value: HTMLElement, index: number, array: HTMLElement[]) {
+    return array.indexOf(value) === index;
   }
 
 }
