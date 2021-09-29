@@ -76,6 +76,7 @@ export const secondsToApproximateString = (
       break
     case days > 0 && hours > 0:
       value = _d + ' ' + _h
+      break
     case hours > 0 && minutes == 0:
       value = _h + ' ' + _m
       break

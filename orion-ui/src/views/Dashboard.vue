@@ -211,8 +211,8 @@ export default class Dashboard extends Vue {
 
   run_history_buckets: Bucket[] = []
 
-  run_lateness_items: Item[] = []
-  run_duration_items: Item[] = []
+  run_lateness_items: any[] = []
+  run_duration_items: any[] = []
 
   premadeFilters: { label: string; count: number | null }[] = [
     { label: 'Failed Runs', count: null },
@@ -238,12 +238,12 @@ export default class Dashboard extends Vue {
     return this.queries.task_runs?.response || 0
   }
 
-  get loading() {
+  get loading(): boolean {
     return (
-      this.queries.flows.loading ||
-      this.queries.deployments.loading ||
-      this.queries.flow_runs.loading ||
-      this.queries.task_runs.loading
+      this.queries.flows.loading.value ||
+      this.queries.deployments.loading.value ||
+      this.queries.flow_runs.loading.value ||
+      this.queries.task_runs.loading.value
     )
   }
 
@@ -268,7 +268,7 @@ export default class Dashboard extends Vue {
     return this.queries[this.resultsTab].response || 0
   }
 
-  created() {
+  created(): void {
     this.resultsTab = this.$route.hash?.substr(1) || 'flows'
   }
 }

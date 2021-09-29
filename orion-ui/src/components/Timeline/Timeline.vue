@@ -149,7 +149,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   get interval(): string {
     return Object.entries(intervals)
-      .sort(([_a, a], [_b, b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .reduce(([key, val], [_key, _val]) =>
         this.totalSeconds < _val ? [_key, _val] : [key, val]
       )[0]
@@ -254,16 +254,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   update(): void {
-    console.log('items', this.sortedItems)
-    console.log('total seconds', this.totalSeconds)
-    console.log('chart height', this.chartHeight)
-    console.log('chart width', this.chartWidth)
-    console.log(`interval %c${this.interval}`, 'color: purple;')
-    console.log('intervals', this.numberIntervals)
-    console.log('rows', this.numberRows)
-    console.log('start', this.start)
-    console.log('end', this.end)
-
     this.updateScales()
     this.updateChart()
     this.updateGrid()
