@@ -111,11 +111,13 @@ class SequentialExecutor(BaseExecutor):
 
 class DaskExecutor(BaseExecutor):
     """
-    A parallel executor that submits calls to a dask cluster
+    A parallel executor that submits calls to a dask cluster.
 
-    TODO: __init__ should support cluster setup kwargs as well as existing cluster
-          connection args
+    A local dask distributed cluster is created on use.
     """
+
+    # TODO: __init__ should support cluster setup kwargs as well as existing cluster
+    #      connection args
 
     def __init__(self) -> None:
         super().__init__()
