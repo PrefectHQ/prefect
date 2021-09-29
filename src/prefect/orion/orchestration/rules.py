@@ -47,9 +47,10 @@ class OrchestrationContext(PrefectBaseModel):
     """
     A container for a state transition, governed by orchestration rules.
 
-    NOTE: An `OrchestrationContext` should not be instantiated directly, instead
-    use the flow- or task- specific subclasses, `FlowOrchestrationContext` and
-    `TaskOrchestrationContext`.
+    !!! note
+        An `OrchestrationContext` should not be instantiated directly, instead
+        use the flow- or task- specific subclasses, `FlowOrchestrationContext` and
+        `TaskOrchestrationContext`.
 
     When a flow- or task- run attempts to change state, Orion has an opportunity
     to decide whether this transition can proceed. All the relevant information
@@ -242,7 +243,8 @@ class FlowOrchestrationContext(OrchestrationContext):
         `self.safe_copy` can be used to pass information to orchestration rules
         without risking mutation.
 
-        NOTE: `self.run` is an ORM model, and even when copied is unsafe to mutate
+        !!! note
+            `self.run` is an ORM model, and even when copied is unsafe to mutate
 
         Returns:
             A mutation-safe copy of `FlowOrchestrationContext`
@@ -341,7 +343,8 @@ class TaskOrchestrationContext(OrchestrationContext):
         `self.safe_copy` can be used to pass information to orchestration rules
         without risking mutation.
 
-        NOTE: `self.run` is an ORM model, and even when copied is unsafe to mutate
+        !!! note
+            `self.run` is an ORM model, and even when copied is unsafe to mutate
 
         Returns:
             A mutation-safe copy of `TaskOrchestrationContext`
@@ -512,11 +515,12 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         transition using one of three methods: `self.reject_transition`,
         `self.delay_transition`, and `self.abort_transition`.
 
-        NOTE: As currently implemented, the `before_transition` hook is not
-        perfectly isolated from mutating the transition. It is a standard instance
-        method that has access to `self`, and therefore `self.context`. This should
-        never be modified directly. Furthermore, `context.run` is an ORM model, and
-        mutating the run can also cause unintended writes to the database.
+        !!! note
+            As currently implemented, the `before_transition` hook is not
+            perfectly isolated from mutating the transition. It is a standard instance
+            method that has access to `self`, and therefore `self.context`. This should
+            never be modified directly. Furthermore, `context.run` is an ORM model, and
+            mutating the run can also cause unintended writes to the database.
 
         Args:
             initial_state: The initial state of a transtion
@@ -715,7 +719,8 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     """
     An abstract base class used to implement privileged bookkeeping logic.
 
-    NOTE: In almost all cases, use the `BaseOrchestrationRule` base class instead.
+    !!! note
+        In almost all cases, use the `BaseOrchestrationRule` base class instead.
 
     Beyond the orchestration rules implemented with the `BaseOrchestrationRule` ABC,
     Universal rules are not stateful, and fire their before- and after- transition hooks
