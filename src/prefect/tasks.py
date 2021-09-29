@@ -203,7 +203,7 @@ class Task(Generic[P, R]):
 
             >>> @flow
             >>> def my_flow():
-            >>>     print(get_result(my_task()))
+            >>>     print(my_task().wait().result)
             >>>
             >>> my_flow()
             hello
