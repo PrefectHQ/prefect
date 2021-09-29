@@ -51,10 +51,33 @@ class State(IDBaseModel, Generic[R]):
     data: DataDocument[R] = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
 
-    @property
-    def result(self):
+    def result(self, raise_on_failure: bool = True):
+        """
+        Convenience method for access the data on the state's data document.
+
+        Args:
+            raise_on_failure: a boolean specifying whether to raise an exception
+                if the state is of type `FAILED` and the underlying data is an exception
+
+        Raises:
+            TypeError: if the state is failed but without an exception
+
+        Returns:
+            The underlying decoded data
+        """
+        data = None
         if self.data:
-            return self.data.decode()
+            data = self.data.decode()
+
+        if self.is_failed() and raise_on_failure:
+            if isinstance(data, Exception):
+                raise data
+            raise TypeError(
+                f"Unexpected result for failure state: {data!r} —— "
+                f"{type(data).__name__} cannot be resolved into an exception"
+            )
+
+        return data
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):
