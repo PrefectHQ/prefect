@@ -18,7 +18,7 @@ BITBUCKET_CLOUD_RETRY = Retry(
     total=10,
     backoff_factor=0.5,
     status_forcelist=[429],
-    method_whitelist=["HEAD", "GET", "OPTIONS"],
+    allowed_methods=["HEAD", "GET", "OPTIONS"],
 )
 
 if TYPE_CHECKING:
