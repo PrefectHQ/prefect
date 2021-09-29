@@ -44,7 +44,7 @@ module.exports = {
         '**/tests/unit/**/*.spec.{j,t}s?(x)'
       ],
       env: {
-        'jest/globals': true
+        // 'jest/globals': true
       }
     }
   ]

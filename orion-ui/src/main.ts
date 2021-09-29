@@ -15,6 +15,7 @@ import ListItemDeployment from '@/components/Global/List/ListItem--Deployment/Li
 import ListItemFlow from '@/components/Global/List/ListItem--Flow/ListItem--Flow.vue'
 import ListItemFlowRun from '@/components/Global/List/ListItem--FlowRun/ListItem--FlowRun.vue'
 import ListItemTaskRun from '@/components/Global/List/ListItem--TaskRun/ListItem--TaskRun.vue'
+import ResultsList from '@/components/Global/ResultsLists/ResultsList.vue'
 import Row from '@/components/Global/Row/Row.vue'
 
 // Note: this is a locally-installed package, relative to this directory at ../
@@ -40,6 +41,7 @@ app.component('deployment-list-item', ListItemDeployment)
 app.component('flow-list-item', ListItemFlow)
 app.component('flow-run-list-item', ListItemFlowRun)
 app.component('task-run-list-item', ListItemTaskRun)
+app.component('results-list', ResultsList)
 app.component('row', Row)
 
 app.mount('#app')

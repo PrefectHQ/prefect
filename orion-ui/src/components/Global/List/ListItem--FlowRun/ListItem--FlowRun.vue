@@ -18,7 +18,7 @@
       "
     >
       <h2>
-        {{ run.name }}
+        {{ item.name }}
       </h2>
 
       <div class="tag-container nowrap d-flex align-bottom">
@@ -50,6 +50,7 @@
 
     <div v-breakpoints="'md'" class="chart-container mr-2">
       <RunHistoryChart
+        v-if="false"
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
       />
@@ -65,7 +66,7 @@
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import { FlowRun } from '@/objects'
+import { FlowRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 
 import {
@@ -73,10 +74,8 @@ import {
   Bucket
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
 
-import { default as dataset_2 } from '@/util/run_history/design.json'
-
 class Props {
-  run = prop<FlowRun>({ required: true })
+  item = prop<FlowRun>({ required: true })
 }
 
 @Options({
@@ -85,21 +84,18 @@ class Props {
 export default class ListItemFlowRun extends Vue.with(Props) {
   sliceStart: number = Math.floor(Math.random() * 4)
 
-  taskRunBuckets: Bucket[] = dataset_2.slice(
-    this.sliceStart,
-    this.sliceStart + 10
-  )
+  taskRunBuckets: Bucket[] = []
 
   get taskRunCount(): number {
-    return this.run.task_run_count
+    return this.item.task_run_count
   }
 
   get state(): string {
-    return this.run.state.toLowerCase()
+    return this.item.state.type.toLowerCase()
   }
 
   get tags(): string[] {
-    return this.run.tags
+    return this.item.tags
   }
 
   get reason(): string | null {
@@ -109,7 +105,9 @@ export default class ListItemFlowRun extends Vue.with(Props) {
   get duration(): string {
     return this.state == 'pending' || this.state == 'scheduled'
       ? '--'
-      : secondsToApproximateString(this.run.duration)
+      : this.item.total_run_time
+      ? secondsToApproximateString(this.item.total_run_time)
+      : secondsToApproximateString(this.item.estimated_run_time)
   }
 }
 </script>

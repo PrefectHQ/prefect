@@ -3,18 +3,18 @@ import pendulum
 import pytest
 from itertools import product
 
-from prefect.orion import models
 from prefect.orion.schemas.responses import SetStateStatus
 from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     PreventTransitionsFromTerminalStates,
     RetryPotentialFailures,
+    RenameReruns,
     WaitForScheduledTime,
 )
 
 from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
-from prefect.orion.schemas import states, actions
+from prefect.orion.schemas import states
 
 
 def transition_names(transition):
@@ -254,6 +254,97 @@ class TestRetryingRule:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.FAILED
+
+
+class TestRenameRetryingStates:
+    async def test_rerun_states_get_renamed(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RenameReruns]
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state.name == "Rerunning"
+
+    async def test_retried_states_get_renamed(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RenameReruns]
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        ctx.initial_state.name = "Awaiting Retry"
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state.name == "Retrying"
+
+    async def test_no_rename_on_first_run(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RenameReruns]
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 0
+        run_settings.max_retries = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state.name == "Running"
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
