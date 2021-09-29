@@ -53,7 +53,8 @@ class State(IDBaseModel, Generic[R]):
 
     @property
     def result(self):
-        return getattr(self.data, "_data", None)
+        if self.data:
+            return self.data.decode()
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):

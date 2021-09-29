@@ -165,7 +165,7 @@ class DaskExecutor(BaseExecutor):
         data from the resulting state
         """
         dask_state_future = self._get_dask_future(prefect_future)
-        data_future = self._client.submit(prefect.get_result, dask_state_future)
+        data_future = self._client.submit(getattr, dask_state_future, "result")
         return data_future
 
     async def wait(

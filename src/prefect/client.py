@@ -451,7 +451,6 @@ class OrionClient:
     ) -> DataDocument:
         response = await self.post("/data/persist", content=data)
         orion_doc = DataDocument.parse_obj(response.json())
-        orion_doc._cache_data(data)
         return orion_doc
 
     async def retrieve_data(
@@ -479,11 +478,12 @@ class OrionClient:
         flow_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
+        orion_doc: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
-            data=state.data,
+            data=orion_doc or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.flow_run_id = flow_run_id
@@ -569,19 +569,21 @@ class OrionClient:
         if not task_run_id and not flow_run_id:
             raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
+        orion_doc = None
         # Exchange the user data document for an orion data document
         if state.data:
-            # the returned data doc is effectively a nested data doc
-            # unnest to keep the data in-memory
-            persisted_data_rep = await self.persist_data(state.data.json().encode())
-            persisted_data_rep._cache_data(state.data.decode())
-            state.data = persisted_data_rep
+            # persist data reference in Orion
+            orion_doc = await self.persist_data(state.data.json().encode())
 
         # Attempt to set the state
         if task_run_id:
-            response = await self.set_task_run_state(task_run_id, state)
+            response = await self.set_task_run_state(
+                task_run_id, state, orion_doc=orion_doc
+            )
         elif flow_run_id:
-            response = await self.set_flow_run_state(flow_run_id, state)
+            response = await self.set_flow_run_state(
+                flow_run_id, state, orion_doc=orion_doc
+            )
         else:
             raise ValueError(
                 "Neither flow run id or task run id were provided. At least one must "
@@ -611,11 +613,14 @@ class OrionClient:
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
             if server_state.data:
-                datadoc = DataDocument.parse_raw(
-                    await self.retrieve_data(server_state.data)
-                )
-                datadoc.decode()  # caches data
-                server_state.data = datadoc
+                if server_state.data.encoding == "orion":
+                    datadoc = DataDocument.parse_raw(
+                        await self.retrieve_data(server_state.data)
+                    )
+                    datadoc.decode()  # caches deserialized data in memory
+                    server_state.data = datadoc
+                else:
+                    server_state.data.decode()  # caches deserialized data in memory
             return server_state
         else:
             raise ValueError(
@@ -627,11 +632,12 @@ class OrionClient:
         task_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
+        orion_doc: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
-            data=state.data,
+            data=orion_doc or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.task_run_id = task_run_id
