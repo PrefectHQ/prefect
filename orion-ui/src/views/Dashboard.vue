@@ -69,7 +69,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flows' }"
         >
-          {{ flows.length }}
+          {{ flowsCount }}
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
@@ -79,86 +79,100 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ datasets['deployments'].length }}
+          {{ deploymentsCount }}
         </span>
       </Tab>
-      <Tab href="flow-runs" class="subheader">
+      <Tab href="flow_runs" class="subheader">
         <i class="pi pi-flow-run pi-lg mr-1" />
         Flow Runs
         <span
           class="result-badge caption ml-1"
-          :class="{ active: resultsTab == 'flow-runs' }"
+          :class="{ active: resultsTab == 'flow_runs' }"
         >
-          {{ datasets['flow-runs'].length }}
+          {{ flowRunsCount }}
         </span>
       </Tab>
-      <Tab href="task-runs" class="subheader">
+      <Tab href="task_runs" class="subheader">
         <i class="pi pi-task pi-lg mr-1" />
         Task Runs
         <span
           class="result-badge caption ml-1"
-          :class="{ active: resultsTab == 'task-runs' }"
+          :class="{ active: resultsTab == 'task_runs' }"
         >
-          {{ datasets['task-runs'].length }}
+          {{ taskRunsCount }}
         </span>
       </Tab>
     </Tabs>
 
-    <div v-if="resultsCount > 0" class="font--secondary caption my-2">
-      {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+    <div class="font--secondary caption my-2" style="min-height: 17px">
+      <span v-show="resultsCount > 0">
+        {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+      </span>
     </div>
 
-    <div v-if="resultsCount === 0" class="text-center my-8">
-      <h2> No Results Found </h2>
-      <div v-if="resultsTab == 'deployments'" class="mt-2">
-        Deployments can only be created using the Prefect CLI
-      </div>
-    </div>
+    <section
+      class="results-section d-flex flex-column align-stretch justify-stretch"
+    >
+      <transition name="tab-fade" mode="out-in" css>
+        <div
+          v-if="resultsCount === 0"
+          class="text-center my-8"
+          key="no-results"
+        >
+          <h2> No Results Found </h2>
+          <div v-show="resultsTab == 'deployments'" class="mt-2">
+            Deployments can only be created using the Prefect CLI
+          </div>
+        </div>
 
-    <transition name="fade" mode="out-in">
-      <div v-if="resultsTab == 'flows'">
-        <list>
-          <flow-list-item v-for="flow in flows" :key="flow.id" :flow="flow" />
-        </list>
-      </div>
+        <results-list
+          v-else-if="resultsTab == 'flows'"
+          key="flows"
+          :filter="flowFilter"
+          component="flow-list-item"
+          endpoint="flows"
+        />
 
-      <div v-else-if="resultsTab == 'deployments'">
-        <list>
-          <deployment-list-item
-            v-for="deployment in datasets['deployments']"
-            :key="deployment.id"
-            :deployment="deployment"
-          />
-        </list>
-      </div>
-      <div v-else-if="resultsTab == 'flow-runs'">
-        <list>
-          <flow-run-list-item
-            v-for="run in datasets['flow-runs']"
-            :key="run.id"
-            :run="run"
-          />
-        </list>
-      </div>
+        <results-list
+          v-else-if="resultsTab == 'deployments'"
+          key="deployments"
+          :filter="deploymentFilter"
+          component="deployment-list-item"
+          endpoint="deployments"
+        />
 
-      <div v-else-if="resultsTab == 'task-runs'">
-        <list>
-          <task-run-list-item
-            v-for="run in datasets['task-runs']"
-            :key="run.id"
-            :run="run"
-          />
-        </list>
-      </div>
-    </transition>
+        <results-list
+          v-else-if="resultsTab == 'flow_runs'"
+          key="flow_runs"
+          :filter="flowRunFilter"
+          component="flow-run-list-item"
+          endpoint="flow_runs"
+        />
 
+        <results-list
+          v-else-if="resultsTab == 'task_runs'"
+          key="task_runs"
+          :filter="taskRunFilter"
+          component="task-run-list-item"
+          endpoint="task_runs"
+        />
+      </transition>
+    </section>
     <hr class="results-hr mt-3" />
   </div>
 </template>
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
-import { Api, Endpoints, Query, FlowsFilter } from '@/plugins/api'
+import {
+  Api,
+  Endpoints,
+  Query,
+  FlowsFilter,
+  DeploymentsFilter,
+  FlowRunsFilter,
+  TaskRunsFilter
+} from '@/plugins/api'
 
 import {
   default as RunHistoryChart,
@@ -167,31 +181,38 @@ import {
 
 import BarChart from '@/components/BarChart/BarChart.vue'
 
-import { Flow, FlowRun, Deployment, TaskRun } from '../objects'
+import { Flow, FlowRun, Deployment, TaskRun } from '@/typings/objects'
 
 @Options({
-  components: { BarChart, RunHistoryChart }
+  components: { BarChart, RunHistoryChart },
+  watch: {
+    resultsTab(val) {
+      this.$router.push({ hash: `#${val}` })
+    }
+  }
 })
 export default class Dashboard extends Vue {
   flowsFilter: FlowsFilter = {}
 
   queries: { [key: string]: Query } = {
-    flows: Api.query(Endpoints.flows, this.flowsFilter, {
-      pollInterval: 2000
+    deployments: Api.query(Endpoints.deployments_count, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    flows: Api.query(Endpoints.flows_count, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    task_runs: Api.query(Endpoints.task_runs_count, this.flowsFilter, {
+      pollInterval: 10000
     })
   }
 
   run_history_buckets: Bucket[] = []
 
-  run_lateness_items: Item[] = []
-  run_duration_items: Item[] = []
-
-  datasets: { [key: string]: Flow[] | Deployment[] | FlowRun[] | TaskRun[] } = {
-    flows: [],
-    deployments: [],
-    'flow-runs': [],
-    'task-runs': []
-  }
+  run_lateness_items: any[] = []
+  run_duration_items: any[] = []
 
   premadeFilters: { label: string; count: number | null }[] = [
     { label: 'Failed Runs', count: null },
@@ -199,34 +220,66 @@ export default class Dashboard extends Vue {
     { label: 'Upcoming Runs', count: null }
   ]
 
-  resultsTab: string = 'flows'
+  resultsTab: string | null = null
 
-  get flows() {
-    return this.queries.flows.response || []
+  get flowsCount(): number {
+    return this.queries.flows?.response || 0
   }
 
-  get loading() {
-    return this.queries.flows.loading
+  get deploymentsCount(): number {
+    return this.queries.deployments?.response || 0
+  }
+
+  get flowRunsCount(): number {
+    return this.queries.flow_runs?.response || 0
+  }
+
+  get taskRunsCount(): number {
+    return this.queries.task_runs?.response || 0
+  }
+
+  get loading(): boolean {
+    return (
+      this.queries.flows.loading.value ||
+      this.queries.deployments.loading.value ||
+      this.queries.flow_runs.loading.value ||
+      this.queries.task_runs.loading.value
+    )
+  }
+
+  get flowFilter(): FlowsFilter {
+    return {}
+  }
+
+  get flowRunFilter(): FlowRunsFilter {
+    return {}
+  }
+
+  get taskRunFilter(): TaskRunsFilter {
+    return {}
+  }
+
+  get deploymentFilter(): DeploymentsFilter {
+    return {}
   }
 
   get resultsCount(): number {
-    return this.datasets[this.resultsTab].length
+    if (!this.resultsTab) return 0
+    return this.queries[this.resultsTab].response || 0
   }
 
-  refetch(): void {
-    this.queries.flows.fetch()
-  }
-
-  startPolling(): void {
-    this.queries.flows.startPolling()
-  }
-
-  stopPolling(): void {
-    this.queries.flows.stopPolling()
+  created(): void {
+    this.resultsTab = this.$route.hash?.substr(1) || 'flows'
   }
 }
 </script>
 
 <style lang="scss" scoped>
 @use '@/styles/views/dashboard.scss';
+
+.tab-fade-enter-active,
+.tab-fade-leave-active {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
 </style>

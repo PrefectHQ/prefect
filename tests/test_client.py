@@ -90,12 +90,13 @@ async def test_create_then_read_flow_run(orion_client):
     def foo():
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo)
+    flow_run_id = await orion_client.create_flow_run(foo, name="zachs-flow-run")
     assert isinstance(flow_run_id, UUID)
 
     lookup = await orion_client.read_flow_run(flow_run_id)
     assert isinstance(lookup, schemas.core.FlowRun)
     assert lookup.state.is_pending()
+    assert lookup.name == "zachs-flow-run"
 
 
 async def test_create_then_read_flow_run_with_state(orion_client):
@@ -273,7 +274,9 @@ async def test_create_then_read_task_run(orion_client):
         pass
 
     flow_run_id = await orion_client.create_flow_run(foo)
-    task_run_id = await orion_client.create_task_run(bar, flow_run_id=flow_run_id)
+    task_run_id = await orion_client.create_task_run(
+        bar, flow_run_id=flow_run_id, dynamic_key="0"
+    )
     assert isinstance(task_run_id, UUID)
 
     lookup = await orion_client.read_task_run(task_run_id)
@@ -295,7 +298,7 @@ async def test_create_then_read_task_run_with_state(orion_client):
 
     flow_run_id = await orion_client.create_flow_run(foo)
     task_run_id = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run_id, state=schemas.states.Running()
+        bar, flow_run_id=flow_run_id, state=schemas.states.Running(), dynamic_key="0"
     )
 
     lookup = await orion_client.read_task_run(task_run_id)
@@ -312,7 +315,9 @@ async def test_set_then_read_task_run_state(orion_client):
         pass
 
     flow_run_id = await orion_client.create_flow_run(foo)
-    task_run_id = await orion_client.create_task_run(bar, flow_run_id=flow_run_id)
+    task_run_id = await orion_client.create_task_run(
+        bar, flow_run_id=flow_run_id, dynamic_key="0"
+    )
 
     response = await orion_client.set_task_run_state(
         task_run_id,

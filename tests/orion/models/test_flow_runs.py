@@ -348,6 +348,32 @@ class TestReadFlowRuns:
         )
         assert {res.id for res in result} == {flow_run_3.id}
 
+    async def test_read_flow_runs_filters_by_name(self, flow, session):
+        flow_run_1 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, name="my flow run 1"),
+        )
+        flow_run_2 = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(flow_id=flow.id, name="my flow run 2"),
+        )
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                name=schemas.filters.FlowRunFilterName(any_=["my flow run 2"])
+            ),
+        )
+        assert {res.id for res in result} == {flow_run_2.id}
+
+        result = await models.flow_runs.read_flow_runs(
+            session=session,
+            flow_run_filter=schemas.filters.FlowRunFilter(
+                name=schemas.filters.FlowRunFilterName(any_=["adkljfldkajfkldjs"])
+            ),
+        )
+        assert len(result) == 0
+
     async def test_read_flow_runs_filters_by_tags(self, flow, session):
         flow_run_1 = await models.flow_runs.create_flow_run(
             session=session,
