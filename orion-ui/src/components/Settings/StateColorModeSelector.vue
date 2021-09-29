@@ -54,7 +54,7 @@ const storageKey = 'orion-color-mode'
 @Options({
   components: {},
   watch: {
-    colorMode(val) {
+    colorMode(val: string) {
       localStorage.setItem(storageKey, val)
 
       const bodyClasses = document.body.classList
@@ -65,6 +65,11 @@ const storageKey = 'orion-color-mode'
       })
 
       document.body.classList.add(val.toLowerCase() + '-color-mode')
+
+      this.showToast({
+        type: 'success',
+        content: 'Color theme saved'
+      })
     }
   }
 })
@@ -84,6 +89,10 @@ export default class StateColorModeSelector extends Vue {
   ]
 
   colorMap: { [key: string]: string[] } = {}
+
+  showToast(options: { type: string; content: any }): void {
+    this.$toast.add({ ...options, timeout: 10000 })
+  }
 
   mounted(): void {
     // There are some plugins for rollup that make this a little easier but this seems the most straightforward

@@ -202,7 +202,7 @@ class Flow(Generic[P, R]):
 
             Run a flow and get the returned result
 
-            >>> my_flow("marvin").result
+            >>> my_flow("marvin").result()
             "goodbye marvin"
 
             Run a flow with additional tags

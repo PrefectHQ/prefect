@@ -19,7 +19,7 @@ import pendulum
 from contextlib import contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from anyio import start_blocking_portal
@@ -227,6 +227,7 @@ async def create_and_begin_subflow_run(
     parent_task_run_id = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
+        dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
     )
 
     flow_run_id = await client.create_flow_run(
@@ -332,7 +333,7 @@ async def orchestrate_flow_run(
 
 
 def enter_task_run_engine(
-    task: Task, parameters: Dict[str, Any]
+    task: Task, parameters: Dict[str, Any], dynamic_key: str
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -363,6 +364,7 @@ def enter_task_run_engine(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
+        dynamic_key=dynamic_key,
     )
 
     # Async task run
@@ -403,10 +405,13 @@ async def collect_task_run_inputs(
 
 
 async def begin_task_run(
-    task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    dynamic_key: str,
 ) -> PrefectFuture:
     """
-    Async entrypoint for task calls
+    Async entrypoint for task calls.
 
     Tasks must be called within a flow. When tasks are called, they create a task run
     and submit orchestration of the run to the flow run's executor. The executor returns
@@ -416,6 +421,7 @@ async def begin_task_run(
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
+        dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
         task_inputs={
@@ -431,9 +437,6 @@ async def begin_task_run(
         flow_run_id=flow_run_context.flow_run_id,
         parameters=parameters,
     )
-
-    # Update the dynamic key so future task calls are distinguishable from this task run
-    task.update_dynamic_key()
 
     return future
 
