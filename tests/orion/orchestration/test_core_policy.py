@@ -256,33 +256,64 @@ class TestRetryingRule:
         assert ctx.validated_state_type == states.StateType.FAILED
 
 
-async def test_naming_retrying_states(
-    session,
-    initialize_orchestration,
-):
-    retry_policy = [RenameRetryingState]
-    initial_state_type = states.StateType.SCHEDULED
-    proposed_state_type = states.StateType.RUNNING
-    intended_transition = (initial_state_type, proposed_state_type)
-    ctx = await initialize_orchestration(
+class TestRenameRetryingStates:
+    async def test_rerun_states_get_renamed(
+        self,
         session,
-        "task",
-        *intended_transition,
-    )
+        initialize_orchestration,
+    ):
+        retry_policy = [RenameRetryingState]
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
 
-    orm_run = ctx.run
-    run_settings = ctx.run_settings
-    orm_run.run_count = 2
-    run_settings.max_retries = 2
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
 
-    async with contextlib.AsyncExitStack() as stack:
-        for rule in retry_policy:
-            ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
-        await ctx.validate_proposed_state()
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
 
-    assert ctx.response_status == SetStateStatus.ACCEPT
-    assert ctx.validated_state_type == states.StateType.RUNNING
-    assert ctx.validated_state.name == "Retrying"
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state.name == "Retrying"
+
+    async def test_no_rename_on_first_run(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RenameRetryingState]
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 0
+        run_settings.max_retries = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state.name == "Running"
 
 
 @pytest.mark.parametrize("run_type", ["task", "flow"])
