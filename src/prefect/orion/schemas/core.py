@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Union
 from uuid import UUID
 
 from pydantic import Field, validator
-from coolname import generate_slug
+import coolname
 from typing_extensions import Literal
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
@@ -21,7 +21,9 @@ class Flow(ORMBaseModel):
 
 
 class FlowRun(ORMBaseModel):
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-flow-run")
+    name: str = Field(
+        default_factory=lambda: coolname.generate_slug(2), example="my-flow-run"
+    )
     flow_id: UUID
     state_id: UUID = None
     deployment_id: UUID = None
@@ -60,7 +62,7 @@ class FlowRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or generate_slug(2)
+        return name or coolname.generate_slug(2)
 
 
 class TaskRunPolicy(PrefectBaseModel):
@@ -103,7 +105,9 @@ class Constant(TaskRunInput):
 
 
 class TaskRun(ORMBaseModel):
-    name: str = Field(default_factory=lambda: generate_slug(2), example="my-task-run")
+    name: str = Field(
+        default_factory=lambda: coolname.generate_slug(2), example="my-task-run"
+    )
     flow_run_id: UUID
     task_key: str
     dynamic_key: str = None
@@ -141,7 +145,7 @@ class TaskRun(ORMBaseModel):
 
     @validator("name", pre=True)
     def set_name(cls, name):
-        return name or generate_slug(2)
+        return name or coolname.generate_slug(2)
 
 
 class Deployment(ORMBaseModel):
