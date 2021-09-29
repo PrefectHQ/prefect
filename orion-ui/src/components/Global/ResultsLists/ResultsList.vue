@@ -1,17 +1,15 @@
 <template>
-  <div class="container">
-    <list class="results-list">
-      <component
-        v-for="item in items"
-        :key="item.id"
-        :item="item"
-        :is="props.component"
-        :ref="(el) => createItemRef(item.id, el)"
-      />
+  <list class="results-list">
+    <component
+      v-for="item in items"
+      :key="item.id"
+      :item="item"
+      :is="props.component"
+      :ref="(el) => createItemRef(item.id, el)"
+    />
 
-      <Observer @intersection="fetchMore" />
-    </list>
-  </div>
+    <Observer @intersection="fetchMore" />
+  </list>
 </template>
 
 <script lang="ts" setup>
@@ -33,7 +31,7 @@ const props = defineProps<{
   component: string
   endpoint: string
 }>()
-const limit = ref(200)
+const limit = ref(50)
 const offset = ref(0)
 const loading = ref(false)
 const items = ref<any[]>([])
