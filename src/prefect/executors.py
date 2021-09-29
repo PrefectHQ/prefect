@@ -20,12 +20,12 @@ T = TypeVar("T", bound="BaseExecutor")
 class BaseExecutor:
     def __init__(self) -> None:
         # Set on `start`
-        self.flow_run_id: str = None
+        self.flow_run_id: UUID = None
         self.orion_client: OrionClient = None
 
     async def submit(
         self,
-        run_id: str,
+        run_id: UUID,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -33,16 +33,26 @@ class BaseExecutor:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
         get the call result. This method is responsible for resolving `PrefectFutures`
-        in args and kwargs into a type supported by the underlying execution method
+        in args and kwargs into a type supported by the underlying execution method.
+
+        Args:
+            run_id: A unique id identifying the run being submitted
+            run_fn: The function to be executed
+            *args: Arguments to pass to `run_fn`
+            **kwargs: Keyword arguments to pass to `run_fn`
+
+        Returns:
+            A future representing the result of `run_fn` execution
         """
         raise NotImplementedError()
 
     @contextmanager
     def start(
         self: T,
-        flow_run_id: str,
+        flow_run_id: UUID,
         orion_client: "OrionClient",
     ) -> T:
+        """Start the executor, preparing any resources necessary for task submission"""
         self.flow_run_id = flow_run_id
         self.orion_client = orion_client
         try:
@@ -54,10 +64,11 @@ class BaseExecutor:
 
     def shutdown(self) -> None:
         """
-        Clean up resources associated with the executor
+        Clean up resources associated with the executor.
 
-        Should block until submitted calls are completed
+        Should block until submitted calls are completed.
         """
+        # TODO: Consider adding a `wait` bool here for fast shutdown
         pass
 
     async def wait(
@@ -70,12 +81,13 @@ class BaseExecutor:
         raise NotImplementedError()
 
 
-class LocalExecutor(BaseExecutor):
+class SequentialExecutor(BaseExecutor):
     """
-    A simple executor that executes calls as they are submitted
+    A simple executor that executes calls as they are submitted.
 
-    If writing synchronous tasks, this executor will have no concurrency.
-    If writing async tasks, they will run concurrently as if using asyncio directly.
+    If writing synchronous tasks, this executor will always run tasks sequentially.
+    If writing async tasks, this executor will run tasks sequentially unless grouped
+    using `anyio.create_task_group` or `asyncio.gather`.
     """
 
     def __init__(self) -> None:
@@ -84,7 +96,7 @@ class LocalExecutor(BaseExecutor):
 
     async def submit(
         self,
-        run_id: str,
+        run_id: UUID,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -104,17 +116,21 @@ class LocalExecutor(BaseExecutor):
             executor=self,
         )
 
-    async def wait(self, prefect_future: PrefectFuture, timeout: float = None) -> State:
+    async def wait(
+        self, prefect_future: PrefectFuture, timeout: float = None
+    ) -> Optional[State]:
         return self._results[prefect_future.run_id]
 
 
 class DaskExecutor(BaseExecutor):
     """
-    A parallel executor that submits calls to a dask cluster
+    A parallel executor that submits calls to a dask cluster.
 
-    TODO: __init__ should support cluster setup kwargs as well as existing cluster
-          connection args
+    A local dask distributed cluster is created on use.
     """
+
+    # TODO: __init__ should support cluster setup kwargs as well as existing cluster
+    #      connection args
 
     def __init__(self) -> None:
         super().__init__()
@@ -123,7 +139,7 @@ class DaskExecutor(BaseExecutor):
 
     async def submit(
         self,
-        run_id: str,
+        run_id: UUID,
         run_fn: Callable[..., State],
         *args: Any,
         **kwargs: Dict[str, Any],
@@ -184,10 +200,16 @@ class DaskExecutor(BaseExecutor):
             return None
 
     @contextmanager
-    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
+    def start(self: T, flow_run_id: UUID, orion_client: "OrionClient") -> T:
         with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
             self._client = distributed.Client()
             yield self
 
     def shutdown(self) -> None:
+        # Attempt to wait for all futures to complete
+        for future in self._futures.values():
+            try:
+                future.result()
+            except Exception:
+                pass
         self._client.close()
