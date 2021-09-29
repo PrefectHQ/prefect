@@ -1,7 +1,7 @@
 import pytest
 
 from prefect import flow, task
-from prefect.executors import DaskExecutor, LocalExecutor
+from prefect.executors import DaskExecutor, SequentialExecutor
 
 
 def get_test_flow():
@@ -31,7 +31,7 @@ def get_test_flow():
 @pytest.mark.parametrize(
     "executor",
     [
-        LocalExecutor(),
+        SequentialExecutor(),
         DaskExecutor(),
     ],
 )
