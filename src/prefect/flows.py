@@ -5,6 +5,7 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
+import json
 from functools import update_wrapper, partial
 from typing import (
     Any,
@@ -26,7 +27,7 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.executors import BaseExecutor, LocalExecutor
+from prefect.executors import BaseExecutor, SequentialExecutor
 from prefect.exceptions import FlowParameterError
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
@@ -60,7 +61,7 @@ class Flow(Generic[P, R]):
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         executor: An optional executor to use for task execution within the flow; if
-            not provided, a `LocalExecutor` will be instantiated.
+            not provided, a `SequentialExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -90,7 +91,7 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        executor = executor or LocalExecutor()
+        executor = executor or SequentialExecutor()
         self.executor = executor() if isinstance(executor, type) else executor
 
         self.description = description or inspect.getdoc(fn)
@@ -174,6 +175,8 @@ class Flow(Generic[P, R]):
         """
         Run the flow using the Prefect engine against a backing API (note this will create a new flow run in the backend).
 
+        Flow parameter values must be serializable by Pydantic.
+
         If writing an async flow, this call must be awaited.
 
         Args:
@@ -199,7 +202,7 @@ class Flow(Generic[P, R]):
 
             Run a flow and get the returned result
 
-            >>> get_result(my_flow("marvin"))
+            >>> my_flow("marvin").result()
             "goodbye marvin"
 
             Run a flow with additional tags
@@ -212,6 +215,16 @@ class Flow(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
+
+        # Check for serializability of parameters
+        for key, value in parameters.items():
+            try:
+                json.dumps(value, default=pydantic.json.pydantic_encoder)
+            except:
+                raise FlowParameterError(
+                    f"Flow parameters must be JSON serializable. Parameter {key!r} is "
+                    f"of unserializable type {type(value).__name__!r}"
+                )
 
         return enter_flow_run_engine_from_flow_call(self, parameters)
 
@@ -249,6 +262,8 @@ def flow(
 
     This decorator may be used for asynchronous or synchronous functions.
 
+    Flow parameters must be serializable by Pydantic.
+
     Args:
         name: An optional name for the flow; if not provided, the name will be inferred
             from the given function.
@@ -256,7 +271,7 @@ def flow(
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         executor: An optional executor to use for task execution within the flow; if
-            not provided, a `LocalExecutor` will be instantiated.
+            not provided, a `SequentialExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for

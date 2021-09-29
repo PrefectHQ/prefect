@@ -6,7 +6,6 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-import prefect
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy

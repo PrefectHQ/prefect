@@ -1,0 +1,23 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefect/miter-design/src/styles/abstracts/mixins' as mixins;
+
+.setting--section {
+  .setting--section-title {
+    text-transform: capitalize;
+  }
+
+  .setting--section-content {
+    @include mixins.miter(2, 1);
+
+    > div {
+      background-color: $secondary-background;
+      border: 1px solid $secondary-pressed;
+      border-radius: 3px;
+    }
+
+    section,
+    div {
+      margin: 4px 0;
+    }
+  }
+}

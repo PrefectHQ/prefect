@@ -24,7 +24,7 @@ DeploymentCreate = schemas.core.Deployment.subclass(
 )
 
 FlowRunUpdate = schemas.core.FlowRun.subclass(
-    name="FlowRunUpdate", include_fields=["flow_version", "parameters"]
+    name="FlowRunUpdate", include_fields=["flow_version", "parameters", "name"]
 )
 
 StateCreate = schemas.states.State.subclass(
@@ -43,6 +43,7 @@ class TaskRunCreate(
     schemas.core.TaskRun.subclass(
         name="TaskRunCreate",
         include_fields=[
+            "name",
             "flow_run_id",
             "task_key",
             "dynamic_key",
@@ -63,6 +64,7 @@ class FlowRunCreate(
     schemas.core.FlowRun.subclass(
         name="FlowRunCreate",
         include_fields=[
+            "name",
             "flow_id",
             "deployment_id",
             "flow_version",
