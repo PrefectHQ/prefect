@@ -67,7 +67,6 @@
 
 .highlight code {
     font-size: 12px;
-    background-color: var(--gray-1);
 }
 
 details.quote:not([open]),
