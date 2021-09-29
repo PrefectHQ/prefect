@@ -25,7 +25,7 @@ def send_post(url):
     return requests.post(url).json()
 ```
 
-The arguments and keyword arguments defined on your flow function are called _parameters_.
+The positional and keyword arguments defined on your flow function are called _parameters_.
 
 !!! note "Asynchronous functions"
     Even asynchronous functions work with Prefect!  We can alter the above example to be fully asynchronous using the `httpx` library:
@@ -55,7 +55,7 @@ State(name='Completed', type=StateType.COMPLETED)
 !!! note "Flows return states"
     You may notice that this call did not return the number 42 but rather a [Prefect State object][prefect.orion.schemas.states.State].
     States are the basic currency of communication between Prefect Clients and the Prefect API, and can be used to define the conditions 
-    for orchestration rules as well as an interface for client-side logic.  Data can be accessed via the `.result` attribute on the `State` object.
+    for orchestration rules as well as an interface for client-side logic.  Data can be accessed via the `.result()` method on the `State` object.
 
 
 ### Error handling
