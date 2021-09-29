@@ -1,4 +1,4 @@
-import { App, Plugin, ref } from 'vue'
+import { App, Plugin, ref, watchEffect, reactive } from 'vue'
 
 export interface DeploymentsFilter {
   limit?: limit
@@ -36,7 +36,7 @@ export interface FlowRunsFilter {
   deployments?: DeploymentFilter
 }
 
-type Filters = {
+export type Filters = {
   flow: null
   flows: FlowsFilter
   flows_count: FlowsFilter
@@ -46,9 +46,12 @@ type Filters = {
   task_run: null
   task_runs: TaskRunsFilter
   task_runs_count: TaskRunsFilter
+  deployment: null
+  deployments: DeploymentsFilter
+  deployments_count: DeploymentsFilter
 }
 
-type FilterBody = Filters[keyof Filters]
+export type FilterBody = Filters[keyof Filters]
 
 export const Endpoints: { [key: string]: Endpoint } = {
   flow: {

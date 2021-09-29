@@ -12,12 +12,12 @@
       "
     >
       <h2>
-        {{ flow.name }}
+        {{ item.name }}
       </h2>
 
       <div class="nowrap tag-container d-flex align-bottom">
         <Tag
-          v-for="tag in flow.tags"
+          v-for="tag in item.tags"
           :key="tag"
           color="secondary-pressed"
           class="caption font-weight-semibold mr-1"
@@ -58,7 +58,7 @@ import {
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
 
 class Props {
-  flow = prop<Flow>({ required: true })
+  item = prop<Flow>({ required: true })
 }
 
 @Options({ components: { RunHistoryChart } })

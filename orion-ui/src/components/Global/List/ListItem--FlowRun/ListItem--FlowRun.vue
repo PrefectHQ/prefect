@@ -18,7 +18,7 @@
       "
     >
       <h2>
-        {{ run.name }}
+        {{ item.name }}
       </h2>
 
       <div class="tag-container nowrap d-flex align-bottom">
@@ -75,7 +75,7 @@ import {
 } from '@/components/RunHistoryChart/RunHistoryChart.vue'
 
 class Props {
-  run = prop<FlowRun>({ required: true })
+  item = prop<FlowRun>({ required: true })
 }
 
 @Options({
@@ -87,15 +87,15 @@ export default class ListItemFlowRun extends Vue.with(Props) {
   taskRunBuckets: Bucket[] = []
 
   get taskRunCount(): number {
-    return this.run.task_run_count
+    return this.item.task_run_count
   }
 
   get state(): string {
-    return this.run.state.type.toLowerCase()
+    return this.item.state.type.toLowerCase()
   }
 
   get tags(): string[] {
-    return this.run.tags
+    return this.item.tags
   }
 
   get reason(): string | null {
@@ -105,9 +105,9 @@ export default class ListItemFlowRun extends Vue.with(Props) {
   get duration(): string {
     return this.state == 'pending' || this.state == 'scheduled'
       ? '--'
-      : this.run.total_run_time
-      ? secondsToApproximateString(this.run.total_run_time)
-      : secondsToApproximateString(this.run.estimated_run_time)
+      : this.item.total_run_time
+      ? secondsToApproximateString(this.item.total_run_time)
+      : secondsToApproximateString(this.item.estimated_run_time)
   }
 }
 </script>
