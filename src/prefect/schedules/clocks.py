@@ -451,11 +451,11 @@ class RRuleClock(Clock):
         # RRule throws if trying to compare timezone-aware datetimes to timezone-naive ones.
         # To protect from this happening we grab the first element in the RRule to see what
         # timezone awareness it has, and use that to alter our `after` variable accordingly.
-        first_item = next(iter(self.rrule_obj), after)
+        first_item: datetime = next(iter(self.rrule_obj), after)
         if after.tzinfo is not None and first_item.tzinfo is None:
-            after = after.naive()
+            after = after.replace(tzinfo=None)
         if after.tzinfo is None and first_item.tzinfo is not None:
-            after = after.in_tz(first_item.tz)
+            after = after.replace(tzinfo=first_item.tzinfo)
 
         for dt in self.rrule_obj.xafter(after, inc=include_after):
             if self.end_date and dt > self.end_date:
