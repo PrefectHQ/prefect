@@ -25,6 +25,8 @@ def send_post(url):
     return requests.post(url).json()
 ```
 
+The arguments and keyword arguments defined on your flow function are called _parameters_.
+
 !!! note "Asynchronous functions"
     Even asynchronous functions work with Prefect!  We can alter the above example to be fully asynchronous using the `httpx` library:
     ```python
@@ -53,7 +55,7 @@ State(name='Completed', type=StateType.COMPLETED)
 !!! note "Flows return states"
     You may notice that this call did not return the number 42 but rather a [Prefect State object][prefect.orion.schemas.states.State].
     States are the basic currency of communication between Prefect Clients and the Prefect API, and can be used to define the conditions 
-    for orchestration rules as well as an interface for client-side logic.
+    for orchestration rules as well as an interface for client-side logic.  Data can be accessed via the `.result` attribute on the `State` object.
 
 
 ### Error handling
@@ -104,9 +106,8 @@ def repo_trending_check(url="https://github.com/trending/python",
 As you can see, we still call these tasks as normal functions and can pass their return values to other tasks.  We can then
 call our flow function just as before and see the printed output - Prefect will manage all the relevant intermediate state.
 
-!!! warning "Combining task code with arbitrary Python code"
-    Notice in the above example that *all* of our Python logic is encapsulated within task functions. This is not a strict requirement, 
-    but is a more advanced use case.
+!!! note "Combining task code with arbitrary Python code"
+    Notice in the above example that *all* of our Python logic is encapsulated within task functions. While there are many benefits to using Prefect in this way, it is not a strict requirement.  Interacting with the results of your Prefect tasks requires an understanding of [Prefect futures](/api-ref/prefect/futures/) which will be covered in a [later section](/tutorials/futures-and-parallelism/).
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
