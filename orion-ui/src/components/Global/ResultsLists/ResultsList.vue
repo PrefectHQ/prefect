@@ -1,5 +1,5 @@
 <template>
-  <ResultsListBase @load-more="fetchMore">
+  <div class="container">
     <list class="results-list">
       <component
         v-for="item in items"
@@ -8,8 +8,10 @@
         :is="props.component"
         :ref="(el) => createItemRef(item.id, el)"
       />
+
+      <Observer @intersection="fetchMore" />
     </list>
-  </ResultsListBase>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -22,7 +24,7 @@ import {
   shallowRef,
   ComponentPublicInstance
 } from 'vue'
-import ResultsListBase from './ResultsList--Base.vue'
+import Observer from '@/components/Global/IntersectionObserver/IntersectionObsever.vue'
 import { Api, Endpoints, FilterBody } from '@/plugins/api'
 
 const props = defineProps<{
