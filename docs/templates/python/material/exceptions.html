@@ -1,0 +1,20 @@
+{{ log.debug() }}
+<div class="prefect-exceptions">
+    <p><strong>Exceptions:</strong></p>
+    <table class="prefect-table">
+    <thead>
+        <tr>
+        <th>Type</th>
+        <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for exception in exceptions %}
+        <tr>
+            <td><code>{{ exception.annotation }}</code></td>
+            <td>{{ exception.description|convert_markdown(heading_level, html_id) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+</div>
