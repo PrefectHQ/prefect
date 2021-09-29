@@ -150,6 +150,25 @@ class RetryPotentialFailures(BaseOrchestrationRule):
             await self.reject_transition(state=retry_state, reason="Retrying")
 
 
+class RenameRetryingState(BaseOrchestrationRule):
+    """
+    Name the state "Retrying" when entering a running state multiple times.
+    """
+
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        proposed_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+    ) -> None:
+        run_count = context.run.run_count
+        if run_count > 0:
+            context.rename_state("Retrying")
+
+
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
     Prevents transitions from scheduled states that happen too early.
