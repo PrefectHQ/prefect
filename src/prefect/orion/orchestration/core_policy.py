@@ -152,7 +152,10 @@ class RetryPotentialFailures(BaseOrchestrationRule):
 
 class RenameReruns(BaseOrchestrationRule):
     """
-    Name the state "Retrying" when entering a running state multiple times.
+    Name the states if they have run more than once.
+
+    In the special case where the initial state is an "Awaiting Retry" scheduled state,
+    the proposed state will be renamed to "Retrying" instead.
     """
 
     FROM_STATES = ALL_ORCHESTRATION_STATES
