@@ -32,7 +32,7 @@ const props = defineProps<{
   component: string
   endpoint: string
 }>()
-const limit = ref(25)
+const limit = ref(200)
 const offset = ref(0)
 const loading = ref(false)
 const items = ref<any[]>([])
