@@ -30,7 +30,7 @@ async def create_deployment(
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
-    deployment.updated = now()
+    deployment.updated = pendulum.now("UTC")
 
     insert_stmt = (
         dialect_specific_insert(orm.Deployment)
