@@ -243,6 +243,15 @@ def Failed(**kwargs) -> State:
     return State(type=StateType.FAILED, **kwargs)
 
 
+def Cancelled(**kwargs) -> State:
+    """Convenience function for creating `Cancelled` states.
+
+    Returns:
+        State: a Cancelled state
+    """
+    return State(type=StateType.CANCELLED, **kwargs)
+
+
 def Pending(**kwargs) -> State:
     """Convenience function for creating `Pending` states.
 

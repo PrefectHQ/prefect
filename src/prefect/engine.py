@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from prefect.exceptions import UpstreamTaskError
+from prefect.exceptions import IncompleteUpstreamTaskError
 
 from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
@@ -43,6 +43,7 @@ from prefect.orion.schemas.states import (
     Completed,
     Failed,
     Pending,
+    Cancelled,
     Running,
     State,
     StateDetails,
@@ -485,12 +486,9 @@ async def orchestrate_task_run(
     # Resolve upstream futures and states into data
     try:
         resolved_parameters = await resolve_upstream_tasks(parameters)
-    except UpstreamTaskError as upstream_exc:
+    except IncompleteUpstreamTaskError as upstream_exc:
         state = await client.propose_state(
-            Failed(
-                message=f"Upstream task failed.",
-                data=DataDocument.encode("cloudpickle", upstream_exc),
-            ),
+            Cancelled(message=str(upstream_exc)),
             task_run_id=task_run_id,
         )
     else:
@@ -660,9 +658,9 @@ async def resolve_upstream_tasks(parameters: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(expr, PrefectFuture):
             return await visit_fn(await expr.wait())
         elif isinstance(expr, State):
-            if expr.is_failed():
-                raise UpstreamTaskError(
-                    f"Task '{expr.state_details.task_run_id}' failed."
+            if not expr.is_completed():
+                raise IncompleteUpstreamTaskError(
+                    f"Upstream task '{expr.state_details.task_run_id}' did not complete."
                 )
             else:
                 return expr.result()
