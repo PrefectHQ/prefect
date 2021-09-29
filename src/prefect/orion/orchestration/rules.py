@@ -710,6 +710,13 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.response_status = SetStateStatus.ABORT
         self.context.response_details = StateAbortDetails(reason=reason)
 
+    async def rename_state(self, state_name):
+        """
+        Sets the "name" attribute on a proposed state.
+        """
+
+        self.context.proposed_state.name = state_name
+
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     """
