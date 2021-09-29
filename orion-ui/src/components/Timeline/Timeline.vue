@@ -39,7 +39,7 @@
 </template>
 
 <script lang="ts">
-import { TaskRun } from '@/types/objects'
+import { TaskRun } from '@/typings/objects'
 import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'

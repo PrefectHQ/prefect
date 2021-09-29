@@ -132,7 +132,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
-import { Deployment, IntervalSchedule, CronSchedule } from '@/types/objects'
+import { Deployment, IntervalSchedule, CronSchedule } from '@/typings/objects'
 
 class Props {
   item = prop<Deployment>({ required: true })

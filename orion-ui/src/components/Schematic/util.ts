@@ -7,6 +7,18 @@ Ring 1+:
 
 */
 
+import {
+  Link,
+  SchematicNodes,
+  SchematicNode,
+  Rings,
+  Ring,
+  Links,
+  Positions,
+  Position,
+  Items
+} from '@/typings/schematic'
+
 function defaultId(d: any) {
   // We could use d.index for this since this is a map
   // but we'll assume UUIDs for now
