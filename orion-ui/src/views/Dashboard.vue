@@ -190,19 +190,17 @@ import BarChart from '@/components/BarChart/BarChart.vue'
   }
 })
 export default class Dashboard extends Vue {
-  flowsFilter: FlowsFilter = {}
-
   queries: { [key: string]: Query } = {
-    deployments: Api.query(Endpoints.deployments_count, this.flowsFilter, {
+    deployments: Api.query(Endpoints.deployments_count, this.deploymentFilter, {
       pollInterval: 10000
     }),
-    flows: Api.query(Endpoints.flows_count, this.flowsFilter, {
+    flows: Api.query(Endpoints.flows_count, this.flowFilter, {
       pollInterval: 10000
     }),
-    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowsFilter, {
+    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowRunFilter, {
       pollInterval: 10000
     }),
-    task_runs: Api.query(Endpoints.task_runs_count, this.flowsFilter, {
+    task_runs: Api.query(Endpoints.task_runs_count, this.taskRunFilter, {
       pollInterval: 10000
     })
   }
