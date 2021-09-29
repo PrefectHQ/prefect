@@ -19,9 +19,9 @@
     />
 
     <div ref="container" class="chart-container" @scroll="handleScroll">
-      <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis" />
+      <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis"></svg>
 
-      <svg :id="id" ref="chart" class="timeline-chart" />
+      <svg :id="id" ref="chart" class="timeline-chart"></svg>
 
       <div class="node-container">
         <div
@@ -39,7 +39,7 @@
 </template>
 
 <script lang="ts">
-import { TaskRun } from '@/objects'
+import { TaskRun } from '@/types/objects'
 import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
@@ -90,11 +90,11 @@ class Props {
   items = prop<Item[]>({ required: true })
   maxEndTime = prop<string>({ required: false, default: null })
   padding = prop<{
-    top: Number
-    bottom: Number
-    middle: Number
-    left: Number
-    right: Number
+    top: number
+    bottom: number
+    middle: number
+    left: number
+    right: number
   }>({
     required: false,
     default: {
@@ -236,7 +236,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         d3
           .axisTop(this.xScale)
           .ticks(this.numberIntervals + 2)
-          /* @ts-ignore */
+          // @ts-expect-error: I haven't quite figured out the correct typing for D3 axis
           .tickFormat(formatLabel)
           .tickSizeOuter(0)
           .tickSizeInner(0)
@@ -302,7 +302,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
     this.gridSelection = this.svg
       .append('g')
-      .style('transform', `translate(0, 36px)`)
+      .style('transform', 'translate(0, 36px)')
 
     this.xAxisGroup = this.axisSvg.append('g')
   }
@@ -321,17 +321,19 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   updateNodes(): void {
     const rows: [number, number][] = []
 
-    this.computedItems = [...this.sortedItems].map((item: Item, i: number) => {
+    this.computedItems = [...this.sortedItems].map((item: Item) => {
       const start = new Date(item.start_time)
       const end = item.end_time ? new Date(item.end_time) : new Date()
       const left = this.xScale(start)
       const width = Math.max(16, this.xScale(end) - this.xScale(start))
       let row = 0
+
+      // eslint-disable-next-line
       while (true) {
         const curr = rows[row]
         // If no row at this index, we create one instead and place this node on it
         if (curr) {
-          const [l, r] = curr
+          const [, r] = curr
           // If the left edge of this node is greater than the right boundary of the
           // row, we can place it on this row
           if (left > r) {
@@ -353,7 +355,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
           height: 8 + 'px',
           left: left + 'px',
           top: row * this.intervalHeight + 'px',
-          transform: `translate(0, 44px)`, // 36px axis offset + height
+          transform: 'translate(0, 44px)', // 36px axis offset + height
           width: width + 'px'
         }
       }
@@ -362,7 +364,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   updateGrid(): void {
     // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-    /* @ts-ignore */
     this.gridSelection
       .selectAll('.grid-line.grid-x')
       .data(Array.from({ length: this.numberRows }))
@@ -386,7 +387,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         (selection: any) => selection.remove()
       )
 
-    /* @ts-ignore */
     this.gridSelection
       .selectAll('.grid-line.grid-y')
       .data(this.xScale.ticks(this.numberIntervals))
