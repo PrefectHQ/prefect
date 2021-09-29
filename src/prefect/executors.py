@@ -186,4 +186,10 @@ class DaskExecutor(BaseExecutor):
             yield self
 
     def shutdown(self) -> None:
+        # Attempt to wait for all futures to complete
+        for future in self._futures.values():
+            try:
+                future.result()
+            except Exception:
+                pass
         self._client.close()
