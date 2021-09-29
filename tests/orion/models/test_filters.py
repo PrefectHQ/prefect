@@ -763,32 +763,3 @@ class TestCountDeploymentModels:
             ),
         )
         assert len({r["id"] for r in repsonse.json()}) == expected
-
-
-# class TestSubFlowRunsFilter:
-#     @pytest.fixture(autouse=True, scope="class")
-#     async def create_data(self, flow, session):
-#         # create a parent flow run
-#         fr1 = await models.flow_runs.create_flow_run(
-#             session=session,
-#             flow_run=core.FlowRun(flow_id=flow.id),
-#         )
-
-#     tr1 = await create_task_run(
-#          task_run=core.TaskRun(flow_run_id=fr1, task_key="a")
-#     )
-#     tr2 = await create_task_run(
-#          task_run=core.TaskRun(flow_run_id=fr1, task_key="b")
-#     )
-
-#     # create a subflow corresponding to tr2
-#     fr2 = await models.flow_runs.create_flow_run(
-#         session=session,
-#         flow_run=core.FlowRun(flow_id=flow.id, parent_task_run_id=tr2.id),
-#     )
-#     tr3 = await create_task_run(
-#          task_run=core.TaskRun(flow_run_id=fr2, task_key="a")
-#     )
-
-# async def test(self, client):
-#     await client.
