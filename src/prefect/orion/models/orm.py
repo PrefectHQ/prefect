@@ -307,7 +307,7 @@ class FlowRun(Base, RunMixin):
     )
     parent_task_run = relationship(
         "TaskRun",
-        back_populates="subflow_runs",
+        back_populates="subflow_run",
         lazy="raise",
         foreign_keys=lambda: [FlowRun.parent_task_run_id],
     )
@@ -422,11 +422,12 @@ class TaskRun(Base, RunMixin):
         foreign_keys=[flow_run_id],
     )
 
-    subflow_runs = relationship(
+    subflow_run = relationship(
         FlowRun,
         back_populates="parent_task_run",
         lazy="raise",
         foreign_keys=[FlowRun.parent_task_run_id],
+        uselist=False,
     )
 
     __table_args__ = (
