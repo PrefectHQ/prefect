@@ -1,0 +1,32 @@
+/* CSS for the auto generated Swagger REST API docs */
+
+.highlight-code
+  > pre
+  > code
+  span:nth-of-type(1)[style="color: rgb(162, 252, 162);"] {
+  color: #024dfd !important;
+}
+
+.highlight-code
+  > pre
+  > code
+  > .hljs-attr
+  ~ span[style="color: rgb(162, 252, 162);"] {
+  color: #024dfd !important;
+}
+
+.highlight-code
+  > pre
+  > code
+  > .hljs-attr
+  ~ span[style="color: rgb(211, 99, 99);"] {
+  color: #fb4e4e !important;
+}
+
+.highlight-code
+  > pre
+  > code
+  > .hljs-attr
+  ~ span[style="color: rgb(252, 194, 140);"] {
+  color: #149347 !important;
+}
