@@ -54,7 +54,7 @@ async def test_agent_submittable_flow_run_filter(orion_client, deployment):
     )
     fr_id_6 = await create_run_with_deployment(Running())
     fr_id_7 = await create_run_with_deployment(Completed())
-    fr_id_8 = await orion_client.create_flow_run(foo, Scheduled())
+    fr_id_8 = await orion_client.create_flow_run(foo, state=Scheduled())
 
     async with OrionAgent(prefetch_seconds=10) as agent:
         agent.submit_flow_run_to_subprocess = AsyncMock()  # do not actually run
