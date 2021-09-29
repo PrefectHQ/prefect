@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Iterable
 from typing import Optional, Generic, TypeVar
 from uuid import UUID
 
@@ -72,6 +73,16 @@ class State(IDBaseModel, Generic[R]):
         if self.is_failed() and raise_on_failure:
             if isinstance(data, Exception):
                 raise data
+            elif isinstance(data, State):
+                data.result()
+            elif isinstance(data, Iterable) and all(
+                [isinstance(o, State) for o in obj]
+            ):
+                # raise the first failure we find
+                for state in data:
+                    state.result()
+
+            # we don't make this an else in case any of the above conditionals doesn't raise
             raise TypeError(
                 f"Unexpected result for failure state: {data!r} —— "
                 f"{type(data).__name__} cannot be resolved into an exception"
