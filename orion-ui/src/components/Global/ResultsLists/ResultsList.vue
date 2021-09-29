@@ -100,7 +100,9 @@ watch(
       if (itemRefs.value[item.id]) {
         try {
           observer.observe(itemRefs.value[item.id])
-        } catch {}
+        } catch {
+          // do nothing
+        }
       }
     })
   }
