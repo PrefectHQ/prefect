@@ -59,7 +59,6 @@ nav:
             - tutorials/futures-and-parallelism.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/rest.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -80,6 +79,7 @@ nav:
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Utilities':
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+                - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
         - Orion Python API: 
             - 'Models':
                 - 'orion.models.deployments': api-ref/orion/models/deployments.md
