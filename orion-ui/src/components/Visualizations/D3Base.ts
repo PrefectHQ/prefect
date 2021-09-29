@@ -67,7 +67,9 @@ export class D3Base extends Vue {
   public paddingY = this.padding.top + this.padding.middle + this.padding.bottom
   public paddingX = this.padding.left + this.padding.right
 
-  resize(): void {}
+  resize(): void {
+    return
+  }
 
   private handleWindowResize(): void {
     if (!this.container)

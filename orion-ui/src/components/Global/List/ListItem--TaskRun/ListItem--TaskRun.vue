@@ -18,7 +18,7 @@
       "
     >
       <h2>
-        {{ run.name }}
+        {{ item.name }}
       </h2>
 
       <div class="tag-container nowrap d-flex align-bottom">
@@ -61,10 +61,10 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToApproximateString } from '@/util/util'
-import { TaskRun } from '@/objects'
+import { TaskRun } from '@/typings/objects'
 
 class Props {
-  run = prop<TaskRun>({ required: true })
+  item = prop<TaskRun>({ required: true })
 }
 
 @Options({})
@@ -72,11 +72,11 @@ export default class ListItemTaskRun extends Vue.with(Props) {
   sliceStart: number = Math.floor(Math.random() * 4)
 
   get state(): string {
-    return this.run.state.toLowerCase()
+    return this.item.state.type.toLowerCase()
   }
 
   get tags(): string[] {
-    return this.run.tags
+    return this.item.tags
   }
 
   get reason(): string | null {
@@ -84,13 +84,15 @@ export default class ListItemTaskRun extends Vue.with(Props) {
   }
 
   get sub_flow_run(): string | null {
-    return this.run.sub_flow_run_id ? 'Sub flow run' : null
+    return this.item.sub_flow_run_id ? 'Sub flow run' : null
   }
 
   get duration(): string {
     return this.state == 'pending' || this.state == 'scheduled'
       ? '--'
-      : secondsToApproximateString(this.run.duration)
+      : this.item.total_run_time
+      ? secondsToApproximateString(this.item.total_run_time)
+      : secondsToApproximateString(this.item.estimated_run_time)
   }
 }
 </script>
