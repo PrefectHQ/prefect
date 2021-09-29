@@ -2,7 +2,7 @@
 Abstract class and implementations for executing task runs.
 """
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
 from uuid import UUID
 from prefect.utilities.collections import visit_collection
 
@@ -41,16 +41,13 @@ class BaseExecutor:
     def start(
         self: T,
         flow_run_id: str,
-        orion_client: "OrionClient",
     ) -> T:
         self.flow_run_id = flow_run_id
-        self.orion_client = orion_client
         try:
             yield self
         finally:
             self.shutdown()
             self.flow_run_id = None
-            self.orion_client = None
 
     def shutdown(self) -> None:
         """
@@ -97,7 +94,6 @@ class LocalExecutor(BaseExecutor):
 
         return PrefectFuture(
             run_id=run_id,
-            client=self.orion_client,
             executor=self,
         )
 
@@ -128,23 +124,10 @@ class DaskExecutor(BaseExecutor):
         if not self._client:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        # Convert `PrefectFuture` to dask futures since `PrefectFuture` objects cannot
-        # be serialized by dask
-        async def visit_fn(expr):
-            if isinstance(expr, PrefectFuture):
-                return self._get_dask_future(expr)
-            else:
-                return expr
-
-        args, kwargs = await visit_collection(
-            (args, kwargs), visit_fn=visit_fn, return_data=True
-        )
-
         self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 
         return PrefectFuture(
             run_id=run_id,
-            client=self.orion_client,
             executor=self,
         )
 
@@ -163,15 +146,40 @@ class DaskExecutor(BaseExecutor):
     ) -> Optional[State]:
         future = self._get_dask_future(prefect_future)
         try:
-            return future.result(timeout=timeout)
+            result = future.result(timeout=timeout)
+            # The client may be async on a dask worker
+            # TODO: Set `Client(asynchronous=True)` on startup and just always use the
+            #       async client
+            if self._client.asynchronous:
+                return await result
+            else:
+                return result
         except distributed.TimeoutError:
             return None
 
     @contextmanager
-    def start(self: T, flow_run_id: str, orion_client: "OrionClient") -> T:
-        with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
+    def start(self: T, flow_run_id: str) -> T:
+        with super().start(flow_run_id=flow_run_id):
             self._client = distributed.Client()
             yield self
 
     def shutdown(self) -> None:
         self._client.close()
+
+    def __getstate__(self):
+        """
+        Allow the `DaskExecutor` to be serialized by dropping the `distributed.Client`
+        which contains locks.
+
+        Must be deserialized on a dask worker.
+        """
+        data = self.__dict__.copy()
+        data["_client"] = None
+        return data
+
+    def __setstate__(self, data):
+        """
+        Restore the `distributed.Client` by loading the client on a dask worker.
+        """
+        self.__dict__ = data
+        self._client = distributed.get_client()

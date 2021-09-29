@@ -95,11 +95,13 @@ def test_failing_flow_run_by_executor(executor):
     assert c.is_pending()
     assert c.name == "NotReady"
     assert (
-        f"Upstream task '{b.state_details.task_run_id}' did not complete" in c.message
+        f"Upstream task run '{b.state_details.task_run_id}' did not complete"
+        in c.message
     )
 
     assert d.is_pending()
     assert d.name == "NotReady"
     assert (
-        f"Upstream task '{c.state_details.task_run_id}' did not complete" in d.message
+        f"Upstream task run '{c.state_details.task_run_id}' did not complete"
+        in d.message
     )
