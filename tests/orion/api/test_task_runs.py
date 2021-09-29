@@ -1,10 +1,7 @@
-import uuid
 from uuid import uuid4
-from httpx import post
 import pendulum
 
 import pytest
-import sqlalchemy as sa
 
 from prefect.orion import models
 from prefect.orion import schemas
@@ -14,18 +11,23 @@ from prefect.orion.schemas import responses, states
 
 class TestCreateTaskRun:
     async def test_create_task_run(self, flow_run, client, session):
-        task_run_data = {"flow_run_id": str(flow_run.id), "task_key": "my-task-key"}
+        task_run_data = {
+            "flow_run_id": str(flow_run.id),
+            "task_key": "my-task-key",
+            "name": "my-cool-task-run-name",
+        }
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == 201
         assert response.json()["flow_run_id"] == str(flow_run.id)
         assert response.json()["id"]
+        assert response.json()["name"] == "my-cool-task-run-name"
 
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
         )
         assert task_run.flow_run_id == flow_run.id
 
-    async def test_create_task_run_gracefully_upserts(self, flow_run, client, session):
+    async def test_create_task_run_gracefully_upserts(self, flow_run, client):
         # create a task run
         task_run_data = {
             "flow_run_id": str(flow_run.id),
