@@ -97,9 +97,8 @@ class IntervalSchedule(PrefectBaseModel):
             if end and next_date > end:
                 break
 
-            # check for duplicates; weird things can happen with DST
-            if next_date not in dates:
-                dates.add(next_date)
+            # ensure no duplicates; weird things can happen with DST
+            dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -220,9 +219,8 @@ class CronSchedule(PrefectBaseModel):
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
-            # check for duplicates; weird things can happen with DST
-            if next_date not in dates:
-                dates.add(next_date)
+            # ensure no duplicates; weird things can happen with DST
+            dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -329,9 +327,8 @@ class RRuleSchedule(PrefectBaseModel):
             if end and next_date > end:
                 break
 
-            # check for duplicates; weird things can happen with DST
-            if next_date not in dates:
-                dates.add(next_date)
+            # ensure no duplicates; weird things can happen with DST
+            dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
