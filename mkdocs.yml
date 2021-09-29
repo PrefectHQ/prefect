@@ -4,6 +4,7 @@ edit_uri: edit/main/docs/
 extra_css:
     - stylesheets/admonitions.css
     - stylesheets/api_ref.css
+    - stylesheets/rest_ref.css
     - stylesheets/syntax_highlights.css
     - stylesheets/termynal.css
 extra_javascript:
