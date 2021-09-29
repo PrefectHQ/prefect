@@ -1,6 +1,6 @@
 import pytest
 
-from prefect import flow, task, get_result
+from prefect import flow, task
 from prefect.executors import DaskExecutor, LocalExecutor
 
 
@@ -39,12 +39,8 @@ def test_flow_run_by_executor(executor):
     test_flow = get_test_flow()
     test_flow.executor = executor
 
-    task_states = get_result(test_flow())
-    assert (
-        get_result(task_states[0]),
-        get_result(task_states[1]),
-        get_result(task_states[2]),
-    ) == (
+    a, b, c = test_flow().result()
+    assert (a.result(), b.result(), c.result()) == (
         "a",
         "b",
         "bc",
