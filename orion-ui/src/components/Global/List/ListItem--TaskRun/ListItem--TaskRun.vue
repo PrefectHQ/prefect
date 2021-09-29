@@ -61,7 +61,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToApproximateString } from '@/util/util'
-import { TaskRun } from '@/types/objects'
+import { TaskRun } from '@/typings/objects'
 
 class Props {
   item = prop<TaskRun>({ required: true })

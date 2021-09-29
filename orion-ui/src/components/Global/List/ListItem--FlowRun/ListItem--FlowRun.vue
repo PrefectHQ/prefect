@@ -66,7 +66,7 @@
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import { FlowRun } from '@/types/objects'
+import { FlowRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 
 import {

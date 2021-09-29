@@ -181,7 +181,7 @@ import {
 
 import BarChart from '@/components/BarChart/BarChart.vue'
 
-import { Flow, FlowRun, Deployment, TaskRun } from '@/types/objects'
+import { Flow, FlowRun, Deployment, TaskRun } from '@/typings/objects'
 
 @Options({
   components: { BarChart, RunHistoryChart },

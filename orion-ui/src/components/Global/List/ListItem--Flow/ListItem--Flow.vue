@@ -51,7 +51,7 @@
 
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
-import { Flow } from '@/types/objects'
+import { Flow } from '@/typings/objects'
 import {
   default as RunHistoryChart,
   Bucket

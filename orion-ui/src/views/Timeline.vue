@@ -18,7 +18,7 @@
 </template>
 
 <script lang="ts">
-import { FlowRun, TaskRun } from '@/types/objects'
+import { FlowRun, TaskRun } from '@/typings/objects'
 import { Options, Vue } from 'vue-class-component'
 
 import Timeline from '../components/Timeline/Timeline.vue'
