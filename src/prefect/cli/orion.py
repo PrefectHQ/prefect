@@ -7,7 +7,7 @@ from prefect.orion.api.server import app as orion_fastapi_app
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect import settings
 from prefect.utilities.asyncio import sync_compatible
-from prefect.orion.utilities.database import drop_db, create_db
+from prefect.orion.utilities.database import drop_db, create_db, get_engine
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)
@@ -30,19 +30,21 @@ def start(
 
 @orion_app.command()
 @sync_compatible
-async def reset_db():
+async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
-    confirm = typer.confirm(
-        "Are you sure you want to reset the Orion database? This will drop and recreate all tables."
-    )
-    if not confirm:
-        exit_with_error("Database reset aborted")
+    engine = await get_engine()
+    if not yes:
+        confirm = typer.confirm(
+            f'Are you sure you want to reset the Orion database located at "{engine.url}"? This will drop and recreate all tables.'
+        )
+        if not confirm:
+            exit_with_error("Database reset aborted")
     console.print("Resetting Orion database...")
     console.print("Droping tables...")
     await drop_db()
     console.print("Creating tables...")
     await create_db()
-    exit_with_success("Orion database reset!")
+    exit_with_success(f'Orion database "{engine.url}" reset!')
 
 
 @orion_app.command()
