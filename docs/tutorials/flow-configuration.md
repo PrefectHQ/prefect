@@ -93,16 +93,95 @@ As we will see, this pattern is particularly powerful when triggering flow runs 
 !!! note "This behavior can be toggled"
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your flow decorator and Prefect will passively accept whatever input values you provide.
 
-For more information, please refer to the pydantic's [official documentation](https://pydantic-docs.helpmanual.io/usage/models/).
+    For more information, please refer to the pydantic's [official documentation](https://pydantic-docs.helpmanual.io/usage/models/).
+
+### Flow state determination
+
+Describe the rules of final flow state determination:
+- returning task values
+- returning states
+- returning raw values
 
 ## Basic Task configuration
 
-By design, tasks follow a very similar metadata model to flows: we can independently assign tasks their own name, description, and even version!
+By design, tasks follow a very similar metadata model to flows: we can independently assign tasks their own name, description, and even version!  Ultimately tasks are the genesis for much of the granular control and observability that Prefect provides.
 
-But now we get to the feature set of Prefect and why you would use tasks at all - retries, caching.  
+### Retries
 
-### Retries and Caching
+Prefect allows for off-the-shelf configuration of task level retries.  The only two decisions we need to make are how many retries we want to attempt and what delay we need between run attempts:
+
+```python
+@task(retries=2, retry_delay_seconds=0)
+def failure():
+    print('running')
+    raise ValueError("bad code")
+
+@flow
+def test_retries():
+    return failure()
+```
+
+<div class="termy">
+```
+>>> test_retries()
+running
+running
+running
+```
+</div>
+
+Once we dive deeper into state transitions and orchestration policies, we'll find that this task run actually went through the following state transitions: `Pending` -> `Running` -> `Awaiting Retry` -> 
+
+### Caching
+
+Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task - this allows you to efficiently reuse results of tasks that may be particularly "expensive" to run with every flow run.  Moreover, Prefect makes it easy to share these states across flow and flow runs using the concept of a "cache key".  
+
+To illustrate:
+```python
+@task(cache_key_fn=lambda *_: "static cache key")
+def cached_task():
+    print('running an expensive operation')
+    return 42
+
+@task
+def printer(val):
+    print(val)
+
+@flow
+def test_caching():
+    cached_task()
+    cached_task()
+
+@flow
+def another_flow():
+    printer(cached_task())
+```
+
+<div class="termy">
+```
+>>> test_caching()
+running an expensive operation
+>>> another_flow()
+42
+```
+</div>
+
+Notice that the `cached_task` only ran one time across both flow runs!  Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a Completed state associated with this key and thus instructed the run to immediately enter the same state, including the same return values.  
+
+Caching can be configured further in the following ways:
+
+- a generic `cache_key_fn` is a function that accepts two positional arguments: 
+    - the first argument corresponds to the `TaskRunContext` which is a basic object with attributes `task_run_id`, `flow_run_id`, `task`, and `client`
+    - the second argument correponds to a dictionary of input values to the task; e.g., if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key
+- by providing a `cache_expiration` represented as a `datetime.timedelta`, the cache can be configured to expire after the specified amount of time from its creation
 
 !!! warning "The persistence of state"
-    Note that up until now we have run all of our workflows interactively; this means that our metadata store that includes things like
-    `Cached` states is torn down after we exit our Python session.  To persist sunch information across sessions, we need to standup a persistent database.
+    Note that up until now we have run all of our workflows interactively; this means that our metadata store is a SQLite database located at the default database location: `~/.prefect/orion.db`.  As we will see, this can be configured in various ways.  But please note that any cache keys you experiment with will be persisted in this SQLite database until you clear it manually!
+
+!!! tip "Additional Reading"
+    To learn more about the concepts presented here, check out the following resources:
+
+    - Orchestration Policies
+    - [Flows](/concepts/flows/)
+    - [Tasks](/concepts/tasks/)
+    - [States](/concepts/states/)
