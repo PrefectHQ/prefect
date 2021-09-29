@@ -45,7 +45,7 @@ import { default as dataset7 } from '../util/schematics/61_cluster_nodes.json'
       this.search = ''
     },
     search(val) {
-      this.handleSelectSearchOption(this.dataset.find((d: Item) => d.id == val))
+      this.handleSelectSearchOption(this.dataset.find((d: any) => d.id == val))
     }
   }
 })
@@ -57,7 +57,7 @@ export default class Schematics extends Vue {
   search: string = ''
   showOptions: boolean = false
 
-  datasets: { [key: string]: Items } = {
+  datasets: { [key: string]: any[] } = {
     '3 Nodes: ETL': dataset3,
     '50 Linear Nodes': dataset2,
     '62 Random Nodes': dataset1,
@@ -67,11 +67,11 @@ export default class Schematics extends Vue {
     '61 Cluster Nodes': dataset7
   }
 
-  get dataset(): Items {
+  get dataset(): any[] {
     return this.datasets[this.selected]
   }
 
-  handleSelectSearchOption(item: Item) {
+  handleSelectSearchOption(item: any): void {
     if (!item) return
     this.search = item.name
     ;(this.schematic as unknown as InstanceType<typeof Schematic>)?.panToNode(
@@ -79,7 +79,7 @@ export default class Schematics extends Vue {
     )
   }
 
-  handleSelectDataSet(key: string) {
+  handleSelectDataSet(key: string): void {
     this.selected = key
   }
 }

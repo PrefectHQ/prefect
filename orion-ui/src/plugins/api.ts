@@ -1,4 +1,13 @@
-import { App, Plugin, reactive, ref } from 'vue'
+import { App, Plugin, ref, watchEffect, reactive } from 'vue'
+
+export interface DeploymentsFilter {
+  limit?: limit
+  offset?: offset
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
+}
 
 export interface FlowsFilter {
   limit?: limit
@@ -6,6 +15,7 @@ export interface FlowsFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
 }
 
 export interface TaskRunsFilter {
@@ -14,6 +24,7 @@ export interface TaskRunsFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
 }
 
 export interface FlowRunsFilter {
@@ -22,9 +33,10 @@ export interface FlowRunsFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
 }
 
-type Filters = {
+export type Filters = {
   flow: null
   flows: FlowsFilter
   flows_count: FlowsFilter
@@ -34,9 +46,12 @@ type Filters = {
   task_run: null
   task_runs: TaskRunsFilter
   task_runs_count: TaskRunsFilter
+  deployment: null
+  deployments: DeploymentsFilter
+  deployments_count: DeploymentsFilter
 }
 
-type FilterBody = Filters[keyof Filters]
+export type FilterBody = Filters[keyof Filters]
 
 export const Endpoints: { [key: string]: Endpoint } = {
   flow: {
@@ -50,6 +65,18 @@ export const Endpoints: { [key: string]: Endpoint } = {
   flows_count: {
     method: 'POST',
     url: '/flows/count/'
+  },
+  deployment: {
+    method: 'GET',
+    url: '/deployments/'
+  },
+  deployments: {
+    method: 'POST',
+    url: '/deployments/filter/'
+  },
+  deployments_count: {
+    method: 'POST',
+    url: '/deployments/count/'
   },
   flow_run: {
     method: 'GET',
@@ -68,12 +95,24 @@ export const Endpoints: { [key: string]: Endpoint } = {
     url: '/task_runs/'
   },
   task_runs: {
-    method: 'GET',
+    method: 'POST',
     url: '/task_runs/filter/'
   },
   task_runs_count: {
-    method: 'GET',
+    method: 'POST',
     url: '/task_runs/count/'
+  },
+  settings: {
+    method: 'GET',
+    url: '/admin/settings'
+  },
+  database_clear: {
+    method: 'POST',
+    url: '/admin/database/clear'
+  },
+  version: {
+    method: 'GET',
+    url: '/admin/version'
   }
 }
 
@@ -119,7 +158,7 @@ export class Query {
     } finally {
       this.loading.value = false
     }
-    return this.response.value
+    return this
   }
 
   private get route(): string {
@@ -135,9 +174,9 @@ export class Query {
       .then((res) => res)
       .then((res) => {
         if (res.status == 200) return res.json()
+        if (res.status == 204) return res
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
-      .catch((err) => new Error(err))
   }
 
   constructor(
