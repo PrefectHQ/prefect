@@ -2,14 +2,12 @@
 Abstract class and implementations for executing task runs.
 """
 from contextlib import contextmanager
-from typing import Any, Awaitable, Callable, Dict, Optional, TypeVar
+from typing import Any, Callable, Dict, Optional, TypeVar
 from uuid import UUID
-from prefect.utilities.collections import visit_collection
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
-import prefect
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.states import State
