@@ -25,8 +25,6 @@ import {
 import ResultsListBase from './ResultsList--Base.vue'
 import { Api, Endpoints, FilterBody } from '@/plugins/api'
 
-const observe = ref<HTMLElement>()
-
 const props = defineProps<{
   filter: FilterBody
   component: string
@@ -52,9 +50,9 @@ const getData = async () => {
 }
 
 const fetchMore = async () => {
-  offset.value = items.value.length + limit.value
+  offset.value = (items.value?.length || 0) + limit.value
   const results = await getData()
-  items.value = [...items.value, ...results]
+  items.value = [...(items.value || []), ...(results || [])]
 }
 
 const init = async () => {
@@ -64,9 +62,10 @@ const init = async () => {
 
 init()
 
+const isDOMElement = (el: any): boolean => el instanceof Element
+
 const createItemRef = (id: string, el: ComponentPublicInstance): void => {
-  if (!el || !el.$el) return
-  console.log(el)
+  if (!el || !el.$el || !isDOMElement(el.$el)) return
   itemRefs.value[id] = el.$el
 }
 
@@ -94,15 +93,12 @@ onMounted(() => {
 watch(
   () => items.value,
   () => {
-    if (!observer) return
-
+    if (!observer || !items.value) return
     items.value.forEach((item) => {
       if (itemRefs.value[item.id]) {
         try {
           observer.observe(itemRefs.value[item.id])
-        } catch (e) {
-          console.log(item, itemRefs.value[item.id])
-        }
+        } catch {}
       }
     })
   }

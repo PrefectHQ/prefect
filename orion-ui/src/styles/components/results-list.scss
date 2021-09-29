@@ -1,3 +1,5 @@
+@use 'sass:math';
+
 // These are based on application-wide margins/padding; we might want to componentize these at some point
 $margin: 32px !default;
 
@@ -18,5 +20,5 @@ $margin: 32px !default;
 .results-list {
   min-width: 100%;
   min-height: calc(100% + #{$margin} / 2);
-  padding-bottom: $margin / 2;
+  padding-bottom: math.div($margin, 2);
 }
