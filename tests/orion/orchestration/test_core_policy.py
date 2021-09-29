@@ -284,6 +284,37 @@ class TestRenameRetryingStates:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.RUNNING
+        assert ctx.validated_state.name == "Re-running"
+
+    async def test_retried_states_get_renamed(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        retry_policy = [RenameRetryingState]
+        initial_state_type = states.StateType.SCHEDULED
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        ctx.initial_state.name = "Awaiting Retry"
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 2
+        run_settings.max_retries = 2
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.RUNNING
         assert ctx.validated_state.name == "Retrying"
 
     async def test_no_rename_on_first_run(
