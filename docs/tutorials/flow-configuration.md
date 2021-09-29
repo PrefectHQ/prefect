@@ -10,7 +10,7 @@ Flow names are a distinguished piece of metadata within Prefect - the name that 
 
 ### Flow descriptions
 
-Flow descriptions allow you to track usage documentation right alongside your flow object
+Flow descriptions allow you to provide documentation right alongside your flow object. By default, Prefect will use the flow function's docstring as a description.
 
 ### Flow versions
 
@@ -38,7 +38,7 @@ Ultimately, how you choose to leverage the `version` field is up to you!  By def
 
 ### Parameter type conversion
 
-Many of the available configuration options for Prefect flows also allow you to configure flow execution behavior.  A particularly powerful option is the ability to perform type conversion for the parameters passed to your flow function.  This is most easily demonstrated via a simple example:
+Many of the available configuration options for Prefect flows also allow you to configure flow execution behavior.  One such option is the ability to perform type conversion for the parameters passed to your flow function.  This is most easily demonstrated via a simple example:
 
 ```python
 from prefect import task, flow
@@ -88,7 +88,7 @@ Received a &#60;class '__main__.Model'&#62; with value a=42 b=0.0 c='55'
 ```
 </div>
 
-As we will see, this pattern is particularly powerful when triggering flow runs via Orion's API - all that you need is to provide a JSON document that your flow parameters can interpret and Prefect will take care of the rest.
+As we will see, this pattern is particularly useful when triggering flow runs via Orion's API - all that you need is to provide a JSON document that your flow parameters can interpret and Prefect will take care of the rest.
 
 !!! note "This behavior can be toggled"
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your flow decorator and Prefect will passively accept whatever input values you provide.
@@ -130,7 +130,7 @@ running
 ```
 </div>
 
-Once we dive deeper into state transitions and orchestration policies, we'll find that this task run actually went through the following state transitions: `Pending` -> `Running` -> `Awaiting Retry` -> 
+Once we dive deeper into state transitions and orchestration policies, we will see that this task run actually went through the following state transitions: `Pending` -> `Running` -> `Awaiting Retry` -> `Retrying` some number of times.  Metadata such as this allows for a full reconstruction of what happened with your flows and tasks on each run.
 
 ### Caching
 
@@ -138,7 +138,11 @@ Caching refers to the ability of a task run to reflect a finished state without 
 
 To illustrate:
 ```python
-@task(cache_key_fn=lambda *_: "static cache key")
+def static_cache_key(context, parameters):
+    # return a constant
+    return "static cache key"
+
+@task(cache_key_fn=static_cache_key)
 def cached_task():
     print('running an expensive operation')
     return 42
@@ -171,7 +175,7 @@ Notice that the `cached_task` only ran one time across both flow runs!  Whenever
 Caching can be configured further in the following ways:
 
 - a generic `cache_key_fn` is a function that accepts two positional arguments: 
-    - the first argument corresponds to the `TaskRunContext` which is a basic object with attributes `task_run_id`, `flow_run_id`, `task`, and `client`
+    - the first argument corresponds to the `TaskRunContext` which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`
     - the second argument correponds to a dictionary of input values to the task; e.g., if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key
 - by providing a `cache_expiration` represented as a `datetime.timedelta`, the cache can be configured to expire after the specified amount of time from its creation
 
