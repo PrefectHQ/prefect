@@ -1,9 +1,53 @@
-// @ts-nocheck
-function Turn(context) {
-  this._context = context
+class Turn {
+  _context: any
+  _point: number = 0
+  _x: number = 0
+  _y: number = 0
+
+  lineStart() {
+    this._point = 0
+    this._x = this._y = 0
+  }
+
+  lineEnd(): void {
+    return
+  }
+
+  point(x: number, y: number) {
+    x = +x
+    y = +y
+
+    switch (this._point) {
+      case 0:
+        this._context.moveTo(x, y)
+        this._point = 1
+        break
+      default:
+        this._point = 2
+        if (isDiagonal(this._x, this._y, x, y)) {
+          const to = makeQuadraticBezierPoints(this._x, this._y, x, y)
+          this._context.lineTo(...to[0])
+          this._context.lineTo(...to[1])
+        }
+        this._context.lineTo(x, y)
+        break
+    }
+
+    this._x = x
+    this._y = y
+  }
+
+  constructor(context: any) {
+    this._context = context
+  }
 }
 
-export function isDiagonal(x1: number, y1: number, x2: number, y2: number) {
+export function isDiagonal(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): boolean {
   return x2 !== x1 && y2 !== y1
 }
 
@@ -25,12 +69,12 @@ export function makeQuadraticBezierPoints(
   y1: number,
   x2: number,
   y2: number
-) {
-  let dx = x2 - x1,
+): [number, number][] {
+  const dx = x2 - x1,
     dy = y2 - y1
 
-  let [px1, px2] = direction(x1, x2, dx, 125)
-  let [py1, py2] = direction(y1, y2, dy, 50)
+  const [px1, px2] = direction(x1, x2, dx, 125)
+  const [py1, py2] = direction(y1, y2, dy, 50)
 
   if (dx < dy) {
     if ((dx > 0 && px1 > px2) || (dx < 0 && px1 < px2)) {
@@ -44,9 +88,7 @@ export function makeQuadraticBezierPoints(
         [px2, y2]
       ]
     }
-  }
-
-  if (dx > dy) {
+  } else if (dx > dy) {
     if ((dy > 0 && py1 > py2) || (dy < 0 && py1 < py2)) {
       return [
         [px1, y1],
@@ -58,40 +100,9 @@ export function makeQuadraticBezierPoints(
         [x2, py2]
       ]
     }
-  }
+  } else return []
 }
 
-Turn.prototype = {
-  lineStart: function () {
-    this._point = 0
-    this._x = this._y = null
-  },
-  lineEnd: function () {},
-  point: function (x: number, y: number) {
-    x = +x
-    y = +y
-
-    switch (this._point) {
-      case 0:
-        this._context.moveTo(x, y)
-        this._point = 1
-        break
-      default:
-        this._point = 2
-        if (isDiagonal(this._x, this._y, x, y)) {
-          let to = makeQuadraticBezierPoints(this._x, this._y, x, y)
-          this._context.lineTo(...to[0])
-          this._context.lineTo(...to[1])
-        }
-        this._context.lineTo(x, y)
-        break
-    }
-
-    this._x = x
-    this._y = y
-  }
-}
-
-export const curveMetro = function (context) {
+export const curveMetro = function (context: any): Turn {
   return new Turn(context)
 }
