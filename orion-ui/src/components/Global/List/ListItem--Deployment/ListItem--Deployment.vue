@@ -12,7 +12,7 @@
       "
     >
       <h2>
-        {{ deployment.name }}
+        {{ item.name }}
       </h2>
 
       <div
@@ -77,7 +77,7 @@
   </list-item>
 
   <drawer v-model="parametersDrawerActive" show-overlay>
-    <template #title>{{ deployment.name }}</template>
+    <template #title>{{ item.name }}</template>
     <h3 class="font-weight-bold">Parameters</h3>
     <div>These are the inputs that are passed to runs of this Deployment.</div>
 
@@ -135,7 +135,7 @@ import { secondsToString } from '@/util/util'
 import { Deployment, IntervalSchedule, CronSchedule } from '@/types/objects'
 
 class Props {
-  deployment = prop<Deployment>({ required: true })
+  item = prop<Deployment>({ required: true })
 }
 
 @Options({
@@ -150,11 +150,11 @@ export default class ListItemDeployment extends Vue.with(Props) {
   search: string = ''
 
   get location(): string {
-    return this.deployment.flow_data.blob || '--'
+    return this.item.flow_data.blob || '--'
   }
 
   get parameters(): { [key: string]: any }[] {
-    return Object.entries(this.deployment.parameters).reduce(
+    return Object.entries(this.item.parameters).reduce(
       (arr: { [key: string]: any }[], [key, value]) => [
         ...arr,
         { name: key, value: value, type: typeof value }
@@ -164,15 +164,15 @@ export default class ListItemDeployment extends Vue.with(Props) {
   }
 
   get schedule(): string {
-    if ('interval' in this.deployment.schedule)
-      return secondsToString(this.deployment.schedule.interval, false)
+    if ('interval' in this.item.schedule)
+      return secondsToString(this.item.schedule.interval, false)
 
     // TODO: add parsing for cron and RR schedules
     return '--'
   }
 
   get tags(): string[] {
-    return this.deployment.tags
+    return this.item.tags
   }
 
   get filteredParameters(): { [key: string]: any }[] {

@@ -69,7 +69,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flows' }"
         >
-          {{ flows.length }}
+          {{ flowsCount }}
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
@@ -79,7 +79,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ deployments.length }}
+          {{ deploymentsCount }}
         </span>
       </Tab>
       <Tab href="flow_runs" class="subheader">
@@ -89,7 +89,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow_runs' }"
         >
-          {{ flow_runs.length }}
+          {{ flowRunsCount }}
         </span>
       </Tab>
       <Tab href="task_runs" class="subheader">
@@ -99,7 +99,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task_runs' }"
         >
-          {{ task_runs.length }}
+          {{ taskRunsCount }}
         </span>
       </Tab>
     </Tabs>
@@ -108,57 +108,69 @@
       {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
     </div>
 
-    <div v-if="resultsCount === 0" class="text-center my-8">
-      <h2> No Results Found </h2>
-      <div v-if="resultsTab == 'deployments'" class="mt-2">
-        Deployments can only be created using the Prefect CLI
-      </div>
-    </div>
+    <section
+      class="results-section d-flex flex-column align-stretch justify-stretch"
+    >
+      <transition name="tab-fade" css>
+        <div
+          v-if="resultsCount === 0"
+          class="text-center my-8"
+          key="no-results"
+        >
+          <h2> No Results Found </h2>
+          <div v-show="resultsTab == 'deployments'" class="mt-2">
+            Deployments can only be created using the Prefect CLI
+          </div>
+        </div>
 
-    <transition name="fade" mode="out-in">
-      <div v-if="resultsTab == 'flows'">
-        <list>
-          <flow-list-item v-for="flow in flows" :key="flow.id" :flow="flow" />
-        </list>
-      </div>
+        <results-list
+          v-else-if="resultsTab == 'flows'"
+          key="flows"
+          :filter="flowFilter"
+          component="flow-list-item"
+          endpoint="flows"
+        />
 
-      <div v-else-if="resultsTab == 'deployments'">
-        <list>
-          <deployment-list-item
-            v-for="deployment in deployments"
-            :key="deployment.id"
-            :deployment="deployment"
-          />
-        </list>
-      </div>
-      <div v-else-if="resultsTab == 'flow_runs'">
-        <list>
-          <flow-run-list-item
-            v-for="run in flow_runs"
-            :key="run.id"
-            :run="run"
-          />
-        </list>
-      </div>
+        <results-list
+          v-else-if="resultsTab == 'deployments'"
+          key="deployments"
+          :filter="deploymentFilter"
+          component="deployment-list-item"
+          endpoint="deployments"
+        />
 
-      <div v-else-if="resultsTab == 'task_runs'">
-        <list>
-          <task-run-list-item
-            v-for="run in task_runs"
-            :key="run.id"
-            :run="run"
-          />
-        </list>
-      </div>
-    </transition>
+        <results-list
+          v-else-if="resultsTab == 'flow_runs'"
+          key="flow_runs"
+          :filter="flowRunFilter"
+          component="flow-run-list-item"
+          endpoint="flow_runs"
+        />
 
+        <results-list
+          v-else-if="resultsTab == 'task_runs'"
+          key="task_runs"
+          :filter="taskRunFilter"
+          component="task-run-list-item"
+          endpoint="task_runs"
+        />
+      </transition>
+    </section>
     <hr class="results-hr mt-3" />
   </div>
 </template>
 
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
-import { Api, Endpoints, Query, FlowsFilter } from '@/plugins/api'
+import {
+  Api,
+  Endpoints,
+  Query,
+  FlowsFilter,
+  DeploymentsFilter,
+  FlowRunsFilter,
+  TaskRunsFilter
+} from '@/plugins/api'
 
 import {
   default as RunHistoryChart,
@@ -181,18 +193,10 @@ export default class Dashboard extends Vue {
   flowsFilter: FlowsFilter = {}
 
   queries: { [key: string]: Query } = {
-    deployments: Api.query(Endpoints.deployments, this.flowsFilter, {
-      pollInterval: 10000
-    }),
-    flows: Api.query(Endpoints.flows, this.flowsFilter, {
-      pollInterval: 10000
-    }),
-    flow_runs: Api.query(Endpoints.flow_runs, this.flowsFilter, {
-      pollInterval: 10000
-    }),
-    task_runs: Api.query(Endpoints.task_runs, this.flowsFilter, {
-      pollInterval: 10000
-    })
+    deployments: Api.query(Endpoints.deployments_count, this.flowsFilter, {}),
+    flows: Api.query(Endpoints.flows_count, this.flowsFilter, {}),
+    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowsFilter, {}),
+    task_runs: Api.query(Endpoints.task_runs_count, this.flowsFilter, {})
   }
 
   run_history_buckets: Bucket[] = []
@@ -208,29 +212,50 @@ export default class Dashboard extends Vue {
 
   resultsTab: string | null = null
 
-  get flows(): Flow[] {
-    return this.queries.flows?.response || []
+  get flowsCount(): number {
+    return this.queries.flows?.response || 0
   }
 
-  get deployments(): Deployment[] {
-    return this.queries.deployments?.response || []
+  get deploymentsCount(): number {
+    return this.queries.deployments?.response || 0
   }
 
-  get flow_runs(): FlowRun[] {
-    return this.queries.flow_runs?.response || []
+  get flowRunsCount(): number {
+    return this.queries.flow_runs?.response || 0
   }
 
-  get task_runs(): TaskRun[] {
-    return this.queries.task_runs?.response || []
+  get taskRunsCount(): number {
+    return this.queries.task_runs?.response || 0
   }
 
   get loading() {
-    return this.queries.flows.loading
+    return (
+      this.queries.flows.loading ||
+      this.queries.deployments.loading ||
+      this.queries.flow_runs.loading ||
+      this.queries.task_runs.loading
+    )
+  }
+
+  get flowFilter(): FlowsFilter {
+    return {}
+  }
+
+  get flowRunFilter(): FlowRunsFilter {
+    return {}
+  }
+
+  get taskRunFilter(): TaskRunsFilter {
+    return {}
+  }
+
+  get deploymentFilter(): DeploymentsFilter {
+    return {}
   }
 
   get resultsCount(): number {
     if (!this.resultsTab) return 0
-    return this.queries[this.resultsTab].response?.length || 0
+    return this.queries[this.resultsTab].response
   }
 
   created() {
@@ -241,4 +266,11 @@ export default class Dashboard extends Vue {
 
 <style lang="scss" scoped>
 @use '@/styles/views/dashboard.scss';
+
+.tab-fade-enter-active,
+.tab-fade-leave-active {
+  opacity: 0;
+  position: absolute;
+  transition: opacity 150ms ease;
+}
 </style>
