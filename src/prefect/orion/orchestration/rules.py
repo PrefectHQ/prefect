@@ -713,6 +713,11 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
     async def rename_state(self, state_name):
         """
         Sets the "name" attribute on a proposed state.
+
+        The name of a state is an annotation intended to provide rich, human-readable
+        context for how a run is progressing. Note that this method only updates the
+        name and not the canonical state TYPE, therefore having no impact on how other
+        rules might govern this state transition.
         """
 
         self.context.proposed_state.name = state_name
