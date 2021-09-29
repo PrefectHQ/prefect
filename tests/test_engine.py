@@ -286,6 +286,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=foo,
             flow_run_id=flow_run_id,
+            dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
@@ -331,6 +332,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=foo,
             flow_run_id=flow_run_id,
+            dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
@@ -374,6 +376,7 @@ class TestOrchestrateTaskRun:
             task=flaky_function,
             flow_run_id=flow_run_id,
             state=Pending(),
+            dynamic_key="0",
         )
 
         # Mock sleep for a fast test; force transition into a new scheduled state so we
