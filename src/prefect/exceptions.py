@@ -60,7 +60,7 @@ class FlowParameterError(PrefectException):
     pass
 
 
-class UpstreamTaskError(PrefectException):
+class IncompleteUpstreamTaskError(PrefectException):
     """
     Raised when a task relies on the result of another task but that task has failed
     """
