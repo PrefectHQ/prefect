@@ -71,6 +71,15 @@ class TestSQLiteQuery:
         assert out.is_successful()
         assert out.result[task].result == [(12, "second"), (13, "third")]
 
+    def test_query_parameterization_data_on_init(self, database):
+        with Flow(name="test") as f:
+            task = SQLiteQuery(db=database, data=(12, 13))(
+                query="SELECT * FROM TEST WHERE NUMBER in (?, ?)"
+            )
+        out = f.run()
+        assert out.is_successful()
+        assert out.result[task].result == [(12, "second"), (13, "third")]
+
     def test_unparametrized_query_no_data(self, database):
         with Flow(name="test") as f:
             task = SQLiteQuery(db=database)(query="SELECT * FROM TEST;", data=())
