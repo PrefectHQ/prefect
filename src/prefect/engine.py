@@ -488,7 +488,7 @@ async def orchestrate_task_run(
         resolved_parameters = await resolve_upstream_tasks(parameters)
     except IncompleteUpstreamTaskError as upstream_exc:
         state = await client.propose_state(
-            Cancelled(message=str(upstream_exc)),
+            Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run_id,
         )
     else:
@@ -646,9 +646,11 @@ async def resolve_upstream_tasks(parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
     Resolve any `PrefectFuture` or `State` types in paramters into data
 
+    Returns:
+        A copy of the parameters with resolved data
+
     Raises:
         UpstreamTaskError: If any of the upstream states are `FAILED`
-
     """
 
     async def visit_fn(expr):

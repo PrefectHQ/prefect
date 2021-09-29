@@ -92,12 +92,14 @@ def test_failing_flow_run_by_executor(executor):
     with pytest.raises(ValueError, match="This task fails and passes data downstream"):
         b.result()
 
-    assert c.is_cancelled()
+    assert c.is_pending()
+    assert c.name == "NotReady"
     assert (
         f"Upstream task '{b.state_details.task_run_id}' did not complete" in c.message
     )
 
-    assert d.is_cancelled()
+    assert d.is_pending()
+    assert d.name == "NotReady"
     assert (
         f"Upstream task '{c.state_details.task_run_id}' did not complete" in d.message
     )
