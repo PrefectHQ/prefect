@@ -715,9 +715,9 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Sets the "name" attribute on a proposed state.
 
         The name of a state is an annotation intended to provide rich, human-readable
-        context for how a run is progressing. Note that this method only updates the
-        name and not the canonical state TYPE, therefore having no impact on how other
-        rules might govern this state transition.
+        context for how a run is progressing. This method only updates the name and not
+        the canonical state TYPE, and will not fizzle or invalidate any other rules
+        that might govern this state transition.
         """
 
         self.context.proposed_state.name = state_name
