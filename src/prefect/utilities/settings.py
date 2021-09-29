@@ -7,7 +7,7 @@ to avoid instantiating the nested settings class until runtime.
 from pathlib import Path
 from datetime import timedelta
 from pydantic import BaseSettings, Field, SecretStr
-from typing import Optional, Any, Dict
+from typing import Optional
 
 
 class PrefectSettings(BaseSettings):
@@ -59,7 +59,7 @@ class DatabaseSettings(BaseSettings):
     echo: bool = False
 
     # statement timeout, in seconds
-    timeout: Optional[float] = 1
+    timeout: Optional[float] = 5
     # statement timeout for services, in seconds
     services_timeout: Optional[float] = None
 
