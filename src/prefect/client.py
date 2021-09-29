@@ -617,10 +617,7 @@ class OrionClient:
                     datadoc = DataDocument.parse_raw(
                         await self.retrieve_data(server_state.data)
                     )
-                    datadoc.decode()  # caches deserialized data in memory
                     server_state.data = datadoc
-                else:
-                    server_state.data.decode()  # caches deserialized data in memory
             return server_state
         else:
             raise ValueError(
