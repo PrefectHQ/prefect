@@ -9,7 +9,21 @@ import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
 
+import { Series } from 'd3-shape'
+import { Selection } from 'd3-selection'
+import { AxisDomain } from 'd3-axis'
 import { createCappedBar } from '@/components/Visualizations/utils'
+import { Bucket, Buckets, StateBucket } from '@/typings/run_history'
+
+type GroupSelectionType = Selection<SVGGElement, unknown, HTMLElement, null>
+
+type BarBucket = {
+  state: StateBucket
+  bucket_key: number
+}
+
+type BucketSeries = Series<Bucket, string>
+type SeriesCollection = BucketSeries[]
 
 const positiveStates: string[] = [
   'COMPLETED',
@@ -42,7 +56,8 @@ const formatMillisecond = d3.timeFormat('.%L'),
   formatMonth = d3.timeFormat('%B'),
   formatYear = d3.timeFormat('%Y')
 
-const formatLabel = (date: Date) => {
+const formatLabel = (date: AxisDomain): string => {
+  if (!(date instanceof Date)) return ''
   return (
     d3.timeSecond(date) < date
       ? formatMillisecond
@@ -62,22 +77,9 @@ const formatLabel = (date: Date) => {
   )(date)
 }
 
-export interface StateAggregate {
-  [key: string]: number
-}
-
-export interface Bucket {
-  interval_start: Date
-  interval_end: Date
-  states: StateAggregate
-}
-export type BucketCollection = Bucket[]
-
-type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
-
 class Props {
   backgroundColor = prop<string>({ required: false, default: null })
-  items = prop<Bucket[]>({ required: true })
+  items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
   padding = prop<{
     top: number
@@ -102,59 +104,38 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
-  barSelection: SelectionType = null as unknown as d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    null
-  >
+  barSelection: GroupSelectionType | undefined
+  xAxisGroup: GroupSelectionType | undefined
 
-  xAxisGroup: SelectionType = null as unknown as d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    null
-  >
-
-  xAxis = (g: any) =>
+  xAxis = (g: GroupSelectionType): GroupSelectionType =>
     g
       .attr('transform', `translate(0,${this.height})`)
       .call(
         d3
           .axisTop(this.xScale)
           .ticks(this.width / 100)
-          // @ts-expect-error: Not sure what the typings for d3 axis are
           .tickFormat(formatLabel)
           .tickSizeOuter(0)
       )
-      .call((g: any) => g.select('.domain').remove())
+      .call((g) => g.select('.domain').remove())
 
-  get buckets(): Bucket[] {
-    return this.items.map((d: Bucket) => {
-      const states: { [key: string]: number } = {}
-      Object.entries(d.states).forEach(([state, count]) => {
-        states[state] = count * (state == 'FAILED' ? -1 : 1)
-      })
-      return { ...d, states }
-    })
-  }
-
-  get series(): any {
+  get series(): SeriesCollection {
     return (
       d3
-        .stack()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .stack<any, Bucket, string>()
         .keys([...positiveStates.slice().reverse(), ...negativeStates])
         .value(
-          // @ts-expect-error: Not sure what the typings for d3 series are
-          (d, key: string) => (directions.get(key) || 1) * (d.states[key] || 0)
+          (d: Bucket, key: string) =>
+            (directions.get(key) || 1) *
+            (d.states.find((state) => state.state_type == key)?.count_runs || 0)
         )
-        // @ts-expect-error: Not sure what the typings for d3 axis are
         .offset(d3.stackOffsetDiverging)(this.items)
     )
   }
 
-  get seriesMap(): Map<string, []> {
-    return new Map(this.series.map((s: any) => [s.key, s]))
+  get seriesMap(): Map<string, BucketSeries> {
+    return new Map(this.series.map((s) => [s.key, s]))
   }
 
   resize(): void {
@@ -191,7 +172,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
         this.height / 2 - this.padding.bottom - this.padding.middle
       ])
 
-    if (this.showAxis) {
+    if (this.showAxis && this.xAxisGroup) {
       this.xAxisGroup.call(this.xAxis)
     }
   }
@@ -227,40 +208,47 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     this.xAxisGroup = this.svg.append('g')
 
     // TODO: Remove this guidelines (for tesitng purposes only)
-    // this.svg
-    //   .append('line')
-    //   .attr('x1', 0)
-    //   .attr('x2', this.width)
-    //   .attr('y1', this.height / 2 + this.padding.middle / 2)
-    //   .attr('y2', this.height / 2 + this.padding.middle / 2)
-    //   .attr('stroke-width', this.padding.middle / 6)
-    //   .attr('stroke-dasharray', 12)
-    //   .attr('stroke', 'rgba(0, 0, 0, 0.03')
+    this.svg
+      .append('line')
+      .attr('x1', 0)
+      .attr('x2', this.width)
+      .attr('y1', this.height / 2 + this.padding.middle / 2)
+      .attr('y2', this.height / 2 + this.padding.middle / 2)
+      .attr('stroke-width', this.padding.middle / 6)
+      .attr('stroke-dasharray', 12)
+      .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 
-  updateBarPath(d: any, i: number): string | void {
+  updateBarPath(d: BarBucket): string | void {
     const maxWidth = this.width / this.items.length / 2
-    const seriesSlot = this.seriesMap.get(d.state)![d.bucket_key]
-    const biasIndex = directions.get(d.state)
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const seriesSlot = this.seriesMap.get(d.state.state_type)![d.bucket_key]
+    const biasIndex = directions.get(d.state.state_type)
 
     if (!seriesSlot || !biasIndex) return
     const items = this.items.find(
-      // @ts-expect-error: Not sure what the typings for d3 are
       (_d) => _d.interval_start == seriesSlot.data.interval_start
     )
     const states = items?.states || []
-    const stateEntries = Object.entries(states)
+    console.log(states)
 
     const arr = biasIndex > 0 ? negativeStates : positiveStates
-    const stateIndex = arr.findIndex((s) => s == d.state)
+    const stateIndex = arr.findIndex((s) => s == d.state.state_type)
 
-    const otherStates = stateEntries.filter(
-      ([state, count]) => state !== d.state && arr.includes(state)
+    const otherStates = states.filter(
+      (state) =>
+        state.state_type !== d.state.state_type &&
+        arr.includes(state.state_type)
     )
+
     const adjustedArr = arr.filter(
-      (s) => stateEntries.find((_s) => _s[0] == s)?.[1] || 0 > 0
+      (s) => states.find((_s) => _s.state_type == s)?.count_runs || 0 > 0
     )
-    const sumCountOther = otherStates.reduce((acc, curr) => acc + curr[1], 0)
+    const sumCountOther = otherStates.reduce(
+      (acc, curr) => acc + curr.count_runs,
+      0
+    )
 
     /*
           Round both top and bottom corners if:
@@ -294,8 +282,9 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     const r = Math.min(capR, width / 2)
 
     const xStart =
-      // @ts-expect-error: Not sure what the typings for d3 scale are
-      this.xScale(new Date(seriesSlot.data.interval_start)) + maxWidth / 2
+      this.xScale(new Date(seriesSlot.data.interval_start as string)) +
+      maxWidth / 2
+
     const yStart =
       this.yScale(seriesSlot[0]) +
       this.padding.top +
@@ -317,13 +306,14 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   updateBuckets(): void {
+    console.log(this.series)
     if (!this.barSelection) return
     // TODO: Figure out what the heck the overloads for D3 are supposed to be...
     this.barSelection
       .selectAll('.bucket')
       .data(this.items, (d: any) => d.interval_start)
       .join(
-        (enter: any) =>
+        (enter) =>
           enter
             .append('g')
             .attr('class', 'bucket')
@@ -332,17 +322,20 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
               'transform',
               `translate(${this.padding.left}px, ${this.padding.top}px)`
             ),
-        (update: any) =>
+        (update) =>
           update.style(
             'transform',
             `translate(${this.padding.left}px, ${this.padding.top}px)`
           ),
-        (exit: any) => exit.remove()
+        (exit) => exit.remove()
       )
       .selectAll('path')
       .data((d: Bucket, i: number) =>
-        Object.entries(d.states).map(([state, count]) => {
-          return { state: state, count: count, bucket_key: i }
+        d.states.map((state: StateBucket) => {
+          return {
+            state: state,
+            bucket_key: i
+          }
         })
       )
       .join(
@@ -353,13 +346,13 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
             .attr(
               'class',
               // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-              (d: any) => d.state.toLowerCase() + '-fill'
+              (d: BarBucket) => d.state.state_type.toLowerCase() + '-fill'
             ),
         (update: any) =>
           update.attr('d', this.updateBarPath).attr(
             'class',
             // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-            (d: any) => d.state.toLowerCase() + '-fill'
+            (d: BarBucket) => d.state.state_type.toLowerCase() + '-fill'
           ),
         (exit: any) => exit.remove()
       )

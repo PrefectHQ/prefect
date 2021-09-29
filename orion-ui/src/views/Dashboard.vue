@@ -20,21 +20,7 @@
     </row>
 
     <div class="chart-section">
-      <Card class="run-history" shadow="sm">
-        <template v-slot:header>
-          <div class="subheader py-1 px-2">Run History</div>
-        </template>
-
-        <div class="px-2 pb-1 flex-grow-1">
-          <RunHistoryChart
-            v-if="run_history_buckets && run_history_buckets.length"
-            :items="run_history_buckets"
-            background-color="blue-5"
-            show-axis
-          />
-          <div v-else class="font--secondary subheader no-data"> -- </div>
-        </div>
-      </Card>
+      <RunHistoryCard class="run-history" :filter="flowRunHistoryFilter" />
 
       <Card class="run-duration flex-grow-0" shadow="sm">
         <template v-slot:aside>
@@ -169,20 +155,18 @@ import {
   Endpoints,
   Query,
   FlowsFilter,
+  FlowRunsHistoryFilter,
   DeploymentsFilter,
   FlowRunsFilter,
   TaskRunsFilter
 } from '@/plugins/api'
 
-import {
-  default as RunHistoryChart,
-  Bucket
-} from '@/components/RunHistoryChart/RunHistoryChart.vue'
+import RunHistoryCard from '@/components/RunHistoryChart/RunHistoryCard.vue'
 
 import BarChart from '@/components/BarChart/BarChart.vue'
 
 @Options({
-  components: { BarChart, RunHistoryChart },
+  components: { BarChart, RunHistoryCard },
   watch: {
     resultsTab(val) {
       this.$router.push({ hash: `#${val}` })
@@ -204,8 +188,6 @@ export default class Dashboard extends Vue {
       pollInterval: 10000
     })
   }
-
-  run_history_buckets: Bucket[] = []
 
   run_lateness_items: any[] = []
   run_duration_items: any[] = []
@@ -241,6 +223,19 @@ export default class Dashboard extends Vue {
       this.queries.flow_runs.loading.value ||
       this.queries.task_runs.loading.value
     )
+  }
+
+  get flowRunHistoryFilter(): FlowRunsHistoryFilter {
+    const start = new Date()
+    start.setDate(start.getDate() - 7)
+
+    const end = new Date()
+
+    return {
+      history_start: start.toISOString(),
+      history_end: end.toISOString(),
+      history_interval_seconds: 604800
+    }
   }
 
   get flowFilter(): FlowsFilter {
