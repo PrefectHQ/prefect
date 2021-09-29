@@ -79,6 +79,12 @@
   }
 }
 
+.results-section {
+  min-height: 400px;
+  height: 50vh;
+  position: relative;
+}
+
 .results-hr {
   background-color: $grey-20;
   border: none;
@@ -104,14 +110,4 @@
     grid-template-columns: repeat(1, 1fr);
     grid-template-rows: 250px 117px 117px;
   }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
