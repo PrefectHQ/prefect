@@ -440,7 +440,7 @@ export default class Schematic extends Vue.with(Props) {
     this.createChart()
   }
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('resize', this.handleWindowResize)
   }
 }
