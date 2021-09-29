@@ -448,10 +448,22 @@ class RRuleClock(Clock):
             after = self.start_date
             include_after = True
 
+        # RRule throws if trying to compare timezone-aware datetimes to timezone-naive ones.
+        # To protect from this happening we grab the first element in the RRule to see what
+        # timezone awareness it has, and use that to alter our `after` variable accordingly.
+        first_item = next(iter(self.rrule_obj), after)
+        if after.tzinfo is not None and first_item.tzinfo is None:
+            after = after.naive()
+        if after.tzinfo is None and first_item.tzinfo is not None:
+            after = after.in_tz(first_item.tz)
+
         for dt in self.rrule_obj.xafter(after, inc=include_after):
             if self.end_date and dt > self.end_date:
                 break
+
+            # Always return UTC timezone-aware datetime objects
             next_date = pendulum.instance(dt)
+
             yield ClockEvent(
                 next_date,
                 parameter_defaults=self.parameter_defaults,
