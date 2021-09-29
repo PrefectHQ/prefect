@@ -400,6 +400,7 @@ export default class Schematic extends Vue.with(Props) {
   }
 
   handleWindowResize() {
+    if (!this.container) return
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
   }
