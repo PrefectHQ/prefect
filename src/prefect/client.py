@@ -517,6 +517,7 @@ class OrionClient:
         self,
         task: "Task",
         flow_run_id: UUID,
+        dynamic_key: str,
         name: str = None,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
@@ -535,8 +536,9 @@ class OrionClient:
         Create a task run
 
         Args:
-            task: the Task to run
-            flow_run_id: the flow run id with which to associate the task run
+            task: The Task to run
+            flow_run_id: The flow run id with which to associate the task run
+            dynamic_key: A key unique to this particular run of a Task within the flow
             name: An optional name for the task run
             extra_tags: an optional list of extra tags to apply to the task run in
                 addition to `task.tags`
@@ -556,7 +558,7 @@ class OrionClient:
             name=name or task.task_key,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
-            dynamic_key=task.dynamic_key,
+            dynamic_key=dynamic_key,
             tags=list(tags),
             empirical_policy=schemas.core.TaskRunPolicy(
                 max_retries=task.retries,
