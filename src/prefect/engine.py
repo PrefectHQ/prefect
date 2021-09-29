@@ -24,6 +24,7 @@ from uuid import UUID, uuid4
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
+from prefect.exceptions import UpstreamTaskError
 
 from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
@@ -482,25 +483,15 @@ async def orchestrate_task_run(
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
     # Resolve upstream futures and states into data
-    async def resolve_futures_and_states_to_data(expr):
-        if isinstance(expr, PrefectFuture):
-            return (await expr.wait()).result()
-        elif isinstance(expr, State):
-            return expr.result()
-        else:
-            return expr
-
     try:
-        parameters = await visit_collection(
-            parameters, visit_fn=resolve_futures_and_states_to_data, return_data=True
-        )
-    except Exception as exc:
-        # TODO: Improve this upstream error detail
+        resolved_parameters = await resolve_upstream_tasks(parameters)
+    except UpstreamTaskError as upstream_exc:
         state = await client.propose_state(
-            state=Failed(
-                message="Upstream task failed.",
-                data=DataDocument.encode("cloudpickle", exc),
-            )
+            Failed(
+                message=f"Upstream task failed.",
+                data=DataDocument.encode("cloudpickle", upstream_exc),
+            ),
+            task_run_id=task_run_id,
         )
     else:
         # Transition from `PENDING` -> `RUNNING`
@@ -519,7 +510,7 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
-                result = call_with_parameters(task.fn, parameters)
+                result = call_with_parameters(task.fn, resolved_parameters)
                 if task.isasync:
                     result = await result
         except Exception as exc:
@@ -651,6 +642,38 @@ async def raise_failed_state(state: State) -> None:
             f"Unexpected result for failure state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
+
+
+async def resolve_upstream_tasks(parameters: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Resolve any `PrefectFuture` or `State` types in paramters into data
+
+    Raises:
+        UpstreamTaskError: If any of the upstream states are `FAILED`
+
+    """
+
+    async def visit_fn(expr):
+        """
+        Intended to be called with `visit_collection`, this function
+        """
+        if isinstance(expr, PrefectFuture):
+            return await visit_fn(await expr.wait())
+        elif isinstance(expr, State):
+            if expr.is_failed():
+                raise UpstreamTaskError(
+                    f"Task '{expr.state_details.task_run_id}' failed."
+                )
+            else:
+                return expr.result()
+        else:
+            return expr
+
+    return await visit_collection(
+        parameters,
+        visit_fn=visit_fn,
+        return_data=True,
+    )
 
 
 @contextmanager
