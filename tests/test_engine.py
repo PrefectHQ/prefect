@@ -6,7 +6,6 @@ import pytest
 from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.engine import (
-    get_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     raise_failed_state,
@@ -96,87 +95,6 @@ class TestUserReturnValueToState:
     async def test_uses_passed_serializer(self):
         result_state = await user_return_value_to_state("foo", serializer="json")
         assert result_state.data.encoding == "json"
-
-
-class TestGetResult:
-    async def test_decodes_state_data(self):
-        assert (
-            await get_result(Completed(data=DataDocument.encode("json", "hello")))
-            == "hello"
-        )
-
-    async def test_waits_for_futures(self):
-        assert (
-            await get_result(
-                PrefectFuture(
-                    run_id=None,
-                    client=None,
-                    executor=None,
-                    _final_state=Completed(data=DataDocument.encode("json", "hello")),
-                )
-            )
-            == "hello"
-        )
-
-    def test_works_in_sync_context(self):
-        assert (
-            get_result(Completed(data=DataDocument.encode("json", "hello"))) == "hello"
-        )
-
-    async def test_raises_failure_states(self):
-        with pytest.raises(ValueError, match="Test"):
-            await get_result(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", ValueError("Test")),
-                )
-            )
-
-    async def test_returns_exceptions_from_failure_states_when_requested(self):
-        result = await get_result(
-            State(
-                type=StateType.FAILED,
-                data=DataDocument.encode("cloudpickle", ValueError("Test")),
-            ),
-            raise_failures=False,
-        )
-        assert exceptions_equal(result, ValueError("Test"))
-
-    async def test_decodes_nested_data_documents(self):
-        assert (
-            await get_result(
-                Completed(
-                    data=DataDocument.encode(
-                        "cloudpickle", DataDocument.encode("json", "hello")
-                    )
-                )
-            )
-            == "hello"
-        )
-
-    async def test_decodes_persisted_data_documents(self):
-        async with OrionClient() as client:
-            assert (
-                await get_result(
-                    Completed(
-                        data=await client.persist_data(
-                            DataDocument.encode("json", "hello").json().encode()
-                        )
-                    )
-                )
-                == "hello"
-            )
-
-    @pytest.mark.skip(reason="I couldn't determine what this test was testing for.")
-    async def test_decodes_using_cached_data_if_available(self):
-        async with OrionClient() as client:
-            orion_doc = await client.persist_data(
-                DataDocument.encode("json", "hello").json().encode()
-            )
-            # Corrupt the blob so that if we try to retrieve the data from the API
-            # it will fail
-            orion_doc.blob = b"BROKEN!"
-            assert Completed(data=orion_doc).result == "hello"
 
 
 class TestRaiseFailedState:
@@ -464,7 +382,7 @@ class TestOrchestrateFlowRun:
         )
 
         sleep.assert_awaited_once()
-        assert await get_result(state) == 1
+        assert state.result == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, monkeypatch
@@ -496,4 +414,4 @@ class TestOrchestrateFlowRun:
         )
 
         sleep.assert_not_called()
-        assert await get_result(state) == 1
+        assert state.result == 1
