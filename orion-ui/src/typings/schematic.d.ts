@@ -1,9 +1,9 @@
-declare interface Link {
+export declare interface Link {
   source: SchematicNode
   target: SchematicNode
 }
 
-declare interface SchematicNode {
+export declare interface SchematicNode {
   id: string
   cx: number
   cy: number
@@ -15,7 +15,7 @@ declare interface SchematicNode {
   position: number
 }
 
-declare interface Item {
+export declare interface Item {
   id: string
   name: string
   upstream_ids: string[]
@@ -25,20 +25,20 @@ declare interface Item {
   end_time: string
 }
 
-declare interface Position {
+export declare interface Position {
   id: number
   radian: number
   nodes: SchematicNodes
 }
 
-declare interface Ring {
+export declare interface Ring {
   nodes: SchematicNodes
   radius: number
   positions: Positions
 }
 
-declare type Positions = Map<number, Position>
-declare type Rings = Map<number, Ring>
-declare type Items = Item[]
-declare type SchematicNodes = Map<string, SchematicNode>
-declare type Links = Link[]
+export declare type Positions = Map<number, Position>
+export declare type Rings = Map<number, Ring>
+export declare type Items = Item[]
+export declare type SchematicNodes = Map<string, SchematicNode>
+export declare type Links = Link[]

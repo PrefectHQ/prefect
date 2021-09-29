@@ -68,6 +68,16 @@ import { RadialSchematic } from './util'
 import { curveMetro } from './curveMetro'
 import { curveMiter } from './curveMiter'
 
+import {
+  Item,
+  Link,
+  SchematicNodes,
+  SchematicNode,
+  Rings,
+  Ring,
+  Links
+} from '@/typings/schematic'
+
 class Props {
   items = prop<Item[]>({ required: true })
 }
@@ -141,7 +151,7 @@ export default class Schematic extends Vue.with(Props) {
 
   get visibleLinks(): Links {
     const collapsed = [...this.collapsedTrees.entries()]
-    return this.radial.links.filter((link) =>
+    return this.radial.links.filter((link: Link) =>
       collapsed.every(([_key, tree]) => !tree.get(link.target.id))
     )
   }
@@ -427,8 +437,6 @@ export default class Schematic extends Vue.with(Props) {
 
     this.radial.center([this.width / 2, this.height / 2]).items(this.items)
     this.createChart()
-
-    console.log(this.radial)
   }
 
   beforeDestroy() {
