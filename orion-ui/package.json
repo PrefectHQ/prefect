@@ -32,6 +32,7 @@
     "@storybook/vue3": "^6.4.0-alpha.34",
     "@types/d3": "^7.0.0",
     "@types/jest": "^24.0.19",
+    "@types/sass-loader": "^8.0.2",
     "@typescript-eslint/eslint-plugin": "^4.18.0",
     "@typescript-eslint/parser": "^4.18.0",
     "@vitejs/plugin-vue": "^1.2.5",
