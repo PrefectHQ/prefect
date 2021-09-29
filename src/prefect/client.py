@@ -283,6 +283,7 @@ class OrionClient:
     async def create_flow_run(
         self,
         flow: "Flow",
+        name: str = None,
         parameters: Dict[str, Any] = None,
         context: dict = None,
         tags: Iterable[str] = None,
@@ -294,6 +295,7 @@ class OrionClient:
 
         Args:
             flow: The flow model to create the flow run for
+            name: An optional name for the flow run
             parameters: Parameter overrides for this flow run.
             context: Optional run context data
             tags: a list of tags to apply to this flow run
@@ -320,6 +322,7 @@ class OrionClient:
         flow_run_create = schemas.actions.FlowRunCreate(
             flow_id=flow_id,
             flow_version=flow.version,
+            name=name,
             parameters=parameters,
             context=context,
             tags=list(tags or []),
@@ -514,6 +517,7 @@ class OrionClient:
         self,
         task: "Task",
         flow_run_id: UUID,
+        name: str = None,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
         task_inputs: Dict[
@@ -527,12 +531,29 @@ class OrionClient:
             ],
         ] = None,
     ) -> UUID:
+        """
+        Create a task run
+
+        Args:
+            task: the Task to run
+            flow_run_id: the flow run id with which to associate the task run
+            name: An optional name for the task run
+            extra_tags: an optional list of extra tags to apply to the task run in
+                addition to `task.tags`
+            state: The initial state for the run. If not provided, defaults to
+                `Pending` for now. Should always be a `Scheduled` type.
+            task_inputs: the set of inputs passed to the task
+
+        Returns:
+            The UUID of the newly created task run
+        """
         tags = set(task.tags).union(extra_tags or [])
 
         if state is None:
             state = schemas.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
+            name=name or task.task_key,
             flow_run_id=flow_run_id,
             task_key=task.task_key,
             dynamic_key=task.dynamic_key,
