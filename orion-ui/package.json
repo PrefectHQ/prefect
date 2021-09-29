@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "serve": "vite",
-    "build": "vue-cli-service build",
+    "build": "vite build",
     "test:unit": "vue-cli-service test:unit",
     "lint": "vue-cli-service lint"
   },
@@ -62,7 +62,6 @@
     "vite": "^2.4.2",
     "vue-jest": "^5.0.0-0",
     "vue-property-decorator": "^9.1.2",
-    "sass-loader": "^12.1.0",
     "vue-class-component": "^8.0.0-0",
     "vue-tsc": "^0.0.24"
   }
