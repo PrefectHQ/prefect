@@ -555,7 +555,7 @@ class OrionClient:
             state = schemas.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
-            name=name or task.task_key,
+            name=name or f"{task.name}-{task.task_key[:8]}-{dynamic_key}",
             flow_run_id=flow_run_id,
             task_key=task.task_key,
             dynamic_key=dynamic_key,
