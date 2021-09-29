@@ -135,7 +135,7 @@ async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R
 
     async def visit_fn(expr):
         if isinstance(expr, prefect.futures.PrefectFuture):
-            return (await expr.wait()).result
+            return (await expr.wait()).result(raise_on_failure=False)
         else:
             return expr
 
