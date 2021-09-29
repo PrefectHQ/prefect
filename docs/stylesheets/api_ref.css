@@ -1,5 +1,18 @@
 /* styling that applies only to the Python API reference documentation */
 
+:root {
+    --gray-1: #EBEEF7;
+    --gray-2: #8EA0AE;
+    --pink-1: rgba(254, 81, 150, 0.3);
+    --pink-2: #fe5196;
+}
+
+.doc.doc-class h2,
+.doc.doc-function h2,
+.doc.doc-method h3 {
+    border-bottom: 2px solid var(--gray-2);
+}
+
 .doc.doc-module > h1 {
     font-size: 32px;
     font-weight: bold;
@@ -8,44 +21,31 @@
 .doc.doc-class h2,
 .doc.doc-function h2 {
     font-size: 28px;
-    border-bottom: 2px solid #8EA0AE;
 }
 
 .doc.doc-method h3 {
     font-size: 24px;
-    border-bottom: 2px solid #E8E8E8;
+}
+
+.doc.doc-class > h2:before,
+.doc.doc-function > h2:before,
+.doc.doc-method > h3:before {
+    color: var(--gray-2);
+    font-size: 14px;
+    font-weight: 900;
+    text-transform: lowercase;
 }
 
 .doc.doc-class > h2:before {
     content: "class";
-    color: #8EA0AE;
-    font-size: 14px;
-    font-weight: 900;
-    text-transform: lowercase;
 }
 
 .doc.doc-function > h2:before {
     content: "function";
-    color: #8EA0AE;
-    font-size: 14px;
-    font-weight: 900;
-    text-transform: lowercase;
 }
 
 .doc.doc-method > h3:before {
     content: "method";
-    color: #8EA0AE;
-    font-size: 14px;
-    font-weight: 900;
-    text-transform: lowercase;
-}
-
-.doc.doc-function h2 span:not(:first-child){
-    display: none;
-}
-
-.doc.doc-method h3 span:not(:first-child){
-    display: none;
 }
 
 .doc h2, .doc h3, .doc h4 {
@@ -57,7 +57,7 @@
 
 .doc.doc-class .doc-contents { 
     padding-bottom: 8px; 
-    padding-left: 14px;
+    padding-left: 28px;
 }
 
 .doc p, .doc em, .doc li {
@@ -67,18 +67,18 @@
 
 .highlight code {
     font-size: 12px;
-    background-color: #E8E8E8;
+    background-color: var(--gray-1);
 }
 
 details.quote:not([open]),
 details.quote[open] {
-    border-color: #F6A609;
+    border-color: var(--pink-2);
 }
 
 details.quote:not([open]) > summary,
 details.quote[open] > summary {
-    background-color: #ffcd6a6c;
-    border-color: #F6A609;
+    background-color: var(--pink-1);
+    border-color: var(--pink-2);
     border-radius: 0;
 }
 
@@ -86,7 +86,7 @@ details.quote:not([open]) > summary:before,
 details.quote:not([open]) > summary:after,
 details.quote[open] > summary:before,
 details.quote[open] > summary:after {
-    background-color: #F6A609;
+    background-color: var(--pink-2);
 }
 
 details.quote:not([open]) > summary > code,
@@ -99,9 +99,10 @@ details.quote[open] > summary > code {
 }
 
 .prefect-table {
+    width: 100%;
     border-collapse: collapse;
-    border-left: .2rem solid #A0A4A8;
-    margin-bottom: 8px;
+    border-left: .2rem solid var(--gray-2);
+    margin-bottom: 18px;
 }
 
 .prefect-table code {
@@ -109,7 +110,7 @@ details.quote[open] > summary > code {
 }
 
 .prefect-table tr {
-    border-bottom: 1px solid #E8E8E8;
+    border-bottom: 1px solid var(--gray-1);
 }
 
 .prefect-table tr:last-child {
@@ -119,7 +120,7 @@ details.quote[open] > summary > code {
 .prefect-table th {
     text-align: left;
     padding: 4px 10px;
-    background-color: #E8E8E8;   
+    background-color: var(--gray-1);   
 }
 
 .prefect-table td {
