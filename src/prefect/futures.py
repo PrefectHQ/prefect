@@ -56,11 +56,11 @@ class PrefectFuture(Generic[R]):
 
         Wait for a task to complete and retrieve its result
 
-        >>> from prefect import get_result
         >>> @flow
         >>> def my_flow():
         >>>     future = my_task()
-        >>>     result = get_result(future)
+        >>>     state = future.wait()
+        >>>     result = state.result
         >>>     assert result == "hello"
 
         Retrieve the state of a task without waiting for completion
