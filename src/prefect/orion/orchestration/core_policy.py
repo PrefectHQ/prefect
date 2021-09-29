@@ -172,7 +172,6 @@ class RenameRetryingState(BaseOrchestrationRule):
                 await self.rename_state("Re-running")
 
 
-
 class WaitForScheduledTime(BaseOrchestrationRule):
     """
     Prevents transitions from scheduled states that happen too early.
