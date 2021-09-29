@@ -514,6 +514,7 @@ class OrionClient:
         self,
         task: "Task",
         flow_run_id: UUID,
+        dynamic_key: str,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
         task_inputs: Dict[
@@ -535,7 +536,7 @@ class OrionClient:
         task_run_data = schemas.actions.TaskRunCreate(
             flow_run_id=flow_run_id,
             task_key=task.task_key,
-            dynamic_key=task.dynamic_key,
+            dynamic_key=dynamic_key,
             tags=list(tags),
             empirical_policy=schemas.core.TaskRunPolicy(
                 max_retries=task.retries,
