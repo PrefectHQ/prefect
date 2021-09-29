@@ -205,6 +205,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=foo,
             flow_run_id=flow_run_id,
+            dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
@@ -238,7 +239,7 @@ class TestOrchestrateTaskRun:
 
         sleep.assert_awaited_once()
         assert state.is_completed()
-        assert state.result == 1
+        assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, flow_run_id, monkeypatch
@@ -250,6 +251,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=foo,
             flow_run_id=flow_run_id,
+            dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
@@ -271,7 +273,7 @@ class TestOrchestrateTaskRun:
 
         sleep.assert_not_called()
         assert state.is_completed()
-        assert state.result == 1
+        assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, monkeypatch, orion_client, flow_run_id
@@ -293,6 +295,7 @@ class TestOrchestrateTaskRun:
             task=flaky_function,
             flow_run_id=flow_run_id,
             state=Pending(),
+            dynamic_key="0",
         )
 
         # Mock sleep for a fast test; force transition into a new scheduled state so we
@@ -320,7 +323,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Check for a proper final result
-        assert state.result == 1
+        assert state.result() == 1
 
         # Assert that the sleep was called
         # due to network time and rounding, the expected sleep time will be less than
@@ -382,7 +385,7 @@ class TestOrchestrateFlowRun:
         )
 
         sleep.assert_awaited_once()
-        assert state.result == 1
+        assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, monkeypatch
@@ -414,4 +417,4 @@ class TestOrchestrateFlowRun:
         )
 
         sleep.assert_not_called()
-        assert state.result == 1
+        assert state.result() == 1

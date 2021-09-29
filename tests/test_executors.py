@@ -39,8 +39,8 @@ def test_flow_run_by_executor(executor):
     test_flow = get_test_flow()
     test_flow.executor = executor
 
-    a, b, c = test_flow().result
-    assert (a.result, b.result, c.result) == (
+    a, b, c = test_flow().result()
+    assert (a.result(), b.result(), c.result()) == (
         "a",
         "b",
         "bc",

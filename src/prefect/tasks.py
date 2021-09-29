@@ -126,7 +126,7 @@ class Task(Generic[P, R]):
             str(sorted(self.tags or [])),
         )
 
-        self.dynamic_key = 0
+        self._dynamic_key = 0
         self.cache_key_fn = cache_key_fn
         self.cache_expiration = cache_expiration
 
@@ -230,15 +230,23 @@ class Task(Generic[P, R]):
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
 
-        return enter_task_run_engine(self, parameters)
+        # Get the dynamic key for this call
+        dynamic_key = self.get_and_update_dynamic_key()
 
-    def update_dynamic_key(self):
+        # Update the dynamic key so future task calls are distinguishable from this one
+        return enter_task_run_engine(self, parameters, dynamic_key)
+
+    def get_and_update_dynamic_key(self) -> str:
         """
-        Callback after task calls complete submission so this task will have a
-        different dynamic key for future task runs
+        When tasks are called, they call this method to get a key unique to that task
+        call; this allows the backend to distinguish repeated task calls.
         """
+        current_key = str(self._dynamic_key)
+
         # Increment the key
-        self.dynamic_key += 1
+        self._dynamic_key += 1
+
+        return current_key
 
 
 @overload

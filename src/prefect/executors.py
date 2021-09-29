@@ -165,7 +165,11 @@ class DaskExecutor(BaseExecutor):
         data from the resulting state
         """
         dask_state_future = self._get_dask_future(prefect_future)
-        data_future = self._client.submit(getattr, dask_state_future, "result")
+
+        def result_helper(state):
+            return state.result(raise_on_failure=False)
+
+        data_future = self._client.submit(result_helper, dask_state_future)
         return data_future
 
     async def wait(
