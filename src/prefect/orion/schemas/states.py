@@ -65,6 +65,49 @@ class State(IDBaseModel, Generic[R]):
 
         Returns:
             The underlying decoded data
+
+        Examples:
+            >>> from prefect import flow, task
+            >>> @task
+            >>> def my_task(x):
+            >>>     return x
+
+            Get the result from a task future in a flow
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     future = my_task("hello")
+            >>>     state = future.wait()
+            >>>     result = state.result()
+            >>>     print(result)
+            >>> my_flow()
+            hello
+
+            Get the result from a flow state
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     return "hello"
+            >>> my_flow().result()
+            hello
+
+            Get the result from a failed state
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow()  # Error is wrapped in FAILED state
+            >>> state.result()  # Raises `ValueError`
+
+            Get the result from a failed state without erroring
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow()
+            >>> result = state.result(raise_on_failure=False)
+            >>> print(result)
+            ValueError("oh no!")
         """
         data = None
         if self.data:
