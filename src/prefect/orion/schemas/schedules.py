@@ -5,94 +5,12 @@ from typing import List, Set, Union
 import pendulum
 import pytz
 from croniter import croniter
+from dateutil import rrule, tz as dateutil_tz
 from pydantic import Field, conint, validator
 
 from prefect.orion.utilities.schemas import PrefectBaseModel
 
 MAX_ITERATIONS = 10000
-
-
-class IntervalScheduleFilters(PrefectBaseModel):
-    """A collection of filters that can be applied to a date. Each filter
-    is defined as an inclusive set of dates or times: candidate dates
-    will pass the filter if they match all of the supplied criteria.
-    """
-
-    class Config:
-        schema_extra = dict(
-            example=dict(
-                months=[3, 6, 9, 12],
-                days_of_month=[15, -1],
-                days_of_week=[0, 1, 2, 3, 4],
-                hours_of_day=[9, 10, 11],
-                minutes_of_hour=[0, 15, 30, 45],
-            )
-        )
-
-    months: Set[conint(ge=1, le=12)] = None
-    days_of_month: Set[conint(ge=-31, le=31)] = None
-    days_of_week: Set[conint(ge=0, le=6)] = None
-    hours_of_day: Set[conint(ge=0, le=23)] = None
-    minutes_of_hour: Set[conint(ge=0, le=59)] = None
-
-    def dict(self, *args, **kwargs) -> dict:
-        kwargs.setdefault("exclude_unset", True)
-        return super().dict(*args, **kwargs)
-
-    @validator("days_of_month")
-    def zero_is_invalid_day_of_month(cls, v):
-        if v and 0 in v:
-            raise ValueError("0 is not a valid day of the month")
-        return v
-
-    def apply_filters(self, dt: pendulum.DateTime) -> bool:
-        """Evaluates whether a candidate date satisfies the filters.
-
-        Args:
-            dt (pendulum.DateTime): A candidate date
-
-        Returns:
-            bool: True if the datetime passes the filters; False otherwise
-        """
-        if self.months and dt.month not in self.months:
-            return False
-
-        if self.days_of_month:
-            negative_day = dt.day - dt.end_of("month").day - 1
-            if (
-                dt.day not in self.days_of_month
-                and negative_day not in self.days_of_month
-            ):
-                return False
-
-        if self.days_of_week and dt.weekday() not in self.days_of_week:
-            return False
-
-        if self.hours_of_day and dt.hour not in self.hours_of_day:
-            return False
-
-        if self.minutes_of_hour and dt.minute not in self.minutes_of_hour:
-            return False
-
-        return True
-
-
-class IntervalScheduleAdjustments(PrefectBaseModel):
-    """Adjusts a candidate date by modifying it to meet the supplied criteria."""
-
-    advance_to_next_weekday: bool = False
-
-    def dict(self, *args, **kwargs) -> dict:
-        kwargs.setdefault("exclude_unset", True)
-        return super().dict(*args, **kwargs)
-
-    def apply_adjustments(self, dt: pendulum.DateTime) -> pendulum.DateTime:
-        # advance to the next weekday day
-        if self.advance_to_next_weekday:
-            while dt.weekday() >= 5:
-                dt = dt.add(days=1)
-
-        return dt
 
 
 class IntervalSchedule(PrefectBaseModel):
@@ -102,9 +20,6 @@ class IntervalSchedule(PrefectBaseModel):
     interval: datetime.timedelta
     timezone: str = Field(None, example="America/New_York")
     anchor_date: datetime.datetime = None
-
-    filters: IntervalScheduleFilters = IntervalScheduleFilters()
-    adjustments: IntervalScheduleAdjustments = IntervalScheduleAdjustments()
 
     @validator("interval")
     def interval_must_be_positive(cls, v):
@@ -129,7 +44,7 @@ class IntervalSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[datetime.datetime]:
+    ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
@@ -174,17 +89,16 @@ class IntervalSchedule(PrefectBaseModel):
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
 
         counter = 0
-        dates = []
+        dates = set()
 
         while True:
 
-            # check filters
-            if self.filters.apply_filters(next_date):
-                next_date = self.adjustments.apply_adjustments(next_date)
-                # if the end date was exceeded, exit
-                if end and next_date > end:
-                    break
-                dates.append(next_date)
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+
+            # ensure no duplicates; weird things can happen with DST
+            dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -197,7 +111,7 @@ class IntervalSchedule(PrefectBaseModel):
             # yield event loop control
             await asyncio.sleep(0)
 
-        return dates
+        return sorted(dates)
 
 
 class CronSchedule(PrefectBaseModel):
@@ -248,7 +162,7 @@ class CronSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[datetime.datetime]:
+    ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
@@ -296,7 +210,7 @@ class CronSchedule(PrefectBaseModel):
             start_localized += datetime.timedelta(seconds=1)
 
         cron = croniter(self.cron, start_localized, day_or=self.day_or)  # type: ignore
-        dates = []
+        dates = set()
         counter = 0
 
         while True:
@@ -305,9 +219,8 @@ class CronSchedule(PrefectBaseModel):
             # if the end date was exceeded, exit
             if end and next_date > end:
                 break
-            # check for duplicates; weird things can happen with DST and cron
-            if next_date not in dates:
-                dates.append(next_date)
+            # ensure no duplicates; weird things can happen with DST
+            dates.add(next_date)
 
             # if enough dates have been collected or enough attempts were made, exit
             if len(dates) >= n or counter > MAX_ITERATIONS:
@@ -318,7 +231,113 @@ class CronSchedule(PrefectBaseModel):
             # yield event loop control
             await asyncio.sleep(0)
 
-        return dates
+        return sorted(dates)
 
 
-SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule]
+class RRuleSchedule(PrefectBaseModel):
+    """
+    RRule schedule, based on the iCalendar standard
+    ([RFC 5545](https://datatracker.ietf.org/doc/html/rfc5545)) as
+    implemented in `dateutils.rrule`.
+
+    RRules are appropriate for any kind of calendar-date manipulation, including
+    irregular intervals, repetition, exclusions, week day or day-of-month
+    adjustments, and more.
+
+    Note that as a calendar-oriented standard, `RRuleSchedules` are sensitive to
+    to the initial timezone provided. A 9am daily schedule with a daylight savings
+    time-aware start date will maintain a local 9am time through DST boundaries;
+    a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
+    """
+
+    rrule: str
+    timezone: str = Field(None, example="America/New_York")
+
+    @classmethod
+    def from_rrule(cls, rrule: rrule.rrule):
+        if rrule._dtstart.tzinfo is not None:
+            timezone = rrule._dtstart.tzinfo.name
+        else:
+            timezone = "UTC"
+        return RRuleSchedule(rrule=str(rrule), timezone=timezone)
+
+    def to_rrule(self) -> rrule.rrule:
+        """
+        Since rrule doesn't properly serialize/deserialize timezones, we localize dates here
+        """
+        rrule_obj = rrule.rrulestr(self.rrule, cache=True)
+        kwargs = dict(
+            dtstart=rrule_obj._dtstart.replace(tzinfo=dateutil_tz.gettz(self.timezone))
+        )
+        if rrule_obj._until:
+            kwargs.update(
+                until=rrule_obj._until.replace(tzinfo=dateutil_tz.gettz(self.timezone)),
+            )
+        return rrule_obj.replace(**kwargs)
+
+    @validator("timezone", always=True)
+    def valid_timezone(cls, v):
+        if v and v not in pendulum.tz.timezones:
+            raise ValueError(f'Invalid timezone: "{v}"')
+        elif v is None:
+            return "UTC"
+        return v
+
+    async def get_dates(
+        self,
+        n: int = None,
+        start: datetime.datetime = None,
+        end: datetime.datetime = None,
+    ) -> List[pendulum.DateTime]:
+        """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
+        following the start date.
+
+        Args:
+            n (int): The number of dates to generate
+            start (datetime.datetime, optional): The first returned date will be on or after
+                this date. Defaults to the current date.
+            end (datetime.datetime, optional): No returned date will exceed this date.
+
+        Returns:
+            List[pendulum.DateTime]: a list of dates
+        """
+        if start is None:
+            start = pendulum.now(self.timezone or "UTC")
+        else:
+            start = start.in_tz(self.timezone)
+
+        if n is None:
+            # if an end was supplied, we do our best to supply all matching dates (up to MAX_ITERATIONS)
+            if end is not None:
+                n = MAX_ITERATIONS
+            else:
+                n = 1
+
+        dates = set()
+        counter = 0
+
+        # pass count = None to account for discrepancies with duplicates around DST boundaries
+        for next_date in self.to_rrule().xafter(start, count=None, inc=True):
+
+            next_date = pendulum.instance(next_date).in_tz(self.timezone)
+
+            # if the end date was exceeded, exit
+            if end and next_date > end:
+                break
+
+            # ensure no duplicates; weird things can happen with DST
+            dates.add(next_date)
+
+            # if enough dates have been collected or enough attempts were made, exit
+            if len(dates) >= n or counter > MAX_ITERATIONS:
+                break
+
+            counter += 1
+
+            # yield event loop control
+            await asyncio.sleep(0)
+
+        return sorted(dates)
+
+
+SCHEDULE_TYPES = Union[IntervalSchedule, CronSchedule, RRuleSchedule]
