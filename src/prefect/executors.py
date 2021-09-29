@@ -92,9 +92,6 @@ class LocalExecutor(BaseExecutor):
         if not self.flow_run_id:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        # Block until all upstreams are resolved
-        args, kwargs = await resolve_futures_to_data((args, kwargs))
-
         # Run the function immediately and store the result in memory
         self._results[run_id] = await run_fn(*args, **kwargs)
 
@@ -131,9 +128,11 @@ class DaskExecutor(BaseExecutor):
         if not self._client:
             raise RuntimeError("The executor must be started before submitting work.")
 
+        # Convert `PrefectFuture` to dask futures since `PrefectFuture` objects cannot
+        # be serialized by dask
         async def visit_fn(expr):
             if isinstance(expr, PrefectFuture):
-                return await self._get_data_from_future(expr)
+                return self._get_dask_future(expr)
             else:
                 return expr
 
@@ -156,21 +155,6 @@ class DaskExecutor(BaseExecutor):
         The dask future is for the `run_fn` which should return a `State`
         """
         return self._futures[prefect_future.run_id]
-
-    async def _get_data_from_future(
-        self, prefect_future: PrefectFuture
-    ) -> "distributed.Future":
-        """
-        Generate a dask future corresponding to a prefect future that will retrieve the
-        data from the resulting state
-        """
-        dask_state_future = self._get_dask_future(prefect_future)
-
-        def result_helper(state):
-            return state.result(raise_on_failure=False)
-
-        data_future = self._client.submit(result_helper, dask_state_future)
-        return data_future
 
     async def wait(
         self,
