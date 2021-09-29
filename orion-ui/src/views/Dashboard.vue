@@ -255,7 +255,7 @@ export default class Dashboard extends Vue {
 
   get resultsCount(): number {
     if (!this.resultsTab) return 0
-    return this.queries[this.resultsTab].response
+    return this.queries[this.resultsTab].response || 0
   }
 
   created() {
