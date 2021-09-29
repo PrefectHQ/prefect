@@ -9,7 +9,7 @@ from prefect.orion.orchestration.core_policy import (
     CacheRetrieval,
     PreventTransitionsFromTerminalStates,
     RetryPotentialFailures,
-    RenameRetryingState,
+    RenameReruns,
     WaitForScheduledTime,
 )
 
@@ -262,7 +262,7 @@ class TestRenameRetryingStates:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RenameRetryingState]
+        retry_policy = [RenameReruns]
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
@@ -284,14 +284,14 @@ class TestRenameRetryingStates:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
         assert ctx.validated_state_type == states.StateType.RUNNING
-        assert ctx.validated_state.name == "Re-running"
+        assert ctx.validated_state.name == "Rerunning"
 
     async def test_retried_states_get_renamed(
         self,
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RenameRetryingState]
+        retry_policy = [RenameReruns]
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)
@@ -322,7 +322,7 @@ class TestRenameRetryingStates:
         session,
         initialize_orchestration,
     ):
-        retry_policy = [RenameRetryingState]
+        retry_policy = [RenameReruns]
         initial_state_type = states.StateType.SCHEDULED
         proposed_state_type = states.StateType.RUNNING
         intended_transition = (initial_state_type, proposed_state_type)

@@ -150,7 +150,7 @@ class RetryPotentialFailures(BaseOrchestrationRule):
             await self.reject_transition(state=retry_state, reason="Retrying")
 
 
-class RenameRetryingState(BaseOrchestrationRule):
+class RenameReruns(BaseOrchestrationRule):
     """
     Name the state "Retrying" when entering a running state multiple times.
     """
@@ -169,7 +169,7 @@ class RenameRetryingState(BaseOrchestrationRule):
             if initial_state.name == "Awaiting Retry":
                 await self.rename_state("Retrying")
             else:
-                await self.rename_state("Re-running")
+                await self.rename_state("Rerunning")
 
 
 class WaitForScheduledTime(BaseOrchestrationRule):
