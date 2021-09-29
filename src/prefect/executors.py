@@ -70,12 +70,13 @@ class BaseExecutor:
         raise NotImplementedError()
 
 
-class LocalExecutor(BaseExecutor):
+class SequentialExecutor(BaseExecutor):
     """
-    A simple executor that executes calls as they are submitted
+    A simple executor that executes calls as they are submitted.
 
-    If writing synchronous tasks, this executor will have no concurrency.
-    If writing async tasks, they will run concurrently as if using asyncio directly.
+    If writing synchronous tasks, this executor will always run tasks sequentially.
+    If writing async tasks, this executor will run tasks sequentially unless grouped
+    using `anyio.create_task_group` or `asyncio.gather`.
     """
 
     def __init__(self) -> None:
