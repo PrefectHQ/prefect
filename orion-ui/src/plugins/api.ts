@@ -36,6 +36,16 @@ export interface FlowRunsFilter {
   deployments?: DeploymentFilter
 }
 
+export interface FlowRunsHistoryFilter {
+  history_start: string
+  history_end: string
+  history_interval_seconds: number
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
+}
+
 export type Filters = {
   flow: null
   flows: FlowsFilter
@@ -43,6 +53,7 @@ export type Filters = {
   flow_run: null
   flow_runs: FlowRunsFilter
   flow_runs_count: FlowRunsFilter
+  flow_runs_history: FlowRunsHistoryFilter
   task_run: null
   task_runs: TaskRunsFilter
   task_runs_count: TaskRunsFilter
@@ -85,6 +96,10 @@ export const Endpoints: { [key: string]: Endpoint } = {
   flow_runs: {
     method: 'POST',
     url: '/flow_runs/filter/'
+  },
+  flow_runs_history: {
+    method: 'POST',
+    url: '/flow_runs/history/'
   },
   flow_runs_count: {
     method: 'POST',
