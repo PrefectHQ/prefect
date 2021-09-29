@@ -6,15 +6,26 @@
         :key="item.id"
         :item="item"
         :is="props.component"
+        :ref="(el) => createItemRef(item.id, el)"
       />
     </list>
   </ResultsListBase>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
+import {
+  computed,
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  shallowRef,
+  ComponentPublicInstance
+} from 'vue'
 import ResultsListBase from './ResultsList--Base.vue'
 import { Api, Endpoints, FilterBody } from '@/plugins/api'
+
+const observe = ref<HTMLElement>()
 
 const props = defineProps<{
   filter: FilterBody
@@ -25,6 +36,8 @@ const limit = ref(25)
 const offset = ref(0)
 const loading = ref(false)
 const items = ref<any[]>([])
+
+const itemRefs = shallowRef<{ [key: string]: Element }>({})
 
 const filter_ = computed(() => {
   return { ...props.filter, limit: limit.value, offset: offset.value }
@@ -50,8 +63,60 @@ const init = async () => {
 }
 
 init()
+
+const createItemRef = (id: string, el: ComponentPublicInstance): void => {
+  if (!el || !el.$el) return
+  console.log(el)
+  itemRefs.value[id] = el.$el
+}
+
+let observer: IntersectionObserver
+
+// TODO: Figure out why #text elements are showing up in intersection observers
+const handleIntersectionObserver = (entries: IntersectionObserverEntry[]) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      entry.target.classList.remove('hidden')
+    } else {
+      entry.target.classList.add('hidden')
+    }
+  })
+}
+
+onMounted(() => {
+  const options = {
+    threshold: 0.01
+  }
+
+  observer = new IntersectionObserver(handleIntersectionObserver, options)
+})
+
+watch(
+  () => items.value,
+  () => {
+    if (!observer) return
+
+    items.value.forEach((item) => {
+      if (itemRefs.value[item.id]) {
+        try {
+          observer.observe(itemRefs.value[item.id])
+        } catch (e) {
+          console.log(item, itemRefs.value[item.id])
+        }
+      }
+    })
+  }
+)
+
+onBeforeUnmount(() => {
+  observer.disconnect()
+})
 </script>
 
 <style lang="scss" scoped>
 @use '@/styles/components/results-list.scss';
+
+.hidden {
+  visibility: hidden;
+}
 </style>
