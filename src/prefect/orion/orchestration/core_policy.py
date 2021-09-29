@@ -166,7 +166,7 @@ class RenameRetryingState(BaseOrchestrationRule):
     ) -> None:
         run_count = context.run.run_count
         if run_count > 0:
-            context.rename_state("Retrying")
+            await self.rename_state("Retrying")
 
 
 class WaitForScheduledTime(BaseOrchestrationRule):
