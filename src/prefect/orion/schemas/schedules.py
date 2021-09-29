@@ -44,7 +44,7 @@ class IntervalSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[datetime.datetime]:
+    ) -> List[pendulum.datetime.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
@@ -162,7 +162,7 @@ class CronSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[datetime.datetime]:
+    ) -> List[pendulum.datetime.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
@@ -261,7 +261,7 @@ class RRuleSchedule(PrefectBaseModel):
             timezone = "UTC"
         return RRuleSchedule(rrule=str(rrule), timezone=timezone)
 
-    def to_rrule(self):
+    def to_rrule(self) -> rrule.rrule:
         """
         Since rrule doesn't properly serialize/deserialize timezones, we localize dates here
         """
@@ -288,7 +288,7 @@ class RRuleSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[datetime.datetime]:
+    ) -> List[pendulum.datetime.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
