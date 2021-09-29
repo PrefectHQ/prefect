@@ -212,11 +212,37 @@ async def data(database_engine, flow_function):
                 state=states.Failed(),
             )
         )
+
+        # ----------------- create a subflow run and parent tasks
+        f_4 = await create_flow(flow=core.Flow(name="f-4"))
+
+        # create a parent flow run
+        fr1 = await create_flow_run(
+            flow_run=core.FlowRun(flow_id=f_4.id),
+        )
+        tr1 = await create_task_run(
+            task_run=core.TaskRun(flow_run_id=fr1.id, task_key="a")
+        )
+        tr2 = await create_task_run(
+            task_run=core.TaskRun(flow_run_id=fr1.id, task_key="b")
+        )
+
+        # create a subflow corresponding to tr2
+        fr2 = await create_flow_run(
+            flow_run=core.FlowRun(flow_id=f_4.id, parent_task_run_id=tr2.id),
+        )
+        tr3 = await create_task_run(
+            task_run=core.TaskRun(flow_run_id=fr2.id, task_key="a")
+        )
+
+        # ----------------- Commit and yield
+
         await session.commit()
 
         yield
 
-    # clear data
+    # ----------------- clear data
+
     async with database_engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             await conn.execute(table.delete())
@@ -225,7 +251,7 @@ async def data(database_engine, flow_function):
 class TestCountFlowsModels:
 
     params = [
-        [{}, 3],
+        [{}, 4],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 2],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 1],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 1],
@@ -237,7 +263,7 @@ class TestCountFlowsModels:
             dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
             2,
         ],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 3],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 1],
         # next two check that filters are applied as an intersection not a union
         [
@@ -268,6 +294,22 @@ class TestCountFlowsModels:
                 )
             ),
             2,
+        ],
+        # flow that have subflows (via task attribute)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(subflow_runs=dict(exists_=True))
+            ),
+            1,
+        ],
+        # flows that have subflows (via flow run attribute)
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    parent_task_run_id=dict(is_null_=False)
+                )
+            ),
+            1,
         ],
     ]
 
@@ -335,7 +377,7 @@ class TestCountFlowsModels:
 class TestCountFlowRunModels:
 
     params = [
-        [{}, 10],
+        [{}, 12],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 8],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 5],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 5],
@@ -347,7 +389,7 @@ class TestCountFlowRunModels:
             dict(flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["db", "blue"]))),
             3,
         ],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 2],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 4],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 2],
         # next two check that filters are applied as an intersection not a union
         [
@@ -378,6 +420,22 @@ class TestCountFlowRunModels:
                 )
             ),
             3,
+        ],
+        # flow runs that are subflows (via task attribute)
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(subflow_runs=dict(exists_=True))
+            ),
+            1,
+        ],
+        # flow runs that are subflows (via flow run attribute)
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    parent_task_run_id=dict(is_null_=False)
+                )
+            ),
+            1,
         ],
     ]
 
@@ -442,7 +500,7 @@ class TestCountFlowRunModels:
 class TestCountTaskRunsModels:
 
     params = [
-        [{}, 7],
+        [{}, 10],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-2"]))), 6],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1", "f-100"]))), 3],
         [dict(flow_filter=filters.FlowFilter(name=dict(any_=["f-1"]))), 3],
@@ -455,7 +513,7 @@ class TestCountTaskRunsModels:
             3,
         ],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 3],
-        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 1],
+        [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 4],
         # next two check that filters are applied as an intersection not a union
         [
             dict(
@@ -489,6 +547,29 @@ class TestCountTaskRunsModels:
                 )
             ),
             4,
+        ],
+        # task runs with subflow children
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(subflow_runs=dict(exists_=True))
+            ),
+            1,
+        ],
+        # task runs without subflow children
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(subflow_runs=dict(exists_=False))
+            ),
+            9,
+        ],
+        # task runs with subflow children and the tag 'subflow'
+        [
+            dict(
+                task_run_filter=filters.TaskRunFilter(
+                    subflow_runs=dict(exists_=True), tags=dict(all_=["subflow"])
+                )
+            ),
+            0,
         ],
     ]
 

@@ -1,6 +1,6 @@
 <template>
   <div ref="container" class="chart-container">
-    <svg :id="id" ref="chart" class="run-history-chart" />
+    <svg :id="id" ref="chart" class="run-history-chart"></svg>
   </div>
 </template>
 
@@ -76,15 +76,15 @@ export type BucketCollection = Bucket[]
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 class Props {
-  backgroundColor = prop<String>({ required: false, default: null })
+  backgroundColor = prop<string>({ required: false, default: null })
   items = prop<Bucket[]>({ required: true })
-  showAxis = prop<Boolean>({ required: false, default: false, type: Boolean })
+  showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
   padding = prop<{
-    top: Number
-    bottom: Number
-    middle: Number
-    left: Number
-    right: Number
+    top: number
+    bottom: number
+    middle: number
+    left: number
+    right: number
   }>({
     required: false,
     default: {
@@ -123,12 +123,11 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
         d3
           .axisTop(this.xScale)
           .ticks(this.width / 100)
-          /* @ts-ignore */
+          // @ts-expect-error: Not sure what the typings for d3 axis are
           .tickFormat(formatLabel)
           .tickSizeOuter(0)
       )
-      /* @ts-ignore */
-      .call((g) => g.select('.domain').remove())
+      .call((g: any) => g.select('.domain').remove())
 
   get buckets(): Bucket[] {
     return this.items.map((d: Bucket) => {
@@ -146,10 +145,10 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
         .stack()
         .keys([...positiveStates.slice().reverse(), ...negativeStates])
         .value(
-          /* @ts-ignore */
+          // @ts-expect-error: Not sure what the typings for d3 series are
           (d, key: string) => (directions.get(key) || 1) * (d.states[key] || 0)
         )
-        /* @ts-ignore */
+        // @ts-expect-error: Not sure what the typings for d3 axis are
         .offset(d3.stackOffsetDiverging)(this.items)
     )
   }
@@ -246,7 +245,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 
     if (!seriesSlot || !biasIndex) return
     const items = this.items.find(
-      /* @ts-ignore */
+      // @ts-expect-error: Not sure what the typings for d3 are
       (_d) => _d.interval_start == seriesSlot.data.interval_start
     )
     const states = items?.states || []
@@ -295,7 +294,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     const r = Math.min(capR, width / 2)
 
     const xStart =
-      /* @ts-ignore */
+      // @ts-expect-error: Not sure what the typings for d3 scale are
       this.xScale(new Date(seriesSlot.data.interval_start)) + maxWidth / 2
     const yStart =
       this.yScale(seriesSlot[0]) +
@@ -320,7 +319,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   updateBuckets(): void {
     if (!this.barSelection) return
     // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-    /* @ts-ignore */
     this.barSelection
       .selectAll('.bucket')
       .data(this.items, (d: any) => d.interval_start)
@@ -342,7 +340,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
         (exit: any) => exit.remove()
       )
       .selectAll('path')
-      /* @ts-ignore */
       .data((d: Bucket, i: number) =>
         Object.entries(d.states).map(([state, count]) => {
           return { state: state, count: count, bucket_key: i }
@@ -350,20 +347,18 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       )
       .join(
         (enter: any) =>
-          enter /* @ts-ignore */
+          enter
             .append('path')
             .attr('d', this.updateBarPath)
             .attr(
               'class',
               // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-              /* @ts-ignore */
               (d: any) => d.state.toLowerCase() + '-fill'
             ),
         (update: any) =>
           update.attr('d', this.updateBarPath).attr(
             'class',
             // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-            /* @ts-ignore */
             (d: any) => d.state.toLowerCase() + '-fill'
           ),
         (exit: any) => exit.remove()

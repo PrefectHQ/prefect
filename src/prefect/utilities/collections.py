@@ -22,6 +22,7 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
+import prefect
 
 
 T = TypeVar("T")
@@ -202,6 +203,12 @@ async def visit_collection(
         assert isinstance(expr, (dict, OrderedDict))  # typecheck assertion
         result = [[await recurse(k), await recurse(v)] for k, v in expr.items()]
         return typ(result) if return_data else None
+
+    elif isinstance(expr, prefect.orion.schemas.states.State):
+        return expr
+
+    elif isinstance(expr, prefect.orion.schemas.data.DataDocument):
+        return expr
 
     elif is_dataclass(expr) and not isinstance(expr, type):
         result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
