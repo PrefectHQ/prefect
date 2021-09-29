@@ -185,7 +185,7 @@ async def begin_flow_run(
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-    with flow.executor.start(flow_run_id=flow_run_id, orion_client=client) as executor:
+    with flow.executor.start(flow_run_id=flow_run_id) as executor:
         with portal_context as sync_portal:
             terminal_state = await orchestrate_flow_run(
                 flow,
@@ -485,7 +485,7 @@ async def orchestrate_task_run(
 
     # Resolve upstream futures and states into data
     try:
-        resolved_parameters = await resolve_upstream_tasks(parameters)
+        resolved_parameters = await resolve_upstream_task_futures(parameters)
     except IncompleteUpstreamTaskError as upstream_exc:
         state = await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -642,15 +642,15 @@ async def raise_failed_state(state: State) -> None:
         )
 
 
-async def resolve_upstream_tasks(parameters: Dict[str, Any]) -> Dict[str, Any]:
+async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Resolve any `PrefectFuture` or `State` types in paramters into data
+    Resolve any `PrefectFuture` types nested in parameters into data.
 
     Returns:
         A copy of the parameters with resolved data
 
     Raises:
-        UpstreamTaskError: If any of the upstream states are `FAILED`
+        UpstreamTaskError: If any of the upstream states are not `COMPLETED`
     """
 
     async def visit_fn(expr):
@@ -658,14 +658,14 @@ async def resolve_upstream_tasks(parameters: Dict[str, Any]) -> Dict[str, Any]:
         Intended to be called with `visit_collection`, this function
         """
         if isinstance(expr, PrefectFuture):
-            return await visit_fn(await expr.wait())
-        elif isinstance(expr, State):
-            if not expr.is_completed():
+            state = await expr.wait()
+            print(state)
+            if not state.is_completed():
                 raise IncompleteUpstreamTaskError(
-                    f"Upstream task '{expr.state_details.task_run_id}' did not complete."
+                    f"Upstream task run '{state.state_details.task_run_id}' did not complete."
                 )
             else:
-                return expr.result()
+                return state.result()
         else:
             return expr
 
