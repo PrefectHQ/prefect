@@ -259,8 +259,6 @@ class RRuleSchedule(PrefectBaseModel):
             timezone = rrule._dtstart.tzinfo.name
         else:
             timezone = "UTC"
-        # convert dtstart to UTC because rrule doesn't handle timezones
-        # rrule = rrule.replace(dtstart=pendulum.instance(rrule._dtstart).in_tz("UTC"))
         return RRuleSchedule(rrule=str(rrule), timezone=timezone)
 
     def to_rrule(self):
