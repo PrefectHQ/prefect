@@ -119,7 +119,7 @@ class State(IDBaseModel, Generic[R]):
             elif isinstance(data, State):
                 data.result()
             elif isinstance(data, Iterable) and all(
-                [isinstance(o, State) for o in obj]
+                [isinstance(o, State) for o in data]
             ):
                 # raise the first failure we find
                 for state in data:
