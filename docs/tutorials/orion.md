@@ -2,16 +2,32 @@
 
 Orion is a collection of services that form a dedicated _orchestration environment_:
 
-- the **database** is the persistent metadata store that holds flow and task run history, along with references to data produced by tasks and flows
-- the **webserver** is a REST API backed by [FastAPI](https://fastapi.tiangolo.com/) that receives information emitted from workflows and additionally responds with orchestration instructions
-- the **agent** is a small polling process responsible for submitting _flow_ runs (currently as local subprocesses)
-- lastly, the **UI** is the flexible control plane for monitoring, configuring and analyzing Prefect workflows
+- the **database** is the persistent metadata store that holds flow and task run history, along with [references to data][prefect.orion.schemas.data] produced by tasks and flows
+- the **webserver** serves [a REST API](/api-ref/rest-api/) backed by [FastAPI](https://fastapi.tiangolo.com/) that receives information emitted from workflows and additionally responds with orchestration instructions
+- the **agent** is a small polling process responsible for submitting _flow_ runs as local processes
+- the **UI** is the flexible control plane for monitoring, configuring and analyzing your Prefect workflows
 
 ## The database
 
-The database is the persistent layer that backs much of the features and functionality of Orion.  Currently the database
+The database is the persistent layer that powers many of the features and functionality of Orion.  Currently Orion supports the following databases:
 
-### Migrations
+- SQLite: the default in Orion; best for lightweight single server deployments and requires essentially no setup
+- PostgreSQL: best for connecting to external databases but does require additional setup (such as Docker)
+
+Whenever you first install Orion, your database will be located at `~/.prefect/orion.db`. To configure this location, you can specify a connection URL with the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable:
+
+```
+export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/a/location/orion.db"
+```
+
+!!! tip "In-memory databases"
+    One of the benefits of SQLite is in-memory database support; in-memory databases are only supported in Orion for testing purposes and are not compatible with multiprocessing.  To use an in-memory sqlite database, set the following environment variable:
+    ```
+    export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false"
+    ```
+
+!!! danger "Migrations"
+    Recall that Orion is available as a technical preivew; this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migraiton guides and tooling will be available and documented.
 
 ## The webserver
 
@@ -19,12 +35,12 @@ The Orion webserver can be stood up with a single CLI command:
 
 <div class="termy">
 ```
-$ prefect orion start
+$ prefect orion start --no-services
 Starting Orion API...
 INFO:     Started server process [84081]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:5000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 </div>
 
