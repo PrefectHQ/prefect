@@ -75,7 +75,7 @@ def get_failing_test_flow():
 @pytest.mark.parametrize(
     "executor",
     [
-        LocalExecutor(),
+        SequentialExecutor(),
         DaskExecutor(),
     ],
 )
