@@ -56,7 +56,7 @@ nav:
         - Tutorials:
             - tutorials/first-steps.md
             - tutorials/flow-configuration.md
-            - tutorials/futures-and-parallelism.md
+            - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
     - Concepts:
