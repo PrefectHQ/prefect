@@ -365,6 +365,21 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
         return filters
 
 
+class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
+    exists_: bool = Field(
+        None,
+        description="If true, only include task runs that are subflow run parents; if false, exclude parent task runs",
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.exists_ is True:
+            filters.append(orm.TaskRun.subflow_run.has())
+        elif self.exists_ is False:
+            filters.append(sa.not_(orm.TaskRun.subflow_run.has()))
+        return filters
+
+
 class TaskRunFilterStartTime(PrefectFilterBaseModel):
     before_: datetime.datetime = Field(
         None, description="Only include task runs starting at or before this time"
@@ -399,6 +414,7 @@ class TaskRunFilter(PrefectFilterBaseModel):
     tags: Optional[TaskRunFilterTags]
     state_type: Optional[TaskRunFilterStateType]
     start_time: Optional[TaskRunFilterStartTime]
+    subflow_runs: Optional[TaskRunFilterSubFlowRuns]
 
     def _get_filter_list(self) -> List:
         filters = []
@@ -413,6 +429,8 @@ class TaskRunFilter(PrefectFilterBaseModel):
             filters.append(self.state_type.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
+        if self.subflow_runs is not None:
+            filters.append(self.subflow_runs.as_sql_filter())
 
         return filters
 
