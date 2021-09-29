@@ -24,7 +24,6 @@ from uuid import UUID, uuid4
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from anyio.from_thread import BlockingPortal
 
 from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
@@ -55,7 +54,6 @@ from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
-    asyncnullcontext,
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
@@ -483,11 +481,33 @@ async def orchestrate_task_run(
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
-    # Transition from `PENDING` -> `RUNNING`
-    state = await client.propose_state(
-        Running(state_details=StateDetails(cache_key=cache_key)),
-        task_run_id=task_run_id,
-    )
+    # Resolve upstream futures and states into data
+    async def resolve_futures_and_states_to_data(expr):
+        if isinstance(expr, PrefectFuture):
+            return (await expr.wait()).result()
+        elif isinstance(expr, State):
+            return expr.result()
+        else:
+            return expr
+
+    try:
+        parameters = await visit_collection(
+            parameters, visit_fn=resolve_futures_and_states_to_data, return_data=True
+        )
+    except Exception as exc:
+        # TODO: Improve this upstream error detail
+        state = await client.propose_state(
+            state=Failed(
+                message="Upstream task failed.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+        )
+    else:
+        # Transition from `PENDING` -> `RUNNING`
+        state = await client.propose_state(
+            Running(state_details=StateDetails(cache_key=cache_key)),
+            task_run_id=task_run_id,
+        )
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
