@@ -104,14 +104,16 @@
       </Tab>
     </Tabs>
 
-    <div v-if="resultsCount > 0" class="font--secondary caption my-2">
-      {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+    <div class="font--secondary caption my-2" style="min-height: 17px">
+      <span v-show="resultsCount > 0">
+        {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+      </span>
     </div>
 
     <section
       class="results-section d-flex flex-column align-stretch justify-stretch"
     >
-      <transition name="tab-fade" css>
+      <transition name="tab-fade" mode="out-in" css>
         <div
           v-if="resultsCount === 0"
           class="text-center my-8"
@@ -193,10 +195,18 @@ export default class Dashboard extends Vue {
   flowsFilter: FlowsFilter = {}
 
   queries: { [key: string]: Query } = {
-    deployments: Api.query(Endpoints.deployments_count, this.flowsFilter, {}),
-    flows: Api.query(Endpoints.flows_count, this.flowsFilter, {}),
-    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowsFilter, {}),
-    task_runs: Api.query(Endpoints.task_runs_count, this.flowsFilter, {})
+    deployments: Api.query(Endpoints.deployments_count, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    flows: Api.query(Endpoints.flows_count, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowsFilter, {
+      pollInterval: 10000
+    }),
+    task_runs: Api.query(Endpoints.task_runs_count, this.flowsFilter, {
+      pollInterval: 10000
+    })
   }
 
   run_history_buckets: Bucket[] = []
@@ -270,7 +280,6 @@ export default class Dashboard extends Vue {
 .tab-fade-enter-active,
 .tab-fade-leave-active {
   opacity: 0;
-  position: absolute;
   transition: opacity 150ms ease;
 }
 </style>
