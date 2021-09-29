@@ -1,4 +1,3 @@
-import json
 from uuid import uuid4
 
 import pendulum
@@ -15,14 +14,19 @@ class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, client, session):
         response = await client.post(
             "/flow_runs/",
-            json=actions.FlowRunCreate(flow_id=flow.id, state=states.Pending()).dict(
-                json_compatible=True
-            ),
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                name="orange you glad i didnt say yellow salamander",
+                state=states.Pending(),
+            ).dict(json_compatible=True),
         )
         assert response.status_code == 201
         assert response.json()["flow_id"] == str(flow.id)
         assert response.json()["id"]
         assert response.json()["state"]["type"] == "PENDING"
+        assert (
+            response.json()["name"] == "orange you glad i didnt say yellow salamander"
+        )
 
         flow_run = await models.flow_runs.read_flow_run(
             session=session, flow_run_id=response.json()["id"]
@@ -181,15 +185,16 @@ class TestUpdateFlowRun:
 
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
-            json=actions.FlowRunUpdate(flow_version="The next one").dict(
-                json_compatible=True
-            ),
+            json=actions.FlowRunUpdate(
+                flow_version="The next one", name="not yellow salamander"
+            ).dict(json_compatible=True),
         )
         assert response.status_code == 204
 
         response = await client.get(f"flow_runs/{flow_run.id}")
         updated_flow_run = pydantic.parse_obj_as(schemas.core.FlowRun, response.json())
         assert updated_flow_run.flow_version == "The next one"
+        assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
 
     async def test_update_flow_run_does_not_update_if_fields_not_set(
