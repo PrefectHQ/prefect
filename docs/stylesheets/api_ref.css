@@ -28,3 +28,17 @@
 
 /* bold the argument name column */
 .doc-contents table td:nth-child(1) { font-weight: bold; }
+
+/* class attributes */
+.doc.doc-object.doc-attribute {
+    margin-top: 40px;
+}
+
+/* class attributes code */
+.doc.doc-object.doc-attribute>.doc.doc-heading > .highlight.language-python {
+    margin-top: 32px;
+    background-color: #f5f5f5;
+    padding: 6px;
+    border-radius: 3px;
+    font-size: 1.15em;
+}
