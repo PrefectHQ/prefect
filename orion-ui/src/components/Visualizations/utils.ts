@@ -1,7 +1,7 @@
 export const createCappedBar = (
   options: {
-    capTop: Boolean
-    capBottom: Boolean
+    capTop: boolean
+    capBottom: boolean
     x: number
     y: number
     height: number

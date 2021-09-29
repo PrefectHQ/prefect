@@ -8,7 +8,7 @@
 import { Vue, prop, Options } from 'vue-class-component'
 
 class Props {
-  hideScrollbars = prop<Boolean>({
+  hideScrollbars = prop<boolean>({
     required: false,
     default: false,
     type: Boolean
