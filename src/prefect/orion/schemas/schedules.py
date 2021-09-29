@@ -44,7 +44,7 @@ class IntervalSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[pendulum.datetime.DateTime]:
+    ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
@@ -162,7 +162,7 @@ class CronSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[pendulum.datetime.DateTime]:
+    ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
@@ -288,7 +288,7 @@ class RRuleSchedule(PrefectBaseModel):
         n: int = None,
         start: datetime.datetime = None,
         end: datetime.datetime = None,
-    ) -> List[pendulum.datetime.DateTime]:
+    ) -> List[pendulum.DateTime]:
         """Retrieves dates from the schedule. Up to 10,000 candidate dates are checked
         following the start date.
 
