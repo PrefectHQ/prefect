@@ -36,12 +36,13 @@ theme:
 plugins:
     - autorefs
     - mkdocstrings:
+        custom_templates: docs/templates
         handlers:
             python:
                 rendering:
                     show_root_heading: True
-                    show_object_full_path: True
-                    show_category_heading: True
+                    show_object_full_path: False
+                    show_category_heading: False
                     show_bases: False
                     heading_level: 1
         watch:
