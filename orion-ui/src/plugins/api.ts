@@ -1,4 +1,4 @@
-import { App, Plugin, ref, watchEffect, reactive } from 'vue'
+import { App, Plugin, ref } from 'vue'
 
 export interface DeploymentsFilter {
   limit?: limit
