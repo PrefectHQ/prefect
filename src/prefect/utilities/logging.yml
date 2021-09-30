@@ -3,8 +3,8 @@
 # Any config in this file can be set with an env var
 # `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
 #
-# Global logging settings values can be interpolated by setting
-# `key: "{{prefect.settings.logging.key}}"`. Note that only keys
+# Global logging settings values can be interpolated by setting `key: "{{key}}"`
+# (note the quotations and double curly brackets). Note that only keys available
 # under `prefect.settings.logging` will be interpolated.
 
 version: 1
