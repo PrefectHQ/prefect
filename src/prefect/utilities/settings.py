@@ -108,11 +108,6 @@ class DatabaseSettings(BaseSettings):
         1,
         description="A statement timeout applied to all database interactions made by the API. Defaults to `1`.",
     )
-    # statement timeout for services, in seconds
-    services_timeout: Optional[float] = Field(
-        None,
-        description="A statement timeout applied to all database interactions made by Orion services. Defaults to `None`.",
-    )
 
 
 class APISettings(BaseSettings):
