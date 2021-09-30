@@ -33,14 +33,14 @@ handlers:
     console:
         class: logging.StreamHandler
         # take the level from the global logging settings
-        level: "{{prefect.settings.logging.default_level}}"
+        level: "{{default_level}}"
         formatter: simple
         stream: ext://sys.stdout
 
     orion:
         class: prefect.utilities.logging.OrionHandler
         # take the level from the global logging settings
-        level: "{{prefect.settings.logging.default_level}}"
+        level: "{{default_level}}"
         formatter: json
 
 loggers:
