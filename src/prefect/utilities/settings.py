@@ -60,8 +60,6 @@ class DatabaseSettings(BaseSettings):
 
     # statement timeout, in seconds
     timeout: Optional[float] = 1
-    # statement timeout for services, in seconds
-    services_timeout: Optional[float] = None
 
 
 class APISettings(BaseSettings):
