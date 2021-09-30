@@ -240,7 +240,7 @@ class TestFlowCall:
         assert flow_state.is_failed()
 
         # The task run states are returned as the data of the flow state
-        task_run_states = get_result(flow_state, raise_failures=False)
+        task_run_states = flow_state.result(raise_on_failure=False)
         assert len(task_run_states) == 2
         assert all(isinstance(state, State) for state in task_run_states)
         task_run_state = task_run_states[0]
@@ -262,10 +262,10 @@ class TestFlowCall:
         flow_state = foo()
 
         # The task run states are returned as the data of the flow state
-        task_run_states = get_result(flow_state)
+        task_run_states = flow_state.result()
         assert len(task_run_states) == 2
         assert all(isinstance(state, State) for state in task_run_states)
-        assert get_result(task_run_states[0]) == "foo"
+        assert task_run_states[0].result() == "foo"
 
     def test_flow_state_default_includes_subflow_states(self):
         @task
@@ -282,11 +282,10 @@ class TestFlowCall:
             fail()
             return None
 
-        flow_state = foo()
-        states = get_result(flow_state, raise_failures=False)
+        states = foo().result(raise_on_failure=False)
         assert len(states) == 2
         assert all(isinstance(state, State) for state in states)
-        assert get_result(states[0]) == "foo"
+        assert states[0].result() == "foo"
         with pytest.raises(ValueError, match="bar"):
             raise_failed_state(states[1])
 
@@ -308,8 +307,7 @@ class TestFlowCall:
             wrapper_flow()
             return None
 
-        flow_state = foo()
-        states = get_result(flow_state, raise_failures=False)
+        states = foo().result(raise_on_failure=False)
         assert len(states) == 1
         state = states[0]
         assert isinstance(state, State)
