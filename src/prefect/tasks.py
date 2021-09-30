@@ -157,7 +157,10 @@ class Task(Generic[P, R]):
         ...
 
     def __call__(
-        self, *args: Any, **kwargs: Any
+        self,
+        *args: Any,
+        upstream_futures: Iterable[PrefectFuture] = None,
+        **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
         Run the task - must be called within a flow function.
@@ -234,7 +237,12 @@ class Task(Generic[P, R]):
         dynamic_key = self.get_and_update_dynamic_key()
 
         # Update the dynamic key so future task calls are distinguishable from this one
-        return enter_task_run_engine(self, parameters, dynamic_key)
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            dynamic_key=dynamic_key,
+            upstream_futures=upstream_futures,
+        )
 
     def get_and_update_dynamic_key(self) -> str:
         """

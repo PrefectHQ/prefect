@@ -18,7 +18,7 @@ Engine process overview
 import pendulum
 from contextlib import contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
+from typing import Any, Awaitable, Dict, Set, TypeVar, Union, Iterable, Optional
 from uuid import UUID, uuid4
 
 import anyio
@@ -337,7 +337,10 @@ async def orchestrate_flow_run(
 
 
 def enter_task_run_engine(
-    task: Task, parameters: Dict[str, Any], dynamic_key: str
+    task: Task,
+    parameters: Dict[str, Any],
+    dynamic_key: str,
+    upstream_futures: Optional[Iterable[PrefectFuture]],
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -369,6 +372,7 @@ def enter_task_run_engine(
         flow_run_context=flow_run_context,
         parameters=parameters,
         dynamic_key=dynamic_key,
+        upstream_futures=upstream_futures,
     )
 
     # Async task run
@@ -413,6 +417,7 @@ async def begin_task_run(
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
+    upstream_futures: Optional[Iterable[PrefectFuture]],
 ) -> PrefectFuture:
     """
     Async entrypoint for task calls.
@@ -421,6 +426,11 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+    if upstream_futures:
+        task_inputs["upstream_futures"] = await collect_task_run_inputs(
+            upstream_futures
+        )
 
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
@@ -428,9 +438,7 @@ async def begin_task_run(
         dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
-        task_inputs={
-            k: await collect_task_run_inputs(v) for k, v in parameters.items()
-        },
+        task_inputs=task_inputs,
     )
 
     future = await flow_run_context.executor.submit(
@@ -440,6 +448,7 @@ async def begin_task_run(
         task_run_id=task_run_id,
         flow_run_id=flow_run_context.flow_run_id,
         parameters=parameters,
+        upstream_futures=upstream_futures,
     )
 
     # Track the task run future in the flow run context
@@ -454,6 +463,7 @@ async def orchestrate_task_run(
     task_run_id: UUID,
     flow_run_id: UUID,
     parameters: Dict[str, Any],
+    upstream_futures: Optional[Iterable[PrefectFuture]],
     client: OrionClient,
 ) -> State:
     """
@@ -490,9 +500,11 @@ async def orchestrate_task_run(
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
-    # Resolve upstream futures and states into data
     try:
+        # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
+        # Resolve futures in any non-data dependencies to ensure they are ready
+        await resolve_upstream_task_futures(upstream_futures, return_data=False)
     except UpstreamTaskError as upstream_exc:
         state = await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
@@ -649,7 +661,9 @@ async def raise_failed_state(state: State) -> None:
         )
 
 
-async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str, Any]:
+async def resolve_upstream_task_futures(
+    parameters: Dict[str, Any], return_data: bool = True
+) -> Dict[str, Any]:
     """
     Resolve any `PrefectFuture` types nested in parameters into data.
 
@@ -669,7 +683,8 @@ async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str,
                 raise UpstreamTaskError(
                     f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
                 )
-            else:
+            # Only load the state data if requested
+            if return_data:
                 return state.result()
         else:
             return expr
@@ -677,7 +692,7 @@ async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str,
     return await visit_collection(
         parameters,
         visit_fn=visit_fn,
-        return_data=True,
+        return_data=return_data,
     )
 
 
