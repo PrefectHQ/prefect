@@ -11,6 +11,7 @@ from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
 from prefect.utilities.collections import quote
+from prefect.exceptions import ReservedArgumentError
 
 
 def comparable_inputs(d):
@@ -815,3 +816,12 @@ class TestTaskWaitFor:
                 TaskRunResult(id=b.state_details.task_run_id),
             ],
         }
+
+    def test_using_wait_for_in_task_definition_raises_reserved(self):
+        with pytest.raises(
+            ReservedArgumentError, match="'wait_for' is a reserved argument name"
+        ):
+
+            @task
+            def foo(wait_for):
+                pass
