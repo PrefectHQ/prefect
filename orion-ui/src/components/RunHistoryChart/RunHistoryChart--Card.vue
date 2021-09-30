@@ -20,7 +20,7 @@
 </template>
 
 <script lang="ts" setup>
-import RunHistoryChart from './RunHistoryChart.vue'
+import RunHistoryChart from './RunHistoryChart--Chart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
 import { defineProps, computed, watch } from 'vue'
 

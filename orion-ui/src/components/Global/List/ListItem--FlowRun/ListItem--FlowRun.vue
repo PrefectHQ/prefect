@@ -49,11 +49,11 @@
     </div>
 
     <div v-breakpoints="'md'" class="chart-container mr-2">
-      <RunHistoryChart
+      <!-- <RunHistoryChart
         v-if="false"
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
-      />
+      /> -->
     </div>
 
     <div class="font--secondary item--duration mr-2">
@@ -69,10 +69,8 @@ import { Options, Vue, prop } from 'vue-class-component'
 import { FlowRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 
-import {
-  default as RunHistoryChart,
-  Bucket
-} from '@/components/RunHistoryChart/RunHistoryChart.vue'
+import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+import { Bucket } from '@/typings/run_history'
 
 class Props {
   item = prop<FlowRun>({ required: true })

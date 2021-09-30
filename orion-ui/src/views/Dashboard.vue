@@ -32,7 +32,7 @@
     />
 
     <div class="chart-section">
-      <RunHistoryCard class="run-history" :filter="flowRunHistoryFilter" />
+      <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
       <IntervalBarChartCard
         title="Duration"
@@ -49,18 +49,6 @@
         :filter="flowRunStatsFilter"
         class="run-lateness flex-grow-0"
       />
-
-      <!-- <Card class="run-lateness flex-grow-0" shadow="sm">
-        <template v-slot:aside>
-          <div class="pl-2 pt-1" style="width: 100px">
-            <div class="font--secondary subheader">--</div>
-            <div class="body">Lateness</div>
-          </div>
-        </template>
-        <div class="chart px-1">
-          <BarChart :items="run_lateness_items" height="117px" />
-        </div>
-      </Card> -->
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
@@ -177,12 +165,12 @@ import {
   TaskRunsFilter
 } from '@/plugins/api'
 
-import RunHistoryCard from '@/components/RunHistoryChart/RunHistoryCard.vue'
+import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 
 import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
 
 @Options({
-  components: { IntervalBarChartCard, RunHistoryCard },
+  components: { IntervalBarChartCard, RunHistoryChartCard },
   watch: {
     resultsTab(val) {
       this.$router.push({ hash: `#${val}` })
@@ -220,9 +208,6 @@ export default class Dashboard extends Vue {
       }
     })
   }
-
-  run_lateness_items: any[] = []
-  run_duration_items: any[] = []
 
   premadeFilters: { label: string; count: number | null }[] = [
     { label: 'Failed Runs', count: null },

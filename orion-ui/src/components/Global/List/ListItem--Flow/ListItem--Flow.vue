@@ -40,11 +40,11 @@
     </div>
 
     <div v-breakpoints="'md'" class="chart-container">
-      <RunHistoryChart
+      <!-- <RunHistoryChart
         v-if="false"
         :items="taskRunBuckets"
         :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
-      />
+      /> -->
     </div>
   </list-item>
 </template>
@@ -52,10 +52,8 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { Flow } from '@/typings/objects'
-import {
-  default as RunHistoryChart,
-  Bucket
-} from '@/components/RunHistoryChart/RunHistoryChart.vue'
+import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+import { Bucket } from '@/typings/run_history'
 
 class Props {
   item = prop<Flow>({ required: true })
