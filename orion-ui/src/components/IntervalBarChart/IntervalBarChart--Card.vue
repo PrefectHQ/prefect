@@ -36,7 +36,7 @@ const queries: { [key: string]: Query } = {
     endpoint: Endpoints[props.endpoint],
     body: props.filter,
     options: {
-      pollInterval: 10000
+      pollInterval: 5000
     }
   })
 }

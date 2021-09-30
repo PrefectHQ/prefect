@@ -72,7 +72,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
 
     // Generate y scale
     this.yScale
-      .domain([0, this.maxValue])
+      .domain([0, this.maxValue || 1])
       .range([0, this.height - this.paddingY])
   }
 
