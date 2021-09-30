@@ -170,7 +170,7 @@ details.quote[open] > summary > code {
 .doc-property { display: none; }
 
 /* arguments & returns tables */
-.doc-contents table td { font-size: 1.15em; }
+/* .doc-contents table td { } */
 
 /* bold the argument name column */
 .doc-contents table td:nth-child(1) { font-weight: bold; }
