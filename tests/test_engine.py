@@ -226,6 +226,7 @@ class TestOrchestrateTaskRun:
             task=foo,
             task_run=task_run,
             parameters={},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -259,6 +260,7 @@ class TestOrchestrateTaskRun:
             task=foo,
             task_run=task_run,
             parameters={},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -309,6 +311,7 @@ class TestOrchestrateTaskRun:
             task=flaky_function,
             task_run=task_run,
             parameters={},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -377,6 +380,7 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -418,6 +422,7 @@ class TestOrchestrateTaskRun:
             task_run=task_run,
             # Nest the future in a collection to ensure that it is found
             parameters={"x": upstream_task_state},
+            wait_for=None,
             client=orion_client,
         )
 
