@@ -66,7 +66,8 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Executors: concepts/executors.md
+        - Futures: concepts/futures.md
+        - Orchestration Rules: concepts/orchestration.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
