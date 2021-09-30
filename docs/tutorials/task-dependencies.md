@@ -6,6 +6,7 @@ One of the core features of Prefect is the ability to control dependencies betwe
 ## A working example
 
 To set the stage, let's start with the following Python script that creates some sqlite3 tables and adds data to them:
+
 ```python
 import datetime
 import json
@@ -100,12 +101,29 @@ def main(project_names, db_file="example.db")
 
 And find that when we run this as a flow (which can still be achieved with our CLI setup!) the "criticaly-important" project is indeed created!  
 ```python
-main(["orion", "", "critically-important"])
+>>> main(["orion", "", "critically-important"])
+State(name='Failed', type=StateType.FAILED, message='1/4 states failed.')
 ```
 
-Note that the final state of the flow run is failed, as we would expect given the error.
+Note that the final state of the flow run is failed, as we would expect given that one of the tasks did fail due to the integrity check.
 
-- second example is adding a dependency downstream of the failed task
+## Enforcing State Dependencies
+
+You may have observed that all of the `add_project` tasks have an implicit depedency on `create_tables` finishing successfully - if the table isn't created, then we have no need to run these tasks as we know they will fail.  In more complex use cases, they may actually "succeed" but not produce the correct effect if this dependency is not enforced!
+
+Luckily, Prefect makes it easy to configure a state dependency between two or more task runs using the special `wait_for` keyword argument:
+```python
+@flow(name="Add Projects to DB")
+def main(project_names, db_file="example.db")
+
+    # prefect may switch threads 
+    connection = sqlite3.connect(db_file, check_same_thread=False) 
+    table_task = create_tables(connection) 
+
+    for name in project_names:
+        add_project(connection, name, wait_for=[table_task])
+```
+
 - custom management of state
 - extracting data from a task (not a prefect dependency!)
 
