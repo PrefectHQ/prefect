@@ -1,0 +1,18 @@
+{{ log.debug() }}
+<div class="prefect-return">
+    <p><strong>Returns:</strong></p>
+    <table class="prefect-table">
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{% if return.annotation %}<code>{{ return.annotation }}</code>{% endif %}</td>
+                <td>{{ return.description|convert_markdown(heading_level, html_id) }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

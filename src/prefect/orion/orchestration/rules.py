@@ -512,8 +512,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Implements a hook that can fire before a state is committed to the database.
 
         This hook may produce side-effects or mutate the proposed state of a
-        transition using one of three methods: `self.reject_transition`,
-        `self.delay_transition`, and `self.abort_transition`.
+        transition using one of four methods: `self.reject_transition`,
+        `self.delay_transition`, `self.abort_transition`, and `self.rename_state`.
 
         !!! note
             As currently implemented, the `before_transition` hook is not
@@ -713,6 +713,18 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.ABORT
         self.context.response_details = StateAbortDetails(reason=reason)
+
+    async def rename_state(self, state_name):
+        """
+        Sets the "name" attribute on a proposed state.
+
+        The name of a state is an annotation intended to provide rich, human-readable
+        context for how a run is progressing. This method only updates the name and not
+        the canonical state TYPE, and will not fizzle or invalidate any other rules
+        that might govern this state transition.
+        """
+
+        self.context.proposed_state.name = state_name
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
