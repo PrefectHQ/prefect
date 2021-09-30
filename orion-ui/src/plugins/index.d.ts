@@ -91,8 +91,8 @@ interface FlowFilter {
 
 interface FlowRunFilter {
   id?: {
-    any_: any_
-    not_any_: not_any_
+    any_?: any_
+    not_any_?: not_any_
   }
   tags?: {
     /**
@@ -140,8 +140,8 @@ interface FlowRunFilter {
 
 interface TaskRunFilter {
   id?: {
-    any_: any_
-    not_any_: not_any_
+    any_?: any_
+    not_any_?: not_any_
   }
   tags?: {
     /**
