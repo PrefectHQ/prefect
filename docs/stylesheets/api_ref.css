@@ -7,10 +7,32 @@
     --pink-2: #fe5196;
 }
 
+.prefect-container {
+    position: relative;
+}
+
+.prefect-anchor {
+    position: absolute;
+    top: 8px;
+    left: -18px;
+    font-size: 20px;
+}
+
+.doc.doc-children { 
+    padding-bottom: 8px; 
+    padding-left: 28px;
+}
+
 .doc.doc-class h2,
 .doc.doc-function h2,
 .doc.doc-method h3 {
     border-bottom: 2px solid var(--gray-2);
+}
+
+.doc.doc-class h2 .prefect-anchor,
+.doc.doc-function h2 .prefect-anchor,
+.doc.doc-method h3 .prefect-anchor{
+    display: inline-block;
 }
 
 .doc.doc-module > h1 {
@@ -34,6 +56,8 @@
     font-size: 14px;
     font-weight: 900;
     text-transform: lowercase;
+    white-space: nowrap;
+    display: inline-block;
 }
 
 .doc.doc-class > h2:before {
@@ -53,11 +77,6 @@
     margin-bottom: 12px;
     white-space: nowrap;
     overflow-x: auto;
-}
-
-.doc.doc-class .doc-contents { 
-    padding-bottom: 8px; 
-    padding-left: 28px;
 }
 
 .doc p, .doc em, .doc li {
