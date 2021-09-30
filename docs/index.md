@@ -28,7 +28,7 @@ def hello(name: str = "world"):
     """
     Say hello to `name`
     """
-    print(f"Hello {name}!")
+    printf("Hello, {name}!")
 
 hello() # Hello, world!
 hello(name="Marvin") # Hello, Marvin!
