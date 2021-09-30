@@ -256,6 +256,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   updateScales(): void {
+    // console.log('items from bar chart', this.items, this.padding)
     const start = this.intervalStart
     const end = this.intervalEnd
     this.xScale

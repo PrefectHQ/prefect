@@ -20,7 +20,7 @@
 <script lang="ts" setup>
 import BarChart from './IntervalBarChart--Chart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
-import { defineProps, computed, watch } from 'vue'
+import { defineProps, computed } from 'vue'
 import { Bucket, StateBucket } from '@/typings/run_history'
 
 const props = defineProps<{
@@ -31,10 +31,14 @@ const props = defineProps<{
   height: string
 }>()
 
+const filter = computed(() => {
+  return props.filter
+})
+
 const queries: { [key: string]: Query } = {
   query: Api.query({
     endpoint: Endpoints[props.endpoint],
-    body: props.filter,
+    body: filter,
     options: {
       pollInterval: 5000
     }
@@ -52,14 +56,6 @@ const intervalEnd = computed(() => {
 const intervalSeconds = computed(() => {
   return props.filter.history_interval_seconds
 })
-
-watch(
-  () => props.filter,
-  async () => {
-    queries.query.body = props.filter
-    queries.query.startPolling()
-  }
-)
 
 const items = computed(() => {
   return (queries.query.response.value || []).map((item: Bucket) => {
