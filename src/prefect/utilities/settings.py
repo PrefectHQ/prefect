@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pydantic import BaseSettings, Field, SecretStr
+from typing import Optional
 from pydantic.fields import Undefined
 
 
