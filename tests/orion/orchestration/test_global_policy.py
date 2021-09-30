@@ -375,6 +375,7 @@ async def test_update_subflow_parent_task(
             task_key="dummy-task",
             flow_run_id=parent_flow_run.id,
             state=ctx.initial_state.copy(reset_fields=True),
+            dynamic_key="0",
         ),
     )
 
