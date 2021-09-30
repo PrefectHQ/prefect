@@ -110,7 +110,7 @@ class TaskRun(ORMBaseModel):
     )
     flow_run_id: UUID
     task_key: str
-    dynamic_key: str = None
+    dynamic_key: str
     cache_key: str = None
     cache_expiration: datetime.datetime = None
     task_version: str = None
