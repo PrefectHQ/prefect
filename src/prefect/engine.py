@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from prefect.exceptions import IncompleteUpstreamTaskError
+from prefect.exceptions import UpstreamTaskError
 
 from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
@@ -486,7 +486,7 @@ async def orchestrate_task_run(
     # Resolve upstream futures and states into data
     try:
         resolved_parameters = await resolve_upstream_task_futures(parameters)
-    except IncompleteUpstreamTaskError as upstream_exc:
+    except UpstreamTaskError as upstream_exc:
         state = await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
             task_run_id=task_run_id,
@@ -661,7 +661,7 @@ async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str,
             state = await expr.wait()
             print(state)
             if not state.is_completed():
-                raise IncompleteUpstreamTaskError(
+                raise UpstreamTaskError(
                     f"Upstream task run '{state.state_details.task_run_id}' did not complete."
                 )
             else:
