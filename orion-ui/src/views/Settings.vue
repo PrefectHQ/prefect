@@ -125,6 +125,7 @@ export default class Settings extends Vue {
   resetDatabaseConfirmation: string = ''
   showResetSection: boolean = false
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get settings(): { [key: string]: any } {
     return this.queries.settings.response
   }
@@ -133,8 +134,10 @@ export default class Settings extends Vue {
     return this.queries.version.response
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   get settingsSections(): { [key: string]: any }[] {
     if (!this.settings) return []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const settings: { [key: string]: any } = { ...this.settings, base: {} }
     // Go one level down on orion section
     Object.entries(settings).forEach(([key, value]) => {
@@ -152,21 +155,26 @@ export default class Settings extends Vue {
   }
 
   async resetDatabase(): Promise<void> {
-    const query = await Api.query(Endpoints.universe).fetch()
+    const query = await Api.query({
+      endpoint: Endpoints.database_clear,
+      body: { confirm: true }
+    }).fetch()
     this.showToast({
       type: query.error ? 'error' : 'success',
       content: query.error ? query.error : 'Database reset'
     })
   }
 
-  showToast(options: { type: string; content: any }): void {
+  showToast(options: { type: string; content: string }): void {
     this.$toast.add({ ...options, timeout: 5000 })
   }
 
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
   objectCheck(arg: any): boolean {
     return arg && typeof arg == 'object' && !Array.isArray(arg)
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   flatten(arr: [string, any][]): { key: string; content: any }[] {
     return arr.reduce((acc: { key: string; content: any }[], [key, value]) => {
       const obj: { key: string; content: any } = {
@@ -185,6 +193,7 @@ export default class Settings extends Vue {
       return acc
     }, [])
   }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 </script>
 
