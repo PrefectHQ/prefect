@@ -60,16 +60,15 @@ class CacheInsertion(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
     ) -> None:
-        if validated_state is not None:
-            cache_key = validated_state.state_details.cache_key
-            if cache_key:
-                new_cache_item = orm.TaskRunStateCache(
-                    cache_key=cache_key,
-                    cache_expiration=validated_state.state_details.cache_expiration,
-                    task_run_state_id=validated_state.id,
-                )
-                context.session.add(new_cache_item)
-                await context.session.flush()
+        cache_key = validated_state.state_details.cache_key
+        if cache_key:
+            new_cache_item = orm.TaskRunStateCache(
+                cache_key=cache_key,
+                cache_expiration=validated_state.state_details.cache_expiration,
+                task_run_state_id=validated_state.id,
+            )
+            context.session.add(new_cache_item)
+            await context.session.flush()
 
 
 class CacheRetrieval(BaseOrchestrationRule):
