@@ -12,6 +12,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
+from prefect.utilities.collections import quote
 
 
 def comparable_inputs(d):
@@ -752,3 +753,25 @@ class TestTaskInputs:
                 TaskRunResult(id=c.state_details.task_run_id),
             },
         )
+
+
+class TestTaskDatalessDependencies:
+    def test_downstream_does_not_run_if_upstream_fails(self):
+        @task
+        def fails():
+            raise ValueError("Fail task!")
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = fails()
+            b = bar(2, upstream_futures=[f])
+            return quote(b)
+
+        flow_state = test_flow()
+        task_state = flow_state.result().unquote()
+        assert task_state.is_pending()
+        assert task_state.name == "NotReady"
