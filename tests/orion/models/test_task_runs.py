@@ -11,12 +11,15 @@ from prefect.orion.schemas.states import Scheduled
 
 class TestCreateTaskRun:
     async def test_create_task_run_succeeds(self, flow_run, session):
-        fake_task_run = schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key")
+        fake_task_run = schemas.core.TaskRun(
+            flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+        )
         task_run = await models.task_runs.create_task_run(
             session=session, task_run=fake_task_run
         )
         assert task_run.flow_run_id == flow_run.id
         assert task_run.task_key == "my-key"
+        assert task_run.dynamic_key == "0"
 
     async def test_create_task_run_with_dynamic_key(self, flow_run, session):
         fake_task_run = schemas.core.TaskRun(
@@ -48,6 +51,7 @@ class TestCreateTaskRun:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
+                dynamic_key="0",
                 task_inputs=task_inputs,
             ),
         )
@@ -62,7 +66,9 @@ class TestCreateTaskRun:
     async def test_create_task_run_has_no_default_state(self, flow_run, session):
         task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         assert task_run.flow_run_id == flow_run.id
         assert task_run.state is None
@@ -74,6 +80,7 @@ class TestCreateTaskRun:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
+                dynamic_key="0",
                 state=schemas.states.State(
                     id=state_id, type="RUNNING", name="My Running State"
                 ),
@@ -88,26 +95,6 @@ class TestCreateTaskRun:
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"
-
-        # creating a different task run without a dynamic key should create
-        # a new state
-        new_task_run = await models.task_runs.create_task_run(
-            session=session,
-            task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id,
-                task_key="my-key",
-                state=schemas.states.State(type="SCHEDULED", name="My Scheduled State"),
-            ),
-        )
-        assert new_task_run.flow_run_id == flow_run.id
-        assert new_task_run.state.id != task_run.state.id
-
-        query = await session.execute(
-            sa.select(models.orm.TaskRunState).filter_by(id=new_task_run.state.id)
-        )
-        result = query.scalar()
-        assert result.id != state_id
-        assert result.name == "My Scheduled State"
 
     async def test_create_task_run_with_state_and_dynamic_key(self, flow_run, session):
         scheduled_state_id = uuid4()
@@ -166,11 +153,15 @@ class TestReadTaskRuns:
     async def test_read_task_runs_filters_by_task_run_ids_any(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -201,13 +192,19 @@ class TestReadTaskRuns:
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id, task_key="my-key", name="{task_key}"
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="0",
+                name="{task_key}",
             ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id, task_key="my-key-2", name="my task run"
+                flow_run_id=flow_run.id,
+                task_key="my-key-2",
+                dynamic_key="0",
+                name="my task run",
             ),
         )
 
@@ -230,13 +227,19 @@ class TestReadTaskRuns:
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id, task_key="my-key", tags=["db", "blue"]
+                flow_run_id=flow_run.id,
+                task_key="my-key",
+                dynamic_key="0",
+                tags=["db", "blue"],
             ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id, task_key="my-key-2", tags=["db"]
+                flow_run_id=flow_run.id,
+                task_key="my-key-2",
+                dynamic_key="0",
+                tags=["db"],
             ),
         )
         task_run_3 = await models.task_runs.create_task_run(
@@ -244,6 +247,7 @@ class TestReadTaskRuns:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key-2",
+                dynamic_key="1",
             ),
         )
 
@@ -293,7 +297,9 @@ class TestReadTaskRuns:
     ):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_state_1 = await models.task_runs.set_task_run_state(
             session=session,
@@ -302,7 +308,9 @@ class TestReadTaskRuns:
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
         task_run_state_2 = await models.task_runs.set_task_run_state(
             session=session,
@@ -345,6 +353,7 @@ class TestReadTaskRuns:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
+                dynamic_key="0",
                 start_time=now.subtract(minutes=1),
             ),
         )
@@ -353,14 +362,14 @@ class TestReadTaskRuns:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key-2",
+                dynamic_key="0",
                 start_time=now.add(minutes=1),
             ),
         )
         task_run_3 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.core.TaskRun(
-                flow_run_id=flow_run.id,
-                task_key="my-key-2",
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="1"
             ),
         )
 
@@ -432,11 +441,15 @@ class TestReadTaskRuns:
     async def test_read_task_runs_filters_by_flow_run_criteria(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -460,11 +473,15 @@ class TestReadTaskRuns:
     ):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -496,7 +513,9 @@ class TestReadTaskRuns:
         )
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run_1.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run_1.id, task_key="my-key", dynamic_key="0"
+            ),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -518,11 +537,15 @@ class TestReadTaskRuns:
     ):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
 
         result = await models.task_runs.read_task_runs(
@@ -561,11 +584,15 @@ class TestReadTaskRuns:
     async def test_read_task_runs_applies_limit(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
         result = await models.task_runs.read_task_runs(session=session, limit=1)
         assert len(result) == 1
@@ -573,11 +600,15 @@ class TestReadTaskRuns:
     async def test_read_task_runs_applies_offset(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+            ),
         )
         task_run_2 = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-key-2"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", dynamic_key="0"
+            ),
         )
         result_1 = await models.task_runs.read_task_runs(
             session=session, offset=0, limit=1
@@ -595,6 +626,7 @@ class TestReadTaskRuns:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
+                dynamic_key="0",
                 expected_start_time=now.subtract(minutes=5),
             ),
         )
@@ -603,6 +635,7 @@ class TestReadTaskRuns:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="my-key",
+                dynamic_key="1",
                 expected_start_time=now.add(minutes=5),
             ),
         )

@@ -204,17 +204,16 @@ async def visit_collection(
         result = [[await recurse(k), await recurse(v)] for k, v in expr.items()]
         return typ(result) if return_data else None
 
-    elif isinstance(expr, prefect.orion.schemas.states.State):
-        return expr
-
-    elif isinstance(expr, prefect.orion.schemas.data.DataDocument):
-        return expr
-
     elif is_dataclass(expr) and not isinstance(expr, type):
         result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
         return typ(**result) if return_data else None
 
-    elif isinstance(expr, pydantic.BaseModel):
+    elif (
+        # Recurse into Pydantic models but do _not_ do so for states/datadocs
+        isinstance(expr, pydantic.BaseModel)
+        and not isinstance(expr, prefect.orion.schemas.states.State)
+        and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
+    ):
         result = {f: await recurse(getattr(expr, f)) for f in expr.__fields__}
         return typ(**result) if return_data else None
 
