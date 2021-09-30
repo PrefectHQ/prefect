@@ -46,6 +46,16 @@ export interface FlowRunsHistoryFilter {
   deployments?: DeploymentFilter
 }
 
+export interface TaskRunsHistoryFilter {
+  history_start: string
+  history_end: string
+  history_interval_seconds: number
+  flows?: FlowFilter
+  flow_runs?: FlowRunFilter
+  task_runs?: TaskRunFilter
+  deployments?: DeploymentFilter
+}
+
 export interface DatabaseClearBody {
   confirm: boolean
 }
@@ -61,6 +71,7 @@ export type Filters = {
   task_run: null
   task_runs: TaskRunsFilter
   task_runs_count: TaskRunsFilter
+  tasl_runs_history: TaskRunsHistoryFilter
   deployment: null
   deployments: DeploymentsFilter
   deployments_count: DeploymentsFilter
@@ -121,6 +132,10 @@ export const Endpoints: { [key: string]: Endpoint } = {
   task_runs_count: {
     method: 'POST',
     url: '/task_runs/count/'
+  },
+  task_runs_history: {
+    method: 'POST',
+    url: '/task_runs/history/'
   },
   settings: {
     method: 'GET',

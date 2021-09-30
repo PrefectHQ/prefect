@@ -49,11 +49,14 @@
     </div>
 
     <div v-breakpoints="'md'" class="chart-container mr-2">
-      <!-- <RunHistoryChart
-        v-if="false"
-        :items="taskRunBuckets"
-        :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
-      /> -->
+      <RunHistoryChart
+        :items="taskRunHistory"
+        :interval-start="store.getters.globalFilter.start"
+        :interval-end="store.getters.globalFilter.end"
+        :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        static-median
+        :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
+      />
     </div>
 
     <div class="font--secondary item--duration mr-2">
@@ -64,63 +67,72 @@
   </list-item>
 </template>
 
-<script lang="ts">
-import { Options, Vue, prop } from 'vue-class-component'
+<script lang="ts" setup>
+import { defineProps, computed } from 'vue'
+import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
+import { Buckets } from '@/typings/run_history'
+import { useStore } from 'vuex'
 import { secondsToApproximateString } from '@/util/util'
 
-import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import { Bucket } from '@/typings/run_history'
+const store = useStore()
+const props = defineProps<{ item: FlowRun }>()
 
-class Props {
-  item = prop<FlowRun>({ required: true })
+const flow_runs: FlowRunsFilter = {
+  flow_runs: {
+    id: {
+      any_: [props.item.id]
+    }
+  }
 }
 
-@Options({
-  components: { RunHistoryChart }
+const taskRunHistoryFilter = computed(() => {
+  return {
+    history_start: store.getters.globalFilter.start.toISOString(),
+    history_end: store.getters.globalFilter.end.toISOString(),
+    history_interval_seconds: store.getters.globalFilter.intervalSeconds * 4,
+    flow_runs: flow_runs.flows
+  }
 })
-export default class ListItemFlowRun extends Vue.with(Props) {
-  sliceStart: number = Math.floor(Math.random() * 4)
 
-  taskRunBuckets: Bucket[] = []
-
-  get taskRunCount(): number {
-    return this.item.task_run_count
-  }
-
-  get state(): string {
-    return this.item.state.type.toLowerCase()
-  }
-
-  get tags(): string[] {
-    return this.item.tags
-  }
-
-  get reason(): string | null {
-    return this.state == 'failed' ? 'Lorem ipsum dolorset atem' : null
-  }
-
-  get duration(): string {
-    return this.state == 'pending' || this.state == 'scheduled'
-      ? '--'
-      : this.item.total_run_time
-      ? secondsToApproximateString(this.item.total_run_time)
-      : secondsToApproximateString(this.item.estimated_run_time)
-  }
+const queries: { [key: string]: Query } = {
+  task_run_history: Api.query({
+    endpoint: Endpoints.task_runs_history,
+    body: taskRunHistoryFilter
+  }),
+  task_run_count: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: flow_runs
+  })
 }
+
+const duration = computed(() => {
+  return state.value == 'pending' || state.value == 'scheduled'
+    ? '--'
+    : props.item.total_run_time
+    ? secondsToApproximateString(props.item.total_run_time)
+    : secondsToApproximateString(props.item.estimated_run_time)
+})
+
+const state = computed(() => {
+  return props.item.state.type.toLowerCase()
+})
+
+const tags = computed(() => {
+  return props.item.tags
+})
+
+const taskRunCount = computed((): number => {
+  return queries.task_run_count?.response?.value || 0
+})
+
+const taskRunHistory = computed((): Buckets => {
+  return queries.task_run_history?.response.value || []
+})
 </script>
 
-<style lang="scss" scoped>
-.item--tags {
-  border-radius: 4px;
-  display: inline-block;
-  padding: 4px 8px;
-}
-
-.run-state {
-  text-transform: capitalize;
-}
-</style>
+<style lang="scss" scoped></style>
 
 <style lang="scss" scoped>
 @use '@/styles/components/list-item--flow-run.scss';
