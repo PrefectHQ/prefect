@@ -445,9 +445,6 @@ async def begin_task_run(
     # Track the task run future in the flow run context
     flow_run_context.task_run_futures.append(future)
 
-    # Update the dynamic key so future task calls are distinguishable from this task run
-    task.update_dynamic_key()
-
     return future
 
 
