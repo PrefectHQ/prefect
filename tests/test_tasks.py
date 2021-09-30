@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import flow, get_result, tags
+from prefect import flow, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
 from prefect.orion.schemas.core import TaskRunResult
@@ -39,9 +39,9 @@ class TestTaskCall:
             return foo(1)
 
         flow_state = bar()
-        task_state = get_result(flow_state)
+        task_state = flow_state.result()
         assert isinstance(task_state, State)
-        assert get_result(task_state) == 1
+        assert task_state.result() == 1
 
     async def test_async_task_called_inside_async_flow(self):
         @task
@@ -53,9 +53,9 @@ class TestTaskCall:
             return await foo(1)
 
         flow_state = await bar()
-        task_state = await get_result(flow_state)
+        task_state = flow_state.result()
         assert isinstance(task_state, State)
-        assert await get_result(task_state) == 1
+        assert task_state.result() == 1
 
     async def test_sync_task_called_inside_async_flow(self):
         @task
@@ -67,9 +67,9 @@ class TestTaskCall:
             return foo(1)
 
         flow_state = await bar()
-        task_state = await get_result(flow_state)
+        task_state = flow_state.result()
         assert isinstance(task_state, State)
-        assert await get_result(task_state) == 1
+        assert task_state.result() == 1
 
     def test_async_task_called_inside_sync_flow_raises_clear_error(self):
         @task
@@ -80,13 +80,11 @@ class TestTaskCall:
         def bar():
             return foo(1)
 
+        state = bar()
         with pytest.raises(
-            RuntimeError,
-            match="Your task is async, but your flow is sync",
+            RuntimeError, match="Your task is async, but your flow is sync"
         ):
-            # Normally, this would just return the coro which was never awaited but we
-            # want to fail instead to provide a better error
-            raise_failed_state(bar())
+            state.result()
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -100,14 +98,13 @@ class TestTaskCall:
             return bar()
 
         flow_state = foo()
-        task_state = get_result(flow_state, raise_failures=False)
+        task_state = flow_state.result(raise_on_failure=False)
 
         # Assert the final state is correct
         assert task_state.is_failed() if error else task_state.is_completed()
-        result = get_result(task_state, raise_failures=False)
-        assert exceptions_equal(result, error)
+        assert exceptions_equal(task_state.result(raise_on_failure=False), error)
 
-    def test_final_task_state_respects_returned_state(sel):
+    def test_final_task_state_respects_returned_state(self):
         @task
         def bar():
             return State(
@@ -121,11 +118,11 @@ class TestTaskCall:
             return bar()
 
         flow_state = foo()
-        task_state = get_result(flow_state, raise_failures=False)
+        task_state = flow_state.result(raise_on_failure=False)
 
         # Assert the final state is correct
         assert task_state.is_failed()
-        assert get_result(task_state, raise_failures=False) is True
+        assert task_state.result(raise_on_failure=False) is True
         assert task_state.message == "Test returned state"
 
     async def test_task_runs_correctly_populate_dynamic_keys(self):
@@ -138,7 +135,7 @@ class TestTaskCall:
             return bar().run_id, bar().run_id
 
         flow_state = foo()
-        task_run_ids = await get_result(flow_state)
+        task_run_ids = flow_state.result()
 
         async with OrionClient() as client:
             task_runs = [await client.read_task_run(run_id) for run_id in task_run_ids]
@@ -161,8 +158,8 @@ class TestTaskCall:
             return bar(foo(1))
 
         flow_state = test_flow()
-        task_state = get_result(flow_state)
-        assert get_result(task_state) == 2
+        task_state = flow_state.result()
+        assert task_state.result() == 2
 
     def test_task_with_variadic_args(self):
         @task
@@ -174,8 +171,8 @@ class TestTaskCall:
             return foo(1, 2, 3, bar=4)
 
         flow_state = test_flow()
-        task_state = get_result(flow_state)
-        assert get_result(task_state) == ((1, 2, 3), 4)
+        task_state = flow_state.result()
+        assert task_state.result() == ((1, 2, 3), 4)
 
     def test_task_with_variadic_keyword_args(self):
         @task
@@ -187,8 +184,8 @@ class TestTaskCall:
             return foo(1, 2, x=3, y=4, z=5)
 
         flow_state = test_flow()
-        task_state = get_result(flow_state)
-        assert get_result(task_state) == (1, 2, dict(x=3, y=4, z=5))
+        task_state = flow_state.result()
+        assert task_state.result() == (1, 2, dict(x=3, y=4, z=5))
 
 
 class TestTaskRetries:
@@ -219,17 +216,15 @@ class TestTaskRetries:
             return future.run_id, future.wait()
 
         flow_state = test_flow()
-        task_run_id, task_run_state = await get_result(flow_state)
+        task_run_id, task_run_state = flow_state.result()
 
         if always_fail:
             assert task_run_state.is_failed()
-            assert exceptions_equal(
-                await get_result(task_run_state, raise_failures=False), exc
-            )
+            assert exceptions_equal(task_run_state.result(raise_on_failure=False), exc)
             assert mock.call_count == 4
         else:
             assert task_run_state.is_completed()
-            assert await get_result(task_run_state) is True
+            assert task_run_state.result() is True
             assert mock.call_count == 4
 
         async with OrionClient() as client:
@@ -265,10 +260,10 @@ class TestTaskRetries:
             return future.run_id, future.wait()
 
         flow_state = test_flow()
-        task_run_id, task_run_state = await get_result(flow_state)
+        task_run_id, task_run_state = flow_state.result()
 
         assert task_run_state.is_completed()
-        assert await get_result(task_run_state) is True
+        assert task_run_state.result() is True
         assert mock.call_count == 2
 
         async with OrionClient() as client:
@@ -294,10 +289,10 @@ class TestTaskCaching:
             return foo(1).wait(), foo(1).wait()
 
         flow_state = bar()
-        first_state, second_state = get_result(flow_state)
+        first_state, second_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
-        assert get_result(second_state) == get_result(first_state)
+        assert second_state.result() == first_state.result()
 
     def test_cache_hits_within_flows_are_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
@@ -309,10 +304,10 @@ class TestTaskCaching:
             return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
-        first_state, second_state = get_result(flow_state)
+        first_state, second_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert get_result(second_state) == get_result(first_state)
+        assert second_state.result() == first_state.result()
 
     def test_many_repeated_cache_hits_within_flows_cached(self):
         @task(cache_key_fn=lambda *_: "cache hit")
@@ -326,7 +321,7 @@ class TestTaskCaching:
             return [call.wait() for call in calls]
 
         flow_state = bar()
-        states = get_result(flow_state)
+        states = flow_state.result()
         assert all(state.name == "Cached" for state in states)
 
     def test_cache_hits_between_flows_are_cached(self):
@@ -342,7 +337,7 @@ class TestTaskCaching:
         second_state = bar(2)
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert get_result(second_state) == get_result(first_state)
+        assert second_state.result() == first_state.result() == 1
 
     def test_cache_misses_arent_cached(self):
 
@@ -360,7 +355,7 @@ class TestTaskCaching:
             return foo(1).wait(), foo(1).wait()
 
         flow_state = bar()
-        first_state, second_state = get_result(flow_state)
+        first_state, second_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
@@ -376,15 +371,18 @@ class TestTaskCaching:
         def bar():
             return foo("something").wait(), foo("different").wait()
 
-        first_state, second_state = get_result(bar())
+        first_state, second_state = bar().result()
         assert first_state.name == "Completed"
-        assert second_state.name == "Cached"
-        assert get_result(second_state) == get_result(first_state)
+        assert first_state.result() == "something"
 
-        third_state, fourth_state = get_result(bar())
+        assert second_state.name == "Cached"
+        assert second_state.result() == "something"
+
+        third_state, fourth_state = bar().result()
         assert third_state.name == "Completed"
         assert fourth_state.name == "Cached"
-        assert get_result(fourth_state) == get_result(first_state)
+        assert third_state.result() == "something"
+        assert fourth_state.result() == "something"
 
     def test_cache_key_fn_arg_inputs_are_stable(self):
         def stringed_inputs(context, args):
@@ -403,13 +401,15 @@ class TestTaskCaching:
             )
 
         flow_state = bar()
-        first_state, second_state, third_state = get_result(flow_state)
+        first_state, second_state, third_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert third_state.name == "Cached"
 
-        assert get_result(second_state) == get_result(first_state)
-        assert get_result(third_state) == get_result(first_state)
+        # same output
+        assert first_state.result() == 6
+        assert second_state.result() == 6
+        assert third_state.result() == 6
 
     def test_cache_key_hits_with_future_expiration_are_cached(self):
         @task(
@@ -424,10 +424,10 @@ class TestTaskCaching:
             return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
-        first_state, second_state = get_result(flow_state)
+        first_state, second_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
-        assert get_result(second_state) == get_result(first_state)
+        assert second_state.result() == 1
 
     def test_cache_key_hits_with_past_expiration_are_not_cached(self):
         @task(
@@ -442,10 +442,10 @@ class TestTaskCaching:
             return foo(1).wait(), foo(2).wait()
 
         flow_state = bar()
-        first_state, second_state = get_result(flow_state)
+        first_state, second_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
-        assert get_result(second_state) != get_result(first_state)
+        assert second_state.result() != first_state.result()
 
 
 class TestCacheFunctionBuiltins:
@@ -459,12 +459,14 @@ class TestCacheFunctionBuiltins:
             return foo(1).wait(), foo(2).wait(), foo(1).wait()
 
         flow_state = bar()
-        first_state, second_state, third_state = get_result(flow_state)
+        first_state, second_state, third_state = flow_state.result()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
-        assert get_result(first_state) != get_result(second_state)
-        assert get_result(first_state) == get_result(third_state)
+
+        assert first_state.result() != second_state.result()
+        assert first_state.result() == third_state.result()
+        assert first_state.result() == 1
 
     def test_task_input_hash_between_flows(self):
         @task(cache_key_fn=task_input_hash)
@@ -481,8 +483,8 @@ class TestCacheFunctionBuiltins:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
-        assert get_result(first_state) != get_result(second_state)
-        assert get_result(first_state) == get_result(third_state)
+        assert first_state.result() != second_state.result()
+        assert first_state.result() == third_state.result() == 1
 
 
 class TestTaskRunTags:
@@ -498,7 +500,7 @@ class TestTaskRunTags:
         def my_task():
             pass
 
-        task_state = await get_result(my_flow())
+        task_state = my_flow().result()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -516,7 +518,7 @@ class TestTaskRunTags:
         def my_task():
             pass
 
-        task_state = await get_result(my_flow())
+        task_state = my_flow().result()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -535,7 +537,7 @@ class TestTaskRunTags:
             pass
 
         with tags("a", "b"):
-            task_state = await get_result(my_flow())
+            task_state = my_flow().result()
 
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
@@ -555,7 +557,7 @@ class TestTaskRunTags:
         def my_task():
             pass
 
-        task_state = await get_result(my_flow())
+        task_state = my_flow().result()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -574,7 +576,7 @@ class TestTaskRunTags:
         def my_task():
             pass
 
-        task_state = await get_result(my_flow())
+        task_state = my_flow().result()
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
         )
@@ -592,7 +594,7 @@ class TestTaskInputs:
             return foo(1)
 
         flow_state = test_flow()
-        x = await get_result(flow_state)
+        x = flow_state.result()
 
         task_run = await orion_client.read_task_run(x.state_details.task_run_id)
 
@@ -608,7 +610,7 @@ class TestTaskInputs:
             return foo(1)
 
         flow_state = test_flow()
-        x = await get_result(flow_state)
+        x = flow_state.result()
 
         task_run = await orion_client.read_task_run(x.state_details.task_run_id)
 
@@ -631,7 +633,7 @@ class TestTaskInputs:
             return a, b, c
 
         flow_state = test_flow()
-        a, b, c = await get_result(flow_state)
+        a, b, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -657,7 +659,7 @@ class TestTaskInputs:
             return a, b, c
 
         flow_state = test_flow()
-        a, b, c = await get_result(flow_state)
+        a, b, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -683,7 +685,7 @@ class TestTaskInputs:
             return a, b, c
 
         flow_state = test_flow()
-        a, b, c = await get_result(flow_state)
+        a, b, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -708,7 +710,7 @@ class TestTaskInputs:
             return a, c
 
         flow_state = test_flow()
-        a, c = await get_result(flow_state)
+        a, c = flow_state.result()
 
         task_run = await orion_client.read_task_run(c.state_details.task_run_id)
 
@@ -735,7 +737,8 @@ class TestTaskInputs:
             return a, b, c, d
 
         flow_state = test_flow()
-        a, b, c, d = await get_result(flow_state)
+
+        a, b, c, d = flow_state.result()
 
         task_run = await orion_client.read_task_run(d.state_details.task_run_id)
 

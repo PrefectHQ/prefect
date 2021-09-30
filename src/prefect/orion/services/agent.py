@@ -20,9 +20,10 @@ class Agent(LoopService):
 
     async def run_once(self) -> None:
         async with self.session_factory() as session:
-            await self.agent.get_and_submit_flow_runs(
-                query_fn=partial(read_flow_runs, session)
-            )
+            async with session.begin():
+                await self.agent.get_and_submit_flow_runs(
+                    query_fn=partial(read_flow_runs, session)
+                )
 
     async def setup(self) -> None:
         await super().setup()

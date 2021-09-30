@@ -4,6 +4,7 @@ edit_uri: edit/main/docs/
 extra_css:
     - stylesheets/admonitions.css
     - stylesheets/api_ref.css
+    - stylesheets/rest_ref.css
     - stylesheets/syntax_highlights.css
     - stylesheets/termynal.css
 extra_javascript:
@@ -35,12 +36,13 @@ theme:
 plugins:
     - autorefs
     - mkdocstrings:
+        custom_templates: docs/templates
         handlers:
             python:
                 rendering:
                     show_root_heading: True
-                    show_object_full_path: True
-                    show_category_heading: True
+                    show_object_full_path: False
+                    show_category_heading: False
                     show_bases: False
                     heading_level: 1
         watch:
@@ -55,10 +57,9 @@ nav:
         - Tutorials:
             - tutorials/first-steps.md
             - tutorials/flow-configuration.md
-            - tutorials/futures-and-parallelism.md
+            - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/rest.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -77,6 +78,9 @@ nav:
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
+            - 'Utilities':
+                - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+                - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
         - Orion Python API: 
             - 'Models':
                 - 'orion.models.deployments': api-ref/orion/models/deployments.md
