@@ -29,6 +29,7 @@ from typing_extensions import ParamSpec
 from prefect.futures import PrefectFuture
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
+from prefect.exceptions import ReservedArgumentError
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -113,6 +114,11 @@ class Task(Generic[P, R]):
         update_wrapper(self, fn)
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
+
+        if "wait_for" in inspect.signature(self.fn).parameters:
+            raise ReservedArgumentError(
+                "'wait_for' is a reserved argument name and cannot be used in task functions."
+            )
 
         self.tags = set(tags if tags else [])
 
