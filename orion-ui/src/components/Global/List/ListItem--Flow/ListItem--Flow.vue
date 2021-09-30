@@ -31,11 +31,15 @@
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
       <rounded-button class="mr-1">
-        {{ flowRunCount }} flow run{{ flowRunCount == 1 ? '' : 's' }}
+        {{ flowRunCount.toLocaleString() }} flow run{{
+          flowRunCount == 1 ? '' : 's'
+        }}
       </rounded-button>
 
       <rounded-button class="mr-1">
-        {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
+        {{ taskRunCount.toLocaleString() }} task run{{
+          taskRunCount == 1 ? '' : 's'
+        }}
       </rounded-button>
     </div>
 
@@ -96,11 +100,11 @@ const queries: { [key: string]: Query } = {
 }
 
 const flowRunCount = computed((): number => {
-  return queries.flow_run_count.response || 0
+  return queries.flow_run_count?.response?.value || 0
 })
 
 const taskRunCount = computed((): number => {
-  return queries.task_run_count.response || 0
+  return queries.task_run_count?.response?.value || 0
 })
 
 const flowRunHistory = computed((): Buckets => {
