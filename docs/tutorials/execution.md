@@ -1,6 +1,6 @@
 # Flow Execution
 
-Prefect allows you to configure many aspects of how your flows and tasks run - here we review execution configuration _within a single flow run_.  For things like scheduling and flow deployment configuration see the tutorial on [Deployments](/tutorials/deployments/).
+Prefect allows you to configure many aspects of how your flows and tasks run - here we review execution configuration _within a single flow run_.  For topics such as scheduling and flow deployment configuration see the tutorial on [Deployments](/tutorials/deployments/).
 
 ## Executors
 
