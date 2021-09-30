@@ -247,17 +247,14 @@ async def create_and_begin_subflow_run(
         sync_portal=parent_flow_run_context.sync_portal,
     )
 
-    if terminal_state.is_completed():
-        # Since a subflow run does not wait for all of its futures before exiting, we
-        # wait for any returned futures to complete before setting the final state
-        # of the flow
-        terminal_state.data = await resolve_futures_to_data(terminal_state.data)
-
     # Update the flow to the terminal state _after_ the executor has shut down
     terminal_state = await client.propose_state(
         state=terminal_state,
         flow_run_id=flow_run_id,
     )
+
+    # Track the subflow state so the parent flow can use it to determine its final state
+    parent_flow_run_context.subflow_states.append(terminal_state)
 
     return terminal_state
 
@@ -305,7 +302,7 @@ async def orchestrate_flow_run(
                 executor=executor,
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
-            ):
+            ) as flow_run_context:
                 # Validate the parameters before the call; raises an exception if invalid
                 if flow.should_validate_parameters:
                     parameters = flow.validate_parameters(parameters)
@@ -327,6 +324,13 @@ async def orchestrate_flow_run(
             data=DataDocument.encode("cloudpickle", exc),
         )
     else:
+        if result is None:
+            # All tasks and subflows are reference tasks if there is no return value
+            # If there are no tasks, use `None` instead of an empty iterable
+            result = (
+                flow_run_context.task_run_futures + flow_run_context.subflow_states
+            ) or None
+
         state = await user_return_value_to_state(result, serializer="cloudpickle")
 
     return state
@@ -437,6 +441,9 @@ async def begin_task_run(
         flow_run_id=flow_run_context.flow_run_id,
         parameters=parameters,
     )
+
+    # Track the task run future in the flow run context
+    flow_run_context.task_run_futures.append(future)
 
     return future
 
