@@ -25,8 +25,6 @@ class LoopService:
     # flag for whether the service should stop running
     should_stop: bool = False
 
-    # services may need different database timeouts than the rest of the application
-    database_timeout: Optional[float] = prefect.settings.orion.database.services_timeout
     session_factory: sa.ext.asyncio.scoping.async_scoped_session = None
 
     def __init__(self, loop_seconds: float = None):
@@ -41,7 +39,7 @@ class LoopService:
         """
         # prepare a database engine
         # this call is cached and shared across services if possible
-        engine = await get_engine(timeout=self.database_timeout)
+        engine = await get_engine()
         self.session_factory = await get_session_factory(engine)
 
     async def shutdown(self) -> None:
