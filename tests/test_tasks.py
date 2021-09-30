@@ -5,8 +5,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from prefect import flow, tags
-from prefect.client import OrionClient
-from prefect.engine import raise_failed_state
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -755,7 +753,7 @@ class TestTaskInputs:
         )
 
 
-class TestTaskExplicitUpstreamFutures:
+class TestTaskWaitFor:
     def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
@@ -768,7 +766,7 @@ class TestTaskExplicitUpstreamFutures:
         @flow
         def test_flow():
             f = fails()
-            b = bar(2, upstream_futures=[f])
+            b = bar(2, wait_for=[f])
             return quote(b)
 
         flow_state = test_flow()
@@ -788,9 +786,32 @@ class TestTaskExplicitUpstreamFutures:
         @flow
         def test_flow():
             f = foo(1)
-            b = bar(2, upstream_futures=[f])
+            b = bar(2, wait_for=[f])
             return quote(b)
 
         flow_state = test_flow()
         task_state = flow_state.result().unquote()
         assert task_state.result() == 2
+
+    async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def test_flow():
+            a, b = foo(1), foo(2)
+            c = foo(3)
+            d = foo(c, wait_for=[a, b])
+            return quote((a, b, c, d))
+
+        flow_state = test_flow()
+        a, b, c, d = flow_state.result().unquote()
+        d_task_run = await orion_client.read_task_run(d.state_details.task_run_id)
+        assert d_task_run.task_inputs == {
+            "x": [TaskRunResult(id=c.state_details.task_run_id)],
+            "wait_for": [
+                TaskRunResult(id=a.state_details.task_run_id),
+                TaskRunResult(id=b.state_details.task_run_id),
+            ],
+        }

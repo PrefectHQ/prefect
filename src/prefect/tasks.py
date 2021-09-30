@@ -140,7 +140,7 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, NoReturn]",
         *args: P.args,
-        upstream_futures: Optional[Iterable[PrefectFuture]],
+        wait_for: Optional[Iterable[PrefectFuture]],
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
@@ -151,7 +151,7 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
-        upstream_futures: Optional[Iterable[PrefectFuture]],
+        wait_for: Optional[Iterable[PrefectFuture]],
         **kwargs: P.kwargs,
     ) -> Awaitable[PrefectFuture[T]]:
         ...
@@ -160,7 +160,7 @@ class Task(Generic[P, R]):
     def __call__(
         self: "Task[P, T]",
         *args: P.args,
-        upstream_futures: Optional[Iterable[PrefectFuture]],
+        wait_for: Optional[Iterable[PrefectFuture]],
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T]:
         ...
@@ -168,7 +168,7 @@ class Task(Generic[P, R]):
     def __call__(
         self,
         *args: Any,
-        upstream_futures: Optional[Iterable[PrefectFuture]] = None,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
@@ -184,6 +184,7 @@ class Task(Generic[P, R]):
 
         Args:
             *args: Arguments to run the task with
+            wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword arguments to run the task with
 
         Returns:
@@ -250,7 +251,7 @@ class Task(Generic[P, R]):
             self,
             parameters=parameters,
             dynamic_key=dynamic_key,
-            upstream_futures=upstream_futures,
+            wait_for=wait_for,
         )
 
     def get_and_update_dynamic_key(self) -> str:

@@ -340,7 +340,7 @@ def enter_task_run_engine(
     task: Task,
     parameters: Dict[str, Any],
     dynamic_key: str,
-    upstream_futures: Optional[Iterable[PrefectFuture]],
+    wait_for: Optional[Iterable[PrefectFuture]],
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -372,7 +372,7 @@ def enter_task_run_engine(
         flow_run_context=flow_run_context,
         parameters=parameters,
         dynamic_key=dynamic_key,
-        upstream_futures=upstream_futures,
+        wait_for=wait_for,
     )
 
     # Async task run
@@ -417,7 +417,7 @@ async def begin_task_run(
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
     dynamic_key: str,
-    upstream_futures: Optional[Iterable[PrefectFuture]],
+    wait_for: Optional[Iterable[PrefectFuture]],
 ) -> PrefectFuture:
     """
     Async entrypoint for task calls.
@@ -427,10 +427,8 @@ async def begin_task_run(
     a future that is returned immediately.
     """
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
-    if upstream_futures:
-        task_inputs["upstream_futures"] = await collect_task_run_inputs(
-            upstream_futures
-        )
+    if wait_for:
+        task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
@@ -448,7 +446,7 @@ async def begin_task_run(
         task_run_id=task_run_id,
         flow_run_id=flow_run_context.flow_run_id,
         parameters=parameters,
-        upstream_futures=upstream_futures,
+        wait_for=wait_for,
     )
 
     # Track the task run future in the flow run context
@@ -463,7 +461,7 @@ async def orchestrate_task_run(
     task_run_id: UUID,
     flow_run_id: UUID,
     parameters: Dict[str, Any],
-    upstream_futures: Optional[Iterable[PrefectFuture]],
+    wait_for: Optional[Iterable[PrefectFuture]],
     client: OrionClient,
 ) -> State:
     """
@@ -504,7 +502,7 @@ async def orchestrate_task_run(
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
         # Resolve futures in any non-data dependencies to ensure they are ready
-        await resolve_upstream_task_futures(upstream_futures, return_data=False)
+        await resolve_upstream_task_futures(wait_for, return_data=False)
     except UpstreamTaskError as upstream_exc:
         state = await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
