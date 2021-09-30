@@ -4,7 +4,7 @@
       <div class="subheader py-1 px-2">{{ props.title }}</div>
     </template>
 
-    <div class="px-2 pb-1" :style="{ height: height }">
+    <div class="px-2 pb-2" :style="{ height: height }">
       <BarChart
         v-if="items && items.length"
         :items="items"

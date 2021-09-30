@@ -2,6 +2,8 @@
   <div ref="container" class="chart-container">
     <svg :id="id" ref="chart"></svg>
 
+    <div class="median" />
+
     <div class="bucket-container">
       <div
         v-for="item in items"
@@ -42,7 +44,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
 
   padding = {
     top: 16,
-    bottom: 16,
+    bottom: 4,
     middle: 0,
     left: 0,
     right: 0
@@ -91,6 +93,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
       height: height + 'px',
       left: left + 'px',
       top: top + 'px',
+      transform: `translate(${this.barWidth / 2}px)`,
       width: this.barWidth + 'px'
     }
   }
