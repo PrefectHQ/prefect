@@ -18,7 +18,7 @@
 </template>
 
 <script lang="ts">
-import { FlowRun, TaskRun } from '@/objects'
+import { FlowRun, TaskRun } from '@/typings/objects'
 import { Options, Vue } from 'vue-class-component'
 
 import Timeline from '../components/Timeline/Timeline.vue'
@@ -33,7 +33,7 @@ import Timeline from '../components/Timeline/Timeline.vue'
   }
 })
 export default class TimelineView extends Vue {
-  selected: string | string[] | null = null
+  selected: string = ''
 
   interval: ReturnType<typeof setInterval> | null = null
 
@@ -62,7 +62,7 @@ export default class TimelineView extends Vue {
     }, 3000)
   }
 
-  async getFlowRun(id: string) {
+  async getFlowRun(id: string): Promise<void> {
     const run = await fetch(`http://localhost:8000/flow_runs/${id}`)
 
     const result = await run.json()
@@ -74,11 +74,10 @@ export default class TimelineView extends Vue {
     }
   }
 
-  async startFlowRunInterval() {
+  async startFlowRunInterval(): Promise<void> {
     if (!this.flowRun) return
     if (this.interval) clearInterval(this.interval)
 
-    console.log(this.flowRun)
     if (this.flowRun.state_type == 'RUNNING') {
       this.interval = setInterval(async () => {
         if (this.selected && typeof this.selected == 'string') {
@@ -88,8 +87,8 @@ export default class TimelineView extends Vue {
     }
   }
 
-  async getTaskRuns(id: string) {
-    if (!this.selected) return
+  async getTaskRuns(id: string): Promise<TaskRun[]> {
+    if (!this.selected) return []
     // TODO: Move polling to global utility functions that we can turn on/off
     const runs = await fetch('http://localhost:8000/task_runs/filter', {
       method: 'POST',
@@ -108,7 +107,7 @@ export default class TimelineView extends Vue {
     return await runs.json()
   }
 
-  async mounted() {
+  async mounted(): Promise<void> {
     const flow_runs = await fetch('http://localhost:8000/flow_runs/filter', {
       method: 'POST',
       headers: {
@@ -123,7 +122,7 @@ export default class TimelineView extends Vue {
     this.flowRuns = result
 
     if (this.$route.params.id) {
-      this.selected = this.$route.params.id
+      this.selected = this.$route.params.id as string
     }
   }
 }

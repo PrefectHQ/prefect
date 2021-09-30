@@ -56,7 +56,7 @@ def setup_sqlite(conn, named=True):
 async def get_engine(
     connection_url: str = None,
     echo: bool = settings.orion.database.echo,
-    timeout: Optional[float] = settings.orion.database.timeout,
+    timeout: Optional[float] = None,
 ) -> sa.engine.Engine:
     """Retrieves an async SQLAlchemy engine.
 

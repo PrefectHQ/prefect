@@ -27,7 +27,7 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.executors import BaseExecutor, LocalExecutor
+from prefect.executors import BaseExecutor, SequentialExecutor
 from prefect.exceptions import FlowParameterError
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
@@ -61,7 +61,7 @@ class Flow(Generic[P, R]):
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         executor: An optional executor to use for task execution within the flow; if
-            not provided, a `LocalExecutor` will be instantiated.
+            not provided, a `SequentialExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -82,7 +82,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        executor: Union[Type[BaseExecutor], BaseExecutor] = None,
+        executor: Union[Type[BaseExecutor], BaseExecutor] = SequentialExecutor,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -91,7 +91,7 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        executor = executor or LocalExecutor()
+        executor = executor or SequentialExecutor()
         self.executor = executor() if isinstance(executor, type) else executor
 
         self.description = description or inspect.getdoc(fn)
@@ -202,7 +202,7 @@ class Flow(Generic[P, R]):
 
             Run a flow and get the returned result
 
-            >>> get_result(my_flow("marvin"))
+            >>> my_flow("marvin").result()
             "goodbye marvin"
 
             Run a flow with additional tags
@@ -239,7 +239,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = None,
+    executor: BaseExecutor = SequentialExecutor,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -252,7 +252,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = None,
+    executor: BaseExecutor = SequentialExecutor,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -271,7 +271,7 @@ def flow(
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
         executor: An optional executor to use for task execution within the flow; if
-            not provided, a `LocalExecutor` will be instantiated.
+            not provided, a `SequentialExecutor` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
