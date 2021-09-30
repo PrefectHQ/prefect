@@ -399,7 +399,7 @@ class TestOrchestrateTaskRun:
         assert state.name == "NotReady"
         assert (
             state.message
-            == f"Upstream task run '{upstream_task_run_id}' did not complete."
+            == f"Upstream task run '{upstream_task_run_id}' did not reach a 'COMPLETED' state."
         )
 
     @pytest.mark.parametrize(

@@ -660,7 +660,7 @@ async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str,
             state = await expr.wait()
             if not state.is_completed():
                 raise UpstreamTaskError(
-                    f"Upstream task run '{state.state_details.task_run_id}' did not complete."
+                    f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
                 )
             else:
                 return state.result()
