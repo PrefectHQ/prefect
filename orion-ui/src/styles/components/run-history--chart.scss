@@ -1,10 +1,23 @@
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
 .chart-container {
   height: 100%;
   position: relative;
+  overflow: hidden;
   width: 100%;
 
   > svg {
     height: 100%;
+    width: 100%;
+  }
+
+  .median {
+    height: 1px;
+    background-color: $blue-20;
+    position: absolute;
+    left: 0;
+    top: -2;
+    transition: top 150ms;
     width: 100%;
   }
 

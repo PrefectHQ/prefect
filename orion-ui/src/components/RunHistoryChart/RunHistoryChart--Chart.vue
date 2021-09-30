@@ -2,6 +2,8 @@
   <div ref="container" class="chart-container">
     <svg :id="id" ref="chart" class="run-history-chart"></svg>
 
+    <div class="median" :style="medianPosition" />
+
     <div class="bar-container">
       <div
         v-for="(item, i) in items"
@@ -51,6 +53,7 @@ import { Selection } from 'd3-selection'
 import { Transition } from 'd3-transition'
 import { AxisDomain } from 'd3-axis'
 import { Bucket, Buckets, StateBucket } from '@/typings/run_history'
+import { StyleValue } from '@vue/runtime-dom'
 
 type TransitionSelectionType = Transition<
   SVGGElement,
@@ -120,6 +123,11 @@ class Props {
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
+  staticMedian = prop<boolean>({
+    required: false,
+    type: Boolean,
+    default: false
+  })
   padding = prop<{
     top: number
     bottom: number
@@ -198,16 +206,13 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     return this.height - this.axisHeight
   }
 
-  calculateBucketPosition(item: Bucket): { [key: string]: string } {
+  calculateBucketPosition(item: Bucket): StyleValue {
     return {
       left: this.xScale(new Date(item.interval_start)) + 'px'
     }
   }
 
-  calculateBarPosition(
-    item: StateBucket,
-    bucketKey: number
-  ): { [key: string]: string } {
+  calculateBarPosition(item: StateBucket, bucketKey: number): StyleValue {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const series = this.seriesMap.get(item.state_type)!
     const seriesSlot = series[bucketKey]
@@ -224,7 +229,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 
     return {
       height: height + 'px',
-      top: top + this.padding.top + this.padding.middle + 'px',
+      top: top + this.padding.top + this.padding.middle / 2 + 'px',
       transform: 'translate(-50%)',
       width: this.barWidth + 'px'
     }
@@ -241,6 +246,24 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     }
   }
 
+  median: number = -2
+
+  updateMedian(): void {
+    this.median = d3.mean(this.series.flat(2), (val) => Math.abs(val)) || 0
+  }
+
+  get medianPosition(): StyleValue {
+    const top =
+      (this.median > 0
+        ? this.yScale(this.median)
+        : (this.height - this.padding.top) / 2) + this.padding.top
+
+    console.log(this.median)
+    return {
+      top: top + 'px'
+    }
+  }
+
   resize(): void {
     this.updateScales()
   }
@@ -253,6 +276,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   beforeUpdate(): void {
     if (!this.svg) this.createChart()
     this.updateScales()
+    this.updateMedian()
   }
 
   updateScales(): void {
@@ -266,18 +290,23 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     const flattened = this.series.flat(2)
     const min = Math.min(...flattened)
     const max = Math.max(...flattened)
-    // const startMin = Math.abs(min) > Math.abs(max)
-    // const startEqual = Math.abs(min) === Math.abs(max)
-    this.yScale
-      .domain([min, max])
-      // This can be used to keep a consistent middle line
-      // otherwise the chart median will move with the data
-      // .domain([
-      //   startMin || startEqual ? min : 0,
-      //   startMin || startEqual ? 0 : max
-      // ])
-      // .rangeRound([this.padding.top, this.viewHeight / 2 - this.paddingY])
-      .rangeRound([this.padding.top, this.viewHeight - this.paddingY])
+
+    if (this.staticMedian) {
+      const startMin = Math.abs(min) > Math.abs(max)
+      const startEqual = Math.abs(min) === Math.abs(max)
+      this.yScale
+        // This can be used to keep a consistent middle line
+        // otherwise the chart median will move with the data
+        .domain([
+          startMin || startEqual ? min : 0,
+          startMin || startEqual ? 0 : max
+        ])
+        .rangeRound([this.padding.top, this.viewHeight - this.paddingY])
+    } else {
+      this.yScale
+        .domain([min, max])
+        .rangeRound([this.padding.top, this.viewHeight - this.paddingY])
+    }
 
     if (this.showAxis && this.xAxisGroup) {
       this.xAxisGroup.call(this.xAxis)
