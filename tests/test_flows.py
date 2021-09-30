@@ -1,14 +1,11 @@
 from typing import List
 import anyio
-from packaging.version import parse as parse_version
-
-import mypy.version
+import enum
 import pydantic
-from pydantic.decorator import validate_arguments
 import pytest
 import time
 
-from prefect import flow, get_result, task, tags
+from prefect import flow, task, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
 from prefect.exceptions import FlowParameterError
@@ -106,7 +103,7 @@ class TestFlowCall:
 
         state = foo(1, 2)
         assert isinstance(state, State)
-        assert await get_result(state) == 6
+        assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
         async with OrionClient() as client:
@@ -122,7 +119,7 @@ class TestFlowCall:
 
         state = await foo(1, 2)
         assert isinstance(state, State)
-        assert await get_result(state) == 6
+        assert state.result() == 6
         assert state.state_details.flow_run_id is not None
 
         async with OrionClient() as client:
@@ -140,21 +137,21 @@ class TestFlowCall:
             return x + sum(y) + zt.z
 
         state = foo(x="1", y=["2", "3"], zt=CustomType(z=4).dict())
-        assert get_result(state) == 10
+        assert state.result() == 10
 
     def test_call_with_variadic_args(self):
         @flow
         def test_flow(*foo, bar):
             return foo, bar
 
-        assert get_result(test_flow(1, 2, 3, bar=4)) == ((1, 2, 3), 4)
+        assert test_flow(1, 2, 3, bar=4).result() == ((1, 2, 3), 4)
 
     def test_call_with_variadic_keyword_args(self):
         @flow
         def test_flow(foo, bar, **foobar):
             return foo, bar, foobar
 
-        assert get_result(test_flow(1, 2, x=3, y=4, z=5)) == (1, 2, dict(x=3, y=4, z=5))
+        assert test_flow(1, 2, x=3, y=4, z=5).result() == (1, 2, dict(x=3, y=4, z=5))
 
     def test_call_raises_on_incompatible_parameter_types(self):
         @flow(version="test")
@@ -169,14 +166,14 @@ class TestFlowCall:
             FlowParameterError,
             match="value is not a valid integer",
         ):
-            raise_failed_state(state)
+            raise state.result()
 
     def test_call_ignores_incompatible_parameter_types_if_asked(self):
         @flow(version="test", validate_parameters=False)
         def foo(x: int):
             return x
 
-        assert get_result(foo(x="foo")) == "foo"
+        assert foo(x="foo").result() == "foo"
 
     @pytest.mark.parametrize("error", [ValueError("Hello"), None])
     def test_final_state_reflects_exceptions_during_run(self, error):
@@ -189,8 +186,7 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed() if error else state.is_completed()
-        result = get_result(state, raise_failures=False)
-        assert exceptions_equal(result, error)
+        assert exceptions_equal(state.result(raise_on_failure=False), error)
 
     def test_final_state_respects_returned_state(sel):
         @flow(version="test")
@@ -205,7 +201,7 @@ class TestFlowCall:
 
         # Assert the final state is correct
         assert state.is_failed()
-        assert get_result(state, raise_failures=False) == "hello!"
+        assert state.result(raise_on_failure=False) == "hello!"
         assert state.message == "Test returned state"
 
     def test_flow_state_reflects_returned_task_run_state(self):
@@ -222,11 +218,101 @@ class TestFlowCall:
         assert flow_state.is_failed()
 
         # The task run state is returned as the data of the flow state
-        task_run_state = get_result(flow_state, raise_failures=False)
+        task_run_state = flow_state.result(raise_on_failure=False)
         assert isinstance(task_run_state, State)
         assert task_run_state.is_failed()
         with pytest.raises(ValueError, match="Test"):
-            raise_failed_state(task_run_state)
+            task_run_state.result()
+
+    def test_flow_state_defaults_to_task_states_when_no_return_failure(self):
+        @task
+        def fail():
+            raise ValueError("Test")
+
+        @flow(version="test")
+        def foo():
+            fail()
+            fail()
+            return None
+
+        flow_state = foo()
+
+        assert flow_state.is_failed()
+
+        # The task run states are returned as the data of the flow state
+        task_run_states = flow_state.result(raise_on_failure=False)
+        assert len(task_run_states) == 2
+        assert all(isinstance(state, State) for state in task_run_states)
+        task_run_state = task_run_states[0]
+        assert task_run_state.is_failed()
+        with pytest.raises(ValueError, match="Test"):
+            raise_failed_state(task_run_states[0])
+
+    def test_flow_state_defaults_to_task_states_when_no_return_completed(self):
+        @task
+        def succeed():
+            return "foo"
+
+        @flow(version="test")
+        def foo():
+            succeed()
+            succeed()
+            return None
+
+        flow_state = foo()
+
+        # The task run states are returned as the data of the flow state
+        task_run_states = flow_state.result()
+        assert len(task_run_states) == 2
+        assert all(isinstance(state, State) for state in task_run_states)
+        assert task_run_states[0].result() == "foo"
+
+    def test_flow_state_default_includes_subflow_states(self):
+        @task
+        def succeed():
+            return "foo"
+
+        @flow
+        def fail():
+            raise ValueError("bar")
+
+        @flow(version="test")
+        def foo():
+            succeed()
+            fail()
+            return None
+
+        states = foo().result(raise_on_failure=False)
+        assert len(states) == 2
+        assert all(isinstance(state, State) for state in states)
+        assert states[0].result() == "foo"
+        with pytest.raises(ValueError, match="bar"):
+            raise_failed_state(states[1])
+
+    def test_flow_state_default_handles_nested_failures(self):
+        @task
+        def fail_task():
+            raise ValueError("foo")
+
+        @flow
+        def fail_flow():
+            fail_task()
+
+        @flow
+        def wrapper_flow():
+            fail_flow()
+
+        @flow(version="test")
+        def foo():
+            wrapper_flow()
+            return None
+
+        states = foo().result(raise_on_failure=False)
+        assert len(states) == 1
+        state = states[0]
+        assert isinstance(state, State)
+        with pytest.raises(ValueError, match="foo"):
+            raise_failed_state(state)
 
     def test_flow_state_reflects_returned_multiple_task_run_states(self):
         @task
@@ -250,16 +336,16 @@ class TestFlowCall:
         assert flow_state.message == "2/3 states failed."
 
         # The task run states are attached as a tuple
-        first, second, third = get_result(flow_state, raise_failures=False)
+        first, second, third = flow_state.result(raise_on_failure=False)
         assert first.is_failed()
         assert second.is_failed()
         assert third.is_completed()
 
         with pytest.raises(ValueError, match="Test 1"):
-            raise_failed_state(first)
+            first.result()
 
         with pytest.raises(ValueError, match="Test 2"):
-            raise_failed_state(second)
+            second.result()
 
     async def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
@@ -268,20 +354,25 @@ class TestFlowCall:
 
         @flow(version="bar")
         def parent(x, y=2, z=3):
-            state = child(x, y, z)
-            return state.state_details.flow_run_id, state
+            subflow_state = child(x, y, z)
+            return subflow_state.state_details.flow_run_id, subflow_state
 
         parent_state = parent(1, 2)
+        parent_flow_run_id = parent_state.state_details.flow_run_id
         assert isinstance(parent_state, State)
 
-        child_run_id, child_state = await get_result(parent_state)
-        assert await get_result(child_state) == 6
+        subflow_id, child_state = parent_state.result()
+        assert child_state.result() == 6
 
         async with OrionClient() as client:
-            child_flow_run = await client.read_flow_run(child_run_id)
-        assert child_flow_run.id == child_run_id
+            child_flow_run = await client.read_flow_run(subflow_id)
+            virtual_task = await client.read_task_run(child_flow_run.parent_task_run_id)
+
+        assert virtual_task.state.state_details.child_flow_run_id == subflow_id
+        assert virtual_task.state.state_details.flow_run_id == parent_flow_run_id
+        assert child_flow_run.parent_task_run_id == virtual_task.id
+        assert child_flow_run.id == subflow_id
         assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
-        assert child_flow_run.parent_task_run_id is not None
         assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
@@ -299,8 +390,8 @@ class TestFlowCall:
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
-        child_state = get_result(parent_state)
-        assert get_result(child_state) == 6
+        child_state = parent_state.result()
+        assert child_state.result() == 6
 
     async def test_async_flow_with_async_subflow_and_async_task(self):
         @task
@@ -317,8 +408,8 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        child_state = await get_result(parent_state)
-        assert await get_result(child_state) == 6
+        child_state = parent_state.result()
+        assert child_state.result() == 6
 
     async def test_async_flow_with_async_subflow_and_sync_task(self):
         @task
@@ -335,8 +426,8 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        child_state = await get_result(parent_state)
-        assert await get_result(child_state) == 6
+        child_state = parent_state.result()
+        assert child_state.result() == 6
 
     async def test_async_flow_with_sync_subflow_and_sync_task(self):
         @task
@@ -353,8 +444,8 @@ class TestFlowCall:
 
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
-        child_state = await get_result(parent_state)
-        assert await get_result(child_state) == 6
+        child_state = parent_state.result()
+        assert child_state.result() == 6
 
 
 class TestFlowRunTags:
@@ -380,7 +471,7 @@ class TestFlowRunTags:
             pass
 
         with tags("a", "b"):
-            subflow_state = (await get_result(my_flow())).unquote()
+            subflow_state = my_flow().result().unquote()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -511,7 +602,7 @@ class TestFlowTimeouts:
 
         state = await my_flow()
 
-        runtime, subflow_state = await get_result(state)
+        runtime, subflow_state = state.result()
         assert "timed out after 0.1 seconds" in subflow_state.message
         assert runtime < 0.5, "The engine returns without waiting"
 
@@ -544,10 +635,58 @@ class TestFlowTimeouts:
 
         state = my_flow()
 
-        runtime, subflow_state = await get_result(state)
+        runtime, subflow_state = state.result()
         assert "timed out after 0.1 seconds" in subflow_state.message
         assert runtime < 0.5, "The engine returns without waiting"
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
         assert not canary_file.exists()
+
+
+class ParameterTestModel(pydantic.BaseModel):
+    data: int
+
+
+class ParameterTestClass:
+    pass
+
+
+class ParameterTestEnum(enum.Enum):
+    X = 1
+    Y = 2
+
+
+class TestFlowParameterTypes:
+    def test_flow_parameters_cannot_be_custom_types(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        with pytest.raises(
+            FlowParameterError,
+            match=(
+                "Flow parameters must be JSON serializable. "
+                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
+            ),
+        ):
+            my_flow(ParameterTestClass())
+
+    def test_flow_parameters_can_be_pydantic_types(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        assert my_flow(ParameterTestModel(data=1)).result() == ParameterTestModel(
+            data=1
+        )
+
+    @pytest.mark.parametrize(
+        "data", ([1, 2, 3], {"foo": "bar"}, {"x", "y"}, 1, "foo", ParameterTestEnum.X)
+    )
+    def test_flow_parameters_can_be_jsonable_python_types(self, data):
+        @flow
+        def my_flow(x):
+            return x
+
+        assert my_flow(data).result() == data

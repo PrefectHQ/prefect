@@ -1,6 +1,7 @@
 import datetime
 from typing import Optional, Dict, List, Union
 
+from coolname import generate_slug
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
@@ -140,6 +141,12 @@ class RunMixin:
     Common columns and logic for FlowRun and TaskRun models
     """
 
+    name = Column(
+        String,
+        default=lambda: generate_slug(2),
+        nullable=False,
+        index=True,
+    )
     state_type = Column(sa.Enum(states.StateType, name="state_type"))
     run_count = Column(Integer, server_default="0", default=0, nullable=False)
     expected_start_time = Column(Timestamp())
@@ -307,7 +314,7 @@ class FlowRun(Base, RunMixin):
     )
     parent_task_run = relationship(
         "TaskRun",
-        back_populates="subflow_runs",
+        back_populates="subflow_run",
         lazy="raise",
         foreign_keys=lambda: [FlowRun.parent_task_run_id],
     )
@@ -422,11 +429,12 @@ class TaskRun(Base, RunMixin):
         foreign_keys=[flow_run_id],
     )
 
-    subflow_runs = relationship(
+    subflow_run = relationship(
         FlowRun,
         back_populates="parent_task_run",
         lazy="raise",
         foreign_keys=[FlowRun.parent_task_run_id],
+        uselist=False,
     )
 
     __table_args__ = (

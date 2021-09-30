@@ -14,7 +14,7 @@ from typing import (
 from uuid import UUID
 
 import prefect
-from prefect.client import OrionClient
+from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import visit_collection
@@ -57,11 +57,11 @@ class PrefectFuture(Generic[R]):
 
         Wait for a task to complete and retrieve its result
 
-        >>> from prefect import get_result
         >>> @flow
         >>> def my_flow():
         >>>     future = my_task()
-        >>>     result = get_result(future)
+        >>>     state = future.wait()
+        >>>     result = state.result()
         >>>     assert result == "hello"
 
         Retrieve the state of a task without waiting for completion
@@ -75,14 +75,11 @@ class PrefectFuture(Generic[R]):
     def __init__(
         self,
         run_id: UUID,
-        client: OrionClient,
         executor: "BaseExecutor",
         run_repr: str = None,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.run_id = run_id
-        self.run_repr = run_repr
-        self._client = client
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
@@ -106,17 +103,13 @@ class PrefectFuture(Generic[R]):
         if self._final_state:
             return self._final_state
 
-        state = await self.get_state()
-        if (state.is_completed() or state.is_failed()) and state.data:
-            return state
-
         self._final_state = await self._executor.wait(self, timeout)
-
         return self._final_state
 
     @sync_compatible
-    async def get_state(self) -> State[R]:
-        task_run = await self._client.read_task_run(self.run_id)
+    @inject_client
+    async def get_state(self, client: OrionClient) -> State[R]:
+        task_run = await client.read_task_run(self.run_id)
 
         if not task_run:
             raise RuntimeError("Future has no associated task run in the server.")
@@ -145,7 +138,7 @@ async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R
 
     async def visit_fn(expr):
         if isinstance(expr, prefect.futures.PrefectFuture):
-            return await prefect.get_result(await expr.wait())
+            return (await expr.wait()).result(raise_on_failure=False)
         else:
             return expr
 
