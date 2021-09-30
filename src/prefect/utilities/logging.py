@@ -4,7 +4,6 @@ import os
 import re
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
 
 import yaml
 
