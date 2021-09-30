@@ -125,7 +125,7 @@ class TestTaskCall:
         assert task_state.result(raise_on_failure=False) is True
         assert task_state.message == "Test returned state"
 
-    async def test_task_runs_correctly_populate_dynamic_keys(self):
+    async def test_task_runs_correctly_populate_dynamic_keys(self, orion_client):
         @task
         def bar():
             return "foo"
@@ -137,8 +137,9 @@ class TestTaskCall:
         flow_state = foo()
         task_run_ids = flow_state.result()
 
-        async with OrionClient() as client:
-            task_runs = [await client.read_task_run(run_id) for run_id in task_run_ids]
+        task_runs = [
+            await orion_client.read_task_run(run_id) for run_id in task_run_ids
+        ]
 
         # Assert dynamic key is set correctly
         assert task_runs[0].dynamic_key == "0"
@@ -195,7 +196,7 @@ class TestTaskRetries:
     """
 
     @pytest.mark.parametrize("always_fail", [True, False])
-    async def test_task_respects_retry_count(self, always_fail):
+    async def test_task_respects_retry_count(self, always_fail, orion_client):
         mock = MagicMock()
         exc = ValueError()
 
@@ -227,8 +228,7 @@ class TestTaskRetries:
             assert task_run_state.result() is True
             assert mock.call_count == 4
 
-        async with OrionClient() as client:
-            states = await client.read_task_run_states(task_run_id)
+        states = await orion_client.read_task_run_states(task_run_id)
 
         state_names = [state.name for state in states]
         assert state_names == [
@@ -243,7 +243,7 @@ class TestTaskRetries:
             "Failed" if always_fail else "Completed",
         ]
 
-    async def test_task_only_uses_necessary_retries(self):
+    async def test_task_only_uses_necessary_retries(self, orion_client):
         mock = MagicMock()
         exc = ValueError()
 
@@ -266,8 +266,7 @@ class TestTaskRetries:
         assert task_run_state.result() is True
         assert mock.call_count == 2
 
-        async with OrionClient() as client:
-            states = await client.read_task_run_states(task_run_id)
+        states = await orion_client.read_task_run_states(task_run_id)
         state_names = [state.name for state in states]
         assert state_names == [
             "Pending",
@@ -809,13 +808,17 @@ class TestTaskWaitFor:
         flow_state = test_flow()
         a, b, c, d = flow_state.result().unquote()
         d_task_run = await orion_client.read_task_run(d.state_details.task_run_id)
-        assert d_task_run.task_inputs == {
-            "x": [TaskRunResult(id=c.state_details.task_run_id)],
-            "wait_for": [
-                TaskRunResult(id=a.state_details.task_run_id),
-                TaskRunResult(id=b.state_details.task_run_id),
-            ],
-        }
+
+        assert d_task_run.task_inputs["x"] == [
+            TaskRunResult(id=c.state_details.task_run_id)
+        ], "Data passing inputs are preserved"
+
+        assert set(d_task_run.task_inputs["wait_for"]) == {
+            TaskRunResult(id=a.state_details.task_run_id),
+            TaskRunResult(id=b.state_details.task_run_id),
+        }, "'wait_for' included as a key with upstreams"
+
+        assert set(d_task_run.keys()) == {"x", "wait_for"}, "No extra keys around"
 
     def test_using_wait_for_in_task_definition_raises_reserved(self):
         with pytest.raises(
