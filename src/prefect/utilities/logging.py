@@ -15,7 +15,7 @@ DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
 # Regex for detecting interpolated global settings
-interpolated_settings = re.compile(r"^{{prefect\.settings\.logging\.([\w\d_]+)}}$")
+interpolated_settings = re.compile(r"^{{([\w\d_]+)}}$")
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -40,7 +40,7 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
         # next check if the value refers to a global setting
         # only perform this check if the value is a string beginning with '{{'
         if isinstance(val, str) and val.startswith(r"{{"):
-            # this regex looks for `{{prefect.settings.logging.KEY}}`
+            # this regex looks for `{{KEY}}`
             # and returns `KEY` as its first capture group
             matched_settings = interpolated_settings.match(val)
             if matched_settings:
