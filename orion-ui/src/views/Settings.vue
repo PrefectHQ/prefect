@@ -118,8 +118,8 @@ import { Api, Endpoints, Query } from '@/plugins/api'
 })
 export default class Settings extends Vue {
   queries: { [key: string]: Query } = {
-    settings: Api.query(Endpoints.settings),
-    version: Api.query(Endpoints.version)
+    settings: Api.query({ endpoint: Endpoints.settings }),
+    version: Api.query({ endpoint: Endpoints.version })
   }
 
   resetDatabaseConfirmation: string = ''

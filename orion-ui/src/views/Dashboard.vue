@@ -19,6 +19,18 @@
       </button-card>
     </row>
 
+    <!-- These can be used to paginate the chart -->
+    <IconButton
+      v-if="false"
+      icon="pi-arrow-left-line"
+      @click="previous30Minutes"
+    />
+    <IconButton
+      v-if="false"
+      icon="pi-arrow-right-line"
+      @click="next30Minutes"
+    />
+
     <div class="chart-section">
       <RunHistoryCard class="run-history" :filter="flowRunHistoryFilter" />
 
@@ -175,17 +187,33 @@ import BarChart from '@/components/BarChart/BarChart.vue'
 })
 export default class Dashboard extends Vue {
   queries: { [key: string]: Query } = {
-    deployments: Api.query(Endpoints.deployments_count, this.deploymentFilter, {
-      pollInterval: 10000
+    deployments: Api.query({
+      endpoint: Endpoints.deployments_count,
+      body: this.deploymentFilter,
+      options: {
+        pollInterval: 10000
+      }
     }),
-    flows: Api.query(Endpoints.flows_count, this.flowFilter, {
-      pollInterval: 10000
+    flows: Api.query({
+      endpoint: Endpoints.flows_count,
+      body: this.flowFilter,
+      options: {
+        pollInterval: 10000
+      }
     }),
-    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowRunFilter, {
-      pollInterval: 10000
+    flow_runs: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: this.flowRunFilter,
+      options: {
+        pollInterval: 10000
+      }
     }),
-    task_runs: Api.query(Endpoints.task_runs_count, this.taskRunFilter, {
-      pollInterval: 10000
+    task_runs: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: this.taskRunFilter,
+      options: {
+        pollInterval: 10000
+      }
     })
   }
 
@@ -225,16 +253,14 @@ export default class Dashboard extends Vue {
     )
   }
 
+  start = new Date()
+  end = new Date()
+
   get flowRunHistoryFilter(): FlowRunsHistoryFilter {
-    const start = new Date()
-    start.setDate(start.getDate() - 7)
-
-    const end = new Date()
-
     return {
-      history_start: start.toISOString(),
-      history_end: end.toISOString(),
-      history_interval_seconds: 604800
+      history_start: this.start.toISOString(),
+      history_end: this.end.toISOString(),
+      history_interval_seconds: 60
     }
   }
 
@@ -259,8 +285,37 @@ export default class Dashboard extends Vue {
     return this.queries[this.resultsTab].response || 0
   }
 
-  created(): void {
+  previous30Minutes(): void {
+    const start = this.start
+    const end = this.end
+
+    start.setMinutes(start.getMinutes() - 10)
+    end.setMinutes(end.getMinutes() - 10)
+
+    this.start = new Date(start)
+    this.end = new Date(end)
+  }
+  next30Minutes(): void {
+    const start = this.start
+    const end = this.end
+
+    start.setMinutes(start.getMinutes() + 10)
+    end.setMinutes(end.getMinutes() + 10)
+
+    this.start = new Date(start)
+    this.end = new Date(end)
+  }
+
+  beforeCreate(): void {
     this.resultsTab = this.$route.hash?.substr(1) || 'flows'
+
+    this.start.setMinutes(this.start.getMinutes() - 10)
+    this.start.setSeconds(0)
+    this.start.setMilliseconds(0)
+    this.end.setHours(this.end.getHours() + 1)
+    this.end.setMinutes(0)
+    this.end.setSeconds(0)
+    this.end.setMilliseconds(0)
   }
 }
 </script>

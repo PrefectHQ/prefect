@@ -1,6 +1,42 @@
 <template>
   <div ref="container" class="chart-container">
     <svg :id="id" ref="chart" class="run-history-chart"></svg>
+    <div class="bar-container">
+      <div
+        v-for="(item, i) in items"
+        :key="item.interval_start"
+        class="interval-bucket"
+        :style="calculateBucketPosition(item)"
+      >
+        <div class="up">
+          <div
+            v-for="state in item.states.filter((s) =>
+              positiveStates.includes(s.state_type)
+            )"
+            :key="state.state_type"
+            class="interval-bucket-state"
+            :class="calculateBarClass(state)"
+            :style="calculateBarPosition(state, i)"
+            tabindex="0"
+          >
+          </div>
+        </div>
+
+        <div class="down">
+          <div
+            v-for="state in item.states.filter((s) =>
+              negativeStates.includes(s.state_type)
+            )"
+            :key="state.state_type"
+            class="interval-bucket-state"
+            :class="calculateBarClass(state)"
+            :style="calculateBarPosition(state, i)"
+            tabindex="0"
+          >
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -11,16 +47,17 @@ import { D3Base } from '@/components/Visualizations/D3Base'
 
 import { Series } from 'd3-shape'
 import { Selection } from 'd3-selection'
+import { Transition } from 'd3-transition'
 import { AxisDomain } from 'd3-axis'
-import { createCappedBar } from '@/components/Visualizations/utils'
 import { Bucket, Buckets, StateBucket } from '@/typings/run_history'
 
+type TransitionSelectionType = Transition<
+  SVGGElement,
+  unknown,
+  HTMLElement,
+  null
+>
 type GroupSelectionType = Selection<SVGGElement, unknown, HTMLElement, null>
-
-type BarBucket = {
-  state: StateBucket
-  bucket_key: number
-}
 
 type BucketSeries = Series<Bucket, string>
 type SeriesCollection = BucketSeries[]
@@ -39,8 +76,6 @@ const negativeStates: string[] = ['FAILED', 'CANCELLED']
 const mappedNegativeStates: [string, number][] = negativeStates.map(
   (d: string) => [d, +1]
 )
-
-const capR = 2
 
 const directions: Map<string, number> = new Map([
   ...mappedPositiveStates,
@@ -78,6 +113,9 @@ const formatLabel = (date: AxisDomain): string => {
 }
 
 class Props {
+  intervalSeconds = prop<number>({ required: true })
+  intervalStart = prop<Date>({ required: true })
+  intervalEnd = prop<Date>({ required: true })
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
@@ -92,7 +130,7 @@ class Props {
     default: {
       top: 12,
       bottom: 12,
-      middle: 12,
+      middle: 8,
       left: 16,
       right: 16
     }
@@ -107,14 +145,26 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   barSelection: GroupSelectionType | undefined
   xAxisGroup: GroupSelectionType | undefined
 
-  xAxis = (g: GroupSelectionType): GroupSelectionType =>
+  positiveStates = positiveStates
+  negativeStates = negativeStates
+
+  axisHeight = 20
+
+  xAxis = (
+    g: GroupSelectionType
+  ): GroupSelectionType | TransitionSelectionType =>
     g
       .attr('transform', `translate(0,${this.height})`)
+      .attr('class', 'caption')
+      .transition()
+      .duration(150)
       .call(
         d3
           .axisTop(this.xScale)
-          .ticks(this.width / 100)
+          .tickPadding(0)
+          // .tickArguments(d3.timeSecond.every(this.intervalSeconds))
           .tickFormat(formatLabel)
+          .tickSizeInner(0)
           .tickSizeOuter(0)
       )
       .call((g) => g.select('.domain').remove())
@@ -138,39 +188,93 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     return new Map(this.series.map((s) => [s.key, s]))
   }
 
+  get barWidth(): number {
+    return Math.min(10, (this.width - this.paddingX) / this.items.length / 2)
+  }
+
+  get viewHeight(): number {
+    return this.height - this.axisHeight
+  }
+
+  calculateBucketPosition(item: Bucket): { [key: string]: string } {
+    return {
+      left: this.xScale(new Date(item.interval_start)) + 'px'
+    }
+  }
+
+  calculateBarPosition(
+    item: StateBucket,
+    bucketKey: number
+  ): { [key: string]: string } {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const series = this.seriesMap.get(item.state_type)!
+    const seriesSlot = series[bucketKey]
+    const height = this.yScale(seriesSlot[1]) - this.yScale(seriesSlot[0])
+    const middle = this.padding.middle / 2
+    const middleOffset = this.padding.middle
+      ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        directions.get(item.state_type)! > 0
+        ? middle
+        : middle * -1
+      : 0
+
+    const top = this.yScale(seriesSlot[0]) + middleOffset
+
+    return {
+      height: height + 'px',
+      top: top + this.padding.top + this.padding.middle + 'px',
+      transform: 'translate(-50%)',
+      width: this.barWidth + 'px'
+    }
+  }
+
+  calculateBarClass(item: StateBucket): { [key: string]: boolean } {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const direction = directions.get(item.state_type)!
+
+    return {
+      [`${item.state_type.toLowerCase()}-bg`]: true,
+      up: direction < 0,
+      down: direction > 0
+    }
+  }
+
   resize(): void {
     this.updateScales()
-    this.updateBuckets()
   }
 
   mounted(): void {
     this.createChart()
     this.updateScales()
-    this.updateBuckets()
   }
 
-  updated(): void {
+  beforeUpdate(): void {
     if (!this.svg || !this.barSelection) this.createChart()
     this.updateScales()
-    this.updateBuckets()
   }
 
   updateScales(): void {
-    const start = this.items[0].interval_start
-    const end = this.items[this.items.length - 1].interval_end
-    this.xScale.domain([new Date(start), new Date(end)]).range([0, this.width])
+    const start = this.intervalStart
+    const end = this.intervalEnd
+    this.xScale
+      .domain([start, end])
+      .range([this.padding.left, this.width - this.padding.right])
 
     const flattened = this.series.flat(2)
     const min = Math.min(...flattened)
     const max = Math.max(...flattened)
-    const startMin = Math.abs(min) > Math.abs(max)
-
+    // const startMin = Math.abs(min) > Math.abs(max)
+    // const startEqual = Math.abs(min) === Math.abs(max)
     this.yScale
-      .domain([startMin ? min : 0, startMin ? 0 : max])
-      .rangeRound([
-        this.padding.top,
-        this.height / 2 - this.padding.bottom - this.padding.middle
-      ])
+      .domain([min, max])
+      // This can be used to keep a consistent middle line
+      // otherwise the chart median will move with the data
+      // .domain([
+      //   startMin || startEqual ? min : 0,
+      //   startMin || startEqual ? 0 : max
+      // ])
+      // .rangeRound([this.padding.top, this.viewHeight / 2 - this.paddingY])
+      .rangeRound([this.padding.top, this.viewHeight - this.paddingY])
 
     if (this.showAxis && this.xAxisGroup) {
       this.xAxisGroup.call(this.xAxis)
@@ -180,10 +284,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
 
-    this.svg.attr(
-      'viewbox',
-      `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
-    )
+    this.svg.attr('viewbox', `0, 0, ${this.width}, ${this.height}`)
 
     this.svg
       .append('rect')
@@ -193,173 +294,44 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       )
       .attr('rx', 4)
       .attr('width', '100%')
-      .attr(
-        'height',
-        `${
-          this.height -
-          this.padding.top -
-          this.padding.bottom -
-          this.padding.middle
-        }px`
-      )
+      .attr('height', `${this.viewHeight}px`)
 
     this.barSelection = this.svg.append('g')
 
     this.xAxisGroup = this.svg.append('g')
 
     // TODO: Remove this guidelines (for tesitng purposes only)
-    this.svg
-      .append('line')
-      .attr('x1', 0)
-      .attr('x2', this.width)
-      .attr('y1', this.height / 2 + this.padding.middle / 2)
-      .attr('y2', this.height / 2 + this.padding.middle / 2)
-      .attr('stroke-width', this.padding.middle / 6)
-      .attr('stroke-dasharray', 12)
-      .attr('stroke', 'rgba(0, 0, 0, 0.03')
-  }
-
-  updateBarPath(d: BarBucket): string | void {
-    const maxWidth = this.width / this.items.length / 2
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const seriesSlot = this.seriesMap.get(d.state.state_type)![d.bucket_key]
-    const biasIndex = directions.get(d.state.state_type)
-
-    if (!seriesSlot || !biasIndex) return
-    const items = this.items.find(
-      (_d) => _d.interval_start == seriesSlot.data.interval_start
-    )
-    const states = items?.states || []
-    console.log(states)
-
-    const arr = biasIndex > 0 ? negativeStates : positiveStates
-    const stateIndex = arr.findIndex((s) => s == d.state.state_type)
-
-    const otherStates = states.filter(
-      (state) =>
-        state.state_type !== d.state.state_type &&
-        arr.includes(state.state_type)
-    )
-
-    const adjustedArr = arr.filter(
-      (s) => states.find((_s) => _s.state_type == s)?.count_runs || 0 > 0
-    )
-    const sumCountOther = otherStates.reduce(
-      (acc, curr) => acc + curr.count_runs,
-      0
-    )
-
-    /*
-          Round both top and bottom corners if:
-            - Is the only bar in the series
-
-          Round top corners if:
-            - Is the first bar in the positive series
-            - Is the last bar in the negative series
-
-          Round bottom corners if:
-            - Is the last bar in the positive series
-            - Is the first bar in the negative series
-        */
-
-    let showCapTop = false
-    let showCapBottom = false
-
-    if (sumCountOther == 0) {
-      showCapTop = true
-      showCapBottom = true
-    } else if (biasIndex < 0) {
-      if (stateIndex === adjustedArr.length - 1) showCapBottom = true
-      if (stateIndex === 0) showCapTop = true
-    } else if (biasIndex > 0) {
-      if (stateIndex === adjustedArr.length - 1) showCapBottom = true
-      if (stateIndex === 0) showCapTop = true
-    }
-
-    const width = Math.min(10, maxWidth) / 2
-
-    const r = Math.min(capR, width / 2)
-
-    const xStart =
-      this.xScale(new Date(seriesSlot.data.interval_start as string)) +
-      maxWidth / 2
-
-    const yStart =
-      this.yScale(seriesSlot[0]) +
-      this.padding.top +
-      (biasIndex > 0 ? this.padding.middle : 0) +
-      (biasIndex < 0 ? r / 2 : 0)
-    const height = this.yScale(seriesSlot[1]) - this.yScale(seriesSlot[0])
-
-    if (height == 0) return ''
-
-    return createCappedBar({
-      capTop: showCapTop,
-      capBottom: showCapBottom,
-      x: xStart,
-      y: yStart,
-      height: height,
-      width: width,
-      radius: r
-    })
-  }
-
-  updateBuckets(): void {
-    console.log(this.series)
-    if (!this.barSelection) return
-    // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-    this.barSelection
-      .selectAll('.bucket')
-      .data(this.items, (d: any) => d.interval_start)
-      .join(
-        (enter) =>
-          enter
-            .append('g')
-            .attr('class', 'bucket')
-            .attr('id', (d: Bucket | any) => d.interval_start.toString())
-            .style(
-              'transform',
-              `translate(${this.padding.left}px, ${this.padding.top}px)`
-            ),
-        (update) =>
-          update.style(
-            'transform',
-            `translate(${this.padding.left}px, ${this.padding.top}px)`
-          ),
-        (exit) => exit.remove()
-      )
-      .selectAll('path')
-      .data((d: Bucket, i: number) =>
-        d.states.map((state: StateBucket) => {
-          return {
-            state: state,
-            bucket_key: i
-          }
-        })
-      )
-      .join(
-        (enter: any) =>
-          enter
-            .append('path')
-            .attr('d', this.updateBarPath)
-            .attr(
-              'class',
-              // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-              (d: BarBucket) => d.state.state_type.toLowerCase() + '-fill'
-            ),
-        (update: any) =>
-          update.attr('d', this.updateBarPath).attr(
-            'class',
-            // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-            (d: BarBucket) => d.state.state_type.toLowerCase() + '-fill'
-          ),
-        (exit: any) => exit.remove()
-      )
+    // const viewMiddle = this.viewHeight / 2
+    // this.svg
+    //   .append('line')
+    //   .attr('x1', 0)
+    //   .attr('x2', this.width)
+    //   .attr('y1', viewMiddle)
+    //   .attr('y2', viewMiddle)
+    //   .attr('stroke-width', 2)
+    //   .attr('stroke-dasharray', 12)
+    //   .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 }
 </script>
 
 <style lang="scss" scoped>
 @use '@/styles/components/run-history--chart.scss';
+</style>
+
+<style lang="scss">
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
+.run-history-chart {
+  .tick line {
+    display: none;
+  }
+
+  .tick {
+    &:first-of-type,
+    &:last-of-type {
+      display: none;
+    }
+  }
+}
 </style>

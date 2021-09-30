@@ -44,7 +44,11 @@ const filter_ = computed(() => {
 
 const getData = async () => {
   loading.value = true
-  const query = Api.query(Endpoints[props.endpoint], filter_.value, {})
+  const query = Api.query({
+    endpoint: Endpoints[props.endpoint],
+    body: filter_.value,
+    options: {}
+  })
   await query.fetch()
   loading.value = false
   return query.response.value
