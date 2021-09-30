@@ -234,6 +234,7 @@ class TestOrchestrateTaskRun:
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
             parameters={},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -268,6 +269,7 @@ class TestOrchestrateTaskRun:
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
             parameters={},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -319,6 +321,7 @@ class TestOrchestrateTaskRun:
             task_run_id=task_run_id,
             flow_run_id=flow_run_id,
             parameters={},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -388,6 +391,7 @@ class TestOrchestrateTaskRun:
             flow_run_id=flow_run_id,
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
+            wait_for=None,
             client=orion_client,
         )
 
@@ -430,6 +434,7 @@ class TestOrchestrateTaskRun:
             flow_run_id=flow_run_id,
             # Nest the future in a collection to ensure that it is found
             parameters={"x": upstream_task_state},
+            wait_for=None,
             client=orion_client,
         )
 
