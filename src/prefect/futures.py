@@ -171,6 +171,10 @@ def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
     """
 
     name = __fn.__name__
+
+    # TODO: If this computation is concerningly expensive, we can iterate checking the
+    #       length at each arg or avoid calling `repr` on args with large amounts of
+    #       data
     call_args = ", ".join(
         [repr(arg) for arg in args]
         + [f"{key}={repr(val)}" for key, val in kwargs.items()]
