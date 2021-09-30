@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pydantic import BaseSettings, Field, SecretStr
+from typing import Optional
 from pydantic.fields import Undefined
 
 
@@ -103,7 +104,6 @@ class DatabaseSettings(BaseSettings):
         description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
     )
 
-    # statement timeout, in seconds
     timeout: Optional[float] = Field(
         1,
         description="A statement timeout applied to all database interactions made by the API. Defaults to `1`.",
