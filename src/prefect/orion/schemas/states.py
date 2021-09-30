@@ -119,7 +119,7 @@ class State(IDBaseModel, Generic[R]):
             elif isinstance(data, State):
                 data.result()
             elif isinstance(data, Iterable) and all(
-                [isinstance(o, State) for o in obj]
+                [isinstance(o, State) for o in data]
             ):
                 # raise the first failure we find
                 for state in data:
@@ -251,6 +251,15 @@ def Failed(**kwargs) -> State:
         State: a Failed state
     """
     return State(type=StateType.FAILED, **kwargs)
+
+
+def Cancelled(**kwargs) -> State:
+    """Convenience function for creating `Cancelled` states.
+
+    Returns:
+        State: a Cancelled state
+    """
+    return State(type=StateType.CANCELLED, **kwargs)
 
 
 def Pending(**kwargs) -> State:
