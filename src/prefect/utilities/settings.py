@@ -190,10 +190,13 @@ class ServicesSettings(BaseSettings):
         scheduled. Defaults to 100 days (`8640000` seconds).
         """,
     )
-    # batch deployments in groups of 100
+
     scheduler_insert_batch_size: int = Field(
         500,
-        description="The number of flow runs the scheduler will attempt to insert in one batch across all deployments. Multiple batches ",
+        description="""The number of flow runs the scheduler will attempt to insert 
+        in one batch across all deployments. If the number of flow runs to 
+        schedule exceeds this amount, the runs will be inserted in batches of this size.
+        """,
     )
 
     # -- Agent
