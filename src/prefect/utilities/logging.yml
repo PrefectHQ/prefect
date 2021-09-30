@@ -1,3 +1,12 @@
+# Prefect logging config file.
+#
+# Any config in this file can be set with an env var
+# `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
+#
+# Global logging settings values can be interpolated by setting
+# `key: "{{prefect.settings.logging.key}}"`. Note that only keys
+# under `prefect.settings.logging` will be interpolated.
+
 version: 1
 disable_existing_loggers: False
 
@@ -22,13 +31,15 @@ filters:
 handlers:
     console:
         class: logging.StreamHandler
-        level: DEBUG
+        # take the level from the global logging settings
+        level: "{{prefect.settings.logging.default_level}}"
         formatter: simple
         stream: ext://sys.stdout
 
     orion:
         class: prefect.utilities.logging.OrionHandler
-        level: DEBUG
+        # take the level from the global logging settings
+        level: "{{prefect.settings.logging.default_level}}"
         formatter: json
 
 loggers:

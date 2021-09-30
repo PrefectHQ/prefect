@@ -17,7 +17,7 @@ app.add_typer(orion_app)
 def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
-    log_level: str = settings.orion.api.uvicorn_log_level,
+    log_level: str = settings.orion.logging.default_level,
     services: bool = True,
 ):
     console.print("Starting Orion API...")
