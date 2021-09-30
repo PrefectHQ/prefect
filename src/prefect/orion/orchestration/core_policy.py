@@ -41,6 +41,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
+            RenameReruns,
             CacheInsertion,
             CacheRetrieval,
         ]

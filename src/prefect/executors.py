@@ -53,12 +53,10 @@ The following executors are currently supported:
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, TypeVar
 from uuid import UUID
-from prefect.utilities.collections import visit_collection
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
-import prefect
 from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.states import State
@@ -99,17 +97,14 @@ class BaseExecutor:
     def start(
         self: T,
         flow_run_id: UUID,
-        orion_client: "OrionClient",
     ) -> T:
         """Start the executor, preparing any resources necessary for task submission"""
         self.flow_run_id = flow_run_id
-        self.orion_client = orion_client
         try:
             yield self
         finally:
             self.shutdown()
             self.flow_run_id = None
-            self.orion_client = None
 
     def shutdown(self) -> None:
         """
@@ -153,15 +148,11 @@ class SequentialExecutor(BaseExecutor):
         if not self.flow_run_id:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        # Block until all upstreams are resolved
-        args, kwargs = await resolve_futures_to_data((args, kwargs))
-
         # Run the function immediately and store the result in memory
         self._results[run_id] = await run_fn(*args, **kwargs)
 
         return PrefectFuture(
             run_id=run_id,
-            client=self.orion_client,
             executor=self,
         )
 
@@ -196,21 +187,10 @@ class DaskExecutor(BaseExecutor):
         if not self._client:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        async def visit_fn(expr):
-            if isinstance(expr, PrefectFuture):
-                return await self._get_data_from_future(expr)
-            else:
-                return expr
-
-        args, kwargs = await visit_collection(
-            (args, kwargs), visit_fn=visit_fn, return_data=True
-        )
-
         self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
 
         return PrefectFuture(
             run_id=run_id,
-            client=self.orion_client,
             executor=self,
         )
 
@@ -222,21 +202,6 @@ class DaskExecutor(BaseExecutor):
         """
         return self._futures[prefect_future.run_id]
 
-    async def _get_data_from_future(
-        self, prefect_future: PrefectFuture
-    ) -> "distributed.Future":
-        """
-        Generate a dask future corresponding to a prefect future that will retrieve the
-        data from the resulting state
-        """
-        dask_state_future = self._get_dask_future(prefect_future)
-
-        def result_helper(state):
-            return state.result(raise_on_failure=False)
-
-        data_future = self._client.submit(result_helper, dask_state_future)
-        return data_future
-
     async def wait(
         self,
         prefect_future: PrefectFuture,
@@ -244,13 +209,20 @@ class DaskExecutor(BaseExecutor):
     ) -> Optional[State]:
         future = self._get_dask_future(prefect_future)
         try:
-            return future.result(timeout=timeout)
+            result = future.result(timeout=timeout)
+            # The client may be async on a dask worker
+            # TODO: Set `Client(asynchronous=True)` on startup and just always use the
+            #       async client
+            if self._client.asynchronous:
+                return await result
+            else:
+                return result
         except distributed.TimeoutError:
             return None
 
     @contextmanager
-    def start(self: T, flow_run_id: UUID, orion_client: "OrionClient") -> T:
-        with super().start(flow_run_id=flow_run_id, orion_client=orion_client):
+    def start(self: T, flow_run_id: UUID) -> T:
+        with super().start(flow_run_id=flow_run_id):
             self._client = distributed.Client()
             yield self
 
@@ -262,3 +234,21 @@ class DaskExecutor(BaseExecutor):
             except Exception:
                 pass
         self._client.close()
+
+    def __getstate__(self):
+        """
+        Allow the `DaskExecutor` to be serialized by dropping the `distributed.Client`
+        which contains locks.
+
+        Must be deserialized on a dask worker.
+        """
+        data = self.__dict__.copy()
+        data["_client"] = None
+        return data
+
+    def __setstate__(self, data):
+        """
+        Restore the `distributed.Client` by loading the client on a dask worker.
+        """
+        self.__dict__ = data
+        self._client = distributed.get_client()

@@ -24,7 +24,7 @@ from uuid import UUID, uuid4
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from anyio.from_thread import BlockingPortal
+from prefect.exceptions import UpstreamTaskError
 
 from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
@@ -43,6 +43,7 @@ from prefect.orion.schemas.states import (
     Completed,
     Failed,
     Pending,
+    Cancelled,
     Running,
     State,
     StateDetails,
@@ -55,7 +56,6 @@ from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
-    asyncnullcontext,
 )
 from prefect.utilities.callables import call_with_parameters
 from prefect.utilities.collections import ensure_iterable
@@ -185,7 +185,7 @@ async def begin_flow_run(
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-    with flow.executor.start(flow_run_id=flow_run_id, orion_client=client) as executor:
+    with flow.executor.start(flow_run_id=flow_run_id) as executor:
         with portal_context as sync_portal:
             terminal_state = await orchestrate_flow_run(
                 flow,
@@ -247,17 +247,14 @@ async def create_and_begin_subflow_run(
         sync_portal=parent_flow_run_context.sync_portal,
     )
 
-    if terminal_state.is_completed():
-        # Since a subflow run does not wait for all of its futures before exiting, we
-        # wait for any returned futures to complete before setting the final state
-        # of the flow
-        terminal_state.data = await resolve_futures_to_data(terminal_state.data)
-
     # Update the flow to the terminal state _after_ the executor has shut down
     terminal_state = await client.propose_state(
         state=terminal_state,
         flow_run_id=flow_run_id,
     )
+
+    # Track the subflow state so the parent flow can use it to determine its final state
+    parent_flow_run_context.subflow_states.append(terminal_state)
 
     return terminal_state
 
@@ -305,7 +302,7 @@ async def orchestrate_flow_run(
                 executor=executor,
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
-            ):
+            ) as flow_run_context:
                 # Validate the parameters before the call; raises an exception if invalid
                 if flow.should_validate_parameters:
                     parameters = flow.validate_parameters(parameters)
@@ -327,6 +324,13 @@ async def orchestrate_flow_run(
             data=DataDocument.encode("cloudpickle", exc),
         )
     else:
+        if result is None:
+            # All tasks and subflows are reference tasks if there is no return value
+            # If there are no tasks, use `None` instead of an empty iterable
+            result = (
+                flow_run_context.task_run_futures + flow_run_context.subflow_states
+            ) or None
+
         state = await user_return_value_to_state(result, serializer="cloudpickle")
 
     return state
@@ -438,6 +442,9 @@ async def begin_task_run(
         parameters=parameters,
     )
 
+    # Track the task run future in the flow run context
+    flow_run_context.task_run_futures.append(future)
+
     return future
 
 
@@ -483,11 +490,20 @@ async def orchestrate_task_run(
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
-    # Transition from `PENDING` -> `RUNNING`
-    state = await client.propose_state(
-        Running(state_details=StateDetails(cache_key=cache_key)),
-        task_run_id=task_run_id,
-    )
+    # Resolve upstream futures and states into data
+    try:
+        resolved_parameters = await resolve_upstream_task_futures(parameters)
+    except UpstreamTaskError as upstream_exc:
+        state = await client.propose_state(
+            Pending(name="NotReady", message=str(upstream_exc)),
+            task_run_id=task_run_id,
+        )
+    else:
+        # Transition from `PENDING` -> `RUNNING`
+        state = await client.propose_state(
+            Running(state_details=StateDetails(cache_key=cache_key)),
+            task_run_id=task_run_id,
+        )
 
     # Only run the task if we enter a `RUNNING` state
     while state.is_running():
@@ -499,7 +515,7 @@ async def orchestrate_task_run(
                 task=task,
                 client=client,
             ):
-                result = call_with_parameters(task.fn, parameters)
+                result = call_with_parameters(task.fn, resolved_parameters)
                 if task.isasync:
                     result = await result
         except Exception as exc:
@@ -631,6 +647,38 @@ async def raise_failed_state(state: State) -> None:
             f"Unexpected result for failure state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
+
+
+async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Resolve any `PrefectFuture` types nested in parameters into data.
+
+    Returns:
+        A copy of the parameters with resolved data
+
+    Raises:
+        UpstreamTaskError: If any of the upstream states are not `COMPLETED`
+    """
+
+    async def visit_fn(expr):
+        # Resolves futures into data, raising if they are not completed after `wait` is
+        # called.
+        if isinstance(expr, PrefectFuture):
+            state = await expr.wait()
+            if not state.is_completed():
+                raise UpstreamTaskError(
+                    f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
+                )
+            else:
+                return state.result()
+        else:
+            return expr
+
+    return await visit_collection(
+        parameters,
+        visit_fn=visit_fn,
+        return_data=True,
+    )
 
 
 @contextmanager
