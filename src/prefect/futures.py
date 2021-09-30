@@ -11,10 +11,11 @@ from typing import (
     Generic,
     Callable,
 )
-from uuid import UUID
+
 
 import prefect
 from prefect.client import OrionClient, inject_client
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import visit_collection
@@ -74,11 +75,12 @@ class PrefectFuture(Generic[R]):
 
     def __init__(
         self,
-        run_id: UUID,
+        task_run: TaskRun,
         executor: "BaseExecutor",
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
-        self.run_id = run_id
+        self.task_run = task_run
+        self.run_id = task_run.id
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
@@ -113,13 +115,15 @@ class PrefectFuture(Generic[R]):
         if not task_run:
             raise RuntimeError("Future has no associated task run in the server.")
 
+        # Update the task run reference
+        self.task_run = task_run
         return task_run.state
 
     def __hash__(self) -> int:
         return hash(self.run_id)
 
     def __repr__(self) -> str:
-        return f"PrefectFuture(run_id='{self.run_id}')"
+        return f"PrefectFuture({self.task_run.name!r})"
 
 
 async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R, Any]:

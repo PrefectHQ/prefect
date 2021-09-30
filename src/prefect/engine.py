@@ -52,7 +52,7 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.core import TaskRun, FlowRun
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.serializers import resolve_datadoc
 from prefect.tasks import Task
@@ -62,7 +62,7 @@ from prefect.utilities.asyncio import (
     sync_compatible,
 )
 from prefect.utilities.callables import (
-    call_with_parameters,
+    assert_parameters_are_serializable,
     parameters_to_args_kwargs,
 )
 from prefect.utilities.collections import ensure_iterable
@@ -137,14 +137,17 @@ async def create_then_begin_flow_run(
     Creates the flow run in the backend then enters the main flow rum engine
     """
     logger.info(f"Creating run for flow {flow.name!r}...")
-    flow_run_id = await client.create_flow_run(
+
+    assert_parameters_are_serializable(parameters)
+
+    flow_run = await client.create_flow_run(
         flow,
         parameters=parameters,
         state=Pending(),
         tags=TagsContext.get().current_tags,
     )
     return await begin_flow_run(
-        flow=flow, parameters=parameters, flow_run_id=flow_run_id, client=client
+        flow=flow, flow_run=flow_run, parameters=parameters, client=client
     )
 
 
@@ -172,15 +175,15 @@ async def retrieve_flow_then_begin_flow_run(
 
     return await begin_flow_run(
         flow=flow,
+        flow_run=flow_run,
         parameters=flow_run.parameters,
-        flow_run_id=flow_run_id,
         client=client,
     )
 
 
 async def begin_flow_run(
-    flow_run_id: UUID,
     flow: Flow,
+    flow_run: FlowRun,
     parameters: Dict[str, Any],
     client: OrionClient,
 ) -> State:
@@ -195,15 +198,17 @@ async def begin_flow_run(
     Returns:
         The final state of the run
     """
-    logger.info(f"Beginning flow run for flow {flow.name!r}...")
+    logger.info(
+        f"Beginning flow run {flow_run.name!r} for flow {flow.name!r} with parameters {parameters}..."
+    )
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-    with flow.executor.start(flow_run_id=flow_run_id) as executor:
+    with flow.executor.start() as executor:
         with portal_context as sync_portal:
             terminal_state = await orchestrate_flow_run(
                 flow,
-                flow_run_id=flow_run_id,
+                flow_run=flow_run,
                 parameters=parameters,
                 executor=executor,
                 client=client,
@@ -213,7 +218,7 @@ async def begin_flow_run(
     # Update the flow to the terminal state _after_ the executor has shut down
     await client.propose_state(
         state=terminal_state,
-        flow_run_id=flow_run_id,
+        flow_run_id=flow_run.id,
     )
 
     logger.log(
@@ -243,13 +248,12 @@ async def create_and_begin_subflow_run(
     """
     parent_flow_run_context = FlowRunContext.get()
 
-    args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
     logger.info(
-        f"Beginning subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r} with graph {call_repr(flow.fn, *args, **kwargs)}..."
+        f"Creating subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r}..."
     )
 
     # Generate a task in the parent flow run to represent the result of the subflow run
-    parent_task_run_id = await client.create_task_run(
+    parent_task_run = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
         dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
@@ -258,17 +262,24 @@ async def create_and_begin_subflow_run(
     # Resolve any task futures in the input
     parameters = await resolve_futures_to_data(parameters)
 
-    flow_run_id = await client.create_flow_run(
+    # Then validate that the parameters are serializable
+    assert_parameters_are_serializable(parameters)
+
+    flow_run = await client.create_flow_run(
         flow,
         parameters=parameters,
-        parent_task_run_id=parent_task_run_id,
+        parent_task_run_id=parent_task_run.id,
         state=Pending(),
         tags=TagsContext.get().current_tags,
     )
 
+    logger.info(
+        f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r} with parameters {parameters}..."
+    )
+
     terminal_state = await orchestrate_flow_run(
         flow,
-        flow_run_id=flow_run_id,
+        flow_run=flow_run,
         parameters=parameters,
         executor=parent_flow_run_context.executor,
         client=client,
@@ -278,7 +289,7 @@ async def create_and_begin_subflow_run(
     # Update the flow to the terminal state _after_ the executor has shut down
     terminal_state = await client.propose_state(
         state=terminal_state,
-        flow_run_id=flow_run_id,
+        flow_run_id=flow_run.id,
     )
 
     logger.log(
@@ -295,7 +306,7 @@ async def create_and_begin_subflow_run(
 @inject_client
 async def orchestrate_flow_run(
     flow: Flow,
-    flow_run_id: UUID,
+    flow_run: FlowRun,
     parameters: Dict[str, Any],
     executor: BaseExecutor,
     client: OrionClient,
@@ -317,7 +328,7 @@ async def orchestrate_flow_run(
         The final state of the run
     """
     # TODO: Implement state orchestation logic using return values from the API
-    await client.propose_state(Running(), flow_run_id=flow_run_id)
+    await client.propose_state(Running(), flow_run_id=flow_run.id)
 
     timeout_context = (
         anyio.fail_after(flow.timeout_seconds)
@@ -329,7 +340,7 @@ async def orchestrate_flow_run(
 
         with timeout_context as timeout_scope:
             with FlowRunContext(
-                flow_run_id=flow_run_id,
+                flow_run_id=flow_run.id,
                 flow=flow,
                 client=client,
                 executor=executor,
@@ -470,18 +481,18 @@ async def begin_task_run(
         },
     )
 
-    args, kwargs = parameters_to_args_kwargs(task.fn, parameters)
-    task_call_repr = call_repr(task.fn, *args, **kwargs)
     logger.info(
-        f"Submitting task run {task_run.name!r} to executor with graph {task_call_repr}..."
+        f"Submitting task run {task_run.name!r} to executor with parameters {parameters}..."
     )
 
     future = await flow_run_context.executor.submit(
-        task_run.id,
+        task_run,
         orchestrate_task_run,
-        task=task,
-        task_run=task_run,
-        parameters=parameters,
+        dict(
+            task=task,
+            task_run=task_run,
+            parameters=parameters,
+        ),
     )
 
     # Track the task run future in the flow run context
@@ -591,11 +602,7 @@ async def orchestrate_task_run(
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
-    # Display the local terminal state if we can because it wont have been serialized
-    # but fall back to the `state` object which will have a value even if the task did
-    # not run
-    display_state = terminal_state or state
-    logger.info(f"Task run {task_run.name!r} finished with state {display_state}")
+    logger.info(f"Task run {task_run.name!r} finished with state {state}")
     return state
 
 

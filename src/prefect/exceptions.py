@@ -52,7 +52,7 @@ class FlowScriptError(PrefectException):
         return Traceback(trace, **kwargs)
 
 
-class FlowParameterError(PrefectException):
+class ParameterTypeError(PrefectException):
     """
     Raised when a value passed as a flow parameter does not pass validation.
     """
