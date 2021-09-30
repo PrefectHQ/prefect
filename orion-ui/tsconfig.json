@@ -11,12 +11,14 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
     "sourceMap": true,
     "baseUrl": ".",
     "types": [
       "webpack-env",
       "jest",
-      "d3"
+      "d3",
+      "@prefect/miter-design"
     ],
     "typeRoots": [
       "./types"

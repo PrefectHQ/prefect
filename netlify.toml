@@ -1,0 +1,12 @@
+# Netlify settings
+#
+# Other Netlify files:
+# - runtime.txt: version of Python to build with
+#
+# “command” is your build command,
+#
+
+[build]
+  base    = ""
+  publish = "site"
+  command = 'pip install -e ".[dev]" && prefect orion build-docs && mkdocs build'
