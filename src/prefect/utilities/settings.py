@@ -84,11 +84,11 @@ class DatabaseSettings(BaseSettings):
         description=textwrap.dedent(
             f"""
             A database connection URL in a SQLAlchemy-compatible
-            format. Orion currently supports Sqlite and Postgres. Note that all
-            Orion engines must use an async driver - for Sqlite, use
+            format. Orion currently supports SQLite and Postgres. Note that all
+            Orion engines must use an async driver - for SQLite, use
             `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`. 
 
-            Sqlite in-memory databases can be used by providing the url
+            SQLite in-memory databases can be used by providing the url
             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
             which will allow the database to be accessed by multiple threads. Note
             that in-memory databases can not be accessed from multiple processes and
