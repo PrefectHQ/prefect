@@ -26,16 +26,6 @@
   grid-gap: 16px;
 }
 
-.chart-card {
-  background-color: $white;
-  box-shadow: $box-shadow-sm;
-  border-radius: 4px;
-  height: 250px;
-
-  display: flex;
-  flex-direction: column;
-}
-
 .chart-section {
   display: grid;
   grid-template-areas:

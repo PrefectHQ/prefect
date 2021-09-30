@@ -33,24 +33,12 @@ class Props {
   intervalEnd = prop<Date>({ required: true })
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<ItemCollection>({ required: true })
-  showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
 }
-
-const capR = 2
-
-type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 @Options({})
 export default class BarChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
-
-  barSelection: SelectionType = null as unknown as d3.Selection<
-    SVGGElement,
-    unknown,
-    HTMLElement,
-    null
-  >
 
   padding = {
     top: 16,
@@ -67,29 +55,10 @@ export default class BarChart extends mixins(D3Base).with(Props) {
     )
   }
 
-  get r(): number {
-    return Math.min(capR, Math.min(10, this.width / this.items.length / 2) / 2)
-  }
-
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
 
-    this.svg.attr(
-      'viewbox',
-      `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
-    )
-
-    this.svg
-      .append('rect')
-      .attr(
-        'fill',
-        this.backgroundColor ? `var(--${this.backgroundColor})` : 'transparent'
-      )
-      .attr('rx', 4)
-      .attr('width', '100%')
-      .attr('height', '100%')
-
-    this.barSelection = this.svg.append('g')
+    this.svg.attr('viewbox', `0, 0, ${this.width}, ${this.height}`)
   }
 
   updateScales(): void {
@@ -97,12 +66,14 @@ export default class BarChart extends mixins(D3Base).with(Props) {
     const start = this.intervalStart
     const end = this.intervalEnd
 
-    this.xScale.domain([start, end]).range([0, this.width - this.paddingX])
+    this.xScale
+      .domain([start, end])
+      .range([this.padding.left, this.width - this.paddingX])
 
     // Generate y scale
     this.yScale
       .domain([0, this.maxValue])
-      .range([this.padding.top, this.height - this.paddingY])
+      .range([0, this.height - this.paddingY])
   }
 
   get barWidth(): number {
@@ -135,7 +106,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   }
 
   beforeUpdate(): void {
-    if (!this.svg || !this.barSelection) this.createChart()
+    if (!this.svg) this.createChart()
     this.updateScales()
   }
 }

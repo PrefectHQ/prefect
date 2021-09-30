@@ -4,13 +4,15 @@
       <div class="subheader py-1 px-2">{{ props.title }}</div>
     </template>
 
-    <div class="px-2 pb-1 flex-grow-1">
+    <div class="px-2 pb-1" :style="{ height: height }">
       <BarChart
+        v-if="items && items.length"
         :items="items"
         :interval-seconds="intervalSeconds"
         :interval-start="intervalStart"
         :interval-end="intervalEnd"
       />
+      <div v-else class="font--secondary subheader no-data"> -- </div>
     </div>
   </Card>
 </template>
@@ -26,6 +28,7 @@ const props = defineProps<{
   filter: FlowRunsHistoryFilter
   title: string
   stateBucketKey: keyof StateBucket
+  height: string
 }>()
 
 const queries: { [key: string]: Query } = {
@@ -59,25 +62,20 @@ watch(
 )
 
 const items = computed(() => {
-  const calcedItems = (queries.query.response.value || []).map(
-    (item: Bucket) => {
-      return {
-        interval_start: item.interval_start,
-        interval_end: item.interval_end,
-        value: item.states.reduce(
-          (acc: number, curr: StateBucket) =>
-            acc + (curr[props.stateBucketKey] as number),
-          0
-        )
-      }
+  return (queries.query.response.value || []).map((item: Bucket) => {
+    return {
+      interval_start: item.interval_start,
+      interval_end: item.interval_end,
+      value: item.states.reduce(
+        (acc: number, curr: StateBucket) =>
+          acc + (curr[props.stateBucketKey] as number),
+        0
+      )
     }
-  )
-
-  console.log(queries.query.response.value, calcedItems)
-  return calcedItems
+  })
 })
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/interval-bar-chart--card.scss';
 </style>
