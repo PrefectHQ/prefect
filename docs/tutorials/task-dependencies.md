@@ -123,8 +123,71 @@ def main(project_names, db_file="example.db")
     for name in project_names:
         add_project(connection, name, wait_for=[table_task])
 ```
+If for any reason the creation of the table fails, you will find that the `add_project` task runs are left in a Pending 'NotReady' state.
 
-- custom management of state
-- extracting data from a task (not a prefect dependency!)
+!!! tip "Inspecting state programmatically"
+    To inspect your flow and task run states programmatically, you can use the `.result()` method available on all Prefect state objects:
+    ```python
+    flow_state = main(["test", "other"])
+    # returns a list of task run states
+    task_run_states = flow_state.result(raise_on_failure=False) 
+    ```
+    Note the use of `raise_on_failure=False`; the default behavior of this method is to reraise any caught exceptions for traceback inspection.
 
-While including all of your logic within Prefect tasks offers many benefits, there are situations in which you may want to interact with your task's state and return values using native Python.
+## Advanced: Manual manipulation of state
+
+While Prefect takes care of all state handling automatically, there are some situations in which you may want to inspect task run state at runtime; for example, implementing custom dynamic logic that depends on whether a task succeeded or failed, or the return value of a task.
+
+Achieving this requires an understanding of the return values of task runs: `PrefectFuture`s.  Prefect futures are asynchronous representations of the task run that allow for state inspection possibly even before a task run is complete.
+
+The two relevant methods for futures are:
+
+- `wait`: when called, blocks until the underlying task run is complete and returns its final state
+- `get_state`: immediately query for the current state of the underlying task run and return it
+
+Using the `DaskExecutor` we can see this clearly:
+
+```python
+import random
+import time
+
+from prefect import task, flow
+from prefect.executors import DaskExecutor
+
+@task
+def sleep(secs):
+    print('Beginning to sleep...')
+    time.sleep(secs)
+    return random.random()
+
+@task
+def fail():
+    raise TypeError("Something was misconfigured")
+
+@flow(executor=DaskExecutor())
+def complex_flow_logic():
+    long_sleep = sleep(10)
+
+    time.sleep(2)
+    if long_sleep.get_state().is_running():
+        # can run custom code here!
+        # including conditionally running other tasks
+        print('Long sleep task is still running!')
+
+    # blocks until complete and returns state
+    state = long_sleep.wait() 
+    if state.result() > 0.5:
+        # conditionally run another task based on the output
+        print('running fail task')
+        fail()
+    else:
+        print('result was good')
+```
+
+warning that calling .result() within a flow can abort the flow run.
+!!! tip "Additional Reading"
+    To learn more about the concepts presented here, check out the following resources:
+
+    - [Tasks](/concepts/tasks/)
+    - [States](/concepts/states/)
+    - PrefectFutures
