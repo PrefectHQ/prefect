@@ -1,17 +1,15 @@
 <template>
   <Card shadow="sm">
-    <template v-slot:aside>
-      <div class="pl-2 pt-1" style="width: 100px">
-        <div class="subheader">{{ props.title }}</div>
-      </div>
+    <template v-slot:header>
+      <div class="subheader py-1 px-2">{{ props.title }}</div>
     </template>
-    <div class="chart px-1">
+
+    <div class="px-2 pb-1 flex-grow-1">
       <BarChart
         :items="items"
         :interval-seconds="intervalSeconds"
         :interval-start="intervalStart"
         :interval-end="intervalEnd"
-        height="117px"
       />
     </div>
   </Card>
@@ -82,9 +80,4 @@ const items = computed(() => {
 
 <style lang="scss">
 @use '@/styles/components/interval-bar-chart--card.scss';
-
-.chart {
-  height: 117px;
-  overflow: hidden;
-}
 </style>
