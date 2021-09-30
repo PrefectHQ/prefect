@@ -45,6 +45,7 @@
         :interval-start="store.getters.globalFilter.start"
         :interval-end="store.getters.globalFilter.end"
         :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
       />
     </div>

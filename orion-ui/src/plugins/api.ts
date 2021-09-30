@@ -236,8 +236,6 @@ export class Query {
         _val = val
       }
 
-      console.log(_val)
-
       return _val
     }
   }
