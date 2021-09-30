@@ -34,7 +34,6 @@ class SharedSettings(BaseSettings):
         description="Prefect's home directory. Defaults to `~/.prefect`.",
     )
 
-    # debug
     debug_mode: bool = Field(
         False,
         description="If `True`, places the API in debug mode. This may modify behavior to facilitate debugging. Defaults to `False`.",
@@ -103,10 +102,10 @@ class DatabaseSettings(BaseSettings):
         description="If `True`, SQLAlchemy will log all SQL issued to the database. Defaults to `False`.",
     )
 
-    # statement timeout, in seconds
     timeout: Optional[float] = Field(
         1,
-        description="A statement timeout applied to all database interactions made by the API. Defaults to `1`.",
+        description="""A statement timeout, in seconds, applied to all database
+        interactions made by the API. Defaults to `1`.""",
     )
 
 
@@ -137,15 +136,14 @@ class APISettings(BaseSettings):
 
 
 class ServicesSettings(BaseSettings):
-    """Settings related to Orion services. To change these settings via environment variable, set
-    `PREFECT_ORION_SERVICES_{SETTING}=X`.
+    """Settings related to Orion services. To change these settings via
+    environment variable, set `PREFECT_ORION_SERVICES_{SETTING}=X`.
     """
 
     class Config:
         env_prefix = "PREFECT_ORION_SERVICES_"
         frozen = True
 
-    # run in app
     run_in_app: bool = Field(
         False,
         description="""If `True`, Orion services are started as part of the
@@ -154,7 +152,6 @@ class ServicesSettings(BaseSettings):
 
     # -- Scheduler
 
-    # run scheduler every 60 seconds
     scheduler_loop_seconds: float = Field(
         60,
         description="""The scheduler loop interval, in seconds. This determines
@@ -164,12 +161,16 @@ class ServicesSettings(BaseSettings):
         flow runs optimistically, without waiting for the scheduler. Defaults to
         `60`.""",
     )
-    # batch deployments in groups of 100
+
     scheduler_deployment_batch_size: int = Field(
         100,
-        description="The number of deployments the scheduler will attempt to schedule at once. Defaults to `100`.",
+        description="""The number of deployments the scheduler will attempt to
+        schedule in a single batch. If there are more deployments than the batch
+        size, the scheduler immediately attempts to schedule the next batch; it
+        does not sleep for `scheduler_loop_seconds` until it has visited every
+        deployment once. Defaults to `100`.""",
     )
-    # schedule up to 100 new runs per deployment
+
     scheduler_max_runs: int = Field(
         100,
         description="""The scheduler will attempt to schedule up to this many
@@ -178,14 +179,14 @@ class ServicesSettings(BaseSettings):
         `scheduler_max_scheduled_time`.  Defaults to `100`.
         """,
     )
-    # schedule at most three months into the future
+
     scheduler_max_scheduled_time: timedelta = Field(
         timedelta(days=100),
         description="""The scheduler will create new runs up to this far in the
         future. Note that this setting will take precedence over
         `scheduler_max_runs`: if a flow runs once a month and
         `scheduled_max_scheduled_time` is three months, then only three runs will be
-        scheduled.
+        scheduled. Defaults to 100 days (`8640000` seconds).
         """,
     )
 
@@ -233,10 +234,22 @@ class OrionSettings(BaseSettings):
         env_prefix = "PREFECT_ORION_"
         frozen = True
 
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    data: DataLocationSettings = Field(default_factory=DataLocationSettings)
-    api: APISettings = Field(default_factory=APISettings)
-    services: ServicesSettings = Field(default_factory=ServicesSettings)
+    database: DatabaseSettings = Field(
+        default_factory=DatabaseSettings,
+        description="Nested [Database settings][prefect.utilities.settings.DatabaseSettings].",
+    )
+    data: DataLocationSettings = Field(
+        default_factory=DataLocationSettings,
+        description="Nested [Data settings][prefect.utilities.settings.DataSettings].",
+    )
+    api: APISettings = Field(
+        default_factory=APISettings,
+        description="Nested [API settings][prefect.utilities.settings.APISettings].",
+    )
+    services: ServicesSettings = Field(
+        default_factory=ServicesSettings,
+        description="Nested [Services settings][prefect.utilities.settings.ServicesSettings].",
+    )
 
 
 class LoggingSettings(BaseSettings):
@@ -263,10 +276,16 @@ class Settings(SharedSettings):
     # note: incorporates all settings from the PrefectSettings class
 
     # logging
-    logging: LoggingSettings = Field(default_factory=LoggingSettings)
+    logging: LoggingSettings = Field(
+        default_factory=LoggingSettings,
+        description="Nested [Logging settings][prefect.utilities.settings.LoggingSettings].",
+    )
 
     # orion
-    orion: OrionSettings = Field(default_factory=OrionSettings)
+    orion: OrionSettings = Field(
+        default_factory=OrionSettings,
+        description="Nested [Orion settings][prefect.utilities.settings.OrionSettings].",
+    )
 
     # the connection url for an orion instance
     orion_host: str = Field(
