@@ -114,7 +114,7 @@ You may have observed that all of the `add_project` tasks have an implicit deped
 Luckily, Prefect makes it easy to configure a state dependency between two or more task runs using the special `wait_for` keyword argument:
 ```python
 @flow(name="Add Projects to DB")
-def main(project_names, db_file="example.db")
+def main(project_names, db_file="example.db"):
 
     # prefect may switch threads 
     connection = sqlite3.connect(db_file, check_same_thread=False) 
