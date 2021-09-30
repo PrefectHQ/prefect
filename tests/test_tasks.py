@@ -818,7 +818,10 @@ class TestTaskWaitFor:
             TaskRunResult(id=b.state_details.task_run_id),
         }, "'wait_for' included as a key with upstreams"
 
-        assert set(d_task_run.keys()) == {"x", "wait_for"}, "No extra keys around"
+        assert set(d_task_run.task_inputs.keys()) == {
+            "x",
+            "wait_for",
+        }, "No extra keys around"
 
     def test_using_wait_for_in_task_definition_raises_reserved(self):
         with pytest.raises(
