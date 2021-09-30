@@ -1,6 +1,6 @@
 <template>
   <div ref="container" class="chart-container">
-    <svg :id="id" ref="chart" />
+    <svg :id="id" ref="chart"></svg>
   </div>
 </template>
 
@@ -18,9 +18,9 @@ export interface Item {
 export type ItemCollection = Item[]
 
 class Props {
-  backgroundColor = prop<String>({ required: false, default: null })
+  backgroundColor = prop<string>({ required: false, default: null })
   items = prop<ItemCollection>({ required: true })
-  showAxis = prop<Boolean>({ required: false, default: false, type: Boolean })
+  showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
 }
 
 const capR = 2
@@ -102,9 +102,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   updateBarPath(d: any): string | void {
     const maxWidth = this.width / this.items.length / 2
     const width = Math.min(10, maxWidth) / 2
-    const xStart =
-      /* @ts-ignore */
-      this.xScale(new Date(d.interval_start)) + maxWidth / 2
+    const xStart = this.xScale(new Date(d.interval_start)) + maxWidth / 2
     const height = this.yScale(d.value)
     const r = Math.min(capR, width / 2)
     const yStart = this.height - this.padding.bottom - r * 2 - height
@@ -125,7 +123,6 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   updateBuckets(): void {
     if (!this.barSelection) return
     // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-    /* @ts-ignore */
     this.barSelection
       .selectAll('.bucket')
       .data(this.items, (d: any) => d.interval_start)
@@ -140,7 +137,6 @@ export default class BarChart extends mixins(D3Base).with(Props) {
             .attr(
               'class',
               // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-              /* @ts-ignore */
               (d: Item) =>
                 d.value >= this.maxValue ? 'fill--primary' : 'fill--blue-20'
             ),
@@ -151,7 +147,6 @@ export default class BarChart extends mixins(D3Base).with(Props) {
             .attr(
               'class',
               // TODO: Figure out what the heck the overloads for D3 are supposed to be...
-              /* @ts-ignore */
               (d: Item) =>
                 d.value >= this.maxValue ? 'fill--primary' : 'fill--blue-20'
             ),

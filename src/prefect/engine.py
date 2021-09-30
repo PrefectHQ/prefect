@@ -19,7 +19,7 @@ import pendulum
 from contextlib import contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Set, TypeVar, Union, overload
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from anyio import start_blocking_portal
@@ -227,6 +227,7 @@ async def create_and_begin_subflow_run(
     parent_task_run_id = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
+        dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
     )
 
     flow_run_id = await client.create_flow_run(
@@ -247,7 +248,7 @@ async def create_and_begin_subflow_run(
     )
 
     # Update the flow to the terminal state _after_ the executor has shut down
-    await client.propose_state(
+    terminal_state = await client.propose_state(
         state=terminal_state,
         flow_run_id=flow_run_id,
     )
@@ -336,7 +337,7 @@ async def orchestrate_flow_run(
 
 
 def enter_task_run_engine(
-    task: Task, parameters: Dict[str, Any]
+    task: Task, parameters: Dict[str, Any], dynamic_key: str
 ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
     """
     Sync entrypoint for task calls
@@ -367,6 +368,7 @@ def enter_task_run_engine(
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
+        dynamic_key=dynamic_key,
     )
 
     # Async task run
@@ -403,15 +405,17 @@ async def collect_task_run_inputs(
                 inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
 
     await visit_collection(expr, visit_fn=visit_fn)
-
     return inputs
 
 
 async def begin_task_run(
-    task: Task, flow_run_context: FlowRunContext, parameters: Dict[str, Any]
+    task: Task,
+    flow_run_context: FlowRunContext,
+    parameters: Dict[str, Any],
+    dynamic_key: str,
 ) -> PrefectFuture:
     """
-    Async entrypoint for task calls
+    Async entrypoint for task calls.
 
     Tasks must be called within a flow. When tasks are called, they create a task run
     and submit orchestration of the run to the flow run's executor. The executor returns
@@ -421,6 +425,7 @@ async def begin_task_run(
     task_run_id = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
+        dynamic_key=dynamic_key,
         state=Pending(),
         extra_tags=TagsContext.get().current_tags,
         task_inputs={
@@ -599,111 +604,6 @@ async def user_return_value_to_state(
 
     # Otherwise, they just gave data and this is a completed result
     return Completed(data=DataDocument.encode(serializer, result))
-
-
-@overload
-async def get_result(
-    state_or_future: Union[PrefectFuture[R], State[R]], raise_failures: bool = True
-) -> R:
-    ...
-
-
-@overload
-async def get_result(
-    state_or_future: Union[PrefectFuture[R], State[R]], raise_failures: bool = False
-) -> Union[R, Exception]:
-    ...
-
-
-@sync_compatible
-async def get_result(state_or_future, raise_failures: bool = True):
-    """
-    Get the result (return value) of a flow run state or task run state/future.
-
-    If given a task run future, this function will block until completion of the task.
-
-    The result may need to be fetched from the API. Sometimes, the result is cached on
-    the state's data document, but if it has been serialized/deserialized it will no
-    longer be cached and this function will perform IO.
-
-    This function detects if it is being used in an async context. If contained in an
-    async function, it must be awaited.
-
-    Args:
-        state_or_future: The `State` or `PrefectFuture` to get the result from
-        raise_failures: By default, FAILURE states contain an exception result which
-            will be reraised when retrieved by this function. If you want to work with
-            the exception directly or reraise it yourself, this flag can be set to
-            return the exception object.
-
-    Returns:
-        The result of the run represented by the state or future
-
-    Examples:
-        >>> from prefect import flow, task, get_result
-        >>> @task
-        >>> def my_task(x):
-        >>>     return x
-
-        Get the result from a task future in a flow
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     result = get_result(my_task("hello"))
-        >>>     print(result)
-        >>> my_flow()
-        hello
-
-        Get the result from a task state in a flow
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     state = my_task("hello").wait()
-        >>>     result = get_result(state)
-        >>>     print(result)
-        >>> my_flow()
-        hello
-
-        Get the result from a flow state
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     return "hello"
-        >>> get_result(my_flow())
-        hello
-
-        Get the result from a failed state
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     raise ValueError("oh no!")
-        >>> state = my_flow()  # Error is wrapped in FAILED state
-        >>> get_result(state)  # Raises `ValueError`
-
-        Get the result from a failed state without erroring
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     raise ValueError("oh no!")
-        >>> state = my_flow()
-        >>> result = get_result(state, raise_failures=False)
-        >>> print(result)
-        ValueError("oh no!")
-    """
-    if isinstance(state_or_future, PrefectFuture):
-        state = await state_or_future.wait()
-    elif isinstance(state_or_future, State):
-        state = state_or_future
-    else:
-        raise TypeError(
-            f"Unexpected type {type(state_or_future).__name__!r} for `get_result`. "
-            "Expected `State` or `PrefectFuture`"
-        )
-
-    if state.is_failed() and raise_failures:
-        return await raise_failed_state(state)
-
-    return await resolve_datadoc(state.data)
 
 
 @sync_compatible

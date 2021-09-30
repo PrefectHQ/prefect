@@ -56,7 +56,7 @@ async def execute(name: str):
 
     async with OrionClient() as client:
         deployment = await client.read_deployment_by_name(name)
-        flow = await load_flow_from_deployment(deployment, client)
+        flow = await load_flow_from_deployment(deployment, client=client)
 
     # Call the flow
     # TODO: Pull parameters from the deployment

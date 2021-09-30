@@ -9,7 +9,7 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
+from prefect.orion.utilities.database import dialect_specific_insert, get_dialect, now
 
 
 async def create_deployment(
@@ -27,6 +27,11 @@ async def create_deployment(
 
     """
 
+    # set `updated` manually
+    # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
+    # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
+    deployment.updated = pendulum.now("UTC")
+
     insert_stmt = (
         dialect_specific_insert(orm.Deployment)
         .values(**deployment.dict(shallow=True, exclude_unset=True))
@@ -40,6 +45,7 @@ async def create_deployment(
                     "tags",
                     "parameters",
                     "flow_data",
+                    "updated",
                 },
             ),
         )
