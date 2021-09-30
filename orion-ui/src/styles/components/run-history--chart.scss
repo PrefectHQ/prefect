@@ -1,15 +1,11 @@
 .chart-container {
-  position: relative;
   height: 100%;
+  position: relative;
   width: 100%;
 
-  .run-history-chart {
+  > svg {
     height: 100%;
     width: 100%;
-
-    .tick line {
-      opacity: 0;
-    }
   }
 
   $r: 999px;

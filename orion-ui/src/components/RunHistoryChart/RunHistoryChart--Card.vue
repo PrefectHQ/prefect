@@ -61,6 +61,6 @@ const buckets = computed(() => {
 })
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 @use '@/styles/components/run-history--card.scss';
 </style>

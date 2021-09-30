@@ -1,6 +1,7 @@
 <template>
   <div ref="container" class="chart-container">
     <svg :id="id" ref="chart" class="run-history-chart"></svg>
+
     <div class="bar-container">
       <div
         v-for="(item, i) in items"
@@ -142,7 +143,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
-  barSelection: GroupSelectionType | undefined
   xAxisGroup: GroupSelectionType | undefined
 
   positiveStates = positiveStates
@@ -251,7 +251,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   beforeUpdate(): void {
-    if (!this.svg || !this.barSelection) this.createChart()
+    if (!this.svg) this.createChart()
     this.updateScales()
   }
 
@@ -297,8 +297,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       .attr('rx', 4)
       .attr('width', '100%')
       .attr('height', `${this.viewHeight}px`)
-
-    this.barSelection = this.svg.append('g')
 
     this.xAxisGroup = this.svg.append('g')
 

@@ -38,6 +38,7 @@
         title="Duration"
         endpoint="flow_runs_history"
         state-bucket-key="sum_estimated_run_time"
+        height="77px"
         :filter="flowRunStatsFilter"
         class="run-duration flex-grow-0"
       />
@@ -46,6 +47,7 @@
         title="Lateness"
         endpoint="flow_runs_history"
         state-bucket-key="sum_estimated_lateness"
+        height="77px"
         :filter="flowRunStatsFilter"
         class="run-lateness flex-grow-0"
       />
