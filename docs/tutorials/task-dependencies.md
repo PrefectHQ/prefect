@@ -89,7 +89,7 @@ def add_project(connection, name):
     ...
 
 @flow(name="Add Projects to DB")
-def main(project_names, db_file="example.db")
+def main(project_names, db_file="example.db"):
 
     # prefect may switch threads 
     connection = sqlite3.connect(db_file, check_same_thread=False) 
