@@ -170,19 +170,10 @@ def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
     Generate a repr for a function call as "fn_name(arg_value, kwarg_name=kwarg_value)"
     """
 
-    def arg_repr(expr) -> str:
-        """
-        Simple repr for arguments with special handling for futures
-        """
-        if isinstance(expr, PrefectFuture):
-            return str(expr)
-        else:
-            return repr(expr)
-
     name = __fn.__name__
     call_args = ", ".join(
-        [arg_repr(arg) for arg in args]
-        + [f"{key}={arg_repr(val)}" for key, val in kwargs.items()]
+        [repr(arg) for arg in args]
+        + [f"{key}={repr(val)}" for key, val in kwargs.items()]
     )
 
     # Enforce a maximum length
