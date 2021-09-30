@@ -1,10 +1,10 @@
 {{ log.debug() }}
-{% if config.show_if_no_docstring or function.has_contents %}
+{% if config.show_if_no_docstring or class.has_contents %}
 
 <div class="prefect-container">
-  <div class="doc doc-object doc-function">
-    <a class="prefect-heading" href="#{{ function.path }}">
-    {% with html_id = function.path %}
+  <div class="doc doc-object doc-class">
+    <a class="prefect-heading" href="#{{ class.path }}">
+    {% with html_id = class.path %}
 
       {% if not root or config.show_root_heading %}
 
@@ -19,16 +19,21 @@
         {% endif %}
 
         {% filter heading(heading_level,
-            role="function",
+            role="class",
             id=html_id,
             class="doc doc-heading",
-            toc_label=function.name ~ "()") %}
+            toc_label=class.name) %}
 
-          {% filter highlight(language="python", inline=True) %}
-            {% if show_full_path %}{{ function.path }}{% else %}{{ function.name }}{% endif %}
-          {% endfilter %}
+          <code>
+            {% if show_full_path %}{{ class.path }}{% else %}{{ class.name }}{% endif %}
+            {% if config.show_bases and class.bases and class.bases != ['object'] %}
+              ({% for base in class.bases -%}
+                {{ base|brief_xref() }}{% if not loop.last %}, {% endif %}
+              {% endfor %})
+            {% endif %}
+          </code>
 
-          {% with properties = function.properties %}
+          {% with properties = class.properties %}
             {% include "properties.html" with context %}
           {% endwith %}
 
@@ -37,9 +42,9 @@
       {% else %}
         {% if config.show_root_toc_entry %}
           {% filter heading(heading_level,
-              role="function",
+              role="class",
               id=html_id,
-              toc_label=function.path,
+              toc_label=class.path,
               hidden=True) %}
           {% endfilter %}
         {% endif %}
@@ -48,21 +53,26 @@
     </a>
 
     <div class="doc doc-contents {% if root %}first{% endif %}">
-      {% with docstring_sections = function.docstring_sections %}
+      {% with docstring_sections = class.docstring_sections %}
         {% include "docstring.html" with context %}
       {% endwith %}
 
-      {% if config.show_source and function.source %}
+      {% if config.show_source and class.source %}
         <details class="quote">
-          <summary>Source code in <code>{{ function.relative_file_path }}</code></summary>
-          {{ function.source.code|highlight(language="python", linestart=function.source.line_start, linenums=False) }}
+          <summary>Source code in <code>{{ class.relative_file_path }}</code></summary>
+          {{ class.source.code|highlight(language="python", linestart=class.source.line_start, linenums=False) }}
         </details>
       {% endif %}
+
+      {% with obj = class %}
+        {% set root = False %}
+        {% set heading_level = heading_level + 1 %}
+        {% include "children.html" with context %}
+      {% endwith %}
     </div>
 
   {% endwith %}
   </div>
 </div>
-
 
 {% endif %}

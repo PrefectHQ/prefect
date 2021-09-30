@@ -69,6 +69,15 @@ class UpstreamTaskError(PrefectException):
     pass
 
 
+class ReservedArgumentError(PrefectException, TypeError):
+    """
+    Raised when a function used with Prefect has an argument with a name that is
+    reserved for a Prefect feature
+    """
+
+    pass
+
+
 class PrefectSignal(BaseException):
     """
     Base type for signal-like exceptions that should never be caught by users.
