@@ -333,14 +333,14 @@ class TestOrchestrateTaskRun:
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run_id)
-        state_names = [state.name for state in states]
+        state_names = [state.type for state in states]
         assert state_names == [
-            "Pending",
-            "Running",
-            "Awaiting Retry",
-            "Scheduled",  # This is a forced state change to speedup the test
-            "Running",
-            "Completed",
+            StateType.PENDING,
+            StateType.RUNNING,
+            StateType.SCHEDULED,
+            StateType.SCHEDULED,  # This is a forced state change to speedup the test
+            StateType.RUNNING,
+            StateType.COMPLETED,
         ]
 
 
