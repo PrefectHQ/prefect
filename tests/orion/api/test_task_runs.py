@@ -15,6 +15,7 @@ class TestCreateTaskRun:
             "flow_run_id": str(flow_run.id),
             "task_key": "my-task-key",
             "name": "my-cool-task-run-name",
+            "dynamic_key": "0",
         }
         response = await client.post("/task_runs/", json=task_run_data)
         assert response.status_code == 201
@@ -42,7 +43,9 @@ class TestCreateTaskRun:
         assert response.json()["id"] == task_run_response.json()["id"]
 
     async def test_create_task_run_without_state(self, flow_run, client, session):
-        task_run_data = dict(flow_run_id=str(flow_run.id), task_key="task-key")
+        task_run_data = dict(
+            flow_run_id=str(flow_run.id), task_key="task-key", dynamic_key="0"
+        )
         response = await client.post("/task_runs/", json=task_run_data)
         task_run = await models.task_runs.read_task_run(
             session=session, task_run_id=response.json()["id"]
@@ -55,6 +58,7 @@ class TestCreateTaskRun:
             flow_run_id=flow_run.id,
             task_key="task-key",
             state=states.Running(),
+            dynamic_key="0",
         )
         response = await client.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
@@ -74,6 +78,7 @@ class TestCreateTaskRun:
                 flow_run_id=flow_run.id,
                 task_key="a",
                 state=states.Completed(timestamp=pendulum.now().add(months=1)),
+                dynamic_key="0",
             ).dict(json_compatible=True),
         )
         assert response.status_code == 201
@@ -190,6 +195,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 expected_start_time=now.subtract(minutes=5),
+                dynamic_key="0",
             ),
         )
         task_run_2 = await models.task_runs.create_task_run(
@@ -198,6 +204,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 expected_start_time=now.add(minutes=5),
+                dynamic_key="1",
             ),
         )
         await session.commit()
