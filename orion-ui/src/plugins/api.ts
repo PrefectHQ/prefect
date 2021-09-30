@@ -46,6 +46,10 @@ export interface FlowRunsHistoryFilter {
   deployments?: DeploymentFilter
 }
 
+export interface DatabaseClearBody {
+  confirm: boolean
+}
+
 export type Filters = {
   flow: null
   flows: FlowsFilter
@@ -60,6 +64,7 @@ export type Filters = {
   deployment: null
   deployments: DeploymentsFilter
   deployments_count: DeploymentsFilter
+  database_clear: DatabaseClearBody
 }
 
 export type FilterBody = Filters[keyof Filters]
@@ -142,12 +147,6 @@ export interface QueryConfig {
   endpoint: Endpoint | undefined
   body?: FilterBody
   options?: QueryOptions
-}
-
-const queryConfigDefault = {
-  endpoint: undefined,
-  body: {},
-  options: { pollInterval: 0 }
 }
 
 const base_url = 'http://localhost:8000'
