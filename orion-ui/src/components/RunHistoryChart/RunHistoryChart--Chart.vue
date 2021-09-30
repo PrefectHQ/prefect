@@ -285,8 +285,13 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       .range([this.padding.left, this.width - this.padding.right])
 
     const flattened = this.series.flat(2)
-    const min = Math.min(...flattened) || -1
-    const max = Math.max(...flattened) || 1
+    let min = Math.min(...flattened)
+    let max = Math.max(...flattened)
+
+    if (min == max) {
+      min = -1
+      max = 1
+    }
 
     if (this.staticMedian) {
       const startMin = Math.abs(min) > Math.abs(max)
