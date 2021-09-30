@@ -1,0 +1,8 @@
+{{ log.debug() }}
+{% if properties %}
+  <span class="doc doc-properties">
+    {% for property in properties %}
+      <small class="doc doc-property doc-property-{{ property }}"><code>{{ property }}</code></small>
+    {% endfor %}
+  </span>
+{% endif %}

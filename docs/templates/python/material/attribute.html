@@ -1,0 +1,57 @@
+{{ log.debug() }}
+{% if config.show_if_no_docstring or attribute.has_contents %}
+
+  <div class="doc doc-object doc-attribute">
+  {% with html_id = attribute.path %}
+
+    {% if not root or config.show_root_heading %}
+
+      {% if root %}
+        {% set show_full_path = config.show_root_full_path %}
+        {% set root_members = True %}
+      {% elif root_members %}
+        {% set show_full_path = config.show_root_members_full_path or config.show_object_full_path %}
+        {% set root_members = False %}
+      {% else %}
+        {% set show_full_path = config.show_object_full_path %}
+      {% endif %}
+
+      {% filter heading(heading_level,
+          role="data" if obj == module else "attr",
+          id=html_id,
+          class="doc doc-heading",
+          toc_label=attribute.name) %}
+
+        {% filter highlight(language="python", inline=True) %}
+          {% if show_full_path %}{{ attribute.path }}{% else %}{{ attribute.name }}{% endif %}
+          {% if attribute.type %}: {{ attribute.type }}{% endif %}
+        {% endfilter %}
+
+        {% with properties = attribute.properties %}
+          {% include "properties.html" with context %}
+        {% endwith %}
+
+      {% endfilter %}
+
+    {% else %}
+      {% if config.show_root_toc_entry %}
+        {% filter heading(heading_level,
+            role="data" if obj == module else "attr",
+            id=html_id,
+            toc_label=attribute.path,
+            hidden=True) %}
+        {% endfilter %}
+      {% endif %}
+      {% set heading_level = heading_level - 1 %}
+    {% endif %}
+
+    <div class="doc doc-contents {% if root %}first{% endif %}">
+      {% with docstring_sections = attribute.docstring_sections %}
+        {% include "docstring.html" with context %}
+      {% endwith %}
+    </div>
+
+  {% endwith %}
+  </div>
+
+{% endif %}

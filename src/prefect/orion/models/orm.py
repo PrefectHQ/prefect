@@ -356,7 +356,7 @@ class TaskRun(Base, RunMixin):
         index=True,
     )
     task_key = Column(String, nullable=False)
-    dynamic_key = Column(String)
+    dynamic_key = Column(String, nullable=False)
     cache_key = Column(String)
     cache_expiration = Column(Timestamp())
     task_version = Column(String)

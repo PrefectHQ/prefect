@@ -50,11 +50,13 @@ async def many_task_run_states(flow_run, session):
     await session.execute(sa.delete(orm.TaskRun))
     await session.execute(sa.delete(orm.TaskRunState))
 
-    for _ in range(5):
+    for i in range(5):
         task_run = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.actions.TaskRunCreate(
-                flow_run_id=flow_run.id, task_key="test-task"
+                flow_run_id=flow_run.id,
+                task_key="test-task",
+                dynamic_key=str(i),
             ),
         )
 
@@ -428,6 +430,7 @@ class TestTotalRunTimeEstimate:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="a",
+                dynamic_key="0",
                 state=schemas.states.Pending(timestamp=dt),
             ),
         )
@@ -463,6 +466,7 @@ class TestTotalRunTimeEstimate:
             task_run=schemas.core.TaskRun(
                 flow_run_id=flow_run.id,
                 task_key="a",
+                dynamic_key="0",
                 state=schemas.states.Pending(timestamp=dt),
             ),
         )

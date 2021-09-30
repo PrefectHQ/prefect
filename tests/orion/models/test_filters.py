@@ -166,6 +166,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_1_1.id,
                 task_key="a",
                 state=states.Running(),
+                dynamic_key="0",
             )
         )
         await create_task_run(
@@ -173,6 +174,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_1_1.id,
                 task_key="b",
                 state=states.Completed(),
+                dynamic_key="0",
             )
         )
         await create_task_run(
@@ -180,6 +182,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_1_1.id,
                 task_key="c",
                 state=states.Completed(),
+                dynamic_key="0",
             )
         )
 
@@ -188,6 +191,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_2_2.id,
                 task_key="a",
                 state=states.Running(),
+                dynamic_key="0",
             )
         )
         await create_task_run(
@@ -195,6 +199,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_2_2.id,
                 task_key="b",
                 state=states.Completed(),
+                dynamic_key="0",
             )
         )
         await create_task_run(
@@ -202,6 +207,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_2_2.id,
                 task_key="c",
                 state=states.Completed(),
+                dynamic_key="0",
             )
         )
 
@@ -210,6 +216,7 @@ async def data(database_engine, flow_function):
                 flow_run_id=fr_3_1.id,
                 task_key="a",
                 state=states.Failed(),
+                dynamic_key="0",
             )
         )
 
@@ -221,10 +228,10 @@ async def data(database_engine, flow_function):
             flow_run=core.FlowRun(flow_id=f_4.id),
         )
         tr1 = await create_task_run(
-            task_run=core.TaskRun(flow_run_id=fr1.id, task_key="a")
+            task_run=core.TaskRun(flow_run_id=fr1.id, task_key="a", dynamic_key="0")
         )
         tr2 = await create_task_run(
-            task_run=core.TaskRun(flow_run_id=fr1.id, task_key="b")
+            task_run=core.TaskRun(flow_run_id=fr1.id, task_key="b", dynamic_key="0")
         )
 
         # create a subflow corresponding to tr2
@@ -232,7 +239,7 @@ async def data(database_engine, flow_function):
             flow_run=core.FlowRun(flow_id=f_4.id, parent_task_run_id=tr2.id),
         )
         tr3 = await create_task_run(
-            task_run=core.TaskRun(flow_run_id=fr2.id, task_key="a")
+            task_run=core.TaskRun(flow_run_id=fr2.id, task_key="a", dynamic_key="0")
         )
 
         # ----------------- Commit and yield
