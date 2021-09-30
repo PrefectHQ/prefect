@@ -36,49 +36,31 @@ async def create_task_run(
     """
 
     now = pendulum.now("UTC")
-    # if there's no dynamic key, create the task run
-    if not task_run.dynamic_key:
-        model = orm.TaskRun(
-            **task_run.dict(
-                shallow=True,
-                exclude={
-                    "state",
-                    "estimated_run_time",
-                    "estimated_start_time_delta",
-                },
-            ),
-            state=None,
-        )
-        session.add(model)
-        await session.flush()
 
-    else:
-        # if a dynamic key exists, we need to guard against conflicts
-        insert_stmt = (
-            dialect_specific_insert(orm.TaskRun)
-            .values(
-                **task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
-            )
-            .on_conflict_do_nothing(
-                index_elements=["flow_run_id", "task_key", "dynamic_key"],
-            )
+    # if a dynamic key exists, we need to guard against conflicts
+    insert_stmt = (
+        dialect_specific_insert(orm.TaskRun)
+        .values(**task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True))
+        .on_conflict_do_nothing(
+            index_elements=["flow_run_id", "task_key", "dynamic_key"],
         )
-        await session.execute(insert_stmt)
+    )
+    await session.execute(insert_stmt)
 
-        query = (
-            sa.select(orm.TaskRun)
-            .where(
-                sa.and_(
-                    orm.TaskRun.flow_run_id == task_run.flow_run_id,
-                    orm.TaskRun.task_key == task_run.task_key,
-                    orm.TaskRun.dynamic_key == task_run.dynamic_key,
-                )
+    query = (
+        sa.select(orm.TaskRun)
+        .where(
+            sa.and_(
+                orm.TaskRun.flow_run_id == task_run.flow_run_id,
+                orm.TaskRun.task_key == task_run.task_key,
+                orm.TaskRun.dynamic_key == task_run.dynamic_key,
             )
-            .limit(1)
-            .execution_options(populate_existing=True)
         )
-        result = await session.execute(query)
-        model = result.scalar()
+        .limit(1)
+        .execution_options(populate_existing=True)
+    )
+    result = await session.execute(query)
+    model = result.scalar()
 
     if model.created >= now and task_run.state:
         await models.task_runs.set_task_run_state(

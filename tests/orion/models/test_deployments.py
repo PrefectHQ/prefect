@@ -386,7 +386,9 @@ class TestReadDeployments:
         )
         task_run = await models.task_runs.create_task_run(
             session=session,
-            task_run=schemas.core.TaskRun(flow_run_id=flow_run.id, task_key="my-task"),
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-task", dynamic_key="0"
+            ),
         )
         result = await models.deployments.read_deployments(
             session=session,
