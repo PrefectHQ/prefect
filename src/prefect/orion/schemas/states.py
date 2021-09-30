@@ -1,6 +1,6 @@
 import datetime
 from collections.abc import Iterable
-from typing import Optional, Generic, TypeVar
+from typing import Generic, TypeVar, overload, Union
 from uuid import UUID
 
 import pendulum
@@ -51,6 +51,16 @@ class State(IDBaseModel, Generic[R]):
     message: str = Field(None, example="Run started")
     data: DataDocument[R] = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
+
+    @overload
+    def result(state_or_future: "State[R]", raise_on_failure: bool = True) -> R:
+        ...
+
+    @overload
+    def result(
+        state_or_future: "State[R]", raise_on_failure: bool = False
+    ) -> Union[R, Exception]:
+        ...
 
     def result(self, raise_on_failure: bool = True):
         """
