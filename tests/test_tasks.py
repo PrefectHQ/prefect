@@ -235,11 +235,11 @@ class TestTaskRetries:
             "Pending",
             "Running",
             "Awaiting Retry",
-            "Running",
+            "Retrying",
             "Awaiting Retry",
-            "Running",
+            "Retrying",
             "Awaiting Retry",
-            "Running",
+            "Retrying",
             "Failed" if always_fail else "Completed",
         ]
 
@@ -273,7 +273,7 @@ class TestTaskRetries:
             "Pending",
             "Running",
             "Awaiting Retry",
-            "Running",
+            "Retrying",
             "Completed",
         ]
 
