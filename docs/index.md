@@ -38,8 +38,8 @@ hello(name="Marvin") # Hello, Marvin!
 
 ---
 
-## [Getting Started](tutorial.md)
-[Install](getting-started/installation.md) Prefect, then dive into the [tutorial](tutorial.md).
+## [Getting Started](getting-started/overview/)
+[Install](getting-started/installation.md) Prefect, then dive into the [tutorial](tutorials/first-steps/).
 
 ## [Concepts](concepts/overview.md)
 

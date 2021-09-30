@@ -36,12 +36,13 @@ theme:
 plugins:
     - autorefs
     - mkdocstrings:
+        custom_templates: docs/templates
         handlers:
             python:
                 rendering:
                     show_root_heading: True
-                    show_object_full_path: True
-                    show_category_heading: True
+                    show_object_full_path: False
+                    show_category_heading: False
                     show_bases: False
                     heading_level: 1
         watch:
@@ -56,10 +57,9 @@ nav:
         - Tutorials:
             - tutorials/first-steps.md
             - tutorials/flow-configuration.md
-            - tutorials/futures-and-parallelism.md
+            - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
-            - tutorials/rest.md
     - Concepts:
         - Overview: concepts/overview.md
         - Flows: concepts/flows.md
@@ -68,6 +68,7 @@ nav:
         - Executors: concepts/executors.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
+        - Settings: concepts/settings.md
     - FAQ: faq.md
     - 'API Reference': 
         - Prefect Python API: 
@@ -80,6 +81,7 @@ nav:
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Utilities':
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+                - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
         - Orion Python API: 
             - 'Models':
                 - 'orion.models.deployments': api-ref/orion/models/deployments.md
