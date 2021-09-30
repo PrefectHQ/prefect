@@ -59,15 +59,15 @@ class DataLocationSettings(BaseSettings):
 
     name: str = Field(
         "default",
-        description="The name for the default data location. Defaults to `default`.",
+        description="The name for the default data directory. Defaults to `default`.",
     )
     scheme: str = Field(
         "file",
-        description="The scheme for the default data location. Defaults to `file`.",
+        description="The scheme for the default data directory. Defaults to `file`.",
     )
     base_path: str = Field(
         "/tmp",
-        description="The base path for the default data location. Defaults to `/tmp`.",
+        description="The base path for the default data directory. Defaults to `/tmp`.",
     )
 
 
@@ -177,8 +177,10 @@ class ServicesSettings(BaseSettings):
     # schedule up to 100 new runs per deployment
     scheduler_max_runs: int = Field(
         100,
-        description="""The scheduler will ensure that each deployment has this many
-        auto-scheduled runs in the future. Defaults to `100`.
+        description="""The scheduler will attempt to schedule up to this many
+        auto-scheduled runs in the future. Note that runs may have fewer than
+        this many scheduled runs, depending on the value of
+        `scheduler_max_scheduled_time`.  Defaults to `100`.
         """,
     )
     # schedule at most three months into the future
