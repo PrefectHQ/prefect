@@ -52,6 +52,7 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.states import StateSet, is_state, is_state_iterable
 from prefect.serializers import resolve_datadoc
 from prefect.tasks import Task
@@ -457,9 +458,8 @@ async def begin_task_run(
     and submit orchestration of the run to the flow run's executor. The executor returns
     a future that is returned immediately.
     """
-    task_run_name = f"{task.name}-{task.dynamic_key}"
 
-    task_run_id = await flow_run_context.client.create_task_run(
+    task_run = await flow_run_context.client.create_task_run(
         task=task,
         flow_run_id=flow_run_context.flow_run_id,
         dynamic_key=dynamic_key,
@@ -473,18 +473,15 @@ async def begin_task_run(
     args, kwargs = parameters_to_args_kwargs(task.fn, parameters)
     task_call_repr = call_repr(task.fn, *args, **kwargs)
     logger.info(
-        f"Submitting task run {task_run_name!r} to executor with graph {task_call_repr}..."
+        f"Submitting task run {task_run.name!r} to executor with graph {task_call_repr}..."
     )
 
     future = await flow_run_context.executor.submit(
-        task_run_id,
-        task_call_repr,
+        task_run.id,
         orchestrate_task_run,
         task=task,
-        task_run_id=task_run_id,
-        flow_run_id=flow_run_context.flow_run_id,
+        task_run=task_run,
         parameters=parameters,
-        task_run_name=task_run_name,
     )
 
     # Track the task run future in the flow run context
@@ -496,10 +493,8 @@ async def begin_task_run(
 @inject_client
 async def orchestrate_task_run(
     task: Task,
-    task_run_id: UUID,
-    flow_run_id: UUID,
+    task_run: TaskRun,
     parameters: Dict[str, Any],
-    task_run_name: str,
     client: OrionClient,
 ) -> State:
     """
@@ -528,8 +523,8 @@ async def orchestrate_task_run(
         The final state of the run
     """
     context = TaskRunContext(
-        task_run_id=task_run_id,
-        flow_run_id=flow_run_id,
+        task_run_id=task_run.id,
+        flow_run_id=task_run.flow_run_id,
         task=task,
         client=client,
     )
@@ -542,13 +537,13 @@ async def orchestrate_task_run(
     except UpstreamTaskError as upstream_exc:
         state = await client.propose_state(
             Pending(name="NotReady", message=str(upstream_exc)),
-            task_run_id=task_run_id,
+            task_run_id=task_run.id,
         )
     else:
         # Transition from `PENDING` -> `RUNNING`
         state = await client.propose_state(
             Running(state_details=StateDetails(cache_key=cache_key)),
-            task_run_id=task_run_id,
+            task_run_id=task_run.id,
         )
 
     # Only run the task if we enter a `RUNNING` state
@@ -556,14 +551,14 @@ async def orchestrate_task_run(
 
         try:
             with TaskRunContext(
-                task_run_id=task_run_id,
-                flow_run_id=flow_run_id,
+                task_run_id=task_run.id,
+                flow_run_id=task_run.flow_run_id,
                 task=task,
                 client=client,
             ):
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
                 logger.info(
-                    f"Executing task {task_run_name!r} with call {call_repr(task.fn, *args, **kwargs)}..."
+                    f"Executing task {task_run.name!r} with call {call_repr(task.fn, *args, **kwargs)}..."
                 )
                 result = task.fn(*args, **kwargs)
                 if task.isasync:
@@ -587,20 +582,20 @@ async def orchestrate_task_run(
                 )
                 terminal_state.state_details.cache_key = cache_key
 
-        state = await client.propose_state(terminal_state, task_run_id=task_run_id)
+        state = await client.propose_state(terminal_state, task_run_id=task_run.id)
 
         if not state.is_final():
             logger.info(
-                f"Task {task_run_name!r} received state {state} when proposing state {terminal_state} and will attempt to run again..."
+                f"Task {task_run.name!r} received state {state} when proposing state {terminal_state} and will attempt to run again..."
             )
             # Attempt to enter a running state again
-            state = await client.propose_state(Running(), task_run_id=task_run_id)
+            state = await client.propose_state(Running(), task_run_id=task_run.id)
 
     # Display the local terminal state if we can because it wont have been serialized
     # but fall back to the `state` object which will have a value even if the task did
     # not run
     display_state = terminal_state or state
-    logger.info(f"Task run {task_run_name!r} finished with state {display_state}")
+    logger.info(f"Task run {task_run.name!r} finished with state {display_state}")
     return state
 
 
