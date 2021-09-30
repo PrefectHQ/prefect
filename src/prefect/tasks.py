@@ -29,6 +29,7 @@ from typing_extensions import ParamSpec
 from prefect.futures import PrefectFuture
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
+from prefect.exceptions import ReservedArgumentError
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -114,6 +115,11 @@ class Task(Generic[P, R]):
         self.fn = fn
         self.isasync = inspect.iscoroutinefunction(self.fn)
 
+        if "wait_for" in inspect.signature(self.fn).parameters:
+            raise ReservedArgumentError(
+                "'wait_for' is a reserved argument name and cannot be used in task functions."
+            )
+
         self.tags = set(tags if tags else [])
 
         # the task key is a hash of (name, fn, tags)
@@ -138,26 +144,35 @@ class Task(Generic[P, R]):
 
     @overload
     def __call__(
-        self: "Task[P, NoReturn]", *args: P.args, **kwargs: P.kwargs
-    ) -> PrefectFuture[T]:
+        self: "Task[P, NoReturn]",
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> PrefectFuture[None]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
 
     @overload
     def __call__(
-        self: "Task[P, Coroutine[Any, Any, T]]", *args: P.args, **kwargs: P.kwargs
+        self: "Task[P, Coroutine[Any, Any, T]]",
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> Awaitable[PrefectFuture[T]]:
         ...
 
     @overload
     def __call__(
-        self: "Task[P, T]", *args: P.args, **kwargs: P.kwargs
+        self: "Task[P, T]",
+        *args: P.args,
+        **kwargs: P.kwargs,
     ) -> PrefectFuture[T]:
         ...
 
     def __call__(
-        self, *args: Any, **kwargs: Any
+        self,
+        *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
+        **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
         Run the task - must be called within a flow function.
@@ -172,6 +187,7 @@ class Task(Generic[P, R]):
 
         Args:
             *args: Arguments to run the task with
+            wait_for: Upstream task futures to wait for before starting the task
             **kwargs: Keyword arguments to run the task with
 
         Returns:
@@ -234,7 +250,12 @@ class Task(Generic[P, R]):
         dynamic_key = self.get_and_update_dynamic_key()
 
         # Update the dynamic key so future task calls are distinguishable from this one
-        return enter_task_run_engine(self, parameters, dynamic_key)
+        return enter_task_run_engine(
+            self,
+            parameters=parameters,
+            dynamic_key=dynamic_key,
+            wait_for=wait_for,
+        )
 
     def get_and_update_dynamic_key(self) -> str:
         """
