@@ -197,6 +197,35 @@ class TestReadTaskRuns:
         )
         assert len(result) == 0
 
+    async def test_read_task_runs_filters_by_task_run_names(self, flow_run, session):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key", name="{task_key}"
+            ),
+        )
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="my-key-2", name="my task run"
+            ),
+        )
+
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                name=schemas.filters.TaskRunFilterName(any_=["my task run"])
+            ),
+        )
+        assert {res.id for res in result} == {task_run_2.id}
+        result = await models.task_runs.read_task_runs(
+            session=session,
+            task_run_filter=schemas.filters.TaskRunFilter(
+                name=schemas.filters.TaskRunFilterName(any_=["not my task run"])
+            ),
+        )
+        assert len(result) == 0
+
     async def test_read_task_runs_filters_by_task_run_tags(self, flow_run, session):
         task_run_1 = await models.task_runs.create_task_run(
             session=session,

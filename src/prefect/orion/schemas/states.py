@@ -1,4 +1,5 @@
 import datetime
+from collections.abc import Iterable
 from typing import Optional, Generic, TypeVar
 from uuid import UUID
 
@@ -50,6 +51,87 @@ class State(IDBaseModel, Generic[R]):
     message: str = Field(None, example="Run started")
     data: DataDocument[R] = Field(None, repr=False)
     state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
+
+    def result(self, raise_on_failure: bool = True):
+        """
+        Convenience method for access the data on the state's data document.
+
+        Args:
+            raise_on_failure: a boolean specifying whether to raise an exception
+                if the state is of type `FAILED` and the underlying data is an exception
+
+        Raises:
+            TypeError: if the state is failed but without an exception
+
+        Returns:
+            The underlying decoded data
+
+        Examples:
+            >>> from prefect import flow, task
+            >>> @task
+            >>> def my_task(x):
+            >>>     return x
+
+            Get the result from a task future in a flow
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     future = my_task("hello")
+            >>>     state = future.wait()
+            >>>     result = state.result()
+            >>>     print(result)
+            >>> my_flow()
+            hello
+
+            Get the result from a flow state
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     return "hello"
+            >>> my_flow().result()
+            hello
+
+            Get the result from a failed state
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow()  # Error is wrapped in FAILED state
+            >>> state.result()  # Raises `ValueError`
+
+            Get the result from a failed state without erroring
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     raise ValueError("oh no!")
+            >>> state = my_flow()
+            >>> result = state.result(raise_on_failure=False)
+            >>> print(result)
+            ValueError("oh no!")
+        """
+        data = None
+        if self.data:
+            data = self.data.decode()
+
+        if self.is_failed() and raise_on_failure:
+            if isinstance(data, Exception):
+                raise data
+            elif isinstance(data, State):
+                data.result()
+            elif isinstance(data, Iterable) and all(
+                [isinstance(o, State) for o in obj]
+            ):
+                # raise the first failure we find
+                for state in data:
+                    state.result()
+
+            # we don't make this an else in case any of the above conditionals doesn't raise
+            raise TypeError(
+                f"Unexpected result for failure state: {data!r} —— "
+                f"{type(data).__name__} cannot be resolved into an exception"
+            )
+
+        return data
 
     @validator("name", always=True)
     def default_name_from_type(cls, v, *, values, **kwargs):

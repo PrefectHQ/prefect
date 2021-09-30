@@ -17,7 +17,7 @@ const aggregateSeconds = (s: number): { [key: string]: number } => {
   const days = Math.floor((s % _y) / _d)
   const hours = Math.floor(((s % _y) % _d) / _h)
   const minutes = Math.floor((((s % _y) % _d) % _h) / _m)
-  const seconds = (((s % _y) % _d) % _h) % _m
+  const seconds = Math.ceil((((s % _y) % _d) % _h) % _m)
 
   return { years, days, hours, minutes, seconds }
 }
@@ -76,6 +76,7 @@ export const secondsToApproximateString = (
       break
     case days > 0 && hours > 0:
       value = _d + ' ' + _h
+      break
     case hours > 0 && minutes == 0:
       value = _h + ' ' + _m
       break

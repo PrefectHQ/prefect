@@ -12,7 +12,7 @@
       "
     >
       <h2>
-        {{ deployment.name }}
+        {{ item.name }}
       </h2>
 
       <div
@@ -25,40 +25,59 @@
           align-bottom
         "
       >
-        <span class="mr-2 text-truncate">
-          <span class="text--grey-40">Schedule: </span>
-          <span class="text--grey-80"> Every {{ schedule }}</span>
+        <span class="mr-1 caption text-truncate d-flex align-center">
+          <i class="pi pi-calendar-line pi-sm text--grey-20" />
+          <span
+            class="text--grey-80 ml--half font--primary"
+            style="min-width: 0px"
+          >
+            Every {{ schedule }}
+          </span>
         </span>
 
-        <span class="mr-2 text-truncate">
-          <span class="text--grey-40">Location: </span>
-          <span class="text--grey-80">{{ location }}</span>
+        <span class="mr-1 caption text-truncate d-flex align-center">
+          <i class="pi pi-global-line pi-sm text--grey-20" />
+          <span
+            class="text--grey-80 ml--half font--primary"
+            style="min-width: 0px"
+          >
+            {{ location }}
+          </span>
         </span>
 
-        <!-- Hiding these for now since they're not in the design but I think we'll need them -->
-        <!-- <Tag
-          v-for="tag in tags"
-          :key="tag"
-          color="secondary-pressed"
-          class="font--primary caption mr-1"
-          icon="pi-label"
-          flat
-        >
-          {{ tag }}
-        </Tag> -->
+        <span class="mr-1 caption text-truncate d-flex align-center">
+          <Tag
+            v-for="tag in tags"
+            :key="tag"
+            color="secondary-pressed"
+            class="font--primary mr-1"
+            icon="pi-label"
+            flat
+          >
+            {{ tag }}
+          </Tag>
+        </span>
       </div>
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
-      <Button outlined class="mr-1" @click="parametersDrawerActive = true">
+      <Button
+        outlined
+        height="36px"
+        width="160px"
+        class="mr-1 text--grey-80"
+        @click="parametersDrawerActive = true"
+      >
         View Parameters
       </Button>
-      <Button outlined>Quick Run</Button>
+      <Button outlined miter height="36px" width="105px" class="text--grey-80">
+        Quick Run
+      </Button>
     </div>
   </list-item>
 
   <drawer v-model="parametersDrawerActive" show-overlay>
-    <template #title>{{ deployment.name }}</template>
+    <template #title>{{ item.name }}</template>
     <h3 class="font-weight-bold">Parameters</h3>
     <div>These are the inputs that are passed to runs of this Deployment.</div>
 
@@ -98,7 +117,7 @@
         </div>
 
         <p class="font--secondary caption">
-          {{ parameter.parameter }}
+          {{ parameter.value }}
         </p>
 
         <hr
@@ -113,10 +132,10 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
-import { Deployment } from '@/objects'
+import { Deployment, IntervalSchedule, CronSchedule } from '@/typings/objects'
 
 class Props {
-  deployment = prop<Deployment>({ required: true })
+  item = prop<Deployment>({ required: true })
 }
 
 @Options({
@@ -131,19 +150,29 @@ export default class ListItemDeployment extends Vue.with(Props) {
   search: string = ''
 
   get location(): string {
-    return this.deployment.location
+    return this.item.flow_data.blob || '--'
   }
 
   get parameters(): { [key: string]: any }[] {
-    return this.deployment.parameters
+    return Object.entries(this.item.parameters).reduce(
+      (arr: { [key: string]: any }[], [key, value]) => [
+        ...arr,
+        { name: key, value: value, type: typeof value }
+      ],
+      []
+    )
   }
 
-  get schedule(): any {
-    return secondsToString(this.deployment.schedule, false)
+  get schedule(): string {
+    if ('interval' in this.item.schedule)
+      return secondsToString(this.item.schedule.interval, false)
+
+    // TODO: add parsing for cron and RR schedules
+    return '--'
   }
 
   get tags(): string[] {
-    return this.deployment.tags
+    return this.item.tags
   }
 
   get filteredParameters(): { [key: string]: any }[] {

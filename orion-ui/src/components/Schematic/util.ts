@@ -7,6 +7,18 @@ Ring 1+:
 
 */
 
+import {
+  Link,
+  SchematicNodes,
+  SchematicNode,
+  Rings,
+  Ring,
+  Links,
+  Positions,
+  Position,
+  Items
+} from '@/typings/schematic'
+
 function defaultId(d: any) {
   // We could use d.index for this since this is a map
   // but we'll assume UUIDs for now
@@ -51,20 +63,20 @@ export class RadialSchematic {
 
   rings: Rings = new Map()
 
-  center([x, y]: number[]) {
+  center([x, y]: number[]): RadialSchematic {
     this.cx = x
     this.cy = y
 
     return this
   }
 
-  computations(c: number) {
+  computations(c: number): RadialSchematic {
     this.maxRecomputations = c
 
     return this
   }
 
-  items(items: Items) {
+  items(items: Items): RadialSchematic {
     this.update(items)
     return this
   }
@@ -76,9 +88,9 @@ export class RadialSchematic {
     if (!curr)
       throw new Error('No starting node was provided to the traverse method.')
 
-    let queue: [SchematicNode] = [curr]
+    const queue: [SchematicNode] = [curr]
     let node: SchematicNode | undefined
-    let tree: Map<string, SchematicNode> = new Map()
+    const tree: Map<string, SchematicNode> = new Map()
 
     while (queue.length > 0) {
       node = queue.shift()! // We know this will always be defined because of the while loop conditional
@@ -116,7 +128,7 @@ export class RadialSchematic {
   private computeNodes(items: Items) {
     const len = items.length
     for (let i = 0; i < len; i++) {
-      let item = items[i]
+      const item = items[i]
       this.nodes.set(item.id, {
         id: item.id,
         cx: 0,
@@ -271,17 +283,17 @@ export class RadialSchematic {
 
       // Do this in a group?
       while (!position) {
-        const [_ukey, _u] = upstream.next().value || [null, null]
+        const [, _u] = upstream.next().value || [null, null]
         // If there are no more upstream nodes to compare against
         // we exit (and take the first available position)
         if (!_u) break
 
         // We get the equivalent position on the current ring
         // as this upstream node
-        let equivalentPosition = Math.floor(
+        const equivalentPosition = Math.floor(
           (_u.position / _r!.positions.size) * p.size
         )
-        let potentialPosition = p.get(equivalentPosition)
+        const potentialPosition = p.get(equivalentPosition)
 
         // If this position exists and is empty, we use this position and exist early
         if (potentialPosition && potentialPosition.nodes.size === 0) {
@@ -293,14 +305,14 @@ export class RadialSchematic {
           equivalentPosition - 1 == 0 ? p.size - 1 : equivalentPosition - 1
         let j = equivalentPosition + 1
         while (i >= 0 || j <= p.size) {
-          let downPosition = p.get(i)
+          const downPosition = p.get(i)
 
           if (downPosition && downPosition.nodes.size === 0) {
             position = downPosition
             break
           }
 
-          let upPosition = p.get(j)
+          const upPosition = p.get(j)
 
           if (upPosition && upPosition.nodes.size === 0) {
             position = upPosition

@@ -4,7 +4,7 @@ on: [pull_request]
 
 jobs:
   run-tests-sqlite:
-    name: Sqlite
+    name: SQLite
 
     strategy:
       matrix:

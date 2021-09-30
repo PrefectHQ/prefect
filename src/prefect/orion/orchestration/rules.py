@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 from pydantic import Field
 
-from prefect.orion.models import orm
+from prefect.orion.models import orm, flow_runs
 from prefect.orion.schemas import states
 from prefect.orion.schemas.responses import (
     SetStateStatus,
@@ -256,6 +256,12 @@ class FlowOrchestrationContext(OrchestrationContext):
 
         return self.run.empirical_policy
 
+    async def task_run(self):
+        return None
+
+    async def flow_run(self):
+        return self.run
+
 
 class TaskOrchestrationContext(OrchestrationContext):
     """
@@ -348,6 +354,15 @@ class TaskOrchestrationContext(OrchestrationContext):
         """Run-level settings used to orchestrate the state transition."""
 
         return self.run.empirical_policy
+
+    async def task_run(self):
+        return self.run
+
+    async def flow_run(self):
+        return await flow_runs.read_flow_run(
+            session=self.session,
+            flow_run_id=self.run.flow_run_id,
+        )
 
 
 class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
@@ -494,8 +509,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         Implements a hook that can fire before a state is committed to the database.
 
         This hook may produce side-effects or mutate the proposed state of a
-        transition using one of three methods: `self.reject_transition`,
-        `self.delay_transition`, and `self.abort_transition`.
+        transition using one of four methods: `self.reject_transition`,
+        `self.delay_transition`, `self.abort_transition`, and `self.rename_state`.
 
         NOTE: As currently implemented, the `before_transition` hook is not
         perfectly isolated from mutating the transition. It is a standard instance
@@ -694,6 +709,18 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.ABORT
         self.context.response_details = StateAbortDetails(reason=reason)
+
+    async def rename_state(self, state_name):
+        """
+        Sets the "name" attribute on a proposed state.
+
+        The name of a state is an annotation intended to provide rich, human-readable
+        context for how a run is progressing. This method only updates the name and not
+        the canonical state TYPE, and will not fizzle or invalidate any other rules
+        that might govern this state transition.
+        """
+
+        self.context.proposed_state.name = state_name
 
 
 class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
