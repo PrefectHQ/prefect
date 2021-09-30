@@ -42,7 +42,7 @@ When you run this flow you should see the terminal output randomly switching bet
 
 ## Asynchronous Execution
 
-Prefect supports asynchronous task and flow definitions.  All of the standard rules of async apply:
+Prefect supports asynchronous task and flow definitions.  All of [the standard rules of async](https://docs.python.org/3/library/asyncio-task.html) apply:
 
 ```python
 import asyncio
