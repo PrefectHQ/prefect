@@ -755,7 +755,7 @@ class TestTaskInputs:
         )
 
 
-class TestTaskDatalessDependencies:
+class TestTaskExplicitUpstreamFutures:
     def test_downstream_does_not_run_if_upstream_fails(self):
         @task
         def fails():
@@ -775,3 +775,22 @@ class TestTaskDatalessDependencies:
         task_state = flow_state.result().unquote()
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
+
+    def test_downstream_runs_if_upstream_succeeds(self):
+        @task
+        def foo(x):
+            return x
+
+        @task
+        def bar(y):
+            return y
+
+        @flow
+        def test_flow():
+            f = foo(1)
+            b = bar(2, upstream_futures=[f])
+            return quote(b)
+
+        flow_state = test_flow()
+        task_state = flow_state.result().unquote()
+        assert task_state.result() == 2
