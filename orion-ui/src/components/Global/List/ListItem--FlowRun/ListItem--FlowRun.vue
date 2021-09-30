@@ -18,6 +18,12 @@
       "
     >
       <h2>
+        <span
+          v-skeleton="!flow.name"
+          class="text--grey-40"
+          style="min-width: 40px"
+          >{{ flow.name }} /</span
+        >
         {{ item.name }}
       </h2>
 
@@ -42,9 +48,9 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+    <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
       <rounded-button class="mr-1">
-        {{ taskRunCount }} task runs
+        {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
       </rounded-button>
     </div>
 
@@ -70,7 +76,13 @@
 <script lang="ts" setup>
 import { defineProps, computed } from 'vue'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
+import {
+  Api,
+  Query,
+  Endpoints,
+  TaskRunsFilter,
+  FlowsFilter
+} from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
@@ -79,10 +91,23 @@ import { secondsToApproximateString } from '@/util/util'
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()
 
-const flow_runs: FlowRunsFilter = {
+const flow_runs_filter_body: TaskRunsFilter = {
   flow_runs: {
     id: {
       any_: [props.item.id]
+    }
+  },
+  task_runs: {
+    subflow_runs: {
+      exists_: false
+    }
+  }
+}
+
+const flow_filter_body: FlowsFilter = {
+  flows: {
+    id: {
+      any_: [props.item.flow_id]
     }
   }
 }
@@ -92,7 +117,7 @@ const taskRunHistoryFilter = computed(() => {
     history_start: store.getters.globalFilter.start.toISOString(),
     history_end: store.getters.globalFilter.end.toISOString(),
     history_interval_seconds: store.getters.globalFilter.intervalSeconds * 4,
-    flow_runs: flow_runs.flows
+    flow_runs: flow_runs_filter_body.flows
   }
 })
 
@@ -103,7 +128,11 @@ const queries: { [key: string]: Query } = {
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: flow_runs
+    body: flow_runs_filter_body
+  }),
+  flow: Api.query({
+    endpoint: Endpoints.flows,
+    body: flow_filter_body
   })
 }
 
@@ -121,6 +150,11 @@ const state = computed(() => {
 
 const tags = computed(() => {
   return props.item.tags
+})
+
+const flow = computed(() => {
+  console.log(queries.flow)
+  return queries.flow?.response?.value?.[0] || {}
 })
 
 const taskRunCount = computed((): number => {
