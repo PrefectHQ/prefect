@@ -499,7 +499,7 @@ async def begin_task_run(
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
-        )
+        ),
     )
 
     # Track the task run future in the flow run context
