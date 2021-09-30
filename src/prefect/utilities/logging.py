@@ -38,10 +38,16 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
             val = env_val
 
         # next check if the value refers to a global setting
-        if isinstance(val, str) and r"{{" in val:
+        # only perform this check if the value is a string beginning with '{{'
+        if isinstance(val, str) and val.startswith(r"{{"):
+            # this regex looks for `{{prefect.settings.logging.KEY}}`
+            # and returns `KEY` as its first capture group
             matched_settings = interpolated_settings.match(val)
             if matched_settings:
-                val = getattr(settings, matched_settings.group(1), None)
+                # retrieve the matched key
+                matched_key = matched_settings.group(1)
+                # retrieve the global logging setting corresponding to the key
+                val = getattr(settings, matched_key, None)
 
         # reassign the updated value
         flat_config[key_tup] = val
