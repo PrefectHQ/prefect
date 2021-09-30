@@ -69,6 +69,7 @@ nav:
         - Executors: concepts/executors.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
+        - Settings: concepts/settings.md
     - FAQ: faq.md
     - 'API Reference': 
         - Prefect Python API: 

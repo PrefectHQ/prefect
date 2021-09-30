@@ -16,6 +16,7 @@ from prefect.executors import BaseExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
+    Cancelled,
     Completed,
     State,
     StateDetails,
@@ -78,7 +79,6 @@ class TestUserReturnValueToState:
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
             run_id=None,
-            client=None,
             executor=None,
             _final_state=state,
         )
@@ -333,15 +333,111 @@ class TestOrchestrateTaskRun:
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run_id)
-        state_names = [state.name for state in states]
+        state_names = [state.type for state in states]
         assert state_names == [
-            "Pending",
-            "Running",
-            "Awaiting Retry",
-            "Scheduled",  # This is a forced state change to speedup the test
-            "Running",
-            "Completed",
+            StateType.PENDING,
+            StateType.RUNNING,
+            StateType.SCHEDULED,
+            StateType.SCHEDULED,  # This is a forced state change to speedup the test
+            StateType.RUNNING,
+            StateType.COMPLETED,
         ]
+
+    @pytest.mark.parametrize(
+        "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
+    )
+    async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
+        self, orion_client, flow_run_id, upstream_task_state
+    ):
+        # Define a mock to ensure the task was not run
+        mock = MagicMock()
+
+        @task
+        def my_task(x):
+            mock()
+
+        # Create an upstream task run
+        upstream_task_run_id = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run_id,
+            state=upstream_task_state,
+            dynamic_key="upstream",
+        )
+        upstream_task_state.state_details.task_run_id = upstream_task_run_id
+
+        # Create a future to wrap the upstream task, have it resolve to the given
+        # incomplete state
+        future = PrefectFuture(
+            run_id=upstream_task_run_id,
+            executor=None,
+            _final_state=upstream_task_state,
+        )
+
+        # Create a task run to test
+        task_run_id = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run_id,
+            state=Pending(),
+            dynamic_key="downstream",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": {"nested": [future]}},
+            client=orion_client,
+        )
+
+        # The task did not run
+        mock.assert_not_called()
+
+        # Check that the state is 'NotReady'
+        assert state.is_pending()
+        assert state.name == "NotReady"
+        assert (
+            state.message
+            == f"Upstream task run '{upstream_task_run_id}' did not reach a 'COMPLETED' state."
+        )
+
+    @pytest.mark.parametrize(
+        "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
+    )
+    async def test_states_in_parameters_can_be_incomplete(
+        self, orion_client, flow_run_id, upstream_task_state
+    ):
+        # Define a mock to ensure the task was not run
+        mock = MagicMock()
+
+        @task
+        def my_task(x):
+            mock(x)
+
+        # Create a task run to test
+        task_run_id = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run_id,
+            state=Pending(),
+            dynamic_key="downstream",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": upstream_task_state},
+            client=orion_client,
+        )
+
+        # The task ran with the state as its input
+        mock.assert_called_once_with(upstream_task_state)
+
+        # Check that the state completed happily
+        assert state.is_completed()
 
 
 class TestOrchestrateFlowRun:

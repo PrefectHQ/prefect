@@ -61,13 +61,9 @@
 }
 
 .doc p, .doc em, .doc li {
-    font-size: 14px;
     margin-top: 4px;
 }
 
-.highlight code {
-    font-size: 12px;
-}
 
 details.quote:not([open]),
 details.quote[open] {
