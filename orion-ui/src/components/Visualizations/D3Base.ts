@@ -6,35 +6,6 @@ const suid = () => '_' + Math.random().toString(36).substr(2, 9)
 
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
-// declare class D3Base {
-//   constructor()
-//   id: string
-//   height: number
-//   width: number
-
-//   container: HTMLElement
-//   svg: SelectionType
-
-//   padding: {
-//     top: number
-//     bottom: number
-//     middle: number
-//     left: number
-//     right: number
-//   }
-
-//   /**
-//    * A hook called after the component handles the window resize event
-//    */
-//   resize(): void
-
-//   private handleWindowResize(): void
-//   private initializeChartDimensions(): void
-
-//   mounted(): void
-//   destroyed(): void
-// }
-
 @Options({})
 export class D3Base extends Vue {
   public id: string = suid()
@@ -137,7 +108,7 @@ export class D3Base extends Vue {
     window.addEventListener('resize', this.handleWindowResize)
   }
 
-  destroyed() {
+  destroyed(): void {
     window.removeEventListener('resize', this.handleWindowResize)
   }
 }
