@@ -31,11 +31,11 @@
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
       <rounded-button class="mr-1">
-        {{ flowRunCount }} flow runs
+        {{ flowRunCount }} flow run{{ flowRunCount === 1 ? '' : 's' }}
       </rounded-button>
 
       <rounded-button class="mr-1">
-        {{ taskRunCount }} task runs
+        {{ taskRunCount }} task run{{ taskRunCount === 1 ? '' : 's' }}
       </rounded-button>
     </div>
 
@@ -53,6 +53,8 @@
 import { Options, Vue, prop } from 'vue-class-component'
 import { Flow } from '@/typings/objects'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { Bucket } from '@/typings/run_history'
 
 class Props {
@@ -61,10 +63,43 @@ class Props {
 
 @Options({ components: { RunHistoryChart } })
 export default class ListItemFlow extends Vue.with(Props) {
+  queries: { [key: string]: Query } = {
+    // flow_run_history: Api.query({
+    //   endpoint: Endpoints.flow_runs_history,
+    //   body: {}
+    // }),
+    flow_run_count: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: {
+        flows: {
+          id: {
+            any_: [this.item.id]
+          }
+        }
+      }
+    }),
+    task_run_count: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: {
+        flows: {
+          id: {
+            any_: [this.item.id]
+          }
+        }
+      }
+    })
+  }
+
   taskRunBuckets: Bucket[] = []
 
-  flowRunCount: number = 0
-  taskRunCount: number = 0
+  get flowRunCount(): number {
+    console.log(this.queries.flow_run_count.response)
+    return this.queries.flow_run_count.response || 0
+  }
+
+  get taskRunCount(): number {
+    return this.queries.task_run_count.response || 0
+  }
 }
 </script>
 
