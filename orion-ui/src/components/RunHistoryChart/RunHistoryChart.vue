@@ -189,7 +189,9 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   get barWidth(): number {
-    return Math.min(10, (this.width - this.paddingX) / this.items.length / 2)
+    return Math.floor(
+      Math.min(10, (this.width - this.paddingX) / this.items.length / 2)
+    )
   }
 
   get viewHeight(): number {

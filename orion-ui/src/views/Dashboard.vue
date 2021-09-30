@@ -34,19 +34,23 @@
     <div class="chart-section">
       <RunHistoryCard class="run-history" :filter="flowRunHistoryFilter" />
 
-      <Card class="run-duration flex-grow-0" shadow="sm">
-        <template v-slot:aside>
-          <div class="pl-2 pt-1" style="width: 100px">
-            <div class="font--secondary subheader">--</div>
-            <div class="body">Duration</div>
-          </div>
-        </template>
-        <div class="chart px-1">
-          <BarChart :items="run_duration_items" height="117px" />
-        </div>
-      </Card>
+      <IntervalBarChartCard
+        title="Duration"
+        endpoint="flow_runs_history"
+        state-bucket-key="sum_estimated_run_time"
+        :filter="flowRunStatsFilter"
+        class="run-duration flex-grow-0"
+      />
 
-      <Card class="run-lateness flex-grow-0" shadow="sm">
+      <IntervalBarChartCard
+        title="Lateness"
+        endpoint="flow_runs_history"
+        state-bucket-key="sum_estimated_lateness"
+        :filter="flowRunStatsFilter"
+        class="run-lateness flex-grow-0"
+      />
+
+      <!-- <Card class="run-lateness flex-grow-0" shadow="sm">
         <template v-slot:aside>
           <div class="pl-2 pt-1" style="width: 100px">
             <div class="font--secondary subheader">--</div>
@@ -56,7 +60,7 @@
         <div class="chart px-1">
           <BarChart :items="run_lateness_items" height="117px" />
         </div>
-      </Card>
+      </Card> -->
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
@@ -175,10 +179,10 @@ import {
 
 import RunHistoryCard from '@/components/RunHistoryChart/RunHistoryCard.vue'
 
-import BarChart from '@/components/BarChart/BarChart.vue'
+import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
 
 @Options({
-  components: { BarChart, RunHistoryCard },
+  components: { IntervalBarChartCard, RunHistoryCard },
   watch: {
     resultsTab(val) {
       this.$router.push({ hash: `#${val}` })
@@ -261,6 +265,14 @@ export default class Dashboard extends Vue {
       history_start: this.start.toISOString(),
       history_end: this.end.toISOString(),
       history_interval_seconds: 60
+    }
+  }
+
+  get flowRunStatsFilter(): FlowRunsHistoryFilter {
+    return {
+      ...this.flowRunHistoryFilter,
+      history_interval_seconds:
+        this.flowRunHistoryFilter.history_interval_seconds * 2
     }
   }
 
