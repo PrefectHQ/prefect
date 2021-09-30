@@ -4,7 +4,6 @@ import os
 import re
 from functools import partial
 from pathlib import Path
-
 import yaml
 
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
@@ -15,6 +14,8 @@ DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
 
 # Regex call to replace non-alphanumeric characters to '_' to create a valid env var
 to_envvar = partial(re.sub, re.compile(r"[^0-9a-zA-Z]+"), "_")
+# Regex for detecting interpolated global settings
+interpolated_settings = re.compile(r"^{{prefect\.settings\.logging\.([\w\d_]+)}}$")
 
 
 def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
@@ -24,15 +25,26 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
     config = yaml.safe_load(path.read_text())
 
     # Load overrides from the environment
-    env_prefix = settings.Config.env_prefix
     flat_config = dict_to_flatdict(config)
-    for key_tup in flat_config.keys():
-        override_val = os.environ.get(
+
+    for key_tup, val in flat_config.items():
+
+        # first check if the value was overriden via env var
+        env_val = os.environ.get(
             # Generate a valid environment variable with nesting indicated with '_'
-            to_envvar((env_prefix + "_".join(key_tup)).upper())
+            to_envvar((settings.Config.env_prefix + "_".join(key_tup)).upper())
         )
-        if override_val:
-            flat_config[key_tup] = override_val
+        if env_val:
+            val = env_val
+
+        # next check if the value refers to a global setting
+        if isinstance(val, str) and r"{{" in val:
+            matched_settings = interpolated_settings.match(val)
+            if matched_settings:
+                val = getattr(settings, matched_settings.group(1), None)
+
+        # reassign the updated value
+        flat_config[key_tup] = val
 
     return flatdict_to_dict(flat_config)
 
