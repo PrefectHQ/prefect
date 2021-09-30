@@ -229,6 +229,18 @@ export default class Dashboard extends Vue {
     return this.queries.task_runs?.response || 0
   }
 
+  get start(): Date {
+    return this.$store.getters.globalFilter.start
+  }
+
+  get end(): Date {
+    return this.$store.getters.globalFilter.end
+  }
+
+  get interval(): number {
+    return this.$store.getters.globalFilter.intervalSeconds
+  }
+
   get loading(): boolean {
     return (
       this.queries.flows.loading.value ||
@@ -238,22 +250,18 @@ export default class Dashboard extends Vue {
     )
   }
 
-  start = new Date()
-  end = new Date()
-
   get flowRunHistoryFilter(): FlowRunsHistoryFilter {
     return {
       history_start: this.start.toISOString(),
       history_end: this.end.toISOString(),
-      history_interval_seconds: 60
+      history_interval_seconds: this.interval
     }
   }
 
   get flowRunStatsFilter(): FlowRunsHistoryFilter {
     return {
       ...this.flowRunHistoryFilter,
-      history_interval_seconds:
-        this.flowRunHistoryFilter.history_interval_seconds * 2
+      history_interval_seconds: this.interval * 2
     }
   }
 
@@ -279,37 +287,29 @@ export default class Dashboard extends Vue {
   }
 
   previous30Minutes(): void {
-    const start = this.start
-    const end = this.end
+    const start = new Date(this.$store.state.globalFilter.start || new Date())
+    const end = new Date(this.$store.state.globalFilter.end || new Date())
 
     start.setMinutes(start.getMinutes() - 30)
     end.setMinutes(end.getMinutes() - 30)
 
-    this.start = new Date(start)
-    this.end = new Date(end)
+    this.$store.commit('start', start)
+    this.$store.commit('end', end)
   }
+
   next30Minutes(): void {
-    const start = this.start
-    const end = this.end
+    const start = new Date(this.$store.state.globalFilter.start || new Date())
+    const end = new Date(this.$store.state.globalFilter.end || new Date())
 
     start.setMinutes(start.getMinutes() + 30)
     end.setMinutes(end.getMinutes() + 30)
 
-    this.start = new Date(start)
-    this.end = new Date(end)
+    this.$store.commit('start', start)
+    this.$store.commit('end', end)
   }
 
   beforeCreate(): void {
     this.resultsTab = this.$route.hash?.substr(1) || 'flows'
-
-    this.start.setMinutes(this.start.getMinutes() - 30)
-    // this.start.setHours(this.start.getHours() - 1)
-    this.start.setSeconds(0)
-    this.start.setMilliseconds(0)
-    this.end.setHours(this.end.getHours() + 1)
-    this.end.setMinutes(0)
-    this.end.setSeconds(0)
-    this.end.setMilliseconds(0)
   }
 }
 </script>

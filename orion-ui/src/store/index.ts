@@ -2,6 +2,7 @@ import { InjectionKey } from 'vue'
 import { createStore, Store } from 'vuex'
 import { GlobalFilter } from '@/typings/global'
 import * as getters from './getters'
+import * as mutations from './mutations'
 
 export interface State {
   globalFilter: GlobalFilter
@@ -24,7 +25,7 @@ const state: State = {
     end: end
   }
 }
-const mutations = {}
+
 const actions = {}
 
 export const key: InjectionKey<Store<State>> = Symbol()
