@@ -10,6 +10,9 @@ type not_any_ = string[]
 /** Matches on boolean equality */
 type eq_ = boolean
 
+/** Matches on boolean equality */
+type exists_ = boolean
+
 /** If true, returns results whose key is null */
 type is_null_ = boolean
 
@@ -159,6 +162,9 @@ declare interface TaskRunFilter {
   start_time?: {
     before_: before_
     after_: after_
+  }
+  subflow_runs?: {
+    exists_: exists_
   }
 }
 
