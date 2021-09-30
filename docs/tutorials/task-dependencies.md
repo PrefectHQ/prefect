@@ -184,7 +184,11 @@ def complex_flow_logic():
         print('result was good')
 ```
 
-warning that calling .result() within a flow can abort the flow run.
+!!! warning "`.result()` may raise an exception"
+    Be aware that calling `state.result()` may raise an exception if the underlying task fails - this will have the affect of aborting your flow run.  To avoid this behaviot, pass `raise_on_failure=False` to the result method.
+
+As we can see here, mixing native Python logic with your Prefect tasks is straightforward once you understand the behavior of Prefect futures and states!
+
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
