@@ -193,7 +193,7 @@ class TestReadFlows:
         task_run_1 = await models.task_runs.create_task_run(
             session=session,
             task_run=schemas.actions.TaskRunCreate(
-                flow_run_id=flow_run_1.id, task_key="my-key"
+                flow_run_id=flow_run_1.id, task_key="my-key", dynamic_key="0",
             ),
         )
         await session.commit()
