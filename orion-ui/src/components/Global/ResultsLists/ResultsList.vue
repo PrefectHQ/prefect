@@ -31,7 +31,7 @@ const props = defineProps<{
   component: string
   endpoint: string
 }>()
-const limit = ref(50)
+const limit = ref(20)
 const offset = ref(0)
 const loading = ref(false)
 const items = ref<any[]>([])
@@ -62,7 +62,7 @@ const fetchMore = async () => {
 
 const init = async () => {
   items.value = await getData()
-  limit.value = 5
+  limit.value = 10
 }
 
 init()
