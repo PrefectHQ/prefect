@@ -55,7 +55,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flows' }"
         >
-          {{ flowsCount }}
+          {{ flowsCount.toLocaleString() }}
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
@@ -65,7 +65,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ deploymentsCount }}
+          {{ deploymentsCount.toLocaleString() }}
         </span>
       </Tab>
       <Tab href="flow_runs" class="subheader">
@@ -75,7 +75,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow_runs' }"
         >
-          {{ flowRunsCount }}
+          {{ flowRunsCount.toLocaleString() }}
         </span>
       </Tab>
       <Tab href="task_runs" class="subheader">
@@ -85,14 +85,16 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task_runs' }"
         >
-          {{ taskRunsCount }}
+          {{ taskRunsCount.toLocaleString() }}
         </span>
       </Tab>
     </Tabs>
 
     <div class="font--secondary caption my-2" style="min-height: 17px">
       <span v-show="resultsCount > 0">
-        {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+        {{ resultsCount.toLocaleString() }} Result{{
+          resultsCount !== 1 ? 's' : ''
+        }}
       </span>
     </div>
 
