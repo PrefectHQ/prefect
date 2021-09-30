@@ -243,7 +243,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
-    ) -> UUID:
+    ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
 
@@ -259,7 +259,7 @@ class OrionClient:
             httpx.RequestError: if Orion does not successfully create a run for any reason
 
         Returns:
-            The flow run id
+            The flow run model
         """
         parameters = parameters or {}
         context = context or {}
@@ -277,11 +277,7 @@ class OrionClient:
         response = await self.post(
             "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
         )
-        flow_run_id = response.json().get("id")
-        if not flow_run_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        return UUID(flow_run_id)
+        return schemas.core.FlowRun.parse_obj(response.json())
 
     async def create_flow_run(
         self,
@@ -292,7 +288,7 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
-    ) -> UUID:
+    ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
 
@@ -311,7 +307,7 @@ class OrionClient:
             httpx.RequestError: if Orion does not successfully create a run for any reason
 
         Returns:
-            The flow run id
+            The flow run model
         """
         parameters = parameters or {}
         context = context or {}
@@ -336,11 +332,7 @@ class OrionClient:
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
 
         response = await self.post("/flow_runs/", json=flow_run_create_json)
-        flow_run_id = response.json().get("id")
-        if not flow_run_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        return UUID(flow_run_id)
+        return schemas.core.FlowRun.parse_obj(response.json())
 
     async def update_flow_run(
         self, flow_run_id: UUID, flow_version: str = None, parameters: dict = None

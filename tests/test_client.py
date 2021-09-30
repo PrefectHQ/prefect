@@ -90,25 +90,23 @@ async def test_create_then_read_flow_run(orion_client):
     def foo():
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo, name="zachs-flow-run")
-    assert isinstance(flow_run_id, UUID)
+    flow_run = await orion_client.create_flow_run(foo, name="zachs-flow-run")
+    assert isinstance(flow_run, schemas.core.FlowRun)
 
-    lookup = await orion_client.read_flow_run(flow_run_id)
-    assert isinstance(lookup, schemas.core.FlowRun)
-    assert lookup.state.is_pending()
-    assert lookup.name == "zachs-flow-run"
+    lookup = await orion_client.read_flow_run(flow_run.id)
+    # Estimates will not be equal since time has passed
+    lookup.estimated_start_time_delta = flow_run.estimated_start_time_delta
+    lookup.estimated_run_time = flow_run.estimated_run_time
+    assert lookup == flow_run
 
 
-async def test_create_then_read_flow_run_with_state(orion_client):
+async def test_create_flow_run_with_state(orion_client):
     @flow
     def foo():
         pass
 
-    flow_run_id = await orion_client.create_flow_run(
-        foo, state=schemas.states.Running()
-    )
-    lookup = await orion_client.read_flow_run(flow_run_id)
-    assert lookup.state.is_running()
+    flow_run = await orion_client.create_flow_run(foo, state=schemas.states.Running())
+    assert flow_run.state.is_running()
 
 
 async def test_set_then_read_flow_run_state(orion_client):
@@ -116,7 +114,7 @@ async def test_set_then_read_flow_run_state(orion_client):
     def foo():
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo)
+    flow_run_id = (await orion_client.create_flow_run(foo)).id
     response = await orion_client.set_flow_run_state(
         flow_run_id,
         state=schemas.states.Completed(message="Test!"),
@@ -138,13 +136,13 @@ async def test_read_flow_runs_without_filter(orion_client):
     def foo():
         pass
 
-    fr_id_1 = await orion_client.create_flow_run(foo)
-    fr_id_2 = await orion_client.create_flow_run(foo)
+    fr_id_1 = (await orion_client.create_flow_run(foo)).id
+    fr_id_2 = (await orion_client.create_flow_run(foo)).id
 
-    flows = await orion_client.read_flow_runs()
-    assert len(flows) == 2
-    assert all(isinstance(flow, schemas.core.FlowRun) for flow in flows)
-    assert {flow.id for flow in flows} == {fr_id_1, fr_id_2}
+    flow_runs = await orion_client.read_flow_runs()
+    assert len(flow_runs) == 2
+    assert all(isinstance(flow_run, schemas.core.FlowRun) for flow_run in flow_runs)
+    assert {flow_run.id for flow_run in flow_runs} == {fr_id_1, fr_id_2}
 
 
 async def test_read_flow_runs_with_filtering(orion_client):
@@ -156,14 +154,14 @@ async def test_read_flow_runs_with_filtering(orion_client):
     def bar():
         pass
 
-    fr_id_1 = await orion_client.create_flow_run(foo, state=Pending())
-    fr_id_2 = await orion_client.create_flow_run(foo, state=Scheduled())
-    fr_id_3 = await orion_client.create_flow_run(bar, state=Pending())
+    fr_id_1 = (await orion_client.create_flow_run(foo, state=Pending())).id
+    fr_id_2 = (await orion_client.create_flow_run(foo, state=Scheduled())).id
+    fr_id_3 = (await orion_client.create_flow_run(bar, state=Pending())).id
     # Only below should match the filter
-    fr_id_4 = await orion_client.create_flow_run(bar, state=Scheduled())
-    fr_id_5 = await orion_client.create_flow_run(bar, state=Running())
+    fr_id_4 = (await orion_client.create_flow_run(bar, state=Scheduled())).id
+    fr_id_5 = (await orion_client.create_flow_run(bar, state=Running())).id
 
-    flows = await orion_client.read_flow_runs(
+    flow_runs = await orion_client.read_flow_runs(
         flow_filter=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
         flow_run_filter=schemas.filters.FlowRunFilter(
             state_type=dict(
@@ -174,9 +172,9 @@ async def test_read_flow_runs_with_filtering(orion_client):
             )
         ),
     )
-    assert len(flows) == 2
-    assert all(isinstance(flow, schemas.core.FlowRun) for flow in flows)
-    assert {flow.id for flow in flows} == {fr_id_4, fr_id_5}
+    assert len(flow_runs) == 2
+    assert all(isinstance(flow, schemas.core.FlowRun) for flow in flow_runs)
+    assert {flow_run.id for flow_run in flow_runs} == {fr_id_4, fr_id_5}
 
 
 async def test_read_flows_without_filter(orion_client):
@@ -223,8 +221,7 @@ async def test_read_flows_with_filter(orion_client):
 
 
 async def test_create_flow_run_from_deployment(orion_client, deployment):
-    flow_run_id = await orion_client.create_flow_run_from_deployment(deployment)
-    flow_run = await orion_client.read_flow_run(flow_run_id)
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
@@ -245,21 +242,20 @@ async def test_update_flow_run(orion_client):
     def foo():
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo)
-    flow_run = await orion_client.read_flow_run(flow_run_id)
+    flow_run = await orion_client.create_flow_run(foo)
 
     exclude = {"updated", "lateness_estimate", "estimated_start_time_delta"}
 
     # No mutation for unset fields
-    await orion_client.update_flow_run(flow_run_id)
-    unchanged_flow_run = await orion_client.read_flow_run(flow_run_id)
+    await orion_client.update_flow_run(flow_run.id)
+    unchanged_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert unchanged_flow_run.dict(exclude=exclude) == flow_run.dict(exclude=exclude)
 
     # Fields updated when set
     await orion_client.update_flow_run(
-        flow_run_id, flow_version="foo", parameters={"foo": "bar"}
+        flow_run.id, flow_version="foo", parameters={"foo": "bar"}
     )
-    updated_flow_run = await orion_client.read_flow_run(flow_run_id)
+    updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
     assert updated_flow_run.parameters == {"foo": "bar"}
 
@@ -273,18 +269,17 @@ async def test_create_then_read_task_run(orion_client):
     def bar(orion_client):
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo)
-    task_run_id = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run_id, dynamic_key="0"
+    flow_run = await orion_client.create_flow_run(foo)
+    task_run = await orion_client.create_task_run(
+        bar, flow_run_id=flow_run.id, dynamic_key="0"
     )
-    assert isinstance(task_run_id, UUID)
+    assert isinstance(task_run, schemas.core.TaskRun)
 
-    lookup = await orion_client.read_task_run(task_run_id)
-    assert isinstance(lookup, schemas.core.TaskRun)
-    assert lookup.tags == list(bar.tags)
-    assert lookup.task_key == bar.task_key
-    assert lookup.empirical_policy == schemas.core.TaskRunPolicy(max_retries=3)
-    assert lookup.state.is_pending()
+    lookup = await orion_client.read_task_run(task_run.id)
+    # Estimates will not be equal since time has passed
+    lookup.estimated_start_time_delta = task_run.estimated_start_time_delta
+    lookup.estimated_run_time = task_run.estimated_run_time
+    assert lookup == task_run
 
 
 async def test_create_then_read_task_run_with_state(orion_client):
@@ -296,13 +291,11 @@ async def test_create_then_read_task_run_with_state(orion_client):
     def bar(orion_client):
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo)
-    task_run_id = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run_id, state=schemas.states.Running(), dynamic_key="0"
+    flow_run = await orion_client.create_flow_run(foo)
+    task_run = await orion_client.create_task_run(
+        bar, flow_run_id=flow_run.id, state=schemas.states.Running(), dynamic_key="0"
     )
-
-    lookup = await orion_client.read_task_run(task_run_id)
-    assert lookup.state.is_running()
+    assert task_run.state.is_running()
 
 
 async def test_set_then_read_task_run_state(orion_client):
@@ -314,20 +307,20 @@ async def test_set_then_read_task_run_state(orion_client):
     def bar(orion_client):
         pass
 
-    flow_run_id = await orion_client.create_flow_run(foo)
-    task_run_id = await orion_client.create_task_run(
-        bar, flow_run_id=flow_run_id, dynamic_key="0"
+    flow_run = await orion_client.create_flow_run(foo)
+    task_run = await orion_client.create_task_run(
+        bar, flow_run_id=flow_run.id, dynamic_key="0"
     )
 
     response = await orion_client.set_task_run_state(
-        task_run_id,
+        task_run.id,
         schemas.states.Completed(message="Test!"),
     )
 
     assert isinstance(response, OrchestrationResult)
     assert response.status == schemas.responses.SetStateStatus.ACCEPT
 
-    run = await orion_client.read_task_run(task_run_id)
+    run = await orion_client.read_task_run(task_run.id)
     assert isinstance(run.state, schemas.states.State)
     assert run.state.type == schemas.states.StateType.COMPLETED
     assert run.state.message == "Test!"

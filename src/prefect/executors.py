@@ -57,9 +57,9 @@ from uuid import UUID
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
-from prefect.client import OrionClient
 from prefect.futures import PrefectFuture, resolve_futures_to_data
 from prefect.orion.schemas.states import State
+from prefect.orion.schemas.core import TaskRun
 from prefect.utilities.logging import get_logger
 
 T = TypeVar("T", bound="BaseExecutor")
@@ -67,17 +67,14 @@ T = TypeVar("T", bound="BaseExecutor")
 
 class BaseExecutor:
     def __init__(self) -> None:
-        # Set on `start`
-        self.flow_run_id: UUID = None
-        self.orion_client: OrionClient = None
         self.logger = get_logger("executor")
+        self._started: bool = False
 
     async def submit(
         self,
-        run_id: UUID,
+        task_run: TaskRun,
         run_fn: Callable[..., State],
-        *args: Any,
-        **kwargs: Dict[str, Any],
+        run_kwargs: Dict[str, Any],
     ) -> PrefectFuture:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
@@ -98,16 +95,15 @@ class BaseExecutor:
     @contextmanager
     def start(
         self: T,
-        flow_run_id: UUID,
     ) -> T:
         """Start the executor, preparing any resources necessary for task submission"""
-        self.flow_run_id = flow_run_id
         try:
+            self._started = True
             yield self
         finally:
             self.logger.info("Shutting down executor...")
             self.shutdown()
-            self.flow_run_id = None
+            self._started = False
 
     def shutdown(self) -> None:
         """
@@ -146,19 +142,18 @@ class SequentialExecutor(BaseExecutor):
 
     async def submit(
         self,
-        run_id: UUID,
+        task_run: TaskRun,
         run_fn: Callable[..., State],
-        *args: Any,
-        **kwargs: Dict[str, Any],
+        run_kwargs: Dict[str, Any],
     ) -> PrefectFuture:
-        if not self.flow_run_id:
+        if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
         # Run the function immediately and store the result in memory
-        self._results[run_id] = await run_fn(*args, **kwargs)
+        self._results[task_run.id] = await run_fn(**run_kwargs)
 
         return PrefectFuture(
-            run_id=run_id,
+            task_run=task_run,
             executor=self,
         )
 
@@ -185,18 +180,17 @@ class DaskExecutor(BaseExecutor):
 
     async def submit(
         self,
-        run_id: UUID,
+        task_run: TaskRun,
         run_fn: Callable[..., State],
-        *args: Any,
-        **kwargs: Dict[str, Any],
+        run_kwargs: Dict[str, Any],
     ) -> PrefectFuture:
-        if not self._client:
+        if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        self._futures[run_id] = self._client.submit(run_fn, *args, **kwargs)
+        self._futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
 
         return PrefectFuture(
-            run_id=run_id,
+            task_run=task_run,
             executor=self,
         )
 
@@ -227,8 +221,8 @@ class DaskExecutor(BaseExecutor):
             return None
 
     @contextmanager
-    def start(self: T, flow_run_id: UUID) -> T:
-        with super().start(flow_run_id=flow_run_id):
+    def start(self: T) -> T:
+        with super().start():
             self._client = distributed.Client()
             self.logger.info(
                 f"Dask dashboard available at {self._client.dashboard_link}"

@@ -8,7 +8,7 @@ import time
 from prefect import flow, task, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
-from prefect.exceptions import FlowParameterError
+from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -163,7 +163,7 @@ class TestFlowCall:
 
         assert state.is_failed()
         with pytest.raises(
-            FlowParameterError,
+            ParameterTypeError,
             match="value is not a valid integer",
         ):
             raise state.result()
@@ -664,7 +664,7 @@ class TestFlowParameterTypes:
             return x
 
         with pytest.raises(
-            FlowParameterError,
+            ParameterTypeError,
             match=(
                 "Flow parameters must be JSON serializable. "
                 "Parameter 'x' is of unserializable type 'ParameterTestClass'"
