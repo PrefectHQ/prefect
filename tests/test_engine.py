@@ -6,7 +6,6 @@ import pytest
 from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.engine import (
-    get_result,
     orchestrate_flow_run,
     orchestrate_task_run,
     raise_failed_state,
@@ -17,6 +16,7 @@ from prefect.executors import BaseExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
+    Cancelled,
     Completed,
     State,
     StateDetails,
@@ -79,7 +79,6 @@ class TestUserReturnValueToState:
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
             run_id=None,
-            client=None,
             executor=None,
             _final_state=state,
         )
@@ -96,86 +95,6 @@ class TestUserReturnValueToState:
     async def test_uses_passed_serializer(self):
         result_state = await user_return_value_to_state("foo", serializer="json")
         assert result_state.data.encoding == "json"
-
-
-class TestGetResult:
-    async def test_decodes_state_data(self):
-        assert (
-            await get_result(Completed(data=DataDocument.encode("json", "hello")))
-            == "hello"
-        )
-
-    async def test_waits_for_futures(self):
-        assert (
-            await get_result(
-                PrefectFuture(
-                    run_id=None,
-                    client=None,
-                    executor=None,
-                    _final_state=Completed(data=DataDocument.encode("json", "hello")),
-                )
-            )
-            == "hello"
-        )
-
-    def test_works_in_sync_context(self):
-        assert (
-            get_result(Completed(data=DataDocument.encode("json", "hello"))) == "hello"
-        )
-
-    async def test_raises_failure_states(self):
-        with pytest.raises(ValueError, match="Test"):
-            await get_result(
-                State(
-                    type=StateType.FAILED,
-                    data=DataDocument.encode("cloudpickle", ValueError("Test")),
-                )
-            )
-
-    async def test_returns_exceptions_from_failure_states_when_requested(self):
-        result = await get_result(
-            State(
-                type=StateType.FAILED,
-                data=DataDocument.encode("cloudpickle", ValueError("Test")),
-            ),
-            raise_failures=False,
-        )
-        assert exceptions_equal(result, ValueError("Test"))
-
-    async def test_decodes_nested_data_documents(self):
-        assert (
-            await get_result(
-                Completed(
-                    data=DataDocument.encode(
-                        "cloudpickle", DataDocument.encode("json", "hello")
-                    )
-                )
-            )
-            == "hello"
-        )
-
-    async def test_decodes_persisted_data_documents(self):
-        async with OrionClient() as client:
-            assert (
-                await get_result(
-                    Completed(
-                        data=await client.persist_data(
-                            DataDocument.encode("json", "hello").json().encode()
-                        )
-                    )
-                )
-                == "hello"
-            )
-
-    async def test_decodes_using_cached_data_if_available(self):
-        async with OrionClient() as client:
-            orion_doc = await client.persist_data(
-                DataDocument.encode("json", "hello").json().encode()
-            )
-            # Corrupt the blob so that if we try to retrieve the data from the API
-            # it will fail
-            orion_doc.blob = b"BROKEN!"
-            assert await get_result(Completed(data=orion_doc)) == "hello"
 
 
 class TestRaiseFailedState:
@@ -286,6 +205,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=foo,
             flow_run_id=flow_run_id,
+            dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
@@ -320,7 +240,7 @@ class TestOrchestrateTaskRun:
 
         sleep.assert_awaited_once()
         assert state.is_completed()
-        assert await get_result(state) == 1
+        assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, flow_run_id, monkeypatch
@@ -332,6 +252,7 @@ class TestOrchestrateTaskRun:
         task_run_id = await orion_client.create_task_run(
             task=foo,
             flow_run_id=flow_run_id,
+            dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
                 state_details=StateDetails(
@@ -354,7 +275,7 @@ class TestOrchestrateTaskRun:
 
         sleep.assert_not_called()
         assert state.is_completed()
-        assert await get_result(state) == 1
+        assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
         self, monkeypatch, orion_client, flow_run_id
@@ -376,6 +297,7 @@ class TestOrchestrateTaskRun:
             task=flaky_function,
             flow_run_id=flow_run_id,
             state=Pending(),
+            dynamic_key="0",
         )
 
         # Mock sleep for a fast test; force transition into a new scheduled state so we
@@ -404,7 +326,7 @@ class TestOrchestrateTaskRun:
         )
 
         # Check for a proper final result
-        assert await get_result(state) == 1
+        assert state.result() == 1
 
         # Assert that the sleep was called
         # due to network time and rounding, the expected sleep time will be less than
@@ -414,15 +336,111 @@ class TestOrchestrateTaskRun:
 
         # Check expected state transitions
         states = await orion_client.read_task_run_states(task_run_id)
-        state_names = [state.name for state in states]
+        state_names = [state.type for state in states]
         assert state_names == [
-            "Pending",
-            "Running",
-            "Awaiting Retry",
-            "Scheduled",  # This is a forced state change to speedup the test
-            "Running",
-            "Completed",
+            StateType.PENDING,
+            StateType.RUNNING,
+            StateType.SCHEDULED,
+            StateType.SCHEDULED,  # This is a forced state change to speedup the test
+            StateType.RUNNING,
+            StateType.COMPLETED,
         ]
+
+    @pytest.mark.parametrize(
+        "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
+    )
+    async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
+        self, orion_client, flow_run_id, upstream_task_state
+    ):
+        # Define a mock to ensure the task was not run
+        mock = MagicMock()
+
+        @task
+        def my_task(x):
+            mock()
+
+        # Create an upstream task run
+        upstream_task_run_id = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run_id,
+            state=upstream_task_state,
+            dynamic_key="upstream",
+        )
+        upstream_task_state.state_details.task_run_id = upstream_task_run_id
+
+        # Create a future to wrap the upstream task, have it resolve to the given
+        # incomplete state
+        future = PrefectFuture(
+            run_id=upstream_task_run_id,
+            executor=None,
+            _final_state=upstream_task_state,
+        )
+
+        # Create a task run to test
+        task_run_id = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run_id,
+            state=Pending(),
+            dynamic_key="downstream",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": {"nested": [future]}},
+            client=orion_client,
+        )
+
+        # The task did not run
+        mock.assert_not_called()
+
+        # Check that the state is 'NotReady'
+        assert state.is_pending()
+        assert state.name == "NotReady"
+        assert (
+            state.message
+            == f"Upstream task run '{upstream_task_run_id}' did not reach a 'COMPLETED' state."
+        )
+
+    @pytest.mark.parametrize(
+        "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
+    )
+    async def test_states_in_parameters_can_be_incomplete(
+        self, orion_client, flow_run_id, upstream_task_state
+    ):
+        # Define a mock to ensure the task was not run
+        mock = MagicMock()
+
+        @task
+        def my_task(x):
+            mock(x)
+
+        # Create a task run to test
+        task_run_id = await orion_client.create_task_run(
+            task=my_task,
+            flow_run_id=flow_run_id,
+            state=Pending(),
+            dynamic_key="downstream",
+        )
+
+        # Actually run the task
+        state = await orchestrate_task_run(
+            task=my_task,
+            task_run_id=task_run_id,
+            flow_run_id=flow_run_id,
+            # Nest the future in a collection to ensure that it is found
+            parameters={"x": upstream_task_state},
+            client=orion_client,
+        )
+
+        # The task ran with the state as its input
+        mock.assert_called_once_with(upstream_task_state)
+
+        # Check that the state completed happily
+        assert state.is_completed()
 
 
 class TestOrchestrateFlowRun:
@@ -466,7 +484,7 @@ class TestOrchestrateFlowRun:
         )
 
         sleep.assert_awaited_once()
-        assert await get_result(state) == 1
+        assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
         self, orion_client, monkeypatch
@@ -498,4 +516,4 @@ class TestOrchestrateFlowRun:
         )
 
         sleep.assert_not_called()
-        assert await get_result(state) == 1
+        assert state.result() == 1

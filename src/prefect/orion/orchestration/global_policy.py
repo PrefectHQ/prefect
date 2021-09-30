@@ -17,6 +17,7 @@ COMMON_GLOBAL_RULES = lambda: [
     IncrementRunTime,
     SetExpectedStartTime,
     SetNextScheduledStartTime,
+    UpdateStateDetails,
 ]
 
 
@@ -193,3 +194,21 @@ class UpdateSubflowParentTask(BaseUniversalRule):
                 state=subflow_parent_task_state,
                 force=True,
             )
+
+
+class UpdateStateDetails(BaseUniversalRule):
+    """
+    Update a state's references to a corresponding flow- or task- run.
+    """
+
+    async def before_transition(
+        self,
+        context: OrchestrationContext,
+    ) -> None:
+        task_run = await context.task_run()
+        flow_run = await context.flow_run()
+
+        if flow_run:
+            context.proposed_state.state_details.flow_run_id = flow_run.id
+        if task_run:
+            context.proposed_state.state_details.task_run_id = task_run.id

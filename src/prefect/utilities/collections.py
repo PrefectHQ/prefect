@@ -22,6 +22,7 @@ from typing import (
 from unittest.mock import Mock
 
 import pydantic
+import prefect
 
 
 T = TypeVar("T")
@@ -207,7 +208,12 @@ async def visit_collection(
         result = {f.name: await recurse(getattr(expr, f.name)) for f in fields(expr)}
         return typ(**result) if return_data else None
 
-    elif isinstance(expr, pydantic.BaseModel):
+    elif (
+        # Recurse into Pydantic models but do _not_ do so for states/datadocs
+        isinstance(expr, pydantic.BaseModel)
+        and not isinstance(expr, prefect.orion.schemas.states.State)
+        and not isinstance(expr, prefect.orion.schemas.data.DataDocument)
+    ):
         result = {f: await recurse(getattr(expr, f)) for f in expr.__fields__}
         return typ(**result) if return_data else None
 

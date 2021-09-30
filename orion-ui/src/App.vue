@@ -16,6 +16,8 @@ export default class App extends Vue {}
 </script>
 
 <style lang="scss">
+@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
 .application {
   background-color: $grey-10;
   display: grid;

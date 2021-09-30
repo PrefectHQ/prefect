@@ -285,6 +285,7 @@ class OrionClient:
     async def create_flow_run(
         self,
         flow: "Flow",
+        name: str = None,
         parameters: Dict[str, Any] = None,
         context: dict = None,
         tags: Iterable[str] = None,
@@ -296,6 +297,7 @@ class OrionClient:
 
         Args:
             flow: The flow model to create the flow run for
+            name: An optional name for the flow run
             parameters: Parameter overrides for this flow run.
             context: Optional run context data
             tags: a list of tags to apply to this flow run
@@ -319,9 +321,10 @@ class OrionClient:
         # Retrieve the flow id
         flow_id = await self.create_flow(flow)
 
-        flow_run_data = schemas.actions.FlowRunCreate(
+        flow_run_create = schemas.actions.FlowRunCreate(
             flow_id=flow_id,
             flow_version=flow.version,
+            name=name,
             parameters=parameters,
             context=context,
             tags=list(tags or []),
@@ -329,9 +332,9 @@ class OrionClient:
             state=state,
         )
 
-        response = await self.post(
-            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
-        )
+        flow_run_create_json = flow_run_create.dict(json_compatible=True)
+
+        response = await self.post("/flow_runs/", json=flow_run_create_json)
         flow_run_id = response.json().get("id")
         if not flow_run_id:
             raise httpx.RequestError(f"Malformed response: {response}")
@@ -453,7 +456,6 @@ class OrionClient:
     ) -> DataDocument:
         response = await self.post("/data/persist", content=data)
         orion_doc = DataDocument.parse_obj(response.json())
-        orion_doc._cache_data(data)
         return orion_doc
 
     async def retrieve_data(
@@ -481,11 +483,12 @@ class OrionClient:
         flow_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
+        orion_doc: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
-            data=state.data,
+            data=orion_doc or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.flow_run_id = flow_run_id
@@ -516,6 +519,8 @@ class OrionClient:
         self,
         task: "Task",
         flow_run_id: UUID,
+        dynamic_key: str,
+        name: str = None,
         extra_tags: Iterable[str] = None,
         state: schemas.states.State = None,
         task_inputs: Dict[
@@ -529,15 +534,33 @@ class OrionClient:
             ],
         ] = None,
     ) -> UUID:
+        """
+        Create a task run
+
+        Args:
+            task: The Task to run
+            flow_run_id: The flow run id with which to associate the task run
+            dynamic_key: A key unique to this particular run of a Task within the flow
+            name: An optional name for the task run
+            extra_tags: an optional list of extra tags to apply to the task run in
+                addition to `task.tags`
+            state: The initial state for the run. If not provided, defaults to
+                `Pending` for now. Should always be a `Scheduled` type.
+            task_inputs: the set of inputs passed to the task
+
+        Returns:
+            The UUID of the newly created task run
+        """
         tags = set(task.tags).union(extra_tags or [])
 
         if state is None:
             state = schemas.states.Pending()
 
         task_run_data = schemas.actions.TaskRunCreate(
+            name=name or f"{task.name}-{task.task_key[:8]}-{dynamic_key}",
             flow_run_id=flow_run_id,
             task_key=task.task_key,
-            dynamic_key=task.dynamic_key,
+            dynamic_key=dynamic_key,
             tags=list(tags),
             empirical_policy=schemas.core.TaskRunPolicy(
                 max_retries=task.retries,
@@ -571,16 +594,21 @@ class OrionClient:
         if not task_run_id and not flow_run_id:
             raise ValueError("You must provide either a `task_run_id` or `flow_run_id`")
 
+        orion_doc = None
         # Exchange the user data document for an orion data document
         if state.data:
-            state = state.copy()
-            state.data = await self.persist_data(state.data.json().encode())
+            # persist data reference in Orion
+            orion_doc = await self.persist_data(state.data.json().encode())
 
         # Attempt to set the state
         if task_run_id:
-            response = await self.set_task_run_state(task_run_id, state)
+            response = await self.set_task_run_state(
+                task_run_id, state, orion_doc=orion_doc
+            )
         elif flow_run_id:
-            response = await self.set_flow_run_state(flow_run_id, state)
+            response = await self.set_flow_run_state(
+                flow_run_id, state, orion_doc=orion_doc
+            )
         else:
             raise ValueError(
                 "Neither flow run id or task run id were provided. At least one must "
@@ -609,6 +637,12 @@ class OrionClient:
 
         elif response.status == schemas.responses.SetStateStatus.REJECT:
             server_state = response.state
+            if server_state.data:
+                if server_state.data.encoding == "orion":
+                    datadoc = DataDocument.parse_raw(
+                        await self.retrieve_data(server_state.data)
+                    )
+                    server_state.data = datadoc
             return server_state
 
         else:
@@ -621,11 +655,12 @@ class OrionClient:
         task_run_id: UUID,
         state: schemas.states.State,
         force: bool = False,
+        orion_doc: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
-            data=state.data,
+            data=orion_doc or state.data,
             state_details=state.state_details,
         )
         state_data.state_details.task_run_id = task_run_id
