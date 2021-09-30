@@ -1,8 +1,39 @@
-import { createStore } from 'vuex'
+import { InjectionKey } from 'vue'
+import { createStore, Store } from 'vuex'
+import { GlobalFilter } from '@/typings/global'
+import * as getters from './getters'
 
-export default createStore({
-  state: {},
-  mutations: {},
-  actions: {},
-  modules: {}
+export interface State {
+  globalFilter: GlobalFilter
+}
+
+const start = new Date()
+const end = new Date()
+
+start.setMinutes(start.getMinutes() - 30)
+start.setSeconds(0)
+start.setMilliseconds(0)
+end.setMinutes(end.getMinutes() + 30)
+end.setSeconds(0)
+end.setMilliseconds(0)
+
+const state: State = {
+  globalFilter: {
+    intervalSeconds: 60,
+    start: start,
+    end: end
+  }
+}
+const mutations = {}
+const actions = {}
+
+export const key: InjectionKey<Store<State>> = Symbol()
+
+const store = createStore<State>({
+  state,
+  getters,
+  mutations,
+  actions
 })
+
+export default store

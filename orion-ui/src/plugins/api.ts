@@ -230,11 +230,13 @@ export class Query {
             else if (!this.paused) this.fetch()
           }
         )
-      } else if (cName == 'Object') {
+      } else if (cName == 'Object' || cName == 'Function') {
         _val = val instanceof Function ? val() : val
       } else {
         _val = val
       }
+
+      console.log(_val)
 
       return _val
     }
