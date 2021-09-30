@@ -9,7 +9,7 @@ First and foremost, you'll need [a working version of Prefect Orion installed](i
 !!! note "Additional Resources"
     If you don't find what you're looking for here there are many other ways to engage, ask questions and provide feedback:
 
-    - [Prefect's Slack Community](https://www.prefect.io/slack/) is one of the fastest growing and friendliest communities around - come say hi!
+    - [Prefect's Slack Community](https://www.prefect.io/slack/) is helpful, friendly, and fast growing - come say hi!
     - [Open an issue on GitHub](https://github.com/PrefectHQ/prefect/issues) for bug reports, feature requests, or general discussion
     - [Email us](mailto:hello@prefect.io) to setup a demo, get dedicated support or learn more about our commercial offerings
 
