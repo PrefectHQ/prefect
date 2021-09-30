@@ -1,4 +1,4 @@
-import { App, Plugin, ref } from 'vue'
+import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
 
 export interface DeploymentsFilter {
   limit?: limit
@@ -145,35 +145,55 @@ export interface QueryOptions {
 
 export interface QueryConfig {
   endpoint: Endpoint | undefined
-  body?: FilterBody
+  body?: FilterBody | (() => FilterBody) | ComputedRef
   options?: QueryOptions
 }
 
-const base_url = 'http://localhost:8000'
+const base_url = 'http://localhost:5000'
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
   readonly endpoint: Endpoint
   readonly base_url: string = base_url
 
-  body: FilterBody = {}
+  private watcher?: WatchStopHandle
+
+  private _body(): FilterBody {
+    return {}
+  }
   error: string | unknown | null = null
   id: number
   pollInterval: number = 0
   loading = ref(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: any = ref(null)
+  paused: boolean = false
+
+  pause(): void {
+    this.paused = true
+  }
+
+  resume(): void {
+    this.paused = false
+    this.fetch()
+  }
 
   stopPolling(): void {
     if (this.interval) clearTimeout(this.interval)
   }
 
+  unwatch(): void {
+    if (this.watcher) this.watcher()
+  }
+
   async startPolling(): Promise<void> {
     this.stopPolling()
     if (!this.pollInterval) return
-    await this.fetch()
+    if (!this.paused) await this.fetch()
     this.interval = setTimeout(() => this.startPolling(), this.pollInterval)
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async fetch(): Promise<any> {
     this.loading.value = true
     this.error = null
@@ -187,10 +207,44 @@ export class Query {
     return this
   }
 
+  get body(): FilterBody {
+    return this._body()
+  }
+
+  set body(val: FilterBody | (() => FilterBody) | ComputedRef | null) {
+    this._body = () => {
+      this.unwatch()
+
+      let _val
+      if (!val) _val = {}
+
+      const cName = val?.constructor.name
+      if (cName == 'ComputedRefImpl') {
+        _val = (val as ComputedRef).value
+
+        this.watcher = watch(
+          () => (val as ComputedRef).value,
+          () => {
+            // Check that polling is active
+            if (this.pollInterval) this.startPolling()
+            else if (!this.paused) this.fetch()
+          }
+        )
+      } else if (cName == 'Object') {
+        _val = val instanceof Function ? val() : val
+      } else {
+        _val = val
+      }
+
+      return _val
+    }
+  }
+
   private get route(): string {
     return this.base_url + this.endpoint.url
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
     return fetch(this.route, {
       headers: { 'Content-Type': 'application/json' },
@@ -273,7 +327,7 @@ declare module '@vue/runtime-core' {
 }
 
 const ApiPlugin: Plugin = {
-  install(app: App, options: any = {}) {
+  install(app: App) {
     const api = Api
     app.config.globalProperties.$api = api
     app.provide('$api', api)

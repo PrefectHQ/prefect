@@ -64,8 +64,13 @@ export class D3Base extends Vue {
     right: 16
   }
 
-  public paddingY = this.padding.top + this.padding.middle + this.padding.bottom
-  public paddingX = this.padding.left + this.padding.right
+  public get paddingY(): number {
+    return this.padding.top + this.padding.middle + this.padding.bottom
+  }
+
+  public get paddingX(): number {
+    return this.padding.left + this.padding.right
+  }
 
   resize(): void {
     return

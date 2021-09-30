@@ -40,11 +40,13 @@
     </div>
 
     <div v-breakpoints="'md'" class="chart-container">
-      <!-- <RunHistoryChart
-        v-if="false"
-        :items="taskRunBuckets"
-        :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
-      /> -->
+      <RunHistoryChart
+        :items="flowRunBuckets"
+        :interval-start="start"
+        :interval-end="end"
+        :interval-seconds="intervalSeconds"
+        :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
+      />
     </div>
   </list-item>
 </template>
@@ -54,8 +56,8 @@ import { Options, Vue, prop } from 'vue-class-component'
 import { Flow } from '@/typings/objects'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 
-import { Api, Query, Endpoints } from '@/plugins/api'
-import { Bucket } from '@/typings/run_history'
+import { Api, Query, Endpoints, FlowRunsHistoryFilter } from '@/plugins/api'
+import { Buckets } from '@/typings/run_history'
 
 class Props {
   item = prop<Flow>({ required: true })
@@ -63,37 +65,67 @@ class Props {
 
 @Options({ components: { RunHistoryChart } })
 export default class ListItemFlow extends Vue.with(Props) {
+  start = new Date()
+  end = new Date()
+  intervalSeconds = 330
+
   queries: { [key: string]: Query } = {
-    // flow_run_history: Api.query({
-    //   endpoint: Endpoints.flow_runs_history,
-    //   body: {}
-    // }),
+    flow_run_history: Api.query({
+      endpoint: Endpoints.flow_runs_history,
+      body: this.flowRunHistoryFilter
+    }),
     flow_run_count: Api.query({
       endpoint: Endpoints.flow_runs_count,
       body: {
-        flows: {
-          id: {
-            any_: [this.item.id]
-          }
-        }
+        flows: this.flowFilter
       }
     }),
     task_run_count: Api.query({
       endpoint: Endpoints.task_runs_count,
       body: {
-        flows: {
-          id: {
-            any_: [this.item.id]
-          }
-        }
+        flows: this.flowFilter
       }
     })
   }
 
-  taskRunBuckets: Bucket[] = []
+  get flowFilter(): any {
+    return {
+      id: {
+        any_: [this.item.id]
+      }
+    }
+  }
+
+  get flowRunBuckets(): Buckets {
+    return this.queries.flow_run_history?.response || []
+  }
+
+  get flowRunHistoryFilter(): FlowRunsHistoryFilter {
+    return {
+      history_start: this.start.toISOString(),
+      history_end: this.end.toISOString(),
+      history_interval_seconds: this.intervalSeconds,
+      flows: this.flowFilter
+    }
+  }
+
+  beforeCreate(): void {
+    this.start.setHours(this.start.getHours() - 1)
+    this.start.setMinutes(0)
+    this.start.setSeconds(0)
+    this.start.setMilliseconds(0)
+    this.end.setHours(this.end.getHours() + 1)
+    this.end.setMinutes(0)
+    this.end.setSeconds(0)
+    this.end.setMilliseconds(0)
+  }
+
+  mounted(): void {
+    this.queries.flow_run_history.body = this.flowRunHistoryFilter
+    this.queries.flow_run_history.startPolling()
+  }
 
   get flowRunCount(): number {
-    console.log(this.queries.flow_run_count.response)
     return this.queries.flow_run_count.response || 0
   }
 

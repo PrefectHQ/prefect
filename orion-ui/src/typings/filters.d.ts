@@ -32,7 +32,7 @@ type limit = number
  */
 type offset = number
 
-interface DeploymentFilter {
+declare interface DeploymentFilter {
   id?: {
     /**
      * A list of ids
@@ -62,7 +62,7 @@ interface DeploymentFilter {
   }
 }
 
-interface FlowFilter {
+declare interface FlowFilter {
   id?: {
     /**
      * A list of ids
@@ -89,7 +89,7 @@ interface FlowFilter {
   }
 }
 
-interface FlowRunFilter {
+declare interface FlowRunFilter {
   id?: {
     any_?: any_
     not_any_?: not_any_
@@ -138,7 +138,7 @@ interface FlowRunFilter {
   }
 }
 
-interface TaskRunFilter {
+declare interface TaskRunFilter {
   id?: {
     any_?: any_
     not_any_?: not_any_
@@ -162,7 +162,7 @@ interface TaskRunFilter {
   }
 }
 
-interface Endpoint {
+declare interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT'
   url: string
 }

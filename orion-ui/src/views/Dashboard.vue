@@ -20,16 +20,10 @@
     </row>
 
     <!-- These can be used to paginate the chart -->
-    <IconButton
-      v-if="false"
-      icon="pi-arrow-left-line"
-      @click="previous30Minutes"
-    />
-    <IconButton
-      v-if="false"
-      icon="pi-arrow-right-line"
-      @click="next30Minutes"
-    />
+    <!-- v-if="false" -->
+    <IconButton icon="pi-arrow-left-line" @click="previous30Minutes" />
+    <!-- v-if="false" -->
+    <IconButton icon="pi-arrow-right-line" @click="next30Minutes" />
 
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
@@ -288,8 +282,8 @@ export default class Dashboard extends Vue {
     const start = this.start
     const end = this.end
 
-    start.setMinutes(start.getMinutes() - 10)
-    end.setMinutes(end.getMinutes() - 10)
+    start.setMinutes(start.getMinutes() - 30)
+    end.setMinutes(end.getMinutes() - 30)
 
     this.start = new Date(start)
     this.end = new Date(end)
@@ -298,8 +292,8 @@ export default class Dashboard extends Vue {
     const start = this.start
     const end = this.end
 
-    start.setMinutes(start.getMinutes() + 10)
-    end.setMinutes(end.getMinutes() + 10)
+    start.setMinutes(start.getMinutes() + 30)
+    end.setMinutes(end.getMinutes() + 30)
 
     this.start = new Date(start)
     this.end = new Date(end)
@@ -308,7 +302,8 @@ export default class Dashboard extends Vue {
   beforeCreate(): void {
     this.resultsTab = this.$route.hash?.substr(1) || 'flows'
 
-    this.start.setMinutes(this.start.getMinutes() - 10)
+    this.start.setMinutes(this.start.getMinutes() - 30)
+    // this.start.setHours(this.start.getHours() - 1)
     this.start.setSeconds(0)
     this.start.setMilliseconds(0)
     this.end.setHours(this.end.getHours() + 1)

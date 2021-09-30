@@ -22,14 +22,18 @@
 <script lang="ts" setup>
 import RunHistoryChart from './RunHistoryChart--Chart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
-import { defineProps, computed, watch } from 'vue'
+import { defineProps, computed } from 'vue'
 
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()
+
+const filter = computed(() => {
+  return props.filter
+})
 
 const queries: { [key: string]: Query } = {
   flow_run_history: Api.query({
     endpoint: Endpoints.flow_runs_history,
-    body: props.filter,
+    body: filter,
     options: {
       pollInterval: 5000
     }
@@ -47,14 +51,6 @@ const intervalEnd = computed(() => {
 const intervalSeconds = computed(() => {
   return props.filter.history_interval_seconds
 })
-
-watch(
-  () => props.filter,
-  async () => {
-    queries.flow_run_history.body = props.filter
-    queries.flow_run_history.startPolling()
-  }
-)
 
 const buckets = computed(() => {
   return queries.flow_run_history.response.value || []
