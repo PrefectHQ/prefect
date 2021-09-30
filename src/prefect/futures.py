@@ -76,7 +76,6 @@ class PrefectFuture(Generic[R]):
         self,
         run_id: UUID,
         executor: "BaseExecutor",
-        run_repr: str = None,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.run_id = run_id
@@ -121,9 +120,6 @@ class PrefectFuture(Generic[R]):
 
     def __repr__(self) -> str:
         return f"PrefectFuture(run_id='{self.run_id}')"
-
-    def __str__(self) -> str:
-        return self.run_repr
 
 
 async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R, Any]:

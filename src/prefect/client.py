@@ -29,6 +29,7 @@ from prefect import exceptions
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
 from prefect.utilities.logging import get_logger
@@ -573,11 +574,7 @@ class OrionClient:
         response = await self.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
         )
-        task_run_id = response.json().get("id")
-        if not task_run_id:
-            raise Exception(f"Malformed response: {response}")
-
-        return UUID(task_run_id)
+        return TaskRun.parse_obj(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> schemas.core.TaskRun:
         response = await self.get(f"/task_runs/{task_run_id}")
