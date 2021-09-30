@@ -44,7 +44,7 @@ class StateSet:
         count_messages = [f"total={self.total_count}"]
         if self.not_final_count:
             count_messages.append(f"final={self.not_final_count}")
-        for state_type, count in self.type_counts:
+        for state_type, count in self.type_counts.items():
             if count:
                 count_messages.append(f"{state_type.value!r}={count}")
         return ", ".join(count_messages)
