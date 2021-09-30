@@ -22,12 +22,18 @@
 - This introduces a second responsibility of the client: knowing how to respond to Orion's instructions about how to proceed
     - because our surface area is limited to states, this is actually really intuitive:
         - everything's good to go: proceed!
-        - transition to a different state instead
+        - transition to a different state instead (then proceed!)
         - the system isn't ready yet, wait
         - stop executing entirely
 
 
 ## Orchestration Rules
+
+- we want to run "orchestration logic" against all state transitions that occur
+- is it possible to spell out all of the core governance concepts just in terms of these transitions?
+    - we think yes!
+- is it possible to isolate each governance concept from eachother to create a transparent and observable orchestration engine?
+    - we also think yes!
 
 
 ## Policies and observability
