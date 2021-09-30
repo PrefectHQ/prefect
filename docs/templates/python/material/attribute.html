@@ -1,10 +1,8 @@
 {{ log.debug() }}
-{% if config.show_if_no_docstring or function.has_contents %}
+{% if config.show_if_no_docstring or attribute.has_contents %}
 
-<div class="prefect-container">
-  <a class="prefect-anchor" href="#{{ function.path }}">#</a>
-  <div class="doc doc-object doc-function">
-  {% with html_id = function.path %}
+  <div class="doc doc-object doc-attribute">
+  {% with html_id = attribute.path %}
 
     {% if not root or config.show_root_heading %}
 
@@ -19,16 +17,17 @@
       {% endif %}
 
       {% filter heading(heading_level,
-          role="function",
+          role="data" if obj == module else "attr",
           id=html_id,
           class="doc doc-heading",
-          toc_label=function.name ~ "()") %}
+          toc_label=attribute.name) %}
 
         {% filter highlight(language="python", inline=True) %}
-          {% if show_full_path %}{{ function.path }}{% else %}{{ function.name }}{% endif %}
+          {% if show_full_path %}{{ attribute.path }}{% else %}{{ attribute.name }}{% endif %}
+          {% if attribute.type %}: {{ attribute.type }}{% endif %}
         {% endfilter %}
 
-        {% with properties = function.properties %}
+        {% with properties = attribute.properties %}
           {% include "properties.html" with context %}
         {% endwith %}
 
@@ -37,9 +36,9 @@
     {% else %}
       {% if config.show_root_toc_entry %}
         {% filter heading(heading_level,
-            role="function",
+            role="data" if obj == module else "attr",
             id=html_id,
-            toc_label=function.path,
+            toc_label=attribute.path,
             hidden=True) %}
         {% endfilter %}
       {% endif %}
@@ -47,21 +46,12 @@
     {% endif %}
 
     <div class="doc doc-contents {% if root %}first{% endif %}">
-      {% with docstring_sections = function.docstring_sections %}
+      {% with docstring_sections = attribute.docstring_sections %}
         {% include "docstring.html" with context %}
       {% endwith %}
-
-      {% if config.show_source and function.source %}
-        <details class="quote">
-          <summary>Source code in <code>{{ function.relative_file_path }}</code></summary>
-          {{ function.source.code|highlight(language="python", linestart=function.source.line_start, linenums=False) }}
-        </details>
-      {% endif %}
     </div>
 
   {% endwith %}
   </div>
-</div>
-
 
 {% endif %}

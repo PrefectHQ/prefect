@@ -1,6 +1,8 @@
 {{ log.debug() }}
 {% if config.show_if_no_docstring or method.has_contents %}
 
+<div class="prefect-container">
+  <a class="prefect-anchor" href="#{{ method.path }}">#</a>
   <div class="doc doc-object doc-method">
   {% with html_id = method.path %}
 
@@ -59,5 +61,6 @@
 
   {% endwith %}
   </div>
+</div>
 
 {% endif %}
