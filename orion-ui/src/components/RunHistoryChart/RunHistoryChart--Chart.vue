@@ -249,16 +249,13 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   median: number = -2
 
   updateMedian(): void {
-    this.median = d3.mean(this.series.flat(2), (val) => Math.abs(val)) || 0
+    this.median = this.yScale(0) + this.padding.middle / 2
   }
 
   get medianPosition(): StyleValue {
     const top =
-      (this.median > 0
-        ? this.yScale(this.median)
-        : (this.height - this.padding.top) / 2) + this.padding.top
+      (this.median > 0 ? this.median : this.height / 2) + this.padding.top
 
-    console.log(this.median)
     return {
       top: top + 'px'
     }
@@ -288,8 +285,8 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       .range([this.padding.left, this.width - this.padding.right])
 
     const flattened = this.series.flat(2)
-    const min = Math.min(...flattened)
-    const max = Math.max(...flattened)
+    const min = Math.min(...flattened) || -1
+    const max = Math.max(...flattened) || 1
 
     if (this.staticMedian) {
       const startMin = Math.abs(min) > Math.abs(max)
@@ -301,11 +298,11 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
           startMin || startEqual ? min : 0,
           startMin || startEqual ? 0 : max
         ])
-        .rangeRound([this.padding.top, this.viewHeight - this.paddingY])
+        .rangeRound([0, this.viewHeight - this.paddingY])
     } else {
       this.yScale
         .domain([min, max])
-        .rangeRound([this.padding.top, this.viewHeight - this.paddingY])
+        .rangeRound([0, this.viewHeight - this.paddingY])
     }
 
     if (this.showAxis && this.xAxisGroup) {
