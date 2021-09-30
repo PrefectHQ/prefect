@@ -116,6 +116,7 @@ async def data(database_engine):
                 core.TaskRun(
                     flow_run_id=fr.id,
                     task_key=str(r),
+                    dynamic_key=str(r * 3),
                     state=states.Completed(timestamp=dt.add(minutes=r)),
                 )
             )
@@ -123,6 +124,7 @@ async def data(database_engine):
                 core.TaskRun(
                     flow_run_id=fr.id,
                     task_key=str(r),
+                    dynamic_key=str((r * 3) + 1),
                     state=states.Failed(timestamp=dt.add(minutes=7 + r)),
                 )
             )
@@ -130,6 +132,7 @@ async def data(database_engine):
                 core.TaskRun(
                     flow_run_id=fr.id,
                     task_key=str(r),
+                    dynamic_key=str((r * 3) + 2),
                     state=states.Running(timestamp=dt.add(minutes=14 + r)),
                 )
             )
