@@ -1,38 +1,58 @@
 /* styling that applies only to the Python API reference documentation */
 
 :root {
+    --default-code: #4d606e;
+    --blue: #3b8dff;
+    --blue-transparent: rgba(59, 141, 255, 0.3);
     --gray-1: #EBEEF7;
     --gray-2: #8EA0AE;
-    --pink-1: rgba(254, 81, 150, 0.3);
-    --pink-2: #fe5196;
+    --pink-transparent: rgba(254, 81, 150, 0.3);
+    --pink: #fe5196;
 }
 
 .prefect-container {
-    position: relative;
-}
-
-.prefect-anchor {
-    position: absolute;
-    top: 8px;
-    left: -18px;
-    font-size: 20px;
-}
-
-.doc.doc-children { 
-    padding-bottom: 8px; 
     padding-left: 28px;
+    padding-bottom: 8px;
 }
 
-.doc.doc-class h2,
-.doc.doc-function h2,
-.doc.doc-method h3 {
-    border-bottom: 2px solid var(--gray-2);
+.prefect-heading {
+    margin-top: 44px;
+    font-family: Inter;
+    white-space: nowrap;
+    overflow-x: auto;
+    vertical-align: bottom;
+    margin: 0;
 }
 
-.doc.doc-class h2 .prefect-anchor,
-.doc.doc-function h2 .prefect-anchor,
-.doc.doc-method h3 .prefect-anchor{
+.prefect-heading:before {
+    content: "#";
     display: inline-block;
+    opacity: 0;
+    color: var(--blue);
+    padding: 8px;
+    position: absolute;
+    font-size: 20px;
+    margin-left: -24px;
+}
+
+.prefect-heading:hover::before {
+    opacity: 1;
+}
+
+.doc.doc-method .prefect-heading:before {
+    margin-top: -2px;
+}
+
+a.prefect-heading, 
+a.prefect-heading:hover {
+    color: var(--default-code);
+}
+
+.prefect-heading h1,
+.prefect-heading h2,
+.prefect-heading h3,
+.prefect-heading h4 {
+    border-bottom: 2px solid var(--gray-2);
 }
 
 .doc.doc-module > h1 {
@@ -40,18 +60,18 @@
     font-weight: bold;
 }
 
-.doc.doc-class h2,
-.doc.doc-function h2 {
+.prefect-heading h2 {
     font-size: 28px;
 }
 
-.doc.doc-method h3 {
+.prefect-heading h3 {
     font-size: 24px;
 }
 
-.doc.doc-class > h2:before,
-.doc.doc-function > h2:before,
-.doc.doc-method > h3:before {
+.prefect-heading > h1:before,
+.prefect-heading > h2:before,
+.prefect-heading > h3:before,
+.prefect-heading > h4:before {
     color: var(--gray-2);
     font-size: 14px;
     font-weight: 900;
@@ -60,60 +80,11 @@
     display: inline-block;
 }
 
-.doc.doc-class > h2:before {
-    content: "class";
-}
-
-.doc.doc-function > h2:before {
-    content: "function";
-}
-
-.doc.doc-method > h3:before {
-    content: "method";
-}
-
-.doc h2, .doc h3, .doc h4 {
-    font-family: Inter;
-    margin-bottom: 12px;
-    white-space: nowrap;
-    overflow-x: auto;
-}
-
-.doc p, .doc em, .doc li {
-    font-size: 14px;
-    margin-top: 4px;
-}
-
-.highlight code {
-    font-size: 12px;
-}
-
-details.quote:not([open]),
-details.quote[open] {
-    border-color: var(--pink-2);
-}
-
-details.quote:not([open]) > summary,
-details.quote[open] > summary {
-    background-color: var(--pink-1);
-    border-color: var(--pink-2);
-    border-radius: 0;
-}
-
-details.quote:not([open]) > summary:before,
-details.quote:not([open]) > summary:after,
-details.quote[open] > summary:before,
-details.quote[open] > summary:after {
-    background-color: var(--pink-2);
-}
-
-details.quote:not([open]) > summary > code,
-details.quote[open] > summary > code {
-    background: transparent;
-}
-
-.admonition.note{
-    border-radius: 0;
+.prefect-heading > h1:target:before,
+.prefect-heading > h2:target:before,
+.prefect-heading > h3:target:before,
+.prefect-heading > h4:target:before {
+    display: inline-block;
 }
 
 .prefect-table {
@@ -148,6 +119,55 @@ details.quote[open] > summary > code {
 .prefect-table td, .prefect-table th {
     font-size: 14px;
     vertical-align: text-top;
+}
+
+.doc.doc-class > .prefect-heading > h2:before {
+    content: "class";
+}
+
+.doc.doc-function > .prefect-heading > h2:before {
+    content: "function";
+}
+
+.doc.doc-method > .prefect-heading > h3:before {
+    content: "method";
+}
+
+.doc p, .doc em, .doc li {
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.highlight code {
+    font-size: 12px;
+}
+
+details.quote:not([open]),
+details.quote[open] {
+    border-color: var(--pink);
+}
+
+details.quote:not([open]) > summary,
+details.quote[open] > summary {
+    background-color: var(--pink-transparent);
+    border-color: var(--pink);
+    border-radius: 0;
+}
+
+details.quote:not([open]) > summary:before,
+details.quote:not([open]) > summary:after,
+details.quote[open] > summary:before,
+details.quote[open] > summary:after {
+    background-color: var(--pink);
+}
+
+details.quote:not([open]) > summary > code,
+details.quote[open] > summary > code {
+    background: transparent;
+}
+
+.admonition.note{
+    border-radius: 0;
 }
 
 /* special, private, property, and read-only tags */
