@@ -36,7 +36,7 @@ def add_project(connection, name):
     return cur.lastrowid
 
 
-def main(project_names, db_file="example.db"):
+def main(project_names, db_file="/tmp/example.db"):
     connection = sqlite3.connect(db_file) 
     create_tables(connection) 
 
@@ -52,7 +52,7 @@ We can save this script as `example.py` and confirm it worked from the command l
 <div class="termy">
 ```
 $ python example.py '["prefect"]'
-$ sqlite3 example.db 
+$ sqlite3 /tmp/example.db 
 SQLite version 3.33.0 2020-08-14 13:23:32
 Enter ".help" for usage hints.
 $ .tables
@@ -89,7 +89,7 @@ def add_project(connection, name):
     ...
 
 @flow(name="Add Projects to DB")
-def main(project_names, db_file="example.db"):
+def main(project_names, db_file="/tmp/example.db"):
 
     # prefect may switch threads 
     connection = sqlite3.connect(db_file, check_same_thread=False) 
@@ -114,7 +114,7 @@ You may have observed that all of the `add_project` tasks have an implicit deped
 Luckily, Prefect makes it easy to configure a state dependency between two or more task runs using the special `wait_for` keyword argument:
 ```python
 @flow(name="Add Projects to DB")
-def main(project_names, db_file="example.db"):
+def main(project_names, db_file="/tmp/example.db"):
 
     # prefect may switch threads 
     connection = sqlite3.connect(db_file, check_same_thread=False) 
