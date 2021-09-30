@@ -138,6 +138,18 @@ export interface QueryOptions {
   pollInterval?: number
 }
 
+export interface QueryConfig {
+  endpoint: Endpoint | undefined
+  body?: FilterBody
+  options?: QueryOptions
+}
+
+const queryConfigDefault = {
+  endpoint: undefined,
+  body: {},
+  options: { pollInterval: 0 }
+}
+
 const base_url = 'http://localhost:8000'
 
 export class Query {
@@ -194,25 +206,21 @@ export class Query {
       })
   }
 
-  constructor(
-    endpoint: Endpoint,
-    body: FilterBody = {},
-    { pollInterval = 0 }: QueryOptions = {},
-    id: number
-  ) {
+  constructor(config: QueryConfig, id: number) {
     this.id = id
 
-    if (!endpoint)
+    if (!config.endpoint)
       throw new Error('Query constructors must provide an endpoint.')
-    this.endpoint = endpoint
+    this.endpoint = config.endpoint
 
-    if (pollInterval !== 0 && pollInterval < 1000)
+    this.pollInterval = config?.options?.pollInterval || 0
+
+    if (this.pollInterval !== 0 && this.pollInterval < 1000)
       throw new Error('Poll intervals cannot be less than 1000ms.')
 
-    this.body = body
+    this.body = config.body || {}
 
-    if (pollInterval > 0) {
-      this.pollInterval = pollInterval
+    if (this.pollInterval > 0) {
       this.startPolling()
     } else {
       this.fetch()
@@ -237,25 +245,21 @@ export class Api {
   /**
    * Returns an instance of the Query class and registers the query if a poll interval is specified
    */
-  static query(
-    endpoint: Endpoint,
-    body: FilterBody = {},
-    options: QueryOptions = {}
-  ): Query {
-    if (!endpoint)
+  static query(config: QueryConfig): Query {
+    if (!config.endpoint)
       throw new Error('You must provide an endpoint when registering a query.')
 
     if (
-      options.pollInterval &&
-      options.pollInterval !== 0 &&
-      options.pollInterval < 1000
+      config?.options?.pollInterval &&
+      config.options.pollInterval !== 0 &&
+      config.options.pollInterval < 1000
     )
       throw new Error('Poll intervals cannot be less than 1000ms.')
 
     const id = this.queries.size
-    const query = new Query(endpoint, body, options, id)
+    const query = new Query(config, id)
 
-    if (options.pollInterval) {
+    if (config?.options?.pollInterval) {
       this.queries.set(id, query)
     }
 

@@ -9,6 +9,9 @@
         v-if="buckets && buckets.length"
         :items="buckets"
         background-color="blue-5"
+        :interval-seconds="intervalSeconds"
+        :interval-start="intervalStart"
+        :interval-end="intervalEnd"
         show-axis
       />
       <div v-else class="font--secondary subheader no-data"> -- </div>
@@ -19,16 +22,41 @@
 <script lang="ts" setup>
 import RunHistoryChart from './RunHistoryChart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
-import { defineProps, computed } from 'vue'
+import { defineProps, computed, watch } from 'vue'
 
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()
 
 const queries: { [key: string]: Query } = {
-  flow_run_history: Api.query(Endpoints.flow_runs_history, props.filter, {})
+  flow_run_history: Api.query({
+    endpoint: Endpoints.flow_runs_history,
+    body: props.filter,
+    options: {
+      pollInterval: 5000
+    }
+  })
 }
 
+const intervalStart = computed(() => {
+  return new Date(props.filter.history_start)
+})
+
+const intervalEnd = computed(() => {
+  return new Date(props.filter.history_end)
+})
+
+const intervalSeconds = computed(() => {
+  return props.filter.history_interval_seconds
+})
+
+watch(
+  () => props.filter,
+  async () => {
+    queries.flow_run_history.body = props.filter
+    queries.flow_run_history.startPolling()
+  }
+)
+
 const buckets = computed(() => {
-  console.log(queries.flow_run_history.response.value)
   return queries.flow_run_history.response.value || []
 })
 </script>

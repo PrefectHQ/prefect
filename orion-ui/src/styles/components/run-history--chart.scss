@@ -1,4 +1,5 @@
 .chart-container {
+  position: relative;
   height: 100%;
   width: 100%;
 
@@ -8,6 +9,53 @@
 
     .tick line {
       opacity: 0;
+    }
+  }
+
+  $r: 999px;
+
+  .bar-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+
+    .interval-bucket {
+      position: absolute;
+      transition: all 150ms;
+
+      .up {
+        transform-origin: bottom;
+      }
+
+      .down {
+        transform-origin: top;
+      }
+
+      .up,
+      .down {
+        position: absolute;
+
+        .interval-bucket-state:first-of-type {
+          border-top-left-radius: $r;
+          border-top-right-radius: $r;
+        }
+
+        .interval-bucket-state:last-of-type {
+          border-bottom-left-radius: $r;
+          border-bottom-right-radius: $r;
+        }
+      }
+
+      .interval-bucket-state {
+        border-radius: 0;
+        position: absolute;
+        transition: all 150ms;
+        transform-origin: inherit;
+        z-index: 1;
+      }
     }
   }
 }
