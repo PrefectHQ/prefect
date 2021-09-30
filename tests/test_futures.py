@@ -17,7 +17,6 @@ mock_client.read_flow_run_states.return_value = [Completed()]
 async def test_resolve_futures_transforms_future():
     future = PrefectFuture(
         run_id=uuid4(),
-        client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
@@ -28,7 +27,6 @@ async def test_resolve_futures_transforms_future():
 async def test_resolve_futures_transforms_future_in_listlike_type(typ):
     future = PrefectFuture(
         run_id=uuid4(),
-        client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
@@ -42,7 +40,6 @@ async def test_resolve_futures_transforms_future_in_generator_type():
         yield "a"
         yield PrefectFuture(
             run_id=uuid4(),
-            client=None,
             executor=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
@@ -55,7 +52,6 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types():
     def gen_a():
         yield PrefectFuture(
             run_id=uuid4(),
-            client=None,
             executor=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
@@ -72,13 +68,11 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types():
 async def test_resolve_futures_transforms_future_in_dictlike_type(typ):
     key_future = PrefectFuture(
         run_id=uuid4(),
-        client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     value_future = PrefectFuture(
         run_id=uuid4(),
-        client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
@@ -96,7 +90,6 @@ async def test_resolve_futures_transforms_future_in_dataclass():
 
     future = PrefectFuture(
         run_id=uuid4(),
-        client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
@@ -114,7 +107,6 @@ async def test_resolves_futures_in_nested_collections():
 
     future = PrefectFuture(
         run_id=uuid4(),
-        client=None,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
