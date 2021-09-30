@@ -1,5 +1,54 @@
 """
-Abstract class and implementations for executing task runs.
+Interface and implementations of various task run executors.
+
+**Executors** in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with executors outside of configuring and initializing them for a flow.
+
+Example:
+
+    >>> from prefect import flow, task, executors
+    >>> from typing import List
+    >>>
+    >>> @task
+    >>> def say_hello(name):
+    ...     print(f"hello {name}")
+    >>>
+    >>> @task
+    >>> def say_goodbye(name):
+    ...     print(f"goodbye {name}")
+    >>>
+    >>> @flow(executor=executors.SequentialExecutor())
+    >>> def greetings(names: List[str]):
+    ...     for name in names:
+    ...         say_hello(name)
+    ...         say_goodbye(name)
+    >>>
+    >>> greetings(["arthur", "trillian", "ford", "marvin"])
+    hello arthur
+    goodbye arthur
+    hello trillian
+    goodbye trillian
+    hello ford
+    goodbye ford
+    hello marvin
+    goodbye marvin
+
+    Switching to a `DaskExecutor`:
+    >>> flow.executor = executors.DaskExecutor()
+    >>> greetings(["arthur", "trillian", "ford", "marvin"])
+    hello arthur
+    goodbye arthur
+    hello trillian
+    hello ford
+    goodbye marvin
+    hello marvin
+    goodbye ford
+    goodbye trillian
+
+The following executors are currently supported:
+
+- `SequentialExecutor`: the simplest executor and the default; submits each task run sequentially as they are called and blocks until completion
+- `DaskExecutor`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
+
 """
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, TypeVar
