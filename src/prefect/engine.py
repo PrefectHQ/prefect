@@ -654,12 +654,10 @@ async def resolve_upstream_task_futures(parameters: Dict[str, Any]) -> Dict[str,
     """
 
     async def visit_fn(expr):
-        """
-        Intended to be called with `visit_collection`, this function
-        """
+        # Resolves futures into data, raising if they are not completed after `wait` is
+        # called.
         if isinstance(expr, PrefectFuture):
             state = await expr.wait()
-            print(state)
             if not state.is_completed():
                 raise UpstreamTaskError(
                     f"Upstream task run '{state.state_details.task_run_id}' did not complete."
