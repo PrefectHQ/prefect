@@ -265,7 +265,7 @@ class OrionClient:
         context = context or {}
         state = state or Scheduled()
 
-        flow_run_data = schemas.actions.FlowRunCreate(
+        flow_run_create = schemas.actions.FlowRunCreate(
             flow_id=deployment.flow_id,
             deployment_id=deployment.id,
             flow_version=None,  # Not yet determined
@@ -275,7 +275,7 @@ class OrionClient:
         )
 
         response = await self.post(
-            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+            "/flow_runs/", json=flow_run_create.dict(json_compatible=True)
         )
         return schemas.core.FlowRun.parse_obj(response.json())
 
@@ -332,7 +332,13 @@ class OrionClient:
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
 
         response = await self.post("/flow_runs/", json=flow_run_create_json)
-        return schemas.core.FlowRun.parse_obj(response.json())
+        flow_run = schemas.core.FlowRun.parse_obj(response.json())
+
+        # Restore the parameters to the local objects to retain expectations about
+        # Python objects
+        flow_run.parameters = parameters
+
+        return flow_run
 
     async def update_flow_run(
         self, flow_run_id: UUID, flow_version: str = None, parameters: dict = None
