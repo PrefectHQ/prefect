@@ -2,8 +2,8 @@
 
 .component-container {
   overflow: hidden;
-  position: relative;
   height: 100%;
+  position: relative;
   width: 100%;
 
   .pan-button {
@@ -21,15 +21,41 @@
   }
 }
 
-.chart-container {
+$axis-height: 20px;
+
+svg.timeline-axis {
+  background-color: $white;
+  height: $axis-height;
+  pointer-events: none;
+  position: sticky;
+  z-index: 2;
+
+  &.top {
+    top: 0;
+  }
+
+  &.bottom {
+    top: 0;
+  }
+}
+
+svg.timeline-chart {
+  position: absolute;
   height: 100%;
-  overscroll-behavior: contain;
+  left: 0;
+  top: 0;
+  width: 100%;
+  z-index: 1;
+}
+
+.scroll-container {
   overflow: auto;
+  overscroll-behavior: contain;
   position: relative;
   top: 0;
   left: 0;
-  width: 100%;
 
+  flex: 1 1 auto;
   // Hide scrollbars
   scrollbar-width: none; // Edge
   -ms-overflow-style: none; // Firefox
@@ -38,42 +64,44 @@
   ::-webkit-scrollbar {
     display: none;
   }
+}
 
-  svg.timeline-axis {
-    background-color: $white;
-    position: sticky;
-    height: 38px;
+.border-container {
+  border: 1px solid $blue-20;
+  border-radius: 4px;
+  box-sizing: border-box;
+  height: calc(100% - $axis-height);
+  left: 0;
+  position: absolute;
+  width: 100%;
+  pointer-events: none;
+  z-index: 2;
+
+  &.top {
     top: 0;
-    pointer-events: none;
+  }
+
+  &.bottom {
+    bottom: 0;
+  }
+}
+
+.node-container {
+  background-color: transparent;
+  position: relative;
+  z-index: 1;
+
+  .node {
+    position: absolute;
+    border-radius: 8px;
+    transition: all 250ms;
     z-index: 2;
-  }
 
-  svg.timeline-chart {
-    position: absolute;
-    height: 100%;
-    left: 0;
-    top: 0;
-    width: 100%;
-  }
-
-  .node-container {
-    background-color: transparent;
-    left: 0;
-    position: absolute;
-    top: 0;
-    z-index: 1;
-
-    .node {
-      position: absolute;
-      border-radius: 8px;
-      transition: all 250ms;
-
-      &:focus,
-      &:hover {
-        border: 2px solid $primary;
-        box-shadow: $box-shadow-md;
-        outline: none;
-      }
+    &:focus,
+    &:hover {
+      border: 2px solid $primary;
+      box-shadow: $box-shadow-md;
+      outline: none;
     }
   }
 }

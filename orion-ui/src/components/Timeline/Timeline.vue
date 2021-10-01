@@ -1,6 +1,71 @@
 <template>
-  <div class="component-container">
+  <div
+    class="component-container d-flex flex-column"
+    style="max-height: inherit"
+  >
+    <div ref="container" class="scroll-container" @scroll="handleScroll">
+      <div
+        class="node-container"
+        :style="{ height: chartHeight + 'px', width: chartWidth + 'px' }"
+      >
+        <div
+          v-for="item in computedItems"
+          :key="item.id"
+          :id="`node-${item.id}`"
+          class="node correct-text"
+          :class="[item.state.type.toLowerCase() + '-bg']"
+          :style="item.style"
+          tabindex="0"
+        />
+
+        <svg :id="id" ref="chart" class="timeline-chart"></svg>
+
+        <svg
+          :id="id + '-axis'"
+          ref="chart-axis"
+          class="timeline-axis"
+          :class="{
+            top: axisPosition == 'top',
+            bottom: axisPosition == 'bottom'
+          }"
+        ></svg>
+      </div>
+    </div>
+
+    <div
+      class="border-container"
+      :class="{
+        top: axisPosition == 'top',
+        bottom: axisPosition == 'bottom'
+      }"
+    />
+
+    <!-- <div
+      ref="container"
+      class="chart-container flex-grow-1"
+      @scroll="handleScroll"
+    >
+     
+
+      <svg :id="id" ref="chart" class="timeline-chart"></svg>
+
+      <div class="node-container">
+        <div
+          v-for="item in computedItems"
+          :key="item.id"
+          :id="`node-${item.id}`"
+          class="node correct-text"
+          :class="[item.state.type.toLowerCase() + '-bg']"
+          :style="item.style"
+          tabindex="0"
+        />
+      </div>
+    </div> -->
+  </div>
+
+  <!-- <div class="component-container">
     <IconButton
+      v-if="!hideHeader"
       class="pan-button left bg--white"
       icon="pi pi-arrow-left-s-line pi-2x"
       flat
@@ -10,6 +75,7 @@
     />
 
     <IconButton
+      v-if="!hideHeader"
       class="pan-button right bg--white"
       icon="pi pi-arrow-right-s-line pi-2x"
       flat
@@ -35,7 +101,7 @@
         />
       </div>
     </div>
-  </div>
+  </div> -->
 </template>
 
 <script lang="ts">
@@ -85,10 +151,15 @@ const formatLabel = (date: Date) => {
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 class Props {
+  axisPosition = prop<string>({ required: false, default: 'bottom' })
   backgroundColor = prop<string>({ required: false, default: null })
-  // interval = prop<string>({ required: false, default: 'minute' })
   items = prop<Item[]>({ required: true })
   maxEndTime = prop<string>({ required: false, default: null })
+  hideHeader = prop<boolean>({
+    required: false,
+    default: () => false,
+    type: Boolean
+  })
   padding = prop<{
     top: number
     bottom: number
@@ -234,7 +305,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .duration(250)
       .call(
         d3
-          .axisTop(this.xScale)
+          .axisBottom(this.xScale)
           .ticks(this.numberIntervals + 2)
           // @ts-expect-error: I haven't quite figured out the correct typing for D3 axis
           .tickFormat(formatLabel)

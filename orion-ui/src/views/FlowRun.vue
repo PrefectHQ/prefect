@@ -17,10 +17,7 @@
 
     <div class="main-grid">
       <Card class="details" shadow="sm">
-        <div
-          class="d-flex align-center justify-space-between py-1 px-2"
-          style="width: 100%; height: 100%"
-        >
+        <div class="d-flex align-center justify-space-between py-1 px-2">
           <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
           <div class="d-inline-flex flex-column">
             <div class="flex-grow-0 flex-shrink-1">
@@ -72,9 +69,22 @@
           </div>
         </div>
       </Card>
-      <Card class="timeline" shadow="sm"
-        >this is where the timeline should probably go</Card
-      >
+
+      <Card class="timeline d-flex flex-column" width="auto" shadow="sm">
+        <template v-slot:header>
+          <div class="subheader py-1 px-2">Timeline</div>
+        </template>
+
+        <div class="timeline-content pb-2 px-2 d-flex flex-grow-1">
+          <Timeline
+            :items="taskRuns"
+            :max-end-time="end"
+            hide-header
+            background-color="blue-5"
+          />
+        </div>
+      </Card>
+
       <Card class="schematic" shadow="sm"
         >this is where i'd put a mini schematic... if i had one</Card
       >
@@ -148,10 +158,11 @@
 
 <script lang="ts" setup>
 import { Api, Query, Endpoints, BaseFilter } from '@/plugins/api'
-import { State, FlowRun, Deployment } from '@/typings/objects'
+import { State, FlowRun, Deployment, TaskRun } from '@/typings/objects'
 import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
+import Timeline from '@/components/Timeline/Timeline.vue'
 
 const route = useRoute()
 
@@ -210,8 +221,15 @@ const queries: { [key: string]: Query } = {
       paused: !deploymentId
     }
   }),
-  task_runs: Api.query({
+  task_runs_count: Api.query({
     endpoint: Endpoints.task_runs_count,
+    body: taskRunsFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  task_runs: Api.query({
+    endpoint: Endpoints.task_runs,
     body: taskRunsFilter,
     options: {
       pollInterval: 10000
@@ -248,6 +266,10 @@ const flowRun = computed<FlowRun>(() => {
   return flowRunBase.response?.value || {}
 })
 
+const end = computed<string>(() => {
+  return flowRun.value.end_time
+})
+
 const state = computed<State>(() => {
   return flowRun.value?.state
 })
@@ -261,7 +283,11 @@ const crumbs = computed(() => {
 })
 
 const taskRunsCount = computed(() => {
-  return queries.task_runs.response?.value || 0
+  return queries.task_runs_count.response?.value || 0
+})
+
+const taskRuns = computed<TaskRun[]>(() => {
+  return queries.task_runs.response?.value || []
 })
 
 const duration = computed(() => {
