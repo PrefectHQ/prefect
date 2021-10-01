@@ -282,7 +282,6 @@ const premadeFilters = computed<
   const failed = queries.filter_counts_failed.response.value
   const late = queries.filter_counts_late.response.value
   const scheduled = queries.filter_counts_scheduled.response.value
-  console.log(typeof failed == 'number', failed)
   return [
     {
       label: 'Failed Runs',
