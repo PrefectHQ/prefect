@@ -69,7 +69,7 @@ async def task_run_history(
     history_end: datetime.datetime = Body(..., description="The history's end time."),
     history_interval: datetime.timedelta = Body(
         ...,
-        description="The size of each history interval, in seconds.",
+        description="The size of each history interval, in seconds. Must be at least 1 second.",
         alias="history_interval_seconds",
     ),
     flows: schemas.filters.FlowFilter = None,
@@ -78,6 +78,13 @@ async def task_run_history(
     deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.responses.HistoryResponse]:
+
+    if history_interval < datetime.timedelta(seconds=1):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="History interval must not be less than 1 second.",
+        )
+
     return await run_history.run_history(
         session=session,
         run_type="task_run",
