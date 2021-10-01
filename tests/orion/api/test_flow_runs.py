@@ -477,3 +477,17 @@ class TestSetFlowRunState:
         )
         assert response2.status_code == 201
         assert response2.json()["status"] == "ACCEPT"
+
+
+class TestFlowRunHistory:
+    async def test_history_interval_must_be_one_second_or_larger(self, client):
+        response = await client.post(
+            "/flow_runs/history",
+            json=dict(
+                history_start=str(pendulum.now()),
+                history_end=str(pendulum.now().add(days=1)),
+                history_interval_seconds=0.9,
+            ),
+        )
+        assert response.status_code == 422
+        assert b"History interval must not be less than 1 second" in response.content

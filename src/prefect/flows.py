@@ -28,12 +28,13 @@ from typing_extensions import ParamSpec
 
 from prefect import State
 from prefect.executors import BaseExecutor, SequentialExecutor
-from prefect.exceptions import FlowParameterError
+from prefect.exceptions import ParameterTypeError
+from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
-    parameters_to_positional_and_keyword,
+    parameters_to_args_kwargs,
 )
 from prefect.utilities.hashing import file_hash
 
@@ -133,13 +134,13 @@ class Flow(Generic[P, R]):
             FlowParameterError: if the provided parameters are not valid
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
-        args, kwargs = parameters_to_positional_and_keyword(self.fn, parameters)
+        args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
-            raise FlowParameterError(str(exc))
+            raise ParameterTypeError(str(exc))
 
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {
@@ -215,16 +216,6 @@ class Flow(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
-
-        # Check for serializability of parameters
-        for key, value in parameters.items():
-            try:
-                json.dumps(value, default=pydantic.json.pydantic_encoder)
-            except:
-                raise FlowParameterError(
-                    f"Flow parameters must be JSON serializable. Parameter {key!r} is "
-                    f"of unserializable type {type(value).__name__!r}"
-                )
 
         return enter_flow_run_engine_from_flow_call(self, parameters)
 
