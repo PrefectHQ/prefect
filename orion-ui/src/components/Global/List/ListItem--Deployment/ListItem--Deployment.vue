@@ -149,12 +149,10 @@ class Props {
     async scheduleActive(val) {
       const endpoint = val ? 'set_schedule_active' : 'set_schedule_inactive'
 
-      const res = await Api.query({
+      Api.query({
         endpoint: Endpoints[endpoint],
         body: { id: this.item.id }
-      }).fetch()
-
-      console.log(res)
+      })
     }
   }
 })

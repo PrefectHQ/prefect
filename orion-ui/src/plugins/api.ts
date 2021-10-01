@@ -55,7 +55,8 @@ export type FilterBody = Filters[keyof Filters]
 export const Endpoints: { [key: string]: Endpoint } = {
   flow: {
     method: 'GET',
-    url: '/flows/'
+    url: '/flows/',
+    interpolate: true
   },
   flows: {
     method: 'POST',
@@ -67,7 +68,8 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   deployment: {
     method: 'GET',
-    url: '/deployments/'
+    url: '/deployments/',
+    interpolate: true
   },
   deployments: {
     method: 'POST',
@@ -89,7 +91,8 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   flow_run: {
     method: 'GET',
-    url: '/flow_runs/'
+    url: '/flow_runs/',
+    interpolate: true
   },
   flow_runs: {
     method: 'POST',
@@ -105,7 +108,8 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   task_run: {
     method: 'GET',
-    url: '/task_runs/'
+    url: '/task_runs/',
+    interpolate: true
   },
   task_runs: {
     method: 'POST',
@@ -251,7 +255,6 @@ export class Query {
     if (this.endpoint.interpolate) {
       route = route.replaceAll(this.endpointRegex, (match) => {
         const key = match.replace('{', '').replace('}', '')
-        console.log(key, body)
         if (key in body) {
           return body[key as keyof FilterBody]
         } else
@@ -266,7 +269,7 @@ export class Query {
     const res = await fetch(route, {
       headers: { 'Content-Type': 'application/json' },
       method: this.endpoint.method,
-      body: this.endpoint.method !== 'GET' ? JSON.stringify(this.body) : null
+      body: this.endpoint.method !== 'GET' ? JSON.stringify(body) : null
     })
       .then((res) => res)
       .then((res) => {
