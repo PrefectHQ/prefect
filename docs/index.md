@@ -20,7 +20,7 @@ Read the docs, run the code, or host the UI. Join thousands of community members
 ---
 ## Hello, Orion!
 
-Prefect is the easiest way to transform any function into an orchestratable task. Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your data. Every activity is tracked and visible in the Orion UI.
+Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion UI.
 
 === "Basic orchestration" 
 
