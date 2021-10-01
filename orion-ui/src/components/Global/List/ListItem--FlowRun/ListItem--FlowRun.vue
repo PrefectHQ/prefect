@@ -22,8 +22,9 @@
           v-skeleton="!flow.name"
           class="text--grey-40"
           style="min-width: 40px"
-          >{{ flow.name }} /</span
         >
+          {{ flow.name }} /
+        </span>
         {{ item.name }}
       </h2>
 
