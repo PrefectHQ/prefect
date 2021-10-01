@@ -50,14 +50,15 @@ The following executors are currently supported:
 - `DaskExecutor`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
 
 """
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, TypeVar
+import abc
+from contextlib import asynccontextmanager
+from typing import Any, Callable, Dict, Optional, TypeVar, Awaitable, AsyncIterator
 from uuid import UUID
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
-from prefect.futures import PrefectFuture, resolve_futures_to_data
+from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun
 from prefect.utilities.logging import get_logger
@@ -65,11 +66,12 @@ from prefect.utilities.logging import get_logger
 T = TypeVar("T", bound="BaseExecutor")
 
 
-class BaseExecutor:
+class BaseExecutor(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
         self.logger = get_logger("executor")
         self._started: bool = False
 
+    @abc.abstractmethod
     async def submit(
         self,
         task_run: TaskRun,
@@ -92,28 +94,7 @@ class BaseExecutor:
         """
         raise NotImplementedError()
 
-    @contextmanager
-    def start(
-        self: T,
-    ) -> T:
-        """Start the executor, preparing any resources necessary for task submission"""
-        try:
-            self._started = True
-            yield self
-        finally:
-            self.logger.info("Shutting down executor...")
-            self.shutdown()
-            self._started = False
-
-    def shutdown(self) -> None:
-        """
-        Clean up resources associated with the executor.
-
-        Should block until submitted calls are completed.
-        """
-        # TODO: Consider adding a `wait` bool here for fast shutdown
-        pass
-
+    @abc.abstractmethod
     async def wait(
         self, prefect_future: PrefectFuture, timeout: float = None
     ) -> Optional[State]:
@@ -122,6 +103,36 @@ class BaseExecutor:
         If it is not finished after the timeout expires, `None` should be returned.
         """
         raise NotImplementedError()
+
+    @asynccontextmanager
+    async def start(
+        self: T,
+    ) -> AsyncIterator[T]:
+        """Start the executor, preparing any resources necessary for task submission"""
+        try:
+            self.logger.info(f"Starting executor {self}...")
+            await self.on_startup()
+            self._started = True
+            yield self
+        finally:
+            self.logger.info(f"Shutting down executor {self}...")
+            await self.on_shutdown()
+            self._started = False
+
+    async def on_startup(self) -> None:
+        """
+        Create any resources required for this executor to submit work.
+        """
+        pass
+
+    async def on_shutdown(self) -> None:
+        """
+        Clean up resources associated with the executor.
+
+        Should block until submitted calls are completed.
+        """
+        # TODO: Consider adding a `wait` bool here for fast shutdown
+        pass
 
     def __str__(self) -> str:
         return type(self).__name__
@@ -143,7 +154,7 @@ class SequentialExecutor(BaseExecutor):
     async def submit(
         self,
         task_run: TaskRun,
-        run_fn: Callable[..., State],
+        run_fn: Callable[..., Awaitable[State]],
         run_kwargs: Dict[str, Any],
     ) -> PrefectFuture:
         if not self._started:
@@ -220,16 +231,11 @@ class DaskExecutor(BaseExecutor):
         except distributed.TimeoutError:
             return None
 
-    @contextmanager
-    def start(self: T) -> T:
-        with super().start():
-            self._client = distributed.Client()
-            self.logger.info(
-                f"Dask dashboard available at {self._client.dashboard_link}"
-            )
-            yield self
+    async def on_startup(self):
+        self._client = distributed.Client()
+        self.logger.info(f"Dask dashboard available at {self._client.dashboard_link}")
 
-    def shutdown(self) -> None:
+    async def on_shutdown(self) -> None:
         # Attempt to wait for all futures to complete
         for future in self._futures.values():
             try:
