@@ -1,15 +1,16 @@
 <template>
-  <h2>
-    <i class="pi" :class="props.icon" />
+  <h1 class="d-flex align-center">
+    <i class="pi text--grey-40 mr-2" :class="props.icon" />
     <span
       v-skeleton="!crumb.text"
-      v-for="crumb in props.crumbs"
+      v-for="(crumb, i) in props.crumbs"
       :key="crumb.text"
-      style="min-width: 100px"
+      :style="{ minWidth: !crumb.text ? '40px' : undefined }"
+      :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
     >
-      {{ crumb.text }}
+      {{ crumb.text }}{{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
     </span>
-  </h2>
+  </h1>
 </template>
 
 <script lang="ts" setup>
