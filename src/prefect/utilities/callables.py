@@ -1,7 +1,10 @@
 import inspect
+import pydantic
+import json
 import cloudpickle
 from typing import Any, Callable, Dict, Tuple
 from functools import partial
+from prefect.exceptions import ParameterTypeError
 
 
 def get_call_parameters(
@@ -21,7 +24,7 @@ def get_call_parameters(
     return dict(bound_signature.arguments)
 
 
-def parameters_to_positional_and_keyword(
+def parameters_to_args_kwargs(
     fn: Callable, parameters: Dict[str, Any]
 ) -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
     """
@@ -43,7 +46,7 @@ def call_with_parameters(fn: Callable, parameters: Dict[str, Any]):
     will fail. If you need to send to a function with a different signature, extract
     the args/kwargs using `parameters_to_positional_and_keyword` directly
     """
-    args, kwargs = parameters_to_positional_and_keyword(fn, parameters)
+    args, kwargs = parameters_to_args_kwargs(fn, parameters)
     return fn(*args, **kwargs)
 
 
@@ -70,3 +73,14 @@ def _run_serialized_call(payload) -> bytes:
     fn, args, kwargs = cloudpickle.loads(payload)
     retval = fn(*args, **kwargs)
     return cloudpickle.dumps(retval)
+
+
+def assert_parameters_are_serializable(parameters: Dict[str, Any]):
+    for key, value in parameters.items():
+        try:
+            json.dumps(value, default=pydantic.json.pydantic_encoder)
+        except:
+            raise ParameterTypeError(
+                f"Flow parameters must be JSON serializable. Parameter {key!r} is "
+                f"of unserializable type {type(value).__name__!r}"
+            )

@@ -9,11 +9,13 @@ from typing import (
     overload,
     TypeVar,
     Generic,
+    Callable,
 )
-from uuid import UUID
+
 
 import prefect
 from prefect.client import OrionClient, inject_client
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import visit_collection
@@ -73,11 +75,12 @@ class PrefectFuture(Generic[R]):
 
     def __init__(
         self,
-        run_id: UUID,
+        task_run: TaskRun,
         executor: "BaseExecutor",
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
-        self.run_id = run_id
+        self.task_run = task_run
+        self.run_id = task_run.id
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
@@ -112,10 +115,15 @@ class PrefectFuture(Generic[R]):
         if not task_run:
             raise RuntimeError("Future has no associated task run in the server.")
 
+        # Update the task run reference
+        self.task_run = task_run
         return task_run.state
 
     def __hash__(self) -> int:
         return hash(self.run_id)
+
+    def __repr__(self) -> str:
+        return f"PrefectFuture({self.task_run.name!r})"
 
 
 async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R, Any]:
@@ -155,3 +163,25 @@ async def resolve_futures_to_states(
             return expr
 
     return await visit_collection(expr, visit_fn=visit_fn, return_data=True)
+
+
+def call_repr(__fn: Callable, *args: Any, **kwargs: Any) -> str:
+    """
+    Generate a repr for a function call as "fn_name(arg_value, kwarg_name=kwarg_value)"
+    """
+
+    name = __fn.__name__
+
+    # TODO: If this computation is concerningly expensive, we can iterate checking the
+    #       length at each arg or avoid calling `repr` on args with large amounts of
+    #       data
+    call_args = ", ".join(
+        [repr(arg) for arg in args]
+        + [f"{key}={repr(val)}" for key, val in kwargs.items()]
+    )
+
+    # Enforce a maximum length
+    if len(call_args) > 100:
+        call_args = call_args[:100] + "..."
+
+    return f"{name}({call_args})"
