@@ -39,7 +39,8 @@
     opacity: 1;
 }
 
-.doc.doc-method .prefect-heading:before {
+.doc.doc-method .prefect-heading:before,
+.doc.doc-attribute .prefect-heading:before {
     margin-top: -2px;
 }
 
@@ -131,6 +132,10 @@ a.prefect-heading:hover {
 
 .doc.doc-method > .prefect-heading > h3:before {
     content: "method";
+} 
+
+.doc.doc-attribute > .prefect-heading > h3:before {
+    content: "attribute";
 }
 
 .doc p, .doc em, .doc li {
