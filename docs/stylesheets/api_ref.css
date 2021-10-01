@@ -74,7 +74,25 @@ a.prefect-heading:hover {
 .prefect-heading > h2:target,
 .prefect-heading > h3:target,
 .prefect-heading > h4:target {
-    scroll-margin-top: 50px;
+    scroll-margin-top: 50px !important;
+}
+
+@media (min-width:1220px) {
+    .prefect-heading > h1:target,
+    .prefect-heading > h2:target,
+    .prefect-heading > h3:target,
+    .prefect-heading > h4:target {
+        scroll-margin-top: 105px !important;
+    }   
+}
+
+@media (min-width:2000px) {
+    .prefect-heading > h1:target,
+    .prefect-heading > h2:target,
+    .prefect-heading > h3:target,
+    .prefect-heading > h4:target {
+        scroll-margin-top: 120px !important;
+    }   
 }
 
 .doc.doc-module > h1 {
