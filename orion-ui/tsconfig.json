@@ -18,10 +18,10 @@
       "webpack-env",
       "jest",
       "d3",
-      "@prefect/miter-design"
+      "@prefecthq/miter-design"
     ],
     "typeRoots": [
-      "./types"
+      "./typings"
     ],
     "paths": {
       "@/*": [

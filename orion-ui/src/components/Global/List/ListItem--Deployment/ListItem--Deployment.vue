@@ -60,7 +60,9 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+    <div v-breakpoints="'sm'" class="ml-auto d-flex align-middle nowrap">
+      <Toggle v-if="false" v-model="scheduleActive" />
+
       <Button
         outlined
         height="36px"
@@ -70,7 +72,15 @@
       >
         View Parameters
       </Button>
-      <Button outlined miter height="36px" width="105px" class="text--grey-80">
+      <Button
+        outlined
+        miter
+        height="36px"
+        width="105px"
+        class="text--grey-80"
+        :disabled="creatingRun"
+        @click="createRun"
+      >
         Quick Run
       </Button>
     </div>
@@ -133,6 +143,7 @@
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
 import { Deployment, IntervalSchedule, CronSchedule } from '@/typings/objects'
+import { Api, Endpoints } from '@/plugins/api'
 
 class Props {
   item = prop<Deployment>({ required: true })
@@ -142,12 +153,47 @@ class Props {
   watch: {
     parametersDrawerActive() {
       this.search = ''
+    },
+    async scheduleActive(val) {
+      const endpoint = val ? 'set_schedule_active' : 'set_schedule_inactive'
+
+      Api.query({
+        endpoint: Endpoints[endpoint],
+        body: { id: this.item.id }
+      })
     }
   }
 })
 export default class ListItemDeployment extends Vue.with(Props) {
   parametersDrawerActive: boolean = false
   search: string = ''
+  scheduleActive: boolean = this.item.is_schedule_active
+  creatingRun: boolean = false
+
+  async createRun(): Promise<void> {
+    this.creatingRun = true
+    const res = await Api.query({
+      endpoint: Endpoints.create_flow_run,
+      body: {
+        deployment_id: this.item.id,
+        flow_id: this.item.flow_id,
+        name: 'testingggggggg a longgggg name with lots of gggggggs and yyyyyyyyys',
+        state: {
+          type: 'SCHEDULED',
+          message: 'Quick run through the Orion UI.'
+        }
+      }
+    })
+    console.log(res)
+    this.$toast.add({
+      type: res.error ? 'error' : 'success',
+      content: res.error
+        ? `Error: ${res.error}`
+        : `Run created: ${res.response.value?.name}`,
+      timeout: 10000
+    })
+    this.creatingRun = false
+  }
 
   get location(): string {
     return this.item.flow_data.blob || '--'

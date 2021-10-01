@@ -10,7 +10,11 @@
         <div class="d-flex justify-space-between align-center px-1">
           <div>
             <span class="font--secondary subheader">
-              {{ filter.count || '--' }}
+              {{
+                typeof filter.count == 'number'
+                  ? filter.count.toLocaleString()
+                  : '--'
+              }}
             </span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
@@ -19,94 +23,88 @@
       </button-card>
     </row>
 
+    <!-- These can be used to paginate the chart -->
+    <IconButton
+      v-if="false"
+      icon="pi-arrow-left-line"
+      @click="previous30Minutes"
+    />
+    <IconButton
+      v-if="false"
+      icon="pi-arrow-right-line"
+      @click="next30Minutes"
+    />
+
     <div class="chart-section">
-      <Card class="run-history" shadow="sm">
-        <template v-slot:header>
-          <div class="subheader py-1 px-2">Run History</div>
-        </template>
+      <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
-        <div class="px-2 pb-1 flex-grow-1">
-          <RunHistoryChart
-            v-if="run_history_buckets && run_history_buckets.length"
-            :items="run_history_buckets"
-            background-color="blue-5"
-            show-axis
-          />
-          <div v-else class="font--secondary subheader no-data"> -- </div>
-        </div>
-      </Card>
+      <IntervalBarChartCard
+        title="Duration"
+        endpoint="flow_runs_history"
+        state-bucket-key="sum_estimated_run_time"
+        height="77px"
+        :filter="flowRunStatsFilter"
+        class="run-duration flex-grow-0"
+      />
 
-      <Card class="run-duration flex-grow-0" shadow="sm">
-        <template v-slot:aside>
-          <div class="pl-2 pt-1" style="width: 100px">
-            <div class="font--secondary subheader">--</div>
-            <div class="body">Duration</div>
-          </div>
-        </template>
-        <div class="chart px-1">
-          <BarChart :items="run_duration_items" height="117px" />
-        </div>
-      </Card>
-
-      <Card class="run-lateness flex-grow-0" shadow="sm">
-        <template v-slot:aside>
-          <div class="pl-2 pt-1" style="width: 100px">
-            <div class="font--secondary subheader">--</div>
-            <div class="body">Lateness</div>
-          </div>
-        </template>
-        <div class="chart px-1">
-          <BarChart :items="run_lateness_items" height="117px" />
-        </div>
-      </Card>
+      <IntervalBarChartCard
+        title="Lateness"
+        endpoint="flow_runs_history"
+        state-bucket-key="sum_estimated_lateness"
+        height="77px"
+        :filter="flowRunStatsFilter"
+        class="run-lateness flex-grow-0"
+      />
     </div>
 
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows" class="subheader">
-        <i class="pi pi-flow pi-lg mr-1" />
+        <i class="pi pi-flow mr-1 text--grey-40" />
         Flows
         <span
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flows' }"
         >
-          {{ flowsCount }}
+          {{ flowsCount.toLocaleString() }}
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
-        <i class="pi pi-map-pin-line pi-lg mr-1" />
+        <i class="pi pi-map-pin-line mr-1 text--grey-40" />
         Deployments
         <span
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'deployments' }"
         >
-          {{ deploymentsCount }}
+          {{ deploymentsCount.toLocaleString() }}
         </span>
       </Tab>
       <Tab href="flow_runs" class="subheader">
-        <i class="pi pi-flow-run pi-lg mr-1" />
+        <i class="pi pi-flow-run mr-1 text--grey-40" />
         Flow Runs
         <span
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow_runs' }"
         >
-          {{ flowRunsCount }}
+          {{ flowRunsCount.toLocaleString() }}
         </span>
       </Tab>
       <Tab href="task_runs" class="subheader">
-        <i class="pi pi-task pi-lg mr-1" />
+        <i class="pi pi-task mr-1 text--grey-40" />
         Task Runs
         <span
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task_runs' }"
         >
-          {{ taskRunsCount }}
+          {{ taskRunsCount.toLocaleString() }}
         </span>
       </Tab>
     </Tabs>
 
     <div class="font--secondary caption my-2" style="min-height: 17px">
       <span v-show="resultsCount > 0">
-        {{ resultsCount }} Result{{ resultsCount !== 1 ? 's' : '' }}
+        {{ resultsCount.toLocaleString() }} Result{{
+          resultsCount !== 1 ? 's' : ''
+        }}
       </span>
     </div>
 
@@ -169,22 +167,18 @@ import {
   Endpoints,
   Query,
   FlowsFilter,
+  FlowRunsHistoryFilter,
   DeploymentsFilter,
   FlowRunsFilter,
   TaskRunsFilter
 } from '@/plugins/api'
 
-import {
-  default as RunHistoryChart,
-  Bucket
-} from '@/components/RunHistoryChart/RunHistoryChart.vue'
+import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 
-import BarChart from '@/components/BarChart/BarChart.vue'
-
-import { Flow, FlowRun, Deployment, TaskRun } from '@/typings/objects'
+import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
 
 @Options({
-  components: { BarChart, RunHistoryChart },
+  components: { IntervalBarChartCard, RunHistoryChartCard },
   watch: {
     resultsTab(val) {
       this.$router.push({ hash: `#${val}` })
@@ -192,35 +186,74 @@ import { Flow, FlowRun, Deployment, TaskRun } from '@/typings/objects'
   }
 })
 export default class Dashboard extends Vue {
-  flowsFilter: FlowsFilter = {}
-
   queries: { [key: string]: Query } = {
-    deployments: Api.query(Endpoints.deployments_count, this.flowsFilter, {
-      pollInterval: 10000
+    deployments: Api.query({
+      endpoint: Endpoints.deployments_count,
+      body: this.deploymentFilter,
+      options: {
+        pollInterval: 10000
+      }
     }),
-    flows: Api.query(Endpoints.flows_count, this.flowsFilter, {
-      pollInterval: 10000
+    flows: Api.query({
+      endpoint: Endpoints.flows_count,
+      body: this.flowFilter,
+      options: {
+        pollInterval: 10000
+      }
     }),
-    flow_runs: Api.query(Endpoints.flow_runs_count, this.flowsFilter, {
-      pollInterval: 10000
+    flow_runs: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: this.flowRunFilter,
+      options: {
+        pollInterval: 10000
+      }
     }),
-    task_runs: Api.query(Endpoints.task_runs_count, this.flowsFilter, {
-      pollInterval: 10000
+    task_runs: Api.query({
+      endpoint: Endpoints.task_runs_count,
+      body: this.taskRunFilter,
+      options: {
+        pollInterval: 10000
+      }
+    }),
+    filter_counts_failed: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: this.countsFilter('FAILED')
+    }),
+    filter_counts_late: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      // body: this.countsFilter('LATE') TODO: When we can filter by name, these counts should filter on name and this one should be switched to LATE
+      body: this.countsFilter('SCHEDULED')
+    }),
+    filter_counts_scheduled: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: this.countsFilter('SCHEDULED')
     })
   }
 
-  run_history_buckets: Bucket[] = []
-
-  run_lateness_items: any[] = []
-  run_duration_items: any[] = []
-
-  premadeFilters: { label: string; count: number | null }[] = [
-    { label: 'Failed Runs', count: null },
-    { label: 'Late Runs', count: null },
-    { label: 'Upcoming Runs', count: null }
-  ]
+  // premadeFilters: { label: string; count: number | null }[] = [
+  //   { label: 'Failed Runs', count: null },
+  //   { label: 'Late Runs', count: null },
+  //   { label: 'Upcoming Runs', count: null }
+  // ]
 
   resultsTab: string | null = null
+
+  get premadeFilters(): { [key: string]: string | undefined | number }[] {
+    return [
+      {
+        label: 'Failed Runs',
+        count: this.queries.filter_counts_failed.response || undefined
+      },
+      {
+        label: 'Late Runs',
+        count: this.queries.filter_counts_late.response || undefined
+      },
+      {
+        label: 'Upcoming Runs',
+        count: this.queries.filter_counts_scheduled.response || undefined
+      }
+    ]
+  }
 
   get flowsCount(): number {
     return this.queries.flows?.response || 0
@@ -238,6 +271,18 @@ export default class Dashboard extends Vue {
     return this.queries.task_runs?.response || 0
   }
 
+  get start(): Date {
+    return this.$store.getters.globalFilter.start
+  }
+
+  get end(): Date {
+    return this.$store.getters.globalFilter.end
+  }
+
+  get interval(): number {
+    return this.$store.getters.globalFilter.intervalSeconds
+  }
+
   get loading(): boolean {
     return (
       this.queries.flows.loading.value ||
@@ -245,6 +290,31 @@ export default class Dashboard extends Vue {
       this.queries.flow_runs.loading.value ||
       this.queries.task_runs.loading.value
     )
+  }
+
+  get flowRunHistoryFilter(): FlowRunsHistoryFilter {
+    return {
+      history_start: this.start.toISOString(),
+      history_end: this.end.toISOString(),
+      history_interval_seconds: this.interval
+    }
+  }
+
+  get flowRunStatsFilter(): FlowRunsHistoryFilter {
+    return {
+      ...this.flowRunHistoryFilter,
+      history_interval_seconds: this.interval * 2
+    }
+  }
+
+  countsFilter(state_type: string): () => FlowRunsFilter {
+    return () => {
+      return {
+        flow_runs: {
+          state_type: { any_: [state_type] }
+        }
+      }
+    }
   }
 
   get flowFilter(): FlowsFilter {
@@ -268,7 +338,29 @@ export default class Dashboard extends Vue {
     return this.queries[this.resultsTab].response || 0
   }
 
-  created(): void {
+  previous30Minutes(): void {
+    const start = new Date(this.$store.state.globalFilter.start || new Date())
+    const end = new Date(this.$store.state.globalFilter.end || new Date())
+
+    start.setMinutes(start.getMinutes() - 30)
+    end.setMinutes(end.getMinutes() - 30)
+
+    this.$store.commit('start', start)
+    this.$store.commit('end', end)
+  }
+
+  next30Minutes(): void {
+    const start = new Date(this.$store.state.globalFilter.start || new Date())
+    const end = new Date(this.$store.state.globalFilter.end || new Date())
+
+    start.setMinutes(start.getMinutes() + 30)
+    end.setMinutes(end.getMinutes() + 30)
+
+    this.$store.commit('start', start)
+    this.$store.commit('end', end)
+  }
+
+  beforeCreate(): void {
     this.resultsTab = this.$route.hash?.substr(1) || 'flows'
   }
 }
