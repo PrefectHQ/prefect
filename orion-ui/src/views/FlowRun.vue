@@ -29,7 +29,7 @@
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task_runs' }"
         >
-          <!-- {{ taskRunsCount.toLocaleString() }} -->
+          {{ taskRunsCount.toLocaleString() }}
         </span>
       </Tab>
 
@@ -89,7 +89,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints } from '@/plugins/api'
+import { Api, Query, Endpoints, BaseFilter } from '@/plugins/api'
 import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -113,20 +113,28 @@ const flowFilter = {
   id: flowId
 }
 
+const taskRunsFilter = computed<BaseFilter>(() => {
+  return {
+    flow_runs: {
+      id: {
+        any_: [route.params.id as string]
+      }
+    }
+  }
+})
+
 const queries: { [key: string]: Query } = {
   flow: Api.query({
     endpoint: Endpoints.flow,
     body: flowFilter
+  }),
+  task_runs_count: Api.query({
+    endpoint: Endpoints.task_runs_count,
+    body: taskRunsFilter,
+    options: {
+      pollInterval: 5000
+    }
   })
-  // task_runs_count: Api.query({
-  //   endpoint: Endpoints.flow_run,
-  //   body: {
-  //     id: id.value
-  //   },
-  //   options: {
-  //     pollInterval: 5000
-  //   }
-  // }),
   // sub_flow_runs_count: Api.query({
   //   endpoint: Endpoints.flow_run,
   //   body: {
@@ -148,6 +156,10 @@ const flowRun = computed(() => {
 
 const crumbs = computed(() => {
   return [{ text: flow.value?.name }, { text: flowRun.value?.name }]
+})
+
+const taskRunsCount = computed(() => {
+  return queries.task_runs_count.response?.value || 0
 })
 
 // This cleanup is necessary since the initial flow run query isn't
