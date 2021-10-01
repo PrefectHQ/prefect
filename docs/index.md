@@ -106,7 +106,7 @@ Prefect is the easiest way to transform any function into an orchestratable task
     ```
 
 
-After running any of these flows, fire up the UI to gain insight into their execution. Prefect now works interactively or through scheduled [deployments](concepts/deployments.md).
+After running any of these flows, fire up the UI to gain insight into their execution. You can continue to use Prefect interactively or set up automated [deployments](concepts/deployments.md).
 
 ---
 
