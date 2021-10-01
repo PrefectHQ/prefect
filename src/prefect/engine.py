@@ -614,15 +614,15 @@ async def orchestrate_task_run(
 
         state = await client.propose_state(terminal_state, task_run_id=task_run.id)
 
+        if state.type != terminal_state.type and prefect.settings.debug_mode:
+            logger.debug(
+                f"Task run {task_run.name!r} received state {state} when proposing final state {terminal_state}"
+            )
+
         if not state.is_final():
             logger.info(
-                f"Task run {task_run.name!r} received state {state.name!r} when proposing state {terminal_state.name!r} and will attempt to run again..."
+                f"Task run {task_run.name!r} received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again..."
             )
-            if prefect.settings.debug_mode:
-                logger.debug(
-                    f"Task run {task_run.name!r} received state {state} when proposing final state {terminal_state}"
-                )
-
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
