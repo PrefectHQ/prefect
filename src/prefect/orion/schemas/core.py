@@ -80,12 +80,12 @@ class FlowRun(ORMBaseModel):
 
     expected_start_time: datetime.datetime = Field(
         None,
-        description="The flow run's expected start time. Set the first time the flow run is placed into a state.",
+        description="The flow run's expected start time.",
     )
 
     next_scheduled_start_time: datetime.datetime = Field(
         None,
-        description="The next time the flow run is scheduled to start. Populated whenever the flow run enters a scheduled state, including retrying.",
+        description="The next time the flow run is scheduled to start.",
     )
     start_time: datetime.datetime = Field(None, description="The actual start time.")
     end_time: datetime.datetime = Field(None, description="The actual end time.")
@@ -203,14 +203,14 @@ class TaskRun(ORMBaseModel):
 
     expected_start_time: datetime.datetime = Field(
         None,
-        description="The task run's expected start time. Set the first time the task run is placed into a state.",
+        description="The task run's expected start time.",
     )
 
     # the next scheduled start time will be populated
     # whenever the run is in a scheduled state
     next_scheduled_start_time: datetime.datetime = Field(
         None,
-        description="The next time the task run is scheduled to start. Populated whenever the task run enters a scheduled state, including retrying.",
+        description="The next time the task run is scheduled to start.",
     )
     start_time: datetime.datetime = Field(None, description="The actual start time.")
     end_time: datetime.datetime = Field(None, description="The actual end time.")
