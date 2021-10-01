@@ -8,7 +8,7 @@ import time
 from prefect import flow, task, tags
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
-from prefect.exceptions import FlowParameterError
+from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -163,7 +163,7 @@ class TestFlowCall:
 
         assert state.is_failed()
         with pytest.raises(
-            FlowParameterError,
+            ParameterTypeError,
             match="value is not a valid integer",
         ):
             raise state.result()
@@ -658,13 +658,13 @@ class ParameterTestEnum(enum.Enum):
 
 
 class TestFlowParameterTypes:
-    def test_flow_parameters_cannot_be_custom_types(self):
+    def test_flow_parameters_cannot_be_unserialiable_types(self):
         @flow
         def my_flow(x):
             return x
 
         with pytest.raises(
-            FlowParameterError,
+            ParameterTypeError,
             match=(
                 "Flow parameters must be JSON serializable. "
                 "Parameter 'x' is of unserializable type 'ParameterTestClass'"
@@ -690,3 +690,69 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow(data).result() == data
+
+    def test_subflow_parameters_cannot_be_unserialiable_types(self):
+        @flow
+        def my_flow():
+            return my_subflow(ParameterTestClass())
+
+        @flow
+        def my_subflow(x):
+            return x
+
+        with pytest.raises(
+            ParameterTypeError,
+            match=(
+                "Flow parameters must be JSON serializable. "
+                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
+            ),
+        ):
+            my_flow().result()
+
+    def test_subflow_parameters_can_be_pydantic_types(self):
+        @flow
+        def my_flow():
+            return my_subflow(ParameterTestModel(data=1))
+
+        @flow
+        def my_subflow(x):
+            return x
+
+        assert my_flow().result() == ParameterTestModel(data=1)
+
+    def test_subflow_parameters_from_future_cannot_be_unserialiable_types(self):
+        @flow
+        def my_flow():
+            return my_subflow(identity(ParameterTestClass()))
+
+        @task
+        def identity(x):
+            return x
+
+        @flow
+        def my_subflow(x):
+            return x
+
+        with pytest.raises(
+            ParameterTypeError,
+            match=(
+                "Flow parameters must be JSON serializable. "
+                "Parameter 'x' is of unserializable type 'ParameterTestClass'"
+            ),
+        ):
+            my_flow().result()
+
+    def test_subflow_parameters_can_be_pydantic_types(self):
+        @flow
+        def my_flow():
+            return my_subflow(identity(ParameterTestModel(data=1)))
+
+        @task
+        def identity(x):
+            return x
+
+        @flow
+        def my_subflow(x):
+            return x
+
+        assert my_flow().result() == ParameterTestModel(data=1)
