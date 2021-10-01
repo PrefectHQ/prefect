@@ -18,7 +18,7 @@ Read the docs, run the code, or host the UI. Join thousands of community members
     Orion is under active development and will change rapidly. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
 
 ---
-## Hello, world!
+## Hello, Orion!
 
 Prefect is the easiest way to transform any function into an orchestratable task. Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your data. Every activity is tracked and visible in the Orion UI.
 
