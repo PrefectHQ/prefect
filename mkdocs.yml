@@ -2,6 +2,7 @@ site_name: Prefect Orion
 repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
 extra_css:
+    - stylesheets/theme.css
     - stylesheets/admonitions.css
     - stylesheets/api_ref.css
     - stylesheets/rest_ref.css
@@ -19,6 +20,7 @@ markdown_extensions:
     - pymdownx.highlight:
         use_pygments: true
     - pymdownx.superfences
+    - pymdownx.tabbed
 theme:
     name: material
     favicon: img/favicon.ico
