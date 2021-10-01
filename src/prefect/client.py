@@ -486,6 +486,7 @@ class OrionClient:
     ) -> OrchestrationResult:
         state_data = schemas.actions.StateCreate(
             type=state.type,
+            name=state.name,
             message=state.message,
             data=orion_doc or state.data,
             state_details=state.state_details,
