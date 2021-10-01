@@ -9,7 +9,7 @@ from prefect.orion.utilities.enum import AutoEnum
 
 
 class FlowRunSort(AutoEnum):
-    """Defines flow run sorting options"""
+    """Defines flow run sorting options."""
 
     ID_DESC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
@@ -26,7 +26,7 @@ class FlowRunSort(AutoEnum):
 
 
 class TaskRunSort(AutoEnum):
-    """Defines task run sorting options"""
+    """Defines task run sorting options."""
 
     ID_DESC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()

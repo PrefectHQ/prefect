@@ -585,7 +585,7 @@ class DeploymentFilterTags(PrefectFilterBaseModel):
 
 
 class DeploymentFilter(PrefectFilterBaseModel):
-    """Filter for deployments. Only deployments matching all criteria will be returned"""
+    """Filter for deployments. Only deployments matching all criteria will be returned."""
 
     id: Optional[DeploymentFilterId] = Field(
         None, description="Filter criteria for `Deployment.id`"
