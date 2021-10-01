@@ -160,13 +160,38 @@ class FlowRunFilterDeploymentId(PrefectFilterBaseModel):
 
 class FlowRunFilterStateType(PrefectFilterBaseModel):
     any_: List[schemas.states.StateType] = Field(
-        None, description="A list of flow run state_types to include"
+        None, description="A list of flow run state types to include"
     )
 
     def _get_filter_list(self):
         filters = []
         if self.any_ is not None:
             filters.append(orm.FlowRun.state_type.in_(self.any_))
+        return filters
+
+
+class FlowRunFilterStateName(PrefectFilterBaseModel):
+    any_: List[str] = Field(
+        None, description="A list of flow run state names to include"
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.any_ is not None:
+            filters.append(orm.FlowRun.state.has(orm.FlowRunState.name.in_(self.any_)))
+        return filters
+
+
+class FlowRunFilterState(PrefectFilterBaseModel):
+    type: Optional[FlowRunFilterStateType]
+    name: Optional[FlowRunFilterStateName]
+
+    def _get_filter_list(self):
+        filters = []
+        if self.type is not None:
+            filters.extend(self.type._get_filter_list())
+        if self.name is not None:
+            filters.extend(self.name._get_filter_list())
         return filters
 
 
@@ -274,7 +299,7 @@ class FlowRunFilter(PrefectFilterBaseModel):
     name: Optional[FlowRunFilterName]
     tags: Optional[FlowRunFilterTags]
     deployment_id: Optional[FlowRunFilterDeploymentId]
-    state_type: Optional[FlowRunFilterStateType]
+    state: Optional[FlowRunFilterState]
     flow_version: Optional[FlowRunFilterFlowVersion]
     start_time: Optional[FlowRunFilterStartTime]
     expected_start_time: Optional[FlowRunFilterExpectedStartTime]
@@ -294,8 +319,8 @@ class FlowRunFilter(PrefectFilterBaseModel):
             filters.append(self.deployment_id.as_sql_filter())
         if self.flow_version is not None:
             filters.append(self.flow_version.as_sql_filter())
-        if self.state_type is not None:
-            filters.append(self.state_type.as_sql_filter())
+        if self.state is not None:
+            filters.append(self.state.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
         if self.expected_start_time is not None:
@@ -365,6 +390,31 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
         return filters
 
 
+class TaskRunFilterStateName(PrefectFilterBaseModel):
+    any_: List[str] = Field(
+        None, description="A list of task run state names to include"
+    )
+
+    def _get_filter_list(self):
+        filters = []
+        if self.any_ is not None:
+            filters.append(orm.TaskRun.state.has(orm.TaskRunState.name.in_(self.any_)))
+        return filters
+
+
+class TaskRunFilterState(PrefectFilterBaseModel):
+    type: Optional[TaskRunFilterStateType]
+    name: Optional[TaskRunFilterStateName]
+
+    def _get_filter_list(self):
+        filters = []
+        if self.type is not None:
+            filters.extend(self.type._get_filter_list())
+        if self.name is not None:
+            filters.extend(self.name._get_filter_list())
+        return filters
+
+
 class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
     exists_: bool = Field(
         None,
@@ -412,7 +462,7 @@ class TaskRunFilter(PrefectFilterBaseModel):
     id: Optional[TaskRunFilterId]
     name: Optional[TaskRunFilterName]
     tags: Optional[TaskRunFilterTags]
-    state_type: Optional[TaskRunFilterStateType]
+    state: Optional[TaskRunFilterState]
     start_time: Optional[TaskRunFilterStartTime]
     subflow_runs: Optional[TaskRunFilterSubFlowRuns]
 
@@ -425,8 +475,8 @@ class TaskRunFilter(PrefectFilterBaseModel):
             filters.append(self.name.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
-        if self.state_type is not None:
-            filters.append(self.state_type.as_sql_filter())
+        if self.state is not None:
+            filters.append(self.state.as_sql_filter())
         if self.start_time is not None:
             filters.append(self.start_time.as_sql_filter())
         if self.subflow_runs is not None:
