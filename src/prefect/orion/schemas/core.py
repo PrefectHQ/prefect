@@ -181,7 +181,7 @@ class TaskRun(ORMBaseModel):
     )
     task_version: str = Field(None, description="The version of the task being run.")
     empirical_policy: TaskRunPolicy = Field(
-        default_factory=TaskRunPolicy, description="TODO."
+        default_factory=TaskRunPolicy,
     )
     tags: List[str] = Field(
         default_factory=list,
