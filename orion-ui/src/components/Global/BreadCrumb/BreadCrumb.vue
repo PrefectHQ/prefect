@@ -30,12 +30,20 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps } from 'vue'
+import { defineProps, withDefaults } from 'vue'
 
 type Crumb = {
   text: string
   to?: string
 }
 
-const props = defineProps<{ crumbs: Crumb[]; icon: string; tag: 'string' }>()
+interface Props {
+  crumbs: Crumb[]
+  icon?: string
+  tag?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  tag: 'h1'
+})
 </script>
