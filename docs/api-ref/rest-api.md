@@ -1,6 +1,6 @@
 ## Overview
 
-The Prefect Orion REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing [REST APIs](https://technically.dev/posts/apis-for-the-rest-of-us). 
+The Prefect Orion REST API can be fully described with an OpenAPI 3.0 compliant document. [OpenAPI](https://swagger.io/docs/specification/about/) is a standard specification for describing [REST APIs](https://technically.dev/posts/apis-for-the-rest-of-us).
 
 To generate Orion's complete OpenAPI document, run the following commands in an interactive Python session:
 
@@ -21,21 +21,21 @@ The Orion REST API adheres to the following guidelines:
 - We use snake case for route names (e.g. `GET /task_runs`)
 - We avoid nested resources unless there is no possibility of accessing the child resource outside the parent context. For example, we query `/task_runs` with a flow run filter instead of accessing `/flow_runs/:id/task_runs`.
 - Filtering, sorting, and pagination parameters are provided in the request body of `POST` requests where applicable
-    - Pagination parameters are `limit` and `offset`
-    - Sorting is specified with a single `sort` parameter
-    - See more information on [filtering](#filtering) below
+  - Pagination parameters are `limit` and `offset`
+  - Sorting is specified with a single `sort` parameter
+  - See more information on [filtering](#filtering) below
 - **HTTP verbs**:
-    - `GET`, `PUT` and `DELETE` requests are always idempotent; `POST` and `PATCH` are not guaranteed to be idempotent
-    - `GET` requests can not receive information from the request body
-    - `POST` requests can receive information from the request body
-    - `POST /collection` creates a new member of the collection
-    - `GET /collection` lists all members of the collection
-    - `GET /collection/:id` gets a specific member of the collection by ID
-    - `DELETE /collection/:id` deletes a specific member of the collection 
-    - `PUT /collection/:id` creates or replaces a specific member of the collection
-    - `PATCH /collection/:id` partially updates a specific member of the collection
-    - `POST /collection/action` is how we implement non-CRUD actions. For example, to set a flow run's state, we use `POST /flow_runs/:id/set_state`.
-    - `POST /collection/action` may also be used for read-only queries. This is to allow us to send complex arguments as body arguments (which often can not be done via GET). Examples include `POST /flow_runs/filter`, `POST /flow_runs/count`, and `POST /flow_runs/history`.
+  - `GET`, `PUT` and `DELETE` requests are always idempotent; `POST` and `PATCH` are not guaranteed to be idempotent
+  - `GET` requests can not receive information from the request body
+  - `POST` requests can receive information from the request body
+  - `POST /collection` creates a new member of the collection
+  - `GET /collection` lists all members of the collection
+  - `GET /collection/:id` gets a specific member of the collection by ID
+  - `DELETE /collection/:id` deletes a specific member of the collection
+  - `PUT /collection/:id` creates or replaces a specific member of the collection
+  - `PATCH /collection/:id` partially updates a specific member of the collection
+  - `POST /collection/action` is how we implement non-CRUD actions. For example, to set a flow run's state, we use `POST /flow_runs/:id/set_state`.
+  - `POST /collection/action` may also be used for read-only queries. This is to allow us to send complex arguments as body arguments (which often can not be done via GET). Examples include `POST /flow_runs/filter`, `POST /flow_runs/count`, and `POST /flow_runs/history`.
 
 ### Filtering
 
@@ -57,7 +57,7 @@ where
 
 `objects` is the name of the collection to filter over (e.g. `flows`). The collection can be either the object being queried for (e.g. `flows` for `POST /flows/filter`) or a related object (e.g. `flow_runs` for `POST /flows/filter`).
 
-`object_field` is the name of the field over which to filter (e.g. `name` for `flows`).
+`object_field` is the name of the field over which to filter (e.g. `name` for `flows`). Note that some objects may have nested object fields, such as `{flow_run: {state: {type: {_any: []}}}}`
 
 `field_operator_` is the operator to apply to a field when filtering. Common examples include:
 
@@ -72,14 +72,16 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 ```
 {
-    "flows": {
-        "tags": {
-            "all_": ["database"]
+    flows: {
+        tags: {
+            all_: ["database"]
         }
     },
-    "flow_runs": {
-        "state_type": {
-            "any_": ["FAILED"]
+    flow_runs: {
+        state: {
+            type: {
+              any_: ["FAILED"]
+            }
         }
     }
 }
