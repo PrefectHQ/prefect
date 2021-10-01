@@ -17,9 +17,13 @@
 
     <div class="main-grid">
       <Card class="details" shadow="sm">
-        <div class="d-flex justify-space-between align-center py-1 px-2">
-          <div>
-            <div class="d-flex align-center text-truncate">
+        <div
+          class="d-flex align-center justify-space-between py-1 px-2"
+          style="width: 100%; height: 100%"
+        >
+          <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
+          <div class="d-inline-flex flex-column">
+            <div class="flex-grow-0 flex-shrink-1">
               <span
                 class="run-state correct-text caption mr-1"
                 :class="state.type?.toLowerCase() + '-bg'"
@@ -27,16 +31,18 @@
                 {{ state.name }}
               </span>
 
-              <Tag
-                v-for="tag in tags"
-                :key="tag"
-                color="secondary-pressed"
-                class="font--primary caption font-weight-semibold mr-1"
-                icon="pi-label"
-                flat
-              >
-                {{ tag }}
-              </Tag>
+              <span class="d-inline-flex align-center text-truncate">
+                <Tag
+                  v-for="tag in tags"
+                  :key="tag"
+                  color="secondary-pressed"
+                  class="font--primary caption font-weight-semibold mr-1"
+                  icon="pi-label"
+                  flat
+                >
+                  {{ tag }}
+                </Tag>
+              </span>
             </div>
 
             <div
@@ -45,17 +51,19 @@
                 font--primary font-weight-semibold
                 text--grey-40
                 mt-1
+                d-flex
                 text-truncate
               "
             >
-              <span>
-                Deployment:
-                <span class="text--grey-80">{{ deployment.name }}</span>
+              <span> Deployment: </span>
+              <span class="text--grey-80">
+                {{ deployment.name }}
               </span>
-              <span class="ml-1">
-                Results:
-                <span class="text--grey-80">{{ location }}</span></span
-              >
+
+              <span class="ml-1"> Results: </span>
+              <span class="text--grey-80">
+                {{ location }}
+              </span>
             </div>
           </div>
 
@@ -64,8 +72,12 @@
           </div>
         </div>
       </Card>
-      <Card class="timeline" shadow="sm">timeline</Card>
-      <Card class="schematic" shadow="sm">schematic</Card>
+      <Card class="timeline" shadow="sm"
+        >this is where the timeline should probably go</Card
+      >
+      <Card class="schematic" shadow="sm"
+        >this is where i'd put a mini schematic... if i had one</Card
+      >
     </div>
 
     <Tabs v-model="resultsTab" class="mt-3">
@@ -92,12 +104,10 @@
       </Tab>
     </Tabs>
 
-    <!-- 
-
     <div class="font--secondary caption my-2" style="min-height: 17px">
-      <span v-show="resultsCount > 0">
-        {{ resultsCount.toLocaleString() }} Result{{
-          resultsCount !== 1 ? 's' : ''
+      <span v-show="resultsCount.value > 0">
+        {{ resultsCount.value?.toLocaleString() }} Result{{
+          resultsCount.value !== 1 ? 's' : ''
         }}
       </span>
     </div>
@@ -117,21 +127,22 @@
         <results-list
           v-else-if="resultsTab == 'task_runs'"
           key="flows"
-          :filter="taskRunFilter"
+          :filter="taskRunsFilter"
           component="task-run-list-item"
           endpoint="task_runs"
         />
 
         <results-list
-          v-else-if="resultsTab == 'sub_flow_runs'"
+          v-else-if="false && resultsTab == 'sub_flow_runs'"
           key="deployments"
-          :filter="subFlowRunFilter"
+          :filter="subFlowRunsFilter"
           component="flow-run-list-item"
           endpoint="flow_runs"
         />
       </transition>
     </section>
-    <hr class="results-hr mt-3" /> -->
+
+    <hr class="results-hr mt-3" />
   </div>
 </template>
 
@@ -196,7 +207,7 @@ const queries: { [key: string]: Query } = {
     endpoint: Endpoints.deployment,
     body: deploymentFilter
   }),
-  task_runs_count: Api.query({
+  task_runs: Api.query({
     endpoint: Endpoints.task_runs_count,
     body: taskRunsFilter,
     options: {
@@ -204,7 +215,7 @@ const queries: { [key: string]: Query } = {
     }
   })
   // TODO: Need to add a query for task runs with this flow run id that have sub flow runs and pipe that in to this as parent task run id
-  // sub_flow_runs_count: Api.query({
+  // sub_flow_runs: Api.query({
   //   endpoint: Endpoints.flow_runs_count,
   //   body: subFlowRunsFilter,
   //   options: {
@@ -212,6 +223,11 @@ const queries: { [key: string]: Query } = {
   //   }
   // })
 }
+
+const resultsCount = computed(() => {
+  if (!resultsTab.value) return 0
+  return queries[resultsTab.value]?.response || 0
+})
 
 const flow = computed(() => {
   return queries.flow.response?.value || {}
@@ -242,7 +258,7 @@ const crumbs = computed(() => {
 })
 
 const taskRunsCount = computed(() => {
-  return queries.task_runs_count.response?.value || 0
+  return queries.task_runs.response?.value || 0
 })
 
 const duration = computed(() => {
@@ -261,7 +277,7 @@ onBeforeUnmount(() => {
 })
 
 onBeforeMount(() => {
-  resultsTab.value = route.hash?.substr(1) || 'flows'
+  resultsTab.value = route.hash?.substr(1) || 'task_runs'
 })
 </script>
 
