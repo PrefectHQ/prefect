@@ -5,22 +5,27 @@
     style="max-width: 100%"
   >
     <i v-if="icon" class="pi text--grey-40 mr-2" :class="props.icon" />
-    <component
+    <span
       v-skeleton="!crumb.text"
       v-for="(crumb, i) in props.crumbs"
-      :is="crumb.to ? 'router-link' : 'span'"
-      :to="crumb.to"
       :key="crumb.text"
-      class="text-truncate"
       :style="{
         minWidth: !crumb.text ? '40px' : undefined,
         maxWidth: '50%',
         minHeight: '30px'
       }"
-      :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
+      class="text-truncate"
     >
-      {{ crumb.text }}{{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
-    </component>
+      <component
+        :is="crumb.to ? 'router-link' : 'span'"
+        :to="crumb.to"
+        class="text-truncate"
+        :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
+      >
+        {{ crumb.text }}
+      </component>
+      {{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
+    </span>
   </component>
 </template>
 
