@@ -1,0 +1,67 @@
+{{ log.debug() }}
+{% if config.show_if_no_docstring or method.has_contents %}
+
+<div class="prefect-container">
+  <div class="doc doc-object doc-method">
+    <a class="prefect-heading" href="#{{ method.path }}">
+      {% with html_id = method.path %}
+
+      {% if not root or config.show_root_heading %}
+
+        {% if root %}
+          {% set show_full_path = config.show_root_full_path %}
+          {% set root_members = True %}
+        {% elif root_members %}
+          {% set show_full_path = config.show_root_members_full_path or config.show_object_full_path %}
+          {% set root_members = False %}
+        {% else %}
+          {% set show_full_path = config.show_object_full_path %}
+        {% endif %}
+
+        {% filter heading(heading_level,
+            role="method",
+            id=html_id,
+            class="doc doc-heading ",
+            toc_label=method.name ~ "()") %}
+
+          {% filter highlight(language="python", inline=True) %}
+            {% if show_full_path %}{{ method.path }}{% else %}{{ class.name + "." + method.name }}{% endif %}
+          {% endfilter %}
+
+          {% with properties = method.properties %}
+            {% include "properties.html" with context %}
+          {% endwith %}
+
+        {% endfilter %}
+
+      {% else %}
+        {% if config.show_root_toc_entry %}
+          {% filter heading(heading_level,
+              role="method",
+              id=html_id,
+              toc_label=method.path,
+              hidden=True) %}
+          {% endfilter %}
+        {% endif %}
+        {% set heading_level = heading_level - 1 %}
+      {% endif %}
+    </a>
+
+    <div class="doc doc-contents {% if root %}first{% endif %}">
+      {% with docstring_sections = method.docstring_sections %}
+        {% include "docstring.html" with context %}
+      {% endwith %}
+
+      {% if config.show_source and method.source %}
+        <details class="quote">
+          <summary>Source code in <code>{{ method.relative_file_path }}</code></summary>
+          {{ method.source.code|highlight(language="python", linestart=method.source.line_start, linenums=False) }}
+        </details>
+      {% endif %}
+    </div>
+
+  {% endwith %}
+  </div>
+</div>
+
+{% endif %}

@@ -28,7 +28,7 @@ def hello(name: str = "world"):
     """
     Say hello to `name`
     """
-    print(f"Hello {name}!")
+    print(f"Hello, {name}!")
 
 hello() # Hello, world!
 hello(name="Marvin") # Hello, Marvin!
@@ -38,8 +38,8 @@ hello(name="Marvin") # Hello, Marvin!
 
 ---
 
-## [Getting Started](tutorial.md)
-[Install](getting-started/installation.md) Prefect, then dive into the [tutorial](tutorial.md).
+## [Getting Started](getting-started/overview/)
+[Install](getting-started/installation.md) Prefect, then dive into the [tutorial](tutorials/first-steps/).
 
 ## [Concepts](concepts/overview.md)
 

@@ -36,12 +36,13 @@ theme:
 plugins:
     - autorefs
     - mkdocstrings:
+        custom_templates: docs/templates
         handlers:
             python:
                 rendering:
                     show_root_heading: True
-                    show_object_full_path: True
-                    show_category_heading: True
+                    show_object_full_path: False
+                    show_category_heading: False
                     show_bases: False
                     heading_level: 1
         watch:
@@ -56,7 +57,8 @@ nav:
         - Tutorials:
             - tutorials/first-steps.md
             - tutorials/flow-configuration.md
-            - tutorials/futures-and-parallelism.md
+            - tutorials/task-dependencies.md
+            - tutorials/execution.md
             - tutorials/orion.md
             - tutorials/deployments.md
     - Concepts:
@@ -64,9 +66,11 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Executors: concepts/executors.md
+        - Futures: concepts/futures.md
+        - Orchestration Rules: concepts/orchestration.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
+        - Settings: concepts/settings.md
     - FAQ: faq.md
     - 'API Reference': 
         - Prefect Python API: 
