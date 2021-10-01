@@ -12,7 +12,7 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.executors import BaseExecutor
+from prefect.executors import SequentialExecutor
 
 
 class ExampleContext(ContextModel):
@@ -47,7 +47,7 @@ def test_flow_run_context():
 
     test_id = uuid4()
     test_client = OrionClient()
-    test_executor = BaseExecutor()
+    test_executor = SequentialExecutor()
 
     with FlowRunContext(
         flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
@@ -88,7 +88,7 @@ def test_get_run_context():
 
     test_id = uuid4()
     test_client = OrionClient()
-    test_executor = BaseExecutor()
+    test_executor = SequentialExecutor()
 
     with pytest.raises(RuntimeError):
         get_run_context()
