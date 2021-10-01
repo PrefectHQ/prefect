@@ -18,6 +18,18 @@
       "
     >
       <h2>
+        <span
+          v-skeleton="!flow.name"
+          class="text--grey-40"
+          style="min-width: 40px"
+          >{{ flow.name }} /
+        </span>
+        <span
+          v-skeleton="!flowRun.name"
+          class="text--grey-40"
+          style="min-width: 40px"
+          >{{ flowRun.name }} /</span
+        >
         {{ item.name }}
       </h2>
 
@@ -42,72 +54,63 @@
       </div>
     </div>
 
-    <div v-if="sub_flow_run" v-breakpoints="'sm'" class="ml-auto nowrap">
-      <rounded-button class="mr-1">
-        <i class="pi pi-flow-run pi-sm" />
-        {{ sub_flow_run }}
-      </rounded-button>
-    </div>
-
-    <div
-      class="font--secondary item--duration"
-      :class="sub_flow_run ? '' : 'ml-auto'"
-    >
+    <div class="font--secondary item--duration ml-auto">
       {{ duration }}
     </div>
   </list-item>
 </template>
 
-<script lang="ts">
-import { Options, Vue, prop } from 'vue-class-component'
-import { secondsToApproximateString } from '@/util/util'
+<script lang="ts" setup>
+import { defineProps, computed } from 'vue'
+import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
+import { secondsToApproximateString } from '@/util/util'
 
-class Props {
-  item = prop<TaskRun>({ required: true })
-}
+const props = defineProps<{ item: TaskRun }>()
 
-@Options({})
-export default class ListItemTaskRun extends Vue.with(Props) {
-  sliceStart: number = Math.floor(Math.random() * 4)
-
-  get state(): string {
-    return this.item.state.type.toLowerCase()
-  }
-
-  get tags(): string[] {
-    return this.item.tags
-  }
-
-  get reason(): string | null {
-    return this.state == 'failed' ? 'Lorem ipsum dolorset atem' : null
-  }
-
-  get sub_flow_run(): string | null {
-    return this.item.sub_flow_run_id ? 'Sub flow run' : null
-  }
-
-  get duration(): string {
-    return this.state == 'pending' || this.state == 'scheduled'
-      ? '--'
-      : this.item.total_run_time
-      ? secondsToApproximateString(this.item.total_run_time)
-      : secondsToApproximateString(this.item.estimated_run_time)
+const flow_run_filter_body: FlowRunsFilter = {
+  flow_runs: {
+    id: {
+      any_: [props.item.flow_run_id]
+    }
   }
 }
+
+const queries: { [key: string]: Query } = {
+  flow_run: Api.query({
+    endpoint: Endpoints.flow_runs,
+    body: flow_run_filter_body
+  }),
+  flow: Api.query({
+    endpoint: Endpoints.flows,
+    body: flow_run_filter_body
+  })
+}
+
+const state = computed(() => {
+  return props.item.state.type.toLowerCase()
+})
+
+const tags = computed(() => {
+  return props.item.tags
+})
+
+const flowRun = computed(() => {
+  return queries.flow_run?.response?.value?.[0] || {}
+})
+
+const flow = computed(() => {
+  return queries.flow?.response?.value?.[0] || {}
+})
+
+const duration = computed(() => {
+  return state.value == 'pending' || state.value == 'scheduled'
+    ? '--'
+    : props.item.total_run_time
+    ? secondsToApproximateString(props.item.total_run_time)
+    : secondsToApproximateString(props.item.estimated_run_time)
+})
 </script>
-
-<style lang="scss" scoped>
-.item--tags {
-  border-radius: 4px;
-  display: inline-block;
-  padding: 4px 8px;
-}
-
-.run-state {
-  text-transform: capitalize;
-}
-</style>
 
 <style lang="scss" scoped>
 @use '@/styles/components/list-item--task-run.scss';
