@@ -195,7 +195,7 @@ class ServicesSettings(BaseSettings):
         500,
         description="""The number of flow runs the scheduler will attempt to insert 
         in one batch across all deployments. If the number of flow runs to 
-        schedule exceeds this amount, the runs will be inserted in batches of this size.
+        schedule exceeds this amount, the runs will be inserted in batches of this size. Defaults to `500`.
         """,
     )
 
