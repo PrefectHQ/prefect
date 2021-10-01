@@ -1,60 +1,30 @@
 import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
 
-export interface DeploymentsFilter {
-  limit?: limit
-  offset?: offset
+export interface BaseFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
   deployments?: DeploymentFilter
 }
 
-export interface FlowsFilter {
-  limit?: limit
-  offset?: offset
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
+export interface SortableFilter extends BaseFilter {
+  // TODO: We can improve this by using keyof[Object]
+  sort?: string
 }
 
-export interface TaskRunsFilter {
-  limit?: limit
-  offset?: offset
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
-}
-
-export interface FlowRunsFilter {
-  limit?: limit
-  offset?: offset
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
-}
-
-export interface FlowRunsHistoryFilter {
+export interface HistoryFilter extends BaseFilter {
   history_start: string
   history_end: string
   history_interval_seconds: number
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
 }
 
-export interface TaskRunsHistoryFilter {
-  history_start: string
-  history_end: string
-  history_interval_seconds: number
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
-}
+export type DeploymentsFilter = SortableFilter
+export type FlowsFilter = SortableFilter
+export type TaskRunsFilter = SortableFilter
+export type FlowRunsFilter = SortableFilter
+
+export type FlowRunsHistoryFilter = HistoryFilter
+export type TaskRunsHistoryFilter = HistoryFilter
 
 export interface DatabaseClearBody {
   confirm: boolean
@@ -66,15 +36,17 @@ export type Filters = {
   flows_count: FlowsFilter
   flow_run: null
   flow_runs: FlowRunsFilter
-  flow_runs_count: FlowRunsFilter
+  flow_runs_count: BaseFilter
   flow_runs_history: FlowRunsHistoryFilter
   task_run: null
   task_runs: TaskRunsFilter
-  task_runs_count: TaskRunsFilter
+  task_runs_count: BaseFilter
   tasl_runs_history: TaskRunsHistoryFilter
   deployment: null
   deployments: DeploymentsFilter
-  deployments_count: DeploymentsFilter
+  deployments_count: BaseFilter
+  set_schedule_inactive: { id: string }
+  set_schedule_active: { id: string }
   database_clear: DatabaseClearBody
 }
 
@@ -104,6 +76,16 @@ export const Endpoints: { [key: string]: Endpoint } = {
   deployments_count: {
     method: 'POST',
     url: '/deployments/count/'
+  },
+  set_schedule_inactive: {
+    method: 'POST',
+    url: '/deployments/{id}/set_schedule_inactive',
+    interpolate: true
+  },
+  set_schedule_active: {
+    method: 'POST',
+    url: '/deployments/{id}/set_schedule_active',
+    interpolate: true
   },
   flow_run: {
     method: 'GET',
@@ -168,6 +150,7 @@ const base_url = 'http://localhost:5000'
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
+  private endpointRegex: RegExp = /{\w+}/gm
   readonly endpoint: Endpoint
   readonly base_url: string = base_url
 
@@ -216,6 +199,7 @@ export class Query {
       this.response.value = await this.http()
     } catch (e) {
       this.error = e
+      console.error(e)
     } finally {
       this.loading.value = false
     }
@@ -261,7 +245,25 @@ export class Query {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
-    return fetch(this.route, {
+    let route = this.route
+    let body = this.body || {}
+
+    if (this.endpoint.interpolate) {
+      route = route.replaceAll(this.endpointRegex, (match) => {
+        const key = match.replace('{', '').replace('}', '')
+        console.log(key, body)
+        if (key in body) {
+          return body[key as keyof FilterBody]
+        } else
+          throw new Error(
+            `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
+          )
+      })
+
+      body = {}
+    }
+
+    const res = await fetch(route, {
       headers: { 'Content-Type': 'application/json' },
       method: this.endpoint.method,
       body: this.endpoint.method !== 'GET' ? JSON.stringify(this.body) : null
@@ -272,6 +274,8 @@ export class Query {
         if (res.status == 204) return res
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
+
+    return res
   }
 
   constructor(config: QueryConfig, id: number) {
