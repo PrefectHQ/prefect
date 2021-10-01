@@ -246,3 +246,4 @@ details.quote[open] > summary > code {
 
 /* bold the argument name column */
 .doc-contents table td:nth-child(1) { font-weight: bold; }
+
