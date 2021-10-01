@@ -31,43 +31,85 @@
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
       <rounded-button class="mr-1">
-        {{ flowRunCount }} flow runs
+        {{ flowRunCount.toLocaleString() }} flow run{{
+          flowRunCount == 1 ? '' : 's'
+        }}
       </rounded-button>
 
       <rounded-button class="mr-1">
-        {{ taskRunCount }} task runs
+        {{ taskRunCount.toLocaleString() }} task run{{
+          taskRunCount == 1 ? '' : 's'
+        }}
       </rounded-button>
     </div>
 
     <div v-breakpoints="'md'" class="chart-container">
       <RunHistoryChart
-        v-if="false"
-        :items="taskRunBuckets"
-        :padding="{ top: 3, bottom: 3, left: 0, right: 0, middle: 8 }"
+        :items="flowRunHistory"
+        :interval-start="store.getters.globalFilter.start"
+        :interval-end="store.getters.globalFilter.end"
+        :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        static-median
+        :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
       />
     </div>
   </list-item>
 </template>
 
-<script lang="ts">
-import { Options, Vue, prop } from 'vue-class-component'
+<script lang="ts" setup>
+import { defineProps, computed } from 'vue'
+import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
-import {
-  default as RunHistoryChart,
-  Bucket
-} from '@/components/RunHistoryChart/RunHistoryChart.vue'
+import { Buckets } from '@/typings/run_history'
+import { useStore } from 'vuex'
 
-class Props {
-  item = prop<Flow>({ required: true })
+const store = useStore()
+const props = defineProps<{ item: Flow }>()
+
+const flows: FlowsFilter = {
+  flows: {
+    id: {
+      any_: [props.item.id]
+    }
+  }
 }
 
-@Options({ components: { RunHistoryChart } })
-export default class ListItemFlow extends Vue.with(Props) {
-  taskRunBuckets: Bucket[] = []
+const flowRunHistoryFilter = computed(() => {
+  return {
+    history_start: store.getters.globalFilter.start.toISOString(),
+    history_end: store.getters.globalFilter.end.toISOString(),
+    history_interval_seconds: store.getters.globalFilter.intervalSeconds * 4,
+    flows: flows.flows
+  }
+})
 
-  flowRunCount: number = 0
-  taskRunCount: number = 0
+const queries: { [key: string]: Query } = {
+  flow_run_history: Api.query({
+    endpoint: Endpoints.flow_runs_history,
+    body: flowRunHistoryFilter
+  }),
+  flow_run_count: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: flows
+  }),
+  task_run_count: Api.query({
+    endpoint: Endpoints.task_runs_count,
+    body: flows
+  })
 }
+
+const flowRunCount = computed((): number => {
+  return queries.flow_run_count?.response?.value || 0
+})
+
+const taskRunCount = computed((): number => {
+  return queries.task_run_count?.response?.value || 0
+})
+
+const flowRunHistory = computed((): Buckets => {
+  return queries.flow_run_history?.response.value || []
+})
 </script>
 
 <style lang="scss" scoped>

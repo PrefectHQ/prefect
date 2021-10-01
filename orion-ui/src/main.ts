@@ -8,6 +8,7 @@ import api from './plugins/api'
 // Global components
 import ButtonCard from '@/components/Global/Button--Card/Button--Card.vue'
 import ButtonRounded from '@/components/Global/Button--Rounded/Button--Rounded.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumb/BreadCrumb.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
@@ -33,6 +34,7 @@ document.body.classList.add(colorMode)
 const app = createApp(App).use(MiterDesign).use(store).use(router).use(api)
 
 app.component('button-card', ButtonCard)
+app.component('bread-crumbs', BreadCrumbs)
 app.component('rounded-button', ButtonRounded)
 app.component('drawer', Drawer)
 app.component('list', List)

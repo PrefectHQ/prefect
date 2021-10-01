@@ -10,6 +10,9 @@ type not_any_ = string[]
 /** Matches on boolean equality */
 type eq_ = boolean
 
+/** Matches on boolean equality */
+type exists_ = boolean
+
 /** If true, returns results whose key is null */
 type is_null_ = boolean
 
@@ -32,7 +35,7 @@ type limit = number
  */
 type offset = number
 
-interface DeploymentFilter {
+declare interface DeploymentFilter {
   id?: {
     /**
      * A list of ids
@@ -62,7 +65,7 @@ interface DeploymentFilter {
   }
 }
 
-interface FlowFilter {
+declare interface FlowFilter {
   id?: {
     /**
      * A list of ids
@@ -89,10 +92,10 @@ interface FlowFilter {
   }
 }
 
-interface FlowRunFilter {
+declare interface FlowRunFilter {
   id?: {
-    any_: any_
-    not_any_: not_any_
+    any_?: any_
+    not_any_?: not_any_
   }
   tags?: {
     /**
@@ -138,10 +141,10 @@ interface FlowRunFilter {
   }
 }
 
-interface TaskRunFilter {
+declare interface TaskRunFilter {
   id?: {
-    any_: any_
-    not_any_: not_any_
+    any_?: any_
+    not_any_?: not_any_
   }
   tags?: {
     /**
@@ -160,9 +163,39 @@ interface TaskRunFilter {
     before_: before_
     after_: after_
   }
+  subflow_runs?: {
+    exists_: exists_
+  }
 }
 
-interface Endpoint {
+declare interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT'
   url: string
+  interpolate?: boolean = false
+}
+
+declare interface CreateFlowRunBody {
+  name?: string
+  flow_id: string
+  deployment_id?: string
+  flow_version?: string
+  parameters?: { [key: string]: any }
+  idempotency_key?: string
+  context?: { [key: string]: any }
+  tags?: string[]
+  parent_task_run_id?: string
+  state?: {
+    type: string
+    name?: string
+    message?: string
+    data?: any
+    state_details?: {
+      flow_run_id?: string
+      task_run_id?: string
+      child_flow_run_id?: string
+      scheduled_time?: string
+      cache_key?: string
+      cache_expiration?: string
+    }
+  }
 }
