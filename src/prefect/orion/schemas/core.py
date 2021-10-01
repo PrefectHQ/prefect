@@ -94,10 +94,11 @@ class FlowRun(ORMBaseModel):
         description="Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
     )
     estimated_run_time: datetime.timedelta = Field(
-        datetime.timedelta(0), description="TODO."
+        datetime.timedelta(0), description="A real-time estimate of the total run time."
     )
     estimated_start_time_delta: datetime.timedelta = Field(
-        datetime.timedelta(0), description="TODO."
+        datetime.timedelta(0),
+        description="The difference between actual and expected start time.",
     )
     auto_scheduled: bool = Field(
         False, description="Whether or not the flow run was automatically scheduled."
@@ -218,10 +219,11 @@ class TaskRun(ORMBaseModel):
         description="Total run time. If the task run was executed multiple times, the time of each run will be summed.",
     )
     estimated_run_time: datetime.timedelta = Field(
-        datetime.timedelta(0), description="TODO."
+        datetime.timedelta(0), description="A real-time estimate of total run time."
     )
     estimated_start_time_delta: datetime.timedelta = Field(
-        datetime.timedelta(0), description="TODO."
+        datetime.timedelta(0),
+        description="The difference between actual and expected start time.",
     )
 
     # relationships
