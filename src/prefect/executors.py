@@ -220,29 +220,22 @@ class DaskExecutor(BaseExecutor):
     ) -> Optional[State]:
         future = self._get_dask_future(prefect_future)
         try:
-            result = future.result(timeout=timeout)
-            # The client may be async on a dask worker
-            # TODO: Set `Client(asynchronous=True)` on startup and just always use the
-            #       async client
-            if self._client.asynchronous:
-                return await result
-            else:
-                return result
+            return await future.result(timeout=timeout)
         except distributed.TimeoutError:
             return None
 
     async def on_startup(self):
-        self._client = distributed.Client()
+        self._client = await distributed.Client(asynchronous=True)
         self.logger.info(f"Dask dashboard available at {self._client.dashboard_link}")
 
     async def on_shutdown(self) -> None:
         # Attempt to wait for all futures to complete
         for future in self._futures.values():
             try:
-                future.result()
+                await future.result()
             except Exception:
                 pass
-        self._client.close()
+        await self._client.close()
 
     def __getstate__(self):
         """
