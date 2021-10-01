@@ -1,13 +1,6 @@
 name: Python tests
 
-on:
-  pull_request:
-    paths:
-      - 'src/prefect/**'
-      - 'tests/**'
-      - 'requirements.txt'
-      - 'requirements-dev.txt'
-      - 'setup.py'
+on: [pull_request]
 
 jobs:
   run-tests-sqlite:
