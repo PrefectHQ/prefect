@@ -171,4 +171,5 @@ declare interface TaskRunFilter {
 declare interface Endpoint {
   method: 'POST' | 'GET' | 'DELETE' | 'PUT'
   url: string
+  interpolate?: boolean = false
 }

@@ -57,8 +57,8 @@
     <div v-breakpoints="'md'" class="chart-container mr-2">
       <RunHistoryChart
         :items="taskRunHistory"
-        :interval-start="store.getters.globalFilter.start"
-        :interval-end="store.getters.globalFilter.end"
+        :interval-start="start"
+        :interval-end="end"
         :interval-seconds="store.getters.globalFilter.intervalSeconds"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
@@ -91,7 +91,22 @@ import { secondsToApproximateString } from '@/util/util'
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()
 
+const start = computed(() => {
+  return new Date(props.item.start_time)
+})
+
+const end = computed(() => {
+  if (!props.item.end_time) {
+    const date = new Date()
+    date.setMinutes(date.getMinutes() + 1)
+    return date
+  }
+
+  return new Date(props.item.end_time)
+})
+
 const flow_runs_filter_body: TaskRunsFilter = {
+  sort: 'START_TIME_DESC',
   flow_runs: {
     id: {
       any_: [props.item.id]
@@ -113,10 +128,12 @@ const flow_filter_body: FlowsFilter = {
 }
 
 const taskRunHistoryFilter = computed(() => {
+  console.log('hello', end.value)
   return {
-    history_start: store.getters.globalFilter.start.toISOString(),
-    history_end: store.getters.globalFilter.end.toISOString(),
-    history_interval_seconds: store.getters.globalFilter.intervalSeconds * 4,
+    history_start: start.value.toISOString(),
+    history_end: end.value.toISOString(),
+    history_interval_seconds:
+      (end.value.getTime() - start.value.getTime()) / 1000,
     flow_runs: flow_runs_filter_body.flows
   }
 })
@@ -153,7 +170,6 @@ const tags = computed(() => {
 })
 
 const flow = computed(() => {
-  console.log(queries.flow)
   return queries.flow?.response?.value?.[0] || {}
 })
 

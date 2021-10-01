@@ -61,6 +61,8 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
+      <Toggle v-model="scheduleActive" />
+
       <Button
         outlined
         height="36px"
@@ -133,6 +135,7 @@
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
 import { Deployment, IntervalSchedule, CronSchedule } from '@/typings/objects'
+import { Api, Endpoints } from '@/plugins/api'
 
 class Props {
   item = prop<Deployment>({ required: true })
@@ -142,12 +145,23 @@ class Props {
   watch: {
     parametersDrawerActive() {
       this.search = ''
+    },
+    async scheduleActive(val) {
+      const endpoint = val ? 'set_schedule_active' : 'set_schedule_inactive'
+
+      const res = await Api.query({
+        endpoint: Endpoints[endpoint],
+        body: { id: this.item.id }
+      }).fetch()
+
+      console.log(res)
     }
   }
 })
 export default class ListItemDeployment extends Vue.with(Props) {
   parametersDrawerActive: boolean = false
   search: string = ''
+  scheduleActive: boolean = this.item.is_schedule_active
 
   get location(): string {
     return this.item.flow_data.blob || '--'
