@@ -72,7 +72,15 @@
       >
         View Parameters
       </Button>
-      <Button outlined miter height="36px" width="105px" class="text--grey-80">
+      <Button
+        outlined
+        miter
+        height="36px"
+        width="105px"
+        class="text--grey-80"
+        :disabled="creatingRun"
+        @click="createRun"
+      >
         Quick Run
       </Button>
     </div>
@@ -160,6 +168,16 @@ export default class ListItemDeployment extends Vue.with(Props) {
   parametersDrawerActive: boolean = false
   search: string = ''
   scheduleActive: boolean = this.item.is_schedule_active
+  creatingRun: boolean = false
+
+  async createRun(): Promise<void> {
+    this.creatingRun = true
+    await Api.query({
+      endpoint: Endpoints.create_flow_run,
+      body: { deployment_id: this.item.id, flow_id: this.item.flow_id }
+    })
+    this.creatingRun = false
+  }
 
   get location(): string {
     return this.item.flow_data.blob || '--'

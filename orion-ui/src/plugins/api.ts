@@ -45,6 +45,7 @@ export type Filters = {
   deployment: null
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
+  create_flow_run: CreateFlowRunBody
   set_schedule_inactive: { id: string }
   set_schedule_active: { id: string }
   database_clear: DatabaseClearBody
@@ -65,6 +66,10 @@ export const Endpoints: { [key: string]: Endpoint } = {
   flows_count: {
     method: 'POST',
     url: '/flows/count/'
+  },
+  create_flow_run: {
+    method: 'POST',
+    url: '/flow_runs/'
   },
   deployment: {
     method: 'GET',
@@ -274,7 +279,7 @@ export class Query {
       .then((res) => res)
       .then((res) => {
         if (res.status == 200) return res.json()
-        if (res.status == 204) return res
+        if (res.status == 204 || res.status == 201) return res
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
 
