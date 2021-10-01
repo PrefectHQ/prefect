@@ -9,9 +9,13 @@
     --gray-3: #8EA0AE;
     --pink-transparent: rgba(254, 81, 150, 0.3);
     --pink: #fe5196;
-    --default-font-size: .8em;
-    --code-font-size: .85em;
-    --header-prefix-font-size: 20px;
+    --default-font-size: 14px;
+    --text-code-font-size:  1em;
+    --table-font-size: 1em;
+    --code-font-size: 14px;
+    --anchor-font-size: 1em;
+    --header-prefix-font-size: .6em;
+    --content-relative-size: 1rem;
     --h1-font-size: 32px;
     --h2-font-size: 28px;
     --h3-font-size: 24px;
@@ -38,7 +42,7 @@
     color: var(--blue);
     padding: 8px;
     position: absolute;
-    font-size: var(--header-prefix-font-size);
+    font-size: var(--anchor-font-size);
     margin-left: -24px;
 }
 
@@ -141,23 +145,39 @@ a.prefect-heading:hover {
 
 .doc.doc-class > .prefect-heading > h2:before {
     content: "class";
+    font-size: var(--header-prefix-font-size);
 }
 
 .doc.doc-function > .prefect-heading > h2:before {
     content: "function";
+    font-size: var(--header-prefix-font-size);
 }
 
 .doc.doc-method > .prefect-heading > h3:before {
     content: "method";
+    font-size: var(--header-prefix-font-size);
 } 
 
 .doc.doc-attribute > .prefect-heading > h3:before {
     content: "attribute";
+    font-size: var(--header-prefix-font-size);
 }
 
 .doc p, .doc em, .doc li {
     font-size: var(--default-font-size);
     margin-top: 4px;
+}
+
+.doc.doc-heading code {
+    font-size: var(--text-code-font-size);
+}
+
+.doc p code {
+    font-size: var(--text-code-font-size);
+}
+
+.doc.doc-contents {
+    font-size: var(--content-relative-size);
 }
 
 .highlight code {
@@ -196,7 +216,7 @@ details.quote[open] > summary > code {
 .doc-property { display: none; }
 
 /* arguments & returns tables */
-/* .doc-contents table td { } */
+ .doc-contents table td { font-size: var(--table-font-size); }
 
 /* bold the argument name column */
 .doc-contents table td:nth-child(1) { font-weight: bold; }
