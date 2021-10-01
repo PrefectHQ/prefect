@@ -20,10 +20,16 @@
     </row>
 
     <!-- These can be used to paginate the chart -->
-    <!-- v-if="false" -->
-    <IconButton icon="pi-arrow-left-line" @click="previous30Minutes" />
-    <!-- v-if="false" -->
-    <IconButton icon="pi-arrow-right-line" @click="next30Minutes" />
+    <IconButton
+      v-if="false"
+      icon="pi-arrow-left-line"
+      @click="previous30Minutes"
+    />
+    <IconButton
+      v-if="false"
+      icon="pi-arrow-right-line"
+      @click="next30Minutes"
+    />
 
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
