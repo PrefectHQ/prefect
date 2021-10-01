@@ -1,42 +1,65 @@
 """
-Reduced schemas for accepting API actions
+Reduced schemas for accepting API actions.
 """
+
+from pydantic import Field
+
 from prefect.orion import schemas
 
-FlowCreate = schemas.core.Flow.subclass(
-    name="FlowCreate",
-    include_fields=["name", "tags"],
-)
 
-FlowUpdate = schemas.core.Flow.subclass(name="FlowUpdate", include_fields=["tags"])
+class FlowCreate(
+    schemas.core.Flow.subclass(
+        name="FlowCreate",
+        include_fields=["name", "tags"],
+    )
+):
+    """Data used by the Orion API to create a flow."""
 
-DeploymentCreate = schemas.core.Deployment.subclass(
-    name="DeploymentCreate",
-    include_fields=[
-        "name",
-        "flow_id",
-        "schedule",
-        "is_schedule_active",
-        "tags",
-        "parameters",
-        "flow_data",
-    ],
-)
 
-FlowRunUpdate = schemas.core.FlowRun.subclass(
-    name="FlowRunUpdate", include_fields=["flow_version", "parameters", "name"]
-)
+class FlowUpdate(
+    schemas.core.Flow.subclass(name="FlowUpdate", include_fields=["tags"])
+):
+    """Data used by the Orion API to update a flow."""
 
-StateCreate = schemas.states.State.subclass(
-    name="StateCreate",
-    include_fields=[
-        "type",
-        "name",
-        "message",
-        "data",
-        "state_details",
-    ],
-)
+
+class DeploymentCreate(
+    schemas.core.Deployment.subclass(
+        name="DeploymentCreate",
+        include_fields=[
+            "name",
+            "flow_id",
+            "schedule",
+            "is_schedule_active",
+            "tags",
+            "parameters",
+            "flow_data",
+        ],
+    )
+):
+    """Data used by the Orion API to create a deployment."""
+
+
+class FlowRunUpdate(
+    schemas.core.FlowRun.subclass(
+        name="FlowRunUpdate", include_fields=["flow_version", "parameters", "name"]
+    )
+):
+    """Data used by the Orion API to update a flow run."""
+
+
+class StateCreate(
+    schemas.states.State.subclass(
+        name="StateCreate",
+        include_fields=[
+            "type",
+            "name",
+            "message",
+            "data",
+            "state_details",
+        ],
+    )
+):
+    """Data used by the Orion API to create a new state."""
 
 
 class TaskRunCreate(
@@ -56,8 +79,10 @@ class TaskRunCreate(
         ],
     )
 ):
+    """Data used by the Orion API to create a task run"""
+
     # TaskRunCreate states must be provided as StateCreate objects
-    state: StateCreate = None
+    state: StateCreate = Field(None, description="The state of the task run to create")
 
 
 class FlowRunCreate(
@@ -76,17 +101,22 @@ class FlowRunCreate(
         ],
     )
 ):
+    """Data used by the Orion API to create a flow run."""
+
     # FlowRunCreate states must be provided as StateCreate objects
-    state: StateCreate = None
+    state: StateCreate = Field(None, description="The state of the task run to create")
 
 
-SavedSearchCreate = schemas.core.SavedSearch.subclass(
-    name="SavedSearchCreate",
-    include_fields=[
-        "name",
-        "flow_filter_criteria",
-        "flow_run_filter_criteria",
-        "task_run_filter_criteria",
-        "deployment_filter_criteria",
-    ],
-)
+class SavedSearchCreate(
+    schemas.core.SavedSearch.subclass(
+        name="SavedSearchCreate",
+        include_fields=[
+            "name",
+            "flow_filter_criteria",
+            "flow_run_filter_criteria",
+            "task_run_filter_criteria",
+            "deployment_filter_criteria",
+        ],
+    )
+):
+    """Data used by the Orion API to create a saved search."""

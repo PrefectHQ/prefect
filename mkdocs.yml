@@ -100,6 +100,7 @@ nav:
                 - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
                 - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
             - 'Schemas':
+                - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
                 - 'orion.schemas.data': api-ref/orion/schemas/data.md
                 - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
