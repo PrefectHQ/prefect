@@ -12,6 +12,7 @@ from anyio.abc import TaskGroup, TaskStatus
 
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
+from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
 from prefect.utilities.logging import get_logger
 
@@ -38,12 +39,15 @@ class OrionAgent:
         )
 
     async def get_and_submit_flow_runs(
-        self, query_fn: Callable[[FlowRunFilter], Awaitable[List[FlowRun]]]
+        self, query_fn: Callable[[FlowRunSort, FlowRunFilter], Awaitable[List[FlowRun]]]
     ) -> List[FlowRun]:
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with Agent()...`")
 
-        submittable_runs = await query_fn(flow_run_filter=self.flow_run_query_filter())
+        submittable_runs = await query_fn(
+            sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC.value,
+            flow_run_filter=self.flow_run_query_filter(),
+        )
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
