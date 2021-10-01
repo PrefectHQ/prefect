@@ -205,7 +205,10 @@ const queries: { [key: string]: Query } = {
   }),
   deployment: Api.query({
     endpoint: Endpoints.deployment,
-    body: deploymentFilter
+    body: deploymentFilter,
+    options: {
+      paused: !deploymentId
+    }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs_count,

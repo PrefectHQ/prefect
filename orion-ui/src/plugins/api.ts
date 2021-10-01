@@ -151,6 +151,7 @@ export interface QueryOptions {
    * This query will be sent every <pollInterval> milliseconds
    */
   pollInterval?: number
+  paused?: boolean
 }
 
 export interface QueryConfig {
@@ -293,6 +294,7 @@ export class Query {
 
   constructor(config: QueryConfig, id: number) {
     this.id = id
+    this.paused = config.options?.paused || false
 
     if (!config.endpoint)
       throw new Error('Query constructors must provide an endpoint.')
@@ -307,7 +309,7 @@ export class Query {
 
     if (this.pollInterval > 0) {
       this.startPolling()
-    } else {
+    } else if (!this.paused) {
       this.fetch()
     }
 
