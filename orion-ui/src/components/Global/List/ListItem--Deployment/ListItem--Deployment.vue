@@ -60,7 +60,7 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+    <div v-breakpoints="'sm'" class="ml-auto d-flex align-middle nowrap">
       <Toggle v-model="scheduleActive" />
 
       <Button
