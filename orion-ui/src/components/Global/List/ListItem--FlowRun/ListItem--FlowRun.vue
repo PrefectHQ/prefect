@@ -25,7 +25,9 @@
         >
           {{ flow.name }} /
         </span>
-        {{ item.name }}
+        <router-link :to="`/flow-run/${item.id}`">
+          {{ item.name }}
+        </router-link>
       </h2>
 
       <div class="tag-container nowrap d-flex align-bottom">
@@ -70,7 +72,9 @@
       {{ duration }}
     </div>
 
-    <i class="pi pi-arrow-right-s-line text--grey-80" />
+    <router-link :to="`/flow-run/${item.id}`" class="icon-link">
+      <i class="pi pi-arrow-right-s-line" />
+    </router-link>
   </list-item>
 </template>
 
