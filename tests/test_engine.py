@@ -467,7 +467,6 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            parameters={},
             executor=BaseExecutor(),
             sync_portal=None,
             client=orion_client,
@@ -499,7 +498,6 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            parameters={},
             executor=BaseExecutor(),
             sync_portal=None,
             client=orion_client,

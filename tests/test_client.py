@@ -100,6 +100,20 @@ async def test_create_then_read_flow_run(orion_client):
     assert lookup == flow_run
 
 
+async def test_create_flow_run_retains_parameters(orion_client):
+    @flow
+    def foo():
+        pass
+
+    parameters = {"x": 1, "y": [1, 2, 3]}
+
+    flow_run = await orion_client.create_flow_run(
+        foo, name="zachs-flow-run", parameters=parameters
+    )
+    assert parameters == flow_run.parameters, "Parameter contents are equal"
+    assert id(flow_run.parameters) == id(parameters), "Original objects retained"
+
+
 async def test_create_flow_run_with_state(orion_client):
     @flow
     def foo():

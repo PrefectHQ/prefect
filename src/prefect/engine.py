@@ -146,9 +146,7 @@ async def create_then_begin_flow_run(
         state=Pending(),
         tags=TagsContext.get().current_tags,
     )
-    return await begin_flow_run(
-        flow=flow, flow_run=flow_run, parameters=parameters, client=client
-    )
+    return await begin_flow_run(flow=flow, flow_run=flow_run, client=client)
 
 
 @inject_client
@@ -176,7 +174,6 @@ async def retrieve_flow_then_begin_flow_run(
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
-        parameters=flow_run.parameters,
         client=client,
     )
 
@@ -184,7 +181,6 @@ async def retrieve_flow_then_begin_flow_run(
 async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
-    parameters: Dict[str, Any],
     client: OrionClient,
 ) -> State:
     """
@@ -199,7 +195,7 @@ async def begin_flow_run(
         The final state of the run
     """
     logger.info(
-        f"Beginning flow run {flow_run.name!r} for flow {flow.name!r} with parameters {parameters}..."
+        f"Beginning flow run {flow_run.name!r} for flow {flow.name!r} with parameters {flow_run.parameters}..."
     )
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
@@ -209,7 +205,6 @@ async def begin_flow_run(
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
-                parameters=parameters,
                 executor=executor,
                 client=client,
                 sync_portal=sync_portal,
@@ -280,7 +275,6 @@ async def create_and_begin_subflow_run(
     terminal_state = await orchestrate_flow_run(
         flow,
         flow_run=flow_run,
-        parameters=parameters,
         executor=parent_flow_run_context.executor,
         client=client,
         sync_portal=parent_flow_run_context.sync_portal,
@@ -307,7 +301,6 @@ async def create_and_begin_subflow_run(
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
-    parameters: Dict[str, Any],
     executor: BaseExecutor,
     client: OrionClient,
     sync_portal: BlockingPortal,
@@ -349,9 +342,9 @@ async def orchestrate_flow_run(
             ) as flow_run_context:
                 # Validate the parameters before the call; raises an exception if invalid
                 if flow.should_validate_parameters:
-                    parameters = flow.validate_parameters(parameters)
+                    flow_run.parameters = flow.validate_parameters(flow_run.parameters)
 
-                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
+                args, kwargs = parameters_to_args_kwargs(flow.fn, flow_run.parameters)
                 logger.info(
                     f"Executing flow {flow.name!r} with call {call_repr(flow.fn, *args, **kwargs)}..."
                 )
@@ -415,7 +408,7 @@ def enter_task_run_engine(
         raise TimeoutError("Flow run timed out")
 
     begin_run = partial(
-        begin_task_run,
+        create_and_submit_task_run,
         task=task,
         flow_run_context=flow_run_context,
         parameters=parameters,
@@ -460,7 +453,7 @@ async def collect_task_run_inputs(
     return inputs
 
 
-async def begin_task_run(
+async def create_and_submit_task_run(
     task: Task,
     flow_run_context: FlowRunContext,
     parameters: Dict[str, Any],
