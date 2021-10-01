@@ -30,7 +30,7 @@ class OrionAgent:
     def flow_run_query_filter(self) -> FlowRunFilter:
         return FlowRunFilter(
             id=dict(not_any_=self.submitting_flow_run_ids),
-            state_type=dict(any_=[StateType.SCHEDULED]),
+            state=dict(type=dict(any_=[StateType.SCHEDULED])),
             next_scheduled_start_time=dict(
                 before_=pendulum.now("utc").add(seconds=self.prefetch_seconds)
             ),
