@@ -32,10 +32,31 @@ ENGINES = {}
 SESSION_FACTORIES = {}
 
 
+def setup_sqlite(conn, named=True):
+    """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
+    duration of the connection. See https://www.sqlite.org/pragma.html for more info."""
+    if get_dialect(engine=conn.engine).name == "sqlite":
+        # enable foreign keys
+        conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
+
+        # write to a write-ahead-log instead and regularly
+        # commit the changes
+        # this allows multiple concurrent readers even during
+        # a write transaction
+        conn.execute(sa.text("PRAGMA journal_mode = WAL;"))
+
+        # wait for this amount of time while a table is locked
+        # before returning and rasing an error
+        # setting the value very high allows for more 'concurrency'
+        # without running into errors, but may result in slow api calls
+        conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
+        conn.commit()
+
+
 async def get_engine(
     connection_url: str = None,
     echo: bool = settings.orion.database.echo,
-    timeout: Optional[float] = settings.orion.database.timeout,
+    timeout: Optional[float] = None,
 ) -> sa.engine.Engine:
     """Retrieves an async SQLAlchemy engine.
 
@@ -77,6 +98,7 @@ async def get_engine(
             kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
         engine = create_async_engine(connection_url, echo=echo, **kwargs)
+        sa.event.listen(engine.sync_engine, "engine_connect", setup_sqlite)
 
         # if this is a new sqlite database create all database objects
         if engine.dialect.name == "sqlite" and (
@@ -124,15 +146,6 @@ async def get_session_factory(
         )
 
     return SESSION_FACTORIES[cache_key]
-
-
-@listens_for(sa.engine.Engine, "engine_connect")
-def setup_sqlite(conn, named=True):
-    """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
-    duration of the connection."""
-    if get_dialect(engine=conn.engine) == "sqlite":
-        # enable foreign keys
-        conn.execute("PRAGMA foreign_keys=ON")
 
 
 class GenerateUUID(FunctionElement):

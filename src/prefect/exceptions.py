@@ -1,7 +1,6 @@
 """
 Prefect-specific exception types.
 """
-
 from rich.traceback import Traceback
 
 
@@ -56,6 +55,24 @@ class FlowScriptError(PrefectException):
 class FlowParameterError(PrefectException):
     """
     Raised when a value passed as a flow parameter does not pass validation.
+    """
+
+    pass
+
+
+class UpstreamTaskError(PrefectException):
+    """
+    Raised when a task relies on the result of another task but that task is not
+    'COMPLETE'
+    """
+
+    pass
+
+
+class ReservedArgumentError(PrefectException, TypeError):
+    """
+    Raised when a function used with Prefect has an argument with a name that is
+    reserved for a Prefect feature
     """
 
     pass

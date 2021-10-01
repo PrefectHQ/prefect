@@ -2,7 +2,8 @@
 The agent implementation is consumed by both `orion` and `prefect` so that the agent
 service included in Orion share code with the client-side agent.
 """
-from typing import Awaitable, Callable, List, Optional
+from typing import Awaitable, Callable, Coroutine, List, Optional
+from uuid import UUID
 
 import anyio
 import anyio.to_process
@@ -68,7 +69,9 @@ class OrionAgent:
         flow_run: FlowRun,
         submitted_callback: Callable[[FlowRun, bool], None],
     ) -> None:
-        async def check_result(task, task_status: TaskStatus):
+        async def check_result(
+            task: Coroutine, flow_run_id: UUID, task_status: TaskStatus
+        ) -> None:
             """
             Here we await the result of the subprocess which will contain the final flow
             run state which we will log.
@@ -78,24 +81,29 @@ class OrionAgent:
             """
             task_status.started()
 
-            state = await task
-
-            if state.is_failed():
+            try:
+                state = await task
+            except BaseException as exc:
+                # Capture errors and display them instead of tearing down the agent
+                # This is most often an `Abort` signal because the flow is being run
+                # by another agent.
                 self.logger.info(
-                    f"Flow run '{state.state_details.flow_run_id}' failed!"
+                    f"Flow run '{flow_run_id}' exited with exception: {exc!r}"
                 )
-            elif state.is_completed():
-                self.logger.info(
-                    f"Flow run '{state.state_details.flow_run_id}' completed."
-                )
+            else:
+                if state.is_failed():
+                    self.logger.info(f"Flow run '{flow_run_id}' failed!")
+                elif state.is_completed():
+                    self.logger.info(f"Flow run '{flow_run_id}' completed.")
 
         import prefect.engine
 
         task = anyio.to_process.run_sync(
             prefect.engine.enter_flow_run_engine_from_subprocess,
             flow_run.id,
+            cancellable=True,
         )
-        await self.task_group.start(check_result, task)
+        await self.task_group.start(check_result, task, flow_run.id)
         await submitted_callback(flow_run, True)
 
     async def submitted_callback(self, flow_run: FlowRun, success: bool):
