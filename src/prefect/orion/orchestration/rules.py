@@ -47,7 +47,7 @@ class OrchestrationContext(PrefectBaseModel):
     """
     A container for a state transition, governed by orchestration rules.
 
-    !!! note
+    Note:
         An `OrchestrationContext` should not be instantiated directly, instead
         use the flow- or task- specific subclasses, `FlowOrchestrationContext` and
         `TaskOrchestrationContext`.
@@ -243,7 +243,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         `self.safe_copy` can be used to pass information to orchestration rules
         without risking mutation.
 
-        !!! note
+        Note:
             `self.run` is an ORM model, and even when copied is unsafe to mutate
 
         Returns:
@@ -343,7 +343,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         `self.safe_copy` can be used to pass information to orchestration rules
         without risking mutation.
 
-        !!! note
+        Note:
             `self.run` is an ORM model, and even when copied is unsafe to mutate
 
         Returns:
@@ -515,7 +515,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         transition using one of four methods: `self.reject_transition`,
         `self.delay_transition`, `self.abort_transition`, and `self.rename_state`.
 
-        !!! note
+        Note:
             As currently implemented, the `before_transition` hook is not
             perfectly isolated from mutating the transition. It is a standard instance
             method that has access to `self`, and therefore `self.context`. This should
@@ -731,7 +731,7 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
     """
     An abstract base class used to implement privileged bookkeeping logic.
 
-    !!! note
+    Note:
         In almost all cases, use the `BaseOrchestrationRule` base class instead.
 
     Beyond the orchestration rules implemented with the `BaseOrchestrationRule` ABC,
