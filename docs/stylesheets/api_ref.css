@@ -52,7 +52,7 @@
 
 .doc.doc-method .prefect-heading:before,
 .doc.doc-attribute .prefect-heading:before {
-    margin-top: -2px;
+    margin-top: 2px;
 }
 
 a.prefect-heading, 
