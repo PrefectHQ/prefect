@@ -41,7 +41,7 @@ export type Filters = {
   task_run: null
   task_runs: TaskRunsFilter
   task_runs_count: BaseFilter
-  tasl_runs_history: TaskRunsHistoryFilter
+  task_runs_history: TaskRunsHistoryFilter
   deployment: null
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
@@ -280,6 +280,7 @@ export class Query {
       .then((res) => {
         if (res.status == 200) return res.json()
         if (res.status == 204 || res.status == 201) return res
+        console.error(this.endpoint, body)
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
 
