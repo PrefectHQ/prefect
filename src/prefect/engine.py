@@ -15,7 +15,6 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
-import functools
 import pendulum
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import partial
@@ -27,7 +26,6 @@ import logging
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from prefect import cli
 from prefect.exceptions import UpstreamTaskError
 
 import prefect
@@ -71,10 +69,8 @@ from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
 from prefect.utilities.logging import get_logger
 
-T = TypeVar("T")
+
 R = TypeVar("R")
-
-
 logger = get_logger("engine")
 
 
@@ -182,7 +178,6 @@ async def retrieve_flow_then_begin_flow_run(
 
 
 async def begin_flow_run(
-    *,
     flow: Flow,
     flow_run: FlowRun,
     client: OrionClient,
