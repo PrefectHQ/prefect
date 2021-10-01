@@ -8,7 +8,7 @@ from prefect.orion import models
 from prefect.orion.utilities.enum import AutoEnum
 
 
-class FlowRunSort(AutoEnum):
+class FlowRunSort(str, AutoEnum):
     """Defines flow run sorting options."""
 
     ID_DESC = AutoEnum.auto()
@@ -25,7 +25,7 @@ class FlowRunSort(AutoEnum):
         return sort_mapping[self.value]
 
 
-class TaskRunSort(AutoEnum):
+class TaskRunSort(str, AutoEnum):
     """Defines task run sorting options."""
 
     ID_DESC = AutoEnum.auto()
