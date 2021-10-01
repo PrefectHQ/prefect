@@ -39,7 +39,12 @@ const items = ref<any[]>([])
 const itemRefs = shallowRef<{ [key: string]: Element }>({})
 
 const filter_ = computed(() => {
-  return { ...props.filter, limit: limit.value, offset: offset.value }
+  return {
+    ...props.filter,
+    limit: limit.value,
+    offset: offset.value
+    // sort: 'EXPECTED_START_TIME_ASC'
+  }
 })
 
 const getData = async () => {
