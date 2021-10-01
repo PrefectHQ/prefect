@@ -1,3 +1,4 @@
+from tests.orion.api import test_task_runs
 from unittest.mock import MagicMock
 
 import pendulum
@@ -72,13 +73,13 @@ class TestUserReturnValueToState:
         # Aggregate type is failed
         assert result_state.is_failed()
 
-    async def test_single_state_in_future_is_processed(self):
+    async def test_single_state_in_future_is_processed(self, task_run):
         # Unlike a single state without a future, which represents an override of the
         # return state, this is a child task run that is being used to determine the
         # flow state
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
-            run_id=None,
+            task_run=task_run,
             executor=None,
             _final_state=state,
         )
@@ -187,24 +188,16 @@ class TestResolveDataDoc:
 
 
 class TestOrchestrateTaskRun:
-    @pytest.fixture
-    async def flow_run_id(self, orion_client: OrionClient):
-        @flow
-        def foo():
-            pass
-
-        return await orion_client.create_flow_run(flow=foo)
-
     async def test_waits_until_scheduled_start_time(
-        self, orion_client, flow_run_id, monkeypatch
+        self, orion_client, flow_run, monkeypatch
     ):
         @task
         def foo():
             return 1
 
-        task_run_id = await orion_client.create_task_run(
+        task_run = await orion_client.create_task_run(
             task=foo,
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run.id,
             dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
@@ -218,7 +211,7 @@ class TestOrchestrateTaskRun:
         # don't repeatedly propose the state
         async def reset_scheduled_time(*_):
             await orion_client.set_task_run_state(
-                task_run_id=task_run_id,
+                task_run_id=task_run.id,
                 state=State(
                     type=StateType.SCHEDULED,
                     state_details=StateDetails(scheduled_time=pendulum.now("utc")),
@@ -231,8 +224,7 @@ class TestOrchestrateTaskRun:
 
         state = await orchestrate_task_run(
             task=foo,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
+            task_run=task_run,
             parameters={},
             wait_for=None,
             client=orion_client,
@@ -243,15 +235,15 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_does_not_wait_for_scheduled_time_in_past(
-        self, orion_client, flow_run_id, monkeypatch
+        self, orion_client, flow_run, monkeypatch
     ):
         @task
         def foo():
             return 1
 
-        task_run_id = await orion_client.create_task_run(
+        task_run = await orion_client.create_task_run(
             task=foo,
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run.id,
             dynamic_key="0",
             state=State(
                 type=StateType.SCHEDULED,
@@ -266,8 +258,7 @@ class TestOrchestrateTaskRun:
 
         state = await orchestrate_task_run(
             task=foo,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
+            task_run=task_run,
             parameters={},
             wait_for=None,
             client=orion_client,
@@ -278,7 +269,7 @@ class TestOrchestrateTaskRun:
         assert state.result() == 1
 
     async def test_waits_for_awaiting_retry_scheduled_time(
-        self, monkeypatch, orion_client, flow_run_id
+        self, monkeypatch, orion_client, flow_run
     ):
         # Define a task that fails once and then succeeds
         mock = MagicMock()
@@ -293,9 +284,9 @@ class TestOrchestrateTaskRun:
             raise ValueError("try again, but only once")
 
         # Create a task run to test
-        task_run_id = await orion_client.create_task_run(
+        task_run = await orion_client.create_task_run(
             task=flaky_function,
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run.id,
             state=Pending(),
             dynamic_key="0",
         )
@@ -304,7 +295,7 @@ class TestOrchestrateTaskRun:
         # don't repeatedly propose the state
         async def reset_scheduled_time(*_):
             await orion_client.set_task_run_state(
-                task_run_id=task_run_id,
+                task_run_id=task_run.id,
                 state=State(
                     type=StateType.SCHEDULED,
                     state_details=StateDetails(scheduled_time=pendulum.now("utc")),
@@ -318,8 +309,7 @@ class TestOrchestrateTaskRun:
         # Actually run the task
         state = await orchestrate_task_run(
             task=flaky_function,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
+            task_run=task_run,
             parameters={},
             wait_for=None,
             client=orion_client,
@@ -335,7 +325,7 @@ class TestOrchestrateTaskRun:
         assert 40 < sleep.call_args[0][0] < 43
 
         # Check expected state transitions
-        states = await orion_client.read_task_run_states(task_run_id)
+        states = await orion_client.read_task_run_states(task_run.id)
         state_names = [state.type for state in states]
         assert state_names == [
             StateType.PENDING,
@@ -350,7 +340,7 @@ class TestOrchestrateTaskRun:
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_returns_not_ready_when_any_upstream_futures_resolve_to_incomplete(
-        self, orion_client, flow_run_id, upstream_task_state
+        self, orion_client, flow_run, upstream_task_state
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -360,26 +350,26 @@ class TestOrchestrateTaskRun:
             mock()
 
         # Create an upstream task run
-        upstream_task_run_id = await orion_client.create_task_run(
+        upstream_task_run = await orion_client.create_task_run(
             task=my_task,
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run.id,
             state=upstream_task_state,
             dynamic_key="upstream",
         )
-        upstream_task_state.state_details.task_run_id = upstream_task_run_id
+        upstream_task_state.state_details.task_run_id = upstream_task_run.id
 
         # Create a future to wrap the upstream task, have it resolve to the given
         # incomplete state
         future = PrefectFuture(
-            run_id=upstream_task_run_id,
+            task_run=upstream_task_run,
             executor=None,
             _final_state=upstream_task_state,
         )
 
         # Create a task run to test
-        task_run_id = await orion_client.create_task_run(
+        task_run = await orion_client.create_task_run(
             task=my_task,
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run.id,
             state=Pending(),
             dynamic_key="downstream",
         )
@@ -387,8 +377,7 @@ class TestOrchestrateTaskRun:
         # Actually run the task
         state = await orchestrate_task_run(
             task=my_task,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
+            task_run=task_run,
             # Nest the future in a collection to ensure that it is found
             parameters={"x": {"nested": [future]}},
             wait_for=None,
@@ -403,14 +392,14 @@ class TestOrchestrateTaskRun:
         assert state.name == "NotReady"
         assert (
             state.message
-            == f"Upstream task run '{upstream_task_run_id}' did not reach a 'COMPLETED' state."
+            == f"Upstream task run '{upstream_task_run.id}' did not reach a 'COMPLETED' state."
         )
 
     @pytest.mark.parametrize(
         "upstream_task_state", [Pending(), Running(), Cancelled(), Failed()]
     )
     async def test_states_in_parameters_can_be_incomplete(
-        self, orion_client, flow_run_id, upstream_task_state
+        self, orion_client, flow_run, upstream_task_state
     ):
         # Define a mock to ensure the task was not run
         mock = MagicMock()
@@ -420,9 +409,9 @@ class TestOrchestrateTaskRun:
             mock(x)
 
         # Create a task run to test
-        task_run_id = await orion_client.create_task_run(
+        task_run = await orion_client.create_task_run(
             task=my_task,
-            flow_run_id=flow_run_id,
+            flow_run_id=flow_run.id,
             state=Pending(),
             dynamic_key="downstream",
         )
@@ -430,8 +419,7 @@ class TestOrchestrateTaskRun:
         # Actually run the task
         state = await orchestrate_task_run(
             task=my_task,
-            task_run_id=task_run_id,
-            flow_run_id=flow_run_id,
+            task_run=task_run,
             # Nest the future in a collection to ensure that it is found
             parameters={"x": upstream_task_state},
             wait_for=None,
@@ -451,7 +439,7 @@ class TestOrchestrateFlowRun:
         def foo():
             return 1
 
-        flow_run_id = await orion_client.create_flow_run(
+        flow_run = await orion_client.create_flow_run(
             flow=foo,
             state=State(
                 type=StateType.SCHEDULED,
@@ -465,7 +453,7 @@ class TestOrchestrateFlowRun:
         # don't repeatedly propose the state
         async def reset_scheduled_time(*_):
             await orion_client.set_flow_run_state(
-                flow_run_id=flow_run_id,
+                flow_run_id=flow_run.id,
                 state=State(
                     type=StateType.SCHEDULED,
                     state_details=StateDetails(scheduled_time=pendulum.now("utc")),
@@ -478,8 +466,7 @@ class TestOrchestrateFlowRun:
 
         state = await orchestrate_flow_run(
             flow=foo,
-            flow_run_id=flow_run_id,
-            parameters={},
+            flow_run=flow_run,
             executor=BaseExecutor(),
             sync_portal=None,
             client=orion_client,
@@ -495,7 +482,7 @@ class TestOrchestrateFlowRun:
         def foo():
             return 1
 
-        flow_run_id = await orion_client.create_flow_run(
+        flow_run = await orion_client.create_flow_run(
             flow=foo,
             state=State(
                 type=StateType.SCHEDULED,
@@ -510,8 +497,7 @@ class TestOrchestrateFlowRun:
 
         state = await orchestrate_flow_run(
             flow=foo,
-            flow_run_id=flow_run_id,
-            parameters={},
+            flow_run=flow_run,
             executor=BaseExecutor(),
             sync_portal=None,
             client=orion_client,
