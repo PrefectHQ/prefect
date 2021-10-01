@@ -283,8 +283,8 @@ export class Query {
     })
       .then((res) => res)
       .then((res) => {
-        if (res.status == 200) return res.json()
-        if (res.status == 204 || res.status == 201) return res
+        if (res.status == 200 || res.status == 201) return res.json()
+        if (res.status == 204) return res
         console.error(this.endpoint, body)
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })

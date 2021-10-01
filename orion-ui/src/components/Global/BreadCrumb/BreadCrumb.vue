@@ -6,7 +6,11 @@
       v-for="(crumb, i) in props.crumbs"
       :key="crumb.text"
       class="text-truncate"
-      :style="{ minWidth: !crumb.text ? '40px' : undefined, maxWidth: '50%' }"
+      :style="{
+        minWidth: !crumb.text ? '40px' : undefined,
+        maxWidth: '50%',
+        minHeight: '30px'
+      }"
       :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
     >
       {{ crumb.text }}{{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
