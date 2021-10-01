@@ -34,7 +34,7 @@
             class="text--grey-80 ml--half font--primary"
             style="min-width: 0px"
           >
-            Every {{ schedule }}
+            {{ schedule !== '--' ? 'Every' : '' }} {{ schedule }}
           </span>
         </span>
 
