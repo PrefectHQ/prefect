@@ -353,3 +353,17 @@ class TestSetTaskRunState:
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.ACCEPT
         assert api_response.state.type == states.StateType.FAILED
+
+
+class TestTaskRunHistory:
+    async def test_history_interval_must_be_one_second_or_larger(self, client):
+        response = await client.post(
+            "/task_runs/history",
+            json=dict(
+                history_start=str(pendulum.now()),
+                history_end=str(pendulum.now().add(days=1)),
+                history_interval_seconds=0.9,
+            ),
+        )
+        assert response.status_code == 422
+        assert b"History interval must not be less than 1 second" in response.content

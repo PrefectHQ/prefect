@@ -29,8 +29,10 @@ from prefect import exceptions
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
+from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
@@ -96,6 +98,7 @@ class OrionClient:
             httpx_settings.setdefault("base_url", "http://orion")
 
         self._client = httpx.AsyncClient(**httpx_settings)
+        self.logger = get_logger("client")
 
     async def post(self, route: str, **kwargs) -> httpx.Response:
         """
@@ -240,7 +243,7 @@ class OrionClient:
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
-    ) -> UUID:
+    ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
 
@@ -256,13 +259,13 @@ class OrionClient:
             httpx.RequestError: if Orion does not successfully create a run for any reason
 
         Returns:
-            The flow run id
+            The flow run model
         """
         parameters = parameters or {}
         context = context or {}
         state = state or Scheduled()
 
-        flow_run_data = schemas.actions.FlowRunCreate(
+        flow_run_create = schemas.actions.FlowRunCreate(
             flow_id=deployment.flow_id,
             deployment_id=deployment.id,
             flow_version=None,  # Not yet determined
@@ -272,13 +275,9 @@ class OrionClient:
         )
 
         response = await self.post(
-            "/flow_runs/", json=flow_run_data.dict(json_compatible=True)
+            "/flow_runs/", json=flow_run_create.dict(json_compatible=True)
         )
-        flow_run_id = response.json().get("id")
-        if not flow_run_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
-
-        return UUID(flow_run_id)
+        return schemas.core.FlowRun.parse_obj(response.json())
 
     async def create_flow_run(
         self,
@@ -289,7 +288,7 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
-    ) -> UUID:
+    ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
 
@@ -308,7 +307,7 @@ class OrionClient:
             httpx.RequestError: if Orion does not successfully create a run for any reason
 
         Returns:
-            The flow run id
+            The flow run model
         """
         parameters = parameters or {}
         context = context or {}
@@ -333,11 +332,13 @@ class OrionClient:
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
 
         response = await self.post("/flow_runs/", json=flow_run_create_json)
-        flow_run_id = response.json().get("id")
-        if not flow_run_id:
-            raise httpx.RequestError(f"Malformed response: {response}")
+        flow_run = schemas.core.FlowRun.parse_obj(response.json())
 
-        return UUID(flow_run_id)
+        # Restore the parameters to the local objects to retain expectations about
+        # Python objects
+        flow_run.parameters = parameters
+
+        return flow_run
 
     async def update_flow_run(
         self, flow_run_id: UUID, flow_version: str = None, parameters: dict = None
@@ -571,11 +572,7 @@ class OrionClient:
         response = await self.post(
             "/task_runs/", json=task_run_data.dict(json_compatible=True)
         )
-        task_run_id = response.json().get("id")
-        if not task_run_id:
-            raise Exception(f"Malformed response: {response}")
-
-        return UUID(task_run_id)
+        return TaskRun.parse_obj(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> schemas.core.TaskRun:
         response = await self.get(f"/task_runs/{task_run_id}")
@@ -624,7 +621,7 @@ class OrionClient:
             raise exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
-            print(
+            self.logger.debug(
                 f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
             )
@@ -641,7 +638,9 @@ class OrionClient:
                         await self.retrieve_data(server_state.data)
                     )
                     server_state.data = datadoc
+
             return server_state
+
         else:
             raise ValueError(
                 f"Received unexpected `SetStateStatus` from server: {response.status!r}"

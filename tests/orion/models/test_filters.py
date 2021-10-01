@@ -275,13 +275,17 @@ class TestCountFlowsModels:
         # next two check that filters are applied as an intersection not a union
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+                task_run_filter=filters.TaskRunFilter(
+                    state=dict(type=dict(any_=["FAILED"]))
+                )
             ),
             1,
         ],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"])),
+                task_run_filter=filters.TaskRunFilter(
+                    state=dict(type=dict(any_=["FAILED"]))
+                ),
                 flow_run_filter=filters.FlowRunFilter(tags=dict(all_=["xyz"])),
             ),
             0,
@@ -401,16 +405,66 @@ class TestCountFlowRunModels:
         # next two check that filters are applied as an intersection not a union
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+                task_run_filter=filters.TaskRunFilter(
+                    state=dict(type=dict(any_=["FAILED"]))
+                )
             ),
             1,
         ],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"])),
+                task_run_filter=filters.TaskRunFilter(
+                    state=dict(type=dict(any_=["FAILED"]))
+                ),
                 flow_filter=filters.FlowFilter(tags=dict(all_=["xyz"])),
             ),
             0,
+        ],
+        # search for completed states with "NOT-COMPLETED" as the name, should return nothing
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(
+                        type=dict(any_=["COMPLETED"]), name=dict(any_=["NOT-COMPLETED"])
+                    )
+                )
+            ),
+            0,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(name=dict(any_=["Completed"]))
+                )
+            ),
+            4,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(name=dict(any_=["Failed"]))
+                )
+            ),
+            2,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(name=dict(any_=["Failed", "Completed"]))
+                )
+            ),
+            6,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(
+                        type=dict(any_=["FAILED"]),
+                        name=dict(any_=["Failed", "Completed"]),
+                    )
+                )
+            ),
+            2,
         ],
         [
             dict(
@@ -521,11 +575,29 @@ class TestCountTaskRunsModels:
         ],
         [dict(deployment_filter=filters.DeploymentFilter(id=dict(any_=[d_1_1_id]))), 3],
         [dict(flow_run_filter=filters.FlowRunFilter(tags=dict(is_null_=True))), 4],
-        # next two check that filters are applied as an intersection not a union
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    state_type=dict(any_=["COMPLETED"])
+                    state=dict(type=dict(any_=["COMPLETED"]))
+                )
+            ),
+            4,
+        ],
+        # search for completed states with "NOT-COMPLETED" as the name, should return nothing
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(
+                        type=dict(any_=["COMPLETED"]), name=dict(any_=["NOT-COMPLETED"])
+                    )
+                )
+            ),
+            0,
+        ],
+        [
+            dict(
+                flow_run_filter=filters.FlowRunFilter(
+                    state=dict(name=dict(any_=["Completed"]))
                 )
             ),
             4,
@@ -533,7 +605,7 @@ class TestCountTaskRunsModels:
         [
             dict(
                 flow_run_filter=filters.FlowRunFilter(
-                    state_type=dict(any_=["COMPLETED"])
+                    state=dict(type=dict(any_=["COMPLETED"]))
                 ),
                 flow_filter=filters.FlowFilter(tags=dict(all_=["xyz"])),
             ),
@@ -690,7 +762,9 @@ class TestCountDeploymentModels:
         ],
         [
             dict(
-                task_run_filter=filters.TaskRunFilter(state_type=dict(any_=["FAILED"]))
+                task_run_filter=filters.TaskRunFilter(
+                    state=dict(type=dict(any_=["FAILED"]))
+                )
             ),
             1,
         ],
