@@ -26,16 +26,6 @@
   grid-gap: 16px;
 }
 
-.chart-card {
-  background-color: $white;
-  box-shadow: $box-shadow-sm;
-  border-radius: 4px;
-  height: 250px;
-
-  display: flex;
-  flex-direction: column;
-}
-
 .chart-section {
   display: grid;
   grid-template-areas:
@@ -46,24 +36,10 @@
   column-gap: 16px;
   row-gap: 16px;
 
-  .run-history {
-    .no-data {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-    }
-  }
-
   .run-history,
   .run-lateness,
   .run-duration {
     height: 100%;
-  }
-
-  .chart {
-    height: 117px;
-    overflow: hidden;
   }
 
   .run-history {
@@ -77,12 +53,6 @@
   .run-duration {
     grid-area: duration;
   }
-}
-
-.results-section {
-  min-height: 400px;
-  height: 50vh;
-  position: relative;
 }
 
 .results-hr {

@@ -1,0 +1,33 @@
+.chart-container {
+  height: 100%;
+  width: 100%;
+
+  svg {
+    height: 100%;
+    width: 100%;
+
+    .bar {
+      fill: var(--blue-20);
+    }
+
+    path.highlighted-bar {
+      fill: var(--primary);
+    }
+  }
+
+  .bar-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+
+    .interval-bucket {
+      position: absolute;
+      transition: all 150ms;
+      transform-origin: bottom;
+      z-index: 1;
+    }
+  }
+}
