@@ -1,3 +1,6 @@
+"""
+Command line interface for working with Orion
+"""
 import json
 import os
 import typer

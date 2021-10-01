@@ -1,3 +1,6 @@
+"""
+Command line interface for working with deployments
+"""
 import sys
 from pathlib import Path
 
