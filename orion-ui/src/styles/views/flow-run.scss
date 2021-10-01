@@ -45,9 +45,10 @@
   grid-template-areas:
     'details details schematic'
     'timeline timeline schematic'
+    'timeline timeline schematic'
     'timeline timeline schematic';
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 70px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(4, 70px);
   column-gap: 16px;
   row-gap: 16px;
 
@@ -70,6 +71,12 @@
   }
 }
 
+// ☠️☠️☠️☠️ This prevents the timeline from overflowing padding/margins... REMOVE AT YOUR OWN RISK ☠️☠️☠️☠️
+.timeline-content {
+  box-sizing: content-box;
+  max-height: 194px;
+}
+
 .results-hr {
   background-color: $grey-20;
   border: none;
@@ -82,7 +89,7 @@
       'details'
       'schematic'
       'timeline';
-    grid-template-columns: repeat(1, 1fr);
+    grid-template-columns: repeat(1, minmax(0, 1fr));
     grid-template-rows: 70px 200px 250px;
   }
 }
