@@ -80,14 +80,12 @@ class BaseExecutor(metaclass=abc.ABCMeta):
     ) -> PrefectFuture:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
-        get the call result. This method is responsible for resolving `PrefectFutures`
-        in args and kwargs into a type supported by the underlying execution method.
+        get the call result.
 
         Args:
             run_id: A unique id identifying the run being submitted
             run_fn: The function to be executed
-            *args: Arguments to pass to `run_fn`
-            **kwargs: Keyword arguments to pass to `run_fn`
+            run_kwargs: A dict of keyword arguments to pass to `run_fn`
 
         Returns:
             A future representing the result of `run_fn` execution
@@ -163,10 +161,7 @@ class SequentialExecutor(BaseExecutor):
         # Run the function immediately and store the result in memory
         self._results[task_run.id] = await run_fn(**run_kwargs)
 
-        return PrefectFuture(
-            task_run=task_run,
-            executor=self,
-        )
+        return PrefectFuture(task_run=task_run, executor=self)
 
     async def wait(
         self, prefect_future: PrefectFuture, timeout: float = None
@@ -187,7 +182,7 @@ class DaskExecutor(BaseExecutor):
     def __init__(self) -> None:
         super().__init__()
         self._client: "distributed.Client" = None
-        self._futures: Dict[UUID, "distributed.Future"] = {}
+        self._dask_futures: Dict[UUID, "distributed.Future"] = {}
 
     async def submit(
         self,
@@ -198,12 +193,9 @@ class DaskExecutor(BaseExecutor):
         if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        self._futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
+        self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
 
-        return PrefectFuture(
-            task_run=task_run,
-            executor=self,
-        )
+        return PrefectFuture(task_run=task_run, executor=self)
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
         """
@@ -211,7 +203,7 @@ class DaskExecutor(BaseExecutor):
 
         The dask future is for the `run_fn` which should return a `State`
         """
-        return self._futures[prefect_future.run_id]
+        return self._dask_futures[prefect_future.run_id]
 
     async def wait(
         self,
@@ -230,7 +222,7 @@ class DaskExecutor(BaseExecutor):
 
     async def on_shutdown(self) -> None:
         # Attempt to wait for all futures to complete
-        for future in self._futures.values():
+        for future in self._dask_futures.values():
             try:
                 await future.result()
             except Exception:
