@@ -47,7 +47,7 @@ Prefect is the easiest way to transform any function into an orchestratable task
 
 
     # run the flow!
-    github_stars(["PrefectHQ/Prefect", "PrefectHQ/Miter-Design"])
+    github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
     ```
 
 === "Parallel execution"
@@ -75,17 +75,19 @@ Prefect is the easiest way to transform any function into an orchestratable task
 
 
     # run the flow!
-    github_stars(["PrefectHQ/Prefect", "PrefectHQ/Miter-Design"])
+    if __name__ == "__main__":
+        github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
     ```
 
 === "Async concurrency"
 
     With native async support, concurrent parallelism is easy. Asynchronous flows can include a mix of synchronous and asynchronous tasks, just like Python.
 
-    ```python hl_lines="3 7-9 15-16 20"
+    ```python hl_lines="4 8-10 16-17 22"
     from prefect import flow, task
     from typing import List
-    import httpx, asyncio
+    import httpx
+    import asyncio
 
 
     @task(retries=3)
@@ -102,7 +104,8 @@ Prefect is the easiest way to transform any function into an orchestratable task
 
 
     # run the flow!
-    await asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/Miter-Design"]))
+    if __name__ == "__main__":
+        asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
     ```
 
 
