@@ -9,16 +9,17 @@
     --gray-3: #8EA0AE;
     --pink-transparent: rgba(254, 81, 150, 0.3);
     --pink: #fe5196;
-    --default-font-size: 14px;
+    --default-font-size: .7rem;
+    --code-font-size: .7rem;
+    --nav-size: .6rem;
     --text-code-font-size:  1em;
     --table-font-size: 1em;
-    --code-font-size: 14px;
     --anchor-font-size: 1em;
-    --header-prefix-font-size: .6em;
+    --header-prefix-font-size: .7em;
     --content-relative-size: 1rem;
-    --h1-font-size: 32px;
-    --h2-font-size: 28px;
-    --h3-font-size: 24px;
+    --h1-font-size: 1.3rem;
+    --h2-font-size: 1.0em;
+    --h3-font-size: 1.0em;
 }
 
 .prefect-container {
@@ -40,10 +41,9 @@
     display: inline-block;
     opacity: 0;
     color: var(--blue);
-    padding: 8px;
     position: absolute;
     font-size: var(--anchor-font-size);
-    margin-left: -24px;
+    margin-left: -.8em;
 }
 
 .prefect-heading:hover::before {
@@ -161,6 +161,14 @@ a.prefect-heading:hover {
 .doc.doc-attribute > .prefect-heading > h3:before {
     content: "attribute";
     font-size: var(--header-prefix-font-size);
+}
+
+.md-nav {
+    font-size: var(--nav-size);
+}
+
+.md-typeset .admonition {
+    font-size: 1rem;
 }
 
 .doc p, .doc em, .doc li {
