@@ -8,7 +8,7 @@ const routes: Array<RouteRecordRaw> = [
     component: Dashboard // We don't implement route level code splitting for the Dashboard route because we don't want this to load asyncronously
   },
   {
-    path: '/flow-run',
+    path: '/flow-run/:id',
     name: 'FlowRun',
     component: () => import('../views/FlowRun.vue')
   },
