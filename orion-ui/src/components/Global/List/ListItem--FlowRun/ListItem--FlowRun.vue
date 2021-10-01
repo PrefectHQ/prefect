@@ -179,7 +179,7 @@ const taskRunHistory = computed((): Buckets => {
 const crumbs = computed(() => {
   return [
     { text: flow.value?.name },
-    { text: props.item.name, link: `/flow-run/${props.item.id}` }
+    { text: props.item.name, to: `/flow-run/${props.item.id}` }
   ]
 })
 </script>

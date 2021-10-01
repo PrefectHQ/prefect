@@ -8,8 +8,8 @@
     <component
       v-skeleton="!crumb.text"
       v-for="(crumb, i) in props.crumbs"
-      :is="crumb.route ? 'router-link' : 'span'"
-      :to="crumb.route"
+      :is="crumb.to ? 'router-link' : 'span'"
+      :to="crumb.to"
       :key="crumb.text"
       class="text-truncate"
       :style="{
@@ -29,7 +29,7 @@ import { defineProps } from 'vue'
 
 type Crumb = {
   text: string
-  route?: string
+  to?: string
 }
 
 const props = defineProps<{ crumbs: Crumb[]; icon: string; tag: 'string' }>()

@@ -100,7 +100,7 @@ const duration = computed(() => {
 const crumbs = computed(() => {
   return [
     { text: flow.value?.name },
-    { text: flowRun.value?.name, link: `/flow-run/${flowRun.value?.id}` },
+    { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
     { text: props.item.name }
   ]
 })
