@@ -51,10 +51,20 @@ class ContextModel(BaseModel):
 
 
 class RunContext(ContextModel):
+    """
+    The base context for a flow or task run. Data in this context will always be
+    available when `get_run_context` is called.
+    """
+
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
 
 class FlowRunContext(RunContext):
+    """
+    The context for a flow run. Data in this context is only available from within a
+    flow run function.
+    """
+
     flow: Flow
     flow_run_id: UUID
     client: OrionClient
@@ -70,6 +80,11 @@ class FlowRunContext(RunContext):
 
 
 class TaskRunContext(RunContext):
+    """
+    The context for a task run. Data in this context is only available from within a
+    task run function.
+    """
+
     task: Task
     task_run_id: UUID
     flow_run_id: UUID
@@ -79,6 +94,10 @@ class TaskRunContext(RunContext):
 
 
 class TagsContext(ContextModel):
+    """
+    The context for `prefect.tags` management.
+    """
+
     current_tags: Set[str] = Field(default_factory=set)
 
     @classmethod
@@ -90,6 +109,15 @@ class TagsContext(ContextModel):
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
+    """
+    Get the current run context from within a task or flow function.
+
+    Returns:
+        A `FlowRunContext` or `TaskRunContext` depending on the function type.
+
+    Raises
+        RuntimeError: If called outside of a flow or task run.
+    """
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx:
         return task_run_ctx

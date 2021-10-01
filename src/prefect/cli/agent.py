@@ -1,3 +1,6 @@
+"""
+Command line interface for working with agent services
+"""
 import typer
 import anyio
 from prefect.client import OrionClient

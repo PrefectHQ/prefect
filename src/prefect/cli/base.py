@@ -1,3 +1,6 @@
+"""
+Base `prefect` command-line application and utilities
+"""
 import typer
 import rich.console
 
