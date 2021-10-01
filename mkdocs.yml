@@ -88,7 +88,13 @@ nav:
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Utilities':
+                - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
+                - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
+                - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
+                - 'prefect.utilities.compat': api-ref/prefect/utilities/compat.md
+                - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+                - 'prefect.utilities.logging': api-ref/prefect/utilities/logging.md
                 - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
