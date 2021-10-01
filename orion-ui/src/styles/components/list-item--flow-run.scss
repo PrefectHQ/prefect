@@ -1,4 +1,5 @@
 @use '@/styles/components/list-item.scss';
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 // For a later date... maybe
 // .list-item--flow-run {
@@ -23,8 +24,26 @@
 .run-state {
   border-radius: 4px;
   padding: 2px 8px;
+  text-transform: capitalize;
 }
 
 .tag-container {
   margin-top: 2px;
+}
+
+.item--tags {
+  border-radius: 4px;
+  display: inline-block;
+  padding: 4px 8px;
+}
+
+.icon-link {
+  text-decoration: none;
+
+  &:hover,
+  &:focus {
+    &::before {
+      color: $primary !important;
+    }
+  }
 }

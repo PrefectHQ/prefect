@@ -1,7 +1,9 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
-    <router-view class="router-view" />
+    <suspense>
+      <router-view class="router-view" />
+    </suspense>
   </div>
 </template>
 
@@ -16,7 +18,7 @@ export default class App extends Vue {}
 </script>
 
 <style lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .application {
   background-color: $grey-10;
