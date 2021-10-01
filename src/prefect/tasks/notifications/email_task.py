@@ -15,11 +15,14 @@ from prefect.utilities.tasks import defaults_from_attrs
 class EmailTask(Task):
     """
     Task for sending email from an authenticated email service over SMTP. For this task to
-    function properly, you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Prefect
-    Secrets set.  It is recommended you use a [Google App
+    function properly you must have the `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"`
+    Prefect Secrets set.  It is recommended you use a [Google App
     Password](https://support.google.com/accounts/answer/185833) if you use Gmail.  The default
     SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
     containing HTML code is supported - the default MIME type is set to the text/html.
+
+    You can also use smtp_type "INSECURE" and smtp_port 25 to use an insecure, internal SMTP server.
+    The `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Secrets are not required in this case.
 
     Args:
         - subject (str, optional): the subject of the email; can also be provided at runtime
@@ -31,7 +34,7 @@ class EmailTask(Task):
             notifications@prefect.io
         - smtp_server (str, optional): the hostname of the SMTP server; defaults to smtp.gmail.com
         - smtp_port (int, optional): the port number of the SMTP server; defaults to 465
-        - smtp_type (str, optional): either SSL or STARTTLS; defaults to SSL
+        - smtp_type (str, optional): either SSL, STARTTLS, or INSECURE; defaults to SSL
         - msg_plain (str, optional): the contents of the email, added as plain text can be used in
             combination of msg; can also be provided at runtime
         - email_to_cc (str, optional): additional email address to send the message to as cc;
@@ -115,7 +118,7 @@ class EmailTask(Task):
                 provided at initialization
             - smtp_port (int, optional): the port number of the SMTP server; defaults to the one
                 provided at initialization
-            - smtp_type (str, optional): either SSL or STARTTLS; defaults to the one provided
+            - smtp_type (str, optional): either SSL, STARTTLS, or INSECURE; defaults to the one provided
                 at initialization
             - msg_plain (str, optional): the contents of the email, added as plain text can be used in
                 combination of msg; defaults to the one provided at initialization
@@ -130,8 +133,9 @@ class EmailTask(Task):
             - None
         """
 
-        username = cast(str, Secret("EMAIL_USERNAME").get())
-        password = cast(str, Secret("EMAIL_PASSWORD").get())
+        if smtp_type != "INSECURE":
+            username = cast(str, Secret("EMAIL_USERNAME").get())
+            password = cast(str, Secret("EMAIL_PASSWORD").get())
 
         message = MIMEMultipart()
         message["Subject"] = subject
@@ -162,16 +166,20 @@ class EmailTask(Task):
             )
             message.attach(part)
 
-        context = ssl.create_default_context()
-        if smtp_type == "SSL":
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=context)
-        elif smtp_type == "STARTTLS":
+        if smtp_type == "INSECURE":
             server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls(context=context)
         else:
-            raise ValueError(f"{smtp_type} is an unsupported value for smtp_type.")
+            context = ssl.create_default_context()
+            if smtp_type == "SSL":
+                server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=context)
+            elif smtp_type == "STARTTLS":
+                server = smtplib.SMTP(smtp_server, smtp_port)
+                server.starttls(context=context)
+            else:
+                raise ValueError(f"{smtp_type} is an unsupported value for smtp_type.")
 
-        server.login(username, password)
+            server.login(username, password)
+
         try:
             server.send_message(message)
         finally:
