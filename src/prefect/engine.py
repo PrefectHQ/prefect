@@ -28,6 +28,7 @@ from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
 from prefect.exceptions import UpstreamTaskError
 
+import prefect
 from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
@@ -46,7 +47,6 @@ from prefect.orion.schemas.states import (
     Completed,
     Failed,
     Pending,
-    Cancelled,
     Running,
     State,
     StateDetails,
@@ -136,7 +136,7 @@ async def create_then_begin_flow_run(
 
     Creates the flow run in the backend then enters the main flow rum engine
     """
-    logger.info(f"Creating run for flow {flow.name!r}...")
+    logger.debug(f"Creating run for flow {flow.name!r}...")
 
     assert_parameters_are_serializable(parameters)
 
@@ -194,9 +194,8 @@ async def begin_flow_run(
     Returns:
         The final state of the run
     """
-    logger.info(
-        f"Beginning flow run {flow_run.name!r} for flow {flow.name!r} with parameters {flow_run.parameters}..."
-    )
+    logger.info(f"Beginning flow run {flow_run.name!r} for flow {flow.name!r}...")
+
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -216,9 +215,13 @@ async def begin_flow_run(
         flow_run_id=flow_run.id,
     )
 
+    # Display the full state (including the result) if debugging
+    display_state = (
+        terminal_state if prefect.settings.debug_mode else repr(terminal_state.name)
+    )
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Flow run finished with state {terminal_state}",
+        msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
 
     return terminal_state
@@ -242,8 +245,7 @@ async def create_and_begin_subflow_run(
         The final state of the run
     """
     parent_flow_run_context = FlowRunContext.get()
-
-    logger.info(
+    logger.debug(
         f"Creating subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r}..."
     )
 
@@ -268,10 +270,7 @@ async def create_and_begin_subflow_run(
         tags=TagsContext.get().current_tags,
     )
 
-    logger.info(
-        f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r} with parameters {parameters}..."
-    )
-
+    logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
     terminal_state = await orchestrate_flow_run(
         flow,
         flow_run=flow_run,
@@ -286,9 +285,13 @@ async def create_and_begin_subflow_run(
         flow_run_id=flow_run.id,
     )
 
+    # Display the full state (including the result) if debugging
+    display_state = (
+        terminal_state if prefect.settings.debug_mode else repr(terminal_state.name)
+    )
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Subflow run finished with state {terminal_state}",
+        msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
@@ -320,6 +323,11 @@ async def orchestrate_flow_run(
     Returns:
         The final state of the run
     """
+    if prefect.settings.debug_mode:
+        logger.debug(
+            f"Flow run {flow_run.name!r} received parameters {flow_run.parameters}"
+        )
+
     # TODO: Implement state orchestation logic using return values from the API
     await client.propose_state(Running(), flow_run_id=flow_run.id)
 
@@ -345,9 +353,12 @@ async def orchestrate_flow_run(
                     flow_run.parameters = flow.validate_parameters(flow_run.parameters)
 
                 args, kwargs = parameters_to_args_kwargs(flow.fn, flow_run.parameters)
-                logger.info(
-                    f"Executing flow {flow.name!r} with call {call_repr(flow.fn, *args, **kwargs)}..."
+                logger.debug(
+                    f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )
+                if prefect.settings.debug_mode:
+                    logger.debug(f"Calling {call_repr(flow.fn, *args, **kwargs)}")
+
                 flow_call = partial(flow.fn, *args, **kwargs)
 
                 if flow.isasync:
@@ -480,9 +491,7 @@ async def create_and_submit_task_run(
         task_inputs=task_inputs,
     )
 
-    logger.info(
-        f"Submitting task run {task_run.name!r} to executor with parameters {parameters}..."
-    )
+    logger.info(f"Submitting task run {task_run.name!r} to executor...")
 
     future = await flow_run_context.executor.submit(
         task_run,
@@ -543,6 +552,9 @@ async def orchestrate_task_run(
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
+    if prefect.settings.debug_mode:
+        logger.debug(f"Task run {task_run.name!r} received parameters {parameters}")
+
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
@@ -571,9 +583,13 @@ async def orchestrate_task_run(
                 client=client,
             ):
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
-                logger.info(
-                    f"Executing task {task_run.name!r} with call {call_repr(task.fn, *args, **kwargs)}..."
+
+                logger.debug(
+                    f"Executing task {task.name!r} for task run {task_run.name!r}"
                 )
+                if prefect.settings.debug_mode:
+                    logger.debug(f"Calling {call_repr(task.fn, *args, **kwargs)}")
+
                 result = task.fn(*args, **kwargs)
                 if task.isasync:
                     result = await result
@@ -600,12 +616,23 @@ async def orchestrate_task_run(
 
         if not state.is_final():
             logger.info(
-                f"Task {task_run.name!r} received state {state} when proposing state {terminal_state} and will attempt to run again..."
+                f"Task run {task_run.name!r} received state {state.name!r} when proposing state {terminal_state.name!r} and will attempt to run again..."
             )
+            if prefect.settings.debug_mode:
+                logger.debug(
+                    f"Task run {task_run.name!r} received state {state} when proposing final state {terminal_state}"
+                )
+
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
-    logger.info(f"Task run {task_run.name!r} finished with state {state}")
+    # Display the full state (including the result) if debugging
+    display_state = state if prefect.settings.debug_mode else repr(state.name)
+    logger.log(
+        level=logging.INFO if state.is_completed() else logging.ERROR,
+        msg=f"Task run {task_run.name!r} finished in state {display_state}",
+    )
+
     return state
 
 

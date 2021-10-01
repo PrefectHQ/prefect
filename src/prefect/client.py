@@ -621,7 +621,7 @@ class OrionClient:
             raise exceptions.Abort(response.details.reason)
 
         elif response.status == schemas.responses.SetStateStatus.WAIT:
-            print(
+            self.logger.debug(
                 f"Received wait instruction for {response.details.delay_seconds}s: "
                 f"{response.details.reason}"
             )
@@ -638,6 +638,7 @@ class OrionClient:
                         await self.retrieve_data(server_state.data)
                     )
                     server_state.data = datadoc
+
             return server_state
 
         else:
