@@ -321,7 +321,9 @@ class TestReadTaskRuns:
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
-                state_type=schemas.filters.TaskRunFilterStateType(any_=["SCHEDULED"])
+                state=dict(
+                    type=schemas.filters.TaskRunFilterStateType(any_=["SCHEDULED"])
+                )
             ),
         )
         assert {res.id for res in result} == {task_run_1.id}
@@ -329,8 +331,10 @@ class TestReadTaskRuns:
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
-                state_type=schemas.filters.TaskRunFilterStateType(
-                    any_=["SCHEDULED", "COMPLETED"]
+                state=dict(
+                    type=schemas.filters.TaskRunFilterStateType(
+                        any_=["SCHEDULED", "COMPLETED"]
+                    )
                 )
             ),
         )
@@ -339,7 +343,9 @@ class TestReadTaskRuns:
         result = await models.task_runs.read_task_runs(
             session=session,
             task_run_filter=schemas.filters.TaskRunFilter(
-                state_type=schemas.filters.TaskRunFilterStateType(any_=["RUNNING"])
+                state=dict(
+                    type=schemas.filters.TaskRunFilterStateType(any_=["RUNNING"])
+                )
             ),
         )
         assert len(result) == 0

@@ -286,10 +286,10 @@ class LoggingSettings(BaseSettings):
         frozen = True
 
     default_level: str = Field(
-        "INFO",
+        "INFO" if not shared_settings.debug_mode else "DEBUG",
         description="""The default logging level. If not overridden, this will
         apply to all logging handlers defined in `logging.yml`. Defaults to
-        `INFO`.""",
+        "INFO" during normal operation and "DEBUG" during debug mode.""",
     )
 
     settings_path: Path = Field(

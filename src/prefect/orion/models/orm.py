@@ -45,7 +45,7 @@ class FlowRunState(Base):
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, index=True)
     message = Column(String)
     state_details = Column(
         Pydantic(states.StateDetails),
@@ -89,7 +89,7 @@ class TaskRunState(Base):
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
     )
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, index=True)
     message = Column(String)
     state_details = Column(
         Pydantic(states.StateDetails),
