@@ -1,7 +1,9 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
-    <router-view class="router-view" />
+    <suspense>
+      <router-view class="router-view" />
+    </suspense>
   </div>
 </template>
 
