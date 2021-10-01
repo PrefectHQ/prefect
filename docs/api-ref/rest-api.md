@@ -57,7 +57,7 @@ where
 
 `objects` is the name of the collection to filter over (e.g. `flows`). The collection can be either the object being queried for (e.g. `flows` for `POST /flows/filter`) or a related object (e.g. `flow_runs` for `POST /flows/filter`).
 
-`object_field` is the name of the field over which to filter (e.g. `name` for `flows`). Note that some objects may have nested object fields, such as `{flow_run: {state: {type: {_any: []}}}}`
+`object_field` is the name of the field over which to filter (e.g. `name` for `flows`). Note that some objects may have nested object fields, such as `{flow_run: {state: {type: {any_: []}}}}`
 
 `field_operator_` is the operator to apply to a field when filtering. Common examples include:
 
