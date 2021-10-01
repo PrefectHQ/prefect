@@ -132,7 +132,6 @@ const taskRunHistoryFilter = computed(() => {
   const interval = Math.floor(
     Math.max(1, (end.value.getTime() - start.value.getTime()) / 1000 / 20)
   )
-  // console.log(i)
   return {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
@@ -181,9 +180,6 @@ const taskRunCount = computed((): number => {
 })
 
 const taskRunHistory = computed((): Buckets => {
-  if (props.item.name == 'offbeat-pillbug') {
-    console.log(queries.task_run_history)
-  }
   return queries.task_run_history?.response.value || []
 })
 </script>
