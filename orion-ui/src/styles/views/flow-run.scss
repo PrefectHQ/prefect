@@ -1,4 +1,5 @@
 @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use 'sass:map';
 
 .copy-link {
   border-radius: 4px;
@@ -16,5 +17,46 @@
 
   &:active {
     background-color: $grey-40;
+  }
+}
+
+.main-grid {
+  display: grid;
+  grid-template-areas:
+    'details details schematic'
+    'timeline timeline schematic'
+    'timeline timeline schematic';
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 70px);
+  column-gap: 16px;
+  row-gap: 16px;
+
+  .details,
+  .timeline,
+  .schematic {
+    height: 100%;
+  }
+
+  .details {
+    grid-area: details;
+  }
+
+  .timeline {
+    grid-area: timeline;
+  }
+
+  .schematic {
+    grid-area: schematic;
+  }
+}
+
+@media (max-width: map.get($breakpoints, 'md')) {
+  .main-grid {
+    grid-template-areas:
+      'details'
+      'schematic'
+      'timeline';
+    grid-template-columns: repeat(1, 1fr);
+    grid-template-rows: 70px 200px 250px;
   }
 }

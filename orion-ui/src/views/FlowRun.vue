@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between">
+    <div class="d-flex align-center justify-space-between mb-2">
       <bread-crumbs :crumbs="crumbs" icon="pi-flow-run" />
       <div>
         <span>
@@ -14,7 +14,13 @@
         </a>
       </div>
     </div>
-    {{ flowRun }}
+
+    <div class="main-grid">
+      <Card class="details" shadow="sm">details</Card>
+      <Card class="timeline" shadow="sm">timeline</Card>
+      <Card class="schematic" shadow="sm">schematic</Card>
+    </div>
+
     <!-- <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="task_runs" class="subheader">
         <i class="pi pi-task pi-lg mr-1" />
