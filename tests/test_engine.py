@@ -1,4 +1,3 @@
-from tests.orion.api import test_task_runs
 from unittest.mock import MagicMock
 
 import pendulum
@@ -13,7 +12,7 @@ from prefect.engine import (
     resolve_datadoc,
     user_return_value_to_state,
 )
-from prefect.executors import BaseExecutor
+from prefect.executors import SequentialExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
@@ -27,7 +26,6 @@ from prefect.orion.schemas.states import (
     Pending,
 )
 from prefect.utilities.compat import AsyncMock
-from prefect.utilities.testing import exceptions_equal
 
 
 class TestUserReturnValueToState:
@@ -467,7 +465,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=BaseExecutor(),
+            executor=SequentialExecutor(),
             sync_portal=None,
             client=orion_client,
         )
@@ -498,7 +496,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=BaseExecutor(),
+            executor=SequentialExecutor(),
             sync_portal=None,
             client=orion_client,
         )
