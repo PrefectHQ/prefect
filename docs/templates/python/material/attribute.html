@@ -26,7 +26,6 @@
 
           {% filter highlight(language="python", inline=True) %}
             {% if show_full_path %}{{ attribute.path }}{% else %}{{ attribute.name }}{% endif %}
-            {% if attribute.type %}: {{ attribute.type }}{% endif %}
           {% endfilter %}
 
           {% with properties = attribute.properties %}
@@ -51,6 +50,7 @@
 
     <div class="doc doc-contents {% if root %}first{% endif %}">
       {% with docstring_sections = attribute.docstring_sections %}
+        {% if attribute.type %}<p>Type: <code>{{ attribute.type }}{% endif %}</code></p>
         {% include "docstring.html" with context %}
       {% endwith %}
     </div>

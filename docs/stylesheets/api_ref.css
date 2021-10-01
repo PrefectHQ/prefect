@@ -189,6 +189,10 @@ a.prefect-heading:hover {
     font-size: 1rem;
 }
 
+.md-typeset code {
+    font-size: var(--default-font-size);
+}
+
 .doc p, .doc em, .doc li {
     font-size: var(--default-font-size);
     margin-top: 4px;
