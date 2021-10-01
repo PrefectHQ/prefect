@@ -30,24 +30,28 @@ export interface DatabaseClearBody {
   confirm: boolean
 }
 
+export interface InterpolationBody {
+  id: string
+}
+
 export type Filters = {
-  flow: null
+  flow: InterpolationBody
   flows: FlowsFilter
   flows_count: FlowsFilter
-  flow_run: null
+  flow_run: InterpolationBody
   flow_runs: FlowRunsFilter
   flow_runs_count: BaseFilter
   flow_runs_history: FlowRunsHistoryFilter
-  task_run: null
+  task_run: InterpolationBody
   task_runs: TaskRunsFilter
   task_runs_count: BaseFilter
   task_runs_history: TaskRunsHistoryFilter
-  deployment: null
+  deployment: InterpolationBody
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
   create_flow_run: CreateFlowRunBody
-  set_schedule_inactive: { id: string }
-  set_schedule_active: { id: string }
+  set_schedule_inactive: InterpolationBody
+  set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
 }
 
@@ -56,7 +60,7 @@ export type FilterBody = Filters[keyof Filters]
 export const Endpoints: { [key: string]: Endpoint } = {
   flow: {
     method: 'GET',
-    url: '/flows/',
+    url: '/flows/{id}',
     interpolate: true
   },
   flows: {
@@ -73,7 +77,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   deployment: {
     method: 'GET',
-    url: '/deployments/',
+    url: '/deployments/{id}',
     interpolate: true
   },
   deployments: {
@@ -96,7 +100,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   flow_run: {
     method: 'GET',
-    url: '/flow_runs/',
+    url: '/flow_runs/{id}',
     interpolate: true
   },
   flow_runs: {
@@ -113,7 +117,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   task_run: {
     method: 'GET',
-    url: '/task_runs/',
+    url: '/task_runs/{id}',
     interpolate: true
   },
   task_runs: {
@@ -201,7 +205,7 @@ export class Query {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async fetch(): Promise<any> {
+  async fetch(): Promise<Query> {
     this.loading.value = true
     this.error = null
     try {
