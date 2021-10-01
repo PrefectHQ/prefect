@@ -94,6 +94,6 @@ export declare interface TaskRun {
   state_type: string
   state: State
   duration: number
-  sub_flow_run_id: string
+  subflow_runs: boolean
   tags: string[]
 }
