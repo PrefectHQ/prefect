@@ -131,10 +131,6 @@ class APISettings(BaseSettings):
         description="""The API's port address (defaults to `4200`).""",
     )
 
-    uvicorn_log_level: str = Field(
-        "info", description="The uvicorn log level (defaults to `info`)."
-    )
-
 
 class ServicesSettings(BaseSettings):
     """Settings related to Orion services. To change these settings via
@@ -191,6 +187,14 @@ class ServicesSettings(BaseSettings):
         """,
     )
 
+    scheduler_insert_batch_size: int = Field(
+        500,
+        description="""The number of flow runs the scheduler will attempt to insert 
+        in one batch across all deployments. If the number of flow runs to 
+        schedule exceeds this amount, the runs will be inserted in batches of this size. Defaults to `500`.
+        """,
+    )
+
     # -- Agent
 
     # check for new runs every X seconds
@@ -241,7 +245,7 @@ class OrionSettings(BaseSettings):
     )
     data: DataLocationSettings = Field(
         default_factory=DataLocationSettings,
-        description="Nested [Data settings][prefect.utilities.settings.DataSettings].",
+        description="Nested [Data settings][prefect.utilities.settings.DataLocationSettings].",
     )
     api: APISettings = Field(
         default_factory=APISettings,
@@ -254,17 +258,44 @@ class OrionSettings(BaseSettings):
 
 
 class LoggingSettings(BaseSettings):
-    """Settings related to Orion services. To change these settings via environment variable, set
-    `PREFECT_LOGGING_{SETTING}=X`.
+    """Settings related to Logging.
+
+    To change these settings via environment variable, set
+    `PREFECT_LOGGING_{{SETTING}}=X`.
+
+    In addition to the settings defined here, Prefect provides a number of ways
+    to configure complex logging behavior. The default logging configuration is
+    found at `logging.yml`. These settings can be customized in three ways:
+
+    1. A custom `logging.yml` can be placed at the `settings_path` defined in
+       this config.
+    2. An environment variable `PREFECT_LOGGING_[PATH]_[TO]_[KEY]` can be set,
+       corresponding to the nested address of any setting in `logging.yml`. For
+       example, to set the orion log level, one could set
+       `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=DEBUG`
+    3. Any setting in `logging.yml` can refer to a setting in this global
+       logging config, for convenience. For example, the Orion handler's default
+       value is set to `"{{default_value}}"`, which means it will adopt this
+       config's `default_level` value unless overidden. In addition, this means
+       it can be set by provided by the environment variable
+       `PREFECT_LOGGING_DEFAULT_LEVEL`.
     """
 
     class Config:
         env_prefix = "PREFECT_LOGGING_"
         frozen = True
 
+    default_level: str = Field(
+        "INFO",
+        description="""The default logging level. If not overridden, this will
+        apply to all logging handlers defined in `logging.yml`. Defaults to
+        `INFO`.""",
+    )
+
     settings_path: Path = Field(
         Path(f"{shared_settings.home}/logging.yml"),
-        description=f"""The path to a logging configuration file. Defaults to
+        description=f"""The path to a custom YAML logging configuration file. If
+        no file is found, the default `logging.yml` is used. Defaults to
         `{shared_settings.home}/logging.yml`.""",
     )
 
