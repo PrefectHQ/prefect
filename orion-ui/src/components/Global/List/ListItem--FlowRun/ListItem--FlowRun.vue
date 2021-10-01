@@ -61,7 +61,7 @@
         :interval-end="end"
         :interval-seconds="store.getters.globalFilter.intervalSeconds"
         static-median
-        :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
+        :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
       />
     </div>
 
@@ -120,21 +120,24 @@ const flow_runs_filter_body: TaskRunsFilter = {
 }
 
 const flow_filter_body: FlowsFilter = {
-  flows: {
+  flow_runs: {
     id: {
-      any_: [props.item.flow_id]
+      any_: [props.item.id]
     }
   }
 }
 
 const taskRunHistoryFilter = computed(() => {
-  console.log('hello', end.value)
+  const interval = Math.max(
+    1,
+    (end.value.getTime() - start.value.getTime()) / 1000 / 20
+  )
+  // console.log(i)
   return {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
-    history_interval_seconds:
-      (end.value.getTime() - start.value.getTime()) / 1000,
-    flow_runs: flow_runs_filter_body.flows
+    history_interval_seconds: interval,
+    flow_runs: flow_runs_filter_body.flow_runs
   }
 })
 
@@ -144,7 +147,7 @@ const queries: { [key: string]: Query } = {
     body: taskRunHistoryFilter
   }),
   task_run_count: Api.query({
-    endpoint: Endpoints.flow_runs_count,
+    endpoint: Endpoints.task_runs_count,
     body: flow_runs_filter_body
   }),
   flow: Api.query({
@@ -178,6 +181,9 @@ const taskRunCount = computed((): number => {
 })
 
 const taskRunHistory = computed((): Buckets => {
+  if (props.item.name == 'offbeat-pillbug') {
+    console.log(queries.task_run_history)
+  }
   return queries.task_run_history?.response.value || []
 })
 </script>
