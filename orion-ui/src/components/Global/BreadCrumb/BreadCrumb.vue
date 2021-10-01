@@ -1,9 +1,15 @@
 <template>
-  <h1 class="d-flex align-center" style="max-width: 100%">
+  <component
+    :is="props.tag || 'h1'"
+    class="d-flex align-center"
+    style="max-width: 100%"
+  >
     <i v-if="icon" class="pi text--grey-40 mr-2" :class="props.icon" />
-    <span
+    <component
       v-skeleton="!crumb.text"
       v-for="(crumb, i) in props.crumbs"
+      :is="crumb.route ? 'router-link' : 'span'"
+      :to="crumb.route"
       :key="crumb.text"
       class="text-truncate"
       :style="{
@@ -14,8 +20,8 @@
       :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
     >
       {{ crumb.text }}{{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
-    </span>
-  </h1>
+    </component>
+  </component>
 </template>
 
 <script lang="ts" setup>
@@ -26,5 +32,5 @@ type Crumb = {
   route?: string
 }
 
-const props = defineProps<{ crumbs: Crumb[]; icon: string }>()
+const props = defineProps<{ crumbs: Crumb[]; icon: string; tag: 'string' }>()
 </script>

@@ -17,19 +17,7 @@
         align-self-start
       "
     >
-      <!-- <h2>
-        <span
-          v-skeleton="!flow.name"
-          class="text--grey-40"
-          style="min-width: 40px"
-        >
-          {{ flow.name }} /
-        </span>
-        <router-link :to="`/flow-run/${item.id}`">
-          {{ item.name }}
-        </router-link>
-      </h2> -->
-      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
+      <bread-crumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span

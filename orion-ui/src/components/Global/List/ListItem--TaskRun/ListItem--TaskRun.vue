@@ -17,7 +17,7 @@
         align-self-start
       "
     >
-      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
+      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span
