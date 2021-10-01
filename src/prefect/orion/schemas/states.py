@@ -14,6 +14,7 @@ from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
 
+
 R = TypeVar("R")
 
 
@@ -207,15 +208,26 @@ class State(IDBaseModel, Generic[R]):
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
     def __str__(self) -> str:
-        return self.__repr__()
+        """
+        Generates a nice state representation for user display
+        e.g. Completed(name="My Custom Name", result=10)
 
-    def __repr__(self) -> str:
-        msg = f"State(name='{self.name}', type={self.type}"
+        The name is only included if different from the state type
+        The result relies on the str of the data document and may not always
+            be resolved to the concrete value
+        """
+        attrs = {}
+
+        if self.name.lower() != self.type.value.lower():
+            attrs["name"] = repr(self.name)
+        if self.data is not None:
+            attrs["result"] = str(self.data)
         if self.message:
-            msg += f", message='{self.message}')"
-        else:
-            msg += ")"
-        return msg
+            attrs["message"] = repr(self.message)
+
+        attr_str = ", ".join(f"{key}={val}" for key, val in attrs.items())
+        friendly_type = self.type.value.capitalize()
+        return f"{friendly_type}({attr_str})"
 
     def __hash__(self) -> int:
         return hash(

@@ -30,18 +30,22 @@ def sqlite_timestamp_intervals(
             r"""
             -- recursive CTE to mimic the behavior of `generate_series`, 
             -- which is only available as a compiled extension 
-            WITH RECURSIVE intervals(interval_start, interval_end) AS (
+            WITH RECURSIVE intervals(interval_start, interval_end, counter) AS (
                 VALUES(
                     strftime('%Y-%m-%d %H:%M:%f000', :start_time), 
-                    strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval)
+                    strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval),
+                    1
                     )
                 
                 UNION ALL
                 
-                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval)
+                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval), counter + 1
                 FROM intervals
                 -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
-                WHERE interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
+                WHERE 
+                    interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
+                    -- don't compute more than 500 intervals
+                    AND counter < 500
             )
             SELECT * FROM intervals
             """
@@ -74,6 +78,8 @@ def postgres_timestamp_intervals(
             sa.func.generate_series(start_time, end_time, interval).alias("dt")
         )
         .where(sa.literal_column("dt") < end_time)
+        # grab at most 500 intervals
+        .limit(500)
     )
 
 
@@ -91,6 +97,12 @@ async def run_history(
     """
     Produce a history of runs aggregated by interval and state
     """
+
+    # SQLite has issues with very small intervals
+    # (by 0.001 seconds it stops incrementing the interval)
+    if history_interval < datetime.timedelta(seconds=1):
+        raise ValueError("History interval must not be less than 1 second.")
+
     # prepare run-specific models
     if run_type == "flow_run":
         run_model = models.orm.FlowRun
