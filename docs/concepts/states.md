@@ -24,19 +24,19 @@ There are three terminal state types, from which there are no orchestrated trans
 - `CANCELLED`
 - `FAILED`
   
-Name | Type | Terminal? | Description
+| Name | Type | Terminal? | Description
 | --- | --- | --- | --- |
-Scheduled | SCHEDULED | No | "The task run will begin at a particular time in the future"
-Late | SCHEDULED | No | "The task run's scheduled start time has passed, but it has not transitioned to PENDING (5 seconds by default)"
-Awaiting Retry | SCHEDULED | No | "The task run did not complete successfully because of a code issue and had remaining retry attempts"
-Pending | PENDING | No | "The task run has been submitted to run, but is waiting on necessary preconditions to be satisfied"
-Running | RUNNING | No | "The task run code is currently executing"
-Retrying | RUNNING | No | "The task run code is currently executing after previously not complete successfully"
-Cancelled | CANCELLED | Yes | "The task run did not complete because a user determined that it should not"
-Completed | COMPLETED | Yes | "The task run completed successfully"
-Retrieved Cache | COMPLETED | Yes | "The state has been retrieved from the a previously created cache"
-Failed | FAILED | Yes | "The task run did not complete because of a code issue and had no remaining retry attempts"
-Crashed | CRASHED | No | "_Coming Soon_ - The task run did not complete because of an infrastructure issue"
+| Scheduled | SCHEDULED | No | "The task run will begin at a particular time in the future"
+| Late | SCHEDULED | No | "The task run's scheduled start time has passed, but it has not transitioned to PENDING (5 seconds by default)"
+| Awaiting Retry | SCHEDULED | No | "The task run did not complete successfully because of a code issue and had remaining retry attempts"
+| Pending | PENDING | No | "The task run has been submitted to run, but is waiting on necessary preconditions to be satisfied"
+| Running | RUNNING | No | "The task run code is currently executing"
+| Retrying | RUNNING | No | "The task run code is currently executing after previously not complete successfully"
+| Cancelled | CANCELLED | Yes | "The task run did not complete because a user determined that it should not"
+| Completed | COMPLETED | Yes | "The task run completed successfully"
+| Retrieved Cache | COMPLETED | Yes | "The state has been retrieved from the a previously created cache"
+| Failed | FAILED | Yes | "The task run did not complete because of a code issue and had no remaining retry attempts"
+| Crashed | CRASHED | No | "_Coming Soon_ - The task run did not complete because of an infrastructure issue"
 
 ## State Details
 More to come
