@@ -1,6 +1,19 @@
 <template>
   <div>
-    <bread-crumbs :crumbs="crumbs" icon="pi-flow-run" />
+    <div class="d-flex align-center justify-space-between">
+      <bread-crumbs :crumbs="crumbs" icon="pi-flow-run" />
+      <div>
+        <span>
+          Flow Version:
+          <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
+        </span>
+
+        <a class="copy-link ml-1">
+          <i class="pi pi-link pi-xs" />
+          Copy Run ID
+        </a>
+      </div>
+    </div>
     {{ flowRun }}
     <!-- <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="task_runs" class="subheader">
@@ -68,7 +81,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { computed, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -116,11 +129,11 @@ const queries: { [key: string]: Query } = {
 }
 
 const flow = computed(() => {
-  return queries.flow.response?.value
+  return queries.flow.response?.value || {}
 })
 
 const flowRun = computed(() => {
-  return flowRunBase.response?.value
+  return flowRunBase.response?.value || {}
 })
 
 const crumbs = computed(() => {
@@ -158,3 +171,7 @@ onBeforeUnmount(() => {
 //   return queries.flow_run.response?.value
 // })
 </script>
+
+<style lang="scss" scoped>
+@use '@/styles/views/flow-run.scss';
+</style>
