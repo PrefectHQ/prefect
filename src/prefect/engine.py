@@ -15,8 +15,9 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
+import functools
 import pendulum
-from contextlib import contextmanager, nullcontext
+from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Set, TypeVar, Union, Iterable, Optional
 from uuid import UUID, uuid4
@@ -26,6 +27,7 @@ import logging
 import anyio
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
+from prefect import cli
 from prefect.exceptions import UpstreamTaskError
 
 import prefect
@@ -69,6 +71,7 @@ from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
 from prefect.utilities.logging import get_logger
 
+T = TypeVar("T")
 R = TypeVar("R")
 
 
@@ -178,7 +181,41 @@ async def retrieve_flow_then_begin_flow_run(
     )
 
 
+@asynccontextmanager
+async def detect_crashes(flow_run: FlowRun, client: OrionClient):
+    """
+    Detect flow run crashes during this context and update the run to a proper final
+    state.
+
+    This context _must_ reraise the exception to properly exit the run.
+    """
+    try:
+        yield
+    except anyio.get_cancelled_exc_class() as exc:
+        with anyio.CancelScope(shield=True):
+            await client.propose_state(
+                state=Failed(
+                    name="Crashed",
+                    message="Execution of this flow was cancelled by the async runtime.",
+                    data=DataDocument.encode("cloudpickle", exc),
+                ),
+                flow_run_id=flow_run.id,
+            )
+        raise
+    except KeyboardInterrupt as exc:
+        await client.propose_state(
+            state=Failed(
+                name="Crashed",
+                message="Execution of this flow was interrupted by the system.",
+                data=DataDocument.encode("cloudpickle", exc),
+            ),
+            flow_run_id=flow_run.id,
+        )
+        raise
+
+
 async def begin_flow_run(
+    *,
     flow: Flow,
     flow_run: FlowRun,
     client: OrionClient,
@@ -196,24 +233,25 @@ async def begin_flow_run(
     """
     logger.info(f"Beginning flow run {flow_run.name!r} for flow {flow.name!r}...")
 
-    # If the flow is async, we need to provide a portal so sync tasks can run
-    portal_context = start_blocking_portal() if flow.isasync else nullcontext()
+    async with detect_crashes(flow_run=flow_run, client=client):
+        # If the flow is async, we need to provide a portal so sync tasks can run
+        portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-    with flow.executor.start() as executor:
-        with portal_context as sync_portal:
-            terminal_state = await orchestrate_flow_run(
-                flow,
-                flow_run=flow_run,
-                executor=executor,
-                client=client,
-                sync_portal=sync_portal,
-            )
+        with flow.executor.start() as executor:
+            with portal_context as sync_portal:
+                terminal_state = await orchestrate_flow_run(
+                    flow,
+                    flow_run=flow_run,
+                    executor=executor,
+                    client=client,
+                    sync_portal=sync_portal,
+                )
 
-    # Update the flow to the terminal state _after_ the executor has shut down
-    await client.propose_state(
-        state=terminal_state,
-        flow_run_id=flow_run.id,
-    )
+        # Update the flow to the terminal state _after_ the executor has shut down
+        await client.propose_state(
+            state=terminal_state,
+            flow_run_id=flow_run.id,
+        )
 
     # Display the full state (including the result) if debugging
     display_state = (
@@ -271,31 +309,33 @@ async def create_and_begin_subflow_run(
     )
 
     logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
-    terminal_state = await orchestrate_flow_run(
-        flow,
-        flow_run=flow_run,
-        executor=parent_flow_run_context.executor,
-        client=client,
-        sync_portal=parent_flow_run_context.sync_portal,
-    )
 
-    # Update the flow to the terminal state _after_ the executor has shut down
-    terminal_state = await client.propose_state(
-        state=terminal_state,
-        flow_run_id=flow_run.id,
-    )
+    async with detect_crashes(flow_run=flow_run, client=client):
+        terminal_state = await orchestrate_flow_run(
+            flow,
+            flow_run=flow_run,
+            executor=parent_flow_run_context.executor,
+            client=client,
+            sync_portal=parent_flow_run_context.sync_portal,
+        )
 
-    # Display the full state (including the result) if debugging
-    display_state = (
-        terminal_state if prefect.settings.debug_mode else repr(terminal_state.name)
-    )
-    logger.log(
-        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
-    )
+        # Update the flow to the terminal state _after_ the executor has shut down
+        terminal_state = await client.propose_state(
+            state=terminal_state,
+            flow_run_id=flow_run.id,
+        )
 
-    # Track the subflow state so the parent flow can use it to determine its final state
-    parent_flow_run_context.subflow_states.append(terminal_state)
+        # Display the full state (including the result) if debugging
+        display_state = (
+            terminal_state if prefect.settings.debug_mode else repr(terminal_state.name)
+        )
+        logger.log(
+            level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
+            msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
+        )
+
+        # Track the subflow state so the parent flow can use it to determine its final state
+        parent_flow_run_context.subflow_states.append(terminal_state)
 
     return terminal_state
 

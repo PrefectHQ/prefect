@@ -1,12 +1,16 @@
-from tests.orion.api import test_task_runs
+from functools import partial
 from unittest.mock import MagicMock
 
+import anyio
 import pendulum
 import pytest
 
 from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.engine import (
+    begin_flow_run,
+    create_and_begin_subflow_run,
+    create_then_begin_flow_run,
     orchestrate_flow_run,
     orchestrate_task_run,
     raise_failed_state,
@@ -19,15 +23,15 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Cancelled,
     Completed,
+    Failed,
+    Pending,
+    Running,
     State,
     StateDetails,
     StateType,
-    Failed,
-    Running,
-    Pending,
 )
+from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.utilities.compat import AsyncMock
-from prefect.utilities.testing import exceptions_equal
 
 
 class TestUserReturnValueToState:
@@ -505,3 +509,79 @@ class TestOrchestrateFlowRun:
 
         sleep.assert_not_called()
         assert state.result() == 1
+
+
+class TestFlowRunCrashes:
+    async def test_anyio_cancellation_crashes_flow(self, flow_run, orion_client):
+        @flow
+        async def my_flow():
+            await anyio.sleep_forever()
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    begin_flow_run, flow=my_flow, flow_run=flow_run, client=orion_client
+                )
+            )
+            tg.cancel_scope.cancel()
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert (
+            "Execution of this flow was cancelled by the async runtime"
+            in flow_run.state.message
+        )
+
+    async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
+        @flow
+        async def child_flow():
+            await anyio.sleep_forever()
+
+        @flow
+        async def parent_flow():
+            await child_flow()
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    begin_flow_run,
+                    flow=parent_flow,
+                    flow_run=flow_run,
+                    client=orion_client,
+                )
+            )
+            await anyio.sleep(0.5)  # Give the subflow time to start
+            tg.cancel_scope.cancel()
+
+        parent_flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert parent_flow_run.state.is_failed()
+        assert parent_flow_run.state.name == "Crashed"
+
+        child_runs = await orion_client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(parent_task_run_id=dict(is_null_=False))
+        )
+        assert len(child_runs) == 1
+        child_run = child_runs[0]
+        assert child_run.state.is_failed()
+        assert child_run.state.name == "Crashed"
+        assert (
+            "Execution of this flow was cancelled by the async runtime"
+            in child_run.state.message
+        )
+
+    async def test_keyboard_interrupt_crashes_flow(self, flow_run, orion_client):
+        @flow
+        async def my_flow():
+            raise KeyboardInterrupt()
+
+        with pytest.raises(KeyboardInterrupt):
+            await begin_flow_run(flow=my_flow, flow_run=flow_run, client=orion_client)
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert (
+            "Execution of this flow was interrupted by the system"
+            in flow_run.state.message
+        )
