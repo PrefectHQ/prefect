@@ -1,6 +1,6 @@
 <template>
   <h1 class="d-flex align-center" style="max-width: 100%">
-    <i class="pi text--grey-40 mr-2" :class="props.icon" />
+    <i v-if="icon" class="pi text--grey-40 mr-2" :class="props.icon" />
     <span
       v-skeleton="!crumb.text"
       v-for="(crumb, i) in props.crumbs"

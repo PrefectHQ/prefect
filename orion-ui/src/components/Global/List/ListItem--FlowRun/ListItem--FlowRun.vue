@@ -17,7 +17,7 @@
         align-self-start
       "
     >
-      <h2>
+      <!-- <h2>
         <span
           v-skeleton="!flow.name"
           class="text--grey-40"
@@ -28,7 +28,8 @@
         <router-link :to="`/flow-run/${item.id}`">
           {{ item.name }}
         </router-link>
-      </h2>
+      </h2> -->
+      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span
@@ -185,6 +186,13 @@ const taskRunCount = computed((): number => {
 
 const taskRunHistory = computed((): Buckets => {
   return queries.task_run_history?.response.value || []
+})
+
+const crumbs = computed(() => {
+  return [
+    { text: flow.value?.name },
+    { text: props.item.name, link: `/flow-run/${props.item.id}` }
+  ]
 })
 </script>
 
