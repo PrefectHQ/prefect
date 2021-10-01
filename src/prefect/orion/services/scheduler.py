@@ -55,14 +55,16 @@ class Scheduler(LoopService):
                         )
                         all_runs.extend(runs)
 
-                    # bulk insert the runs, 500 at a time
-                    for batch in batched_iterable(all_runs, 500):
+                    # bulk insert the runs based on batch size setting
+                    for batch in batched_iterable(
+                        all_runs, settings.scheduler_insert_batch_size
+                    ):
                         inserted_runs = (
                             await models.deployments._insert_scheduled_flow_runs(
                                 session=session, runs=batch
                             )
                         )
-                        await session.commit()
+                        await session.flush()
                         total_inserted_runs += len(inserted_runs)
 
                     # if no deployments were found, exit the loop
