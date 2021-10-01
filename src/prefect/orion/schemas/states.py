@@ -1,3 +1,7 @@
+"""
+State schemas.
+"""
+
 import datetime
 from collections.abc import Iterable
 from typing import Generic, TypeVar, overload, Union
@@ -14,6 +18,8 @@ R = TypeVar("R")
 
 
 class StateType(AutoEnum):
+    """Enumeration of state types."""
+
     SCHEDULED = AutoEnum.auto()
     PENDING = AutoEnum.auto()
     RUNNING = AutoEnum.auto()
@@ -40,6 +46,8 @@ class StateDetails(PrefectBaseModel):
 
 
 class State(IDBaseModel, Generic[R]):
+    """Represents the state of a run."""
+
     class Config:
         orm_mode = True
 
