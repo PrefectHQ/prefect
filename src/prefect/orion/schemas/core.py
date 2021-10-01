@@ -1,3 +1,7 @@
+"""
+Full schemas of Orion API objects.
+"""
+
 import datetime
 from typing import Any, Dict, List, Union
 from uuid import UUID
@@ -6,12 +10,12 @@ from pydantic import Field, validator
 import coolname
 from typing_extensions import Literal
 from prefect.orion import schemas
-from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.functions import ParameterSchema
 from prefect.orion.utilities.schemas import ORMBaseModel, PrefectBaseModel
 
 
 class Flow(ORMBaseModel):
+    """A flow."""
+
     name: str = Field(..., example="my-flow")
     tags: List[str] = Field(default_factory=list, example=["tag-1", "tag-2"])
 
@@ -21,6 +25,8 @@ class Flow(ORMBaseModel):
 
 
 class FlowRun(ORMBaseModel):
+    """A flow run."""
+
     name: str = Field(
         default_factory=lambda: coolname.generate_slug(2), example="my-flow-run"
     )
@@ -66,14 +72,10 @@ class FlowRun(ORMBaseModel):
 
 
 class TaskRunPolicy(PrefectBaseModel):
+    """Defines of how a task run should retry."""
+
     max_retries: int = 0
     retry_delay_seconds: float = 0
-
-
-# TaskRunInput -- base class for task run inputs
-# Constant(TaskRunInput)
-# Parameter(TaskRunInput)
-# TaskRunResult(TaskRunInput)
 
 
 class TaskRunInput(PrefectBaseModel):
@@ -90,21 +92,29 @@ class TaskRunInput(PrefectBaseModel):
 
 
 class TaskRunResult(TaskRunInput):
+    """Represents a task run result input to another task run."""
+
     input_type: Literal["task_run"] = "task_run"
     id: UUID
 
 
 class Parameter(TaskRunInput):
+    """Represents a parameter input to a task run."""
+
     input_type: Literal["parameter"] = "parameter"
     name: str
 
 
 class Constant(TaskRunInput):
+    """Represents constant input value to a task run."""
+
     input_type: Literal["constant"] = "constant"
     type: str
 
 
 class TaskRun(ORMBaseModel):
+    """A task run."""
+
     name: str = Field(
         default_factory=lambda: coolname.generate_slug(2), example="my-task-run"
     )
@@ -149,6 +159,8 @@ class TaskRun(ORMBaseModel):
 
 
 class Deployment(ORMBaseModel):
+    """A deployment."""
+
     name: str
     flow_id: UUID
     flow_data: schemas.data.DataDocument
@@ -161,6 +173,8 @@ class Deployment(ORMBaseModel):
 
 
 class SavedSearch(ORMBaseModel):
+    """A saved search. Represents a set of filter criteria."""
+
     name: str
     flow_filter_criteria: schemas.filters.FlowFilterCriteria = Field(
         default_factory=schemas.filters.FlowFilterCriteria
