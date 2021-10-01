@@ -571,9 +571,9 @@ class TestFlowTimeouts:
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
-        t0 = time.time()
+        t0 = anyio.current_time()
         state = await my_flow()
-        t1 = time.time()
+        t1 = anyio.current_time()
 
         assert state.is_failed()
         assert "timed out after 0.1 seconds" in state.message
@@ -598,9 +598,9 @@ class TestFlowTimeouts:
 
         @flow
         async def my_flow():
-            t0 = time.time()
+            t0 = anyio.current_time()
             subflow_state = await my_subflow()
-            t1 = time.time()
+            t1 = anyio.current_time()
             return t1 - t0, subflow_state
 
         state = await my_flow()
