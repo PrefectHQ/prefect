@@ -59,7 +59,7 @@
 
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows" class="subheader">
-        <i class="pi pi-flow pi-lg mr-1" />
+        <i class="pi pi-flow mr-1 text--grey-40" />
         Flows
         <span
           class="result-badge caption ml-1"
@@ -69,7 +69,7 @@
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
-        <i class="pi pi-map-pin-line pi-lg mr-1" />
+        <i class="pi pi-map-pin-line mr-1 text--grey-40" />
         Deployments
         <span
           class="result-badge caption ml-1"
@@ -79,7 +79,7 @@
         </span>
       </Tab>
       <Tab href="flow_runs" class="subheader">
-        <i class="pi pi-flow-run pi-lg mr-1" />
+        <i class="pi pi-flow-run mr-1 text--grey-40" />
         Flow Runs
         <span
           class="result-badge caption ml-1"
@@ -89,7 +89,7 @@
         </span>
       </Tab>
       <Tab href="task_runs" class="subheader">
-        <i class="pi pi-task pi-lg mr-1" />
+        <i class="pi pi-task mr-1 text--grey-40" />
         Task Runs
         <span
           class="result-badge caption ml-1"

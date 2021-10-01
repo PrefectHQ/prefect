@@ -21,29 +21,31 @@
       <Card class="schematic" shadow="sm">schematic</Card>
     </div>
 
-    <!-- <Tabs v-model="resultsTab" class="mt-5">
+    <Tabs v-model="resultsTab" class="mt-3">
       <Tab href="task_runs" class="subheader">
-        <i class="pi pi-task pi-lg mr-1" />
+        <i class="pi pi-task mr-1 text--grey-40" />
         Task Runs
         <span
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'task_runs' }"
         >
-          {{ taskRunsCount.toLocaleString() }}
+          <!-- {{ taskRunsCount.toLocaleString() }} -->
         </span>
       </Tab>
 
       <Tab href="sub_flow_runs" class="subheader">
-        <i class="pi pi-flow-run pi-lg mr-1" />
-        Flow Runs
+        <i class="pi pi-flow-run mr-1 text--grey-40" />
+        Sub Flow Runs
         <span
           class="result-badge caption ml-1"
           :class="{ active: resultsTab == 'flow_runs' }"
         >
-          {{ subFlowRunsCount.toLocaleString() }}
+          <!-- {{ subFlowRunsCount.toLocaleString() }} -->
         </span>
       </Tab>
     </Tabs>
+
+    <!-- 
 
     <div class="font--secondary caption my-2" style="min-height: 17px">
       <span v-show="resultsCount > 0">
@@ -88,10 +90,12 @@
 
 <script lang="ts" setup>
 import { Api, Query, Endpoints } from '@/plugins/api'
-import { computed, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+
+const resultsTab: Ref<string | null> = ref(null)
 
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
@@ -153,6 +157,9 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
+onBeforeMount(() => {
+  resultsTab.value = route.hash?.substr(1) || 'flows'
+})
 // const id = computed(() => {
 //   return route.params.id
 // })
