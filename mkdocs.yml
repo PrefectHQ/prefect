@@ -24,6 +24,7 @@ theme:
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+        - navigation.tabs.sticky
         - navigation.instant
     font:
         text: Inter
