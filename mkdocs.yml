@@ -84,6 +84,7 @@ nav:
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
+            - 'prefect.exceptions': api-ref/prefect/exceptions.md
             - 'Utilities':
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
                 - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
