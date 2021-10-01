@@ -178,11 +178,13 @@ async def test_read_flow_runs_with_filtering(orion_client):
     flow_runs = await orion_client.read_flow_runs(
         flow_filter=schemas.filters.FlowFilter(name=dict(any_=["bar"])),
         flow_run_filter=schemas.filters.FlowRunFilter(
-            state_type=dict(
-                any_=[
-                    StateType.SCHEDULED,
-                    StateType.RUNNING,
-                ]
+            state=dict(
+                type=dict(
+                    any_=[
+                        StateType.SCHEDULED,
+                        StateType.RUNNING,
+                    ]
+                )
             )
         ),
     )
