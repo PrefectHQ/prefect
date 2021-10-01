@@ -1,14 +1,14 @@
 <template>
   <div>
     <div class="d-flex align-center justify-space-between mb-2">
-      <bread-crumbs :crumbs="crumbs" icon="pi-flow-run" />
-      <div>
+      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
+      <div class="text-truncate">
         <span>
           Flow Version:
           <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
         </span>
 
-        <a class="copy-link ml-1">
+        <a v-breakpoints="'md'" class="copy-link ml-1">
           <i class="pi pi-link pi-xs" />
           Copy Run ID
         </a>
@@ -19,7 +19,7 @@
       <Card class="details" shadow="sm">
         <div class="d-flex justify-space-between align-center py-1 px-2">
           <div>
-            <div class="d-flex align-center">
+            <div class="d-flex align-center text-truncate">
               <span
                 class="run-state correct-text caption mr-1"
                 :class="state.type?.toLowerCase() + '-bg'"
@@ -45,6 +45,7 @@
                 font--primary font-weight-semibold
                 text--grey-40
                 mt-1
+                text-truncate
               "
             >
               <span>

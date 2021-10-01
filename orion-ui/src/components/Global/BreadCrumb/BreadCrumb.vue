@@ -1,11 +1,12 @@
 <template>
-  <h1 class="d-flex align-center">
+  <h1 class="d-flex align-center" style="max-width: 100%">
     <i class="pi text--grey-40 mr-2" :class="props.icon" />
     <span
       v-skeleton="!crumb.text"
       v-for="(crumb, i) in props.crumbs"
       :key="crumb.text"
-      :style="{ minWidth: !crumb.text ? '40px' : undefined }"
+      class="text-truncate"
+      :style="{ minWidth: !crumb.text ? '40px' : undefined, maxWidth: '50%' }"
       :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
     >
       {{ crumb.text }}{{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
