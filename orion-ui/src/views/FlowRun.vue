@@ -33,7 +33,7 @@
         </span>
       </Tab>
 
-      <Tab href="sub_flow_runs" class="subheader">
+      <Tab disabled href="sub_flow_runs" class="subheader">
         <i class="pi pi-flow-run mr-1 text--grey-40" />
         Sub Flow Runs
         <span
@@ -123,6 +123,16 @@ const taskRunsFilter = computed<BaseFilter>(() => {
   }
 })
 
+const subFlowRunsFilter = computed<BaseFilter>(() => {
+  return {
+    flow_runs: {
+      // parent_task_run_id: {
+      //   any_: []
+      // }
+    }
+  }
+})
+
 const queries: { [key: string]: Query } = {
   flow: Api.query({
     endpoint: Endpoints.flow,
@@ -132,16 +142,15 @@ const queries: { [key: string]: Query } = {
     endpoint: Endpoints.task_runs_count,
     body: taskRunsFilter,
     options: {
-      pollInterval: 5000
+      pollInterval: 10000
     }
   })
+  // TODO: Need to add a query for task runs with this flow run id that have sub flow runs and pipe that in to this as parent task run id
   // sub_flow_runs_count: Api.query({
-  //   endpoint: Endpoints.flow_run,
-  //   body: {
-  //     id: id.value
-  //   },
+  //   endpoint: Endpoints.flow_runs_count,
+  //   body: subFlowRunsFilter,
   //   options: {
-  //     pollInterval: 5000
+  //     pollInterval: 10000
   //   }
   // })
 }
