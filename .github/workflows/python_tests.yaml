@@ -5,6 +5,9 @@ on:
     paths:
       - 'src/prefect/**'
       - 'tests/**'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
+      - 'setup.py'
 
 jobs:
   run-tests-sqlite:
