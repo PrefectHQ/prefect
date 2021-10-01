@@ -45,7 +45,7 @@ class OrionAgent:
             raise RuntimeError("Agent is not started. Use `async with Agent()...`")
 
         submittable_runs = await query_fn(
-            sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC.value,
+            sort=FlowRunSort.NEXT_SCHEDULED_START_TIME_ASC,
             flow_run_filter=self.flow_run_query_filter(),
         )
 
