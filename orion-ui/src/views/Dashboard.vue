@@ -10,7 +10,11 @@
         <div class="d-flex justify-space-between align-center px-1">
           <div>
             <span class="font--secondary subheader">
-              {{ filter.count || '--' }}
+              {{
+                typeof filter.count == 'number'
+                  ? filter.count.toLocaleString()
+                  : '--'
+              }}
             </span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
@@ -210,16 +214,46 @@ export default class Dashboard extends Vue {
       options: {
         pollInterval: 10000
       }
+    }),
+    filter_counts_failed: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: this.countsFilter('FAILED')
+    }),
+    filter_counts_late: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      // body: this.countsFilter('LATE') TODO: When we can filter by name, these counts should filter on name and this one should be switched to LATE
+      body: this.countsFilter('SCHEDULED')
+    }),
+    filter_counts_scheduled: Api.query({
+      endpoint: Endpoints.flow_runs_count,
+      body: this.countsFilter('SCHEDULED')
     })
   }
 
-  premadeFilters: { label: string; count: number | null }[] = [
-    { label: 'Failed Runs', count: null },
-    { label: 'Late Runs', count: null },
-    { label: 'Upcoming Runs', count: null }
-  ]
+  // premadeFilters: { label: string; count: number | null }[] = [
+  //   { label: 'Failed Runs', count: null },
+  //   { label: 'Late Runs', count: null },
+  //   { label: 'Upcoming Runs', count: null }
+  // ]
 
   resultsTab: string | null = null
+
+  get premadeFilters(): { [key: string]: string | undefined | number }[] {
+    return [
+      {
+        label: 'Failed Runs',
+        count: this.queries.filter_counts_failed.response || undefined
+      },
+      {
+        label: 'Late Runs',
+        count: this.queries.filter_counts_late.response || undefined
+      },
+      {
+        label: 'Upcoming Runs',
+        count: this.queries.filter_counts_scheduled.response || undefined
+      }
+    ]
+  }
 
   get flowsCount(): number {
     return this.queries.flows?.response || 0
@@ -270,6 +304,16 @@ export default class Dashboard extends Vue {
     return {
       ...this.flowRunHistoryFilter,
       history_interval_seconds: this.interval * 2
+    }
+  }
+
+  countsFilter(state_type: string): () => FlowRunsFilter {
+    return () => {
+      return {
+        flow_runs: {
+          state_type: { any_: [state_type] }
+        }
+      }
     }
   }
 
