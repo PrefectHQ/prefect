@@ -17,21 +17,7 @@
         align-self-start
       "
     >
-      <h2>
-        <span
-          v-skeleton="!flow.name"
-          class="text--grey-40"
-          style="min-width: 40px"
-          >{{ flow.name }} /
-        </span>
-        <span
-          v-skeleton="!flowRun.name"
-          class="text--grey-40"
-          style="min-width: 40px"
-          >{{ flowRun.name }} /</span
-        >
-        {{ item.name }}
-      </h2>
+      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span
@@ -109,6 +95,14 @@ const duration = computed(() => {
     : props.item.total_run_time
     ? secondsToApproximateString(props.item.total_run_time)
     : secondsToApproximateString(props.item.estimated_run_time)
+})
+
+const crumbs = computed(() => {
+  return [
+    { text: flow.value?.name },
+    { text: flowRun.value?.name, link: `/flow-run/${flowRun.value?.id}` },
+    { text: props.item.name }
+  ]
 })
 </script>
 
