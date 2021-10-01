@@ -1,0 +1,80 @@
+name: Static analysis
+
+on: [pull_request]
+
+jobs:
+  # Type-checking is not yet necessary
+  # python-types:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         persist-credentials: false
+
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.7
+      
+  #     - uses: actions/cache@v2
+  #       with:
+  #         path: ${{ env.pythonLocation }}
+  #         # Load installed python packages from the cache
+  #         key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
+          
+  #     - name: Install packages
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install --upgrade --upgrade-strategy eager -e .[dev] 
+
+  #     - name: Run mypy
+  #       run: |
+  #         mypy src
+
+  python-format:
+    
+    name: Python formatting
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      
+      - name: Install black
+        run: |
+          python -m pip install --upgrade pip
+          pip install $(grep black requirements-dev.txt)
+
+      - name: Run black check
+        run: |
+          black --check src
+
+  # python-lint:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - uses: actions/checkout@v2
+  #       with:
+  #         persist-credentials: false
+
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: 3.7
+
+  #     - name: Install black
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install $(grep flake8 requirements-dev.txt)
+
+  #     - name: Run flake8
+  #       run: |
+  #         flake8 src
