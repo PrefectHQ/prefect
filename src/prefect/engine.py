@@ -181,39 +181,6 @@ async def retrieve_flow_then_begin_flow_run(
     )
 
 
-@asynccontextmanager
-async def detect_crashes(flow_run: FlowRun, client: OrionClient):
-    """
-    Detect flow run crashes during this context and update the run to a proper final
-    state.
-
-    This context _must_ reraise the exception to properly exit the run.
-    """
-    try:
-        yield
-    except anyio.get_cancelled_exc_class() as exc:
-        with anyio.CancelScope(shield=True):
-            await client.propose_state(
-                state=Failed(
-                    name="Crashed",
-                    message="Execution of this flow was cancelled by the async runtime.",
-                    data=DataDocument.encode("cloudpickle", exc),
-                ),
-                flow_run_id=flow_run.id,
-            )
-        raise
-    except KeyboardInterrupt as exc:
-        await client.propose_state(
-            state=Failed(
-                name="Crashed",
-                message="Execution of this flow was interrupted by the system.",
-                data=DataDocument.encode("cloudpickle", exc),
-            ),
-            flow_run_id=flow_run.id,
-        )
-        raise
-
-
 async def begin_flow_run(
     *,
     flow: Flow,
@@ -674,6 +641,41 @@ async def orchestrate_task_run(
     )
 
     return state
+
+
+@asynccontextmanager
+async def detect_crashes(flow_run: FlowRun, client: OrionClient):
+    """
+    Detect flow run crashes during this context and update the run to a proper final
+    state.
+
+    This context _must_ reraise the exception to properly exit the run.
+    """
+    try:
+        yield
+    except anyio.get_cancelled_exc_class() as exc:
+        logger.error(f"Flow run {flow_run.name!r} was cancelled by the async runtime.")
+        with anyio.CancelScope(shield=True):
+            await client.propose_state(
+                state=Failed(
+                    name="Crashed",
+                    message="Execution of this flow was cancelled by the async runtime.",
+                    data=DataDocument.encode("cloudpickle", exc),
+                ),
+                flow_run_id=flow_run.id,
+            )
+        raise
+    except KeyboardInterrupt as exc:
+        logger.error(f"Flow run {flow_run.name!r} received an interrupt signal.")
+        await client.propose_state(
+            state=Failed(
+                name="Crashed",
+                message="Execution of this flow was interrupted by the system.",
+                data=DataDocument.encode("cloudpickle", exc),
+            ),
+            flow_run_id=flow_run.id,
+        )
+        raise
 
 
 async def user_return_value_to_state(
