@@ -72,15 +72,15 @@ For example, to query for flows with the tag `"database"` and failed flow runs, 
 
 ```
 {
-    flows: {
-        tags: {
-            all_: ["database"]
+    "flows": {
+        "tags": {
+            "all_": ["database"]
         }
     },
-    flow_runs: {
-        state: {
-            type: {
-              any_: ["FAILED"]
+    "flow_runs": {
+        "state": {
+            "type": {
+              "any_": ["FAILED"]
             }
         }
     }
