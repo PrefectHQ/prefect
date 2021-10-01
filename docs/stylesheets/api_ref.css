@@ -56,6 +56,13 @@ a.prefect-heading:hover {
     border-bottom: 2px solid var(--gray-2);
 }
 
+.prefect-heading > h1:target,
+.prefect-heading > h2:target,
+.prefect-heading > h3:target,
+.prefect-heading > h4:target {
+    scroll-margin-top: 50px;
+}
+
 .doc.doc-module > h1 {
     font-size: 32px;
     font-weight: bold;
