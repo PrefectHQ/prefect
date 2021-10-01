@@ -18,23 +18,95 @@ Read the docs, run the code, or host the UI. Join thousands of community members
     Orion is under active development and will change rapidly. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
 
 ---
+## Hello, world!
+
+Prefect is the easiest way to transform any function into an orchestratable task. Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your data. Every activity is tracked and visible in the Orion UI.
+
+=== "Basic orchestration" 
+
+    Modify a script to automatically retry each task on failure.
 
 
-```python
-from prefect import flow
+    ```python hl_lines="1 6 13"
+    from prefect import flow, task
+    from typing import List
+    import httpx
 
-@flow
-def hello(name: str = "world"):
-    """
-    Say hello to `name`
-    """
-    print(f"Hello, {name}!")
 
-hello() # Hello, world!
-hello(name="Marvin") # Hello, Marvin!
+    @task(retries=3)
+    def get_stars(repo: str):
+        url = f"https://api.github.com/repos/{repo}"
+        count = httpx.get(url).json()["stargazers_count"]
+        print(f"{repo} has {count} stars!")
 
-# Now spin up a UI to see these flow runs!
-```
+
+    @flow(name="Github Stars")
+    def github_stars(repos: List[str]):
+        for repo in repos:
+            get_stars(repo)
+
+
+    # run the flow!
+    github_stars(["PrefectHQ/Prefect", "PrefectHQ/Miter-Design"])
+    ```
+
+=== "Parallel execution"
+
+    Scale tasks across a [Dask](https://dask.org) distributed cluster by changing the flow's `executor`.
+
+    ```python hl_lines="2 14"
+    from prefect import flow, task
+    from prefect.executors import DaskExecutor
+    from typing import List
+    import httpx
+
+
+    @task(retries=3)
+    def get_stars(repo: str):
+        url = f"https://api.github.com/repos/{repo}"
+        count = httpx.get(url).json()["stargazers_count"]
+        print(f"{repo} has {count} stars!")
+
+
+    @flow(name="Github Stars", executor=DaskExecutor())
+    def github_stars(repos: List[str]):
+        for repo in repos:
+            get_stars(repo)
+
+
+    # run the flow!
+    github_stars(["PrefectHQ/Prefect", "PrefectHQ/Miter-Design"])
+    ```
+
+=== "Async concurrency"
+
+    With native async support, concurrent parallelism is easy. Asynchronous flows can include a mix of synchronous and asynchronous tasks, just like Python.
+
+    ```python hl_lines="3 7-9 15-16 20"
+    from prefect import flow, task
+    from typing import List
+    import httpx, asyncio
+
+
+    @task(retries=3)
+    async def get_stars(repo: str):
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"https://api.github.com/repos/{repo}")
+        count = response.json()["stargazers_count"]
+        print(f"{repo} has {count} stars!")
+
+
+    @flow(name="Github Stars")
+    async def github_stars(repos: List[str]):
+        await asyncio.gather(*[get_stars(repo) for repo in repos])
+
+
+    # run the flow!
+    await asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/Miter-Design"]))
+    ```
+
+
+After running any of these flows, fire up the UI to gain insight into their execution. Prefect now works interactively or through scheduled [deployments](concepts/deployments.md).
 
 ---
 
