@@ -129,9 +129,8 @@ const flow_filter_body: FlowsFilter = {
 }
 
 const taskRunHistoryFilter = computed(() => {
-  const interval = Math.max(
-    1,
-    (end.value.getTime() - start.value.getTime()) / 1000 / 20
+  const interval = Math.floor(
+    Math.max(1, (end.value.getTime() - start.value.getTime()) / 1000 / 20)
   )
   // console.log(i)
   return {
