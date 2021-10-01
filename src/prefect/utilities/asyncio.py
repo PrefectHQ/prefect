@@ -1,3 +1,6 @@
+"""
+Utilities for interoperability with async functions and workers from various contexts.
+"""
 import inspect
 from contextvars import copy_context
 from functools import partial, wraps
