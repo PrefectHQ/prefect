@@ -30,24 +30,28 @@ export interface DatabaseClearBody {
   confirm: boolean
 }
 
+export interface InterpolationBody {
+  id: string
+}
+
 export type Filters = {
-  flow: null
+  flow: InterpolationBody
   flows: FlowsFilter
   flows_count: FlowsFilter
-  flow_run: null
+  flow_run: InterpolationBody
   flow_runs: FlowRunsFilter
   flow_runs_count: BaseFilter
   flow_runs_history: FlowRunsHistoryFilter
-  task_run: null
+  task_run: InterpolationBody
   task_runs: TaskRunsFilter
   task_runs_count: BaseFilter
   task_runs_history: TaskRunsHistoryFilter
-  deployment: null
+  deployment: InterpolationBody
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
   create_flow_run: CreateFlowRunBody
-  set_schedule_inactive: { id: string }
-  set_schedule_active: { id: string }
+  set_schedule_inactive: InterpolationBody
+  set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
 }
 
@@ -56,7 +60,7 @@ export type FilterBody = Filters[keyof Filters]
 export const Endpoints: { [key: string]: Endpoint } = {
   flow: {
     method: 'GET',
-    url: '/flows/',
+    url: '/flows/{id}',
     interpolate: true
   },
   flows: {
@@ -73,7 +77,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   deployment: {
     method: 'GET',
-    url: '/deployments/',
+    url: '/deployments/{id}',
     interpolate: true
   },
   deployments: {
@@ -96,7 +100,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   flow_run: {
     method: 'GET',
-    url: '/flow_runs/',
+    url: '/flow_runs/{id}',
     interpolate: true
   },
   flow_runs: {
@@ -113,7 +117,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   task_run: {
     method: 'GET',
-    url: '/task_runs/',
+    url: '/task_runs/{id}',
     interpolate: true
   },
   task_runs: {
@@ -147,6 +151,7 @@ export interface QueryOptions {
    * This query will be sent every <pollInterval> milliseconds
    */
   pollInterval?: number
+  paused?: boolean
 }
 
 export interface QueryConfig {
@@ -155,7 +160,7 @@ export interface QueryConfig {
   options?: QueryOptions
 }
 
-const base_url = 'http://localhost:5000'
+const base_url = 'http://localhost:4200'
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
@@ -201,7 +206,7 @@ export class Query {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async fetch(): Promise<any> {
+  async fetch(): Promise<Query> {
     this.loading.value = true
     this.error = null
     try {
@@ -278,8 +283,8 @@ export class Query {
     })
       .then((res) => res)
       .then((res) => {
-        if (res.status == 200) return res.json()
-        if (res.status == 204 || res.status == 201) return res
+        if (res.status == 200 || res.status == 201) return res.json()
+        if (res.status == 204) return res
         console.error(this.endpoint, body)
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
@@ -289,6 +294,7 @@ export class Query {
 
   constructor(config: QueryConfig, id: number) {
     this.id = id
+    this.paused = config.options?.paused || false
 
     if (!config.endpoint)
       throw new Error('Query constructors must provide an endpoint.')
@@ -303,7 +309,7 @@ export class Query {
 
     if (this.pollInterval > 0) {
       this.startPolling()
-    } else {
+    } else if (!this.paused) {
       this.fetch()
     }
 

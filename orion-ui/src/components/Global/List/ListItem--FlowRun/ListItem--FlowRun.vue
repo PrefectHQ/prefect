@@ -17,16 +17,7 @@
         align-self-start
       "
     >
-      <h2>
-        <span
-          v-skeleton="!flow.name"
-          class="text--grey-40"
-          style="min-width: 40px"
-        >
-          {{ flow.name }} /
-        </span>
-        {{ item.name }}
-      </h2>
+      <bread-crumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span
@@ -70,7 +61,9 @@
       {{ duration }}
     </div>
 
-    <i class="pi pi-arrow-right-s-line text--grey-80" />
+    <router-link :to="`/flow-run/${item.id}`" class="icon-link">
+      <i class="pi pi-arrow-right-s-line" />
+    </router-link>
   </list-item>
 </template>
 
@@ -181,6 +174,13 @@ const taskRunCount = computed((): number => {
 
 const taskRunHistory = computed((): Buckets => {
   return queries.task_run_history?.response.value || []
+})
+
+const crumbs = computed(() => {
+  return [
+    { text: flow.value?.name },
+    { text: props.item.name, to: `/flow-run/${props.item.id}` }
+  ]
 })
 </script>
 

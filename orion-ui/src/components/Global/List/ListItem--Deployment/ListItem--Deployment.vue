@@ -172,13 +172,25 @@ export default class ListItemDeployment extends Vue.with(Props) {
 
   async createRun(): Promise<void> {
     this.creatingRun = true
-    await Api.query({
+    const res = await Api.query({
       endpoint: Endpoints.create_flow_run,
       body: {
         deployment_id: this.item.id,
         flow_id: this.item.flow_id,
-        state: { type: 'SCHEDULED', message: 'Quick run through the Orion UI.' }
+        name: 'testingggggggg a longgggg name with lots of gggggggs and yyyyyyyyys',
+        state: {
+          type: 'SCHEDULED',
+          message: 'Quick run through the Orion UI.'
+        }
       }
+    })
+    console.log(res)
+    this.$toast.add({
+      type: res.error ? 'error' : 'success',
+      content: res.error
+        ? `Error: ${res.error}`
+        : `Run created: ${res.response.value?.name}`,
+      timeout: 10000
     })
     this.creatingRun = false
   }

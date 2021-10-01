@@ -14,9 +14,9 @@ mock_client = MagicMock(spec=OrionClient)()
 mock_client.read_flow_run_states.return_value = [Completed()]
 
 
-async def test_resolve_futures_transforms_future():
+async def test_resolve_futures_transforms_future(task_run):
     future = PrefectFuture(
-        run_id=uuid4(),
+        task_run=task_run,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
@@ -24,9 +24,9 @@ async def test_resolve_futures_transforms_future():
 
 
 @pytest.mark.parametrize("typ", [list, tuple, set])
-async def test_resolve_futures_transforms_future_in_listlike_type(typ):
+async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run):
     future = PrefectFuture(
-        run_id=uuid4(),
+        task_run=task_run,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
@@ -35,11 +35,11 @@ async def test_resolve_futures_transforms_future_in_listlike_type(typ):
     )
 
 
-async def test_resolve_futures_transforms_future_in_generator_type():
+async def test_resolve_futures_transforms_future_in_generator_type(task_run):
     def gen():
         yield "a"
         yield PrefectFuture(
-            run_id=uuid4(),
+            task_run=task_run,
             executor=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
@@ -48,10 +48,10 @@ async def test_resolve_futures_transforms_future_in_generator_type():
     assert await resolve_futures_to_data(gen()) == ["a", "foo", "b"]
 
 
-async def test_resolve_futures_transforms_future_in_nested_generator_types():
+async def test_resolve_futures_transforms_future_in_nested_generator_types(task_run):
     def gen_a():
         yield PrefectFuture(
-            run_id=uuid4(),
+            task_run=task_run,
             executor=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
@@ -65,14 +65,14 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types():
 
 
 @pytest.mark.parametrize("typ", [dict, OrderedDict])
-async def test_resolve_futures_transforms_future_in_dictlike_type(typ):
+async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run):
     key_future = PrefectFuture(
-        run_id=uuid4(),
+        task_run=task_run,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     value_future = PrefectFuture(
-        run_id=uuid4(),
+        task_run=task_run,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
@@ -81,7 +81,7 @@ async def test_resolve_futures_transforms_future_in_dictlike_type(typ):
     ) == typ([("a", 1), ("foo", "bar"), ("b", 2)])
 
 
-async def test_resolve_futures_transforms_future_in_dataclass():
+async def test_resolve_futures_transforms_future_in_dataclass(task_run):
     @dataclass
     class Foo:
         a: int
@@ -89,7 +89,7 @@ async def test_resolve_futures_transforms_future_in_dataclass():
         b: int = 2
 
     future = PrefectFuture(
-        run_id=uuid4(),
+        task_run=task_run,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
@@ -98,7 +98,7 @@ async def test_resolve_futures_transforms_future_in_dataclass():
     )
 
 
-async def test_resolves_futures_in_nested_collections():
+async def test_resolves_futures_in_nested_collections(task_run):
     @dataclass
     class Foo:
         foo: str
@@ -106,7 +106,7 @@ async def test_resolves_futures_in_nested_collections():
         nested_dict: dict
 
     future = PrefectFuture(
-        run_id=uuid4(),
+        task_run=task_run,
         executor=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
