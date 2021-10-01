@@ -61,7 +61,7 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto d-flex align-middle nowrap">
-      <Toggle v-model="scheduleActive" />
+      <Toggle v-if="false" v-model="scheduleActive" />
 
       <Button
         outlined
