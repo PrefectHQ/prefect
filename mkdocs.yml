@@ -26,6 +26,7 @@ theme:
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+        - navigation.tabs.sticky
         - navigation.instant
     font:
         text: Inter
@@ -68,10 +69,10 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Futures: concepts/futures.md
         - Orchestration Rules: concepts/orchestration.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
+        - Futures: concepts/futures.md
         - Settings: concepts/settings.md
     - FAQ: faq.md
     - 'API Reference': 
