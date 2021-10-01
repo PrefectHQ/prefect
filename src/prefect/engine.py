@@ -616,7 +616,7 @@ async def orchestrate_task_run(
 
         if state.type != terminal_state.type and prefect.settings.debug_mode:
             logger.debug(
-                f"Task run {task_run.name!r} received state {state} when proposing final state {terminal_state}"
+                f"Task run {task_run.name!r} received new state {state} when proposing final state {terminal_state}"
             )
 
         if not state.is_final():
