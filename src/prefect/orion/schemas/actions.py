@@ -1,7 +1,5 @@
 """
 Reduced schemas for accepting API actions.
-
-TODO - insert python example here
 """
 
 from pydantic import Field
