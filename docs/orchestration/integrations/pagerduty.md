@@ -36,9 +36,13 @@ If you need help with this integration, please contact ***help@prefect.io***.
 
 ### In ***PREFECT***
 
-After creating a ***PREFECT*** integration in PagerDuty, you will be redirected to the PagerDuty integration page in Prefect. The integration keys with their corresponding PagerDuty Service names will be auto-populated
-for you to save as action. You have the option to change the severity for each of these actions. These actions once saved can then be used by an automation. You also have the option to add additional rows so that you can 
-pre-configure actions with different severity levels on the same integration key to be used by different automation rules. 
+After creating a ***PREFECT*** service in PagerDuty, click the following button to get started.
+
+[<img src="/logos/pagerduty_green.png" height=62 width=300 style="max-height: 80px; max-width: 400px;">](https://app.pagerduty.com/install/integration?app_id=PC2USS4&redirect_url=https://cloud.prefect.io/pagerduty&version=2)  
+
+After following the PagerDuty steps, you will be redirected to Prefect.  The integration keys, with their corresponding PagerDuty Service names, will be auto-populated for you to save as an action. You then have the option to 
+change the severity for each of these actions. Once saved, the actions can then be used by an automation. You also have the option to add additional rows so that you can pre-configure actions with different severity levels on 
+the same integration key to be used by different automation rules.
 
 ## How to Test the Action
 
