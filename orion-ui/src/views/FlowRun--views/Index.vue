@@ -36,13 +36,13 @@
               text-truncate
             "
           >
-            <span> Deployment: </span>
-            <span class="text--grey-80">
+            <span v-if="deployment"> Deployment: </span>
+            <span v-if="deployment" class="text--grey-80 mr-1">
               {{ deployment.name }}
             </span>
 
-            <span class="ml-1"> Results: </span>
-            <span class="text--grey-80">
+            <span v-if="location"> Results: </span>
+            <span v-if="location" class="text--grey-80">
               {{ location }}
             </span>
           </div>
