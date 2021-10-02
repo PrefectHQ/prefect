@@ -1,9 +1,13 @@
 # FAQ
 
-## Why is this project called Orion?
-As an advanced orchestration engine, Orion's name is hiding in plain sight: **Or**chestrat**ion**.
+## "...Orion?"
+
+As an advanced orchestration engine, Orion practically named itself: **OR**chestrat**ION**. 
+
+The word "Prefect" stems from the Latin "praefectus," meaning "one who is in charge." A prefect is an official who oversees a domain and ensures that rules are followed. Similarly, Prefect software ensures that workflows are orchestrated properly.
 
 Curiously enough, Orion is also the home of Ford Prefect, a roving researcher for that wholly remarkable book, *The Hitchhiker's Guide to the Galaxy*.
+
 ## Why did Prefect create Orion?
 
 Orion has three major objectives:
