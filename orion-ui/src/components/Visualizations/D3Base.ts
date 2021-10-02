@@ -28,11 +28,11 @@ export class D3Base extends Vue {
     left: number
     right: number
   } = {
-    top: 12,
-    bottom: 12,
-    middle: 12,
-    left: 16,
-    right: 16
+    top: 0,
+    bottom: 0,
+    middle: 0,
+    left: 0,
+    right: 0
   }
 
   public get paddingY(): number {
@@ -54,23 +54,13 @@ export class D3Base extends Vue {
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
 
+    console.log(this.height, this.width)
+
     if (this.svg) {
       this.svg.attr(
         'viewbox',
         `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
       )
-
-      this.svg
-        .select('rect')
-        .attr(
-          'height',
-          `${
-            this.height -
-            this.padding.top -
-            this.padding.bottom -
-            this.padding.middle
-          }px`
-        )
     }
 
     this.resize()
@@ -83,28 +73,20 @@ export class D3Base extends Vue {
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
 
+    console.log(this.height, this.width)
+
     if (this.svg) {
       this.svg.attr(
         'viewbox',
         `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
       )
-
-      this.svg
-        .select('rect')
-        .attr(
-          'height',
-          `${
-            this.height -
-            this.padding.top -
-            this.padding.bottom -
-            this.padding.middle
-          }px`
-        )
     }
   }
 
   mounted(): void {
-    this.initializeChartDimensions()
+    requestAnimationFrame(() => {
+      this.initializeChartDimensions()
+    })
     window.addEventListener('resize', this.handleWindowResize)
   }
 
