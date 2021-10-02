@@ -647,8 +647,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
 
         If the `OrchestrationContext` is attempting to manage a transition with this
         rule that differs from the transition the rule was instantiated with, the
-        transition is considered to be invalid. Depending on the context, this either
-        renders the state of the rule "invalid" or "fizzled".
+        transition is considered to be invalid. Depending on the context, a rule with an
+        invalid transition is either "invalid" or "fizzled".
 
         Returns:
             True if the transition is invalid, False otherwise.
@@ -718,7 +718,8 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         This method will abort a proposed transition, expecting no further action to
         occur for this run. The proposed state is set to `None`, signaling to the
         `OrchestrationContext` that no state should be written to the database. A
-        reason for aborting the transition is also provided.
+        reason for aborting the transition is also provided. Rules that abort the
+        transition will not fizzle, despite the proposed state type changing.
 
         Args:
             reason: The reason for aborting the transition
