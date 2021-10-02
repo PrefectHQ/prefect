@@ -36,7 +36,7 @@
 - we want to run "orchestration logic" against all state transitions that occur
 - is it possible to spell out all of the core governance concepts just in terms of these transitions?
     - we think yes!
-- is it possible to isolate each governance concept from eachother to create a transparent and observable orchestration engine?
+- is it possible to isolate each governance concept from each other to create a transparent and observable orchestration engine?
     - we also think yes!
 
 ### Anatomy orchestration logic
