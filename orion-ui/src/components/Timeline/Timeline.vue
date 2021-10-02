@@ -149,6 +149,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   readonly intervalWidth: number = 125
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
+  rows: [number, number][] = []
 
   axisSvg: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
@@ -199,9 +200,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   get numberRows(): number {
     return (
-      Math.ceil(
-        Math.max(this.sortedItems.length, this.height / this.intervalHeight)
-      ) + 1
+      Math.ceil(Math.max(this.rows.length, this.height / this.intervalHeight)) +
+      1
     )
   }
 
@@ -285,8 +285,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     requestAnimationFrame(() => {
       this.updateChart()
       this.updateScales()
-      this.updateGrid()
       this.updateNodes()
+      this.updateGrid()
     })
   }
 
@@ -392,6 +392,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
         }
       }
     })
+
+    this.rows = rows
   }
 
   updateGrid(): void {

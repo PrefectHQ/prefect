@@ -29,10 +29,12 @@ const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
+const id: string = route.params.id as string
+
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
   body: {
-    id: route.params.id as string
+    id: id
   },
   options: {
     pollInterval: 5000
@@ -61,7 +63,21 @@ const flowRun = computed<FlowRun>(() => {
 })
 
 const crumbs = computed(() => {
-  return [{ text: flow.value?.name }, { text: flowRun.value?.name }]
+  const arr = [
+    { text: flow.value?.name },
+    { text: flowRun.value?.name, to: '' }
+  ]
+
+  const timelinePage = route.fullPath.includes('/timeline')
+  const schematicPage = route.fullPath.includes('/schematic')
+  if (timelinePage || schematicPage) {
+    arr[1].to = `/flow-run/${id}`
+
+    if (timelinePage) arr.push({ text: 'Timeline' })
+    if (schematicPage) arr.push({ text: 'Schematic' })
+  }
+
+  return arr
 })
 
 // This cleanup is necessary since the initial flow run query isn't
