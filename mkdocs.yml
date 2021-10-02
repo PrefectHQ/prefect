@@ -112,3 +112,7 @@ nav:
                 - 'orion.schemas.sorting': api-ref/orion/schemas/sorting.md
                 - 'orion.schemas.states': api-ref/orion/schemas/states.md
         - Orion REST API: api-ref/rest-api.md
+extra:
+  analytics:
+    provider: google
+    property: G-3M31G9B0QJ
