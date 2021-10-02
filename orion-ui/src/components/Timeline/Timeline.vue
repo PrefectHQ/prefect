@@ -13,20 +13,16 @@
     <IconButton
       v-if="!hideHeader"
       class="pan-button left bg--white"
-      icon="pi pi-arrow-left-s-line"
+      icon="pi pi-arrow-left-s-line pi-lg"
       flat
-      height="24px"
-      width="24px"
       :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
     <IconButton
       v-if="!hideHeader"
       class="pan-button right bg--white"
-      icon="pi pi-arrow-right-s-line"
+      icon="pi pi-arrow-right-s-line pi-lg"
       flat
-      height="24px"
-      width="24px"
       :disabled="disableRightScrollButton"
       @click="panRight"
     />
@@ -46,7 +42,7 @@
           tabindex="0"
         />
 
-        <div class="timeline-axis" :style="timelineAxisPosition">
+        <div class="timeline-axis shadow-sm" :style="timelineAxisPosition">
           <svg :id="id + '-axis'" ref="chart-axis"></svg>
         </div>
 
