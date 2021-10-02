@@ -11,7 +11,7 @@ hide:
 
 ## Welcome!
 
-Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [a technical preview](faq/#why-is-orion-being-released-as-a-technical-preview).
+Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [a technical preview](faq/#why-is-orion-a-technical-preview).
 
 Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
@@ -86,7 +86,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
     ```
 
     !!! info "Guarding \__main__"
-        When using Python multiprocessing, best practice is to guard global-scope calls with `if __name__ == "__main__":`. This avoids an infinite recursion if you run the code as a standalone script (with certain process start methods). If you run the code interactively, you don't need the guard.
+        When using Python multiprocessing (as Dask does), best practice is to guard global-scope calls with `if __name__ == "__main__":`. This avoids an infinite recursion if you run the code as a standalone script (with certain process start methods). If you run the code interactively, you don't need the guard.
 
 === "Async concurrency"
 
