@@ -27,16 +27,8 @@ svg.timeline-axis {
   background-color: $white;
   height: $axis-height;
   pointer-events: none;
-  position: sticky;
+  // position: sticky;
   z-index: 2;
-
-  &.top {
-    top: 0;
-  }
-
-  &.bottom {
-    top: 0;
-  }
 }
 
 svg.timeline-chart {
@@ -49,6 +41,7 @@ svg.timeline-chart {
 }
 
 .scroll-container {
+  clip-path: inset(0% 0% 0% 0% round 4px);
   overflow: auto;
   overscroll-behavior: contain;
   position: relative;
@@ -78,11 +71,11 @@ svg.timeline-chart {
   z-index: 2;
 
   &.top {
-    top: 0;
+    bottom: 0;
   }
 
   &.bottom {
-    bottom: 0;
+    top: 0;
   }
 }
 
