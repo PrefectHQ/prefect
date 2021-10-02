@@ -44,7 +44,7 @@ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/
     ```
 
 !!! danger "Migrations"
-    Recall that Orion is available as a technical preivew; this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migraiton guides and tooling will be available and documented.
+    Recall that Orion is available as [a technical preivew](/faq/#why-is-orion-being-released-as-a-technical-preview); this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migraiton guides and tooling will be available and documented.
 
 ## The webserver
 
