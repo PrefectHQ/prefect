@@ -128,12 +128,6 @@ From here, you can continue to use Prefect interactively or set up automated [de
 
 Orion was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
 
-From here, you can continue to use Prefect interactively or set up automated [deployments](concepts/deployments.md).
-
-## Next steps
-
-Orion was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
-
 ### Getting started
 
 Begin by [installing Orion](getting-started/installation.md) on your machine, then follow one of our [friendly tutorials](tutorials/first-steps) to learn by example. See the [Getting Started overview](getting-started/overview) for more.
