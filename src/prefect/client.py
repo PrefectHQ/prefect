@@ -437,6 +437,7 @@ class OrionClient:
         flow_filter: schemas.filters.FlowFilter = None,
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
+        sort: schemas.sorting.FlowRunSort = None,
     ) -> List[schemas.core.FlowRun]:
         body = {}
         if flow_filter:
@@ -445,6 +446,9 @@ class OrionClient:
             body["flow_runs"] = flow_run_filter.dict(json_compatible=True)
         if task_run_filter:
             body["task_runs"] = task_run_filter.dict(json_compatible=True)
+
+        if sort:
+            body["sort"] = sort
 
         response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
