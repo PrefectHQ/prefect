@@ -1,8 +1,13 @@
 # FAQ
 
-## Why did Prefect create and release Orion?
+## Why is this project called Orion?
+As an advanced orchestration engine, Orion's name is hiding in plain sight: **Or**chestrat**ion**.
 
-Orion represents three major objectives:
+Curiously enough, Orion is also the home of Ford Prefect, a roving researcher for that wholly remarkable book, *The Hitchhiker's Guide to the Galaxy*.
+## Why did Prefect create Orion?
+
+Orion has three major objectives:
+
 - embracing dynamic, DAG-free workflows
 - an extraordinary developer experience
 - transparent and observable orchestration rules
