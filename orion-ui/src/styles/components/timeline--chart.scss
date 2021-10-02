@@ -1,8 +1,10 @@
 @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
 
+$axis-height: 24px;
+
 .component-container {
   overflow: hidden;
-  height: 100%;
+  height: calc(100% - $axis-height);
   position: relative;
   width: 100%;
 
@@ -21,11 +23,10 @@
   }
 }
 
-$axis-height: 20px;
-
 svg.timeline-axis {
   background-color: $white;
   height: $axis-height;
+  padding-top: 4px;
   pointer-events: none;
   position: sticky;
   top: 0;

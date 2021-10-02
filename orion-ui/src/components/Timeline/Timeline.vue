@@ -1,9 +1,10 @@
 <template>
   <div
+    ref="container"
     class="component-container d-flex flex-column"
     style="max-height: inherit"
   >
-    <div ref="container" class="scroll-container" @scroll="handleScroll">
+    <div class="scroll-container" @scroll="handleScroll">
       <div
         class="node-container"
         :style="{ height: chartHeight + 'px', width: chartWidth + 'px' }"
@@ -20,21 +21,9 @@
 
         <svg :id="id" ref="chart" class="timeline-chart"></svg>
 
-        <svg
-          v-if="axisPosition == 'top'"
-          :id="id + '-axis'"
-          ref="chart-axis"
-          class="timeline-axis"
-        ></svg>
+        <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis"></svg>
       </div>
     </div>
-
-    <svg
-      v-if="axisPosition == 'bottom'"
-      :id="id + '-axis'"
-      ref="chart-axis"
-      class="timeline-axis"
-    ></svg>
 
     <div
       class="border-container"
@@ -155,7 +144,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   disableLeftScrollButton: boolean = true
   disableRightScrollButton: boolean = true
   computedItems: Item[] = []
-  readonly axisHeight: number = 20
+  readonly axisHeight: number = 24
   readonly intervalHeight: number = 24
   readonly intervalWidth: number = 125
   xScale = d3.scaleTime()
@@ -349,6 +338,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.gridSelection.style('transform', `translate(0, ${offset})`)
 
     this.backgroundRect.style('transform', `translate(0, ${offset})`)
+
+    if (this.axisPosition == 'bottom') {
+      this.axisSvg.style(
+        'transform',
+        `translate(0, ${this.container.offsetHeight - this.axisHeight}px)`
+      )
+    }
   }
 
   updateNodes(): void {
@@ -475,6 +471,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
 <style lang="scss">
 @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+
+$axis-height: 20px;
 
 svg.timeline-axis {
   .tick {
