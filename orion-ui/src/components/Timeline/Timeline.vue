@@ -464,14 +464,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   panLeft(): void {
     this.scrollContainer.scroll({
-      left: this.container.scrollLeft - this.width,
+      left: this.scrollContainer.scrollLeft - this.width,
       behavior: 'smooth'
     })
   }
 
   panRight(): void {
     this.scrollContainer.scroll({
-      left: this.container.scrollLeft + this.width,
+      left: this.scrollContainer.scrollLeft + this.width,
       behavior: 'smooth'
     })
   }
