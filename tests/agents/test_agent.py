@@ -84,7 +84,7 @@ async def test_agent_flow_run_submission():
         flow_id=uuid4(),
     )
 
-    async def fake_query(flow_run_filter):
+    async def fake_query(sort, flow_run_filter):
         return [flow_run]
 
     mock_submit = AsyncMock()
