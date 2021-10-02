@@ -2,7 +2,7 @@
 
 # Orion
 
-A development repo for Prefect Orion; reference documentation can be found at https://friendly-doodle-3401c1b7.pages.github.io/
+A development repo for Prefect Orion; reference documentation can be found at https://orion-docs.prefect.io/
 
 ## Installation
 
