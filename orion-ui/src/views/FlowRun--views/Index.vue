@@ -58,7 +58,10 @@
       <template v-slot:header>
         <div class="d-flex align-center justify-space-between py-1 px-2">
           <div class="subheader">Timeline</div>
-          <IconButton icon="pi-full-screen" />
+
+          <router-link :to="`/flow-run/${id}/timeline`">
+            <IconButton icon="pi-full-screen" />
+          </router-link>
         </div>
       </template>
 
@@ -152,10 +155,12 @@ const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
+const id: string = route.params.id as string
+
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
   body: {
-    id: route.params.id as string
+    id: id
   },
   options: {
     pollInterval: 5000
@@ -177,7 +182,7 @@ const taskRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
       id: {
-        any_: [route.params.id as string]
+        any_: [id]
       }
     }
   }
