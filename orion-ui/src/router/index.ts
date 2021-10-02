@@ -10,7 +10,21 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/flow-run/:id',
     name: 'FlowRun',
-    component: () => import('../views/FlowRun.vue')
+    component: () => import('../views/FlowRun.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('../views/FlowRun--views/Index.vue')
+      },
+      {
+        path: 'timeline',
+        component: () => import('../views/FlowRun--views/Timeline.vue')
+      },
+      {
+        path: 'schematic',
+        component: () => import('../views/FlowRun--views/Schematic.vue')
+      }
+    ]
   },
   {
     path: '/settings',
