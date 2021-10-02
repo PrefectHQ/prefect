@@ -2,9 +2,31 @@
   <div
     ref="container"
     class="component-container d-flex flex-column"
+    :class="{ 'hidden-axis': hideHeader }"
     style="max-height: inherit"
   >
-    <div class="scroll-container" @scroll="handleScroll">
+    <IconButton
+      v-if="!hideHeader"
+      class="pan-button left bg--white"
+      icon="pi pi-arrow-left-s-line"
+      flat
+      height="24px"
+      width="24px"
+      :disabled="disableLeftScrollButton"
+      @click="panLeft"
+    />
+    <IconButton
+      v-if="!hideHeader"
+      class="pan-button right bg--white"
+      icon="pi pi-arrow-right-s-line"
+      flat
+      height="24px"
+      width="24px"
+      :disabled="disableRightScrollButton"
+      @click="panRight"
+    />
+
+    <div class="scroll-container" ref="scrollContainer" @scroll="handleScroll">
       <div
         class="node-container"
         :style="{ height: chartHeight + 'px', width: chartWidth + 'px' }"
@@ -21,7 +43,9 @@
 
         <svg :id="id" ref="chart" class="timeline-chart"></svg>
 
-        <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis"></svg>
+        <div class="timeline-axis" :style="timelineAxisPosition">
+          <svg :id="id + '-axis'" ref="chart-axis"></svg>
+        </div>
       </div>
     </div>
 
@@ -33,27 +57,6 @@
       }"
     />
   </div>
-
-  <!-- <div class="component-container">
-    <IconButton
-      v-if="!hideHeader"
-      class="pan-button left bg--white"
-      icon="pi pi-arrow-left-s-line pi-2x"
-      flat
-      height="36px"
-      :disabled="disableLeftScrollButton"
-      @click="panLeft"
-    />
-
-    <IconButton
-      v-if="!hideHeader"
-      class="pan-button right bg--white"
-      icon="pi pi-arrow-right-s-line pi-2x"
-      flat
-      height="36px"
-      :disabled="disableRightScrollButton"
-      @click="panRight"
-    /> -->
 </template>
 
 <script lang="ts">
@@ -62,6 +65,8 @@ import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
 import { intervals } from '@/util/util'
+import { ref } from 'vue'
+import { StyleValue } from '@vue/runtime-dom'
 
 interface Item extends TaskRun {
   style: {
@@ -144,12 +149,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   disableLeftScrollButton: boolean = true
   disableRightScrollButton: boolean = true
   computedItems: Item[] = []
-  readonly axisHeight: number = 24
+  readonly axisHeight: number = this.hideHeader ? 24 : 38
   readonly intervalHeight: number = 24
   readonly intervalWidth: number = 125
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
   rows: [number, number][] = []
+
+  scrollContainer = ref<HTMLElement>() as unknown as HTMLElement
 
   axisSvg: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
@@ -257,6 +264,15 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .filter((item: Item) => item.state_type !== 'PENDING' && item.start_time)
   }
 
+  get timelineAxisPosition(): StyleValue {
+    if (!this.container || this.axisPosition == 'top') return {}
+    return {
+      transform: `translate(0, ${
+        this.container.offsetHeight - this.axisHeight
+      }px)`
+    }
+  }
+
   xAxis = (g: any): Selection => {
     return g.transition().duration(250).attr('class', 'x-axis').call(
       d3
@@ -332,6 +348,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.axisSvg
       .attr('viewbox', `0, 0, ${this.chartWidth}, ${this.axisHeight}`)
       .style('width', this.chartWidth + 'px')
+      .style('height', this.axisHeight + 'px')
 
     const offset = this.axisPosition == 'top' ? this.axisHeight + 'px' : 0
 
@@ -339,12 +356,12 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
     this.backgroundRect.style('transform', `translate(0, ${offset})`)
 
-    if (this.axisPosition == 'bottom') {
-      this.axisSvg.style(
-        'transform',
-        `translate(0, ${this.container.offsetHeight - this.axisHeight}px)`
-      )
-    }
+    // if (this.axisPosition == 'bottom') {
+    //   this.axisSvg.style(
+    //     'transform',
+    //     `translate(0, ${this.container.offsetHeight - this.axisHeight}px)`
+    //   )
+    // }
   }
 
   updateNodes(): void {
@@ -446,20 +463,20 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   handleScroll(): void {
-    this.disableLeftScrollButton = this.container.scrollLeft <= 0
+    this.disableLeftScrollButton = this.scrollContainer.scrollLeft <= 0
     this.disableRightScrollButton =
-      this.container.scrollLeft >= this.container.scrollWidth
+      this.scrollContainer.scrollLeft >= this.scrollContainer.scrollWidth
   }
 
   panLeft(): void {
-    this.container.scroll({
+    this.scrollContainer.scroll({
       left: this.container.scrollLeft - this.width,
       behavior: 'smooth'
     })
   }
 
   panRight(): void {
-    this.container.scroll({
+    this.scrollContainer.scroll({
       left: this.container.scrollLeft + this.width,
       behavior: 'smooth'
     })
@@ -474,9 +491,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 <style lang="scss">
 @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
 
-$axis-height: 20px;
-
-svg.timeline-axis {
+.timeline-axis > svg {
   .tick {
     font-size: 13px;
     font-family: $font--secondary;

@@ -1,18 +1,11 @@
 <template>
   <Card class="timeline d-flex flex-column" width="auto" shadow="sm">
-    <template v-slot:header>
-      <div class="d-flex align-center justify-space-between py-1 px-2">
-        <div class="subheader">Timeline</div>
-      </div>
-    </template>
-
-    <div class="timeline-content pb-2 px-2 d-flex flex-grow-1">
+    <div class="timeline-content py-2 px-2 d-flex flex-grow-1">
       <Timeline
         v-if="taskRuns.length"
         :items="taskRuns"
         :max-end-time="end"
-        hide-header
-        axis-position="bottom"
+        axis-position="top"
         background-color="blue-5"
       />
     </div>

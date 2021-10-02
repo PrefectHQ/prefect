@@ -1,10 +1,15 @@
 @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
-
-$axis-height: 24px;
+@use 'sass:math';
 
 .component-container {
+  $axis-height: 38px;
+
+  &.hidden-axis {
+    $axis-height: 24px;
+  }
+
   overflow: hidden;
-  height: calc(100% - $axis-height);
+  height: 100%;
   position: relative;
   width: 100%;
 
@@ -21,86 +26,86 @@ $axis-height: 24px;
       right: 0;
     }
   }
-}
 
-svg.timeline-axis {
-  background-color: $white;
-  height: $axis-height;
-  padding-top: 4px;
-  pointer-events: none;
-  position: sticky;
-  top: 0;
-  left: 0;
-  z-index: 2;
-}
-
-svg.timeline-chart {
-  position: absolute;
-  height: 100%;
-  left: 0;
-  top: 0;
-  width: 100%;
-  z-index: 1;
-}
-
-.scroll-container {
-  clip-path: inset(0% 0% 0% 0% round 4px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  position: relative;
-  max-height: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-
-  flex: 1 1 auto;
-
-  // Hide scrollbars
-  scrollbar-width: none; // Edge
-  -ms-overflow-style: none; // Firefox
-
-  // Chrome, Safari
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.border-container {
-  border: 1px solid $blue-20;
-  border-radius: 4px;
-  box-sizing: border-box;
-  height: calc(100% - $axis-height);
-  left: 0;
-  position: absolute;
-  width: 100%;
-  pointer-events: none;
-  z-index: 2;
-
-  &.top {
-    bottom: 0;
-  }
-
-  &.bottom {
+  .timeline-axis {
+    background-color: $white;
+    height: $axis-height;
+    padding: 4px 0;
+    pointer-events: none;
+    position: sticky;
     top: 0;
+    left: 0;
+    z-index: 2;
   }
-}
 
-.node-container {
-  background-color: transparent;
-  position: relative;
-  z-index: 1;
-
-  .node {
+  svg.timeline-chart {
     position: absolute;
-    border-radius: 8px;
-    transition: all 250ms;
+    height: 100%;
+    left: 0;
+    top: 0;
+    width: 100%;
+    z-index: 1;
+  }
+
+  .scroll-container {
+    clip-path: inset(0% 0% 0% 0% round 4px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    position: relative;
+    max-height: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+
+    flex: 1 1 auto;
+
+    // Hide scrollbars
+    scrollbar-width: none; // Edge
+    -ms-overflow-style: none; // Firefox
+
+    // Chrome, Safari
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .border-container {
+    border: 1px solid $blue-20;
+    border-radius: 4px;
+    box-sizing: border-box;
+    height: calc(100% - $axis-height);
+    left: 0;
+    position: absolute;
+    width: 100%;
+    pointer-events: none;
     z-index: 2;
 
-    &:focus,
-    &:hover {
-      border: 2px solid $primary;
-      box-shadow: $box-shadow-md;
-      outline: none;
+    &.top {
+      bottom: 0;
+    }
+
+    &.bottom {
+      top: 0;
+    }
+  }
+
+  .node-container {
+    background-color: transparent;
+    position: relative;
+    z-index: 1;
+
+    .node {
+      position: absolute;
+      border-radius: 8px;
+      transition: all 250ms;
+      z-index: 2;
+
+      &:focus,
+      &:hover {
+        border: 2px solid $primary;
+        box-shadow: $box-shadow-md;
+        outline: none;
+      }
     }
   }
 }
