@@ -15,7 +15,7 @@ Prefect Orion is the second-generation workflow orchestration engine from [Prefe
 
 Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
-**You should love your workflows again.**
+_**You should love your workflows again.**_
 
 Read the docs, run the code, or host the UI. Join thousands of community members in [Slack](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
 
