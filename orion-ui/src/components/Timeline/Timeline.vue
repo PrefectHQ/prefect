@@ -28,10 +28,7 @@
     />
 
     <div class="scroll-container" ref="scrollContainer" @scroll="handleScroll">
-      <div
-        class="node-container"
-        :style="{ height: chartHeight + 'px', width: chartWidth + 'px' }"
-      >
+      <div class="node-container" :style="nodeContainerStyle">
         <div
           v-for="item in computedItems"
           :key="item.id"
@@ -42,7 +39,11 @@
           tabindex="0"
         />
 
-        <div class="timeline-axis shadow-sm" :style="timelineAxisPosition">
+        <div
+          class="timeline-axis"
+          :class="{ 'shadow-sm': axisPosition == 'top' }"
+          :style="timelineAxisPosition"
+        >
           <svg :id="id + '-axis'" ref="chart-axis"></svg>
         </div>
 
@@ -150,8 +151,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   disableLeftScrollButton: boolean = true
   disableRightScrollButton: boolean = true
   computedItems: Item[] = []
-  readonly axisHeight: number = this.hideHeader ? 24 : 38
-  readonly intervalHeight: number = 24
+  readonly axisHeight: number = this.hideHeader ? 20 : 38
+  readonly intervalHeight: number = 20
   readonly intervalWidth: number = 125
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
@@ -207,9 +208,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get numberRows(): number {
-    return (
-      Math.ceil(Math.max(this.rows.length, this.height / this.intervalHeight)) +
-      1
+    return Math.ceil(
+      Math.max(this.rows.length, this.height / this.intervalHeight)
     )
   }
 
@@ -242,11 +242,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get chartHeight(): number {
-    return (
-      Math.max(this.numberRows * this.intervalHeight, this.height) -
-      this.paddingY -
-      this.axisHeight * 2
-    )
+    if (!this.container) return 0
+    return this.numberRows * this.intervalHeight - this.paddingY
   }
 
   get chartWidth(): number {
@@ -265,14 +262,19 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .filter((item: Item) => item.state_type !== 'PENDING' && item.start_time)
   }
 
+  get nodeContainerStyle(): StyleValue {
+    return { height: this.chartHeight + 'px', width: this.chartWidth + 'px' }
+  }
+
   get timelineAxisPosition(): StyleValue {
     if (!this.container || this.axisPosition == 'top')
       return { height: this.axisHeight + 'px' }
     return {
       height: this.axisHeight + 'px',
-      transform: `translate(0, ${
-        this.container.offsetHeight - this.axisHeight
-      }px)`
+      // transform: `translate(0, ${
+      //   this.container.offsetHeight - this.axisHeight / 2
+      // }px)`
+      top: this.container.offsetHeight - this.axisHeight / 2 + 'px'
     }
   }
 
