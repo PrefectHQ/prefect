@@ -85,7 +85,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
         github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
     ```
 
-    !!! info "Guarding \__main__"
+    !!! warning "Guarding \__main__"
         When using Python multiprocessing (as Dask does), best practice is to guard global-scope calls with `if __name__ == "__main__":`. This avoids an infinite recursion if you run the code as a standalone script (with certain process start methods). If you run the code interactively, you don't need the guard.
 
 === "Async concurrency"
