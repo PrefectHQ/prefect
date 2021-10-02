@@ -54,12 +54,13 @@ svg.timeline-chart {
   left: 0;
 
   flex: 1 1 auto;
+
   // Hide scrollbars
   scrollbar-width: none; // Edge
   -ms-overflow-style: none; // Firefox
 
   // Chrome, Safari
-  ::-webkit-scrollbar {
+  &::-webkit-scrollbar {
     display: none;
   }
 }

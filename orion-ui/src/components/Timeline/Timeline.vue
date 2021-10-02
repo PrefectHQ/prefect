@@ -201,7 +201,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     return (
       Math.ceil(
         Math.max(this.sortedItems.length, this.height / this.intervalHeight)
-      ) + 3
+      ) + 1
     )
   }
 
