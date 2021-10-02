@@ -21,16 +21,20 @@
         <svg :id="id" ref="chart" class="timeline-chart"></svg>
 
         <svg
+          v-if="axisPosition == 'top'"
           :id="id + '-axis'"
           ref="chart-axis"
           class="timeline-axis"
-          :class="{
-            top: axisPosition == 'top',
-            bottom: axisPosition == 'bottom'
-          }"
         ></svg>
       </div>
     </div>
+
+    <svg
+      v-if="axisPosition == 'bottom'"
+      :id="id + '-axis'"
+      ref="chart-axis"
+      class="timeline-axis"
+    ></svg>
 
     <div
       class="border-container"
@@ -39,28 +43,6 @@
         bottom: axisPosition == 'bottom'
       }"
     />
-
-    <!-- <div
-      ref="container"
-      class="chart-container flex-grow-1"
-      @scroll="handleScroll"
-    >
-     
-
-      <svg :id="id" ref="chart" class="timeline-chart"></svg>
-
-      <div class="node-container">
-        <div
-          v-for="item in computedItems"
-          :key="item.id"
-          :id="`node-${item.id}`"
-          class="node correct-text"
-          :class="[item.state.type.toLowerCase() + '-bg']"
-          :style="item.style"
-          tabindex="0"
-        />
-      </div>
-    </div> -->
   </div>
 
   <!-- <div class="component-container">
@@ -82,26 +64,7 @@
       height="36px"
       :disabled="disableRightScrollButton"
       @click="panRight"
-    />
-
-    <div ref="container" class="chart-container" @scroll="handleScroll">
-      <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis"></svg>
-
-      <svg :id="id" ref="chart" class="timeline-chart"></svg>
-
-      <div class="node-container">
-        <div
-          v-for="item in computedItems"
-          :key="item.id"
-          :id="`node-${item.id}`"
-          class="node correct-text"
-          :class="[item.state.type.toLowerCase() + '-bg']"
-          :style="item.style"
-          tabindex="0"
-        />
-      </div>
-    </div>
-  </div> -->
+    /> -->
 </template>
 
 <script lang="ts">
@@ -192,8 +155,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   disableLeftScrollButton: boolean = true
   disableRightScrollButton: boolean = true
   computedItems: Item[] = []
-  intervalHeight: number = 24
-  intervalWidth: number = 125
+  readonly axisHeight: number = 20
+  readonly intervalHeight: number = 24
+  readonly intervalWidth: number = 125
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
@@ -212,6 +176,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   >
 
   xAxisGroup: SelectionType = null as unknown as d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    null
+  >
+
+  backgroundRect: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
     unknown,
     HTMLElement,
@@ -277,7 +248,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     return (
       Math.max(this.numberRows * this.intervalHeight, this.height) -
       this.paddingY -
-      40
+      this.axisHeight * 2
     )
   }
 
@@ -298,9 +269,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   xAxis = (g: any): Selection => {
+    console.log('calling xaxis')
     return g
       .attr('class', 'x-axis')
-      .style('transform', `translate(0,${this.intervalHeight}px)`)
       .transition()
       .duration(250)
       .call(
@@ -320,15 +291,18 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   mounted(): void {
     this.createChart()
+
     this.update()
     this.handleScroll()
   }
 
   update(): void {
-    this.updateScales()
-    this.updateChart()
-    this.updateGrid()
-    this.updateNodes()
+    requestAnimationFrame(() => {
+      this.updateChart()
+      this.updateScales()
+      this.updateGrid()
+      this.updateNodes()
+    })
   }
 
   updated(): void {
@@ -349,9 +323,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
     this.svg = d3.select(`#${this.id}`)
     this.axisSvg = d3.select(`#${this.id}-axis`)
 
-    this.updateChart()
-
-    this.svg
+    this.backgroundRect = this.svg.append('g')
+    this.backgroundRect
       .append('rect')
       .attr(
         'fill',
@@ -361,9 +334,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('width', '100%')
       .attr('height', '100%')
 
-    this.gridSelection = this.svg
-      .append('g')
-      .style('transform', 'translate(0, 36px)')
+    this.gridSelection = this.svg.append('g')
 
     this.xAxisGroup = this.axisSvg.append('g')
   }
@@ -375,8 +346,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .style('height', this.chartHeight + 'px')
 
     this.axisSvg
-      .attr('viewbox', `0, 0, ${this.chartWidth}, 100`)
+      .attr('viewbox', `0, 0, ${this.chartWidth}, ${this.axisHeight}`)
       .style('width', this.chartWidth + 'px')
+
+    const offset = this.axisPosition == 'top' ? this.axisHeight + 'px' : 0
+
+    this.gridSelection.style('transform', `translate(0, ${offset})`)
+
+    this.backgroundRect.style('transform', `translate(0, ${offset})`)
   }
 
   updateNodes(): void {
@@ -387,6 +364,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       const end = item.end_time ? new Date(item.end_time) : new Date()
       const left = this.xScale(start)
       const width = Math.max(16, this.xScale(end) - this.xScale(start))
+      const height = 8
+      const offset =
+        this.axisPosition == 'top' ? height + this.axisHeight : height
       let row = 0
 
       // eslint-disable-next-line
@@ -416,7 +396,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
           height: 8 + 'px',
           left: left + 'px',
           top: row * this.intervalHeight + 'px',
-          transform: 'translate(0, 44px)', // 36px axis offset + height
+          transform: `translate(0, ${offset}px)`,
           width: width + 'px'
         }
       }

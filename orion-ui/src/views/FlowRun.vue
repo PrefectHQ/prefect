@@ -80,6 +80,7 @@
             :items="taskRuns"
             :max-end-time="end"
             hide-header
+            axis-position="top"
             background-color="blue-5"
           />
         </div>
