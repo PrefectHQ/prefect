@@ -1,6 +1,6 @@
 # Task dependencies
 
-One of the core features of Prefect is the ability to control dependencies between tasks - this incldues tasks that exchange data and those that need to execute in a pre-specified order due to external side effects.  
+One of the core features of Prefect is the ability to control dependencies between tasks - this includes tasks that exchange data and those that need to execute in a pre-specified order due to external side effects.
 
 
 ## A working example
@@ -99,7 +99,7 @@ def main(project_names, db_file="/tmp/example.db"):
         add_project(connection, name)
 ```
 
-And find that when we run this as a flow (which can still be achieved with our CLI setup!) the "criticaly-important" project is indeed created!  
+And find that when we run this as a flow (which can still be achieved with our CLI setup!) the "critically-important" project is indeed created! 
 ```python
 >>> main(["orion", "", "critically-important"])
 State(name='Failed', type=StateType.FAILED, message='1/4 states failed.')
@@ -109,7 +109,7 @@ Note that the final state of the flow run is failed, as we would expect given th
 
 ## Enforcing State Dependencies
 
-You may have observed that all of the `add_project` tasks have an implicit depedency on `create_tables` finishing successfully - if the table isn't created, then we have no need to run these tasks as we know they will fail.  In more complex use cases, they may actually "succeed" but not produce the correct effect if this dependency is not enforced!
+You may have observed that all of the `add_project` tasks have an implicit dependency on `create_tables` finishing successfully - if the table isn't created, then we have no need to run these tasks as we know they will fail.  In more complex use cases, they may actually "succeed" but not produce the correct effect if this dependency is not enforced!
 
 Luckily, Prefect makes it easy to configure a state dependency between two or more task runs using the special `wait_for` keyword argument:
 ```python
