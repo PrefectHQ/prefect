@@ -33,10 +33,11 @@ theme:
         code: Source Code Pro
     icon:
         repo: fontawesome/brands/github
-    logo: img/logomark-light.svg
+    logo: img/logos/prefect-mark-solid-white.svg
     palette:
         primary: blue
-        accent: cyan
+        accent: blue
+    custom_dir: docs/overrides
 plugins:
     - autorefs
     - mkdocstrings:
