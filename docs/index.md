@@ -1,31 +1,32 @@
 ---
 hide:
   - navigation
-#   - toc
 ---
+
 <figure markdown=1>
-![](./img/prefect-orion-logo-dark.svg){width=500px}
+![](./img/prefect-orion-logo-dark.svg){: width=500px style="padding-top: 50px; padding-bottom: 50px;"}
 </figure>
 
 #
 
 ## Don't Panic
-Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a technical preview. 
 
-Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents years of research, development, and dedication to a simple idea: 
+Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a technical preview.
+
+Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents years of research, development, and dedication to a simple idea:
 
 **You should love your workflows again**.
 
 Read the docs, run the code, or host the UI. Join thousands of community members in [Slack](https://www.prefect.io/slack) to share your thoughts and feedback.
 
 !!! info "Hard Hats Required"
-    Orion is under active development and may change rapidly or in breaking ways. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
+Orion is under active development and may change rapidly or in breaking ways. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
 
 ## Hello, Orion!
 
 Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion UI.
 
-=== "Basic orchestration" 
+=== "Basic orchestration"
 
     Decorate functions to automatically retry them on failure while providing complete visibility in the Orion Dashboard.
 
@@ -113,19 +114,18 @@ Prefect is the easiest way to transform any function into a unit of work that ca
     asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
     ```
 
-
-After running any of these flows, fire up the UI to gain insight into their execution. 
+After running any of these flows, fire up the UI to gain insight into their execution.
 
 <figure markdown=1>
-![](./img/hello-orion-dashboard.png){max-width=600px}
+![](./img/hello-orion-dashboard.png){: max-width=600px}
 </figure>
 
 From here, you can continue to use Prefect interactively or set up automated [deployments](concepts/deployments.md).
 
-
 ## Next steps
 
 Orion was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
+
 ### Getting started
 
 Begin by [installing Orion](getting-started/installation.md) on your machine, then follow one of our [friendly tutorials](tutorials/first-steps) to learn by example. See the [Getting Started overview](getting-started/overview) for more.
