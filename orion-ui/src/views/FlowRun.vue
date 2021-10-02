@@ -77,6 +77,7 @@
 
         <div class="timeline-content pb-2 px-2 d-flex flex-grow-1">
           <Timeline
+            v-if="taskRuns.length"
             :items="taskRuns"
             :max-end-time="end"
             hide-header

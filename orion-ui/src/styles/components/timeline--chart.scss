@@ -27,7 +27,9 @@ svg.timeline-axis {
   background-color: $white;
   height: $axis-height;
   pointer-events: none;
-  // position: sticky;
+  position: sticky;
+  top: 0;
+  left: 0;
   z-index: 2;
 }
 

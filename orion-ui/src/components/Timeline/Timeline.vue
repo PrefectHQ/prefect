@@ -269,20 +269,15 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   xAxis = (g: any): Selection => {
-    console.log('calling xaxis')
-    return g
-      .attr('class', 'x-axis')
-      .transition()
-      .duration(250)
-      .call(
-        d3
-          .axisBottom(this.xScale)
-          .ticks(this.numberIntervals + 2)
-          // @ts-expect-error: I haven't quite figured out the correct typing for D3 axis
-          .tickFormat(formatLabel)
-          .tickSizeOuter(0)
-          .tickSizeInner(0)
-      )
+    return g.transition().duration(250).attr('class', 'x-axis').call(
+      d3
+        .axisBottom(this.xScale)
+        .ticks(this.numberIntervals) // + 2
+        // @ts-expect-error: I haven't quite figured out the correct typing for D3 axis
+        .tickFormat(formatLabel)
+        .tickSizeOuter(0)
+        .tickSizeInner(0)
+    )
   }
 
   resize(): void {
@@ -297,6 +292,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   update(): void {
+    if (!this.items?.length) return
     requestAnimationFrame(() => {
       this.updateChart()
       this.updateScales()
@@ -322,6 +318,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
     this.axisSvg = d3.select(`#${this.id}-axis`)
+    this.xAxisGroup = this.axisSvg.append('g')
 
     this.backgroundRect = this.svg.append('g')
     this.backgroundRect
@@ -335,8 +332,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('height', '100%')
 
     this.gridSelection = this.svg.append('g')
-
-    this.xAxisGroup = this.axisSvg.append('g')
   }
 
   updateChart(): void {
