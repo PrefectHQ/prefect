@@ -1,8 +1,22 @@
+---
+hide:
+  - navigation
+---
+
 # FAQ
 
-## Why did Prefect create and release Orion?
+## The Orion Project
+### "...Orion?"
 
-Orion represents three major objectives:
+As an advanced orchestration engine, Orion practically named itself: **OR**chestrat**ION**. 
+
+The word "Prefect" stems from the Latin "praefectus," meaning "one who is in charge." A prefect is an official who oversees a domain and ensures that rules are followed. Similarly, Prefect software ensures that workflows are orchestrated properly.
+
+Curiously enough, Orion is also the home of Ford Prefect, a roving researcher for that wholly remarkable book, *The Hitchhiker's Guide to the Galaxy*.
+
+### Why was Orion created?
+
+Orion has three major objectives:
 
 - embracing dynamic, DAG-free workflows
 - an extraordinary developer experience
@@ -18,21 +32,22 @@ And finally, this additional complexity means that providing clear and consisten
 
 _Orion represents a unified solution to these three problems_. It is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code", but Orion represents "code as code": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work. To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much - or as little - of the Orion engine as is useful for their objectives. 
 
-## Why is Orion being released as a technical preview?
+### Why is Orion a "technical preview"?
 Orion is the latest step in a long-term mission to codify the best practices of modern data engineering. Historically, Prefect has benefitted from looping our community in early to our product development lifecycle. We are continuing this tradition with Orion. The current codebase is the core of our new workflow engine. It meets our initial design objectives and we are excited to learn from our users' experiences in the wild. However, while it is fully functional, it is far from a finished product. Many conveniences and even some major features have not yet been implemented. Over the next few months, you can follow our development in the open -- and even participate yourself -- as we bring this product toward release. Until then, we will maintain the "technical preview" label to communicate the status of the project as not yet battle-tested in production. For production use cases, we currently recommend [Prefect Core](https://github.com/prefecthq/prefect).
 
 
 
 
-## What is the roadmap for Orion?
+### What's on the Orion roadmap?
 
 One of the reasons we are open-sourcing the technical preview is to begin soliciting priorities from our community. We will integrate these with our internal designs to publish a clear roadmap for the project. For a preview of our current design objectives, please visit the [Orion overview page](https://prefect.io/orion).
 
-## When will Orion be released?
+### When will Orion be released?
 
 Orion will remain in technical preview status until at least the end of 2021, and we expect to ship a stable release in early 2022. 
 
-## How does Orion work?
+## Deployment
+### How does Orion work?
 
 The Orion technical preview consists of a few complementary parts:
 
