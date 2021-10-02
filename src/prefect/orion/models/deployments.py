@@ -162,7 +162,7 @@ async def read_deployments(
     Args:
         session: A database session
         offset: Query offset
-        limi: Query limit
+        limit: Query limit
         flow_filter: only select deployments whose flows match these criteria
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria
