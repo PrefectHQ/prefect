@@ -1,4 +1,11 @@
 .timeline {
-  height: 90vh;
+  height: 80vh;
+  min-height: 600px;
   width: 100%;
+
+  // ☠️☠️☠️☠️ This prevents the timeline from overflowing padding/margins... REMOVE AT YOUR OWN RISK ☠️☠️☠️☠️
+  .timeline-content {
+    box-sizing: content-box;
+    max-height: calc(80vh - 48px);
+  }
 }
