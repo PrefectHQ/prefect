@@ -54,8 +54,6 @@ export class D3Base extends Vue {
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
 
-    console.log(this.height, this.width)
-
     if (this.svg) {
       this.svg.attr(
         'viewbox',
@@ -72,8 +70,6 @@ export class D3Base extends Vue {
 
     this.height = this.container.offsetHeight
     this.width = this.container.offsetWidth
-
-    console.log(this.height, this.width)
 
     if (this.svg) {
       this.svg.attr(
