@@ -189,7 +189,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
       type: res.error ? 'error' : 'success',
       content: res.error
         ? `Error: ${res.error}`
-        : `Run created: ${res.response.value?.name}`,
+        : res.response.value?.name ? `Run created: ${res.response.value?.name}` : 'Run created',
       timeout: 10000
     })
     this.creatingRun = false
