@@ -2,7 +2,12 @@
   <div
     ref="container"
     class="component-container d-flex flex-column"
-    :class="{ 'hidden-axis': hideHeader }"
+    :class="{
+      'header-hidden': hideHeader,
+      'header-visible': !hideHeader,
+      'axis-bottom': axisPosition == 'bottom',
+      'axis-top': axisPosition == 'top'
+    }"
     style="max-height: inherit"
   >
     <IconButton
@@ -41,11 +46,11 @@
           tabindex="0"
         />
 
-        <svg :id="id" ref="chart" class="timeline-chart"></svg>
-
         <div class="timeline-axis" :style="timelineAxisPosition">
           <svg :id="id + '-axis'" ref="chart-axis"></svg>
         </div>
+
+        <svg :id="id" class="timeline-background"></svg>
       </div>
     </div>
 
@@ -265,8 +270,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get timelineAxisPosition(): StyleValue {
-    if (!this.container || this.axisPosition == 'top') return {}
+    if (!this.container || this.axisPosition == 'top')
+      return { height: this.axisHeight + 'px' }
     return {
+      height: this.axisHeight + 'px',
       transform: `translate(0, ${
         this.container.offsetHeight - this.axisHeight
       }px)`
@@ -349,19 +356,6 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('viewbox', `0, 0, ${this.chartWidth}, ${this.axisHeight}`)
       .style('width', this.chartWidth + 'px')
       .style('height', this.axisHeight + 'px')
-
-    const offset = this.axisPosition == 'top' ? this.axisHeight + 'px' : 0
-
-    this.gridSelection.style('transform', `translate(0, ${offset})`)
-
-    this.backgroundRect.style('transform', `translate(0, ${offset})`)
-
-    // if (this.axisPosition == 'bottom') {
-    //   this.axisSvg.style(
-    //     'transform',
-    //     `translate(0, ${this.container.offsetHeight - this.axisHeight}px)`
-    //   )
-    // }
   }
 
   updateNodes(): void {
@@ -499,6 +493,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   .domain {
     opacity: 0;
+  }
+
+  > g {
+    transform: translate(0, 25%);
   }
 }
 </style>

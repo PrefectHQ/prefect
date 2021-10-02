@@ -2,10 +2,12 @@
 @use 'sass:math';
 
 .component-container {
-  $axis-height: 38px;
+  &.header-visible {
+    --axis-height: 38px;
+  }
 
-  &.hidden-axis {
-    $axis-height: 24px;
+  &.header-hidden {
+    --axis-height: 24px;
   }
 
   overflow: hidden;
@@ -29,8 +31,7 @@
 
   .timeline-axis {
     background-color: $white;
-    height: $axis-height;
-    padding: 4px 0;
+    height: var(--axis-height);
     pointer-events: none;
     position: sticky;
     top: 0;
@@ -38,13 +39,24 @@
     z-index: 2;
   }
 
-  svg.timeline-chart {
+  svg.timeline-background {
     position: absolute;
     height: 100%;
     left: 0;
-    top: 0;
     width: 100%;
     z-index: 1;
+  }
+
+  &.axis-bottom {
+    svg.timeline-background {
+      top: 0;
+    }
+  }
+
+  &.axis-top {
+    svg.timeline-background {
+      top: var(--axis-height);
+    }
   }
 
   .scroll-container {
@@ -73,19 +85,19 @@
     border: 1px solid $blue-20;
     border-radius: 4px;
     box-sizing: border-box;
-    height: calc(100% - $axis-height);
+    height: calc(100% - var(--axis-height));
     left: 0;
     position: absolute;
     width: 100%;
     pointer-events: none;
     z-index: 2;
 
-    &.top {
-      bottom: 0;
-    }
-
     &.bottom {
       top: 0;
+    }
+
+    &.top {
+      top: var(--axis-height);
     }
   }
 
