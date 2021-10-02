@@ -4,7 +4,7 @@ hide:
 ---
 
 <figure markdown=1>
-![](./img/prefect-orion-logo-dark.svg){: width=500px style="padding-top: 50px; padding-bottom: 50px;"}
+![](./img/logos/prefect-orion-logo-dark.svg){: width=500px style="padding-top: 50px; padding-bottom: 50px;"}
 </figure>
 
 #
@@ -119,8 +119,14 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
 After running any of these flows, fire up the UI to gain insight into their execution.
 
 <figure markdown=1>
-![](./img/hello-orion-dashboard.png){: max-width=600px}
+![](./img/tutorials/hello-orion-dashboard.png){: max-width=600px}
 </figure>
+
+From here, you can continue to use Prefect interactively or set up automated [deployments](concepts/deployments.md).
+
+## Next steps
+
+Orion was designed to be incrementally adopted into your workflows, and our documentation is organized to support your exploration as much as possible. It is organized into four main sections whose applicability will depend on your objectives and comfort level.
 
 From here, you can continue to use Prefect interactively or set up automated [deployments](concepts/deployments.md).
 

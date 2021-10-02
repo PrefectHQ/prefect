@@ -6,8 +6,8 @@
 
 - flows and tasks are Prefect's basic unit of observability into how your code runs
 - the state of flow or task run tells us everything we need to know to decide how to orchestrate a program
-    - [task state transitions](/img/task-states.png)
-    - [flow state transitions](/img/flow-states.png)
+    - [task state transitions](/img/orchestration/task-states.png)
+    - [flow state transitions](/img/orchestration/flow-states.png)
     - NOTE: update these images to our branded diagrams soon!
 
     - anything deeper would interfere with your flexibility to write your program the way you want
