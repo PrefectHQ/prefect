@@ -82,6 +82,7 @@ nav:
         - Prefect Python API: 
             - 'prefect.client': api-ref/prefect/client.md
             - 'prefect.engine': api-ref/prefect/engine.md
+            - 'prefect.exceptions': api-ref/prefect/exceptions.md
             - 'prefect.executors': api-ref/prefect/executors.md
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
