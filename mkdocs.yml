@@ -36,6 +36,7 @@ theme:
     logo: img/logomark-light.svg
     palette:
         primary: blue
+        accent: cyan
 plugins:
     - autorefs
     - mkdocstrings:

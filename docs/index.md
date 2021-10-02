@@ -9,22 +9,24 @@ hide:
 
 #
 
-## Don't Panic
+## Welcome!
 
 Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [a technical preview](faq/#why-is-orion-being-released-as-a-technical-preview).
 
-Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents years of research, development, and dedication to a simple idea:
+Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
-**You should love your workflows again**.
+**You should love your workflows again.**
 
-Read the docs, run the code, or host the UI. Join thousands of community members in [Slack](https://www.prefect.io/slack) to share your thoughts and feedback.
+Read the docs, run the code, or host the UI. Join thousands of community members in [Slack](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
 
-!!! info "Hard Hats Required"
-Orion is under active development and may change rapidly or in breaking ways. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
+!!! info "Don't Panic"
+    Prefect Orion is under active development and may change rapidly. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
 
 ## Hello, Orion!
 
-Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion UI.
+Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
+
+Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion UI.
 
 === "Basic orchestration"
 
@@ -142,6 +144,6 @@ Orion represents a fundamentally new way of building and orchestrating data work
 
 Orion provides a number of programmatic workflow interfaces, each of which is documented in the [API Reference](api-ref/overview). This is where you can learn how a specific function works, or see the expected payload for a REST endpoint.
 
-## Join the community!
+## Join the community
 
 Orion was made possible by the fastest-growing community of data engineers. The [Prefect Slack community](https://prefect.io/slack) is a fantastic place to learn more, ask questions, or get help with workflow design. Join us and thousands of friendly data engineers to help build a new kind of workflow system.
