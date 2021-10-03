@@ -17,7 +17,6 @@
   font-size: 14px;
   height: 100%;
   margin: 16px 32px 16px 32px;
-  overflow: hidden;
   position: sticky;
   top: 0;
   transition: all 150ms;
@@ -50,12 +49,24 @@
   }
 }
 
+.object-container,
+.filter-container {
+  position: relative;
+
+  .filter-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}
+
 .filter-button {
   align-items: center;
   background-color: $white;
   border: none;
   cursor: pointer;
   display: flex;
+  height: 100%;
   outline: none;
   padding: 0 12px;
 
@@ -69,10 +80,12 @@
   }
 
   &.objects {
-    border-right: 1px solid $grey-10;
+    border-right: 2px solid $grey-10;
+    border-radius: 4px 0 0 4px;
   }
 
   &.filters {
-    border-left: 1px solid $grey-10;
+    border-left: 2px solid $grey-10;
+    border-radius: 0 4px 4px 0;
   }
 }
