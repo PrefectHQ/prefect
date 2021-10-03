@@ -5,14 +5,14 @@ This module contains all the core concepts necessary to implement Orion's state
 orchestration engine. These states correspond to intuitive descriptions of all the
 points that a Prefect flow or task can observe executing user code and intervene, if
 necessary. A detailed description of states can be found in our concept
-[documentation](/concepts/states.md).
+[documentation](/concepts/states).
 
 Orion's orchestration engine operates under the assumption that no governed user code
 will execute without first requesting Orion validate a change in state and record
-metadata about the run. With all attempts to run user code being checked against a Orion
-instance, the Orion database becomes the unambiguous source of truth for managing the
-execution of complex interacting workflows. Orchestration rules can be implemented as
-discrete units of logic that operate against each state transition and can be fully
+metadata about the run. With all attempts to run user code being checked against an
+Orion instance, the Orion database becomes the unambiguous source of truth for managing
+the execution of complex interacting workflows. Orchestration rules can be implemented
+as discrete units of logic that operate against each state transition and can be fully
 observable, extensible, and customizable--all without needing to store or parse a
 single line of user code.
 """
