@@ -48,7 +48,7 @@ Running a Prefect workflow manually is as easy as calling the annotated function
 >>> state = my_favorite_function()
 This function doesn't do much
 >>> print(state)
-Completed()
+Completed(message=None, type=COMPLETED)
 ```
 </div>
 
@@ -65,7 +65,7 @@ We can see what happens whenever our flow does not complete successfully by runn
 ```
 >>> state = send_post("foo")
 >>> print(state)
-Failed("Flow run encountered an exception.")
+Failed(message='Flow run encountered an exception.', type=FAILED)
 ```
 </div>
 
