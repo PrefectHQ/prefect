@@ -210,7 +210,7 @@ class State(IDBaseModel, Generic[R]):
         Generates a complete state representation appropriate for introspection
         and debugging, including the result:
 
-        `MyCompletedState(id="id", message="my message", type=COMPLETED, result=...)`
+        `MyCompletedState(message="my message", type=COMPLETED, result=...)`
         """
 
         display = dict(
