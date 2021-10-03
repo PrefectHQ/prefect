@@ -1,6 +1,7 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
+    <FilterBar class="filter-bar" />
     <suspense>
       <router-view class="router-view" />
     </suspense>
@@ -10,9 +11,10 @@
 <script lang="ts">
 import { Options, Vue } from 'vue-class-component'
 import NavBar from '@/components/ApplicationNav/NavBar.vue'
+import FilterBar from '@/components/FilterBar/FilterBar.vue'
 
 @Options({
-  components: { NavBar }
+  components: { FilterBar, NavBar }
 })
 export default class App extends Vue {}
 </script>
@@ -23,13 +25,17 @@ export default class App extends Vue {}
 .application {
   background-color: $grey-10;
   display: grid;
-  grid-template-areas: 'nav main';
+  grid-template-areas:
+    'nav filter-bar'
+    'nav main';
   grid-template-columns: 62px 1fr;
+  grid-template-rows: 62px 1fr;
   height: 100vh;
 
   @media (max-width: 640px) {
     grid-template-areas:
       'nav'
+      'filter-bar'
       'main';
     grid-template-columns: unset;
     grid-template-rows: 62px 1fr;
@@ -39,16 +45,20 @@ export default class App extends Vue {}
     grid-area: nav;
   }
 
+  .filter-bar {
+    grid-area: filter-bar;
+  }
+
   .router-view {
     grid-area: main;
     height: 100%;
     max-height: 100vh;
-    padding: 32px;
+    padding: 0 32px;
     overflow: auto;
     overscroll-behavior: contain;
 
     @media (max-width: 640px) {
-      padding: 16px;
+      padding: 0 16px;
       max-height: calc(100vh - 62px);
     }
   }

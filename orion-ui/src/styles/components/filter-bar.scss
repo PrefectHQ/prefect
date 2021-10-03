@@ -1,0 +1,14 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
+.filter-bar {
+  background-color: #fff;
+  box-shadow: $box-shadow-sm;
+  border-radius: 4px;
+  display: flex;
+  margin: 16px 32px 0 32px;
+
+  @media (max-width: 640px) {
+    margin: 0 16px;
+    width: 100%;
+  }
+}
