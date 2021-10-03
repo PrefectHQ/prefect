@@ -61,7 +61,7 @@
         <div class="observe" ref="observe" />
       </teleport>
 
-      <teleport v-if="showOverlay" to=".application">
+      <teleport v-if="overlay" to=".application">
         <div class="overlay" @click="closeOverlay" />
       </teleport>
 
@@ -105,22 +105,20 @@ const selectedObject = computed(() => {
 
 const toggleObjectMenu = () => {
   showObjectMenu.value = !showObjectMenu.value
-  showOverlay.value = !showOverlay.value
 }
 
 const toggleSavedSearchesMenu = () => {
   showSavedSearchesMenu.value = !showSavedSearchesMenu.value
-  showOverlay.value = !showOverlay.value
 }
 
 const toggleFilterMenu = () => {
   showFilterMenu.value = !showFilterMenu.value
-  showOverlay.value = !showOverlay.value
 }
 
 const closeOverlay = () => {
   showObjectMenu.value = false
   showFilterMenu.value = false
+  showSavedSearchesMenu.value = false
   showOverlay.value = false
 }
 
@@ -148,6 +146,15 @@ const createIntersectionObserver = (margin: string) => {
   observer = new IntersectionObserver(handleEmit, options)
   if (observe.value) observer.observe(observe.value)
 }
+
+const overlay = computed(() => {
+  return (
+    showObjectMenu.value ||
+    showFilterMenu.value ||
+    showSavedSearchesMenu.value ||
+    showOverlay.value
+  )
+})
 
 onMounted(() => {
   createIntersectionObserver('0px')
