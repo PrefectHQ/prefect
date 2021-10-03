@@ -19,7 +19,7 @@
   transition: all 150ms;
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 9;
 
   @media (max-width: 640px) {
     margin: 0 16px;
@@ -28,5 +28,7 @@
 
   &.detached {
     margin: 16px 0 0 0;
+    box-shadow: $box-shadow-sm;
+    border-radius: 0;
   }
 }
