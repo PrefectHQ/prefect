@@ -46,11 +46,8 @@ import FilterBar from '@/components/FilterBar/FilterBar.vue'
 
   .router-view {
     grid-area: main;
-    // height: 100%;
-    // max-height: 100vh;
     padding: 0 32px;
-    // overflow: auto;
-    // overscroll-behavior: contain;
+    overflow: auto;
 
     @media (max-width: 640px) {
       padding: 0 16px;
