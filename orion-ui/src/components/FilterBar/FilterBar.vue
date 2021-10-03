@@ -32,7 +32,10 @@
     </div>
 
     <div class="filter-container">
-      <button class="filter-button filters text--grey-80">
+      <button
+        class="filter-button filters text--grey-80"
+        @click="showOverlay = !showOverlay"
+      >
         <i class="pi pi-filter-3-line" />
         <span v-breakpoints="'sm'" class="ml-1">Filters</span>
       </button>
@@ -40,6 +43,10 @@
 
     <teleport to="#app">
       <div class="observe" ref="observe" />
+    </teleport>
+
+    <teleport to=".application">
+      <div v-show="showOverlay" class="overlay" @click="showOverlay = false" />
     </teleport>
   </div>
 </template>
@@ -51,6 +58,7 @@ import ObjectMenu from './ObjectMenu.vue'
 const search = ref<string>('')
 
 const showObjectMenu = ref<boolean>(false)
+const showOverlay = ref<boolean>(false)
 
 const object = ref<string>('flows')
 
