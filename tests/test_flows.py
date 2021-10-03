@@ -516,7 +516,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         def my_flow():
-            time.sleep(0.5)
+            time.sleep(1)
             canary_file.touch()
 
         t0 = time.time()
@@ -525,11 +525,11 @@ class TestFlowTimeouts:
 
         assert state.is_failed()
         assert "timed out after 0.1 seconds" in state.message
-        assert t1 - t0 < 0.5, f"The engine returns without waiting; took {t1-t0}s"
+        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
         # doing so. The canary file _will_ be created.
-        time.sleep(0.5)
+        time.sleep(1)
         assert canary_file.exists()
 
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
@@ -567,20 +567,22 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            await anyio.sleep(0.5)
+            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+                await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
-        t0 = time.time()
+        t0 = anyio.current_time()
         state = await my_flow()
-        t1 = time.time()
+        t1 = anyio.current_time()
 
         assert state.is_failed()
         assert "timed out after 0.1 seconds" in state.message
-        assert t1 - t0 < 0.5, f"The engine returns without waiting; took {t1-t0}s"
 
         # Wait in case the flow is just sleeping
-        await anyio.sleep(0.5)
+        await anyio.sleep(1)
         assert not canary_file.exists()
+
+        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
@@ -590,25 +592,27 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_subflow():
-            await anyio.sleep(0.5)
+            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+                await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
         @flow
         async def my_flow():
-            t0 = time.time()
+            t0 = anyio.current_time()
             subflow_state = await my_subflow()
-            t1 = time.time()
+            t1 = anyio.current_time()
             return t1 - t0, subflow_state
 
         state = await my_flow()
 
         runtime, subflow_state = state.result()
         assert "timed out after 0.1 seconds" in subflow_state.message
-        assert runtime < 0.5, "The engine returns without waiting"
 
         # Wait in case the flow is just sleeping
-        await anyio.sleep(0.5)
+        await anyio.sleep(1)
         assert not canary_file.exists()
+
+        assert runtime < 1, "The engine returns without waiting"
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
