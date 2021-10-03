@@ -4,15 +4,7 @@
       <img class="logo" src="@/assets/logos/prefect-logo-mark-gradient.svg" />
     </router-link>
 
-    <router-link to="/timeline" class="nav-item mt-auto ml-auto">
-      <i class="pi pi-bar-chart-horizontal-line pi-2x" />
-    </router-link>
-
-    <router-link to="/schematics" class="nav-item ml-auto">
-      <i class="pi pi-organization-chart pi-2x" />
-    </router-link>
-
-    <router-link to="/settings" class="nav-item">
+    <router-link to="/settings" class="nav-item mt-auto ml-auto">
       <i class="pi pi-settings-3-line pi-2x" />
     </router-link>
   </div>

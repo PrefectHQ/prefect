@@ -44,7 +44,7 @@ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/
     ```
 
 !!! danger "Migrations"
-    Recall that Orion is available as a technical preivew; this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migraiton guides and tooling will be available and documented.
+    Recall that Orion is available as [a technical preivew](/faq/#why-is-orion-a-technical-preview); this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
 
 ## The webserver
 
@@ -84,4 +84,4 @@ TBD
     To learn more about the concepts presented here, check out the following resources:
 
     - [Orion REST API Specification](/api-ref/rest/)
-    - [Deplyoments](/concepts/deployments/)
+    - [Deployments](/concepts/deployments/)

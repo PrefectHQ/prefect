@@ -25,13 +25,16 @@
           align-bottom
         "
       >
-        <span class="mr-1 caption text-truncate d-flex align-center">
+        <span
+          v-if="schedule"
+          class="mr-1 caption text-truncate d-flex align-center"
+        >
           <i class="pi pi-calendar-line pi-sm text--grey-20" />
           <span
             class="text--grey-80 ml--half font--primary"
             style="min-width: 0px"
           >
-            Every {{ schedule }}
+            {{ schedule !== '--' ? 'Every' : '' }} {{ schedule }}
           </span>
         </span>
 
@@ -189,7 +192,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
       type: res.error ? 'error' : 'success',
       content: res.error
         ? `Error: ${res.error}`
-        : `Run created: ${res.response.value?.name}`,
+        : res.response.value?.name ? `Run created: ${res.response.value?.name}` : 'Run created',
       timeout: 10000
     })
     this.creatingRun = false
@@ -210,6 +213,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
   }
 
   get schedule(): string {
+    if (!this.item.schedule) return '--'
     if ('interval' in this.item.schedule)
       return secondsToString(this.item.schedule.interval, false)
 
