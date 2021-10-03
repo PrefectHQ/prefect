@@ -12,3 +12,7 @@ export const start = (state: State, d: Date): void => {
 export const end = (state: State, d: Date): void => {
   state.globalFilter.end = d
 }
+
+export const object = (state: State, object: string): void => {
+  state.globalFilter.object = object
+}

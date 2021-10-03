@@ -9,16 +9,14 @@
           class="filter-button objects text--grey-80 pl-3 pr-1"
           @click="toggleObjectMenu"
         >
-          <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1">
-            {{ selectedObject.label }}
+          <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1 object">
+            {{ selectedObject }}
           </span>
           <i class="pi pi-arrow-drop-down-fill" />
         </button>
 
         <ObjectMenu
           v-if="showObjectMenu"
-          v-model="obj"
-          :options="objectOptions"
           class="object-menu"
           @close="toggleObjectMenu"
         />
@@ -77,18 +75,12 @@
 <script lang="ts" setup>
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useStore } from 'vuex'
 import ObjectMenu from './ObjectMenu.vue'
 import FilterMenu from './FilterMenu.vue'
 
+const store = useStore()
 const route = useRoute()
-
-type objectOption = { label: string; value: string }
-const objectOptions: objectOption[] = [
-  { label: 'Flows', value: 'flows' },
-  { label: 'Deployments', value: 'deployments' },
-  { label: 'Flow Runs', value: 'flow_runs' },
-  { label: 'Task Runs', value: 'task_runs' }
-]
 
 const search = ref<string>('')
 
@@ -97,10 +89,8 @@ const showFilterMenu = ref<boolean>(false)
 const showSavedSearchesMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
 
-const obj = ref<string>('flows')
-
 const selectedObject = computed(() => {
-  return objectOptions.find((o) => o.value == obj.value)
+  return store.getters.globalFilter.object.replace('_', ' ')
 })
 
 const toggleObjectMenu = () => {

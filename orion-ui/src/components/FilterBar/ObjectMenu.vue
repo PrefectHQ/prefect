@@ -1,7 +1,7 @@
 <template>
   <Card class="menu font--primary" miter shadow="sm" tabindex="0">
     <button
-      v-for="option in props.options"
+      v-for="option in options"
       :key="option.value"
       class="
         option
@@ -21,21 +21,28 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineEmits, defineProps } from 'vue'
+import { computed, defineEmits } from 'vue'
+import { useStore } from 'vuex'
 
-const emit = defineEmits(['update:modelValue', 'close'])
-const props = defineProps<{
-  modelValue: string
-  options: { label: string; value: string }[]
-}>()
+const store = useStore()
+
+const emit = defineEmits(['close'])
+
+type option = { label: string; value: string }
+const options: option[] = [
+  { label: 'Flows', value: 'flows' },
+  { label: 'Deployments', value: 'deployments' },
+  { label: 'Flow Runs', value: 'flow_runs' },
+  { label: 'Task Runs', value: 'task_runs' }
+]
 
 const value = computed(() => {
-  return props.modelValue
+  return store.getters.globalFilter.object
 })
 
 const selectOption = (val: string) => {
-  emit('update:modelValue', val)
   emit('close')
+  store.commit('object', val)
 }
 </script>
 
