@@ -14,13 +14,14 @@
   box-shadow: $box-shadow-sm;
   border-radius: 4px;
   display: flex;
-  margin: 16px 32px 16px 32px;
+  font-size: 14px;
   height: 100%;
+  margin: 16px 32px 16px 32px;
+  overflow: hidden;
+  position: sticky;
   top: 0;
   transition: all 150ms;
-  position: sticky;
   left: 0;
-  // width: 100%;
 
   z-index: 9;
 
@@ -36,5 +37,42 @@
     &.detached {
       top: 62px;
     }
+  }
+}
+
+.search-input {
+  height: 100%;
+
+  > input {
+    border: none;
+    outline: none;
+    height: 100%;
+  }
+}
+
+.filter-button {
+  align-items: center;
+  background-color: $white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  outline: none;
+  padding: 0 12px;
+
+  &:hover,
+  &:focus {
+    background-color: $grey-10;
+  }
+
+  &:active {
+    background-color: $grey-20;
+  }
+
+  &.objects {
+    border-right: 1px solid $grey-10;
+  }
+
+  &.filters {
+    border-left: 1px solid $grey-10;
   }
 }
