@@ -55,8 +55,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, Ref, onBeforeUnmount, onMounted, computed } from 'vue'
+import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import ObjectMenu from './ObjectMenu.vue'
+
+const route = useRoute()
 
 type objectOption = { label: string; value: string }
 const objectOptions: objectOption[] = [
@@ -123,6 +126,15 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (observe.value) observer?.unobserve(observe.value)
+})
+
+watch(route, () => {
+  if (route.name == 'Dashboard') {
+    if (observe.value) observer?.observe(observe.value)
+  } else {
+    if (observe.value) observer?.unobserve(observe.value)
+    detached.value = true
+  }
 })
 </script>
 
