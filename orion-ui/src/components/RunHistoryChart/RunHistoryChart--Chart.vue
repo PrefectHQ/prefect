@@ -352,7 +352,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 </style>
 
 <style lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .run-history-chart {
   .tick line {

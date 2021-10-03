@@ -1,5 +1,4 @@
-@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
-@use 'sass:map';
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .copy-link {
   border-radius: 4px;
@@ -17,72 +16,5 @@
 
   &:active {
     background-color: $grey-40;
-  }
-}
-
-.run-state {
-  border-radius: 4px;
-  padding: 2px 8px;
-  text-transform: capitalize;
-}
-
-.result-badge {
-  background-color: $white;
-  border-radius: 16px;
-  font-weight: 400;
-  padding: 0 8px;
-  min-width: 24px;
-  transition: 150ms all;
-
-  &.active {
-    background-color: $primary;
-    color: $white;
-  }
-}
-
-.main-grid {
-  display: grid;
-  grid-template-areas:
-    'details details schematic'
-    'timeline timeline schematic'
-    'timeline timeline schematic';
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 70px);
-  column-gap: 16px;
-  row-gap: 16px;
-
-  .details,
-  .timeline,
-  .schematic {
-    height: 100%;
-  }
-
-  .details {
-    grid-area: details;
-  }
-
-  .timeline {
-    grid-area: timeline;
-  }
-
-  .schematic {
-    grid-area: schematic;
-  }
-}
-
-.results-hr {
-  background-color: $grey-20;
-  border: none;
-  height: 2px;
-}
-
-@media (max-width: map.get($breakpoints, 'md')) {
-  .main-grid {
-    grid-template-areas:
-      'details'
-      'schematic'
-      'timeline';
-    grid-template-columns: repeat(1, 1fr);
-    grid-template-rows: 70px 200px 250px;
   }
 }

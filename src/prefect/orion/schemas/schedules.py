@@ -1,3 +1,7 @@
+"""
+Schedule schemas
+"""
+
 import asyncio
 import datetime
 from typing import List, Set, Union
@@ -14,6 +18,8 @@ MAX_ITERATIONS = 10000
 
 
 class IntervalSchedule(PrefectBaseModel):
+    """Represents a schedule for running on an interval."""
+
     class Config:
         exclude_none = True
 

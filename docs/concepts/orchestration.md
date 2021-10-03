@@ -6,8 +6,8 @@
 
 - flows and tasks are Prefect's basic unit of observability into how your code runs
 - the state of flow or task run tells us everything we need to know to decide how to orchestrate a program
-    - [task state transitions](/img/task-states.png)
-    - [flow state transitions](/img/flow-states.png)
+    - [task state transitions](/img/orchestration/task-states.png)
+    - [flow state transitions](/img/orchestration/flow-states.png)
     - NOTE: update these images to our branded diagrams soon!
 
     - anything deeper would interfere with your flexibility to write your program the way you want
@@ -36,7 +36,7 @@
 - we want to run "orchestration logic" against all state transitions that occur
 - is it possible to spell out all of the core governance concepts just in terms of these transitions?
     - we think yes!
-- is it possible to isolate each governance concept from eachother to create a transparent and observable orchestration engine?
+- is it possible to isolate each governance concept from each other to create a transparent and observable orchestration engine?
     - we also think yes!
 
 ### Anatomy orchestration logic

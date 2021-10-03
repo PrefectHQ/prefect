@@ -1,8 +1,8 @@
-<p align="center"><img src="docs/img/orion_logo.jpg" width=500></p>
+<p align="center"><img src="docs/img/logos/orion_logo.jpg" width=500></p>
 
 # Orion
 
-A development repo for Prefect Orion; reference documentation can be found at https://friendly-doodle-3401c1b7.pages.github.io/
+A development repo for Prefect Orion; reference documentation can be found at https://orion-docs.prefect.io/
 
 ## Installation
 

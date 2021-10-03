@@ -10,11 +10,7 @@
         <div class="d-flex justify-space-between align-center px-1">
           <div>
             <span class="font--secondary subheader">
-              {{
-                typeof filter.count == 'number'
-                  ? filter.count.toLocaleString()
-                  : '--'
-              }}
+              {{ filter.count }}
             </span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
@@ -160,8 +156,10 @@
   </div>
 </template>
 
-<script lang="ts">
-import { Options, Vue } from 'vue-class-component'
+<script lang="ts" setup>
+import { computed, ref, Ref, onBeforeMount, ComputedRef } from 'vue'
+import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
+import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
 import {
   Api,
   Endpoints,
@@ -170,200 +168,206 @@ import {
   FlowRunsHistoryFilter,
   DeploymentsFilter,
   FlowRunsFilter,
-  TaskRunsFilter
+  TaskRunsFilter,
+  BaseFilter
 } from '@/plugins/api'
+import { useStore } from 'vuex'
+import { useRoute } from 'vue-router'
 
-import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
+const store = useStore()
+const route = useRoute()
 
-import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
+const resultsTab: Ref<string | null> = ref(null)
 
-@Options({
-  components: { IntervalBarChartCard, RunHistoryChartCard },
-  watch: {
-    resultsTab(val) {
-      this.$router.push({ hash: `#${val}` })
-    }
-  }
+const flowFilter = computed<FlowsFilter>(() => {
+  return {}
 })
-export default class Dashboard extends Vue {
-  queries: { [key: string]: Query } = {
-    deployments: Api.query({
-      endpoint: Endpoints.deployments_count,
-      body: this.deploymentFilter,
-      options: {
-        pollInterval: 10000
-      }
-    }),
-    flows: Api.query({
-      endpoint: Endpoints.flows_count,
-      body: this.flowFilter,
-      options: {
-        pollInterval: 10000
-      }
-    }),
-    flow_runs: Api.query({
-      endpoint: Endpoints.flow_runs_count,
-      body: this.flowRunFilter,
-      options: {
-        pollInterval: 10000
-      }
-    }),
-    task_runs: Api.query({
-      endpoint: Endpoints.task_runs_count,
-      body: this.taskRunFilter,
-      options: {
-        pollInterval: 10000
-      }
-    }),
-    filter_counts_failed: Api.query({
-      endpoint: Endpoints.flow_runs_count,
-      body: this.countsFilter('FAILED')
-    }),
-    filter_counts_late: Api.query({
-      endpoint: Endpoints.flow_runs_count,
-      // body: this.countsFilter('LATE') TODO: When we can filter by name, these counts should filter on name and this one should be switched to LATE
-      body: this.countsFilter('SCHEDULED')
-    }),
-    filter_counts_scheduled: Api.query({
-      endpoint: Endpoints.flow_runs_count,
-      body: this.countsFilter('SCHEDULED')
-    })
-  }
+const flowRunFilter = computed<FlowRunsFilter>(() => {
+  return {}
+})
+const taskRunFilter = computed<TaskRunsFilter>(() => {
+  return {}
+})
+const deploymentFilter = computed<DeploymentsFilter>(() => {
+  return {}
+})
 
-  // premadeFilters: { label: string; count: number | null }[] = [
-  //   { label: 'Failed Runs', count: null },
-  //   { label: 'Late Runs', count: null },
-  //   { label: 'Upcoming Runs', count: null }
-  // ]
+const start = computed<Date>(() => {
+  return store.getters.globalFilter.start
+})
 
-  resultsTab: string | null = null
+const end = computed<Date>(() => {
+  return store.getters.globalFilter.end
+})
 
-  get premadeFilters(): { [key: string]: string | undefined | number }[] {
-    return [
-      {
-        label: 'Failed Runs',
-        count: this.queries.filter_counts_failed.response || undefined
-      },
-      {
-        label: 'Late Runs',
-        count: this.queries.filter_counts_late.response || undefined
-      },
-      {
-        label: 'Upcoming Runs',
-        count: this.queries.filter_counts_scheduled.response || undefined
-      }
-    ]
-  }
+const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
+  return computed<BaseFilter>((): BaseFilter => {
+    let start_time: { after_?: string; before_?: string } | undefined =
+      undefined
 
-  get flowsCount(): number {
-    return this.queries.flows?.response || 0
-  }
-
-  get deploymentsCount(): number {
-    return this.queries.deployments?.response || 0
-  }
-
-  get flowRunsCount(): number {
-    return this.queries.flow_runs?.response || 0
-  }
-
-  get taskRunsCount(): number {
-    return this.queries.task_runs?.response || 0
-  }
-
-  get start(): Date {
-    return this.$store.getters.globalFilter.start
-  }
-
-  get end(): Date {
-    return this.$store.getters.globalFilter.end
-  }
-
-  get interval(): number {
-    return this.$store.getters.globalFilter.intervalSeconds
-  }
-
-  get loading(): boolean {
-    return (
-      this.queries.flows.loading.value ||
-      this.queries.deployments.loading.value ||
-      this.queries.flow_runs.loading.value ||
-      this.queries.task_runs.loading.value
-    )
-  }
-
-  get flowRunHistoryFilter(): FlowRunsHistoryFilter {
-    return {
-      history_start: this.start.toISOString(),
-      history_end: this.end.toISOString(),
-      history_interval_seconds: this.interval
+    if (start.value || end.value) {
+      start_time = {}
+      if (start.value) start_time.after_ = start.value?.toISOString()
+      if (end.value) start_time.before_ = end.value?.toISOString()
     }
-  }
 
-  get flowRunStatsFilter(): FlowRunsHistoryFilter {
     return {
-      ...this.flowRunHistoryFilter,
-      history_interval_seconds: this.interval * 2
-    }
-  }
-
-  countsFilter(state_type: string): () => FlowRunsFilter {
-    return () => {
-      return {
-        flow_runs: {
-          state_type: { any_: [state_type] }
+      flow_runs: {
+        expected_start_time: start_time,
+        state: {
+          name: {
+            any_: [state_name]
+          }
         }
       }
     }
-  }
-
-  get flowFilter(): FlowsFilter {
-    return {}
-  }
-
-  get flowRunFilter(): FlowRunsFilter {
-    return {}
-  }
-
-  get taskRunFilter(): TaskRunsFilter {
-    return {}
-  }
-
-  get deploymentFilter(): DeploymentsFilter {
-    return {}
-  }
-
-  get resultsCount(): number {
-    if (!this.resultsTab) return 0
-    return this.queries[this.resultsTab].response || 0
-  }
-
-  previous30Minutes(): void {
-    const start = new Date(this.$store.state.globalFilter.start || new Date())
-    const end = new Date(this.$store.state.globalFilter.end || new Date())
-
-    start.setMinutes(start.getMinutes() - 30)
-    end.setMinutes(end.getMinutes() - 30)
-
-    this.$store.commit('start', start)
-    this.$store.commit('end', end)
-  }
-
-  next30Minutes(): void {
-    const start = new Date(this.$store.state.globalFilter.start || new Date())
-    const end = new Date(this.$store.state.globalFilter.end || new Date())
-
-    start.setMinutes(start.getMinutes() + 30)
-    end.setMinutes(end.getMinutes() + 30)
-
-    this.$store.commit('start', start)
-    this.$store.commit('end', end)
-  }
-
-  beforeCreate(): void {
-    this.resultsTab = this.$route.hash?.substr(1) || 'flows'
-  }
+  })
 }
+
+const queries: { [key: string]: Query } = {
+  deployments: Api.query({
+    endpoint: Endpoints.deployments_count,
+    body: deploymentFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  flows: Api.query({
+    endpoint: Endpoints.flows_count,
+    body: flowFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  flow_runs: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: flowRunFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  task_runs: Api.query({
+    endpoint: Endpoints.task_runs_count,
+    body: taskRunFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  filter_counts_failed: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: countsFilter('Failed'),
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  filter_counts_late: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: countsFilter('Late'),
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  filter_counts_scheduled: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: countsFilter('Scheduled'),
+    options: {
+      pollInterval: 10000
+    }
+  })
+}
+
+const premadeFilters = computed<
+  { [key: string]: string | undefined | number }[]
+>(() => {
+  const failed = queries.filter_counts_failed.response.value
+  const late = queries.filter_counts_late.response.value
+  const scheduled = queries.filter_counts_scheduled.response.value
+  return [
+    {
+      label: 'Failed Runs',
+      count: typeof failed == 'number' ? failed.toLocaleString() : '--'
+    },
+    {
+      label: 'Late Runs',
+      count: typeof late == 'number' ? late.toLocaleString() : '--'
+    },
+    {
+      label: 'Upcoming Runs',
+      count: typeof scheduled == 'number' ? scheduled.toLocaleString() : '--'
+    }
+  ]
+})
+
+const flowsCount = computed<number>(() => {
+  return queries.flows?.response.value || 0
+})
+
+const deploymentsCount = computed<number>(() => {
+  return queries.deployments?.response.value || 0
+})
+
+const flowRunsCount = computed<number>(() => {
+  return queries.flow_runs?.response.value || 0
+})
+
+const taskRunsCount = computed<number>(() => {
+  return queries.task_runs?.response.value || 0
+})
+
+const interval = computed<number>(() => {
+  return store.getters.globalFilter.intervalSeconds
+})
+
+const loading = computed<boolean>(() => {
+  return (
+    queries.flows.loading.value ||
+    queries.deployments.loading.value ||
+    queries.flow_runs.loading.value ||
+    queries.task_runs.loading.value
+  )
+})
+
+const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
+  return {
+    history_start: start.value.toISOString(),
+    history_end: end.value.toISOString(),
+    history_interval_seconds: interval.value
+  }
+})
+
+const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
+  return {
+    ...flowRunHistoryFilter.value,
+    history_interval_seconds: interval.value * 2
+  }
+})
+
+const resultsCount = computed<number>(() => {
+  if (!resultsTab.value) return 0
+  return queries[resultsTab.value].response || 0
+})
+
+const previous30Minutes = (): void => {
+  const start_ = new Date(start.value || new Date())
+  const end_ = new Date(end.value || new Date())
+  start_.setMinutes(start_.getMinutes() - 30)
+  end_.setMinutes(end_.getMinutes() - 30)
+  store.commit('start', start_)
+  store.commit('end', end_)
+}
+
+const next30Minutes = (): void => {
+  const start_ = new Date(start.value || new Date())
+  const end_ = new Date(end.value || new Date())
+  start_.setMinutes(start_.getMinutes() + 30)
+  end_.setMinutes(end_.getMinutes() + 30)
+  store.commit('start', start_)
+  store.commit('end', end_)
+}
+
+onBeforeMount(() => {
+  resultsTab.value = route.hash?.substr(1) || 'flows'
+})
 </script>
 
 <style lang="scss" scoped>
