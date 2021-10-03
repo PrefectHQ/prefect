@@ -1,0 +1,11 @@
+.schematic {
+  height: 80vh;
+  min-height: 600px;
+  width: 100%;
+
+  // ☠️☠️☠️☠️ This prevents the timeline from overflowing padding/margins... REMOVE AT YOUR OWN RISK ☠️☠️☠️☠️
+  .schematic-content {
+    box-sizing: content-box;
+    max-height: calc(80vh - 48px);
+  }
+}
