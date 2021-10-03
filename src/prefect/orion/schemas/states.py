@@ -205,25 +205,34 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
-    def __str__(self) -> str:
-        return repr(self)
-
     def __repr__(self) -> str:
         """
-        Generates a nice state representation for user display e.g.
-        `MyCompletedState("my message", type=COMPLETED)`
+        Generates a complete state representation appropriate for introspection
+        and debugging, including the result:
 
-        The message is only included if set, and the type is only included if
-        different than the state name. We do not include data in the repr.
+        `MyCompletedState(id="id", message="my message", type=COMPLETED, result=...)`
         """
 
-        display = []
-        if self.message is not None:
-            display.append(f'"{self.message}"')
-        if self.name.upper() != self.type:
-            display.append(f"type={self.type}")
+        display = dict(
+            message=repr(self.message),
+            type=self.type,
+            result=repr(self.result(raise_on_failure=False)),
+        )
 
-        return f"{self.name}({', '.join(display)})"
+        return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
+
+    def __str__(self) -> str:
+        """
+        Generates a simple state representation appropriate for logging:
+
+        `MyCompletedState(message="my message", type=COMPLETED)`
+        """
+
+        display = dict(
+            message=repr(self.message),
+            type=self.type,
+        )
+        return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
 
     def __hash__(self) -> int:
         return hash(

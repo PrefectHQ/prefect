@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 import pendulum
 import pydantic
 import pytest
+from prefect.orion.schemas.data import DataDocument
 
 from prefect.orion.schemas.states import (
     AwaitingRetry,
@@ -164,30 +165,13 @@ class TestStateConvenienceFunctions:
         assert state.name == "Retrying"
 
 
-class TestRepr:
-    async def test_state_repr_includes_just_name_for_basic_states(self):
-        assert repr(Failed()) == str(Failed()) == "Failed()"
-        assert repr(Completed()) == str(Completed()) == "Completed()"
-        assert repr(Running()) == str(Running()) == "Running()"
-        assert repr(Scheduled()) == str(Scheduled()) == "Scheduled()"
+class TestRepresentation:
+    async def test_state_str_includes_message_and_type(self):
+        assert str(Failed(message="abc")) == "Failed(message='abc', type=FAILED)"
 
-    @pytest.mark.parametrize("message", ["", "abc", "hello there"])
-    async def test_state_repr_includes_message_if_not_none(self, message):
+    async def test_state_repr_includes_message_and_type_and_result(self):
+        data = DataDocument(encoding="text", blob=b"abc")
         assert (
-            repr(Failed(message=message))
-            == str(Failed(message=message))
-            == f'Failed("{message}")'
-        )
-
-    async def test_state_repr_includes_type_if_different_than_name(self):
-        assert (
-            repr(AwaitingRetry(message="xyz"))
-            == str(AwaitingRetry(message="xyz"))
-            == 'AwaitingRetry("xyz", type=SCHEDULED)'
-        )
-
-        assert (
-            repr(State(type=StateType.RUNNING, name="MyState"))
-            == str(State(type=StateType.RUNNING, name="MyState"))
-            == "MyState(type=RUNNING)"
+            repr(Completed(message="I'm done", data=data))
+            == f"""Completed(message="I'm done", type=COMPLETED, result='abc')"""
         )
