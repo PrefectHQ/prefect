@@ -65,6 +65,7 @@
     position: absolute;
     top: 100%;
     left: 0;
+    z-index: 2;
   }
 }
 
@@ -74,6 +75,7 @@
   left: 0;
   top: 100%;
   width: 100%;
+  z-index: 1;
 }
 
 .overlay {
