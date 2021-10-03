@@ -50,14 +50,15 @@ The following executors are currently supported:
 - `DaskExecutor`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
 
 """
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, Optional, TypeVar
+import abc
+from contextlib import asynccontextmanager
+from typing import Any, Callable, Dict, Optional, TypeVar, Awaitable, AsyncIterator
 from uuid import UUID
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
 
-from prefect.futures import PrefectFuture, resolve_futures_to_data
+from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun
 from prefect.utilities.logging import get_logger
@@ -65,11 +66,12 @@ from prefect.utilities.logging import get_logger
 T = TypeVar("T", bound="BaseExecutor")
 
 
-class BaseExecutor:
+class BaseExecutor(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
         self.logger = get_logger("executor")
         self._started: bool = False
 
+    @abc.abstractmethod
     async def submit(
         self,
         task_run: TaskRun,
@@ -78,42 +80,19 @@ class BaseExecutor:
     ) -> PrefectFuture:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
-        get the call result. This method is responsible for resolving `PrefectFutures`
-        in args and kwargs into a type supported by the underlying execution method.
+        get the call result.
 
         Args:
             run_id: A unique id identifying the run being submitted
             run_fn: The function to be executed
-            *args: Arguments to pass to `run_fn`
-            **kwargs: Keyword arguments to pass to `run_fn`
+            run_kwargs: A dict of keyword arguments to pass to `run_fn`
 
         Returns:
             A future representing the result of `run_fn` execution
         """
         raise NotImplementedError()
 
-    @contextmanager
-    def start(
-        self: T,
-    ) -> T:
-        """Start the executor, preparing any resources necessary for task submission"""
-        try:
-            self._started = True
-            yield self
-        finally:
-            self.logger.info("Shutting down executor...")
-            self.shutdown()
-            self._started = False
-
-    def shutdown(self) -> None:
-        """
-        Clean up resources associated with the executor.
-
-        Should block until submitted calls are completed.
-        """
-        # TODO: Consider adding a `wait` bool here for fast shutdown
-        pass
-
+    @abc.abstractmethod
     async def wait(
         self, prefect_future: PrefectFuture, timeout: float = None
     ) -> Optional[State]:
@@ -122,6 +101,36 @@ class BaseExecutor:
         If it is not finished after the timeout expires, `None` should be returned.
         """
         raise NotImplementedError()
+
+    @asynccontextmanager
+    async def start(
+        self: T,
+    ) -> AsyncIterator[T]:
+        """Start the executor, preparing any resources necessary for task submission"""
+        try:
+            self.logger.info(f"Starting executor {self}...")
+            await self.on_startup()
+            self._started = True
+            yield self
+        finally:
+            self.logger.info(f"Shutting down executor {self}...")
+            await self.on_shutdown()
+            self._started = False
+
+    async def on_startup(self) -> None:
+        """
+        Create any resources required for this executor to submit work.
+        """
+        pass
+
+    async def on_shutdown(self) -> None:
+        """
+        Clean up resources associated with the executor.
+
+        Should block until submitted calls are completed.
+        """
+        # TODO: Consider adding a `wait` bool here for fast shutdown
+        pass
 
     def __str__(self) -> str:
         return type(self).__name__
@@ -143,7 +152,7 @@ class SequentialExecutor(BaseExecutor):
     async def submit(
         self,
         task_run: TaskRun,
-        run_fn: Callable[..., State],
+        run_fn: Callable[..., Awaitable[State]],
         run_kwargs: Dict[str, Any],
     ) -> PrefectFuture:
         if not self._started:
@@ -152,10 +161,7 @@ class SequentialExecutor(BaseExecutor):
         # Run the function immediately and store the result in memory
         self._results[task_run.id] = await run_fn(**run_kwargs)
 
-        return PrefectFuture(
-            task_run=task_run,
-            executor=self,
-        )
+        return PrefectFuture(task_run=task_run, executor=self)
 
     async def wait(
         self, prefect_future: PrefectFuture, timeout: float = None
@@ -176,7 +182,7 @@ class DaskExecutor(BaseExecutor):
     def __init__(self) -> None:
         super().__init__()
         self._client: "distributed.Client" = None
-        self._futures: Dict[UUID, "distributed.Future"] = {}
+        self._dask_futures: Dict[UUID, "distributed.Future"] = {}
 
     async def submit(
         self,
@@ -187,12 +193,9 @@ class DaskExecutor(BaseExecutor):
         if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
-        self._futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
+        self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
 
-        return PrefectFuture(
-            task_run=task_run,
-            executor=self,
-        )
+        return PrefectFuture(task_run=task_run, executor=self)
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
         """
@@ -200,7 +203,7 @@ class DaskExecutor(BaseExecutor):
 
         The dask future is for the `run_fn` which should return a `State`
         """
-        return self._futures[prefect_future.run_id]
+        return self._dask_futures[prefect_future.run_id]
 
     async def wait(
         self,
@@ -209,34 +212,22 @@ class DaskExecutor(BaseExecutor):
     ) -> Optional[State]:
         future = self._get_dask_future(prefect_future)
         try:
-            result = future.result(timeout=timeout)
-            # The client may be async on a dask worker
-            # TODO: Set `Client(asynchronous=True)` on startup and just always use the
-            #       async client
-            if self._client.asynchronous:
-                return await result
-            else:
-                return result
+            return await future.result(timeout=timeout)
         except distributed.TimeoutError:
             return None
 
-    @contextmanager
-    def start(self: T) -> T:
-        with super().start():
-            self._client = distributed.Client()
-            self.logger.info(
-                f"Dask dashboard available at {self._client.dashboard_link}"
-            )
-            yield self
+    async def on_startup(self):
+        self._client = await distributed.Client(asynchronous=True)
+        self.logger.info(f"Dask dashboard available at {self._client.dashboard_link}")
 
-    def shutdown(self) -> None:
+    async def on_shutdown(self) -> None:
         # Attempt to wait for all futures to complete
-        for future in self._futures.values():
+        for future in self._dask_futures.values():
             try:
-                future.result()
+                await future.result()
             except Exception:
                 pass
-        self._client.close()
+        await self._client.close()
 
     def __getstate__(self):
         """

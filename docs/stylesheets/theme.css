@@ -1,0 +1,10 @@
+:root > * {
+  /* theme */
+  --md-primary-fg-color: #0052ff;
+}
+
+.highlight > pre > code {
+  border-radius: 3px;
+  padding-top:16px;
+  padding-bottom: 16px;
+}

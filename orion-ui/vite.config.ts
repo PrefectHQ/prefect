@@ -12,7 +12,7 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         additionalData: `
-        @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+        @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
         `
       }
     }

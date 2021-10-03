@@ -176,7 +176,7 @@ Caching can be configured further in the following ways:
 
 - a generic `cache_key_fn` is a function that accepts two positional arguments: 
     - the first argument corresponds to the `TaskRunContext` which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`
-    - the second argument correponds to a dictionary of input values to the task; e.g., if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key
+    - the second argument corresponds to a dictionary of input values to the task; e.g., if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key
 - by providing a `cache_expiration` represented as a `datetime.timedelta`, the cache can be configured to expire after the specified amount of time from its creation
 
 !!! warning "The persistence of state"
