@@ -1,5 +1,6 @@
 export interface GlobalFilter {
-  start?: Date
   end?: Date
+  object?: string
   intervalSeconds?: number
+  start?: Date
 }

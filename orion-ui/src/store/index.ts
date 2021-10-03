@@ -20,9 +20,10 @@ end.setMilliseconds(0)
 
 const state: State = {
   globalFilter: {
+    end: end,
+    object: 'flow_runs',
     intervalSeconds: 60,
-    start: start,
-    end: end
+    start: start
   }
 }
 

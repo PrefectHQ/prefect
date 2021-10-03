@@ -34,6 +34,10 @@
   }
 }
 
+.object {
+  text-transform: capitalize;
+}
+
 .bar {
   background-color: #fff;
   box-shadow: $box-shadow-sm;
