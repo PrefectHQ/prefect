@@ -5,7 +5,9 @@
       <i class="pi pi-arrow-drop-down-fill" />
     </button>
 
-    <div class="search-input px-2 flex-grow-1 d-flex align-center">
+    <div
+      class="search-input px-2 flex-grow-1 d-flex align-center font--primary"
+    >
       <i class="pi pi-search-line mr-1" />
       <input v-model="search" class="flex-grow-1" placeholder="Search..." />
     </div>
