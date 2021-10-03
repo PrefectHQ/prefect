@@ -54,12 +54,10 @@ class State(IDBaseModel, Generic[R]):
 
     type: StateType
     name: str = None
-    timestamp: datetime.datetime = Field(
-        default_factory=lambda: pendulum.now("UTC"), repr=False
-    )
+    timestamp: datetime.datetime = Field(default_factory=lambda: pendulum.now("UTC"))
     message: str = Field(None, example="Run started")
-    data: DataDocument[R] = Field(None, repr=False)
-    state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
+    data: DataDocument[R] = Field(None)
+    state_details: StateDetails = Field(default_factory=StateDetails)
 
     @overload
     def result(state_or_future: "State[R]", raise_on_failure: bool = True) -> R:
@@ -208,26 +206,24 @@ class State(IDBaseModel, Generic[R]):
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
     def __str__(self) -> str:
+        return repr(self)
+
+    def __repr__(self) -> str:
         """
-        Generates a nice state representation for user display
-        e.g. Completed(name="My Custom Name", result=10)
+        Generates a nice state representation for user display e.g.
+        `MyCompletedState("my message", type=COMPLETED)`
 
-        The name is only included if different from the state type
-        The result relies on the str of the data document and may not always
-            be resolved to the concrete value
+        The message is only included if set, and the type is only included if
+        different than the state name. We do not include data in the repr.
         """
-        attrs = {}
 
-        if self.name.lower() != self.type.value.lower():
-            attrs["name"] = repr(self.name)
-        if self.data is not None:
-            attrs["result"] = str(self.data)
-        if self.message:
-            attrs["message"] = repr(self.message)
+        display = []
+        if self.message is not None:
+            display.append(f'"{self.message}"')
+        if self.name.upper() != self.type:
+            display.append(f"type={self.type}")
 
-        attr_str = ", ".join(f"{key}={val}" for key, val in attrs.items())
-        friendly_type = self.type.value.capitalize()
-        return f"{friendly_type}({attr_str})"
+        return f"{self.name}({', '.join(display)})"
 
     def __hash__(self) -> int:
         return hash(
@@ -307,7 +303,7 @@ def AwaitingRetry(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     Returns:
         State: a AwaitingRetry state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="Awaiting Retry")
+    return Scheduled(scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs)
 
 
 def Retrying(**kwargs) -> State:
@@ -325,4 +321,4 @@ def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     Returns:
         State: a Late state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="Late")
+    return Scheduled(scheduled_time=scheduled_time, name="Late", **kwargs)

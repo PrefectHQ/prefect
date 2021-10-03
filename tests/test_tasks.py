@@ -234,11 +234,11 @@ class TestTaskRetries:
         assert state_names == [
             "Pending",
             "Running",
-            "Awaiting Retry",
+            "AwaitingRetry",
             "Retrying",
-            "Awaiting Retry",
+            "AwaitingRetry",
             "Retrying",
-            "Awaiting Retry",
+            "AwaitingRetry",
             "Retrying",
             "Failed" if always_fail else "Completed",
         ]
@@ -271,7 +271,7 @@ class TestTaskRetries:
         assert state_names == [
             "Pending",
             "Running",
-            "Awaiting Retry",
+            "AwaitingRetry",
             "Retrying",
             "Completed",
         ]

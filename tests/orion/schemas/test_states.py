@@ -136,7 +136,7 @@ class TestStateConvenienceFunctions:
         dt = pendulum.now("UTC")
         state = AwaitingRetry(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
-        assert state.name == "Awaiting Retry"
+        assert state.name == "AwaitingRetry"
         assert state.state_details.scheduled_time == dt
 
     def test_awaiting_retry_without_scheduled_time_defaults_to_now(self):
@@ -162,3 +162,32 @@ class TestStateConvenienceFunctions:
         state = Retrying()
         assert state.type == StateType.RUNNING
         assert state.name == "Retrying"
+
+
+class TestRepr:
+    async def test_state_repr_includes_just_name_for_basic_states(self):
+        assert repr(Failed()) == str(Failed()) == "Failed()"
+        assert repr(Completed()) == str(Completed()) == "Completed()"
+        assert repr(Running()) == str(Running()) == "Running()"
+        assert repr(Scheduled()) == str(Scheduled()) == "Scheduled()"
+
+    @pytest.mark.parametrize("message", ["", "abc", "hello there"])
+    async def test_state_repr_includes_message_if_not_none(self, message):
+        assert (
+            repr(Failed(message=message))
+            == str(Failed(message=message))
+            == f'Failed("{message}")'
+        )
+
+    async def test_state_repr_includes_type_if_different_than_name(self):
+        assert (
+            repr(AwaitingRetry(message="xyz"))
+            == str(AwaitingRetry(message="xyz"))
+            == 'AwaitingRetry("xyz", type=SCHEDULED)'
+        )
+
+        assert (
+            repr(State(type=StateType.RUNNING, name="MyState"))
+            == str(State(type=StateType.RUNNING, name="MyState"))
+            == "MyState(type=RUNNING)"
+        )
