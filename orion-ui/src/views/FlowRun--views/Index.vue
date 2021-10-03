@@ -77,9 +77,22 @@
       </div>
     </Card>
 
-    <Card class="schematic" shadow="sm"
-      >this is where i'd put a mini schematic... if i had one</Card
-    >
+    <Card class="schematic" shadow="sm">
+      <div
+        style="
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          position: absolute;
+        "
+        class="text-center"
+      >
+        <router-link :to="`/flow-run/${id}/schematic`">
+          <IconButton icon="pi-full-screen" />
+          <div>View Schematic </div>
+        </router-link>
+      </div>
+    </Card>
   </div>
 
   <Tabs v-model="resultsTab" class="mt-3">
