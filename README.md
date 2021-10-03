@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/img/orion_logo.jpg" width=500></p>
+<p align="center"><img src="docs/img/logos/orion_logo.jpg" width=500></p>
 
 # Orion
 
