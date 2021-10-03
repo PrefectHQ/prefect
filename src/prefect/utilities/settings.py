@@ -37,11 +37,14 @@ class SharedSettings(BaseSettings):
 
     debug_mode: bool = Field(
         False,
-        description="If `True`, places the API in debug mode. This may modify behavior to facilitate debugging. Defaults to `False`.",
+        description="""If `True`, places the API in debug mode. This may modify
+        behavior to facilitate debugging, including extra logs and other verbose
+        assistance. Defaults to `False`.""",
     )
     test_mode: bool = Field(
         False,
-        description="If `True`, places the API in test mode. This may modify behavior to faciliate testing. Defaults to `False`.",
+        description="""If `True`, places the API in test mode. This may modify
+        behavior to faciliate testing. Defaults to `False`.""",
     )
 
 
@@ -59,15 +62,18 @@ class DataLocationSettings(BaseSettings):
 
     name: str = Field(
         "default",
-        description="The name for the default data directory. Defaults to `default`.",
+        description="""The name for the default data directory. Defaults to
+        `default`.""",
     )
     scheme: str = Field(
         "file",
-        description="The scheme for the default data directory. Defaults to `file`.",
+        description="""The scheme for the default data directory. Defaults to
+        `file`.""",
     )
     base_path: str = Field(
         "/tmp",
-        description="The base path for the default data directory. Defaults to `/tmp`.",
+        description="""The base path for the default data directory. Defaults to
+        `/tmp`.""",
     )
 
 
