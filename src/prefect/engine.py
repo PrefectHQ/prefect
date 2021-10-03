@@ -215,17 +215,15 @@ async def begin_flow_run(
         flow_run_id=flow_run.id,
     )
 
-    # Display the full state (including the result) if debugging
-    logger.log(
-        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Flow run {flow_run.name!r} finished in state {terminal_state.name}",
+    # If debugging, use the more complete `repr` than the usual `str` description
+    display_state = (
+        repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
     )
 
-    # log the result for debugging
-    if prefect.settings.debug_mode:
-        logger.log(
-            level=logging.DEBUG, msg=f"State result was {terminal_state.result()}"
-        )
+    logger.log(
+        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
+        msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
+    )
 
     return terminal_state
 
@@ -288,16 +286,15 @@ async def create_and_begin_subflow_run(
         flow_run_id=flow_run.id,
     )
 
-    logger.log(
-        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-        msg=f"Subflow run {flow_run.name!r} finished in state {terminal_state.name}",
+    # If debugging, use the more complete `repr` than the usual `str` description
+    display_state = (
+        repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
     )
 
-    # log the result for debugging
-    if prefect.settings.debug_mode:
-        logger.log(
-            level=logging.DEBUG, msg=f"State result was {terminal_state.result()}"
-        )
+    logger.log(
+        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
+        msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
+    )
 
     # Track the subflow state so the parent flow can use it to determine its final state
     parent_flow_run_context.subflow_states.append(terminal_state)
@@ -631,14 +628,13 @@ async def orchestrate_task_run(
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
+    # If debugging, use the more complete `repr` than the usual `str` description
+    display_state = repr(state) if prefect.settings.debug_mode else str(state)
+
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
-        msg=f"Task run {task_run.name!r} finished in state {state.name}",
+        msg=f"Task run {task_run.name!r} finished in state {display_state}",
     )
-
-    # log the result for debugging
-    if prefect.settings.debug_mode:
-        logger.log(level=logging.DEBUG, msg=f"State result was {state.result()}")
 
     return state
 
