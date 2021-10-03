@@ -65,15 +65,15 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   flows: {
     method: 'POST',
-    url: '/flows/filter/'
+    url: '/flows/filter'
   },
   flows_count: {
     method: 'POST',
-    url: '/flows/count/'
+    url: '/flows/count'
   },
   create_flow_run: {
     method: 'POST',
-    url: '/flow_runs/'
+    url: '/flow_runs'
   },
   deployment: {
     method: 'GET',
@@ -82,11 +82,11 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   deployments: {
     method: 'POST',
-    url: '/deployments/filter/'
+    url: '/deployments/filter'
   },
   deployments_count: {
     method: 'POST',
-    url: '/deployments/count/'
+    url: '/deployments/count'
   },
   set_schedule_inactive: {
     method: 'POST',
@@ -105,15 +105,15 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   flow_runs: {
     method: 'POST',
-    url: '/flow_runs/filter/'
+    url: '/flow_runs/filter'
   },
   flow_runs_history: {
     method: 'POST',
-    url: '/flow_runs/history/'
+    url: '/flow_runs/history'
   },
   flow_runs_count: {
     method: 'POST',
-    url: '/flow_runs/count/'
+    url: '/flow_runs/count'
   },
   task_run: {
     method: 'GET',
@@ -122,15 +122,15 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   task_runs: {
     method: 'POST',
-    url: '/task_runs/filter/'
+    url: '/task_runs/filter'
   },
   task_runs_count: {
     method: 'POST',
-    url: '/task_runs/count/'
+    url: '/task_runs/count'
   },
   task_runs_history: {
     method: 'POST',
-    url: '/task_runs/history/'
+    url: '/task_runs/history'
   },
   settings: {
     method: 'GET',
