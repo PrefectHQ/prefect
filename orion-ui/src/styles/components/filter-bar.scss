@@ -3,8 +3,9 @@
 .observe {
   position: absolute;
   height: 16px;
-  top: 0;
   left: 0;
+  opacity: 0;
+  top: 0;
   width: 100px;
 }
 
@@ -19,16 +20,17 @@
   transition: all 150ms;
   position: sticky;
   left: 0;
+  // width: 100%;
+
   z-index: 9;
 
   @media (max-width: 640px) {
-    margin: 0 16px;
-    width: 100%;
+    margin: 0px 0 0 0;
+    border-radius: 0;
   }
 
   &.detached {
     margin: 16px 0 0 0;
-    box-shadow: $box-shadow-sm;
     border-radius: 0;
   }
 }

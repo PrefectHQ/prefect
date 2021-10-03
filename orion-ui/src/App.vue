@@ -33,7 +33,8 @@ import FilterBar from '@/components/FilterBar/FilterBar.vue'
       'filter-bar'
       'main';
     grid-template-columns: unset;
-    grid-template-rows: 62px 1fr;
+    grid-template-rows: 62px 62px 1fr;
+    row-gap: 0;
   }
 
   .nav {
@@ -50,8 +51,7 @@ import FilterBar from '@/components/FilterBar/FilterBar.vue'
     overflow: auto;
 
     @media (max-width: 640px) {
-      padding: 0 16px;
-      max-height: calc(100vh - 62px);
+      padding: 0px 16px 32px 16px;
     }
   }
 }
