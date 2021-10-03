@@ -2,7 +2,7 @@
   <div class="bar d-flex font--secondary" :class="{ detached: detached }">
     <div class="object-container">
       <button
-        class="filter-button objects text--grey-80"
+        class="filter-button objects text--grey-80 pl-3 pr-1"
         @click="toggleObjectMenu"
       >
         <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1">
@@ -34,9 +34,18 @@
       <input v-model="search" class="flex-grow-1" placeholder="Search..." />
     </div>
 
+    <div class="saved-searches-container">
+      <button
+        class="filter-button saved-searches text--grey-80 px-2"
+        @click="toggleSavedSearchesMenu"
+      >
+        <i class="pi pi-star-line" />
+      </button>
+    </div>
+
     <div class="filter-container">
       <button
-        class="filter-button filters text--grey-80"
+        class="filter-button filters text--grey-80 px-2"
         @click="toggleFilterMenu"
       >
         <i class="pi pi-filter-3-line" />
@@ -73,6 +82,7 @@ const search = ref<string>('')
 
 const showObjectMenu = ref<boolean>(false)
 const showFilterMenu = ref<boolean>(false)
+const showSavedSearchesMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
 
 const obj = ref<string>('flows')
@@ -83,6 +93,11 @@ const selectedObject = computed(() => {
 
 const toggleObjectMenu = () => {
   showObjectMenu.value = !showObjectMenu.value
+  showOverlay.value = !showOverlay.value
+}
+
+const toggleSavedSearchesMenu = () => {
+  showSavedSearchesMenu.value = !showSavedSearchesMenu.value
   showOverlay.value = !showOverlay.value
 }
 

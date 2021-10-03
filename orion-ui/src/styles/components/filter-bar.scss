@@ -49,8 +49,9 @@
   }
 }
 
+.filter-container,
 .object-container,
-.filter-container {
+.saved-searches-container {
   position: relative;
 
   .filter-menu {
@@ -79,8 +80,8 @@
   cursor: pointer;
   display: flex;
   height: 100%;
+  min-width: 52px;
   outline: none;
-  padding: 0 12px;
 
   &:hover,
   &:focus {
@@ -91,13 +92,19 @@
     background-color: $grey-20;
   }
 
+  $border-style: 2px solid $grey-10;
+
   &.objects {
-    border-right: 2px solid $grey-10;
+    border-right: $border-style;
     border-radius: 4px 0 0 4px;
   }
 
   &.filters {
-    border-left: 2px solid $grey-10;
+    border-left: $border-style;
     border-radius: 0 4px 4px 0;
+  }
+
+  &.saved-searches {
+    border-left: $border-style;
   }
 }
