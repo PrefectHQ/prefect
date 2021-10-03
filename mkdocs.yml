@@ -2,6 +2,7 @@ site_name: Prefect Orion
 repo_url: https://github.com/PrefectHQ/orion
 edit_uri: edit/main/docs/
 extra_css:
+    - stylesheets/theme.css
     - stylesheets/admonitions.css
     - stylesheets/api_ref.css
     - stylesheets/rest_ref.css
@@ -19,11 +20,13 @@ markdown_extensions:
     - pymdownx.highlight:
         use_pygments: true
     - pymdownx.superfences
+    - pymdownx.tabbed
 theme:
     name: material
     favicon: img/favicon.ico
     features:
         - navigation.tabs
+        - navigation.tabs.sticky
         - navigation.instant
     font:
         text: Inter
@@ -66,10 +69,10 @@ nav:
         - Flows: concepts/flows.md
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
-        - Futures: concepts/futures.md
         - Orchestration Rules: concepts/orchestration.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
+        - Futures: concepts/futures.md
         - Settings: concepts/settings.md
     - FAQ: faq.md
     - 'API Reference': 
@@ -97,6 +100,7 @@ nav:
                 - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
                 - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
             - 'Schemas':
+                - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
                 - 'orion.schemas.data': api-ref/orion/schemas/data.md
                 - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
