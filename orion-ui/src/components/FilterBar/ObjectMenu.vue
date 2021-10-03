@@ -1,7 +1,7 @@
 <template>
-  <Card class="menu font--primary" miter shadow="sm" @blur="emit('close')">
+  <Card class="menu font--primary" miter shadow="sm" tabindex="0">
     <button
-      v-for="option in options"
+      v-for="option in props.options"
       :key="option.value"
       class="
         option
@@ -26,21 +26,16 @@ import { computed, defineEmits, defineProps } from 'vue'
 const emit = defineEmits(['update:modelValue', 'close'])
 const props = defineProps<{
   modelValue: string
+  options: { label: string; value: string }[]
 }>()
 
 const value = computed(() => {
   return props.modelValue
 })
 
-const options = [
-  { label: 'Flows', value: 'flows' },
-  { label: 'Deployments', value: 'deployments' },
-  { label: 'Flow Runs', value: 'flow_runs' },
-  { label: 'Task Runs', value: 'task_runs' }
-]
-
 const selectOption = (val: string) => {
   emit('update:modelValue', val)
+  emit('close')
 }
 </script>
 

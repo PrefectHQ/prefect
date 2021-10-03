@@ -3,17 +3,20 @@
     <div class="object-container">
       <button
         class="filter-button objects text--grey-80"
-        @click="showObjectMenu = !showObjectMenu"
+        @click="toggleObjectMenu"
       >
-        <span v-breakpoints="'sm'" class="mr-1">Flow Runs</span>
+        <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1">
+          {{ selectedObject.label }}
+        </span>
         <i class="pi pi-arrow-drop-down-fill" />
       </button>
 
       <ObjectMenu
         v-if="showObjectMenu"
-        v-model="object"
+        v-model="obj"
+        :options="objectOptions"
         class="filter-menu"
-        @close="showObjectMenu = false"
+        @close="toggleObjectMenu"
       />
     </div>
 
@@ -34,7 +37,7 @@
     <div class="filter-container">
       <button
         class="filter-button filters text--grey-80"
-        @click="showOverlay = !showOverlay"
+        @click="toggleFilterMenu"
       >
         <i class="pi pi-filter-3-line" />
         <span v-breakpoints="'sm'" class="ml-1">Filters</span>
@@ -45,22 +48,49 @@
       <div class="observe" ref="observe" />
     </teleport>
 
-    <teleport to=".application">
-      <div v-show="showOverlay" class="overlay" @click="showOverlay = false" />
+    <teleport v-if="showOverlay" to=".application">
+      <div class="overlay" @click="closeOverlay" />
     </teleport>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, Ref, onBeforeUnmount, onMounted } from 'vue'
+import { ref, Ref, onBeforeUnmount, onMounted, computed } from 'vue'
 import ObjectMenu from './ObjectMenu.vue'
+
+type objectOption = { label: string; value: string }
+const objectOptions: objectOption[] = [
+  { label: 'Flows', value: 'flows' },
+  { label: 'Deployments', value: 'deployments' },
+  { label: 'Flow Runs', value: 'flow_runs' },
+  { label: 'Task Runs', value: 'task_runs' }
+]
 
 const search = ref<string>('')
 
 const showObjectMenu = ref<boolean>(false)
+const showFilterMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
 
-const object = ref<string>('flows')
+const obj = ref<string>('flows')
+
+const selectedObject = computed(() => {
+  return objectOptions.find((o) => o.value == obj.value)
+})
+
+const toggleObjectMenu = () => {
+  showObjectMenu.value = !showObjectMenu.value
+  showOverlay.value = !showOverlay.value
+}
+
+const toggleFilterMenu = () => {
+  showFilterMenu.value = !showFilterMenu.value
+  showOverlay.value = !showOverlay.value
+}
+
+const closeOverlay = () => {
+  showOverlay.value = false
+}
 
 /**
  * This section is for performantly handling intersection of the filter bar
