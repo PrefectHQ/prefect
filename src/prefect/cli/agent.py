@@ -17,6 +17,9 @@ app.add_typer(agent_app)
 @agent_app.command()
 @sync_compatible
 async def start():
+    """
+    Start an agent service to query for and execute scheduled flow runs.
+    """
     console.print("Starting agent...")
     running = True
     async with OrionClient() as client:
