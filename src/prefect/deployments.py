@@ -1,6 +1,5 @@
 """
-Objects for specifying deployments for creation and utilities for working with
-deployments.
+Objects for specifying deployments and utilities for loading flows from deployments.
 """
 
 import pathlib

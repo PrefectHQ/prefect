@@ -72,6 +72,9 @@ def setup_logging(settings: Settings) -> None:
 
 
 def get_logger(name: str = None) -> logging.Logger:
+    """
+    Get a `prefect` logger.
+    """
     logger = logging.getLogger("prefect")
     if name:
         logger = logger.getChild(name)
@@ -80,6 +83,11 @@ def get_logger(name: str = None) -> logging.Logger:
 
 class OrionHandler(logging.Handler):
     def emit(self, record: logging.LogRecord):
+        """
+        Emit a logging record to Orion.
+
+        This is not yet implemented. No logs are sent to the server.
+        """
         # TODO: Implement a log handler that sends logs to Orion, Core uses a custom
         #       queue to batch messages but we may want to use the stdlib
         #       `MemoryHandler` as a base which implements queueing already

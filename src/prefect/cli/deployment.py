@@ -1,5 +1,5 @@
 """
-Command line interface for working with deployments
+Command line interface for working with deployments.
 """
 import sys
 from pathlib import Path
@@ -32,9 +32,9 @@ async def inspect(name: str):
     ...
 
 
-@deployment_app.command(name="list")
+@deployment_app.command()
 @sync_compatible
-async def list_(flow_name: str = None):
+async def ls(flow_name: str = None):
     """
     View all deployments or deployments for a specific flow
     """
