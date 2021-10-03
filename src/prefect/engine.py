@@ -223,7 +223,9 @@ async def begin_flow_run(
 
     # log the result for debugging
     if prefect.settings.debug_mode:
-        logger.log(level=logging.DEBUG, msg=f"State result was {terminal_state.result}")
+        logger.log(
+            level=logging.DEBUG, msg=f"State result was {terminal_state.result()}"
+        )
 
     return terminal_state
 
@@ -293,7 +295,9 @@ async def create_and_begin_subflow_run(
 
     # log the result for debugging
     if prefect.settings.debug_mode:
-        logger.log(level=logging.DEBUG, msg=f"State result was {terminal_state.result}")
+        logger.log(
+            level=logging.DEBUG, msg=f"State result was {terminal_state.result()}"
+        )
 
     # Track the subflow state so the parent flow can use it to determine its final state
     parent_flow_run_context.subflow_states.append(terminal_state)
@@ -634,7 +638,7 @@ async def orchestrate_task_run(
 
     # log the result for debugging
     if prefect.settings.debug_mode:
-        logger.log(level=logging.DEBUG, msg=f"State result was {state.result}")
+        logger.log(level=logging.DEBUG, msg=f"State result was {state.result()}")
 
     return state
 
