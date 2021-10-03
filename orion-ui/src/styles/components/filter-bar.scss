@@ -9,12 +9,7 @@
   width: 100px;
 }
 
-.bar {
-  background-color: #fff;
-  box-shadow: $box-shadow-sm;
-  border-radius: 4px;
-  display: flex;
-  font-size: 14px;
+.bar-wrapper {
   height: 100%;
   margin: 16px 32px 16px 32px;
   position: sticky;
@@ -39,6 +34,19 @@
   }
 }
 
+.bar {
+  background-color: #fff;
+  box-shadow: $box-shadow-sm;
+  border-radius: 4px;
+  display: flex;
+  font-size: 14px;
+  width: 100%;
+
+  &.menu-opened {
+    border-radius: 4px 4px 0 0;
+  }
+}
+
 .search-input {
   height: 100%;
 
@@ -49,16 +57,23 @@
   }
 }
 
-.filter-container,
 .object-container,
 .saved-searches-container {
   position: relative;
 
-  .filter-menu {
+  .object-menu {
     position: absolute;
     top: 100%;
     left: 0;
   }
+}
+
+.filter-menu {
+  position: absolute !important;
+  border-radius: 0 0 4px 4px;
+  left: 0;
+  top: 100%;
+  width: 100%;
 }
 
 .overlay {
