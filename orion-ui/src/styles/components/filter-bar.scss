@@ -1,7 +1,11 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
-.wrapper {
-  margin: 16px 32px 0 32px;
+.observe {
+  position: absolute;
+  height: 16px;
+  top: 0;
+  left: 0;
+  width: 100px;
 }
 
 .bar {
@@ -11,8 +15,10 @@
   display: flex;
   margin: 16px 32px 16px 32px;
   height: 100%;
-  //   position: sticky;
   top: 0;
+  transition: all 150ms;
+  position: sticky;
+  left: 0;
   z-index: 10;
 
   @media (max-width: 640px) {
@@ -21,7 +27,6 @@
   }
 
   &.detached {
-    margin: 0;
-    top: 0;
+    margin: 16px 0 0 0;
   }
 }
