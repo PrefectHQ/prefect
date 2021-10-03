@@ -171,6 +171,7 @@ import {
   TaskRunsFilter,
   BaseFilter
 } from '@/plugins/api'
+import { RunState } from '@/typings/global'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
 import router from '@/router'
@@ -181,16 +182,49 @@ const route = useRoute()
 const resultsTab: Ref<string | null> = ref(null)
 
 const flowFilter = computed<FlowsFilter>(() => {
-  return {}
+  return { ...filterBody.value }
 })
 const flowRunFilter = computed<FlowRunsFilter>(() => {
-  return {}
+  return { ...filterBody.value }
 })
 const taskRunFilter = computed<TaskRunsFilter>(() => {
-  return {}
+  return { ...filterBody.value }
 })
 const deploymentFilter = computed<DeploymentsFilter>(() => {
-  return {}
+  return { ...filterBody.value }
+})
+
+const object = computed<string>(() => {
+  return store.getters.globalFilter.object
+})
+
+const states = computed<RunState[]>(() => {
+  return store.getters.globalFilter.states
+})
+
+type Type = {
+  any_: string[]
+}
+type Body = {
+  [key: string]: { state: { type: Type } }
+}
+const filterBody = computed<Body>(() => {
+  if (!states.value.length) return {}
+  return {
+    [object.value]: {
+      state: {
+        type: states.value.reduce<Type>(
+          (acc, curr) => {
+            acc.any_.push(curr.type)
+            return acc
+          },
+          {
+            any_: []
+          }
+        )
+      }
+    }
+  }
 })
 
 const start = computed<Date>(() => {
@@ -211,9 +245,13 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
       if (start.value) start_time.after_ = start.value?.toISOString()
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
+    console.log(filterBody.value)
 
+    const filterBodyCopy = { ...filterBody.value }
+    delete filterBodyCopy['flow_runs']
     return {
       flow_runs: {
+        ...filterBodyCopy,
         expected_start_time: start_time,
         state: {
           name: {
@@ -332,14 +370,16 @@ const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
-    history_interval_seconds: interval.value
+    history_interval_seconds: interval.value,
+    ...filterBody.value
   }
 })
 
 const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
-    history_interval_seconds: interval.value * 2
+    history_interval_seconds: interval.value * 2,
+    ...filterBody.value
   }
 })
 
