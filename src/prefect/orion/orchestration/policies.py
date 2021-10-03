@@ -1,3 +1,21 @@
+"""
+Policies are collections of orchestration rules and transforms.
+
+Orion implements (most) orchestration with logic that governs a Prefect flow or task
+changing state. Policies organize of orchestration logic both to provide an ordering
+mechanism as well as provide observability into the orchestration process.
+
+While Orion's [orchestration rules][prefect.orion.orchestration.rules.BaseOrchestrationRule]
+can gracefully run independently of one another, ordering can still have an impact on
+the observed behavior of the system. For example, it makes no sense to secure a
+concurrency slot for a run if a cached state exists.
+
+The second function of policies is to provide a way to configure and observe exactly
+what logic will fire against a transition. While adding needless rules to an
+orchestration loop will have no impact on behavior, policies provide a mechanism to
+deeply understand how and when Orion will intervene in a flow- or task- run.
+"""
+
 from abc import ABC, abstractmethod
 
 
