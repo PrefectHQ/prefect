@@ -24,13 +24,17 @@
 
   z-index: 9;
 
-  @media (max-width: 640px) {
-    margin: 0px 0 0 0;
-    border-radius: 0;
-  }
-
   &.detached {
     margin: 16px 0 0 0;
     border-radius: 0;
+  }
+
+  @media (max-width: 640px) {
+    margin: 0;
+    border-radius: 0;
+
+    &.detached {
+      top: 62px;
+    }
   }
 }
