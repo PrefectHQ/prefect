@@ -1,65 +1,76 @@
 <template>
-  <div class="bar d-flex font--secondary" :class="{ detached: detached }">
-    <div class="object-container">
-      <button
-        class="filter-button objects text--grey-80 pl-3 pr-1"
-        @click="toggleObjectMenu"
-      >
-        <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1">
-          {{ selectedObject.label }}
-        </span>
-        <i class="pi pi-arrow-drop-down-fill" />
-      </button>
+  <div
+    class="bar-wrapper d-flex font--secondary"
+    :class="{ detached: detached }"
+  >
+    <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
+      <div class="object-container">
+        <button
+          class="filter-button objects text--grey-80 pl-3 pr-1"
+          @click="toggleObjectMenu"
+        >
+          <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1">
+            {{ selectedObject.label }}
+          </span>
+          <i class="pi pi-arrow-drop-down-fill" />
+        </button>
 
-      <ObjectMenu
-        v-if="showObjectMenu"
-        v-model="obj"
-        :options="objectOptions"
+        <ObjectMenu
+          v-if="showObjectMenu"
+          v-model="obj"
+          :options="objectOptions"
+          class="object-menu"
+          @close="toggleObjectMenu"
+        />
+      </div>
+
+      <div
+        class="
+          search-input
+          px-2
+          flex-grow-1 flex-shrink-0
+          d-flex
+          align-center
+          font--primary
+        "
+      >
+        <i class="pi pi-search-line mr-1" />
+        <input v-model="search" class="flex-grow-1" placeholder="Search..." />
+      </div>
+
+      <div class="saved-searches-container">
+        <button
+          class="filter-button saved-searches text--grey-80 px-2"
+          @click="toggleSavedSearchesMenu"
+        >
+          <i class="pi pi-star-line" />
+        </button>
+      </div>
+
+      <div class="filter-container">
+        <button
+          class="filter-button filters text--grey-80 px-2"
+          @click="toggleFilterMenu"
+        >
+          <i class="pi pi-filter-3-line" />
+          <span v-breakpoints="'sm'" class="ml-1">Filters</span>
+        </button>
+      </div>
+
+      <teleport to="#app">
+        <div class="observe" ref="observe" />
+      </teleport>
+
+      <teleport v-if="showOverlay" to=".application">
+        <div class="overlay" @click="closeOverlay" />
+      </teleport>
+
+      <FilterMenu
+        v-if="showFilterMenu"
         class="filter-menu"
         @close="toggleObjectMenu"
       />
     </div>
-
-    <div
-      class="
-        search-input
-        px-2
-        flex-grow-1 flex-shrink-0
-        d-flex
-        align-center
-        font--primary
-      "
-    >
-      <i class="pi pi-search-line mr-1" />
-      <input v-model="search" class="flex-grow-1" placeholder="Search..." />
-    </div>
-
-    <div class="saved-searches-container">
-      <button
-        class="filter-button saved-searches text--grey-80 px-2"
-        @click="toggleSavedSearchesMenu"
-      >
-        <i class="pi pi-star-line" />
-      </button>
-    </div>
-
-    <div class="filter-container">
-      <button
-        class="filter-button filters text--grey-80 px-2"
-        @click="toggleFilterMenu"
-      >
-        <i class="pi pi-filter-3-line" />
-        <span v-breakpoints="'sm'" class="ml-1">Filters</span>
-      </button>
-    </div>
-
-    <teleport to="#app">
-      <div class="observe" ref="observe" />
-    </teleport>
-
-    <teleport v-if="showOverlay" to=".application">
-      <div class="overlay" @click="closeOverlay" />
-    </teleport>
   </div>
 </template>
 
@@ -67,6 +78,7 @@
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import ObjectMenu from './ObjectMenu.vue'
+import FilterMenu from './FilterMenu.vue'
 
 const route = useRoute()
 
