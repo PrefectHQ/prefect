@@ -1,19 +1,15 @@
 <template>
   <Card class="menu font--primary" tabindex="0">
     <div class="menu-content d-flex align-center justify-start pa-2">
-      <Button class="mr-2" height="36px" @click="toggleMenu(0)">
+      <Button
+        v-for="(menu, i) in menus"
+        :key="i"
+        class="mr-2"
+        height="36px"
+        @click="toggleMenu(i)"
+      >
         <i class="pi pi-filter-3-line" />
-        Run States
-      </Button>
-
-      <Button class="mr-2" height="36px" @click="toggleMenu(1)">
-        <i class="pi pi-filter-3-line" />
-        Timeframe
-      </Button>
-
-      <Button class="mr-2" height="36px" @click="toggleMenu(2)">
-        <i class="pi pi-filter-3-line" />
-        Tags
+        {{ menu.label }}
       </Button>
     </div>
 
@@ -30,22 +26,25 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 import RunStatesMenu from './RunStatesMenu.vue'
 import TimeframeMenu from './TimeframeMenu.vue'
 import TagsMenu from './TagsMenu.vue'
 
 const menus = ref([
   {
-    component: RunStatesMenu,
+    label: 'Run States',
+    component: shallowRef(RunStatesMenu),
     show: false
   },
   {
-    component: TimeframeMenu,
+    label: 'Timeframe',
+    component: shallowRef(TimeframeMenu),
     show: false
   },
   {
-    component: TagsMenu,
+    label: 'Tags',
+    component: shallowRef(TagsMenu),
     show: false
   }
 ])

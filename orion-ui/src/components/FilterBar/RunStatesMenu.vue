@@ -29,11 +29,16 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref } from 'vue'
+import { defineEmits, ref, onBeforeMount } from 'vue'
+import { RunState } from '@/typings/global'
 import { useStore } from 'vuex'
 
 const store = useStore()
-const emit = defineEmits(['update:modelValue', 'close'])
+const emit = defineEmits(['close'])
+
+const storeState = [...store.getters.globalFilter.states].map(
+  (s: RunState) => s.type
+)
 
 const states = ref<{ name: string; type: string; checked: boolean }[]>([
   { name: 'Scheduled', type: 'SCHEDULED', checked: false },
@@ -55,12 +60,20 @@ const toggleAll = () => {
 const apply = () => {
   store.commit(
     'states',
-    states.value.map((s) => {
-      return { name: s.name, type: s.type }
-    })
+    states.value
+      .filter((s) => s.checked)
+      .map((s) => {
+        return { name: s.name, type: s.type }
+      })
   )
   emit('close')
 }
+
+onBeforeMount(() => {
+  states.value.forEach((s) => {
+    s.checked = storeState.includes(s.type)
+  })
+})
 </script>
 
 <style lang="scss" scoped>
