@@ -92,6 +92,8 @@ const toggleFilterMenu = () => {
 }
 
 const closeOverlay = () => {
+  showObjectMenu.value = false
+  showFilterMenu.value = false
   showOverlay.value = false
 }
 
