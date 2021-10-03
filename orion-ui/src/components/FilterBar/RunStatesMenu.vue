@@ -13,7 +13,7 @@
 
       <Checkbox
         v-for="state in states"
-        :key="state.value"
+        :key="state.type"
         v-model="state.checked"
         class="d-flex my-1 font--secondary checkbox text-left"
       >
@@ -30,16 +30,18 @@
 
 <script lang="ts" setup>
 import { defineEmits, ref } from 'vue'
+import { useStore } from 'vuex'
 
+const store = useStore()
 const emit = defineEmits(['update:modelValue', 'close'])
 
-const states = ref<{ name: string; value: string; checked: boolean }[]>([
-  { name: 'Scheduled', value: 'SCHEDULED', checked: false },
-  { name: 'Pending', value: 'PENDING', checked: false },
-  { name: 'Running', value: 'RUNNING', checked: false },
-  { name: 'Completed', value: 'COMPLETED', checked: false },
-  { name: 'Failed', value: 'FAILED', checked: false },
-  { name: 'Cancelled', value: 'CANCELLED', checked: false }
+const states = ref<{ name: string; type: string; checked: boolean }[]>([
+  { name: 'Scheduled', type: 'SCHEDULED', checked: false },
+  { name: 'Pending', type: 'PENDING', checked: false },
+  { name: 'Running', type: 'RUNNING', checked: false },
+  { name: 'Completed', type: 'COMPLETED', checked: false },
+  { name: 'Failed', type: 'FAILED', checked: false },
+  { name: 'Cancelled', type: 'CANCELLED', checked: false }
   //   { name: 'Awaiting Retry', value: 'AWAITING_RETRY' },
   //   { name: 'Retrieved Cache', value: 'CACHED' },
   //   { name: 'Crashed', value: 'CRASHED' },
@@ -51,7 +53,12 @@ const toggleAll = () => {
 }
 
 const apply = () => {
-  console.log('applying')
+  store.commit(
+    'states',
+    states.value.map((s) => {
+      return { name: s.name, type: s.type }
+    })
+  )
   emit('close')
 }
 </script>

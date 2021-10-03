@@ -23,7 +23,8 @@ const state: State = {
     end: end,
     object: 'flow_runs',
     intervalSeconds: 60,
-    start: start
+    start: start,
+    states: []
   }
 }
 
