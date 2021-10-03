@@ -21,7 +21,11 @@ async def create_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
-    same name and flow_id already exists, the deployment is updated."""
+    same name and flow_id already exists, the deployment is updated.
+
+    If the deployment has an active schedule, flow runs will be scheduled.
+    When upserting, any scheduled runs from the existing deployment will be deleted.
+    """
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())

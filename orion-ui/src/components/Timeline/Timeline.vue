@@ -482,7 +482,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 </style>
 
 <style lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .timeline-axis > svg {
   .tick {

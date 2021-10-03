@@ -199,7 +199,7 @@ async def begin_flow_run(
     # If the flow is async, we need to provide a portal so sync tasks can run
     portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-    with flow.executor.start() as executor:
+    async with flow.executor.start() as executor:
         with portal_context as sync_portal:
             terminal_state = await orchestrate_flow_run(
                 flow,

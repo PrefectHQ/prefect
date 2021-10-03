@@ -1,5 +1,5 @@
-@use '@prefect/miter-design/src/styles/abstracts/variables' as lib;
-@use '@prefect/miter-design/src/styles/base/spacing' as lib_spacing;
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as lib;
+@use '@prefecthq/miter-design/src/styles/base/spacing' as lib_spacing;
 
 @each $direction, $properties in lib_spacing.$directions {
   @each $break, $value in lib.$breakpoints {
