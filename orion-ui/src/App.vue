@@ -1,22 +1,18 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
-    <FilterBar class="filter-bar" />
+    <div class="filter-bar">
+      <FilterBar />
+    </div>
     <suspense>
       <router-view class="router-view" />
     </suspense>
   </div>
 </template>
 
-<script lang="ts">
-import { Options, Vue } from 'vue-class-component'
+<script lang="ts" setup>
 import NavBar from '@/components/ApplicationNav/NavBar.vue'
 import FilterBar from '@/components/FilterBar/FilterBar.vue'
-
-@Options({
-  components: { FilterBar, NavBar }
-})
-export default class App extends Vue {}
 </script>
 
 <style lang="scss">
@@ -30,7 +26,7 @@ export default class App extends Vue {}
     'nav main';
   grid-template-columns: 62px 1fr;
   grid-template-rows: 62px 1fr;
-  height: 100vh;
+  min-height: 100vh;
 
   @media (max-width: 640px) {
     grid-template-areas:
@@ -47,12 +43,13 @@ export default class App extends Vue {}
 
   .filter-bar {
     grid-area: filter-bar;
+    margin-bottom: 16px;
   }
 
   .router-view {
     grid-area: main;
-    height: 100%;
-    max-height: 100vh;
+    // height: 100%;
+    // max-height: 100vh;
     padding: 0 32px;
     overflow: auto;
     overscroll-behavior: contain;

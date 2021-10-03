@@ -157,7 +157,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, Ref, onBeforeMount, ComputedRef } from 'vue'
+import { computed, ref, Ref, onBeforeMount, ComputedRef, watch } from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
 import {
@@ -173,6 +173,7 @@ import {
 } from '@/plugins/api'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
+import router from '@/router'
 
 const store = useStore()
 const route = useRoute()
@@ -364,6 +365,10 @@ const next30Minutes = (): void => {
   store.commit('start', start_)
   store.commit('end', end_)
 }
+
+watch([resultsTab], () => {
+  router.push({ hash: `#${resultsTab.value}` })
+})
 
 onBeforeMount(() => {
   resultsTab.value = route.hash?.substr(1) || 'flows'
