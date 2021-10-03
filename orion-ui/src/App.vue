@@ -1,9 +1,7 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
-    <div class="filter-bar">
-      <FilterBar />
-    </div>
+    <FilterBar class="filter-bar" />
     <suspense>
       <router-view class="router-view" />
     </suspense>
@@ -26,6 +24,7 @@ import FilterBar from '@/components/FilterBar/FilterBar.vue'
     'nav main';
   grid-template-columns: 62px 1fr;
   grid-template-rows: 62px 1fr;
+  row-gap: 16px;
   min-height: 100vh;
 
   @media (max-width: 640px) {
@@ -43,7 +42,6 @@ import FilterBar from '@/components/FilterBar/FilterBar.vue'
 
   .filter-bar {
     grid-area: filter-bar;
-    margin-bottom: 16px;
   }
 
   .router-view {
@@ -51,8 +49,8 @@ import FilterBar from '@/components/FilterBar/FilterBar.vue'
     // height: 100%;
     // max-height: 100vh;
     padding: 0 32px;
-    overflow: auto;
-    overscroll-behavior: contain;
+    // overflow: auto;
+    // overscroll-behavior: contain;
 
     @media (max-width: 640px) {
       padding: 0 16px;

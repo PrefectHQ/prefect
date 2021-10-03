@@ -1,39 +1,43 @@
 <template>
-  <div ref="observe" class="bar" :class="{ detached: detached }">
+  <div class="bar" :class="{ detached: detached }">
     I GUESS I FILTER THE PAGE
+
+    <teleport to="#app">
+      <div class="observe" ref="observe" />
+    </teleport>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, Ref, onBeforeUnmount, onMounted, nextTick, inject } from 'vue'
-import { useRouter } from 'vue-router'
-import Observer from '@/components/Global/IntersectionObserver/IntersectionObsever.vue'
+import { ref, Ref, onBeforeUnmount, onMounted } from 'vue'
 
-const router = useRouter()
 const detached: Ref<boolean> = ref(false)
 
-const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
-  if (entry && entry.isIntersecting) {
-    console.log(entry)
-  }
-}
+const handleEmit = ([entry]: IntersectionObserverEntry[]) =>
+  (detached.value = !entry.isIntersecting)
 
 const observe = ref<Element>()
 
 let observer: IntersectionObserver
 
-onMounted(() => {
+const createIntersectionObserver = (margin: string) => {
+  if (observe.value) observer?.unobserve(observe.value)
+
   const options = {
-    rootMargin: '0px',
-    threshold: 0.1
+    rootMargin: margin,
+    threshold: [0.1, 1]
   }
 
   observer = new IntersectionObserver(handleEmit, options)
-  observer.observe(observe.value!)
+  if (observe.value) observer.observe(observe.value)
+}
+
+onMounted(() => {
+  createIntersectionObserver('0px')
 })
 
 onBeforeUnmount(() => {
-  observer.unobserve(observe.value!)
+  if (observe.value) observer?.unobserve(observe.value)
 })
 </script>
 
