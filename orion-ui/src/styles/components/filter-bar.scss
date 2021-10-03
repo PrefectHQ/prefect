@@ -60,6 +60,18 @@
   }
 }
 
+.overlay {
+  background-color: rgba(0, 0, 0, 0.1);
+  // Note: this will only work in browsers that allow backdrop-filter, (so Chrome, Edge, and FF only if the experimental prop is enabled)
+  backdrop-filter: blur(1px);
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 8;
+}
+
 .filter-button {
   align-items: center;
   background-color: $white;
