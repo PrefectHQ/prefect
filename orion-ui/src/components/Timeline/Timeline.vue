@@ -208,8 +208,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get numberRows(): number {
-    return Math.ceil(
-      Math.max(this.rows.length, this.height / this.intervalHeight)
+    return Math.max(
+      this.rows.length,
+      Math.ceil(this.height / this.intervalHeight)
     )
   }
 
