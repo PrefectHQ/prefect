@@ -88,7 +88,7 @@ declare interface FlowFilter {
     /**
      * If true, only include flows without tags
      */
-    is_null_: is_null_
+    is_null_?: is_null_
   }
 }
 
@@ -108,11 +108,16 @@ declare interface FlowRunFilter {
     is_null_: is_null_
   }
   deployment_id?: {
-    any_: any_
-    is_null_: is_null_
+    any_?: any_
+    is_null_?: is_null_
   }
-  state_type?: {
-    any_: any_
+  state?: {
+    type?: {
+      any_: any_
+    }
+    name: {
+      any_: any_
+    }
   }
   flow_version?: {
     any_: any_
@@ -121,23 +126,23 @@ declare interface FlowRunFilter {
    * Flow run actual starts
    */
   start_time?: {
-    before_: before_
-    after_: after_
+    before_?: before_
+    after_?: after_
   }
   /**
    * Flow run scheduled starts
    */
   expected_start_time?: {
-    before_: before_
-    after_: after_
+    before_?: before_
+    after_?: after_
   }
   next_scheduled_start_time?: {
-    before_: before_
-    after_: after_
+    before_?: before_
+    after_?: after_
   }
   parent_task_run_id?: {
-    any_: any_
-    is_null_: is_null_
+    any_?: any_
+    is_null_?: is_null_
   }
 }
 
@@ -154,14 +159,14 @@ declare interface TaskRunFilter {
     /**
      * If true, only include flow runs without tags
      */
-    is_null_: is_null_
+    is_null_?: is_null_
   }
   state_type?: {
     any_: any_
   }
   start_time?: {
-    before_: before_
-    after_: after_
+    before_?: before_
+    after_?: after_
   }
   subflow_runs?: {
     exists_: exists_

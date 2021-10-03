@@ -157,7 +157,7 @@ const duration = computed(() => {
 })
 
 const state = computed(() => {
-  return props.item.state.type.toLowerCase()
+  return props.item.state.name.toLowerCase()
 })
 
 const tags = computed(() => {
