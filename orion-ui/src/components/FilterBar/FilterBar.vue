@@ -2,6 +2,7 @@
   <div
     class="bar-wrapper d-flex font--secondary"
     :class="{ detached: detached }"
+    @keyup.esc="closeOverlay"
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
       <FilterSearch @focused="openSearchMenu">
@@ -136,6 +137,10 @@ const closeOverlay = () => {
   showSavedSearchesMenu.value = false
   showSearchMenu.value = false
   showOverlay.value = false
+
+  if (document.activeElement) {
+    ;(document.activeElement as HTMLElement).blur()
+  }
 }
 
 const removeFilter = (filter: FilterObject): void => {

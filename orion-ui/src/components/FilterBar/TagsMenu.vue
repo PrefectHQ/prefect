@@ -5,7 +5,7 @@
 
       <Input
         v-model="input"
-        @keyup.enter="addTag"
+        @enter="addTag"
         placeholder="Press enter to add a tag"
       />
 
@@ -38,6 +38,7 @@ const tags = reactive([
 ])
 
 const addTag = () => {
+  console.log('adding tag')
   tags.push(input.value)
   input.value = ''
 }
