@@ -28,7 +28,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, shallowRef, computed, ComponentPublicInstance } from 'vue'
+import {
+  ref,
+  reactive,
+  shallowRef,
+  computed,
+  ComponentPublicInstance
+} from 'vue'
 import RunStatesMenu from './RunStatesMenu.vue'
 import TimeframeMenu from './TimeframeMenu.vue'
 import TagsMenu from './TagsMenu.vue'
@@ -38,15 +44,19 @@ const selectedObject = ref('flow_runs')
 
 const menuRefs = ref<ComponentPublicInstance[]>([])
 
+const iconMap: { [key: string]: string } = {
+  flow_runs: 'pi-flow-run',
+  task_runs: 'pi-task',
+  flows: 'pi-flow',
+  deployments: 'pi-map-pin-line'
+}
+
 // TODO: This is really hacky so we probably want to refactor sooner rather than later.
-const menus = ref([
+const menus = reactive([
   {
-    label: selectedObject.value.replace('_', ' '),
+    label: computed(() => selectedObject.value.replace('_', ' ')),
     component: shallowRef(ObjectMenu),
-    icon: `pi-${selectedObject.value
-      .replace('_', '-')
-      .slice(0, selectedObject.value.length - 1)}`,
-    value: selectedObject.value,
+    icon: computed(() => iconMap[selectedObject.value]),
     show: false,
     objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
   },
@@ -71,7 +81,7 @@ const menus = ref([
 ])
 
 const menuButtons = computed(() => {
-  return menus.value.filter((m) => m.objects.includes(selectedObject.value))
+  return menus.filter((m) => m.objects.includes(selectedObject.value))
 })
 
 const elRef = (el: ComponentPublicInstance, i: number) => {
@@ -79,7 +89,7 @@ const elRef = (el: ComponentPublicInstance, i: number) => {
 }
 
 const subMenuStyle = computed(() => {
-  const index = menus.value.findIndex((m) => m.show)
+  const index = menus.findIndex((m) => m.show)
   const bb = menuRefs.value[index].$el
   return {
     top: bb.offsetHeight + bb.offsetHeight / 2 + 2 + 'px',
@@ -88,8 +98,8 @@ const subMenuStyle = computed(() => {
 })
 
 const toggleMenu = (i: number) => {
-  menus.value.filter((m, j) => j !== i).forEach((m) => (m.show = false))
-  menus.value[i].show = !menus.value[i].show
+  menus.filter((m, j) => j !== i).forEach((m) => (m.show = false))
+  menus[i].show = !menus[i].show
 }
 </script>
 
