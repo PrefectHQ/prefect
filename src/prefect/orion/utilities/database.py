@@ -1,3 +1,10 @@
+"""
+Utilities for interacting with Orion database and ORM layer.
+
+Orion supports both SQLite and Postgres. Many of these utilities
+allow Orion to seamlessly switch between the two.
+"""
+
 import datetime
 import json
 import os
@@ -11,7 +18,6 @@ import pydantic
 import sqlalchemy as sa
 from sqlalchemy import Column
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.event import listens_for
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_scoped_session,
@@ -307,6 +313,11 @@ class JSON(TypeDecorator):
 
 
 class Pydantic(TypeDecorator):
+    """
+    A pydantic type that converts inserted parameters to
+    json and converts read values to the pydantic type.
+    """
+
     impl = JSON
     cache_ok = True
 
@@ -336,7 +347,7 @@ class Pydantic(TypeDecorator):
 
 class now(FunctionElement):
     """
-    Platform-independent "now" generator
+    Platform-independent "now" generator.
     """
 
     type = Timestamp()
@@ -422,7 +433,7 @@ def _date_add_sqlite(element, compiler, **kwargs):
 
 class interval_add(FunctionElement):
     """
-    Platform-independent way to add two intervals
+    Platform-independent way to add two intervals.
     """
 
     type = sa.Interval()
@@ -519,6 +530,8 @@ def _date_diff_sqlite(element, compiler, **kwargs):
 
 
 class json_contains(FunctionElement):
+    """Platform independent json_contains operator."""
+
     type = BOOLEAN
     name = "json_contains"
 
@@ -568,6 +581,8 @@ def _json_contains_sqlite(element, compiler, **kwargs):
 
 
 class json_has_any_key(FunctionElement):
+    """Platform independent json_has_any_key operator."""
+
     type = BOOLEAN
     name = "json_has_any_key"
 
@@ -608,6 +623,8 @@ def _json_has_any_key_sqlite(element, compiler, **kwargs):
 
 
 class json_has_all_keys(FunctionElement):
+    """Platform independent json_has_all_keys operator."""
+
     type = BOOLEAN
     name = "json_has_all_keys"
 
@@ -725,12 +742,14 @@ class Base(object):
 
 
 async def create_db(engine=None):
+    """Create all database tables."""
     engine = engine or await get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def drop_db(engine=None):
+    """Drop all database tables."""
     engine = engine or await get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
@@ -740,7 +759,27 @@ def get_dialect(
     session=None,
     engine=None,
     connection_url: str = None,
-):
+) -> sa.engine.Dialect:
+    """
+    Get the dialect of a session, engine, or connection url.
+
+    If none of the above is provided, dialect will be retrieved
+    from the Orion API database connection url.
+
+    Primary use case is figuring out whether the Orion API is
+    communicating with SQLite or Postgres.
+
+    Example:
+        ```python
+        from prefect.orion.utilities.database import get_dialect
+
+        dialect = get_dialect()
+        if dialect == "sqlite":
+            print("Using SQLite!")
+        else:
+            print("Using Postgres!")
+        ```
+    """
     if session is not None:
         url = session.bind.url
     elif engine is not None:
@@ -753,7 +792,7 @@ def get_dialect(
 
 
 def dialect_specific_insert(model: Base):
-    """Returns an insert statement specific to a dialect"""
+    """Returns an INSERT statement specific to a dialect"""
     inserts = {
         "postgresql": postgresql.insert,
         "sqlite": sqlite.insert,
