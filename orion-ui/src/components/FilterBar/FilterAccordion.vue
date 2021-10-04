@@ -23,11 +23,13 @@
         />
       </div>
     </button-card>
-    <transition name="expand" appear>
-      <div class="content">
+    <!-- <div class="content-container"> -->
+    <transition name="bounce" appear>
+      <div v-if="expanded" class="content">
         <slot />
       </div>
     </transition>
+    <!-- </div> -->
   </div>
 </template>
 <script lang="ts" setup>
@@ -48,10 +50,15 @@ const props = defineProps<{ icon: string; title: string }>()
   }
 }
 
+.content-container {
+  max-height: min-content;
+  overflow: hidden;
+}
+
 .content {
   background-color: $white;
-  height: auto;
-  //   overflow: auto;
+  //   height: auto;
+  overflow: hidden;
 }
 
 .expand-icon {
@@ -63,31 +70,23 @@ const props = defineProps<{ icon: string; title: string }>()
   }
 }
 
-// .expand-leave-active {
-//   animation: expand 10s reverse ease-in-out forwards;
-// }
-
-.expand-leave-active,
-.expand-enter-active {
-  transition: max-height 2s ease-in-out;
-  //   animation: expand 10s ease-in-out forwards;
+.bounce-enter-active {
+  animation: bounce-in 0.5s ease-out both;
 }
 
-.expand-leave-active {
-  max-height: 0 !important;
+.bounce-leave-active {
+  animation: bounce-in 0.5s reverse ease-in both;
 }
 
-.expand-enter-active {
-  max-height: 100% !important;
-}
-
-@keyframes expand {
-  from {
-    max-height: 0 !important;
+@keyframes bounce-in {
+  0% {
+    // max-height: 0;
+    transform: translate(0, 0);
   }
 
-  to {
-    max-height: 100vh !important;
+  100% {
+    // max-height: 100%;
+    transform: translate(0, 100%);
   }
 }
 </style>
