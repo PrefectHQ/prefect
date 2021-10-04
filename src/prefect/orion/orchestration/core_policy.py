@@ -1,5 +1,8 @@
 """
 Orchestration logic that fires on state transitions.
+
+`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that Orion
+enforces on a state transition.
 """
 
 from typing import Optional
@@ -38,12 +41,12 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            CacheRetrieval,
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
-            CacheRetrieval,
         ]
 
 
