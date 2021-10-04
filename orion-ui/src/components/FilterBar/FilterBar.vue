@@ -97,7 +97,7 @@ import FilterTagGroup from './FilterTagGroup.vue'
 const store = useStore()
 const route = useRoute()
 
-const showFilterMenu = ref<boolean>(false)
+const showFilterMenu = ref<boolean>(true)
 const showSearchMenu = ref<boolean>(false)
 const showSavedSearchesMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)

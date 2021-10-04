@@ -1,5 +1,9 @@
 <template>
-  <Card class="menu font--primary" tabindex="0">
+  <Card
+    class="menu font--primary"
+    :height="smAndDown ? '400px' : 'auto'"
+    tabindex="0"
+  >
     <template v-if="smAndDown" v-slot:header>
       <div class="pa-2 d-flex justify-space-between align-center">
         <IconButton
@@ -29,9 +33,21 @@
       </div>
     </template>
 
-    <div class="menu-content pa-2">
-      <div class="d-flex align-center justify-start">
-        <!-- <Button
+    <div class="pa-2">
+      <!-- <div class="d-flex align-center flex-grow-1 justify-start"> -->
+      <FilterAccordion title="Deployments" icon="pi-filter-3-line">
+        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+      </FilterAccordion>
+      <FilterAccordion title="Flows" icon="pi-filter-3-line">
+        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+      </FilterAccordion>
+      <FilterAccordion title="Flow Runs" icon="pi-filter-3-line">
+        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+      </FilterAccordion>
+      <FilterAccordion title="Task Runs" icon="pi-filter-3-line">
+        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+      </FilterAccordion>
+      <!-- <Button
           v-for="(menu, i) in menuButtons"
           :key="i"
           class="mr-2"
@@ -53,11 +69,11 @@
           @click.self="handleTagClick(filter)"
           @remove="removeFilter"
         /> -->
-      </div>
+      <!-- </div> -->
     </div>
 
     <template v-slot:actions>
-      <div class="pa-2 d-flex align-center justify-end">
+      <CardActions class="pa-2 d-flex align-center justify-end">
         <Button v-if="!smAndDown" flat height="35px" class="ml-auto mr-1">
           Cancel
         </Button>
@@ -68,7 +84,7 @@
         >
           Apply
         </Button>
-      </div>
+      </CardActions>
     </template>
 
     <!-- <component
@@ -101,6 +117,7 @@ import ObjectMenu from './ObjectMenu.vue'
 import FilterTag from './FilterTag.vue'
 import { parseFilters, FilterObject } from './util'
 import { getCurrentInstance } from 'vue'
+import FilterAccordion from './FilterAccordion.vue'
 
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
