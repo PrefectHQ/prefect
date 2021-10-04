@@ -1,3 +1,7 @@
+"""
+Routes for interacting with flow objects.
+"""
+
 from typing import List
 from uuid import UUID
 from fastapi.param_functions import Body
@@ -40,7 +44,7 @@ async def update_flow(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Updates a flow
+    Updates a flow.
     """
     result = await models.flows.update_flow(session=session, flow=flow, flow_id=flow_id)
     if not result:
@@ -58,7 +62,7 @@ async def count_flows(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
-    Count flows
+    Count flows.
     """
     return await models.flows.count_flows(
         session=session,
@@ -75,7 +79,7 @@ async def read_flow_by_name(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Flow:
     """
-    Get a flow by name
+    Get a flow by name.
     """
     flow = await models.flows.read_flow_by_name(session=session, name=name)
     if not flow:
@@ -91,7 +95,7 @@ async def read_flow(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Flow:
     """
-    Get a flow by id
+    Get a flow by id.
     """
     flow = await models.flows.read_flow(session=session, flow_id=flow_id)
     if not flow:
@@ -114,7 +118,7 @@ async def read_flows(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Flow]:
     """
-    Query for flows
+    Query for flows.
     """
     return await models.flows.read_flows(
         session=session,
@@ -133,7 +137,7 @@ async def delete_flow(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Delete a flow by id
+    Delete a flow by id.
     """
     result = await models.flows.delete_flow(session=session, flow_id=flow_id)
     if not result:

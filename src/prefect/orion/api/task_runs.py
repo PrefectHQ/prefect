@@ -1,3 +1,7 @@
+"""
+Routes for interacting with task run objects.
+"""
+
 import datetime
 from typing import List
 from uuid import UUID
@@ -50,7 +54,7 @@ async def count_task_runs(
     deployments: schemas.filters.DeploymentFilter = None,
 ) -> int:
     """
-    Count task runs
+    Count task runs.
     """
     return await models.task_runs.count_task_runs(
         session=session,
@@ -78,7 +82,9 @@ async def task_run_history(
     deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.responses.HistoryResponse]:
-
+    """
+    Query for task run history data across a given range and interval.
+    """
     if history_interval < datetime.timedelta(seconds=1):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -104,7 +110,7 @@ async def read_task_run(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.TaskRun:
     """
-    Get a task run by id
+    Get a task run by id.
     """
     task_run = await models.task_runs.read_task_run(
         session=session, task_run_id=task_run_id
@@ -128,7 +134,7 @@ async def read_task_runs(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.TaskRun]:
     """
-    Query for task runs
+    Query for task runs.
     """
     return await models.task_runs.read_task_runs(
         session=session,
@@ -148,7 +154,7 @@ async def delete_task_run(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Delete a task run by id
+    Delete a task run by id.
     """
     result = await models.task_runs.delete_task_run(
         session=session, task_run_id=task_run_id
