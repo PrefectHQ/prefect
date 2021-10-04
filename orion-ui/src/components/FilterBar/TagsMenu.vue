@@ -50,13 +50,17 @@ const tags = reactive([
 ])
 
 const addTag = () => {
-  tags.push({ label: input.value, icon: icon, clearable: true })
+  tags.push({
+    label: input.value,
+    icon: icon,
+    clearable: true,
+    value: input.value
+  })
   input.value = ''
 }
 
 const apply = () => {
-  console.log('apply')
-  store.commit('tags', { object: props.object, tags: tags })
+  store.commit('tags', { object: props.object, tags: tags.map((t) => t.value) })
 }
 </script>
 

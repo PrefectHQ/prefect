@@ -74,6 +74,17 @@ export const parseFilters = (gf: any) => {
             clearable: true
           })
         }
+      } else if (k == 'tags') {
+        v.forEach((tag: string) => {
+          arr.push({
+            objectKey: key,
+            label: tag,
+            filterKey: k,
+            filterValue: tag,
+            icon: 'pi-price-tag-3-line',
+            clearable: true
+          })
+        })
       } else {
         arr.push({
           objectKey: key,
