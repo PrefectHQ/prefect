@@ -12,14 +12,21 @@ Examples:
     >>> def hello_world(name="world"):
     >>>     print(f"Hello, {name}!")
 
-    Write a deployment specification that refers to the flow and sets a new parameter
-    default
+    Write a deployment specification that sets a new parameter default
     >>> from prefect.deployments import DeploymentSpec
     >>> DeploymentSpec(
     >>>     flow=hello_world,
     >>>     name="my-first-deployment",
     >>>     parameters={"name": "Earth"},
     >>>     tags=["foo", "bar"],
+    >>> )
+
+    Add a schedule to the deployment specification to run the flow hourly
+    >>> from prefect.orion.schemas.schedules import IntervalSchedule
+    >>> from datetime import timedelta
+    >>> DeploymentSpec(
+    >>>     ...
+    >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
     >>> )
 
     Deployment specifications can also be written in YAML and refer to the flow's
@@ -33,6 +40,8 @@ Examples:
         - bar
       parameters:
         name: "Earth"
+      schedule:
+        interval: 3600
     ```
 """
 
