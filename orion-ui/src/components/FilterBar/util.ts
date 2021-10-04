@@ -1,6 +1,6 @@
 export type FilterObject = {
   objectKey: string
-  objectLabel: string
+  label: string
   filterKey: string
   filterValue: any
   icon: string
@@ -16,13 +16,13 @@ export const parseFilters = (gf: any) => {
     Object.entries(gf[key as keyof any]).forEach(([k, v]: [string, any]) => {
       if (k == 'states' && Array.isArray(v)) {
         if (v.length == 6 || v.length == 0) {
-          let objectLabel
-          if (v.length == 6) objectLabel = 'All States'
-          else objectLabel = 'No states'
+          let label
+          if (v.length == 6) label = 'All States'
+          else label = 'No states'
 
           arr.push({
             objectKey: key,
-            objectLabel: objectLabel,
+            label: label,
             filterKey: k,
             filterValue: v,
             icon: 'pi-focus-3-line',
@@ -32,7 +32,7 @@ export const parseFilters = (gf: any) => {
           v.forEach((state) => {
             arr.push({
               objectKey: key,
-              objectLabel: state.name.toLowerCase(),
+              label: state.name.toLowerCase(),
               filterKey: k,
               filterValue: v,
               icon: 'pi-focus-3-line',
@@ -51,7 +51,7 @@ export const parseFilters = (gf: any) => {
           // TODO: We should use a different icon or indicator for flow run and task run timeframes
           arr.push({
             objectKey: key,
-            objectLabel: `Past ${filterValue}`,
+            label: `Past ${filterValue}`,
             filterKey: k,
             filterValue: filterValue,
             icon: 'pi-scheduled',
@@ -67,7 +67,7 @@ export const parseFilters = (gf: any) => {
 
           arr.push({
             objectKey: key,
-            objectLabel: `Next ${filterValue}`,
+            label: `Next ${filterValue}`,
             filterKey: k,
             filterValue: filterValue,
             icon: 'pi-scheduled',
@@ -77,7 +77,7 @@ export const parseFilters = (gf: any) => {
       } else {
         arr.push({
           objectKey: key,
-          objectLabel: `${key.replace('_', ' ')}: ${v}`,
+          label: `${key.replace('_', ' ')}: ${v}`,
           filterKey: k,
           filterValue: v,
           icon: 'pi-search-line',
