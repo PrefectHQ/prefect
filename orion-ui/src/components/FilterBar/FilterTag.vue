@@ -1,12 +1,15 @@
 <template>
   <div class="filter-tag mr-1 font--secondary caption" tabindex="0">
-    <div class="px-1 py--half d-flex align-center">
+    <div class="px-1 py--half d-flex align-center text-capitalize">
       <i class="pi pi-xs mr--half" :class="item.icon" />
       {{ item.objectLabel }}
 
-      <button class="ml-1" @click="emit('remove', props.item)">
-        <i class="pi pi-xs pi-close-circle-fill" />
-      </button>
+      <i
+        class="pi pi-xs pi-close-circle-fill ml-1"
+        role="button"
+        title="Clear filter"
+        @click="emit('remove', props.item)"
+      />
     </div>
   </div>
 </template>
@@ -30,9 +33,15 @@ const emit = defineEmits(['remove'])
     background-color: $blue-20;
     border-radius: 4px;
     color: $grey-80;
+    cursor: pointer;
+
+    &:hover,
+    &:focus {
+      background-color: $blue-40;
+    }
   }
 
-  button {
+  i {
     border-radius: 50%;
     border: none;
     color: $primary;

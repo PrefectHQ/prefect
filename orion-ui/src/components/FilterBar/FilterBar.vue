@@ -9,6 +9,7 @@
           v-for="(filter, i) in filters"
           :key="i"
           :item="filter"
+          @click="openFilterMenu"
           @remove="removeFilter"
         />
 

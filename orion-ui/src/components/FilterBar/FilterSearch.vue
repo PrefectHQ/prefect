@@ -9,7 +9,7 @@
       font--primary
       justify-space-between
     "
-    @click="focusSearchInput"
+    @click.self="focusSearchInput"
   >
     <i class="pi pi-search-line mr-1" />
     <input
@@ -41,7 +41,6 @@ const emitEnter = () => {
 }
 
 const emitFocused = () => {
-  console.log('hello')
   emit('focused')
 }
 
