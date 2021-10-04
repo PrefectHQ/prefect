@@ -1,8 +1,10 @@
-# import prefect
+"""
+Defines the Orion FastAPI app.
+"""
+
 import asyncio
 from functools import partial
 import os
-from sys import exc_info
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,6 +46,7 @@ app.include_router(api.saved_searches.router)
 
 @app.get("/", include_in_schema=False)
 async def root_redirect():
+    """Redirect the root path to docs."""
     return RedirectResponse(url="/docs")
 
 
@@ -74,6 +77,7 @@ app.openapi = openapi
 
 @app.on_event("startup")
 async def start_services():
+    """Start additional services when the Orion API starts up."""
     if settings.orion.services.run_in_app:
         loop = asyncio.get_running_loop()
         service_instances = [
@@ -98,6 +102,7 @@ async def start_services():
 
 @app.on_event("shutdown")
 async def wait_for_service_shutdown():
+    """Ensure services are stopped before the Orion API shuts down."""
     if app.state.services:
         await asyncio.gather(*[service.stop() for service in app.state.services])
         try:
