@@ -117,78 +117,78 @@ export const baseFilter =
     if (state.globalFilter[object]?.tags)
       val.tags = { all_: state.globalFilter[object]?.tags }
 
-    // Break early for flows or deployments
-    if (object == 'flows' || object == 'deployments') return val
+    // Only add state and timeframe filters for flow run and task run objects
+    if (object == 'flow_runs' || object == 'task_runs') {
+      const from = state.globalFilter[object]?.timeframe?.from
+      const to = state.globalFilter[object]?.timeframe?.to
+      const fromExists = from && from.value && from.unit
+      const toExists = to && to.value && to.unit
 
-    const from = state.globalFilter[object]?.timeframe?.from
-    const to = state.globalFilter[object]?.timeframe?.to
-    const fromExists = from && from.value && from.unit
-    const toExists = to && to.value && to.unit
-
-    if (fromExists || toExists) {
-      val[timeKey] = {
-        before_: undefined,
-        after_: undefined
-      }
-    }
-
-    if (fromExists && from.value) {
-      const date = new Date()
-
-      switch (from.unit) {
-        case 'minutes':
-          date.setMinutes(date.getMinutes() - from.value)
-          break
-        case 'hours':
-          date.setHours(date.getHours() - from.value)
-          break
-        case 'days':
-          date.setDate(date.getDate() - from.value)
-          break
-        default:
-          break
+      if (fromExists || toExists) {
+        val[timeKey] = {
+          before_: undefined,
+          after_: undefined
+        }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      val[timeKey]!.after_ = date.toISOString()
-    }
+      if (fromExists && from.value) {
+        const date = new Date()
 
-    if (toExists && to.value) {
-      const date = new Date()
+        switch (from.unit) {
+          case 'minutes':
+            date.setMinutes(date.getMinutes() - from.value)
+            break
+          case 'hours':
+            date.setHours(date.getHours() - from.value)
+            break
+          case 'days':
+            date.setDate(date.getDate() - from.value)
+            break
+          default:
+            break
+        }
 
-      switch (to.unit) {
-        case 'minutes':
-          date.setMinutes(date.getMinutes() + to.value)
-          break
-        case 'hours':
-          date.setHours(date.getHours() + to.value)
-          break
-        case 'days':
-          date.setDate(date.getDate() + to.value)
-          break
-        default:
-          break
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        val[timeKey]!.after_ = date.toISOString()
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      val[timeKey]!.before_ = date.toISOString()
-    }
+      if (toExists && to.value) {
+        const date = new Date()
 
-    const states = state.globalFilter[object]?.states
+        switch (to.unit) {
+          case 'minutes':
+            date.setMinutes(date.getMinutes() + to.value)
+            break
+          case 'hours':
+            date.setHours(date.getHours() + to.value)
+            break
+          case 'days':
+            date.setDate(date.getDate() + to.value)
+            break
+          default:
+            break
+        }
 
-    if (states) {
-      val['state'] = {
-        type: states.reduce<{
-          any_: string[]
-        }>(
-          (acc, curr) => {
-            acc.any_.push(curr.type)
-            return acc
-          },
-          {
-            any_: []
-          }
-        )
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        val[timeKey]!.before_ = date.toISOString()
+      }
+
+      const states = state.globalFilter[object]?.states
+
+      if (states) {
+        val['state'] = {
+          type: states.reduce<{
+            any_: string[]
+          }>(
+            (acc, curr) => {
+              acc.any_.push(curr.type)
+              return acc
+            },
+            {
+              any_: []
+            }
+          )
+        }
       }
     }
 
