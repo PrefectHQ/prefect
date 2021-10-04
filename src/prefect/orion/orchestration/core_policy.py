@@ -41,12 +41,12 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            CacheRetrieval,
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
-            CacheRetrieval,
         ]
 
 
