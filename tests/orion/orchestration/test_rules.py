@@ -10,7 +10,7 @@ from prefect.orion.models import orm
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
-    BaseUniversalRule,
+    BaseUniversalTransform,
     OrchestrationContext,
     OrchestrationResult,
 )
@@ -780,23 +780,24 @@ class TestBaseOrchestrationRule:
         assert side_effects == 0
 
 
-class TestBaseUniversalRule:
-    async def test_universal_rules_are_context_managers(self, session, task_run):
+class TestBaseUniversalTransform:
+    async def test_universal_transforms_are_context_managers(self, session, task_run):
         side_effect = 0
 
-        class IllustrativeUniversalRule(BaseUniversalRule):
-            # Like OrchestrationRules, UniversalRules are context managers, but stateless.
-            # They fire on every transition, and don't care if the intended transition
-            # is modified thus, they do not have a cleanup step.
+        class IllustrativeUniversalTransform(BaseUniversalTransform):
+            # Like OrchestrationRules, UniversalTrnasforms are context managers, but
+            # stateless. They fire on every transition, and don't care if the intended
+            # transition is modified thus, they do not have a cleanup step.
 
-            # UniversalRules are typically used for essential bookkeeping
+            # UniversalTransforms are typically used for essential bookkeeping
 
             # a before-transition hook that fires upon entering the rule
             async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
 
-            # an after-transition hook that fires after a state is validated and committed to the DB
+            # an after-transition hook that fires after a state is validated and
+            # committed to the DB
             async def after_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
@@ -816,11 +817,10 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        rule_as_context_manager = IllustrativeUniversalRule(ctx)
+        xform_as_context_manager = IllustrativeUniversalTransform(ctx)
         context_call = MagicMock()
 
-        # rules govern logic by being used as a context manager
-        async with rule_as_context_manager as ctx:
+        async with xform_as_context_manager as ctx:
             context_call()
 
         assert context_call.call_count == 1
@@ -831,14 +831,14 @@ class TestBaseUniversalRule:
         list(product([*states.StateType, None], [*states.StateType])),
         ids=transition_names,
     )
-    async def test_universal_rules_always_fire_on_all_transitions(
+    async def test_universal_transforms_always_fire_on_all_transitions(
         self, session, task_run, intended_transition
     ):
         side_effect = 0
         before_hook = MagicMock()
         after_hook = MagicMock()
 
-        class IllustrativeUniversalRule(BaseUniversalRule):
+        class IllustrativeUniversalTransform(BaseUniversalTransform):
             async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
@@ -863,9 +863,9 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        universal_rule = IllustrativeUniversalRule(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx)
 
-        async with universal_rule as ctx:
+        async with universal_transform as ctx:
             mutated_state_type = random.choice(
                 list(set(states.StateType) - set(intended_transition))
             )
@@ -883,7 +883,7 @@ class TestBaseUniversalRule:
         list(product([*states.StateType, None], [None])),
         ids=transition_names,
     )
-    async def test_universal_rules_never_fire_on_nullified_transitions(
+    async def test_universal_transforms_never_fire_on_nullified_transitions(
         self, session, task_run, intended_transition
     ):
         # nullified transitions occur when the proposed state becomes None
@@ -893,7 +893,7 @@ class TestBaseUniversalRule:
         before_hook = MagicMock()
         after_hook = MagicMock()
 
-        class IllustrativeUniversalRule(BaseUniversalRule):
+        class IllustrativeUniversalTransform(BaseUniversalTransform):
             async def before_transition(self, context):
                 nonlocal side_effect
                 side_effect += 1
@@ -918,9 +918,9 @@ class TestBaseUniversalRule:
             proposed_state=proposed_state,
         )
 
-        universal_rule = IllustrativeUniversalRule(ctx)
+        universal_transform = IllustrativeUniversalTransform(ctx)
 
-        async with universal_rule as ctx:
+        async with universal_transform as ctx:
             mutated_state_type = random.choice(
                 list(set(states.StateType) - set(intended_transition))
             )

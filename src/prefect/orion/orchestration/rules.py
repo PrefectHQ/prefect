@@ -5,14 +5,14 @@ This module contains all the core concepts necessary to implement Orion's state
 orchestration engine. These states correspond to intuitive descriptions of all the
 points that a Prefect flow or task can observe executing user code and intervene, if
 necessary. A detailed description of states can be found in our concept
-[documentation](/concepts/states.md).
+[documentation](/concepts/states).
 
 Orion's orchestration engine operates under the assumption that no governed user code
 will execute without first requesting Orion validate a change in state and record
-metadata about the run. With all attempts to run user code being checked against a Orion
-instance, the Orion database becomes the unambiguous source of truth for managing the
-execution of complex interacting workflows. Orchestration rules can be implemented as
-discrete units of logic that operate against each state transition and can be fully
+metadata about the run. With all attempts to run user code being checked against an
+Orion instance, the Orion database becomes the unambiguous source of truth for managing
+the execution of complex interacting workflows. Orchestration rules can be implemented
+as discrete units of logic that operate against each state transition and can be fully
 observable, extensible, and customizable--all without needing to store or parse a
 single line of user code.
 """
@@ -748,30 +748,31 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         self.context.proposed_state.name = state_name
 
 
-class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
+class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
     """
     An abstract base class used to implement privileged bookkeeping logic.
 
-    Note:
+    Warning:
         In almost all cases, use the `BaseOrchestrationRule` base class instead.
 
     Beyond the orchestration rules implemented with the `BaseOrchestrationRule` ABC,
-    Universal rules are not stateful, and fire their before- and after- transition hooks
-    on every state transition unless the proposed state is `None`, indicating that no
-    state should be written to the database. Because there are no guardrails in place
+    Universal transforms are not stateful, and fire their before- and after- transition
+    hooks on every state transition unless the proposed state is `None`, indicating that
+    no state should be written to the database. Because there are no guardrails in place
     to prevent directly mutating state or other parts of the orchestration context,
-    universal rules should only be used with care.
+    universal transforms should only be used with care.
 
     Attributes:
-        FROM_STATES: list of valid initial state types this rule governs
-        TO_STATES: list of valid proposed state types this rule governs
+        FROM_STATES: for compatibility with `BaseOrchestrationPolicy`
+        TO_STATES: for compatibility with `BaseOrchestrationPolicy`
         context: the orchestration context
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
-            passed between rules
+            passed between transforms
     """
 
+    # `BaseUniversalTransform` will always fire on non-null transitions
     FROM_STATES: Iterable = ALL_ORCHESTRATION_STATES
     TO_STATES: Iterable = ALL_ORCHESTRATION_STATES
 
@@ -783,7 +784,7 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
 
     async def __aenter__(self):
         """
-        Enter an async runtime context governed by this rule.
+        Enter an async runtime context governed by this transform.
 
         The `with` statement will bind a governed `OrchestrationContext` to the target
         specified by the `as` clause. If the transition proposed by the
@@ -804,11 +805,11 @@ class BaseUniversalRule(contextlib.AbstractAsyncContextManager):
         exc_tb: Optional[TracebackType],
     ) -> None:
         """
-        Exit the async runtime context governed by this rule.
+        Exit the async runtime context governed by this transform.
 
-        If the transition has been nullified upon exiting this rule's context, nothing
-        happens. Otherwise, `self.after_transition` will fire on every non-null
-        proposed_state.
+        If the transition has been nullified upon exiting this transforms's context,
+        nothing happens. Otherwise, `self.after_transition` will fire on every non-null
+        proposed state.
         """
 
         if not self.nullified_transition():
