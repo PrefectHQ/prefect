@@ -6,7 +6,10 @@ export type FilterObject = {
   filterKey: string
   filterValue: any
   icon: string
+  clearable?: boolean
 }
+
+// TODO: This is really messy, need to clean this up a lot.
 
 export const parseFilters = (gf: GlobalFilter) => {
   const arr: FilterObject[] = []
@@ -15,19 +18,30 @@ export const parseFilters = (gf: GlobalFilter) => {
     Object.entries(gf[key as keyof GlobalFilter]).forEach(
       ([k, v]: [string, any]) => {
         if (k == 'states' && Array.isArray(v)) {
-          let filterValue
+          if (v.length == 6 || v.length == 0) {
+            let objectLabel
+            if (v.length == 6) objectLabel = 'All States'
+            else objectLabel = 'No states'
 
-          if (v.length == 6) filterValue = 'All'
-          else if (v.length == 0) filterValue = 'None'
-          else filterValue = v.join(', ')
-
-          arr.push({
-            objectKey: key,
-            objectLabel: v.length == 1 ? 'State' : 'States',
-            filterKey: k,
-            filterValue: filterValue,
-            icon: 'pi-focus-3-line'
-          })
+            arr.push({
+              objectKey: key,
+              objectLabel: objectLabel,
+              filterKey: k,
+              filterValue: v,
+              icon: 'pi-focus-3-line',
+              clearable: v.length === 0
+            })
+          } else {
+            v.forEach((state) => {
+              arr.push({
+                objectKey: key,
+                objectLabel: state.name.toLowerCase(),
+                filterKey: k,
+                filterValue: v,
+                icon: 'pi-focus-3-line'
+              })
+            })
+          }
         } else if (k == 'timeframe') {
           if (v.from) {
             let filterValue
