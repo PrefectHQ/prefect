@@ -58,6 +58,8 @@ To create a deployment, we need to define a _deployment spec_ and then register 
     ```python
     from prefect.deployments import DeploymentSpec
 
+    # note that deployment names are 
+    # stored and referenced as '<flow name>/<deployment name>'
     DeploymentSpec(
         flow_location="/Developer/workflows/my_flow.py",
         name="my-first-deployment",
@@ -82,7 +84,7 @@ Now that the deployment is created, we can interact with it in multiple ways (cl
     Navigate to your dashboard and you should see your newly created deployment under the "Deployments" tab; clicking "Quick Run" will trigger immediate execution!
 
     <figure markdown=1>
-    ![](/img/tutorials/first-steps-ui.png){: max-width=600px}
+    ![](/img/tutorials/my-first-deployment.png){: max-width=600px}
     </figure>
 
 === "The CLI"
@@ -96,17 +98,51 @@ Now that the deployment is created, we can interact with it in multiple ways (cl
     ```
     </div>
 
-### Additional Configuration
+=== "The REST API"
 
-- multiple ways of specifying the deployment
-- multiple deployments per flow, tracked via `version` 
+    We can additionally use the REST API directly; to faciliate this, we will demonstrate how this works with the convenient Python Orion Client:
+    
+    ```python
+    from prefect.client import OrionClient
+
+    async with OrionClient() as client:
+        deployment = await client.read_deployment_by_name("Addition Machine/my-first-deployment")
+        flow_run = await client.create_flow_run_from_deployment(deployment)
+    ```
+
+    Note that the return values of these methods are full model objects.
+
+As you can see above, deployments allow you to interact with this workflow and its associated configuration via automated services; runs created in this way are always submitted and managed by the Orion agent. 
+
+!!! tip "Managing Multiple Deployments"
+
+    Now that you've created one deployment, why stop there?  You can associate any number of deployments to your flows; the runs they generate will be associated with the corresponding deployment ID for easy discovery in the dashboard.  Additionally, using metadata such as flow `version`s provides another dimension for you to bookkeep and filter in your Orion dashboard.
 
 ## Schedules
 
-Now that you have seen how to create a deployment, 
+Deployments can additionally have schedules that automate the creation of flow runs based on clock time.  Prefect currently supports three schedule types:
 
-Three schedule classes, and two ways of defining schedules (YAML and Python).
+- [`IntervalSchedule`][prefect.orion.schemas.schedules.IntervalSchedule]: best suited for deployments that need to run at some consistent cadence that isn't related to absolute time 
+- [`CronSchedule`][prefect.orion.schemas.schedules.CronSchedule]: best suited for users who are already familiar with `cron` from use in other systems
+- [`RRuleSchedule`][prefect.orion.schemas.schedules.RRuleSchedule]: best suited for deployments that rely on calendar logic such as irregular intervals, exclusions and day-of-month adjustments
 
+For example, suppose we wanted to run our first deployment above every 15 minutes; we can alter our deployment spec as follows:
+```python hl_lines="2-3 9"
+from prefect.deployments import DeploymentSpec
+from prefect.orion.schemas.schedules import IntervalSchedule
+from datetime import timedelta
+
+DeploymentSpec(
+    flow_location="/Developer/workflows/my_flow.py",
+    name="my-first-deployment",
+    parameters={"nums": [1, 2, 3, 4]}, 
+    schedule=IntervalSchedule(interval=timedelta(minutes=15)),
+)
+```
+
+and rerun our `prefect deployment create` CLI command to update the deployment.
+
+Once the deployment has been updated with a schedule, the Orion scheduler will proceed scheduling future runs that are inspectable in your dashboard.
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
