@@ -183,7 +183,6 @@ const resultsTab: Ref<string | null> = ref(null)
 const filter = computed<
   FlowsFilter | FlowRunsFilter | TaskRunsFilter | DeploymentsFilter
 >(() => {
-  console.log(store.getters.composedFilter)
   return { ...store.getters.composedFilter }
 })
 
