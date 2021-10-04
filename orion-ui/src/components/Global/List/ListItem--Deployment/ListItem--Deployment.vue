@@ -180,19 +180,19 @@ export default class ListItemDeployment extends Vue.with(Props) {
       body: {
         deployment_id: this.item.id,
         flow_id: this.item.flow_id,
-        name: 'testingggggggg a longgggg name with lots of gggggggs and yyyyyyyyys',
         state: {
           type: 'SCHEDULED',
           message: 'Quick run through the Orion UI.'
         }
       }
     })
-    console.log(res)
     this.$toast.add({
       type: res.error ? 'error' : 'success',
       content: res.error
         ? `Error: ${res.error}`
-        : res.response.value?.name ? `Run created: ${res.response.value?.name}` : 'Run created',
+        : res.response.value?.name
+        ? `Run created: ${res.response.value?.name}`
+        : 'Run created',
       timeout: 10000
     })
     this.creatingRun = false
