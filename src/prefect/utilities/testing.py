@@ -1,3 +1,8 @@
+""""
+Internal utilities for tests.
+"""
+
+
 def exceptions_equal(a, b):
     """
     Exceptions cannot be compared by `==`. They can be compared using `is` but this
