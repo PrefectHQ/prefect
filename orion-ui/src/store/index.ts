@@ -24,7 +24,47 @@ const state: State = {
     object: 'flow_runs',
     intervalSeconds: 60,
     start: start,
-    states: []
+    states: [
+      { name: 'Scheduled', type: 'SCHEDULED' },
+      { name: 'Pending', type: 'PENDING' },
+      { name: 'Running', type: 'RUNNING' },
+      { name: 'Completed', type: 'COMPLETED' },
+      { name: 'Failed', type: 'FAILED' },
+      { name: 'Cancelled', type: 'CANCELLED' }
+    ],
+    tags: [],
+    flows: { ids: [], names: [] },
+    deployments: { ids: [], names: [] },
+    flow_runs: {
+      ids: [],
+      names: [],
+      timeframe: {
+        dynamic: true,
+        from: {
+          value: 60,
+          unit: 'minutes'
+        },
+        to: {
+          value: 60,
+          unit: 'minutes'
+        }
+      }
+    },
+    task_runs: {
+      ids: [],
+      names: [],
+      timeframe: {
+        dynamic: true,
+        from: {
+          value: 60,
+          unit: 'minutes'
+        },
+        to: {
+          value: 60,
+          unit: 'minutes'
+        }
+      }
+    }
   }
 }
 

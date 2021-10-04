@@ -4,24 +4,6 @@
     :class="{ detached: detached }"
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
-      <div class="object-container">
-        <button
-          class="filter-button objects text--grey-80 pl-3 pr-1"
-          @click="toggleObjectMenu"
-        >
-          <span v-breakpoints="'sm'" v-if="selectedObject" class="mr-1 object">
-            {{ selectedObject }}
-          </span>
-          <i class="pi pi-arrow-drop-down-fill" />
-        </button>
-
-        <ObjectMenu
-          v-if="showObjectMenu"
-          class="object-menu"
-          @close="toggleObjectMenu"
-        />
-      </div>
-
       <div
         class="
           search-input
@@ -66,7 +48,7 @@
       <FilterMenu
         v-if="showFilterMenu"
         class="filter-menu"
-        @close="toggleObjectMenu"
+        @close="toggleFilterMenu"
       />
     </div>
   </div>
@@ -75,27 +57,15 @@
 <script lang="ts" setup>
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useStore } from 'vuex'
-import ObjectMenu from './ObjectMenu.vue'
 import FilterMenu from './FilterMenu.vue'
 
-const store = useStore()
 const route = useRoute()
 
 const search = ref<string>('')
 
-const showObjectMenu = ref<boolean>(false)
 const showFilterMenu = ref<boolean>(false)
 const showSavedSearchesMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
-
-const selectedObject = computed(() => {
-  return store.getters.globalFilter.object.replace('_', ' ')
-})
-
-const toggleObjectMenu = () => {
-  showObjectMenu.value = !showObjectMenu.value
-}
 
 const toggleSavedSearchesMenu = () => {
   showSavedSearchesMenu.value = !showSavedSearchesMenu.value
@@ -106,7 +76,6 @@ const toggleFilterMenu = () => {
 }
 
 const closeOverlay = () => {
-  showObjectMenu.value = false
   showFilterMenu.value = false
   showSavedSearchesMenu.value = false
   showOverlay.value = false
@@ -139,10 +108,7 @@ const createIntersectionObserver = (margin: string) => {
 
 const overlay = computed(() => {
   return (
-    showObjectMenu.value ||
-    showFilterMenu.value ||
-    showSavedSearchesMenu.value ||
-    showOverlay.value
+    showFilterMenu.value || showSavedSearchesMenu.value || showOverlay.value
   )
 })
 
