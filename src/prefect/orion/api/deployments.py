@@ -234,3 +234,45 @@ async def set_schedule_inactive(
         models.orm.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
+
+
+@router.post("/{id}/create_flow_run")
+async def create_flow_run_from_deployment(
+    flow_run: schemas.actions.DeploymentFlowRunCreate,
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    response: Response = None,
+) -> schemas.core.FlowRun:
+    """
+    Create a flow run from a deployment.
+
+    Any parameters not provided will be inferred from the deployment's parameters.
+    If tags are not provided, the deployment's tags will be used.
+
+    If no state is provided, the flow run will be created in a PENDING state.
+    """
+    # get relevant info from the deployment
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+
+    parameters = deployment.parameters
+    parameters.update(flow_run.parameters or {})
+
+    # hydrate the input model into a full flow run / state model
+    flow_run = schemas.core.FlowRun(
+        **flow_run.dict(exclude={"parameters", "tags"}),
+        flow_id=deployment.flow_id,
+        deployment_id=deployment.id,
+        parameters=parameters,
+        tags=flow_run.tags or deployment.tags
+    )
+
+    if not flow_run.state:
+        flow_run.state = schemas.states.Pending()
+
+    now = pendulum.now("UTC")
+    model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+    if model.created >= now:
+        response.status_code = status.HTTP_201_CREATED
+    return model
