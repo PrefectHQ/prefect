@@ -11,4 +11,5 @@ include versioneer.py
 include src/prefect/_version.py
 
 # Package files and data
-graft src/prefect/orion-ui/dist
+graft src/prefect/orion/ui
+graft src/prefect/orion/api/static

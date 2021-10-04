@@ -58,6 +58,14 @@ app.mount(
     name="static",
 )
 
+if os.path.exists(prefect.__ui_static_path__):
+    app.mount("/ui", StaticFiles(directory=prefect.__ui_static_path__), name="ui")
+else:
+    print(
+        "Warning! The UI has not been built and cannot be served. "
+        "Run `prefect orion build-ui` to package the UI into Orion."
+    )
+
 
 def openapi():
     if app.openapi_schema:

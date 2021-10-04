@@ -2,10 +2,9 @@
 Command line interface for working with Orion
 """
 import json
-import os
-import pathlib
 import shutil
 import subprocess
+import os
 
 import typer
 import uvicorn
@@ -13,13 +12,10 @@ import uvicorn
 import prefect
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
-from prefect.orion.api.server import app as orion_fastapi_app
 from prefect.orion.utilities.database import create_db, drop_db, get_engine
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
 
-
-PREFECT_ROOT = pathlib.Path(prefect.__file__).parents[2]
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)
@@ -33,6 +29,9 @@ def start(
     services: bool = True,
 ):
     """Start an Orion server"""
+    # Delay this import so we don't instantiate the API uncessarily
+    from prefect.orion.api.server import app as orion_fastapi_app
+
     console.print("Starting Orion API...")
     # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
     # See https://github.com/PrefectHQ/orion/issues/281
@@ -63,7 +62,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
 @orion_app.command()
 def build_docs(
     schema_path: str = str(
-        (PREFECT_ROOT / "docs" / "api-ref" / "schema.json").absolute()
+        (prefect.__root_path__ / "docs" / "api-ref" / "schema.json").absolute()
     ),
 ):
     """
@@ -83,15 +82,16 @@ def build_docs(
 
 @orion_app.command()
 def build_ui():
-    with tmpchdir(PREFECT_ROOT):
+    with tmpchdir(prefect.__root_path__):
         console.print("Building with npm...")
-        with tmpchdir(PREFECT_ROOT / "orion-ui"):
+        with tmpchdir(prefect.__root_path__ / "orion-ui"):
             subprocess.check_output(["npm", "run", "build"])
 
-        console.print("Removing any existing build files...")
-        shutil.rmtree("src/prefect/orion-ui/dist")
+        if os.path.exists(prefect.__ui_static_path__):
+            console.print("Removing existing build files...")
+            shutil.rmtree(prefect.__ui_static_path__)
 
         console.print("Copying build into src...")
-        shutil.copytree("orion-ui/dist", "src/prefect/orion-ui/dist")
+        shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
 
     console.print("Complete!")
