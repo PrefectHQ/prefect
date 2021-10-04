@@ -16,6 +16,9 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import pendulum
+import sys
+import textwrap
+import traceback
 from contextlib import contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Set, TypeVar, Union, Iterable, Optional
@@ -224,7 +227,11 @@ async def begin_flow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
-
+    if terminal_state.is_failed() and prefect.settings.debug_mode:
+        logger.error(
+            f"Flow run {flow_run.name!r} failure traceback:\n"
+            f"{textwrap.indent(traceback_from_failed_state(terminal_state), '    ')}"
+        )
     return terminal_state
 
 
@@ -295,6 +302,11 @@ async def create_and_begin_subflow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
     )
+    if terminal_state.is_failed() and prefect.settings.debug_mode:
+        logger.error(
+            f"Subflow run {flow_run.name!r} failure traceback:\n"
+            f"{textwrap.indent(traceback_from_failed_state(terminal_state), '    ')}"
+        )
 
     # Track the subflow state so the parent flow can use it to determine its final state
     parent_flow_run_context.subflow_states.append(terminal_state)
@@ -635,6 +647,11 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Task run {task_run.name!r} finished in state {display_state}",
     )
+    if state.is_failed() and prefect.settings.debug_mode:
+        logger.error(
+            f"Task run {task_run.name!r} failure traceback:\n"
+            f"{textwrap.indent(traceback_from_failed_state(state), '    ')}"
+        )
 
     return state
 
@@ -740,6 +757,34 @@ async def raise_failed_state(state: State) -> None:
             f"Unexpected result for failure state: {result!r} —— "
             f"{type(result).__name__} cannot be resolved into an exception"
         )
+
+
+def traceback_from_failed_state(state: State) -> str:
+    """
+    Given a FAILED state, return the string traceback from the contained exception.
+
+    If not given a FAILED state, this function will throw an exception.
+
+    If the state contains a result of multiple states, the first FAILED state traceback
+    will be returned.
+
+    If the state is FAILED but does not contain an exception type result, the literal
+    "traceback missing" will be returned.
+    """
+    if not state.is_failed():
+        raise ValueError("State is not a FAILED type.")
+
+    try:
+        state.result(raise_on_failure=True)
+    except BaseException:
+        exc_type, exc_val, tb = sys.exc_info()
+        # Drop two frames
+        # - The call to this function
+        # - The result retrieval call in this function
+        tb = tb.tb_next.tb_next
+        return "".join(traceback.format_exception(exc_type, exc_val, tb)).strip()
+    else:
+        raise RuntimeError("State result did not raise an exception.")
 
 
 async def resolve_upstream_task_futures(
