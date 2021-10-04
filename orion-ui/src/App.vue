@@ -16,10 +16,10 @@ import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
-const validRoutes = ['/', '/flow-run']
+const invalidRoutes = ['/settings']
 
 const validFilterRoute = computed(() => {
-  return validRoutes.includes(route.path)
+  return !invalidRoutes.includes(route.path)
 })
 </script>
 
