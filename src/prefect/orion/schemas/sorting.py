@@ -15,6 +15,7 @@ class FlowRunSort(AutoEnum):
     EXPECTED_START_TIME_ASC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
+    END_TIME_DESC = AutoEnum.auto()
 
     def as_sql_sort(self) -> ColumnElement:
         """Return an expression used to sort flow runs"""
@@ -23,6 +24,7 @@ class FlowRunSort(AutoEnum):
             "EXPECTED_START_TIME_ASC": models.orm.FlowRun.expected_start_time.asc(),
             "EXPECTED_START_TIME_DESC": models.orm.FlowRun.expected_start_time.desc(),
             "NEXT_SCHEDULED_START_TIME_ASC": models.orm.FlowRun.next_scheduled_start_time.asc(),
+            "END_TIME_DESC": models.orm.FlowRun.end_time.desc(),
         }
         return sort_mapping[self.value]
 
@@ -34,6 +36,7 @@ class TaskRunSort(AutoEnum):
     EXPECTED_START_TIME_ASC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
     NEXT_SCHEDULED_START_TIME_ASC = AutoEnum.auto()
+    END_TIME_DESC = AutoEnum.auto()
 
     def as_sql_sort(self) -> ColumnElement:
         """Return an expression used to sort task runs"""
@@ -42,5 +45,6 @@ class TaskRunSort(AutoEnum):
             "EXPECTED_START_TIME_ASC": models.orm.TaskRun.expected_start_time.asc(),
             "EXPECTED_START_TIME_DESC": models.orm.TaskRun.expected_start_time.desc(),
             "NEXT_SCHEDULED_START_TIME_ASC": models.orm.TaskRun.next_scheduled_start_time.asc(),
+            "END_TIME_DESC": models.orm.TaskRun.end_time.desc(),
         }
         return sort_mapping[self.value]
