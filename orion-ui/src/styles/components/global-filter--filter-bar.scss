@@ -41,7 +41,7 @@
 
 .bar {
   background-color: #fff;
-  box-shadow: $box-shadow-sm;
+  backdrop-filter: $drop-shadow-sm;
   border-radius: 4px;
   display: flex;
   font-size: 14px;
@@ -56,7 +56,7 @@
   position: absolute !important;
   border-radius: 0 0 4px 4px;
   left: 0;
-  height: auto;
+  height: 500px;
   max-height: 100vh;
   top: 100%;
   width: 100%;
@@ -133,22 +133,26 @@
 }
 
 .fade-slide-leave-active {
-  animation: slide 0.15s reverse ease-in-out forwards;
+  animation: slide 0.2s reverse linear forwards;
+  backface-visibility: hidden;
+  transform-origin: top;
   z-index: -1;
 }
 
 .fade-slide-enter-active {
-  animation: slide 0.15s ease-in-out forwards;
+  animation: slide 0.2s linear forwards;
+  backface-visibility: hidden;
+  transform-origin: top;
   z-index: -1;
 }
 
 @keyframes slide {
-  from {
-    transform: translate(0, -50%);
+  0% {
+    transform: translate(0, -50%) rotateX(180deg);
   }
 
-  to {
-    transform: translate(0);
+  100% {
+    transform: translate(0, 0) rotateX(0);
   }
 }
 

@@ -1,9 +1,5 @@
 <template>
-  <Card
-    class="menu font--primary"
-    :height="smAndDown ? '400px' : 'auto'"
-    tabindex="0"
-  >
+  <Card class="menu font--primary" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
       <div class="pa-2 d-flex justify-space-between align-center">
         <IconButton
@@ -36,16 +32,16 @@
     <div class="pa-2">
       <!-- <div class="d-flex align-center flex-grow-1 justify-start"> -->
       <FilterAccordion title="Deployments" icon="pi-filter-3-line">
-        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
       <FilterAccordion title="Flows" icon="pi-filter-3-line">
-        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
       <FilterAccordion title="Flow Runs" icon="pi-filter-3-line">
-        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
       <FilterAccordion title="Task Runs" icon="pi-filter-3-line">
-        <div v-for="n in 50" :key="n"> TEST TEST TEST </div>
+        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
       <!-- <Button
           v-for="(menu, i) in menuButtons"
