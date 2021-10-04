@@ -81,6 +81,8 @@ nav:
         - Overview: api-ref/overview.md
         - Prefect Python API: 
             - 'prefect.client': api-ref/prefect/client.md
+            - 'prefect.context': api-ref/prefect/context.md
+            - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
             - 'prefect.exceptions': api-ref/prefect/exceptions.md
             - 'prefect.executors': api-ref/prefect/executors.md
@@ -89,8 +91,19 @@ nav:
             - 'prefect.serializers': api-ref/prefect/serializers.md
             - 'prefect.tasks': api-ref/prefect/tasks.md
             - 'Utilities':
+                - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
+                - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
+                - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
+                - 'prefect.utilities.compat': api-ref/prefect/utilities/compat.md
+                - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+                - 'prefect.utilities.logging': api-ref/prefect/utilities/logging.md
                 - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
+            - 'Command Line Interface':
+                - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
+                - 'prefect.cli.base': api-ref/prefect/cli/base.md
+                - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
+                - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
         - Orion Python API: 
             - 'Models':
                 - 'orion.models.deployments': api-ref/orion/models/deployments.md

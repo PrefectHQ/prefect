@@ -1,3 +1,6 @@
+"""
+Command line interface for working with flow runs
+"""
 from typing import List
 
 import typer

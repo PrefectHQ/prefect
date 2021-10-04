@@ -1,8 +1,12 @@
+"""
+Routes for interacting with task run state objects.
+"""
+
 from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
-from fastapi import Body, Depends, HTTPException, Path, status
+from fastapi import Depends, HTTPException, Path, status
 
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
@@ -19,7 +23,7 @@ async def read_task_run_state(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.states.State:
     """
-    Get a task run state by id
+    Get a task run state by id.
     """
     task_run_state = await models.task_run_states.read_task_run_state(
         session=session, task_run_state_id=task_run_state_id
@@ -37,7 +41,7 @@ async def read_task_run_states(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.states.State]:
     """
-    Get states associated with a task run
+    Get states associated with a task run.
     """
     return await models.task_run_states.read_task_run_states(
         session=session, task_run_id=task_run_id

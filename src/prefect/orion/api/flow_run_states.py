@@ -1,3 +1,7 @@
+"""
+Routes for interacting with flow run state objects.
+"""
+
 from typing import List
 from uuid import UUID
 
@@ -19,7 +23,7 @@ async def read_flow_run_state(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.states.State:
     """
-    Get a flow run state by id
+    Get a flow run state by id.
     """
     flow_run_state = await models.flow_run_states.read_flow_run_state(
         session=session, flow_run_state_id=flow_run_state_id
@@ -37,7 +41,7 @@ async def read_flow_run_states(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.states.State]:
     """
-    Get states associated with a flow run
+    Get states associated with a flow run.
     """
     return await models.flow_run_states.read_flow_run_states(
         session=session, flow_run_id=flow_run_id
