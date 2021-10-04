@@ -54,12 +54,10 @@ class State(IDBaseModel, Generic[R]):
 
     type: StateType
     name: str = None
-    timestamp: datetime.datetime = Field(
-        default_factory=lambda: pendulum.now("UTC"), repr=False
-    )
+    timestamp: datetime.datetime = Field(default_factory=lambda: pendulum.now("UTC"))
     message: str = Field(None, example="Run started")
-    data: DataDocument[R] = Field(None, repr=False)
-    state_details: StateDetails = Field(default_factory=StateDetails, repr=False)
+    data: DataDocument[R] = Field(None)
+    state_details: StateDetails = Field(default_factory=StateDetails)
 
     @overload
     def result(state_or_future: "State[R]", raise_on_failure: bool = True) -> R:
@@ -207,27 +205,39 @@ class State(IDBaseModel, Generic[R]):
         update.setdefault("timestamp", self.__fields__["timestamp"].get_default())
         return super().copy(reset_fields=reset_fields, update=update, **kwargs)
 
+    def __repr__(self) -> str:
+        """
+        Generates a complete state representation appropriate for introspection
+        and debugging, including the result:
+
+        `MyCompletedState(message="my message", type=COMPLETED, result=...)`
+        """
+
+        display = dict(
+            message=repr(self.message),
+            type=self.type,
+            result=repr(self.result(raise_on_failure=False)),
+        )
+
+        if self.state_details.task_run_id is not None:
+            display["task_run_id"] = self.state_details.task_run_id
+        elif self.state_details.flow_run_id is not None:
+            display["flow_run_id"] = self.state_details.flow_run_id
+
+        return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
+
     def __str__(self) -> str:
         """
-        Generates a nice state representation for user display
-        e.g. Completed(name="My Custom Name", result=10)
+        Generates a simple state representation appropriate for logging:
 
-        The name is only included if different from the state type
-        The result relies on the str of the data document and may not always
-            be resolved to the concrete value
+        `MyCompletedState(message="my message", type=COMPLETED)`
         """
-        attrs = {}
 
-        if self.name.lower() != self.type.value.lower():
-            attrs["name"] = repr(self.name)
-        if self.data is not None:
-            attrs["result"] = str(self.data)
-        if self.message:
-            attrs["message"] = repr(self.message)
-
-        attr_str = ", ".join(f"{key}={val}" for key, val in attrs.items())
-        friendly_type = self.type.value.capitalize()
-        return f"{friendly_type}({attr_str})"
+        display = dict(
+            message=repr(self.message),
+            type=self.type,
+        )
+        return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
 
     def __hash__(self) -> int:
         return hash(
@@ -307,7 +317,7 @@ def AwaitingRetry(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     Returns:
         State: a AwaitingRetry state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="Awaiting Retry")
+    return Scheduled(scheduled_time=scheduled_time, name="AwaitingRetry", **kwargs)
 
 
 def Retrying(**kwargs) -> State:
@@ -325,4 +335,4 @@ def Late(scheduled_time: datetime.datetime = None, **kwargs) -> State:
     Returns:
         State: a Late state
     """
-    return Scheduled(scheduled_time=scheduled_time, name="Late")
+    return Scheduled(scheduled_time=scheduled_time, name="Late", **kwargs)
