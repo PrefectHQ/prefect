@@ -53,24 +53,17 @@ We will publish a complete roadmap for Orion soon. Here are a few important mile
     - Share dashboards
     - Configure storage locations
     - Update server settings from UI
-    - Logs
     - View input lineage in schematic
 - CLI
 - Orion server
-    - Log storage
     - States
         - Add `CRASHED` states for capturing and reacting to infrastructure failures
     - Orion engine orchestration rules
         - Configurable retry on `CRASHED`
         - Automatically expire caches when tasks are taken out of `TERMINAL` states
         - Linear scheduling: cancel runs attempting to enter `RUNNING` states if another run of the same flow is already running
-        - Webhook rules: allow users to set up custom rules via webhook that will be trigger by server-side orchestration
         - Exponential backoff for `AWAITING_RETRY`
     - Configurable storage locations for flows and persisted data
-    - Services
-        - Zombie killer
-        - Lazarus
-        - Late / Failed SLA enforcement
 - Prefect IDE
     - Time travel debugging: download states from remote runs to replay them interactively
 
@@ -79,7 +72,23 @@ One of the reasons we are open-sourcing the technical preview is to begin solici
 
 ### Does Orion support mapping?
 
-Mapping is one of the most popular features in Prefect Core, allowing users to tap into their executor's native fan-out abilities. An equivalent `.map()` operator will be released for Orion soon.
+Mapping is one of the most popular features in Prefect Core, allowing users to tap into their executor's native fan-out abilities. An equivalent `.map()` operator will be released for Orion soon. For now, users can take advantage of Orion's support for native Python to call tasks in loops:
+
+```python
+@flow
+def my_flow():
+
+    # map over a constant
+    for i in range(10):
+        my_mapped_task(i)
+
+    # map over a task's output
+    l = list_task()
+    for i in l.wait().result():
+        my_mapped_task_2(i)
+```
+
+Note that when tasks are called on constant values, they can not detect their upstream edges automatically. In this example, `my_mapped_task_2` does not know that it is downstream from `list_task()`. Orion will have convenience functions for detecting these associations, and Orion's `.map()` operator will automatically track them.
 
 ### How do I tell enforce ordering between tasks that don't share data?
 
