@@ -128,6 +128,18 @@ nav:
                 - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
                 - 'orion.schemas.sorting': api-ref/orion/schemas/sorting.md
                 - 'orion.schemas.states': api-ref/orion/schemas/states.md
+            - 'Services':
+                - 'orion.services.agent': api-ref/orion/services/agent.md
+                - 'orion.services.late_runs': api-ref/orion/services/late_runs.md
+                - 'orion.services.loop_service': api-ref/orion/services/loop_service.md
+                - 'orion.services.scheduler': api-ref/orion/services/scheduler.md
+            - 'Utilities':
+                - 'orion.utilities.database': api-ref/orion/utilities/database.md
+                - 'orion.utilities.enum': api-ref/orion/utilities/enum.md
+                - 'orion.utilities.filesystem': api-ref/orion/utilities/filesystem.md
+                - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
+                - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
+                - 'orion.utilities.server': api-ref/orion/utilities/server.md
         - Orion REST API: api-ref/rest-api.md
 extra:
   analytics:

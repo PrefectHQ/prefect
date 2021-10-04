@@ -1,12 +1,14 @@
+"""
+Utilities for creating and working with Orion API schemas.
+"""
+
 import copy
 import datetime
 import json
-from typing import Any, List, Set, TypeVar
+from typing import Any, Dict, List, Set, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
-
-from prefect import settings
 
 
 T = TypeVar("T")
@@ -37,19 +39,26 @@ def pydantic_subclass(
         pydantic.BaseModel: a new model subclass that contains only the specified fields.
 
     Example:
+        To subclass a model with a subset of fields:
+        ```python
         class Parent(pydantic.BaseModel):
             x: int = 1
             y: int = 2
 
         Child = pydantic_subclass(Parent, 'Child', exclude_fields=['y'])
+        assert hasattr(Child(), 'x')
+        assert not hasattr(Child(), 'y')
+        ```
 
-        # equivalent, for extending the subclass further
-        # with new fields
+        To subclass a model with a subset of fields but include a new field:
+        ```python
         class Child(pydantic_subclass(Parent, exclude_fields=['y'])):
-            pass
+            z: int = 3
 
         assert hasattr(Child(), 'x')
         assert not hasattr(Child(), 'y')
+        assert hasattr(Child(), 'z')
+        ```
     """
 
     # collect field names
@@ -83,6 +92,8 @@ def pydantic_subclass(
 
 
 class PrefectBaseModel(BaseModel):
+    """A base pydantic.BaseModel for all Prefect schemas and pydantic models."""
+
     class Config:
         # extra attributes are forbidden in order to raise meaningful errors for
         # bad API payloads
@@ -192,8 +203,20 @@ class PrefectBaseModel(BaseModel):
             return deep_dict
 
     def copy(
-        self: T, *, update: dict = None, reset_fields: bool = False, **kwargs
+        self: T, *, update: Dict = None, reset_fields: bool = False, **kwargs: Any
     ) -> T:
+        """
+        Duplicate a model.
+
+        Args:
+            update: values to change/add to the model copy
+            reset_fields: if True, reset the fields specified in `self._reset_fields`
+                to their default value on the new model
+            kwargs: kwargs to pass to `pydantic.BaseModel.copy`
+
+        Returns:
+            A new copy of the model
+        """
         if reset_fields:
             update = update or dict()
             for field in self._reset_fields():
