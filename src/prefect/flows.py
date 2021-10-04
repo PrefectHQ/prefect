@@ -135,12 +135,19 @@ class Flow(Generic[P, R]):
         """
         validated_fn = ValidatedFunction(self.fn, config=None)
         args, kwargs = parameters_to_args_kwargs(self.fn, parameters)
+
+        validation_err = None
         try:
             model = validated_fn.init_model_instance(*args, **kwargs)
         except pydantic.ValidationError as exc:
             # We capture the pydantic exception and raise our own because the pydantic
             # exception is not picklable when using a cythonized pydantic installation
-            raise ParameterTypeError(str(exc))
+            validation_err = ParameterTypeError(str(exc))
+
+        if validation_err:
+            # Raise the valdiation error outside of the `except` so the pydandic
+            # internals are not included
+            raise validation_err
 
         # Get the updated parameter dict with cast values from the model
         cast_parameters = {

@@ -4,7 +4,7 @@ Orion is a collection of services that form a dedicated _orchestration environme
 
 - the **database** is the persistent metadata store that holds flow and task run history, along with [references to data][prefect.orion.schemas.data] produced by tasks and flows
 - the **webserver** serves [a REST API](/api-ref/rest-api/) backed by [FastAPI](https://fastapi.tiangolo.com/) that receives information emitted from workflows and additionally responds with orchestration instructions
-- the **agent** is a small polling process responsible for submitting _flow_ runs as local processes
+- a collection of **services** primarily focused on managing deployments
 - the **UI** is the flexible control plane for monitoring, configuring and analyzing your Prefect workflows
 
 !!! tip "All at once"
@@ -69,12 +69,13 @@ There are numerous ways to begin exploring the API:
 
 During normal operation is it not expected that you will need to interact with the API directly, as this is handled automatically for you within the Python client and the UI.
 
-## The agent
+## Orion services
 
-The Orion agent is a lightweight process responsible for submitting both scheduled and manually triggered deployments.  
+Orion also ships with a collection of services that are also run with `prefect orion start`:
 
-- does the agent connect to the DB directly right now? 
-- we may want to expose a configurable URL for the API
+- the Orion agent is a lightweight process responsible for submitting both scheduled and manually triggered deployments as subprocesses
+- the Orion scheduler prepares and creates runs for any scheduled deployments
+- the Orion `MarkLateRuns` service which updates late runs to be in a `Late` state
 
 ## The UI
 
