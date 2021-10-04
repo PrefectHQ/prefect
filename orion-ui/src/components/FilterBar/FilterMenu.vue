@@ -8,6 +8,7 @@
           width="34px"
           flat
           style="border-radius: 50%"
+          @click="close"
         />
 
         <h3 class="d-flex align-center font--secondary">
@@ -30,7 +31,7 @@
 
     <div class="menu-content pa-2">
       <div class="d-flex align-center justify-start">
-        <Button
+        <!-- <Button
           v-for="(menu, i) in menuButtons"
           :key="i"
           class="mr-2"
@@ -51,7 +52,7 @@
           class="mr--half"
           @click.self="handleTagClick(filter)"
           @remove="removeFilter"
-        />
+        /> -->
       </div>
     </div>
 
@@ -89,7 +90,8 @@ import {
   reactive,
   shallowRef,
   computed,
-  ComponentPublicInstance
+  ComponentPublicInstance,
+  defineEmits
 } from 'vue'
 import { useStore } from 'vuex'
 import RunStatesMenu from './RunStatesMenu.vue'
@@ -101,6 +103,7 @@ import { parseFilters, FilterObject } from './util'
 import { getCurrentInstance } from 'vue'
 
 const instance = getCurrentInstance()
+const emit = defineEmits(['close'])
 const store = useStore()
 const selectedObject = ref('flow_runs')
 
@@ -186,6 +189,10 @@ const subMenuStyle = computed(() => {
     left: bb.offsetLeft + 'px'
   }
 })
+
+const close = () => {
+  emit('close')
+}
 
 const closeAllMenus = () => {
   menus.forEach((m) => (m.show = false))

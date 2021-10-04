@@ -1,7 +1,7 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
-    <FilterBar class="filter-bar" />
+    <FilterBar v-if="validFilterRoute" class="filter-bar" />
     <suspense>
       <router-view class="router-view" />
     </suspense>
@@ -11,6 +11,16 @@
 <script lang="ts" setup>
 import NavBar from '@/components/ApplicationNav/NavBar.vue'
 import FilterBar from '@/components/FilterBar/FilterBar.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+
+const validRoutes = ['/', '/flow-run']
+
+const validFilterRoute = computed(() => {
+  return validRoutes.includes(route.path)
+})
 </script>
 
 <style lang="scss">

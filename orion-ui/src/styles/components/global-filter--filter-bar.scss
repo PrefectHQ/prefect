@@ -133,12 +133,12 @@
 }
 
 .fade-slide-leave-active {
-  animation: slide 0.1s reverse ease-in-out forwards;
+  animation: slide 0.15s reverse ease-in-out forwards;
   z-index: -1;
 }
 
 .fade-slide-enter-active {
-  animation: slide 0.1s ease-in-out forwards;
+  animation: slide 0.15s ease-in-out forwards;
   z-index: -1;
 }
 
@@ -149,5 +149,17 @@
 
   to {
     transform: translate(0);
+  }
+}
+
+@media (max-width: 1024px) {
+  @keyframes slide {
+    from {
+      transform: translate(0, 200%);
+    }
+
+    to {
+      transform: translate(0);
+    }
   }
 }
