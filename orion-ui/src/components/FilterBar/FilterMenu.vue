@@ -70,7 +70,13 @@
 
     <template v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
-        <Button v-if="!smAndDown" flat height="35px" class="ml-auto mr-1">
+        <Button
+          v-if="!smAndDown"
+          flat
+          height="35px"
+          class="ml-auto mr-1"
+          @click="close"
+        >
           Cancel
         </Button>
         <Button

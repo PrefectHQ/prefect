@@ -41,6 +41,7 @@
       <div class="filter-container">
         <button
           class="filter-button filters text--grey-80 px-2"
+          :class="{ active: showFilterMenu }"
           @click="showFilterMenu ? closeFilterMenu() : openFilterMenu()"
         >
           <i class="pi pi-filter-3-line" />
