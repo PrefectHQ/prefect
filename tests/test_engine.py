@@ -10,6 +10,7 @@ from prefect.engine import (
     orchestrate_task_run,
     raise_failed_state,
     resolve_datadoc,
+    traceback_from_failed_state,
     user_return_value_to_state,
 )
 from prefect.executors import SequentialExecutor
@@ -18,13 +19,14 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Cancelled,
     Completed,
+    Failed,
+    Pending,
+    Running,
     State,
     StateDetails,
     StateType,
-    Failed,
-    Running,
-    Pending,
 )
+from prefect.utilities.collections import quote
 from prefect.utilities.compat import AsyncMock
 
 
@@ -503,3 +505,52 @@ class TestOrchestrateFlowRun:
 
         sleep.assert_not_called()
         assert state.result() == 1
+
+
+class TestTracebackFromFailedState:
+    def test_traceback_from_failed_flow(self):
+        @flow
+        def fail():
+            raise ValueError("Test")
+
+        state = fail()
+        tb = traceback_from_failed_state(state)
+        assert tb.startswith("Traceback (most recent call last):")
+        assert tb.endswith("ValueError: Test")
+        assert "in orchestrate_flow_run" in tb
+        assert "in fail" in tb
+        assert "traceback_from_failed_state" not in tb
+
+    def test_traceback_from_failed_task(self):
+        @task
+        def fail():
+            raise ValueError("Test")
+
+        @flow
+        def wrapper():
+            return quote(fail())
+
+        state = wrapper().result().unquote()
+        tb = traceback_from_failed_state(state)
+        assert tb.startswith("Traceback (most recent call last):")
+        assert tb.endswith("ValueError: Test")
+        assert "in orchestrate_task_run" in tb
+        assert "in fail" in tb
+        assert "traceback_from_failed_state" not in tb
+
+    def test_traceback_from_failed_subflow(self):
+        @flow
+        def fail():
+            raise ValueError("Test")
+
+        @flow
+        def wrapper():
+            return quote(fail())
+
+        state = wrapper().result().unquote()
+        tb = traceback_from_failed_state(state)
+        assert tb.startswith("Traceback (most recent call last):")
+        assert tb.endswith("ValueError: Test")
+        assert "in orchestrate_flow_run" in tb
+        assert "in fail" in tb
+        assert "traceback_from_failed_state" not in tb
