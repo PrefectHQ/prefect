@@ -1,4 +1,4 @@
-# First Steps
+# First steps
 
 Before we stand up our own Orion webserver, database, and UI let's explore the building blocks of a Prefect workflow via an interactive Python session.  All code below is copy / pastable into your favorite async-compatible Python REPL.
 
