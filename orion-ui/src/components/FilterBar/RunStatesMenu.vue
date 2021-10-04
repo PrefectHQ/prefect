@@ -1,5 +1,5 @@
 <template>
-  <Card class="run-states-menu" tabindex="0">
+  <Card class="run-states-menu" miter shadow="sm" tabindex="0">
     <div class="menu-content pa-2">
       <div class="font-weight-semibold">Select Run States</div>
       <hr class="hr" />
@@ -19,12 +19,16 @@
       >
         <span>{{ state.name }}</span>
       </Checkbox>
+    </div>
 
+    <template v-slot:actions>
       <hr class="hr" />
 
-      <Button class="mr-1" outlined @click="emit('close')">Cancel</Button>
-      <Button color="primary" @click="apply">Apply</Button>
-    </div>
+      <div class="pa-2">
+        <Button class="mr-1" outlined @click="emit('close')">Cancel</Button>
+        <Button color="primary" @click="apply">Apply</Button>
+      </div>
+    </template>
   </Card>
 </template>
 

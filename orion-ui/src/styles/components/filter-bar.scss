@@ -34,10 +34,6 @@
   }
 }
 
-.object {
-  text-transform: capitalize;
-}
-
 .bar {
   background-color: #fff;
   box-shadow: $box-shadow-sm;
@@ -58,18 +54,6 @@
     border: none;
     outline: none;
     height: 100%;
-  }
-}
-
-.object-container,
-.saved-searches-container {
-  position: relative;
-
-  .object-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 2;
   }
 }
 

@@ -122,7 +122,7 @@
         <results-list
           v-else-if="resultsTab == 'flows'"
           key="flows"
-          :filter="flowFilter"
+          :filter="filter"
           component="flow-list-item"
           endpoint="flows"
         />
@@ -130,7 +130,7 @@
         <results-list
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
-          :filter="deploymentFilter"
+          :filter="filter"
           component="deployment-list-item"
           endpoint="deployments"
         />
@@ -138,7 +138,7 @@
         <results-list
           v-else-if="resultsTab == 'flow_runs'"
           key="flow_runs"
-          :filter="flowRunFilter"
+          :filter="filter"
           component="flow-run-list-item"
           endpoint="flow_runs"
         />
@@ -146,7 +146,7 @@
         <results-list
           v-else-if="resultsTab == 'task_runs'"
           key="task_runs"
-          :filter="taskRunFilter"
+          :filter="filter"
           component="task-run-list-item"
           endpoint="task_runs"
         />
@@ -171,7 +171,6 @@ import {
   TaskRunsFilter,
   BaseFilter
 } from '@/plugins/api'
-import { RunState } from '@/typings/global'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
 import router from '@/router'
@@ -181,50 +180,11 @@ const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
-const flowFilter = computed<FlowsFilter>(() => {
-  return { ...filterBody.value }
-})
-const flowRunFilter = computed<FlowRunsFilter>(() => {
-  return { ...filterBody.value }
-})
-const taskRunFilter = computed<TaskRunsFilter>(() => {
-  return { ...filterBody.value }
-})
-const deploymentFilter = computed<DeploymentsFilter>(() => {
-  return { ...filterBody.value }
-})
-
-const object = computed<string>(() => {
-  return store.getters.globalFilter.object
-})
-
-const states = computed<RunState[]>(() => {
-  return store.getters.globalFilter.states
-})
-
-type Type = {
-  any_: string[]
-}
-type Body = {
-  [key: string]: { state: { type: Type } }
-}
-const filterBody = computed<Body>(() => {
-  if (!states.value.length) return {}
-  return {
-    [object.value]: {
-      state: {
-        type: states.value.reduce<Type>(
-          (acc, curr) => {
-            acc.any_.push(curr.type)
-            return acc
-          },
-          {
-            any_: []
-          }
-        )
-      }
-    }
-  }
+const filter = computed<
+  FlowsFilter | FlowRunsFilter | TaskRunsFilter | DeploymentsFilter
+>(() => {
+  console.log(store.getters.composedFilter)
+  return { ...store.getters.composedFilter }
 })
 
 const start = computed<Date>(() => {
@@ -245,20 +205,19 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
       if (start.value) start_time.after_ = start.value?.toISOString()
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
-    console.log(filterBody.value)
 
-    const filterBodyCopy = { ...filterBody.value }
-    delete filterBodyCopy['flow_runs']
-    return {
-      flow_runs: {
-        ...filterBodyCopy,
-        expected_start_time: start_time,
-        state: {
-          name: {
-            any_: [state_name]
-          }
-        }
+    const composedFilter = store.getters.composedFilter
+    if (!('flow_runs' in composedFilter)) {
+      composedFilter['flow_runs'] = { state: {} }
+    }
+    composedFilter.flow_runs.state = {
+      name: {
+        any_: [state_name]
       }
+    }
+
+    return {
+      ...composedFilter
     }
   })
 }
@@ -266,28 +225,28 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
 const queries: { [key: string]: Query } = {
   deployments: Api.query({
     endpoint: Endpoints.deployments_count,
-    body: deploymentFilter,
+    body: filter,
     options: {
       pollInterval: 10000
     }
   }),
   flows: Api.query({
     endpoint: Endpoints.flows_count,
-    body: flowFilter,
+    body: filter,
     options: {
       pollInterval: 10000
     }
   }),
   flow_runs: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: flowRunFilter,
+    body: filter,
     options: {
       pollInterval: 10000
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: taskRunFilter,
+    body: filter,
     options: {
       pollInterval: 10000
     }
@@ -357,21 +316,12 @@ const interval = computed<number>(() => {
   return store.getters.globalFilter.intervalSeconds
 })
 
-const loading = computed<boolean>(() => {
-  return (
-    queries.flows.loading.value ||
-    queries.deployments.loading.value ||
-    queries.flow_runs.loading.value ||
-    queries.task_runs.loading.value
-  )
-})
-
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
     history_interval_seconds: interval.value,
-    ...filterBody.value
+    ...store.getters.composedFilter
   }
 })
 
@@ -379,7 +329,7 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
     history_interval_seconds: interval.value * 2,
-    ...filterBody.value
+    ...store.getters.composedFilter
   }
 })
 
