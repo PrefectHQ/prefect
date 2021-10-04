@@ -24,12 +24,15 @@
     border-radius: 0;
   }
 
-  @media (max-width: 1000px) {
+  @media (max-width: 1024px) {
     margin: 0;
     border-radius: 0;
+    z-index: 9;
   }
 
   @media (max-width: 640px) {
+    z-index: 10;
+
     &.detached {
       top: 62px;
     }
@@ -53,9 +56,23 @@
   position: absolute !important;
   border-radius: 0 0 4px 4px;
   left: 0;
+  height: auto;
+  max-height: 100vh;
   top: 100%;
   width: 100%;
   z-index: 1;
+
+  @media (max-width: 1024px) {
+    left: 0;
+    top: 0;
+    height: 100vh !important;
+  }
+
+  @media (max-width: 640px) {
+    left: 0;
+    top: -62px;
+    height: 100vh !important;
+  }
 }
 
 .search-menu {

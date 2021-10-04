@@ -1,5 +1,33 @@
 <template>
   <Card class="menu font--primary" tabindex="0">
+    <template v-if="smAndDown" v-slot:header>
+      <div class="pa-2 d-flex justify-space-between align-center">
+        <IconButton
+          icon="pi-close-line"
+          height="34px"
+          width="34px"
+          flat
+          style="border-radius: 50%"
+        />
+
+        <h3 class="d-flex align-center font--secondary">
+          <i class="pi pi-filter-3-line mr-1" />
+          Filters
+        </h3>
+
+        <a
+          class="
+            text--primary text-decoration-none
+            font--secondary
+            caption
+            nowrap
+          "
+        >
+          Clear all
+        </a>
+      </div>
+    </template>
+
     <div class="menu-content pa-2">
       <div class="d-flex align-center justify-start">
         <Button
@@ -21,13 +49,28 @@
           :key="i"
           :item="filter"
           class="mr--half"
-          @click="handleTagClick(filter)"
+          @click.self="handleTagClick(filter)"
           @remove="removeFilter"
         />
       </div>
     </div>
 
-    <component
+    <template v-slot:actions>
+      <div class="pa-2 d-flex align-center justify-end">
+        <Button v-if="!smAndDown" flat height="35px" class="ml-auto mr-1">
+          Cancel
+        </Button>
+        <Button
+          color="primary"
+          height="35px"
+          :width="smAndDown ? '100%' : 'auto'"
+        >
+          Apply
+        </Button>
+      </div>
+    </template>
+
+    <!-- <component
       v-for="(menu, i) in menus.filter((m) => m.show)"
       :key="i"
       :is="menu.component"
@@ -36,7 +79,7 @@
       :object="selectedObject"
       :style="subMenuStyle"
       @close="menu.show = false"
-    />
+    /> -->
   </Card>
 </template>
 
@@ -55,7 +98,9 @@ import TagsMenu from './TagsMenu.vue'
 import ObjectMenu from './ObjectMenu.vue'
 import FilterTag from './FilterTag.vue'
 import { parseFilters, FilterObject } from './util'
+import { getCurrentInstance } from 'vue'
 
+const instance = getCurrentInstance()
 const store = useStore()
 const selectedObject = ref('flow_runs')
 
@@ -102,7 +147,7 @@ const menus = reactive([
 ])
 
 const removeFilter = (filter: FilterObject): void => {
-  console.log(filter)
+  console.log('remove', filter)
 }
 
 const handleTagClick = (tag: FilterObject) => {
@@ -118,6 +163,11 @@ const filters = computed<FilterObject[]>(() => {
   return parseFilters({
     [selectedObject.value]: store.getters.globalFilter[selectedObject.value]
   })
+})
+
+const smAndDown = computed(() => {
+  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
+  return !breakpoints.md
 })
 
 const menuButtons = computed(() => {
