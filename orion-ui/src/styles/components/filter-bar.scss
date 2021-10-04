@@ -48,17 +48,16 @@
   }
 }
 
-.search-input {
-  height: 100%;
-
-  > input {
-    border: none;
-    outline: none;
-    height: 100%;
-  }
+.filter-menu {
+  position: absolute !important;
+  border-radius: 0 0 4px 4px;
+  left: 0;
+  top: 100%;
+  width: 100%;
+  z-index: 1;
 }
 
-.filter-menu {
+.search-menu {
   position: absolute !important;
   border-radius: 0 0 4px 4px;
   left: 0;
