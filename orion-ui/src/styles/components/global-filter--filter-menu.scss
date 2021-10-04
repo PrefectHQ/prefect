@@ -11,6 +11,17 @@
 
   .menu-content {
     border-top: 2px solid $grey-10;
+    overscroll-behavior: contain;
+
+    @media (max-width: 1024px) {
+      background-color: $grey-10;
+      flex: 1 1 auto;
+    }
+
+    @media (max-width: 640px) {
+      flex: 1 1 auto;
+      width: 100%;
+    }
   }
 
   > ::v-deep(div) {
@@ -19,22 +30,6 @@
 
   .menu-container {
     position: relative;
-  }
-}
-
-.object {
-  text-transform: capitalize;
-}
-
-.object-container,
-.saved-searches-container {
-  position: relative;
-
-  .object-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 2;
   }
 }
 
