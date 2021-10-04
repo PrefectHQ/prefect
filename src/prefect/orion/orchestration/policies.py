@@ -8,12 +8,8 @@ mechanism as well as provide observability into the orchestration process.
 While Orion's [orchestration rules][prefect.orion.orchestration.rules.BaseOrchestrationRule]
 can gracefully run independently of one another, ordering can still have an impact on
 the observed behavior of the system. For example, it makes no sense to secure a
-concurrency slot for a run if a cached state exists.
-
-The second function of policies is to provide a way to configure and observe exactly
-what logic will fire against a transition. While adding needless rules to an
-orchestration loop will have no impact on behavior, policies provide a mechanism to
-deeply understand how and when Orion will intervene in a flow- or task- run.
+concurrency slot for a run if a cached state exists. Furthermore, policies, provide a
+mechanism to configure and observe exactly what logic will fire against a transition.
 """
 
 from abc import ABC, abstractmethod
