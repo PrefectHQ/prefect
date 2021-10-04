@@ -32,7 +32,7 @@ and may additionally include the following pieces of optional information:
 
 - a set of `tags` to attach to the runs generated from this deployment
 - a set of `parameters` whose values will be passed to the flow function when it runs
-- a schedule for auto-generating flow runs on some well defined cadence
+- a `schedule` for auto-generating flow runs on some well defined cadence
 
 To create a deployment, we need to define a _deployment spec_ and then register that spec with the Orion server; for example, suppose we have the following two files located in `/Developer/workflows/`:
 
