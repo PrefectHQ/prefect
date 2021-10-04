@@ -86,7 +86,8 @@ class DeploymentSpec(PrefectBaseModel):
         flow_location: The path to a script containing the flow to associate with the
             deployment. Inferred from `flow` if provided.
         parameters: An optional dictionary of default parameters to set on flow runs
-            from this deployment.
+            from this deployment. If defined in Python, the values should be Pydantic
+            compatible objects.
         schedule: An optional schedule instance to use with the deployment.
         tags: An optional set of tags to assign to the deployment.
     """
