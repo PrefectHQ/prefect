@@ -55,7 +55,16 @@ const focusSearchInput = () => {
 }
 
 const handleKeyboardEvent = (e: KeyboardEvent) => {
-  if (e.key == 't') {
+  if (!e?.target) return
+  const target = e.target as HTMLElement
+  switch (target.tagName) {
+    case 'INPUT':
+    case 'SELECT':
+    case 'TEXTAREA':
+      return
+  }
+
+  if (e.key == 't' && e.target) {
     focusSearchInput()
   }
 }
