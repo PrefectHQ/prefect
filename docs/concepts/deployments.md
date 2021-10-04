@@ -22,3 +22,29 @@ Stuff to include
 ## Creating A Deployment
 
 DOCSTODO
+
+### Specifying parameters
+
+When including parameters in a deployment specification, they should match the format of your specification. For example, if you are creating a specification in Python, you'll want to use Python objects for parameter values. 
+
+```python
+from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    name="example-deployment",
+    flow_location="./my_flow.py",
+    parameters={"numbers": [1, 2, 3]}
+)
+```
+
+When writing a specification in YAML, you specify your parameters in YAML instead.
+
+```yaml
+name: example-deployment
+flow_location: my_flow.py
+parameters:
+  numbers:
+    - 1
+    - 2
+    - 3
+```
