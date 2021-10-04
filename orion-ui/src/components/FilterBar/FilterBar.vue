@@ -5,22 +5,12 @@
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
       <FilterSearch @focused="openSearchMenu">
-        <div
-          class="filter-tag mr-1 font--secondary caption"
+        <FilterTag
           v-for="(filter, i) in filters"
           :key="i"
-          tabindex="0"
-          @click="removeFilter(filter)"
-        >
-          <div class="px-1 py--half d-flex align-center">
-            <i class="pi pi-xs mr--half" :class="filter.icon" />
-            {{ filter.objectLabel }}
-
-            <button class="ml-1">
-              <i class="pi pi-xs pi-close-circle-fill" />
-            </button>
-          </div>
-        </div>
+          :item="filter"
+          @remove="removeFilter"
+        />
 
         <a
           v-if="filters.length"
@@ -81,13 +71,14 @@
 </template>
 
 <script lang="ts" setup>
-import { GlobalFilter } from '@/typings/global'
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import FilterMenu from './FilterMenu.vue'
+import FilterTag from './FilterTag.vue'
 import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
+import { parseFilters, FilterObject } from './util'
 
 const store = useStore()
 const route = useRoute()
@@ -98,7 +89,7 @@ const showSavedSearchesMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
 
 const closeSavedSearchesMenu = () => {
-  showSavedSearchesMenu.value.value = false
+  showSavedSearchesMenu.value = false
 }
 
 const openSavedSearchesMenu = () => {
@@ -138,79 +129,8 @@ const removeFilter = (filter: FilterObject): void => {
   console.log(filter)
 }
 
-type FilterObject = {
-  objectKey: string
-  objectLabel: string
-  filterKey: string
-  filterValue: string
-  icon: string
-}
-
 const filters = computed<FilterObject[]>(() => {
-  const arr: any[] = []
-  const gf: GlobalFilter = store.getters.globalFilter
-  const keys = Object.keys(gf)
-  keys.forEach((key) => {
-    Object.entries(gf[key as keyof GlobalFilter]).forEach(
-      ([k, v]: [string, any]) => {
-        if (k == 'states' && Array.isArray(v)) {
-          let filterValue
-
-          if (v.length == 6) filterValue = 'All'
-          else if (v.length == 0) filterValue = 'None'
-          else filterValue = v.join(', ')
-
-          arr.push({
-            objectKey: key,
-            objectLabel: v.length == 1 ? 'State' : 'States',
-            filterKey: k,
-            filterValue: filterValue,
-            icon: 'pi-focus-3-line'
-          })
-        } else if (k == 'timeframe') {
-          if (v.from) {
-            let filterValue
-            if (v.from.timestamp)
-              filterValue = new Date(v.from.timestamp).toLocaleString()
-            else if (v.from.value && v.from.unit)
-              filterValue = `${v.from.value}${v.from.unit.slice(0, 1)}`
-
-            arr.push({
-              objectKey: key,
-              objectLabel: `Past ${filterValue}`,
-              filterKey: k,
-              filterValue: filterValue,
-              icon: 'pi-scheduled'
-            })
-          }
-          if (v.to) {
-            let filterValue
-            if (v.to.timestamp)
-              filterValue = new Date(v.to.timestamp).toLocaleString()
-            else if (v.to.value && v.to.unit)
-              filterValue = `${v.to.value}${v.to.unit.slice(0, 1)}`
-
-            arr.push({
-              objectKey: key,
-              objectLabel: `Next ${filterValue}`,
-              filterKey: k,
-              filterValue: filterValue,
-              icon: 'pi-scheduled'
-            })
-          }
-        } else {
-          arr.push({
-            objectKey: key,
-            objectLabel: `${key.replace('_', ' ')}: ${v}`,
-            filterKey: k,
-            filterValue: v,
-            icon: 'pi-search-line'
-          })
-        }
-      }
-    )
-  })
-  return arr
+  return parseFilters(store.getters.globalFilter)
 })
 
 /**
@@ -266,5 +186,5 @@ watch(route, () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/filter-bar.scss';
+@use '@/styles/components/global-filter--filter-bar.scss';
 </style>
