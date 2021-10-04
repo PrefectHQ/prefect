@@ -26,7 +26,7 @@ Flow deployments elevate workflows from functions that users call manually to AP
 A **deployment** consists of the following pieces of required information:
 
 - a `name`
-- the path to a flow definition; currently flow scripts must be located on the same filesystem as the Orion server
+- a `flow_location`, or the path to a flow definition; currently flow scripts must be located on the same filesystem as the Orion server
 
 and may additionally include the following pieces of optional information:
 
