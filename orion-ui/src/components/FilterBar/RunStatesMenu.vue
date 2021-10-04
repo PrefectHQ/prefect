@@ -33,14 +33,18 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, onBeforeMount } from 'vue'
+import { defineEmits, ref, onBeforeMount, defineProps } from 'vue'
 import { RunState } from '@/typings/global'
 import { useStore } from 'vuex'
 
 const store = useStore()
 const emit = defineEmits(['close'])
 
-const storeState = [...store.getters.globalFilter.states].map(
+const props = defineProps<{
+  object: 'flow_runs' | 'task_runs'
+}>()
+
+const storeState = [...store.getters.globalFilter[props.object].states].map(
   (s: RunState) => s.type
 )
 
@@ -62,14 +66,14 @@ const toggleAll = () => {
 }
 
 const apply = () => {
-  store.commit(
-    'states',
-    states.value
+  store.commit('states', {
+    object: props.object,
+    states: states.value
       .filter((s) => s.checked)
       .map((s) => {
         return { name: s.name, type: s.type }
       })
-  )
+  })
   emit('close')
 }
 
