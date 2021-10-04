@@ -12,11 +12,11 @@ class AutoEnum(str, Enum):
     See https://docs.python.org/3/library/enum.html#using-automatic-values
 
     Example:
-            >>> from enum import auto
-            >>> class MyEnum(AutoEnum):
-            ...     RED = AutoEnum.auto() # equivalent to RED = 'RED'
-            ...     BLUE = AutoEnum.auto() # equivalent to BLUE = 'BLUE'
-            ...
+        ```python
+        class MyEnum(AutoEnum):
+            RED = AutoEnum.auto() # equivalent to RED = 'RED'
+            BLUE = AutoEnum.auto() # equivalent to BLUE = 'BLUE'
+        ```
     """
 
     def _generate_next_value_(name, start, count, last_values):

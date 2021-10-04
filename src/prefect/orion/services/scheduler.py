@@ -1,3 +1,7 @@
+"""
+The Scheduler service.
+"""
+
 import datetime
 import asyncio
 
@@ -13,12 +17,25 @@ settings = prefect.settings.orion.services
 
 
 class Scheduler(LoopService):
+    """
+    A loop service that schedules flow runs from deployments.
+    """
+
     loop_seconds: float = settings.scheduler_loop_seconds
     deployment_batch_size: int = settings.scheduler_deployment_batch_size
     max_runs: int = settings.scheduler_max_runs
     max_scheduled_time: datetime.timedelta = settings.scheduler_max_scheduled_time
 
     async def run_once(self):
+        """
+        Schedule flow runs by:
+
+        - Querying for deployments with active schedules
+        - Generating the next set of flow runs based on each deployments schedule
+        - Inserting all scheduled flow runs into the database
+
+        All inserted flow runs are committed to the database at the termination of the loop.
+        """
         now = pendulum.now("UTC")
         total_inserted_runs = 0
 
