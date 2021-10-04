@@ -80,7 +80,7 @@ class TestCreateTaskRunState:
             )
         ).state
 
-        assert new_state.name == "Awaiting Retry"
+        assert new_state.name == "AwaitingRetry"
         assert new_state.type == StateType.SCHEDULED
 
     async def test_failed_doesnt_retry_if_flag_set(self, task_run, client, session):
