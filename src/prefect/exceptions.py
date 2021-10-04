@@ -1,5 +1,5 @@
 """
-Prefect-specific exception types.
+Prefect-specific exceptions.
 """
 from rich.traceback import Traceback
 
