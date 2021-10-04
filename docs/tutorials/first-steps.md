@@ -146,9 +146,6 @@ and navigating to the displayed UI URL; you should see all of the runs that we h
 ![](/img/tutorials/first-steps-ui.png){: max-width=600px}
 </figure>
 
-!!! note "Subflows cannot be indefinitely nested"
-    Please note that currently flows can only be nested one layer deep.
-
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
