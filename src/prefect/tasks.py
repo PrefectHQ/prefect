@@ -239,6 +239,23 @@ class Task(Generic[P, R]):
             >>> @flow
             >>> async def my_flow():
             >>>     my_task()
+
+            Enforce ordering between tasks that do not exchange data
+            >>> @task
+            >>> def task_1():
+            >>>     pass
+            >>>
+            >>> @task
+            >>> def task_2():
+            >>>     pass
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     x = task_1()
+            >>>
+            >>>     # task 2 will wait for task_1 to complete
+            >>>     y = task_2(wait_for=[x])
+
         """
 
         from prefect.engine import enter_task_run_engine
