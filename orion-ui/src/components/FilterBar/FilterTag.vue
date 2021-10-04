@@ -1,5 +1,9 @@
 <template>
-  <div class="filter-tag mr-1 font--secondary caption" tabindex="0">
+  <button
+    class="filter-tag mr-1 font--secondary caption"
+    tabindex="0"
+    role="button"
+  >
     <div class="px-1 py--half d-flex align-center text-capitalize">
       <i class="pi pi-xs mr--half" :class="item.icon" />
       {{ item.objectLabel }}
@@ -12,7 +16,7 @@
         @click="emit('remove', props.item)"
       />
     </div>
-  </div>
+  </button>
 </template>
 
 <script lang="ts" setup>
