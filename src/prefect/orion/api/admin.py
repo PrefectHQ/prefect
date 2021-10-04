@@ -1,3 +1,7 @@
+"""
+Routes for admin-level interactions with the Orion API.
+"""
+
 import sqlalchemy as sa
 from fastapi import Depends, status, Response, Body
 
@@ -12,11 +16,13 @@ router = OrionRouter(prefix="/admin", tags=["Admin"])
 
 @router.get("/hello")
 def hello():
+    """Say hello!"""
     return "👋"
 
 
 @router.get("/settings")
 def read_settings() -> prefect.utilities.settings.Settings:
+    """Get the current Orion settings"""
     return prefect.settings
 
 

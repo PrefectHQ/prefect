@@ -1,10 +1,15 @@
+"""
+Definition of SQLAlchemy ORM models for Orion API objects.
+Intended for internal use by the Orion API.
+"""
+
 import datetime
 from typing import Optional, Dict, List, Union
 
 from coolname import generate_slug
 import pendulum
 import sqlalchemy as sa
-from sqlalchemy import Boolean, Column, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declarative_mixin, relationship
 
@@ -16,14 +21,14 @@ from prefect.orion.utilities.database import (
     Pydantic,
     Timestamp,
     interval_add,
-    get_dialect,
     date_diff,
     now,
 )
-from prefect.orion.utilities.functions import ParameterSchema
 
 
 class Flow(Base):
+    """SQLAlchemy model of a flow."""
+
     name = Column(String, nullable=False, unique=True)
     tags = Column(JSON, server_default="[]", default=list, nullable=False)
     flow_runs = relationship("FlowRun", back_populates="flow", lazy="raise")
@@ -31,6 +36,8 @@ class Flow(Base):
 
 
 class FlowRunState(Base):
+    """SQLAlchemy model of a flow run state."""
+
     # this column isn't explicitly indexed because it is included in
     # the unique compound index on (flow_run_id, timestamp)
     flow_run_id = Column(
@@ -75,6 +82,8 @@ class FlowRunState(Base):
 
 
 class TaskRunState(Base):
+    """SQLAlchemy model of a task run state."""
+
     # this column isn't explicitly indexed because it is included in
     # the unique compound index on (task_run_id, timestamp)
     task_run_id = Column(
@@ -119,6 +128,8 @@ class TaskRunState(Base):
 
 
 class TaskRunStateCache(Base):
+    """SQLAlchemy model of a task run state cache. Used to manage caching logic for task runs."""
+
     cache_key = Column(String, nullable=False)
     cache_expiration = Column(
         Timestamp(),
@@ -234,6 +245,8 @@ class RunMixin:
 
 
 class FlowRun(Base, RunMixin):
+    """SQLAlchemy model of a flow run."""
+
     flow_id = Column(
         UUID(), ForeignKey("flow.id", ondelete="cascade"), nullable=False, index=True
     )
@@ -349,6 +362,8 @@ sa.Index(
 
 
 class TaskRun(Base, RunMixin):
+    """SQLAlchemy model of a task run."""
+
     flow_run_id = Column(
         UUID(),
         ForeignKey("flow_run.id", ondelete="cascade"),
@@ -468,6 +483,8 @@ sa.Index(
 
 
 class Deployment(Base):
+    """SQLAlchemy model of a deployment."""
+
     name = Column(String, nullable=False)
     flow_id = Column(UUID, ForeignKey("flow.id"), nullable=False, index=True)
     schedule = Column(Pydantic(schedules.SCHEDULE_TYPES))
@@ -491,6 +508,8 @@ class Deployment(Base):
 
 
 class SavedSearch(Base):
+    """SQLAlchemy model of a saved search."""
+
     name = Column(String, nullable=False, unique=True)
     flow_filter_criteria = Column(
         Pydantic(filters.FlowFilterCriteria),
