@@ -1,3 +1,8 @@
+"""
+Functions for interacting with deployment ORM objects.
+Intended for internal use by the Orion API.
+"""
+
 import datetime
 from typing import List
 from uuid import UUID, uuid4
@@ -9,7 +14,7 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert, get_dialect, now
+from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
 async def create_deployment(
