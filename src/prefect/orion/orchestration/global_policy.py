@@ -1,5 +1,12 @@
 """
 Bookkeeping logic that fires on every state transition.
+
+For clarity, `GlobalFlowpolicy` and `GlobalTaskPolicy` contain all transition logic
+implemented using [`BaseUniversalTransform`][prefect.orion.orchestration.rules.BaseUniversalTransform].
+None of these operations modify state, and regardless of what orchestration Orion might
+enforce on a transtition, the global policies contain Orion's necessary bookkeeping.
+Because these transforms record information about the validated state committed to the
+state database, they should be the most deeply nested contexts in orchestration loop.
 """
 
 from prefect.orion import models
