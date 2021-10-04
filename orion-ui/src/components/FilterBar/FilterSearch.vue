@@ -32,7 +32,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineEmits } from 'vue'
+import { ref, defineEmits, onMounted, onBeforeUnmount } from 'vue'
 
 const emit = defineEmits(['input', 'keyup.enter', 'focused'])
 const searchInput = ref()
@@ -53,6 +53,20 @@ const emitFocused = () => {
 const focusSearchInput = () => {
   searchInput.value.focus()
 }
+
+const handleKeyboardEvent = (e: KeyboardEvent) => {
+  if (e.key == 't') {
+    focusSearchInput()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keyup', handleKeyboardEvent)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keyup', handleKeyboardEvent)
+})
 </script>
 
 <style lang="scss" scoped>
