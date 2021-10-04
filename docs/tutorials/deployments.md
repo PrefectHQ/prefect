@@ -21,7 +21,7 @@
 
 ## Deployments
 
-Flow deployments elevate a workflow from a function that users call manually to an API managed entity. Specifically, deployments contain all of the information necessary for scheduling a workflow and / or triggering it via API call.  Moreover, because a flow can have multiple distinct deployments, deployments allow for easily testing multiple versions of a flow and promoting them through various environments.
+Flow deployments elevate workflows from functions that users call manually to API-managed entities. Specifically, deployments contain all of the information necessary for scheduling a workflow and / or triggering it via API call.  Moreover, because a flow can have multiple distinct deployments, deployments allow for easily testing multiple versions of a flow and promoting them through various environments.
 
 A **deployment** consists of the following pieces of required information:
 
