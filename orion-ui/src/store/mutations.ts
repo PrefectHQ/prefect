@@ -26,7 +26,6 @@ interface TimeFramePayload extends RunTimeFrame {
 }
 
 export const timeframe = (state: State, timeframe: TimeFramePayload): void => {
-  console.log(timeframe)
   state.globalFilter[timeframe.object].timeframe = {
     dynamic: timeframe.dynamic,
     from: timeframe.from,

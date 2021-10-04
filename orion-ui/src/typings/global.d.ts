@@ -18,28 +18,28 @@ export interface RunTimeFrame {
 }
 
 export interface GlobalFilter {
-  end?: Date
-  object?: string
-  intervalSeconds?: number
-  start?: Date
-  states: RunState[]
-  tags: string[]
   flows: {
-    ids: string[]
-    names: string[]
+    ids?: string[]
+    names?: string[]
+    tags?: string[]
   }
   deployments: {
-    ids: string[]
-    names: string[]
+    ids?: string[]
+    names?: string[]
+    tags?: string[]
   }
   flow_runs: {
-    ids: string[]
-    names: string[]
-    timeframe: RunTimeFrame
+    ids?: string[]
+    names?: string[]
+    tags?: string[]
+    states?: RunState[]
+    timeframe?: RunTimeFrame
   }
   task_runs: {
-    ids: string[]
-    names: string[]
-    timeframe: RunTimeFrame
+    ids?: string[]
+    names?: string[]
+    tags?: string[]
+    states?: RunState[]
+    timeframe?: RunTimeFrame
   }
 }

@@ -19,14 +19,72 @@ export type UnionFilters =
   | TaskRunsFilter
 
 export interface Getters extends GetterTree<State, any> {
+  start(state: State): Date
+  end(state: State): Date
   globalFilter(state: State): GlobalFilter
   baseFilter(state: State): (object: string) => UnionFilter
   composedFilter(state: State, getters: GetterTree<State, Getters>): UnionFilter
 }
 
-export const globalFilter = (state: State): GlobalFilter => state.globalFilter
+export const start = (state: State): Date => {
+  const timeframe = state.globalFilter.flow_runs.timeframe?.from
+  if (!timeframe) return new Date()
+  if (timeframe.timestamp) return timeframe.timestamp
+  if (timeframe.unit && timeframe.value) {
+    const date = new Date()
 
-type TimeFilter = { after_?: string; before_?: string } | undefined
+    switch (timeframe.unit) {
+      case 'minutes':
+        date.setMinutes(date.getMinutes() - timeframe.value)
+        break
+      case 'hours':
+        date.setHours(date.getHours() - timeframe.value)
+        break
+      case 'days':
+        date.setDate(date.getDate() - timeframe.value)
+        break
+      default:
+        break
+    }
+
+    return date
+  }
+  throw new Error('There was an issue calculating start time in the store.')
+}
+
+export const end = (state: State): Date => {
+  const timeframe = state.globalFilter.flow_runs.timeframe?.to
+  if (!timeframe) return new Date()
+  if (timeframe.timestamp) return timeframe.timestamp
+  if (timeframe.unit && timeframe.value) {
+    const date = new Date()
+
+    switch (timeframe.unit) {
+      case 'minutes':
+        date.setMinutes(date.getMinutes() + timeframe.value)
+        break
+      case 'hours':
+        date.setHours(date.getHours() + timeframe.value)
+        break
+      case 'days':
+        date.setDate(date.getDate() + timeframe.value)
+        break
+      default:
+        break
+    }
+
+    return date
+  }
+  throw new Error('There was an issue calculating start time in the store.')
+}
+
+export const baseInterval = (state: State, getters: any): number => {
+  return Math.floor(
+    (getters.end.getTime() - getters.start.getTime()) / 1000 / 30
+  )
+}
+
+export const globalFilter = (state: State): GlobalFilter => state.globalFilter
 
 type GlobalFilterKeys = 'flows' | 'deployments' | 'flow_runs' | 'task_runs'
 const keys: GlobalFilterKeys[] = [
@@ -36,70 +94,107 @@ const keys: GlobalFilterKeys[] = [
   'task_runs'
 ]
 
+const timeKeys: { [key: string]: 'start_time' | 'expected_start_time' } = {
+  task_runs: 'start_time',
+  flow_runs: 'expected_start_time'
+}
+
 export const baseFilter =
   (state: State) =>
   (object: GlobalFilterKeys): UnionFilter => {
-    const val: UnionFilter = {}
-    if (state.globalFilter[object].ids.length)
-      val['id'] = { any_: state.globalFilter[object].ids }
-    if (state.globalFilter[object].names.length)
-      val['name'] = { any_: state.globalFilter[object].names }
-    if (state.globalFilter.tags.length)
-      val['tags'] = { all_: state.globalFilter.tags }
-
-    let from, to, start_time: TimeFilter, end_time: TimeFilter
-
-    switch (object) {
-      case 'flow_runs':
-      case 'task_runs':
-        from = state.globalFilter[object].timeframe.from
-        to = state.globalFilter[object].timeframe.to
-
-        if (from.value && from.unit) {
-          const start = new Date()
-          const startDateObjectRef = ('set' +
-            from.unit?.[0]?.toUpperCase() +
-            from.unit?.slice(1)) as keyof typeof start
-
-          start[startDateObjectRef](from.value)
-
-          start_time = {}
-          start_time.after_ = start.toISOString()
-          val[object == 'task_runs' ? 'start_time' : 'expected_start_time'] =
-            start_time
-        }
-
-        if (to.value && to.unit) {
-          const end = new Date()
-          const startDateObjectRef = ('set' +
-            to.unit?.[0]?.toUpperCase() +
-            to.unit?.slice(1)) as keyof typeof end
-
-          end[startDateObjectRef](to.value)
-
-          start_time = {}
-          start_time.before_ = end.toISOString()
-          val[object == 'task_runs' ? 'start_time' : 'expected_start_time'] =
-            start_time
-        }
-
-        val['state'] = {
-          type: state.globalFilter.states.reduce<{
-            any_: string[]
-          }>(
-            (acc, curr) => {
-              acc.any_.push(curr.type)
-              return acc
-            },
-            {
-              any_: []
-            }
-          )
-        }
-        break
-      default:
-        break
+    const timeKey: keyof UnionFilter = timeKeys[object]
+    const val: UnionFilter = {
+      id: undefined,
+      name: undefined,
+      tags: undefined,
+      [timeKey]: undefined
     }
+
+    if (state.globalFilter[object]?.ids)
+      val.id = { any_: state.globalFilter[object].ids }
+    if (state.globalFilter[object]?.names)
+      val.name = { any_: state.globalFilter[object].names }
+    if (state.globalFilter[object]?.tags)
+      val.tags = { all_: state.globalFilter[object]?.tags }
+
+    // Break early for flows or deployments
+    if (object == 'flows' || object == 'deployments') return val
+
+    const from = state.globalFilter[object]?.timeframe?.from
+    const to = state.globalFilter[object]?.timeframe?.to
+    const fromExists = from && from.value && from.unit
+    const toExists = to && to.value && to.unit
+
+    if (fromExists || toExists) {
+      val[timeKey] = {
+        before_: undefined,
+        after_: undefined
+      }
+    }
+
+    if (fromExists && from.value) {
+      const date = new Date()
+
+      switch (from.unit) {
+        case 'minutes':
+          date.setMinutes(date.getMinutes() - from.value)
+          break
+        case 'hours':
+          date.setHours(date.getHours() - from.value)
+          break
+        case 'days':
+          date.setDate(date.getDate() - from.value)
+          break
+        default:
+          break
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      val[timeKey]!.after_ = date.toISOString()
+    }
+
+    if (toExists && to.value) {
+      const date = new Date()
+
+      switch (to.unit) {
+        case 'minutes':
+          date.setMinutes(date.getMinutes() + to.value)
+          break
+        case 'hours':
+          date.setHours(date.getHours() + to.value)
+          break
+        case 'days':
+          date.setDate(date.getDate() + to.value)
+          break
+        default:
+          break
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      val[timeKey]!.before_ = date.toISOString()
+    }
+
+    const states = state.globalFilter[object]?.states
+
+    if (states) {
+      val['state'] = {
+        type: states.reduce<{
+          any_: string[]
+        }>(
+          (acc, curr) => {
+            acc.any_.push(curr.type)
+            return acc
+          },
+          {
+            any_: []
+          }
+        )
+      }
+    }
+
+    Object.entries(val).forEach(([key, value]) => {
+      if (!value) delete val[key as keyof UnionFilter]
+    })
 
     return val
   }
@@ -110,10 +205,7 @@ export const composedFilter = (state: State, getters: any): UnionFilters => {
   const val: FlowsFilter | DeploymentsFilter | FlowRunsFilter | TaskRunsFilter =
     {}
 
-  const filteredKeys = keys.filter((k) => state.globalFilter.object == k)
-
-  // keys.forEach((k) => (val[k] = getters.baseFilter(k)))
-  filteredKeys.forEach((k) => (val[k] = getters.baseFilter(k)))
+  keys.forEach((k) => (val[k] = getters.baseFilter(k)))
 
   return { ...val }
 }
