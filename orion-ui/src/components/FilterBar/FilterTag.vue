@@ -23,41 +23,5 @@ const emit = defineEmits(['remove'])
 </script>
 
 <style lang="scss" scoped>
-@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
-@use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
-
-.filter-tag {
-  @include mixins.miter(1, 1);
-
-  > div {
-    background-color: $blue-20;
-    border-radius: 4px;
-    color: $grey-80;
-    cursor: pointer;
-
-    &:hover,
-    &:focus {
-      background-color: $blue-40;
-    }
-  }
-
-  i {
-    border-radius: 50%;
-    border: none;
-    color: $primary;
-    cursor: pointer;
-    outline: none;
-    padding: 0;
-    width: min-content;
-
-    &:hover,
-    &:focus {
-      color: $primary-hover;
-    }
-
-    &:active {
-      color: $primary-pressed;
-    }
-  }
-}
+@use '@/styles/components/global-filter--filter-tag.scss';
 </style>
