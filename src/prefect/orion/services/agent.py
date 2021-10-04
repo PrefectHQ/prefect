@@ -1,3 +1,7 @@
+"""
+The Agent service. Responsible for executing scheduled flow runs from deployments.
+"""
+
 import asyncio
 import sys
 from functools import partial
@@ -12,6 +16,10 @@ settings = prefect.settings.orion.services
 
 
 class Agent(LoopService):
+    """
+    A simple loop service for executing scheduled flow runs.
+    """
+
     loop_seconds: float = settings.agent_loop_seconds
 
     def __init__(self, loop_seconds: float = settings.agent_loop_seconds):
@@ -19,6 +27,9 @@ class Agent(LoopService):
         self.agent: Optional[OrionAgent] = None
 
     async def run_once(self) -> None:
+        """
+        Query for any flow runs scheduled to start and execute them.
+        """
         async with self.session_factory() as session:
             async with session.begin():
                 await self.agent.get_and_submit_flow_runs(
@@ -26,11 +37,13 @@ class Agent(LoopService):
                 )
 
     async def setup(self) -> None:
+        """Setup the agent service."""
         await super().setup()
         self.agent = OrionAgent(prefetch_seconds=settings.agent_prefetch_seconds)
         await self.agent.start()
 
     async def shutdown(self) -> None:
+        """Shut down the agent service."""
         await super().shutdown()
         # Exception info is important for a clean teardown of agent work
         await self.agent.shutdown(*sys.exc_info())
