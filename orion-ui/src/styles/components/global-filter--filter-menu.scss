@@ -1,0 +1,95 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
+
+.menu {
+  border-radius: 0;
+  position: relative;
+
+  .sub-menu {
+    position: absolute;
+  }
+
+  .menu-content {
+    border-top: 2px solid $grey-10;
+  }
+
+  > ::v-deep(div) {
+    border-radius: 0 0 3px 3px !important;
+  }
+
+  .menu-container {
+    position: relative;
+  }
+}
+
+.object {
+  text-transform: capitalize;
+}
+
+.object-container,
+.saved-searches-container {
+  position: relative;
+
+  .object-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 2;
+  }
+}
+
+.filter-button {
+  align-items: center;
+  background-color: $white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  height: 100%;
+  min-width: 52px;
+  outline: none;
+
+  &:hover,
+  &:focus {
+    background-color: $grey-10;
+  }
+
+  &:active {
+    background-color: $grey-20;
+  }
+
+  $border-style: 2px solid $grey-10;
+
+  &.objects {
+    border-right: $border-style;
+    border-radius: 4px 0 0 4px;
+  }
+}
+
+.filter-tag {
+  @include mixins.miter(1, 1);
+
+  > div {
+    background-color: $blue-20;
+    border-radius: 4px;
+    color: $grey-80;
+  }
+
+  button {
+    border-radius: 50%;
+    border: none;
+    color: $primary;
+    cursor: pointer;
+    outline: none;
+    padding: 0;
+    width: min-content;
+
+    &:hover,
+    &:focus {
+      color: $primary-hover;
+    }
+
+    &:active {
+      color: $primary-pressed;
+    }
+  }
+}

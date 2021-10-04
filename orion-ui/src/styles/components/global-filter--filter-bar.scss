@@ -1,5 +1,4 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
-@use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
 
 .observe {
   position: absolute;
@@ -111,35 +110,6 @@
 
   &.saved-searches {
     border-left: $border-style;
-  }
-}
-
-.filter-tag {
-  @include mixins.miter(1, 1);
-
-  > div {
-    background-color: $blue-20;
-    border-radius: 4px;
-    color: $grey-80;
-  }
-
-  button {
-    border-radius: 50%;
-    border: none;
-    color: $primary;
-    cursor: pointer;
-    outline: none;
-    padding: 0;
-    width: min-content;
-
-    &:hover,
-    &:focus {
-      color: $primary-hover;
-    }
-
-    &:active {
-      color: $primary-pressed;
-    }
   }
 }
 

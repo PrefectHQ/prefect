@@ -1,17 +1,28 @@
 <template>
   <Card class="menu font--primary" tabindex="0">
-    <div class="menu-content d-flex align-center justify-start pa-2">
-      <Button
-        v-for="(menu, i) in menuButtons"
-        :key="i"
-        class="mr-2"
-        height="36px"
-        :ref="(el) => elRef(el, i)"
-        @click="toggleMenu(i)"
-      >
-        <i class="pi" :class="menu.icon ? menu.icon : 'pi-filter-3-line'" />
-        <span class="text-capitalize ml-1">{{ menu.label }}</span>
-      </Button>
+    <div class="menu-content pa-2">
+      <div class="d-flex align-center justify-start">
+        <Button
+          v-for="(menu, i) in menuButtons"
+          :key="i"
+          class="mr-2"
+          height="36px"
+          :ref="(el) => elRef(el, i)"
+          @click="toggleMenu(i)"
+        >
+          <i class="pi" :class="menu.icon ? menu.icon : 'pi-filter-3-line'" />
+          <span class="text-capitalize ml-1">{{ menu.label }}</span>
+        </Button>
+      </div>
+
+      <div v-if="filters.length" class="mt-2 d-flex align-center justify-start">
+        <FilterTag
+          v-for="(filter, i) in filters"
+          :key="i"
+          :item="filter"
+          @remove="removeFilter"
+        />
+      </div>
     </div>
 
     <component
@@ -35,11 +46,15 @@ import {
   computed,
   ComponentPublicInstance
 } from 'vue'
+import { useStore } from 'vuex'
 import RunStatesMenu from './RunStatesMenu.vue'
 import TimeframeMenu from './TimeframeMenu.vue'
 import TagsMenu from './TagsMenu.vue'
 import ObjectMenu from './ObjectMenu.vue'
+import FilterTag from './FilterTag.vue'
+import { parseFilters, FilterObject } from './util'
 
+const store = useStore()
 const selectedObject = ref('flow_runs')
 
 const menuRefs = ref<ComponentPublicInstance[]>([])
@@ -80,6 +95,17 @@ const menus = reactive([
   }
 ])
 
+const removeFilter = (filter: FilterObject): void => {
+  console.log(filter)
+}
+
+const filters = computed<FilterObject[]>(() => {
+  console.log(parseFilters(store.getters.globalFilter[selectedObject.value]))
+  return parseFilters({
+    [selectedObject.value]: store.getters.globalFilter[selectedObject.value]
+  })
+})
+
 const menuButtons = computed(() => {
   return menus.filter((m) => m.objects.includes(selectedObject.value))
 })
@@ -104,67 +130,5 @@ const toggleMenu = (i: number) => {
 </script>
 
 <style lang="scss" scoped>
-.menu {
-  border-radius: 0;
-  position: relative;
-
-  .sub-menu {
-    position: absolute;
-  }
-
-  .menu-content {
-    border-top: 2px solid $grey-10;
-  }
-
-  > ::v-deep(div) {
-    border-radius: 0 0 3px 3px !important;
-  }
-
-  .menu-container {
-    position: relative;
-  }
-}
-
-.object {
-  text-transform: capitalize;
-}
-
-.object-container,
-.saved-searches-container {
-  position: relative;
-
-  .object-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 2;
-  }
-}
-
-.filter-button {
-  align-items: center;
-  background-color: $white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  height: 100%;
-  min-width: 52px;
-  outline: none;
-
-  &:hover,
-  &:focus {
-    background-color: $grey-10;
-  }
-
-  &:active {
-    background-color: $grey-20;
-  }
-
-  $border-style: 2px solid $grey-10;
-
-  &.objects {
-    border-right: $border-style;
-    border-radius: 4px 0 0 4px;
-  }
-}
+@use '@/styles/components/global-filter--filter-menu.scss';
 </style>
