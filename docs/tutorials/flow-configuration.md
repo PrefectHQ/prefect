@@ -130,7 +130,7 @@ running
 ```
 </div>
 
-Once we dive deeper into state transitions and orchestration policies, we will see that this task run actually went through the following state transitions: `Pending` -> `Running` -> `Awaiting Retry` -> `Retrying` some number of times.  Metadata such as this allows for a full reconstruction of what happened with your flows and tasks on each run.
+Once we dive deeper into state transitions and orchestration policies, we will see that this task run actually went through the following state transitions: `Pending` -> `Running` -> `AwaitingRetry` -> `Retrying` some number of times.  Metadata such as this allows for a full reconstruction of what happened with your flows and tasks on each run.
 
 ### Caching
 
