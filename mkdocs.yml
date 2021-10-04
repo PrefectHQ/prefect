@@ -25,6 +25,7 @@ theme:
     name: material
     favicon: img/favicon.ico
     features:
+        - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
         - navigation.instant
@@ -109,8 +110,10 @@ nav:
                 - 'orion.models.deployments': api-ref/orion/models/deployments.md
                 - 'orion.models.flows': api-ref/orion/models/flows.md
                 - 'orion.models.flow_runs': api-ref/orion/models/flow_runs.md
+                - 'orion.models.flow_run_states': api-ref/orion/models/flow_run_states.md
                 - 'orion.models.orm': api-ref/orion/models/orm.md
                 - 'orion.models.task_runs': api-ref/orion/models/task_runs.md
+                - 'orion.models.task_run_states': api-ref/orion/models/task_run_states.md
             - 'Orchestration':
                 - 'orion.orchestration.core_policy': api-ref/orion/orchestration/core_policy.md
                 - 'orion.orchestration.global_policy': api-ref/orion/orchestration/global_policy.md
