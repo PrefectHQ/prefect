@@ -352,6 +352,10 @@ sa.Index(
     FlowRun.next_scheduled_start_time.asc(),
 )
 sa.Index(
+    "ix_flow_run__end_time_desc",
+    FlowRun.end_time.desc(),
+)
+sa.Index(
     "ix_flow_run__start_time",
     FlowRun.start_time,
 )
@@ -471,6 +475,10 @@ sa.Index(
 sa.Index(
     "ix_task_run__next_scheduled_start_time_asc",
     TaskRun.next_scheduled_start_time.asc(),
+)
+sa.Index(
+    "ix_task_run__end_time_desc",
+    TaskRun.end_time.desc(),
 )
 sa.Index(
     "ix_task_run__start_time",
