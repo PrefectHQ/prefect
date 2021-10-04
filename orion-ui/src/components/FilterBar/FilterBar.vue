@@ -134,7 +134,7 @@ const filters = computed<
             if (v.from.timestamp)
               filterValue = new Date(v.from.timestamp).toLocaleString()
             else if (v.from.value && v.from.unit)
-              filterValue = `${v.from.value}${v.to.unit.slice(0, 1)}`
+              filterValue = `${v.from.value}${v.from.unit.slice(0, 1)}`
 
             arr.push({
               objectKey: key,
@@ -171,6 +171,8 @@ const filters = computed<
       }
     )
   })
+
+  console.log(arr)
 
   return arr
 })
