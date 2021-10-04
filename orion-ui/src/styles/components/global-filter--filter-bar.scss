@@ -106,6 +106,7 @@
   min-width: 52px;
   outline: none;
 
+  &.active,
   &:hover,
   &:focus {
     background-color: $grey-10;
