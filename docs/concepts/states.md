@@ -29,7 +29,7 @@ There are three terminal state types, from which there are no orchestrated trans
 | --- | --- | --- | --- |
 | Scheduled | SCHEDULED | No | The run will begin at a particular time in the future
 | Late | SCHEDULED | No | The run's scheduled start time has passed, but it has not transitioned to PENDING (5 seconds by default)
-| Awaiting Retry | SCHEDULED | No | The run did not complete successfully because of a code issue and had remaining retry attempts
+| AwaitingRetry | SCHEDULED | No | The run did not complete successfully because of a code issue and had remaining retry attempts
 | Pending | PENDING | No | The run has been submitted to run, but is waiting on necessary preconditions to be satisfied
 | Running | RUNNING | No | The run code is currently executing
 | Retrying | RUNNING | No | The run code is currently executing after previously not complete successfully
