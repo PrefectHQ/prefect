@@ -70,6 +70,8 @@ def build_docs(
 
     Note that this command only functions properly with an editable install.
     """
+    # Delay this import so we don't instantiate the API uncessarily
+    from prefect.orion.api.server import app as orion_fastapi_app
 
     schema = orion_fastapi_app.openapi()
 
@@ -85,7 +87,9 @@ def build_ui():
     with tmpchdir(prefect.__root_path__):
         console.print("Building with npm...")
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
-            subprocess.check_output(["npm", "run", "build"])
+            env = os.environ.copy()
+            env["ORION_UI_SERVE_BASE"] = "/ui/"
+            subprocess.check_output(["npm", "run", "build"], env=env)
 
         if os.path.exists(prefect.__ui_static_path__):
             console.print("Removing existing build files...")
