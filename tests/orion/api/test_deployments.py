@@ -697,7 +697,7 @@ class TestCreateFlowRunFromDeployment:
                 flow_data=DataDocument.encode("cloudpickle", echo_flow),
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
-                tags=["foo", "bar"],
+                tags=["bar", "foo"],
             ),
         )
         await session.commit()
@@ -706,7 +706,7 @@ class TestCreateFlowRunFromDeployment:
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run", json={}
         )
-        assert response.json()["tags"] == deployment.tags
+        assert sorted(response.json()["tags"]) == sorted(deployment.tags)
         assert response.json()["parameters"] == deployment.parameters
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
@@ -718,7 +718,7 @@ class TestCreateFlowRunFromDeployment:
                 parameters={"foo": "not_bar"}
             ).dict(json_compatible=True),
         )
-        assert response.json()["tags"] == deployment.tags
+        assert sorted(response.json()["tags"]) == sorted(deployment.tags)
         assert response.json()["parameters"] == {"foo": "not_bar"}
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
@@ -730,7 +730,7 @@ class TestCreateFlowRunFromDeployment:
                 parameters={"foo": "not_bar"}, tags=["nope"]
             ).dict(json_compatible=True),
         )
-        assert response.json()["tags"] == ["nope"]
+        assert sorted(response.json()["tags"]) == ["bar", "foo", "nope"]
         assert response.json()["parameters"] == {"foo": "not_bar"}
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
