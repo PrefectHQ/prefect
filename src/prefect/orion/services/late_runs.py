@@ -1,5 +1,6 @@
 """
-The MarkLateRuns service.
+The MarkLateRuns service. Responsible for putting flow runs in a Late state if they are not started on time.
+The threshold for a late run can be configured by changing `prefect.settings.orion.services.mark_late_after`.
 """
 
 import datetime
