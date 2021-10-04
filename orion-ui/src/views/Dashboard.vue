@@ -188,11 +188,11 @@ const filter = computed<
 })
 
 const start = computed<Date>(() => {
-  return store.getters.globalFilter.start
+  return store.getters.start
 })
 
 const end = computed<Date>(() => {
-  return store.getters.globalFilter.end
+  return store.getters.end
 })
 
 const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
@@ -207,15 +207,16 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
     }
 
     const composedFilter = store.getters.composedFilter
-    if (!('flow_runs' in composedFilter)) {
-      composedFilter['flow_runs'] = { state: {} }
-    }
-    composedFilter.flow_runs.state = {
-      name: {
-        any_: [state_name]
-      }
-    }
+    // if (!('flow_runs' in composedFilter)) {
+    //   composedFilter['flow_runs'] = { state: {} }
+    // }
+    // composedFilter.flow_runs.state = {
+    //   name: {
+    //     any_: [state_name]
+    //   }
+    // }
 
+    console.log(composedFilter)
     return {
       ...composedFilter
     }
@@ -313,7 +314,7 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const interval = computed<number>(() => {
-  return store.getters.globalFilter.intervalSeconds
+  return store.getters.baseInterval
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {

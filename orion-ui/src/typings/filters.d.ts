@@ -48,7 +48,7 @@ declare interface DeploymentFilter {
      * A list of names
      * Example: [ "my-flow-1", "my-flow-2" ]
      */
-    any_: any_
+    any_?: any_
   }
   tags?: {
     /**
@@ -78,7 +78,7 @@ declare interface FlowFilter {
      * A list of names
      * Example: [ "my-flow-1", "my-flow-2" ]
      */
-    any_: any_
+    any_?: any_
   }
   tags?: {
     /**
@@ -102,7 +102,7 @@ declare interface FlowRunFilter {
      * A list of names
      * Example: [ "my-flow-1", "my-flow-2" ]
      */
-    any_: any_
+    any_?: any_
   }
   tags?: {
     /**
@@ -120,10 +120,10 @@ declare interface FlowRunFilter {
   }
   state?: {
     type?: {
-      any_: any_
+      any_?: any_
     }
     name?: {
-      any_: any_
+      any_?: any_
     }
   }
   flow_version?: {
@@ -163,7 +163,7 @@ declare interface TaskRunFilter {
      * A list of names
      * Example: [ "my-flow-1", "my-flow-2" ]
      */
-    any_: any_
+    any_?: any_
   }
   tags?: {
     /**

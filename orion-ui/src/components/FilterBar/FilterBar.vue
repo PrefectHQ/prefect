@@ -15,7 +15,12 @@
         "
       >
         <i class="pi pi-search-line mr-1" />
-        <input v-model="search" class="flex-grow-1" placeholder="Search..." />
+        <div class="flex-grow-1">
+          <input v-model="search" class="flex-grow-1" placeholder="Search..." />
+          <div class="tag" v-for="(tag, i) in tags" :key="i">
+            {{ tag.label }}
+          </div>
+        </div>
       </div>
 
       <div class="saved-searches-container">
@@ -57,8 +62,10 @@
 <script lang="ts" setup>
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useStore } from 'vuex'
 import FilterMenu from './FilterMenu.vue'
 
+const store = useStore()
 const route = useRoute()
 
 const search = ref<string>('')
@@ -80,6 +87,11 @@ const closeOverlay = () => {
   showSavedSearchesMenu.value = false
   showOverlay.value = false
 }
+
+const tags = computed(() => {
+  console.log(store.getters.globalFilter)
+  return []
+})
 
 /**
  * This section is for performantly handling intersection of the filter bar
