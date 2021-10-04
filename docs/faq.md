@@ -54,7 +54,6 @@ We will publish a complete roadmap for Orion soon. Here are a few important mile
     - Configure storage locations
     - Update server settings from UI
     - View input lineage in schematic
-- CLI
 - Orion server
     - States
         - Add `CRASHED` states for capturing and reacting to infrastructure failures
