@@ -4,13 +4,13 @@
     :class="{ detached: detached }"
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
-      <FilterSearch>
+      <FilterSearch @focused="openSearchMenu">
         <div
           class="filter-tag mr-1 font--secondary caption"
           v-for="(filter, i) in filters"
           :key="i"
           tabindex="0"
-          @click="removeFilter"
+          @click="removeFilter(filter)"
         >
           <div class="px-1 py--half d-flex align-center">
             <i class="pi pi-xs mr--half" :class="filter.icon" />
@@ -33,7 +33,11 @@
       <div class="saved-searches-container">
         <button
           class="filter-button saved-searches text--grey-80 px-2"
-          @click="toggleSavedSearchesMenu"
+          @click="
+            showSavedSearchesMenu
+              ? closeSavedSearchesMenu()
+              : openSavedSearchesMenu()
+          "
         >
           <i class="pi pi-star-line" />
         </button>
@@ -42,7 +46,7 @@
       <div class="filter-container">
         <button
           class="filter-button filters text--grey-80 px-2"
-          @click="toggleFilterMenu"
+          @click="showFilterMenu ? closeFilterMenu() : openFilterMenu()"
         >
           <i class="pi pi-filter-3-line" />
           <span v-breakpoints="'sm'" class="ml-1">Filters</span>
@@ -57,10 +61,16 @@
         <div class="overlay" @click="closeOverlay" />
       </teleport>
 
+      <SearchMenu
+        v-if="showSearchMenu"
+        class="search-menu"
+        @close="closeSearchMenu"
+      />
+
       <FilterMenu
         v-if="showFilterMenu"
         class="filter-menu"
-        @close="toggleFilterMenu"
+        @close="closeFilterMenu"
       />
     </div>
   </div>
@@ -73,41 +83,66 @@ import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import FilterMenu from './FilterMenu.vue'
 import FilterSearch from './FilterSearch.vue'
+import SearchMenu from './SearchMenu.vue'
 
 const store = useStore()
 const route = useRoute()
 
-const search = ref<string>('')
-
 const showFilterMenu = ref<boolean>(false)
+const showSearchMenu = ref<boolean>(false)
 const showSavedSearchesMenu = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
 
-const toggleSavedSearchesMenu = () => {
-  showSavedSearchesMenu.value = !showSavedSearchesMenu.value
+const closeSavedSearchesMenu = () => {
+  showSavedSearchesMenu.value.value = false
 }
 
-const toggleFilterMenu = () => {
-  showFilterMenu.value = !showFilterMenu.value
+const openSavedSearchesMenu = () => {
+  showSearchMenu.value = false
+  showFilterMenu.value = false
+  showSavedSearchesMenu.value = true
+}
+
+const closeFilterMenu = () => {
+  showFilterMenu.value = false
+}
+
+const openFilterMenu = () => {
+  showSavedSearchesMenu.value = false
+  showSearchMenu.value = false
+  showFilterMenu.value = true
+}
+
+const closeSearchMenu = () => {
+  showSearchMenu.value = false
+}
+
+const openSearchMenu = () => {
+  showFilterMenu.value = false
+  showSavedSearchesMenu.value = false
+  showSearchMenu.value = true
 }
 
 const closeOverlay = () => {
   showFilterMenu.value = false
   showSavedSearchesMenu.value = false
+  showSearchMenu.value = false
   showOverlay.value = false
 }
 
-const removeFilter = (): void => {}
+const removeFilter = (filter: FilterObject): void => {
+  console.log(filter)
+}
 
-const filters = computed<
-  {
-    objectKey: string
-    objectLabel: string
-    filterKey: string
-    filterValue: string
-    icon: string
-  }[]
->(() => {
+type FilterObject = {
+  objectKey: string
+  objectLabel: string
+  filterKey: string
+  filterValue: string
+  icon: string
+}
+
+const filters = computed<FilterObject[]>(() => {
   const arr: any[] = []
   const gf: GlobalFilter = store.getters.globalFilter
   const keys = Object.keys(gf)
@@ -162,7 +197,7 @@ const filters = computed<
         } else {
           arr.push({
             objectKey: key,
-            objectLabel: key.replace('_', ' '),
+            objectLabel: `${key.replace('_', ' ')}: ${v}`,
             filterKey: k,
             filterValue: v,
             icon: 'pi-search-line'
@@ -171,9 +206,6 @@ const filters = computed<
       }
     )
   })
-
-  console.log(arr)
-
   return arr
 })
 
@@ -204,7 +236,10 @@ const createIntersectionObserver = (margin: string) => {
 
 const overlay = computed(() => {
   return (
-    showFilterMenu.value || showSavedSearchesMenu.value || showOverlay.value
+    showFilterMenu.value ||
+    showSavedSearchesMenu.value ||
+    showOverlay.value ||
+    showSearchMenu.value
   )
 })
 
