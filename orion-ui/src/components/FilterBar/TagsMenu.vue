@@ -11,10 +11,11 @@
 
       <div class="mt-2 tag-container">
         <FilterTag
-          v-for="tag in tags"
+          v-for="(tag, i) in tags"
           :key="tag"
           class="ma--half"
           :item="tag"
+          @remove="removeTag(i)"
         />
       </div>
     </div>
@@ -57,6 +58,10 @@ const addTag = () => {
     value: input.value
   })
   input.value = ''
+}
+
+const removeTag = (i: number) => {
+  tags.splice(i, 1)
 }
 
 const apply = () => {
