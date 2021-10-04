@@ -20,6 +20,7 @@
           v-for="(filter, i) in filters"
           :key="i"
           :item="filter"
+          @click="handleTagClick(filter)"
           @remove="removeFilter"
         />
       </div>
@@ -69,6 +70,7 @@ const iconMap: { [key: string]: string } = {
 // TODO: This is really hacky so we probably want to refactor sooner rather than later.
 const menus = reactive([
   {
+    key: 'object',
     label: computed(() => selectedObject.value.replace('_', ' ')),
     component: shallowRef(ObjectMenu),
     icon: computed(() => iconMap[selectedObject.value]),
@@ -76,18 +78,21 @@ const menus = reactive([
     objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
   },
   {
+    key: 'states',
     label: 'Run States',
     component: shallowRef(RunStatesMenu),
     show: false,
     objects: ['flow_runs', 'task_runs']
   },
   {
+    key: 'timeframe',
     label: 'Timeframe',
     component: shallowRef(TimeframeMenu),
     show: false,
     objects: ['flow_runs', 'task_runs']
   },
   {
+    key: 'tags',
     label: 'Tags',
     component: shallowRef(TagsMenu),
     show: false,
@@ -97,6 +102,15 @@ const menus = reactive([
 
 const removeFilter = (filter: FilterObject): void => {
   console.log(filter)
+}
+
+const handleTagClick = (tag: FilterObject) => {
+  const menu = menus.findIndex((m) => m.key == tag.filterKey)
+
+  if (menu > -1) {
+    closeAllMenus()
+    menus[menu].show = true
+  }
 }
 
 const filters = computed<FilterObject[]>(() => {
@@ -122,6 +136,10 @@ const subMenuStyle = computed(() => {
     left: bb.offsetLeft + 'px'
   }
 })
+
+const closeAllMenus = () => {
+  menus.forEach((m) => (m.show = false))
+}
 
 const toggleMenu = (i: number) => {
   menus.filter((m, j) => j !== i).forEach((m) => (m.show = false))

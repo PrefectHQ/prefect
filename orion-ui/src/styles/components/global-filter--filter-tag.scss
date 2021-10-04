@@ -3,6 +3,10 @@
 
 .filter-tag {
   @include mixins.miter(1, 1);
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
 
   > div {
     background-color: $blue-20;
@@ -13,6 +17,16 @@
 
     &:hover,
     &:focus {
+      background-color: $blue-40;
+    }
+  }
+
+  &:hover,
+  &:focus,
+  &:focus-within {
+    outline: none;
+
+    > div {
       background-color: $blue-40;
     }
   }
