@@ -53,7 +53,7 @@ We will publish a complete roadmap for Orion soon. Here are a few important mile
     - Share dashboards
     - Configure storage locations
     - Update server settings from UI
-    - View input lineage in schematic
+    - View flow run execution and data tracking in schematic
 - Orion server
     - States
         - Add `CRASHED` states for capturing and reacting to infrastructure failures
@@ -125,10 +125,10 @@ The Orion technical preview consists of a few complementary parts:
 - Metadata DB: a persistent store for states, results, and run metadata
 - Dashboard: a UI for monitoring and interacting with the system
 
-Most users will begin in the _client_ by annotating a function as either a `flow` or `task`. Every time that function is called, it collaborates with the _orchestration engine_ via the Orion API. The orchestration engine is responsible for governing the function's transitions through various [states](concepts/states.md) that represent its progress. The orchestration engine is composed of a variety of rules that enforce helpful behaviors. For example, one rule might intercept tasks that fail and instruct them to retry; another might identify that a task was cached and instruct it not to run at all. All states and metadata are stored in the _metadata database_. The Dashboard leverages all of this to deliver an interactive way to browse live and historical data.
+Most users will begin in the *client* by annotating a function as either a `flow` or `task`. Every time that function is called, it collaborates with the *orchestration engine* via the Orion API. The orchestration engine is responsible for governing the function's transitions through various [states](concepts/states) that represent its progress. The orchestration engine is composed of a variety of rules that enforce helpful behaviors. For example, one rule might intercept tasks that fail and instruct them to retry; another might identify that a task was cached and instruct it not to run at all. All states and metadata are stored in the *metadata database*. The Dashboard leverages all of this to deliver an interactive way to browse live and historical data.
 
 !!! tip "Always On"
-Orion doesn't have to be run as a persistent service. Even interactive executions will persist metadata in your locally-configured database. This means that you can run scripts interactively and spin up the Dashboard after-the-fact, but still see all of your historical interactive runs.
+Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. Running a flow interactively will still properly interact with the orchestration API and persist metadata in your locally-configured database. You only need to run a stateful Orion server and related services when you require the features they provide, such as automatic scheduling and execution, or a hosted UI. This means that for interactive runs against a SQLite database, Orion can operate as a completely serverless platform.
 
 ### What databases does Orion support?
 
