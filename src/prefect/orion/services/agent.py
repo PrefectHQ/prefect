@@ -3,7 +3,7 @@ The Agent service. Responsible for executing scheduled flow runs from deployment
 
 The Agent service queries for flows scheduled to start now or in the very near future.
 How far forward the Agent will "prefecth" these flows can be configured by changing
-prefect.settings.orion.services.agent_prefetch_seconds).
+`prefect.settings.orion.services.agent_prefetch_seconds`
 
 To execute flow runs, the Agent service submits them to a subprocess. The environment
 must be compatible with Orion to execute these subprocesses.
