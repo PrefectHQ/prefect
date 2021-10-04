@@ -301,7 +301,7 @@ class TestRenameRetryingStates:
             *intended_transition,
         )
 
-        ctx.initial_state.name = "Awaiting Retry"
+        ctx.initial_state.name = "AwaitingRetry"
 
         orm_run = ctx.run
         run_settings = ctx.run_settings
