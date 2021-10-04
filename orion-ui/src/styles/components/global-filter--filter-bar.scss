@@ -27,7 +27,9 @@
   @media (max-width: 1000px) {
     margin: 0;
     border-radius: 0;
+  }
 
+  @media (max-width: 640px) {
     &.detached {
       top: 62px;
     }
