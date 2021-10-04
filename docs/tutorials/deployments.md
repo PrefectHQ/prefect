@@ -7,7 +7,13 @@
     <div class="termy">
     ```
     $ prefect orion start
+
     Starting Orion API...
+    INFO:     Started server process [91744]
+    INFO:     Waiting for application startup.
+    13:58:06.102 | Agent service scheduled to start in-app
+    13:58:06.102 | Scheduler service scheduled to start in-app
+    13:58:06.102 | MarkLateRuns service scheduled to start in-app
     INFO:     Application startup complete.
     INFO:     Uvicorn running on http://127.0.0.1:4200 (Press CTRL+C to quit)
     ```
