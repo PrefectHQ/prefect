@@ -1,3 +1,6 @@
+"""
+Command line interface for working with Orion
+"""
 import json
 import os
 import typer
@@ -20,6 +23,7 @@ def start(
     log_level: str = settings.logging.default_level,
     services: bool = True,
 ):
+    """Start an Orion server"""
     console.print("Starting Orion API...")
     # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
     # See https://github.com/PrefectHQ/orion/issues/281
