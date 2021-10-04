@@ -21,7 +21,13 @@
       @input="emitInput"
       @keyup.enter="emitEnter"
     />
-    <div class="d-flex align-center slot-content"> <slot /> </div>
+    <div
+      v-breakpoints="'xs'"
+      class="d-flex align-center justify-end flex-grow-1 slot-content"
+      @click.self="focusSearchInput"
+    >
+      <slot />
+    </div>
   </div>
 </template>
 
@@ -60,6 +66,7 @@ const focusSearchInput = () => {
   }
 
   .slot-content {
+    max-width: 50%;
     z-index: 1;
   }
 }

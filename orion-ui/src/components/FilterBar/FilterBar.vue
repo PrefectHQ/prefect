@@ -5,17 +5,28 @@
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
       <FilterSearch @focused="openSearchMenu">
-        <FilterTag
+        <FilterTagGroup
+          :tags="filters"
+          @click="openFilterMenu"
+          @remove="removeFilter"
+        />
+        <!-- <FilterTag
           v-for="(filter, i) in filters"
           :key="i"
           :item="filter"
           @click="openFilterMenu"
           @remove="removeFilter"
-        />
+        /> -->
 
         <a
+          v-breakpoints="'sm'"
           v-if="filters.length"
-          class="text--primary text-decoration-none font--secondary caption"
+          class="
+            text--primary text-decoration-none
+            font--secondary
+            caption
+            nowrap
+          "
         >
           Clear all
         </a>
@@ -80,6 +91,7 @@ import FilterTag from './FilterTag.vue'
 import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
+import FilterTagGroup from './FilterTagGroup.vue'
 
 const store = useStore()
 const route = useRoute()

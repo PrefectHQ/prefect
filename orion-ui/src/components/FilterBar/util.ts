@@ -50,6 +50,7 @@ export const parseFilters = (gf: GlobalFilter) => {
             else if (v.from.value && v.from.unit)
               filterValue = `${v.from.value}${v.from.unit.slice(0, 1)}`
 
+            // TODO: We should use a different icon or indicator for flow run and task run timeframes
             arr.push({
               objectKey: key,
               objectLabel: `Past ${filterValue}`,
