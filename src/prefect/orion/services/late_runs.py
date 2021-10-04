@@ -1,7 +1,10 @@
+"""
+The MarkLateRuns service.
+"""
+
 import datetime
 import asyncio
 
-import pendulum
 import sqlalchemy as sa
 
 import prefect
@@ -16,6 +19,13 @@ settings = prefect.settings.orion.services
 
 
 class MarkLateRuns(LoopService):
+    """
+    A simple loop service responsible for identifying flow runs that are "late".
+
+    A flow run is defined as "late" if has not scheduled within a certain amount
+    of time after its scheduled start time. The exact amount is configurable in
+    Orion settings.
+    """
 
     loop_seconds: float = prefect.settings.orion.services.late_runs_loop_seconds
 
@@ -27,6 +37,12 @@ class MarkLateRuns(LoopService):
     batch_size: int = 100
 
     async def run_once(self):
+        """
+        Mark flow runs as late by:
+
+        - Querying for flow runs in a scheduled state that are Scheduled to start in the past
+        - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
+        """
         async with self.session_factory() as session:
             async with session.begin():
                 last_id = None
