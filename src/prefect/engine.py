@@ -227,7 +227,7 @@ async def begin_flow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
-    if terminal_state.is_failed() and prefect.settings.debug_mode:
+    if terminal_state.is_failed():
         logger.error(
             f"Flow run {flow_run.name!r} failure traceback:\n"
             f"{textwrap.indent(traceback_from_failed_state(terminal_state), '    ')}"
@@ -302,7 +302,7 @@ async def create_and_begin_subflow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
     )
-    if terminal_state.is_failed() and prefect.settings.debug_mode:
+    if terminal_state.is_failed():
         logger.error(
             f"Subflow run {flow_run.name!r} failure traceback:\n"
             f"{textwrap.indent(traceback_from_failed_state(terminal_state), '    ')}"
@@ -647,7 +647,7 @@ async def orchestrate_task_run(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Task run {task_run.name!r} finished in state {display_state}",
     )
-    if state.is_failed() and prefect.settings.debug_mode:
+    if state.is_failed():
         logger.error(
             f"Task run {task_run.name!r} failure traceback:\n"
             f"{textwrap.indent(traceback_from_failed_state(state), '    ')}"
