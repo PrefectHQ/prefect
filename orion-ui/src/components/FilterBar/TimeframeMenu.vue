@@ -69,8 +69,14 @@ const store = useStore()
 
 console.log(store.getters.globalFilter[props.object])
 
-const from = store.getters.globalFilter[props.object].timeframe.from
-const to = store.getters.globalFilter[props.object].timeframe.to
+const from = store.getters.globalFilter[props.object].timeframe?.from || {
+  value: 60,
+  unit: 'minutes'
+}
+const to = store.getters.globalFilter[props.object].timeframe?.to || {
+  value: 60,
+  unit: 'minutes'
+}
 const pastAmount = ref(from.value)
 const pastUnit = ref(from.unit)
 const futureAmount = ref(to.value)
