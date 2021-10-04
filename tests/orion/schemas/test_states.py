@@ -175,3 +175,27 @@ class TestRepresentation:
             repr(Completed(message="I'm done", data=data))
             == f"""Completed(message="I'm done", type=COMPLETED, result='abc')"""
         )
+
+    async def test_state_repr_includes_flow_run_id_if_present(self):
+        id = uuid4()
+        assert (
+            repr(Completed(state_details=dict(flow_run_id=id)))
+            == f"Completed(message=None, type=COMPLETED, result=None, flow_run_id={id})"
+        )
+
+    async def test_state_repr_includes_task_run_id_if_present(self):
+        id = uuid4()
+        assert (
+            repr(Completed(state_details=dict(task_run_id=id)))
+            == f"Completed(message=None, type=COMPLETED, result=None, task_run_id={id})"
+        )
+
+    async def test_state_repr_includes_task_run_id_if_present_even_if_flow_run_id_also_present(
+        self,
+    ):
+        id = uuid4()
+        id2 = uuid4()
+        assert (
+            repr(Completed(state_details=dict(task_run_id=id, flow_run_id=id2)))
+            == f"Completed(message=None, type=COMPLETED, result=None, task_run_id={id})"
+        )
