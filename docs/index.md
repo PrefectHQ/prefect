@@ -1,7 +1,3 @@
----
-hide:
-  - navigation
----
 
 <figure markdown=1>
 ![](./img/logos/prefect-orion-logo-dark.svg){: width=500px style="padding-top: 50px; padding-bottom: 50px;"}
@@ -11,7 +7,7 @@ hide:
 
 ## Welcome!
 
-Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [a technical preview](faq/#why-is-orion-a-technical-preview).
+Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [technical preview](faq/#why-is-orion-a-technical-preview).
 
 Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
