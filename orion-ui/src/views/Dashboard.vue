@@ -206,16 +206,12 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
     }
 
     const composedFilter = store.getters.composedFilter
-    // if (!('flow_runs' in composedFilter)) {
-    //   composedFilter['flow_runs'] = { state: {} }
-    // }
-    // composedFilter.flow_runs.state = {
-    //   name: {
-    //     any_: [state_name]
-    //   }
-    // }
+    composedFilter.flow_runs.state = {
+      name: {
+        any_: [state_name]
+      }
+    }
 
-    console.log(composedFilter)
     return {
       ...composedFilter
     }
