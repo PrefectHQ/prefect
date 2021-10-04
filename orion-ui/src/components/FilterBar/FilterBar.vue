@@ -61,17 +61,21 @@
         <div class="overlay" @click="closeOverlay" />
       </teleport>
 
-      <SearchMenu
-        v-if="showSearchMenu"
-        class="search-menu"
-        @close="closeSearchMenu"
-      />
+      <transition-group name="fade-slide" mode="out-in">
+        <SearchMenu
+          v-if="showSearchMenu"
+          key="search-menu"
+          class="search-menu"
+          @close="closeSearchMenu"
+        />
 
-      <FilterMenu
-        v-if="showFilterMenu"
-        class="filter-menu"
-        @close="closeFilterMenu"
-      />
+        <FilterMenu
+          v-else-if="showFilterMenu"
+          key="filter-menu"
+          class="filter-menu"
+          @close="closeFilterMenu"
+        />
+      </transition-group>
     </div>
   </div>
 </template>

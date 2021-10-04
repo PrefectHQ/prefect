@@ -142,3 +142,23 @@
     }
   }
 }
+
+.fade-slide-leave-active {
+  animation: slide 0.1s reverse ease-in-out forwards;
+  z-index: -1;
+}
+
+.fade-slide-enter-active {
+  animation: slide 0.1s ease-in-out forwards;
+  z-index: -1;
+}
+
+@keyframes slide {
+  from {
+    transform: translate(0, -50%);
+  }
+
+  to {
+    transform: translate(0);
+  }
+}
