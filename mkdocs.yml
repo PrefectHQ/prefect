@@ -25,6 +25,7 @@ theme:
     name: material
     favicon: img/favicon.ico
     features:
+        - toc.integrate
         - navigation.tabs
         - navigation.tabs.sticky
         - navigation.instant
