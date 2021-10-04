@@ -37,16 +37,6 @@ async def create_flow_run(
         orm.FlowRun: the newly-created flow run
     """
 
-    if flow_run.deployment_id:
-        # look up deployment for default parameter values
-        deployment = await models.deployments.read_deployment(
-            session=session, deployment_id=flow_run.deployment_id
-        )
-        parameters = deployment.parameters or {}
-        parameters.update(flow_run.parameters or {})
-    else:
-        parameters = flow_run.parameters
-
     now = pendulum.now("UTC")
     # if there's no idempotency key, just create the run
     if not flow_run.idempotency_key:
@@ -54,13 +44,11 @@ async def create_flow_run(
             **flow_run.dict(
                 shallow=True,
                 exclude={
-                    "parameters",
                     "state",
                     "estimated_run_time",
                     "estimated_start_time_delta",
                 },
             ),
-            parameters=parameters,
             state=None,
         )
         session.add(model)
@@ -71,10 +59,7 @@ async def create_flow_run(
         insert_stmt = (
             dialect_specific_insert(orm.FlowRun)
             .values(
-                **flow_run.dict(
-                    shallow=True, exclude={"parameters", "state"}, exclude_unset=True
-                ),
-                parameters=parameters,
+                **flow_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
             )
             .on_conflict_do_nothing(
                 index_elements=[orm.FlowRun.flow_id, orm.FlowRun.idempotency_key],
