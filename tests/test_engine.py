@@ -10,7 +10,6 @@ from prefect.engine import (
     orchestrate_task_run,
     raise_failed_state,
     resolve_datadoc,
-    traceback_from_failed_state,
     user_return_value_to_state,
 )
 from prefect.executors import SequentialExecutor
@@ -26,7 +25,6 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.utilities.collections import quote
 from prefect.utilities.compat import AsyncMock
 
 
