@@ -22,7 +22,7 @@ As Prefect has matured, so has the modern data stack. The on-demand, dynamic, hi
 
 This means that the current generation of workflow managers are built around the wrong abstraction: the DAG. DAGs are an increasingly arcane, constrained way of representing the dynamic, heterogeneous range of modern data and computation patterns.
 
-Furthermore, as workflows have become more complex, it has become even more important to focus on the developer experience of building, testing, and monitoring them.
+Furthermore, as workflows have become more complex, it has become even more important to focus on the developer experience of building, testing, and monitoring them. Faced with an explosion of available tools, it is more important than ever for development teams to seek orchestration tools that will be compatible with any code/tools/services they may require in the future.
 
 And finally, this additional complexity means that providing clear and consistent insight into the behavior of the orchestration engine and any decisions it makes is critically important.
 
