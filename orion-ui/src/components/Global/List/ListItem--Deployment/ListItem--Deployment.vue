@@ -186,7 +186,6 @@ export default class ListItemDeployment extends Vue.with(Props) {
         }
       }
     })
-    console.log(res)
     this.$toast.add({
       type: res.error ? 'error' : 'success',
       content: res.error
