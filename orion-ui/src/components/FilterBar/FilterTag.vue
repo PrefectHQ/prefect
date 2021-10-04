@@ -1,12 +1,8 @@
 <template>
-  <button
-    class="filter-tag mr-1 font--secondary caption"
-    tabindex="0"
-    role="button"
-  >
-    <div class="px-1 py--half d-flex align-center text-capitalize">
-      <i class="pi pi-xs mr--half" :class="item.icon" />
-      {{ item.objectLabel }}
+  <button class="filter-tag font--secondary caption" tabindex="0" role="button">
+    <div class="px-1 py--half d-flex align-center">
+      <i v-if="item.icon" class="pi pi-xs mr--half" :class="item.icon" />
+      {{ item.label }}
 
       <i
         v-if="item.clearable"
@@ -21,9 +17,9 @@
 
 <script lang="ts" setup>
 import { defineEmits, defineProps } from 'vue'
-import { FilterObject } from './util'
 
-const props = defineProps<{ item: FilterObject }>()
+const props =
+  defineProps<{ item: { label: string; icon: string; clearable: boolean } }>()
 const emit = defineEmits(['remove'])
 </script>
 

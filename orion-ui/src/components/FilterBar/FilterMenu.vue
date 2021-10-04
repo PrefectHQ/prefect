@@ -20,6 +20,7 @@
           v-for="(filter, i) in filters"
           :key="i"
           :item="filter"
+          class="mr--half"
           @click="handleTagClick(filter)"
           @remove="removeFilter"
         />
@@ -114,7 +115,6 @@ const handleTagClick = (tag: FilterObject) => {
 }
 
 const filters = computed<FilterObject[]>(() => {
-  console.log(parseFilters(store.getters.globalFilter[selectedObject.value]))
   return parseFilters({
     [selectedObject.value]: store.getters.globalFilter[selectedObject.value]
   })

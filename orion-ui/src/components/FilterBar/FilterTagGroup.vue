@@ -13,6 +13,7 @@
         v-for="(tag, i) in props.tags"
         :key="i"
         :item="tag"
+        class="mr--half"
         @click="emit('click-tag', tag)"
         @remove="emit('remove', tag)"
       />
