@@ -67,8 +67,6 @@ const props = defineProps<{
 const emit = defineEmits(['close'])
 const store = useStore()
 
-console.log(store.getters.globalFilter[props.object])
-
 const from = store.getters.globalFilter[props.object].timeframe?.from || {
   value: 60,
   unit: 'minutes'

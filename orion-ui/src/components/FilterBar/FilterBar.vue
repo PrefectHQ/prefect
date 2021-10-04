@@ -4,24 +4,31 @@
     :class="{ detached: detached }"
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
-      <div
-        class="
-          search-input
-          px-2
-          flex-grow-1 flex-shrink-0
-          d-flex
-          align-center
-          font--primary
-        "
-      >
-        <i class="pi pi-search-line mr-1" />
-        <div class="flex-grow-1">
-          <input v-model="search" class="flex-grow-1" placeholder="Search..." />
-          <div class="tag" v-for="(tag, i) in tags" :key="i">
-            {{ tag.label }}
+      <FilterSearch>
+        <div
+          class="filter-tag mr-1 font--secondary caption"
+          v-for="(filter, i) in filters"
+          :key="i"
+          tabindex="0"
+          @click="removeFilter"
+        >
+          <div class="px-1 py--half d-flex align-center">
+            <i class="pi pi-xs mr--half" :class="filter.icon" />
+            {{ filter.objectLabel }}
+
+            <button class="ml-1">
+              <i class="pi pi-xs pi-close-circle-fill" />
+            </button>
           </div>
         </div>
-      </div>
+
+        <a
+          v-if="filters.length"
+          class="text--primary text-decoration-none font--secondary caption"
+        >
+          Clear all
+        </a>
+      </FilterSearch>
 
       <div class="saved-searches-container">
         <button
@@ -60,10 +67,12 @@
 </template>
 
 <script lang="ts" setup>
+import { GlobalFilter } from '@/typings/global'
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import FilterMenu from './FilterMenu.vue'
+import FilterSearch from './FilterSearch.vue'
 
 const store = useStore()
 const route = useRoute()
@@ -88,9 +97,82 @@ const closeOverlay = () => {
   showOverlay.value = false
 }
 
-const tags = computed(() => {
-  console.log(store.getters.globalFilter)
-  return []
+const removeFilter = (): void => {}
+
+const filters = computed<
+  {
+    objectKey: string
+    objectLabel: string
+    filterKey: string
+    filterValue: string
+    icon: string
+  }[]
+>(() => {
+  const arr: any[] = []
+  const gf: GlobalFilter = store.getters.globalFilter
+  const keys = Object.keys(gf)
+  keys.forEach((key) => {
+    Object.entries(gf[key as keyof GlobalFilter]).forEach(
+      ([k, v]: [string, any]) => {
+        if (k == 'states' && Array.isArray(v)) {
+          let filterValue
+
+          if (v.length == 6) filterValue = 'All'
+          else if (v.length == 0) filterValue = 'None'
+          else filterValue = v.join(', ')
+
+          arr.push({
+            objectKey: key,
+            objectLabel: v.length == 1 ? 'State' : 'States',
+            filterKey: k,
+            filterValue: filterValue,
+            icon: 'pi-focus-3-line'
+          })
+        } else if (k == 'timeframe') {
+          if (v.from) {
+            let filterValue
+            if (v.from.timestamp)
+              filterValue = new Date(v.from.timestamp).toLocaleString()
+            else if (v.from.value && v.from.unit)
+              filterValue = `${v.from.value}${v.to.unit.slice(0, 1)}`
+
+            arr.push({
+              objectKey: key,
+              objectLabel: `Past ${filterValue}`,
+              filterKey: k,
+              filterValue: filterValue,
+              icon: 'pi-scheduled'
+            })
+          }
+          if (v.to) {
+            let filterValue
+            if (v.to.timestamp)
+              filterValue = new Date(v.to.timestamp).toLocaleString()
+            else if (v.to.value && v.to.unit)
+              filterValue = `${v.to.value}${v.to.unit.slice(0, 1)}`
+
+            arr.push({
+              objectKey: key,
+              objectLabel: `Next ${filterValue}`,
+              filterKey: k,
+              filterValue: filterValue,
+              icon: 'pi-scheduled'
+            })
+          }
+        } else {
+          arr.push({
+            objectKey: key,
+            objectLabel: key.replace('_', ' '),
+            filterKey: k,
+            filterValue: v,
+            icon: 'pi-search-line'
+          })
+        }
+      }
+    )
+  })
+
+  return arr
 })
 
 /**
