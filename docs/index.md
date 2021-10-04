@@ -1,7 +1,3 @@
----
-hide:
-  - navigation
----
 
 <figure markdown=1>
 ![](./img/logos/prefect-orion-logo-dark.svg){: width=500px style="padding-top: 50px; padding-bottom: 50px;"}
