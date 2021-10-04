@@ -256,6 +256,11 @@ async def create_flow_run_from_deployment(
         session=session, deployment_id=deployment_id
     )
 
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+
     parameters = deployment.parameters
     parameters.update(flow_run.parameters or {})
 
