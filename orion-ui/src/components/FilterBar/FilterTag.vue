@@ -5,6 +5,7 @@
       {{ item.objectLabel }}
 
       <i
+        v-if="item.clearable"
         class="pi pi-xs pi-close-circle-fill ml-1"
         role="button"
         title="Clear filter"

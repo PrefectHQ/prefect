@@ -38,7 +38,8 @@ export const parseFilters = (gf: GlobalFilter) => {
                 objectLabel: state.name.toLowerCase(),
                 filterKey: k,
                 filterValue: v,
-                icon: 'pi-focus-3-line'
+                icon: 'pi-focus-3-line',
+                clearable: true
               })
             })
           }
@@ -56,7 +57,8 @@ export const parseFilters = (gf: GlobalFilter) => {
               objectLabel: `Past ${filterValue}`,
               filterKey: k,
               filterValue: filterValue,
-              icon: 'pi-scheduled'
+              icon: 'pi-scheduled',
+              clearable: true
             })
           }
           if (v.to) {
@@ -71,7 +73,8 @@ export const parseFilters = (gf: GlobalFilter) => {
               objectLabel: `Next ${filterValue}`,
               filterKey: k,
               filterValue: filterValue,
-              icon: 'pi-scheduled'
+              icon: 'pi-scheduled',
+              clearable: true
             })
           }
         } else {
@@ -80,7 +83,8 @@ export const parseFilters = (gf: GlobalFilter) => {
             objectLabel: `${key.replace('_', ' ')}: ${v}`,
             filterKey: k,
             filterValue: v,
-            icon: 'pi-search-line'
+            icon: 'pi-search-line',
+            clearable: true
           })
         }
       }
