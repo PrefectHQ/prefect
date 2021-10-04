@@ -1,15 +1,22 @@
 """
 Bookkeeping logic that fires on every state transition.
+
+For clarity, `GlobalFlowpolicy` and `GlobalTaskPolicy` contain all transition logic
+implemented using [`BaseUniversalTransform`][prefect.orion.orchestration.rules.BaseUniversalTransform].
+None of these operations modify state, and regardless of what orchestration Orion might
+enforce on a transtition, the global policies contain Orion's necessary bookkeeping.
+Because these transforms record information about the validated state committed to the
+state database, they should be the most deeply nested contexts in orchestration loop.
 """
 
 from prefect.orion import models
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
-    BaseUniversalRule,
+    BaseUniversalTransform,
     OrchestrationContext,
 )
 
-COMMON_GLOBAL_RULES = lambda: [
+COMMON_GLOBAL_TRANSFORMS = lambda: [
     SetRunStateType,
     SetStartTime,
     SetEndTime,
@@ -23,29 +30,29 @@ COMMON_GLOBAL_RULES = lambda: [
 
 class GlobalFlowPolicy(BaseOrchestrationPolicy):
     """
-    Global rules that run against flow-run-state transitions in priority order.
+    Global transforms that run against flow-run-state transitions in priority order.
 
-    These rules are intended to run immediately before and after a state transition
+    These transforms are intended to run immediately before and after a state transition
     is validated.
     """
 
     def priority():
-        return COMMON_GLOBAL_RULES() + [UpdateSubflowParentTask]
+        return COMMON_GLOBAL_TRANSFORMS() + [UpdateSubflowParentTask]
 
 
 class GlobalTaskPolicy(BaseOrchestrationPolicy):
     """
-    Global rules that run against task-run-state transitions in priority order.
+    Global transforms that run against task-run-state transitions in priority order.
 
-    These rules are intended to run immediately before and after a state transition
+    These transforms are intended to run immediately before and after a state transition
     is validated.
     """
 
     def priority():
-        return COMMON_GLOBAL_RULES()
+        return COMMON_GLOBAL_TRANSFORMS()
 
 
-class SetRunStateType(BaseUniversalRule):
+class SetRunStateType(BaseUniversalTransform):
     """
     Updates the state type of a run on a state transition.
     """
@@ -56,7 +63,7 @@ class SetRunStateType(BaseUniversalRule):
         context.run.state_type = context.proposed_state.type
 
 
-class SetStartTime(BaseUniversalRule):
+class SetStartTime(BaseUniversalTransform):
     """
     Records the time a run enters a running state for the first time.
     """
@@ -68,13 +75,13 @@ class SetStartTime(BaseUniversalRule):
             context.run.start_time = context.proposed_state.timestamp
 
 
-class SetEndTime(BaseUniversalRule):
+class SetEndTime(BaseUniversalTransform):
     """
     Records the time a run enters a terminal state.
 
     With normal client usage, a run will not transition out of a terminal state.
     However, it's possible to force these transitions manually via the API. While
-    leaving a terminal state, this rule will unset the end time.
+    leaving a terminal state, the end time will be unset.
     """
 
     async def before_transition(self, context: OrchestrationContext) -> None:
@@ -94,7 +101,7 @@ class SetEndTime(BaseUniversalRule):
                 context.run.end_time = context.proposed_state.timestamp
 
 
-class IncrementRunTime(BaseUniversalRule):
+class IncrementRunTime(BaseUniversalTransform):
     """
     Records the amount of time a run spends in the running state.
     """
@@ -108,7 +115,7 @@ class IncrementRunTime(BaseUniversalRule):
             )
 
 
-class IncrementRunCount(BaseUniversalRule):
+class IncrementRunCount(BaseUniversalTransform):
     """
     Records the number of times a run enters a running state. For use with retries.
     """
@@ -120,7 +127,7 @@ class IncrementRunCount(BaseUniversalRule):
             context.run.run_count += 1
 
 
-class SetExpectedStartTime(BaseUniversalRule):
+class SetExpectedStartTime(BaseUniversalTransform):
     """
     Estimates the time a state is expected to start running if not set.
 
@@ -140,7 +147,7 @@ class SetExpectedStartTime(BaseUniversalRule):
                 context.run.expected_start_time = context.proposed_state.timestamp
 
 
-class SetNextScheduledStartTime(BaseUniversalRule):
+class SetNextScheduledStartTime(BaseUniversalTransform):
     """
     Records the scheduled time on a run.
 
@@ -162,7 +169,7 @@ class SetNextScheduledStartTime(BaseUniversalRule):
             )
 
 
-class UpdateSubflowParentTask(BaseUniversalRule):
+class UpdateSubflowParentTask(BaseUniversalTransform):
     """
     Whenever a subflow changes state, it must update its parent task run's state.
     """
@@ -196,7 +203,7 @@ class UpdateSubflowParentTask(BaseUniversalRule):
             )
 
 
-class UpdateStateDetails(BaseUniversalRule):
+class UpdateStateDetails(BaseUniversalTransform):
     """
     Update a state's references to a corresponding flow- or task- run.
     """
