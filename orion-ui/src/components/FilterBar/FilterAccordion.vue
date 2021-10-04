@@ -3,6 +3,7 @@
     <button-card
       class="expand-button"
       width="100%"
+      shadow="sm"
       @click="expanded = !expanded"
     >
       <div
@@ -10,26 +11,22 @@
           expand-button-content
           d-flex
           align-center align-self-stretch
-          justify-space-between
+          justify-start
         "
       >
-        <i v-if="props.icon" class="pi" :class="props.icon" />
+        <i v-if="props.icon" class="pi mr-1" :class="props.icon" />
         <h3>
           {{ props.title }}
         </h3>
         <i
-          class="pi pi-arrow-up-s-line expand-icon"
+          class="pi pi-arrow-down-s-line expand-icon ml-auto"
           :class="{ rotate: expanded }"
         />
       </div>
     </button-card>
-    <!-- <div class="content-container"> -->
-    <transition name="bounce" appear>
-      <div v-if="expanded" class="content">
-        <slot />
-      </div>
-    </transition>
-    <!-- </div> -->
+    <div v-if="expanded" class="content">
+      <slot />
+    </div>
   </div>
 </template>
 <script lang="ts" setup>
@@ -57,7 +54,6 @@ const props = defineProps<{ icon: string; title: string }>()
 
 .content {
   background-color: $white;
-  //   height: auto;
   overflow: hidden;
 }
 
@@ -67,26 +63,6 @@ const props = defineProps<{ icon: string; title: string }>()
 
   &.rotate {
     transform: rotate(180deg);
-  }
-}
-
-.bounce-enter-active {
-  animation: bounce-in 0.5s ease-out both;
-}
-
-.bounce-leave-active {
-  animation: bounce-in 0.5s reverse ease-in both;
-}
-
-@keyframes bounce-in {
-  0% {
-    // max-height: 0;
-    transform: translate(0, 0);
-  }
-
-  100% {
-    // max-height: 100%;
-    transform: translate(0, 100%);
   }
 }
 </style>

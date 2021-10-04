@@ -10,18 +10,20 @@
   }
 
   .menu-content {
-    border-top: 2px solid $grey-10;
+    border-top: 1px solid $secondary-hover;
+    border-radius: 0 !important;
+    background-color: $grey-10;
     overscroll-behavior: contain;
     height: 100%;
     overflow: auto;
 
-    @media (max-width: 1024px) {
-      background-color: $grey-10;
-    }
-
     @media (max-width: 640px) {
       width: 100%;
     }
+  }
+
+  .menu-actions {
+    border-top: 1px solid $secondary-hover;
   }
 
   > ::v-deep(div) {

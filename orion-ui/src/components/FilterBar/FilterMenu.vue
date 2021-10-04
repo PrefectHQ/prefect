@@ -1,21 +1,7 @@
 <template>
-  <Card class="menu font--primary" tabindex="0">
+  <Card class="menu font--primary" height="100%" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
       <div class="pa-2 d-flex justify-space-between align-center">
-        <IconButton
-          icon="pi-close-line"
-          height="34px"
-          width="34px"
-          flat
-          style="border-radius: 50%"
-          @click="close"
-        />
-
-        <h3 class="d-flex align-center font--secondary">
-          <i class="pi pi-filter-3-line mr-1" />
-          Filters
-        </h3>
-
         <a
           class="
             text--primary text-decoration-none
@@ -26,21 +12,35 @@
         >
           Clear all
         </a>
+
+        <h3 class="d-flex align-center font--secondary">
+          <i class="pi pi-filter-3-line mr-1" />
+          Filters
+        </h3>
+
+        <IconButton
+          icon="pi-close-line"
+          height="34px"
+          width="34px"
+          flat
+          style="border-radius: 50%"
+          @click="close"
+        />
       </div>
     </template>
 
-    <div class="pa-2">
+    <div class="menu-content pa-2">
       <!-- <div class="d-flex align-center flex-grow-1 justify-start"> -->
-      <FilterAccordion title="Deployments" icon="pi-filter-3-line">
+      <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
         <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
-      <FilterAccordion title="Flows" icon="pi-filter-3-line">
+      <FilterAccordion class="mb-1" title="Deployments" icon="pi-filter-3-line">
         <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
-      <FilterAccordion title="Flow Runs" icon="pi-filter-3-line">
+      <FilterAccordion class="mb-1" title="Flow Runs" icon="pi-filter-3-line">
         <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
-      <FilterAccordion title="Task Runs" icon="pi-filter-3-line">
+      <FilterAccordion class="mb-1" title="Task Runs" icon="pi-filter-3-line">
         <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
       </FilterAccordion>
       <!-- <Button
@@ -69,7 +69,7 @@
     </div>
 
     <template v-slot:actions>
-      <CardActions class="pa-2 d-flex align-center justify-end">
+      <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
         <Button v-if="!smAndDown" flat height="35px" class="ml-auto mr-1">
           Cancel
         </Button>
