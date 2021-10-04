@@ -1,3 +1,7 @@
+"""
+Routes for interacting with Deployment objects.
+"""
+
 import datetime
 from typing import List
 from uuid import UUID
@@ -65,7 +69,7 @@ async def read_deployment_by_name(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
-    Get a deployment using the name of the flow and the deployment
+    Get a deployment using the name of the flow and the deployment.
     """
     deployment = await models.deployments.read_deployment_by_name(
         session=session, name=deployment_name, flow_name=flow_name
@@ -81,7 +85,7 @@ async def read_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
-    Get a deployment by id
+    Get a deployment by id.
     """
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
@@ -106,7 +110,7 @@ async def read_deployments(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
-    Query for deployments
+    Query for deployments.
     """
     return await models.deployments.read_deployments(
         session=session,
@@ -128,7 +132,7 @@ async def count_deployments(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
-    Count deployments
+    Count deployments.
     """
     return await models.deployments.count_deployments(
         session=session,
@@ -145,7 +149,7 @@ async def delete_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Delete a deployment by id
+    Delete a deployment by id.
     """
     result = await models.deployments.delete_deployment(
         session=session, deployment_id=deployment_id
@@ -183,6 +187,9 @@ async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
+    """
+    Set a deployment schedule to active. Runs will be scheduled immediately.
+    """
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
@@ -206,6 +213,10 @@ async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
+    """
+    Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
+    state will be deleted.
+    """
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )

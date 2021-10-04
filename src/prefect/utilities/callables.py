@@ -1,3 +1,6 @@
+"""
+Utilities for working with Python callables.
+"""
 import inspect
 import pydantic
 import json

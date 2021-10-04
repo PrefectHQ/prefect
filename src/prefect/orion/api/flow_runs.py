@@ -1,3 +1,7 @@
+"""
+Routes for interacting with flow run objects.
+"""
+
 import datetime
 from typing import List
 from uuid import UUID
@@ -50,7 +54,7 @@ async def update_flow_run(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Updates a flow run
+    Updates a flow run.
     """
     result = await models.flow_runs.update_flow_run(
         session=session, flow_run=flow_run, flow_run_id=flow_run_id
@@ -68,7 +72,7 @@ async def count_flow_runs(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
-    Query for flow runs
+    Query for flow runs.
     """
     return await models.flow_runs.count_flow_runs(
         session=session,
@@ -96,6 +100,9 @@ async def flow_run_history(
     deployments: schemas.filters.DeploymentFilter = None,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.responses.HistoryResponse]:
+    """
+    Query for flow run history data across a given range and interval.
+    """
     if history_interval < datetime.timedelta(seconds=1):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -121,7 +128,7 @@ async def read_flow_run(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.FlowRun:
     """
-    Get a flow run by id
+    Get a flow run by id.
     """
     flow_run = await models.flow_runs.read_flow_run(
         session=session, flow_run_id=flow_run_id
@@ -145,7 +152,7 @@ async def read_flow_runs(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.FlowRun]:
     """
-    Query for flow runs
+    Query for flow runs.
     """
     return await models.flow_runs.read_flow_runs(
         session=session,
@@ -165,7 +172,7 @@ async def delete_flow_run(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Delete a flow run by id
+    Delete a flow run by id.
     """
     result = await models.flow_runs.delete_flow_run(
         session=session, flow_run_id=flow_run_id

@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 import pendulum
 import pydantic
 import pytest
+from prefect.orion.schemas.data import DataDocument
 
 from prefect.orion.schemas.states import (
     AwaitingRetry,
@@ -136,7 +137,7 @@ class TestStateConvenienceFunctions:
         dt = pendulum.now("UTC")
         state = AwaitingRetry(scheduled_time=dt)
         assert state.type == StateType.SCHEDULED
-        assert state.name == "Awaiting Retry"
+        assert state.name == "AwaitingRetry"
         assert state.state_details.scheduled_time == dt
 
     def test_awaiting_retry_without_scheduled_time_defaults_to_now(self):
@@ -162,3 +163,39 @@ class TestStateConvenienceFunctions:
         state = Retrying()
         assert state.type == StateType.RUNNING
         assert state.name == "Retrying"
+
+
+class TestRepresentation:
+    async def test_state_str_includes_message_and_type(self):
+        assert str(Failed(message="abc")) == "Failed(message='abc', type=FAILED)"
+
+    async def test_state_repr_includes_message_and_type_and_result(self):
+        data = DataDocument(encoding="text", blob=b"abc")
+        assert (
+            repr(Completed(message="I'm done", data=data))
+            == f"""Completed(message="I'm done", type=COMPLETED, result='abc')"""
+        )
+
+    async def test_state_repr_includes_flow_run_id_if_present(self):
+        id = uuid4()
+        assert (
+            repr(Completed(state_details=dict(flow_run_id=id)))
+            == f"Completed(message=None, type=COMPLETED, result=None, flow_run_id={id})"
+        )
+
+    async def test_state_repr_includes_task_run_id_if_present(self):
+        id = uuid4()
+        assert (
+            repr(Completed(state_details=dict(task_run_id=id)))
+            == f"Completed(message=None, type=COMPLETED, result=None, task_run_id={id})"
+        )
+
+    async def test_state_repr_includes_task_run_id_if_present_even_if_flow_run_id_also_present(
+        self,
+    ):
+        id = uuid4()
+        id2 = uuid4()
+        assert (
+            repr(Completed(state_details=dict(task_run_id=id, flow_run_id=id2)))
+            == f"Completed(message=None, type=COMPLETED, result=None, task_run_id={id})"
+        )
