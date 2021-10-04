@@ -61,7 +61,7 @@ To create a deployment, we need to define a _deployment spec_ and then register 
     DeploymentSpec(
         flow_location="/Developer/workflows/my_flow.py",
         name="my-first-deployment",
-        parameters={"nums": "[1, 2, 3, 4]"}, 
+        parameters={"nums": [1, 2, 3, 4]}, 
     )
     ```
 
@@ -85,19 +85,16 @@ Now that the deployment is created, we can interact with it in multiple ways (cl
     ![](/img/tutorials/first-steps-ui.png){: max-width=600px}
     </figure>
 
-=== "my_flow_deployment.py"
+=== "The CLI"
 
-    Our workflow deployment specification.
+    The same CLI that we used to create the deployment can be used to execute it; note that the CLI expects the name to be provided as 'Full Flow Name/Full Deployment Name':
     
-    ```python
-    from prefect.deployments import DeploymentSpec
-
-    DeploymentSpec(
-        flow_location="/Developer/workflows/my_flow.py",
-        name="my-first-deployment",
-        parameters={"nums": "[1, 2, 3, 4]"}, 
-    )
+    <div class="termy">
     ```
+    $ prefect deployment execute 'Addition Machine/my-first-deployment'
+    11:56:10.440 | Beginning flow run 'feathered-silkworm' for flow 'Addition Machine'...
+    ```
+    </div>
 
 ### Additional Configuration
 
