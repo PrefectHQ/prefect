@@ -769,7 +769,7 @@ class BaseUniversalTransform(contextlib.AbstractAsyncContextManager):
 
     Args:
         context: A `FlowOrchestrationContext` or `TaskOrchestrationContext` that is
-            passed between rules
+            passed between transforms
     """
 
     # `BaseUniversalTransform` will always fire on non-null transitions
