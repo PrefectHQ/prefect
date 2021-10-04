@@ -219,6 +219,11 @@ class State(IDBaseModel, Generic[R]):
             result=repr(self.result(raise_on_failure=False)),
         )
 
+        if self.state_details.task_run_id is not None:
+            display["task_run_id"] = self.state_details.task_run_id
+        elif self.state_details.flow_run_id is not None:
+            display["flow_run_id"] = self.state_details.flow_run_id
+
         return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
 
     def __str__(self) -> str:
