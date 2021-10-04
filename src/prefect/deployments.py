@@ -12,7 +12,8 @@ Examples:
     >>> def hello_world(name="world"):
     >>>     print(f"Hello, {name}!")
 
-    Write a deployment specification that refers to the flow and sets a parameter
+    Write a deployment specification that refers to the flow and sets a new parameter
+    default
     >>> from prefect.deployments import DeploymentSpec
     >>> DeploymentSpec(
     >>>     flow=hello_world,
@@ -22,7 +23,7 @@ Examples:
     >>> )
 
     Deployment specifications can also be written in YAML and refer to the flow's
-    location instead of the object itself
+    location instead of the `Flow` object
     ```yaml
     - name: my-first-deployment
       flow_location: ./path-to-the-flow-script.py
