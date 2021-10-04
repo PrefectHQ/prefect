@@ -51,10 +51,33 @@ class ContextModel(BaseModel):
 
 
 class RunContext(ContextModel):
+    """
+    The base context for a flow or task run. Data in this context will always be
+    available when `get_run_context` is called.
+
+    Attributes:
+        start_time: The time the run context was entered
+    """
+
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
 
 class FlowRunContext(RunContext):
+    """
+    The context for a flow run. Data in this context is only available from within a
+    flow run function.
+
+    Attributes:
+        flow: The flow instance associated with the flow run
+        flow_run_id: The unique id identifying the flow run
+        client: The Orion client instance being used for API communication
+        executor: The executor instance being used for the flow run
+        task_run_futures: A list of futures for task runs created within this flow run
+        subflow_states: A list of states for flow runs created within this flow run
+        sync_portal: A blocking portal for sync task/flow runs in an async flow
+        timeout_scope: The cancellation scope for flow level timeouts
+    """
+
     flow: Flow
     flow_run_id: UUID
     client: OrionClient
@@ -70,6 +93,17 @@ class FlowRunContext(RunContext):
 
 
 class TaskRunContext(RunContext):
+    """
+    The context for a task run. Data in this context is only available from within a
+    task run function.
+
+    Attributes:
+        task: The task instance associated with the task run
+        task_run_id: The unique id identifying the task run
+        flow_run_id: The unique id of the flow run the task run belongs to
+        client: The Orion client instance being used for API communication
+    """
+
     task: Task
     task_run_id: UUID
     flow_run_id: UUID
@@ -79,6 +113,13 @@ class TaskRunContext(RunContext):
 
 
 class TagsContext(ContextModel):
+    """
+    The context for `prefect.tags` management.
+
+    Attributes:
+        current_tags: A set of current tags in the context
+    """
+
     current_tags: Set[str] = Field(default_factory=set)
 
     @classmethod
@@ -90,6 +131,15 @@ class TagsContext(ContextModel):
 
 
 def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
+    """
+    Get the current run context from within a task or flow function.
+
+    Returns:
+        A `FlowRunContext` or `TaskRunContext` depending on the function type.
+
+    Raises
+        RuntimeError: If called outside of a flow or task run.
+    """
     task_run_ctx = TaskRunContext.get()
     if task_run_ctx:
         return task_run_ctx

@@ -1,3 +1,8 @@
+"""
+Functions for interacting with saved search ORM objects.
+Intended for internal use by the Orion API.
+"""
+
 from typing import List
 from uuid import UUID
 

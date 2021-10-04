@@ -1,5 +1,8 @@
 """
-Task run futures.
+Futures represent the execution of a task and allow retrieval of the task run's state.
+
+This module contains the definition for futures as well as utilities for resolving
+futures in nested data structures.
 """
 from typing import (
     TYPE_CHECKING,

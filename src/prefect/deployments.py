@@ -1,6 +1,48 @@
 """
-Objects for specifying deployments for creation and utilities for working with
-deployments.
+Objects for specifying deployments and utilities for loading flows from deployments.
+
+The primary object is the `DeploymentSpec` which can be used to define a deployment.
+Once a specification is written, it can be used with the Orion client or CLI to create 
+a deployment in the backend.
+
+Examples:
+    Define a flow
+    >>> from prefect import flow
+    >>> @flow
+    >>> def hello_world(name="world"):
+    >>>     print(f"Hello, {name}!")
+
+    Write a deployment specification that sets a new parameter default
+    >>> from prefect.deployments import DeploymentSpec
+    >>> DeploymentSpec(
+    >>>     flow=hello_world,
+    >>>     name="my-first-deployment",
+    >>>     parameters={"name": "Earth"},
+    >>>     tags=["foo", "bar"],
+    >>> )
+
+    Add a schedule to the deployment specification to run the flow hourly
+    >>> from prefect.orion.schemas.schedules import IntervalSchedule
+    >>> from datetime import timedelta
+    >>> DeploymentSpec(
+    >>>     ...
+    >>>     schedule=IntervalSchedule(interval=timedelta(hours=1))
+    >>> )
+
+    Deployment specifications can also be written in YAML and refer to the flow's
+    location instead of the `Flow` object
+    ```yaml
+    - name: my-first-deployment
+      flow_location: ./path-to-the-flow-script.py
+      flow_name: hello-world
+      tags:
+        - foo
+        - bar
+      parameters:
+        name: "Earth"
+      schedule:
+        interval: 3600
+    ```
 """
 
 import pathlib
@@ -43,9 +85,10 @@ class DeploymentSpec(PrefectBaseModel):
             from `flow` if provided.
         flow_location: The path to a script containing the flow to associate with the
             deployment. Inferred from `flow` if provided.
+        parameters: An optional dictionary of default parameters to set on flow runs
+            from this deployment.
         schedule: An optional schedule instance to use with the deployment.
         tags: An optional set of tags to assign to the deployment.
-
     """
 
     name: str
@@ -163,7 +206,7 @@ async def create_deployment_from_spec(
     spec: DeploymentSpec, client: OrionClient
 ) -> UUID:
     """
-    Create a deployment from a specification
+    Create a deployment from a specification.
     """
     spec.load_flow()
     flow_id = await client.create_flow(spec.flow)
@@ -182,7 +225,7 @@ async def create_deployment_from_spec(
 
 def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
     """
-    Load deployment specifications from a python script
+    Load deployment specifications from a python script.
     """
     with _register_new_specs() as specs:
         runpy.run_path(script_path)
@@ -192,7 +235,7 @@ def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
 
 def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
     """
-    Load deployment specifications from a yaml file
+    Load deployment specifications from a yaml file.
     """
     with open(path, "r") as f:
         contents = yaml.safe_load(f.read())
@@ -242,6 +285,12 @@ def _register_spec(spec: DeploymentSpec) -> None:
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):
+    """
+    Load a flow from a text script.
+
+    The script will be written to a temporary local file path so errors can refer
+    to line numbers and contextual tracebacks can be provided.
+    """
     with NamedTemporaryFile(
         mode="wt" if isinstance(script_contents, str) else "wb",
         prefix=f"flow-script-{flow_name}",
@@ -257,6 +306,10 @@ def load_flow_from_text(script_contents: AnyStr, flow_name: str):
 async def load_flow_from_deployment(
     deployment: schemas.core.Deployment, client: OrionClient
 ) -> Flow:
+    """
+    Load a flow from the location/script/pickle provided in a deployment's flow data
+    document.
+    """
     flow_model = await client.read_flow(deployment.flow_id)
 
     maybe_flow = await resolve_datadoc(deployment.flow_data, client=client)
