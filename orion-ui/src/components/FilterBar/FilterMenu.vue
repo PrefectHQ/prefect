@@ -152,16 +152,16 @@ console.log(store.getters.globalFilter)
 const gf = store.getters.globalFilter
 const defaultFilters = {
   flows: {
-    tags: gf.flows.tags || []
+    tags: [...(gf.flows.tags || [])]
   },
-  deployments: { tags: gf.deployments.tags || [] },
+  deployments: { tags: [...(gf.deployments.tags || [])] },
   flow_runs: {
-    tags: gf.flow_runs.tags || [],
-    states: gf.flow_runs.states || []
+    tags: [...(gf.flow_runs.tags || [])],
+    states: [...(gf.flow_runs.states || [])]
   },
   task_runs: {
-    tags: gf.task_runs.tags || [],
-    states: gf.task_runs.states || []
+    tags: [...(gf.task_runs.tags || [])],
+    states: [...(gf.task_runs.states || [])]
   }
 }
 
@@ -172,39 +172,6 @@ const filters = reactive(defaultFilters)
 watch(filters, () => {
   console.log(filters)
 })
-
-// TODO: This is really hacky so we probably want to refactor sooner rather than later.
-// const menus = reactive([
-//   {
-//     key: 'object',
-//     label: computed(() => selectedObject.value.replace('_', ' ')),
-//     component: shallowRef(ObjectMenu),
-//     icon: computed(() => iconMap[selectedObject.value]),
-//     show: false,
-//     objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
-//   },
-//   {
-//     key: 'states',
-//     label: 'Run States',
-//     component: shallowRef(RunStatesMenu),
-//     show: false,
-//     objects: ['flow_runs', 'task_runs']
-//   },
-//   {
-//     key: 'timeframe',
-//     label: 'Timeframe',
-//     component: shallowRef(TimeframeMenu),
-//     show: false,
-//     objects: ['flow_runs', 'task_runs']
-//   },
-//   {
-//     key: 'tags',
-//     label: 'Tags',
-//     component: shallowRef(TagsMenu),
-//     show: false,
-//     objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
-//   }
-// ])
 
 const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
