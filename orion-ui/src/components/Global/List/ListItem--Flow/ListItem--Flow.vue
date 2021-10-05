@@ -74,7 +74,7 @@ const flows: FlowsFilter = {
     }
   }
 }
-
+console.log(store.getters.baseInterval)
 const flowRunHistoryFilter = computed(() => {
   return {
     history_start: store.getters.start.toISOString(),
