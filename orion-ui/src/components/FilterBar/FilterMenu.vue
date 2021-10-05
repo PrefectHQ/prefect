@@ -1,8 +1,9 @@
 <template>
   <Card class="menu font--primary" height="100%" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
-      <div class="pa-2 d-flex justify-space-between align-center">
+      <div class="pa-2 d-flex justify-center align-center">
         <a
+          v-breakpoints="'xs'"
           class="
             text--primary text-decoration-none
             font--secondary
@@ -13,7 +14,7 @@
           Clear all
         </a>
 
-        <h3 class="d-flex align-center font--secondary">
+        <h3 class="d-flex align-center font--secondary ml-auto">
           <i class="pi pi-filter-3-line mr-1" />
           Filters
         </h3>
@@ -22,6 +23,7 @@
           icon="pi-close-line"
           height="34px"
           width="34px"
+          class="ml-auto"
           flat
           style="border-radius: 50%"
           @click="close"
@@ -30,7 +32,6 @@
     </template>
 
     <div class="menu-content pa-2">
-      <!-- <div class="d-flex align-center flex-grow-1 justify-start"> -->
       <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
         <div class="accordion-body">
           <TagsForm v-model="filters.flows.tags" class="px-2 py-1" />
@@ -82,9 +83,8 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, computed, defineEmits, watch } from 'vue'
+import { reactive, computed, defineEmits, watch, getCurrentInstance } from 'vue'
 import { useStore } from 'vuex'
-import { getCurrentInstance } from 'vue'
 import FilterAccordion from './FilterAccordion.vue'
 
 import TagsForm from './Form--Tags.vue'
@@ -128,7 +128,6 @@ const smAndDown = computed(() => {
 
 const apply = () => {
   store.commit('globalFilter', filters)
-  console.log(store.getters.globalFilter)
 }
 
 const close = () => {

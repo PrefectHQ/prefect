@@ -1,7 +1,7 @@
 <template>
   <div
     class="bar-wrapper d-flex font--secondary"
-    :class="{ detached: detached }"
+    :class="{ detached: detached, active: overlay }"
     @keyup.esc="closeOverlay"
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
@@ -29,11 +29,7 @@
       <div class="saved-searches-container">
         <button
           class="filter-button saved-searches text--grey-80 px-2"
-          @click="
-            showSavedSearchesMenu
-              ? closeSavedSearchesMenu()
-              : openSavedSearchesMenu()
-          "
+          @click="showSaveSearch ? closeSaveSearchMenu() : openSaveSearchMenu()"
         >
           <i class="pi pi-star-line" />
         </button>
@@ -66,6 +62,13 @@
           @close="closeSearchMenu"
         />
 
+        <SaveSearchMenu
+          v-if="showSaveSearch"
+          key="save-search-menu"
+          class="save-search-menu"
+          @close="closeSaveSearchMenu"
+        />
+
         <FilterMenu
           v-else-if="showFilterMenu"
           key="filter-menu"
@@ -84,6 +87,7 @@ import { useStore } from 'vuex'
 import FilterMenu from './FilterMenu.vue'
 import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
+import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
 import TagGroup from './TagGroup.vue'
 
@@ -92,17 +96,17 @@ const route = useRoute()
 
 const showFilterMenu = ref<boolean>(false)
 const showSearchMenu = ref<boolean>(false)
-const showSavedSearchesMenu = ref<boolean>(false)
+const showSaveSearch = ref<boolean>(false)
 const showOverlay = ref<boolean>(false)
 
-const closeSavedSearchesMenu = () => {
-  showSavedSearchesMenu.value = false
+const closeSaveSearchMenu = () => {
+  showSaveSearch.value = false
 }
 
-const openSavedSearchesMenu = () => {
+const openSaveSearchMenu = () => {
   showSearchMenu.value = false
   showFilterMenu.value = false
-  showSavedSearchesMenu.value = true
+  showSaveSearch.value = true
 }
 
 const closeFilterMenu = () => {
@@ -110,7 +114,7 @@ const closeFilterMenu = () => {
 }
 
 const openFilterMenu = () => {
-  showSavedSearchesMenu.value = false
+  showSaveSearch.value = false
   showSearchMenu.value = false
   showFilterMenu.value = true
 }
@@ -121,13 +125,13 @@ const closeSearchMenu = () => {
 
 const openSearchMenu = () => {
   showFilterMenu.value = false
-  showSavedSearchesMenu.value = false
+  showSaveSearch.value = false
   showSearchMenu.value = true
 }
 
 const closeOverlay = () => {
   showFilterMenu.value = false
-  showSavedSearchesMenu.value = false
+  showSaveSearch.value = false
   showSearchMenu.value = false
   showOverlay.value = false
 
@@ -172,7 +176,7 @@ const createIntersectionObserver = (margin: string) => {
 const overlay = computed(() => {
   return (
     showFilterMenu.value ||
-    showSavedSearchesMenu.value ||
+    showSaveSearch.value ||
     showOverlay.value ||
     showSearchMenu.value
   )
