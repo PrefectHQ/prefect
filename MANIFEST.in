@@ -8,7 +8,10 @@ global-exclude __pycache__/**
 include MANIFEST.in
 include setup.cfg
 include versioneer.py
+include requirements.txt
+include requirements-dev.txt
 include src/prefect/_version.py
+include src/prefect/utilities/logging.yml
 
 # Package files and data
 graft src/prefect/orion/ui

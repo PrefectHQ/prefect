@@ -52,7 +52,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
         if not confirm:
             exit_with_error("Database reset aborted")
     console.print("Resetting Orion database...")
-    console.print("Droping tables...")
+    console.print("Dropping tables...")
     await drop_db()
     console.print("Creating tables...")
     await create_db()
@@ -61,9 +61,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
 
 @orion_app.command()
 def build_docs(
-    schema_path: str = str(
-        (prefect.__root_path__ / "docs" / "api-ref" / "schema.json").absolute()
-    ),
+    schema_path: str = None,
 ):
     """
     Builds REST API reference documentation for static display.
@@ -75,6 +73,10 @@ def build_docs(
 
     schema = orion_fastapi_app.openapi()
 
+    if not schema_path:
+        schema_path = (
+            prefect.__root_path__.parents[1] / "docs" / "api-ref" / "schema.json"
+        ).absolute()
     # overwrite info for display purposes
     schema["info"] = {}
     with open(schema_path, "w") as f:
