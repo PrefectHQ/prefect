@@ -3,8 +3,7 @@ Routes for interacting with flow run objects.
 """
 
 import datetime
-from functools import reduce
-from typing import List, NewType
+from typing import List
 from uuid import UUID
 
 import pendulum
