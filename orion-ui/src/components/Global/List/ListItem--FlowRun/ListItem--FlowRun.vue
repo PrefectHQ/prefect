@@ -140,11 +140,11 @@ const queries: { [key: string]: Query } = {
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: flow_runs_filter_body.value
+    body: flow_runs_filter_body
   }),
   flow: Api.query({
     endpoint: Endpoints.flows,
-    body: flow_filter_body.value
+    body: flow_filter_body
   })
 }
 
