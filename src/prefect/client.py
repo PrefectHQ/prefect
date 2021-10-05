@@ -95,7 +95,7 @@ class OrionClient:
         else:
             # Connect to an ephemeral app
             httpx_settings.setdefault("app", orion_app)
-            httpx_settings.setdefault("base_url", "http://orion")
+            httpx_settings.setdefault("base_url", "http://orion/api")
 
         self._client = httpx.AsyncClient(**httpx_settings)
         self.logger = get_logger("client")
