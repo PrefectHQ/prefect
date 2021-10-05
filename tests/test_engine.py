@@ -18,12 +18,12 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Cancelled,
     Completed,
+    Failed,
+    Pending,
+    Running,
     State,
     StateDetails,
     StateType,
-    Failed,
-    Running,
-    Pending,
 )
 from prefect.utilities.compat import AsyncMock
 

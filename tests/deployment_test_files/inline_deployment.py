@@ -3,13 +3,13 @@ from prefect.deployments import DeploymentSpec
 
 
 @flow
-def hello_world(name="world"):
+def hello_world(name):
     print(f"Hello {name}!")
 
 
 DeploymentSpec(
     flow=hello_world,
     name="inline-deployment",
-    parameters={"foo": "bar"},
+    parameters={"name": "Marvin"},
     tags=["foo", "bar"],
 )
