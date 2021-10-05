@@ -176,10 +176,9 @@ export default class ListItemDeployment extends Vue.with(Props) {
   async createRun(): Promise<void> {
     this.creatingRun = true
     const res = await Api.query({
-      endpoint: Endpoints.create_flow_run,
+      endpoint: Endpoints.create_flow_run_from_deployment,
       body: {
-        deployment_id: this.item.id,
-        flow_id: this.item.flow_id,
+        id: this.item.id,
         state: {
           type: 'SCHEDULED',
           message: 'Quick run through the Orion UI.'
