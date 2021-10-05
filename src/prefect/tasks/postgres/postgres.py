@@ -24,9 +24,9 @@ class PostgresExecute(Task):
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        host: str = None,
         port: int = 5432,
         query: str = None,
         data: tuple = None,
@@ -42,9 +42,13 @@ class PostgresExecute(Task):
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "data", "commit")
+    @defaults_from_attrs("db_name", "user", "host", "port", "query", "data", "commit")
     def run(
         self,
+        db_name: str = None,
+        user: str = None,
+        host: str = None,
+        port: int = 5432,
         query: str = None,
         data: tuple = None,
         commit: bool = False,
@@ -53,7 +57,12 @@ class PostgresExecute(Task):
         """
         Task run method. Executes a query against Postgres database.
 
-        Args:
+        Args:        
+            - db_name (str): name of Postgres database
+            - user (str): user name used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
+                not provided
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using
                 placeholder in query string
@@ -73,11 +82,11 @@ class PostgresExecute(Task):
         # connect to database, open cursor
         # allow psycopg2 to pass through any exceptions raised
         conn = pg.connect(
-            dbname=self.db_name,
-            user=self.user,
+            dbname=db_name,
+            user=user,
             password=password,
-            host=self.host,
-            port=self.port,
+            host=host,
+            port=port,
         )
 
         # try to execute query
@@ -118,9 +127,9 @@ class PostgresExecuteMany(Task):
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        host: str = None,
         port: int = 5432,
         query: str = None,
         data: list = None,
@@ -136,11 +145,15 @@ class PostgresExecuteMany(Task):
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "data", "commit")
+    @defaults_from_attrs("db_name", "user", "host", "port", "query", "data", "commit")
     def run(
         self,
+        db_name: str = None,
+        user: str = None,
+        host: str = None,
+        port: int = 5432,
         query: str = None,
-        data: list = None,
+        data: tuple = None,
         commit: bool = False,
         password: str = None,
     ):
@@ -148,9 +161,14 @@ class PostgresExecuteMany(Task):
         Task run method. Executes many queries against Postgres database.
 
         Args:
+            - db_name (str): name of Postgres database
+            - user (str): user name used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
+                not provided
             - query (str, optional): query to execute against database
-            - data (List[tuple], optional): list of values to use in query, must be specified using
-                placeholder
+            - data (tuple, optional): values to use in query, must be specified using
+                placeholder in query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
@@ -170,11 +188,11 @@ class PostgresExecuteMany(Task):
         # connect to database, open cursor
         # allow psycopg2 to pass through any exceptions raised
         conn = pg.connect(
-            dbname=self.db_name,
-            user=self.user,
+            dbname=db_name,
+            user=user,
             password=password,
-            host=self.host,
-            port=self.port,
+            host=host,
+            port=port,
         )
 
         # try to execute query
@@ -218,9 +236,9 @@ class PostgresFetch(Task):
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        host: str = None,
         port: int = 5432,
         fetch: str = "one",
         fetch_count: int = 10,
@@ -240,9 +258,13 @@ class PostgresFetch(Task):
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("fetch", "fetch_count", "query", "data", "commit")
+    @defaults_from_attrs("db_name", "user", "host", "port", "fetch", "fetch_count", "query", "data", "commit")
     def run(
         self,
+        db_name: str = None,
+        user: str = None,
+        host: str = None,
+        port: int = 5432,
         fetch: str = "one",
         fetch_count: int = 10,
         query: str = None,
@@ -255,6 +277,11 @@ class PostgresFetch(Task):
         Task run method. Executes a query against Postgres database and fetches results.
 
         Args:
+            - db_name (str): name of Postgres database
+            - user (str): user name used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
+                not provided
             - fetch (str, optional): one of "one" "many" or "all", used to determine how many
                 results to fetch from executed query
             - fetch_count (int, optional): if fetch = 'many', determines the number of results
@@ -284,11 +311,11 @@ class PostgresFetch(Task):
         # connect to database, open cursor
         # allow psycopg2 to pass through any exceptions raised
         conn = pg.connect(
-            dbname=self.db_name,
-            user=self.user,
+            dbname=db_name,
+            user=user,
             password=password,
-            host=self.host,
-            port=self.port,
+            host=host,
+            port=port,
         )
 
         # try to execute query
