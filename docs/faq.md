@@ -143,7 +143,7 @@ Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. 
 
 ### What external requirements does Orion have?
 
-Orion does not have any additional requirements besides those installed by `pip install prefect==2.0a1`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
+Orion does not have any additional requirements besides those installed by `pip install prefect>=2.0a1`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
 To use Postgres, users must provide the [connection string][prefect.utilities.settings.DatabaseSettings.connection_url] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
 
