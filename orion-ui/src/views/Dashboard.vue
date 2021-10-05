@@ -321,7 +321,7 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
 
 const resultsCount = computed<number>(() => {
   if (!resultsTab.value) return 0
-  return queries[resultsTab.value].response || 0
+  return queries[resultsTab.value].response.value || 0
 })
 
 watch([resultsTab], () => {

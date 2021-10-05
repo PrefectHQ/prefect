@@ -36,30 +36,7 @@ export interface InterpolationBody {
 
 export interface SaveSearchBody {
   name: string
-  flow_filter_criteria?: {
-    flow_filter?: FlowFilter
-    flow_run_filter?: FlowRunFilter
-    deployment_filter?: TaskRunFilter
-    task_run_filter?: DeploymentFilter
-  }
-  flow_run_filter_criteria?: {
-    flow_filter?: FlowFilter
-    flow_run_filter?: FlowRunFilter
-    deployment_filter?: TaskRunFilter
-    task_run_filter?: DeploymentFilter
-  }
-  deployment_filter_criteria?: {
-    flow_filter?: FlowFilter
-    flow_run_filter?: FlowRunFilter
-    deployment_filter?: TaskRunFilter
-    task_run_filter?: DeploymentFilter
-  }
-  task_run_filter_criteria?: {
-    flow_filter?: FlowFilter
-    flow_run_filter?: FlowRunFilter
-    deployment_filter?: TaskRunFilter
-    task_run_filter?: DeploymentFilter
-  }
+  filters: any
 }
 
 export type Filters = {
