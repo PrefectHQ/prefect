@@ -11,9 +11,10 @@
           @click="openFilterMenu"
           @remove="removeFilter"
         />
+
         <a
           v-breakpoints="'sm'"
-          v-if="filters.length"
+          v-if="filtersApplied && filters.length"
           class="
             text--primary text-decoration-none
             font--secondary
@@ -21,6 +22,7 @@
             nowrap
             ml-1
           "
+          @click="clearFilters"
         >
           Clear all
         </a>
@@ -90,6 +92,7 @@ import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
 import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
+import { initialGlobalFilterState } from '@/store'
 import TagGroup from './TagGroup.vue'
 
 const store = useStore()
@@ -182,6 +185,23 @@ const overlay = computed(() => {
     showSearchMenu.value
   )
 })
+
+const filtersApplied = computed(() => {
+  console.log(
+    JSON.stringify(initialGlobalFilterState) !==
+      JSON.stringify(store.getters.globalFilters)
+  )
+  console.log(JSON.stringify(initialGlobalFilterState))
+  console.log(JSON.stringify(store.getters.globalFilter))
+  return (
+    JSON.stringify(initialGlobalFilterState) !==
+    JSON.stringify(store.getters.globalFilter)
+  )
+})
+
+const clearFilters = () => {
+  store.commit('resetFilters')
+}
 
 onMounted(() => {
   createIntersectionObserver('0px')
