@@ -83,12 +83,13 @@ const close = () => {
 
 const save = async () => {
   loading.value = true
+  const gf = JSON.parse(JSON.stringify(store.getters.globalFilter))
 
   const query = await Api.query({
     endpoint: Endpoints.save_search,
     body: {
       name: name.value,
-      filters: store.getters.globalFilter
+      filters: gf
     },
     options: { paused: true }
   })
