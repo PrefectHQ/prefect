@@ -22,7 +22,7 @@
     <div class="menu-content">
       <transition name="fade" mode="out-in">
         <div
-          v-if="loading && !searches.length"
+          v-if="loading.value && !searches.length"
           class="
             my-6
             d-flex
@@ -49,29 +49,38 @@
           <h2>Couldn't fetch saved searches</h2>
         </div>
         <div v-else class="justify-self-start">
-          <div
-            v-for="search in searches"
-            :key="search.id"
-            class="
-              pa-2
-              font--primary
-              body
-              search-item
-              d-flex
-              justify-space-between
-            "
-            :disabled="loadingIds.includes(search.id)"
-            @click.self="applyFilter"
+          <transition-group
+            mode="out"
+            leave-active-class="slide-out-leave-active"
+            leave-to-class="slide-out-leave-to"
           >
-            <div>{{ search.name }}</div>
+            <h4 key="search-header" class="pa-2 font-weight-semibold">
+              Saved searches
+            </h4>
+            <div
+              v-for="search in searches"
+              :key="search.id"
+              class="
+                pa-2
+                font--primary
+                body
+                search-item
+                d-flex
+                justify-space-between
+              "
+              :class="{ disabled: loadingIds.includes(search.id) }"
+              @click.self="applyFilter"
+            >
+              <div>{{ search.name }}</div>
 
-            <IconButton
-              flat
-              icon="pi-delete-bin-line text--grey-20 pi-sm"
-              :disabled="loadingIds.includes(search.id)"
-              @click="remove(search.id)"
-            />
-          </div>
+              <IconButton
+                flat
+                icon="pi-delete-bin-line text--grey-20 pi-sm"
+                :disabled="loadingIds.includes(search.id)"
+                @click="remove(search.id)"
+              />
+            </div>
+          </transition-group>
         </div>
       </transition>
     </div>
@@ -82,9 +91,9 @@
           color="primary"
           height="35px"
           :width="smAndDown ? '100%' : 'auto'"
-          @click="save"
+          @click="applyFilter"
         >
-          Save
+          Apply
         </Button>
       </CardActions>
     </template>
@@ -92,7 +101,13 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineEmits, ref, getCurrentInstance } from 'vue'
+import {
+  computed,
+  defineEmits,
+  ref,
+  getCurrentInstance,
+  onBeforeMount
+} from 'vue'
 import { Api, Endpoints } from '@/plugins/api'
 
 const instance = getCurrentInstance()
@@ -100,21 +115,27 @@ const emit = defineEmits(['close'])
 
 const searches = ref<{ name: string; id: string; filters: any }[]>([])
 const loadingIds = ref<string[]>([])
-const error = ref(false)
-const loading = ref(false)
+const error = ref()
+const loading = ref()
 
 const getSavedSearches = async () => {
   loading.value = true
-  const query = Api.query({
-    endpoint: Endpoints.saved_searches,
-    options: { paused: true }
-  })
 
-  const res = await query.fetch()
+  try {
+    const query = Api.query({
+      endpoint: Endpoints.saved_searches,
+      options: { paused: true }
+    })
 
-  if (res.response.error) error.value = res.response.error
-  else searches.value = res.response.value
-  loading.value = false
+    const res = await query.fetch()
+
+    if (res.response.error) error.value = res.response.error
+    else searches.value = res.response.value
+  } catch (e) {
+    error.value = e
+  } finally {
+    loading.value = false
+  }
 }
 
 const close = () => {
@@ -124,6 +145,10 @@ const close = () => {
 const applyFilter = () => {
   // emit('close')
 }
+
+onBeforeMount(() => {
+  getSavedSearches()
+})
 
 const remove = async (id: string) => {
   loadingIds.value.push(id)
@@ -152,8 +177,6 @@ const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
   return !breakpoints.md
 })
-
-getSavedSearches()
 </script>
 
 <style lang="scss" scoped>
@@ -192,6 +215,11 @@ getSavedSearches()
 .search-item {
   cursor: pointer;
 
+  &.disabled {
+    cursor: not-allowed;
+    color: $grey-20 !important;
+  }
+
   &:hover,
   &:focus {
     background-color: $blue-5;
@@ -212,11 +240,20 @@ getSavedSearches()
 
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.5s ease;
+  transition: opacity 500s ease;
 }
 
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+.slide-out-enter-active,
+.slide-out-leave-active {
+  transition: transform 150ms ease;
+}
+
+.slide-out-enter-from,
+.slide-out-leave-to {
+  transform: translate(-100%);
 }
 </style>

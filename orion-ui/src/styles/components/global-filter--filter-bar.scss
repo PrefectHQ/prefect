@@ -116,7 +116,7 @@
   @media (max-width: 1024px) {
     top: 0;
     height: 100vh !important;
-    max-height: 100vh;
+    max-height: 100vh !important;
     width: inherit !important;
   }
 
@@ -124,7 +124,7 @@
     left: 0;
     top: -62px;
     height: 100vh !important;
-    max-height: 100vh;
+    max-height: 100vh !important;
     width: inherit !important;
   }
 }
