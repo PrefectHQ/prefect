@@ -2,9 +2,9 @@
   <Card class="menu font--primary" height="100%" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
-        <h3 class="d-flex align-center font--secondary ml-auto">
-          <i class="pi pi-star-fill text--warning mr-1" />
-          Save filter
+        <h3 class="d-flex align-center font--primary font-weight-semibold ml-auto">
+          <i class="pi pi-star-fill text--grey-80 mr-1" />
+          Save Search
         </h3>
 
         <IconButton
@@ -20,10 +20,9 @@
     </template>
     <template v-else v-slot:header>
       <div class="pa-2 d-flex justify-start align-center">
-        <h4 class="d-flex align-center font--secondary">
-          <i class="pi pi-star-fill mr-1 text--warning" />
-          Save filter
-        </h4>
+        <h3 class="d-flex align-center font--primary font-weight-semibold">
+          Save Search
+        </h3>
       </div>
     </template>
 
