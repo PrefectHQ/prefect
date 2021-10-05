@@ -74,7 +74,7 @@
               }"
               tabindex="0"
               @click.self="
-                mdAndDown ? selectSearch(search) : selectAndApply(search)
+                mdAndUp ? selectAndApply(search) : selectSearch(search)
               "
             >
               <div>{{ search.name }}</div>
@@ -253,9 +253,9 @@ const smAndDown = computed(() => {
   return !breakpoints.md
 })
 
-const mdAndDown = computed(() => {
+const mdAndUp = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
-  return !breakpoints.lg
+  return breakpoints.md
 })
 </script>
 
