@@ -55,10 +55,7 @@ app.mount(
 if os.path.exists(prefect.__ui_static_path__):
     app.mount("/ui", StaticFiles(directory=prefect.__ui_static_path__), name="ui")
 else:
-    print(
-        "Warning! The UI has not been built and cannot be served. "
-        "Run `prefect orion build-ui` to package the UI into Orion."
-    )
+    pass
 
 
 @app.get("/")
@@ -93,8 +90,7 @@ async def start_services():
             services.late_runs.MarkLateRuns(),
         ]
         app.state.services = {
-            service: loop.create_task(service.start(), name=service.name)
-            for service in service_instances
+            service: loop.create_task(service.start()) for service in service_instances
         }
 
         for service, task in app.state.services.items():

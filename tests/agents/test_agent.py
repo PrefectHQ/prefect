@@ -3,12 +3,19 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+import sys
 
 from prefect import flow
 from prefect.agents import OrionAgent
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
-from prefect.utilities.compat import AsyncMock
+
+if sys.version_info < (3, 8):
+    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
+
+    from mock import AsyncMock
+else:
+    from unittest.mock import AsyncMock
 
 
 async def test_agent_start_will_not_run_without_start():
