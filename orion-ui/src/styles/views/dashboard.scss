@@ -1,0 +1,83 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use 'sass:map';
+
+.result-badge {
+  background-color: $white;
+  border-radius: 16px;
+  font-weight: 400;
+  padding: 0 8px;
+  min-width: 24px;
+  transition: 150ms all;
+
+  &.active {
+    background-color: $primary;
+    color: $white;
+  }
+}
+
+.filter-card-button.button-card {
+  min-width: 300px;
+  width: 100%;
+}
+
+.filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-gap: 16px;
+}
+
+.chart-section {
+  display: grid;
+  grid-template-areas:
+    'history history duration'
+    'history history lateness';
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 117px);
+  column-gap: 16px;
+  row-gap: 16px;
+
+  .run-history,
+  .run-lateness,
+  .run-duration {
+    height: 100%;
+  }
+
+  .run-history {
+    grid-area: history;
+  }
+
+  .run-lateness {
+    grid-area: lateness;
+  }
+
+  .run-duration {
+    grid-area: duration;
+  }
+}
+
+.results-hr {
+  background-color: $grey-20;
+  border: none;
+  height: 2px;
+}
+
+@media (max-width: map.get($breakpoints, 'md')) {
+  .chart-section {
+    grid-template-areas:
+      'history history'
+      'duration lateness';
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: 250px 117px;
+  }
+}
+
+@media (max-width: map.get($breakpoints, 'sm')) {
+  .chart-section {
+    grid-template-areas:
+      'history'
+      'duration'
+      'lateness';
+    grid-template-columns: repeat(1, 1fr);
+    grid-template-rows: 250px 117px 117px;
+  }
+}

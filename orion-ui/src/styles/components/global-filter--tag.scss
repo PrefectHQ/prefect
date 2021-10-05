@@ -1,0 +1,52 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
+
+.tag {
+  @include mixins.miter(1, 1);
+  background: none;
+  border: none;
+  outline: none;
+  padding: 0;
+
+  > div {
+    background-color: $blue-20;
+    border-radius: 4px;
+    color: $grey-80;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+      background-color: $blue-40;
+    }
+  }
+
+  &:hover,
+  &:focus,
+  &:focus-within {
+    outline: none;
+
+    > div {
+      background-color: $blue-40;
+    }
+  }
+
+  i {
+    border-radius: 50%;
+    border: none;
+    color: $primary;
+    cursor: pointer;
+    outline: none;
+    padding: 0;
+    width: min-content;
+
+    &:hover,
+    &:focus {
+      color: $primary-hover;
+    }
+
+    &:active {
+      color: $primary-pressed;
+    }
+  }
+}

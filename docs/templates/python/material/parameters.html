@@ -1,0 +1,22 @@
+{{ log.debug() }}
+<div class="prefect-parameters">
+    <p><strong>Parameters:</strong></p>
+    <table class="prefect-table">
+    <thead>
+        <tr>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Default</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for parameter in parameters %}
+        <tr>
+            <td><code>{{ parameter.name }}</code></td>
+            <td>{{ parameter.description|convert_markdown(heading_level, html_id) }}{% if parameter.annotation %}<code>{{ parameter.annotation }}</code>{% endif %}</td>
+            <td>{% if parameter.default %}<code>{{ parameter.default }}</code>{% else %}<em>required</em>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    </table>
+</div>

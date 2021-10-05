@@ -1,0 +1,159 @@
+site_name: Prefect Orion
+repo_url: https://github.com/PrefectHQ/orion
+edit_uri: edit/main/docs/
+extra_css:
+    - stylesheets/theme.css
+    - stylesheets/admonitions.css
+    - stylesheets/api_ref.css
+    - stylesheets/rest_ref.css
+    - stylesheets/syntax_highlights.css
+    - stylesheets/termynal.css
+extra_javascript:
+    - js/termynal.js
+    - js/custom.js
+markdown_extensions:
+    - admonition
+    - attr_list
+    - codehilite
+    - md_in_html
+    - meta
+    - pymdownx.highlight:
+        use_pygments: true
+    - pymdownx.superfences
+    - pymdownx.tabbed
+theme:
+    name: material
+    favicon: img/favicon.ico
+    features:
+        - toc.integrate
+        - navigation.tabs
+        - navigation.tabs.sticky
+        - navigation.instant
+    font:
+        text: Inter
+        code: Source Code Pro
+    icon:
+        repo: fontawesome/brands/github
+    logo: img/logos/prefect-mark-solid-white.svg
+    palette:
+        primary: blue
+        accent: blue
+    custom_dir: docs/overrides
+plugins:
+    - autorefs
+    - mkdocstrings:
+        custom_templates: docs/templates
+        handlers:
+            python:
+                rendering:
+                    show_root_heading: True
+                    show_object_full_path: False
+                    show_category_heading: False
+                    show_bases: False
+                    heading_level: 1
+        watch:
+            - src/prefect/
+    - render_swagger
+    - search
+nav:
+    - Home: index.md
+    - 'Getting Started':
+        - Overview: getting-started/overview.md
+        - Installation: getting-started/installation.md
+        - Tutorials:
+            - tutorials/first-steps.md
+            - tutorials/flow-configuration.md
+            - tutorials/task-dependencies.md
+            - tutorials/execution.md
+            - tutorials/orion.md
+            - tutorials/deployments.md
+    - Concepts:
+        - Overview: concepts/overview.md
+        - Flows: concepts/flows.md
+        - Tasks: concepts/tasks.md
+        - States: concepts/states.md
+        - Orchestration Rules: concepts/orchestration.md
+        - Deployments: concepts/deployments.md
+        - Schedules: concepts/schedules.md
+        - Settings: concepts/settings.md
+    - FAQ: faq.md
+    - 'API Reference': 
+        - Overview: api-ref/overview.md
+        - Prefect Python API: 
+            - 'prefect.client': api-ref/prefect/client.md
+            - 'prefect.context': api-ref/prefect/context.md
+            - 'prefect.deployments': api-ref/prefect/deployments.md
+            - 'prefect.engine': api-ref/prefect/engine.md
+            - 'prefect.exceptions': api-ref/prefect/exceptions.md
+            - 'prefect.executors': api-ref/prefect/executors.md
+            - 'prefect.flows': api-ref/prefect/flows.md
+            - 'prefect.futures': api-ref/prefect/futures.md
+            - 'prefect.serializers': api-ref/prefect/serializers.md
+            - 'prefect.tasks': api-ref/prefect/tasks.md
+            - 'Utilities':
+                - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
+                - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
+                - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
+                - 'prefect.utilities.compat': api-ref/prefect/utilities/compat.md
+                - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
+                - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
+                - 'prefect.utilities.logging': api-ref/prefect/utilities/logging.md
+                - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
+            - 'Command Line Interface':
+                - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
+                - 'prefect.cli.base': api-ref/prefect/cli/base.md
+                - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
+                - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
+        - Orion Python API:
+            - 'API':
+                - 'orion.api.admin': api-ref/orion/api/admin.md
+                - 'orion.api.data': api-ref/orion/api/data.md
+                - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
+                - 'orion.api.deployments': api-ref/orion/api/deployments.md
+                - 'orion.api.flows': api-ref/orion/api/flows.md
+                - 'orion.api.flow_runs': api-ref/orion/api/flow_runs.md
+                - 'orion.api.flow_run_states': api-ref/orion/api/flow_run_states.md
+                - 'orion.api.run_history': api-ref/orion/api/run_history.md
+                - 'orion.api.saved_searches': api-ref/orion/api/saved_searches.md
+                - 'orion.api.server': api-ref/orion/api/server.md
+                - 'orion.api.task_runs': api-ref/orion/api/task_runs.md
+                - 'orion.api.task_run_states': api-ref/orion/api/task_run_states.md 
+            - 'Models':
+                - 'orion.models.deployments': api-ref/orion/models/deployments.md
+                - 'orion.models.flows': api-ref/orion/models/flows.md
+                - 'orion.models.flow_runs': api-ref/orion/models/flow_runs.md
+                - 'orion.models.flow_run_states': api-ref/orion/models/flow_run_states.md
+                - 'orion.models.orm': api-ref/orion/models/orm.md
+                - 'orion.models.task_runs': api-ref/orion/models/task_runs.md
+                - 'orion.models.task_run_states': api-ref/orion/models/task_run_states.md
+            - 'Orchestration':
+                - 'orion.orchestration.core_policy': api-ref/orion/orchestration/core_policy.md
+                - 'orion.orchestration.global_policy': api-ref/orion/orchestration/global_policy.md
+                - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
+                - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
+            - 'Schemas':
+                - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
+                - 'orion.schemas.core': api-ref/orion/schemas/core.md
+                - 'orion.schemas.data': api-ref/orion/schemas/data.md
+                - 'orion.schemas.filters': api-ref/orion/schemas/filters.md
+                - 'orion.schemas.responses': api-ref/orion/schemas/responses.md
+                - 'orion.schemas.schedules': api-ref/orion/schemas/schedules.md
+                - 'orion.schemas.sorting': api-ref/orion/schemas/sorting.md
+                - 'orion.schemas.states': api-ref/orion/schemas/states.md
+            - 'Services':
+                - 'orion.services.agent': api-ref/orion/services/agent.md
+                - 'orion.services.late_runs': api-ref/orion/services/late_runs.md
+                - 'orion.services.loop_service': api-ref/orion/services/loop_service.md
+                - 'orion.services.scheduler': api-ref/orion/services/scheduler.md
+            - 'Utilities':
+                - 'orion.utilities.database': api-ref/orion/utilities/database.md
+                - 'orion.utilities.enum': api-ref/orion/utilities/enum.md
+                - 'orion.utilities.filesystem': api-ref/orion/utilities/filesystem.md
+                - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
+                - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
+                - 'orion.utilities.server': api-ref/orion/utilities/server.md
+        - Orion REST API: api-ref/rest-api.md
+extra:
+  analytics:
+    provider: google
+    property: G-3M31G9B0QJ

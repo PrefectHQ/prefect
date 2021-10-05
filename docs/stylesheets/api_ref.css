@@ -1,0 +1,261 @@
+/* styling that applies only to the Python API reference documentation */
+
+:root {
+    --default-code: #4d606e;
+    --blue: #3b8dff;
+    --blue-transparent: rgba(59, 141, 255, 0.3);
+    --gray-1: #EBEEF7;
+    --gray-2: #cfd0d1;
+    --gray-3: #8EA0AE;
+    --pink-transparent: rgba(254, 81, 150, 0.3);
+    --pink: #fe5196;
+    --default-font-size: .7rem;
+    --code-font-size: .7rem;
+    --nav-size: .6rem;
+    --text-code-font-size:  1em;
+    --table-font-size: 1em;
+    --anchor-font-size: 1em;
+    --header-prefix-font-size: .7em;
+    --content-relative-size: 1rem;
+    --h1-font-size: 1.3rem;
+    --h2-font-size: 1.0em;
+    --h3-font-size: 1.0em;
+}
+
+.prefect-container {
+    padding-left: 28px;
+    padding-bottom: 8px;
+}
+
+.prefect-heading {
+    margin-top: 44px;
+    font-family: Inter;
+    white-space: nowrap;
+    overflow-x: auto;
+    vertical-align: bottom;
+    margin: 0;
+}
+
+.prefect-heading:before {
+    content: "#";
+    display: inline-block;
+    opacity: 0;
+    color: var(--blue);
+    position: absolute;
+    font-size: var(--anchor-font-size);
+    margin-left: -.8em;
+}
+
+.prefect-heading:hover::before {
+    opacity: 1;
+}
+
+.doc.doc-method .prefect-heading:before,
+.doc.doc-attribute .prefect-heading:before {
+    margin-top: 2px;
+}
+
+a.prefect-heading, 
+a.prefect-heading:hover {
+    color: var(--default-code);
+}
+
+.prefect-heading h1,
+.prefect-heading h2 {
+    border-bottom: 2px solid var(--gray-3);
+}
+
+.prefect-heading h3,
+.prefect-heading h4 {
+    border-bottom: 2px solid var(--gray-2);
+}
+
+.prefect-heading > h1:target,
+.prefect-heading > h2:target,
+.prefect-heading > h3:target,
+.prefect-heading > h4:target {
+    scroll-margin-top: 50px !important;
+}
+
+@media (min-width:1220px) {
+    .prefect-heading > h1:target,
+    .prefect-heading > h2:target,
+    .prefect-heading > h3:target,
+    .prefect-heading > h4:target {
+        scroll-margin-top: 105px !important;
+    }   
+}
+
+@media (min-width:2000px) {
+    .prefect-heading > h1:target,
+    .prefect-heading > h2:target,
+    .prefect-heading > h3:target,
+    .prefect-heading > h4:target {
+        scroll-margin-top: 120px !important;
+    }   
+}
+
+.doc.doc-module > h1 {
+    font-size: var(--h1-font-size);
+    font-weight: bold;
+}
+
+.prefect-heading h2 {
+    font-size: var(--h2-font-size);
+}
+
+.prefect-heading h3 {
+    font-size: var(--h3-font-size);
+}
+
+.prefect-heading > h1:before,
+.prefect-heading > h2:before,
+.prefect-heading > h3:before,
+.prefect-heading > h4:before {
+    color: var(--gray-3);
+    font-size: var(--default-font-size);
+    font-weight: 900;
+    text-transform: lowercase;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.prefect-heading > h1:target:before,
+.prefect-heading > h2:target:before,
+.prefect-heading > h3:target:before,
+.prefect-heading > h4:target:before {
+    display: inline-block;
+}
+
+.prefect-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-left: .2rem solid var(--gray-3);
+    margin-bottom: 18px;
+}
+
+.prefect-table code {
+    font-size: var(--default-font-size);
+}
+
+.prefect-table tr {
+    border-bottom: 1px solid var(--gray-1);
+}
+
+.prefect-table tr:last-child {
+    border: 0;
+}
+
+.prefect-table th {
+    text-align: left;
+    padding: 4px 10px;
+    background-color: var(--gray-1);   
+}
+
+.prefect-table td {
+    padding: 2px 10px;
+}
+
+.prefect-table td, .prefect-table th {
+    font-size: var(--default-font-size);
+    vertical-align: text-top;
+}
+
+.doc.doc-class > .prefect-heading > h2:before {
+    content: "class";
+    font-size: var(--header-prefix-font-size);
+}
+
+.doc.doc-function > .prefect-heading > h2:before {
+    content: "function";
+    font-size: var(--header-prefix-font-size);
+}
+
+.doc.doc-method > .prefect-heading > h3:before {
+    content: "method";
+    font-size: var(--header-prefix-font-size);
+} 
+
+.doc.doc-attribute > .prefect-heading > h3:before {
+    content: "attribute";
+    font-size: var(--header-prefix-font-size);
+}
+
+.md-nav {
+    font-size: var(--nav-size);
+}
+
+.md-typeset .admonition {
+    font-size: 1em;
+}
+
+.md-typeset h2 code {
+    font-size: 1.1em;
+}
+
+.md-typeset h3 code {
+    font-size: 1.1em;
+}
+
+.md-typeset code {
+    font-size: var(--default-font-size);
+}
+
+.doc p, .doc em, .doc li {
+    font-size: var(--default-font-size);
+    margin-top: 4px;
+}
+
+.doc.doc-heading code {
+    font-size: var(--text-code-font-size);
+}
+
+.doc p code {
+    font-size: var(--text-code-font-size);
+}
+
+.doc.doc-contents {
+    font-size: var(--content-relative-size);
+}
+
+.highlight code {
+    font-size: var(--code-font-size);
+}
+
+details.quote:not([open]),
+details.quote[open] {
+    border-color: var(--pink);
+}
+
+details.quote:not([open]) > summary,
+details.quote[open] > summary {
+    background-color: var(--pink-transparent);
+    border-color: var(--pink);
+    border-radius: 0;
+}
+
+details.quote:not([open]) > summary:before,
+details.quote:not([open]) > summary:after,
+details.quote[open] > summary:before,
+details.quote[open] > summary:after {
+    background-color: var(--pink);
+}
+
+details.quote:not([open]) > summary > code,
+details.quote[open] > summary > code {
+    background: transparent;
+}
+
+.admonition.note{
+    border-radius: 0;
+}
+
+/* special, private, property, and read-only tags */
+.doc-property { display: none; }
+
+/* arguments & returns tables */
+ .doc-contents table td { font-size: var(--table-font-size); }
+
+/* bold the argument name column */
+.doc-contents table td:nth-child(1) { font-weight: bold; }
+

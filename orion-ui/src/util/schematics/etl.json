@@ -1,0 +1,29 @@
+[
+  {
+    "upstream_ids": [],
+    "name": "Extract",
+    "state": "COMPLETED",
+    "tags": ["nisi"],
+    "id": "3b0e5992-2fb9-4af2-9adb-27afc8ec8f82",
+    "start_time": "2021-09-19T10:00:00.000Z",
+    "end_time": "2021-09-19T10:03:03.000Z"
+  },
+  {
+    "upstream_ids": ["3b0e5992-2fb9-4af2-9adb-27afc8ec8f82"],
+    "name": "Transform",
+    "state": "FAILED",
+    "tags": ["commodo", "consequat"],
+    "id": "f5cc08a4-8add-41c7-99b6-dcf0bebb1fb6",
+    "start_time": "2021-09-19T10:03:05.000Z",
+    "end_time": "2021-09-19T10:10:05.000Z"
+  },
+  {
+    "upstream_ids": ["f5cc08a4-8add-41c7-99b6-dcf0bebb1fb6"],
+    "name": "Load",
+    "state": "PENDING",
+    "tags": ["reprehenderit", "sint"],
+    "id": "4d5188d1-3a92-4f82-a4eb-886c74c45b29",
+    "start_time": "2021-09-19T10:11:00.000Z",
+    "end_time": "2021-09-19T10:20:00.000Z"
+  }
+]

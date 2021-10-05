@@ -1,0 +1,61 @@
+# Prefect logging config file.
+#
+# Any config in this file can be set with an env var
+# `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
+#
+# Global logging settings values can be interpolated by setting `key: "{{key}}"`
+# (note the quotations and double curly brackets). Note that only keys available
+# under `prefect.settings.logging` will be interpolated.
+
+version: 1
+disable_existing_loggers: False
+
+formatters:
+    simple:
+        format: "%(asctime)s.%(msecs)03d | %(message)s"
+        datefmt: "%H:%M:%S"
+
+    flow_run:
+        format: "%(asctime)s - %(flow_run_id)s - %(levelname)s - %(message)s"
+
+    json:
+        class: prefect.utilities.logging.JsonFormatter
+
+filters:
+    run_context:
+        # Injects run information into a log record
+        class: prefect.utilities.logging.RunContextInjector
+
+    # A user could define a custom filter that drops records containing
+    # sensitive information
+
+handlers:
+    console:
+        class: logging.StreamHandler
+        # take the level from the global logging settings
+        level: "{{default_level}}"
+        formatter: simple
+        stream: ext://sys.stdout
+
+    orion:
+        class: prefect.utilities.logging.OrionHandler
+        # take the level from the global logging settings
+        level: "{{default_level}}"
+        formatter: json
+
+loggers:
+    prefect:
+        level: DEBUG
+        handlers: [console]
+        propagate: no
+
+    # Only flow run logs are sent to Orion by default
+    prefect.flow_run:
+        level: DEBUG
+        handlers: [orion]
+        filters: [run_context]
+        propogate: yes
+    
+    root:
+        level: INFO
+        handlers: [console]

@@ -1,0 +1,111 @@
+name: Python tests
+
+on: [pull_request]
+
+jobs:
+  run-tests-sqlite:
+    name: SQLite
+
+    strategy:
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.9
+        os: 
+          - ubuntu-latest
+          # - windows-latest
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Versioneer only generates correct versions with a full fetch
+          # Versioneer is not setup for this repo yet
+          # fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.pythonLocation }}
+          # Load installed python packages from the cache
+          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
+          
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Run tests
+        if: ${{ matrix.os == 'ubuntu-latest'}}
+        env: 
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
+        run: |
+          pytest tests
+
+  
+
+  run-tests-postgres:
+    name: Postgres
+
+    strategy:
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.9
+        os: 
+          - ubuntu-latest
+          # windows backend doesn't support containers
+          # - windows-latest
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: orion
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Versioneer only generates correct versions with a full fetch
+          # Versioneer is not setup for this repo yet
+          # fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.pythonLocation }}
+          # Load installed python packages from the cache
+          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Run tests
+        env: 
+          PREFECT_ORION_DATABASE_CONNECTION_URL: 'postgresql+asyncpg://prefect:prefect@localhost/orion'
+        run: |
+          pytest tests

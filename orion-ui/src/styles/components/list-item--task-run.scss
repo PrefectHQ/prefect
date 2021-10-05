@@ -1,0 +1,32 @@
+@use '@/styles/components/list-item.scss';
+
+// For a later date... maybe
+// .list-item--flow-run {
+//   border-left: 5px solid;
+//   padding-left: 11px;
+// }
+
+.item--tags {
+  border-radius: 4px;
+  display: inline-block;
+  padding: 4px 8px;
+}
+
+.item--title {
+  margin-bottom: 2px;
+}
+
+.item--duration {
+  text-align: right;
+  width: 75px;
+}
+
+.run-state {
+  border-radius: 4px;
+  padding: 2px 8px;
+  text-transform: capitalize;
+}
+
+.tag-container {
+  margin-top: 2px;
+}

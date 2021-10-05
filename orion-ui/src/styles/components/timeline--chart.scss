@@ -1,0 +1,123 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use 'sass:math';
+
+.component-container {
+  &.header-visible {
+    --axis-height: 38px;
+  }
+
+  &.header-hidden {
+    --axis-height: 20px;
+  }
+
+  overflow: hidden;
+  height: 100%;
+  position: relative;
+  width: 100%;
+
+  .pan-button {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+
+    &.left {
+      left: 0;
+    }
+
+    &.right {
+      right: 0;
+    }
+  }
+
+  .timeline-axis {
+    background-color: $white;
+    height: var(--axis-height);
+    pointer-events: none;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 2;
+  }
+
+  svg.timeline-background {
+    position: absolute;
+    height: 100%;
+    left: 0;
+    width: 100%;
+    z-index: 1;
+  }
+
+  &.axis-bottom {
+    svg.timeline-background {
+      top: 0;
+    }
+  }
+
+  &.axis-top {
+    svg.timeline-background {
+      top: var(--axis-height);
+    }
+  }
+
+  .scroll-container {
+    clip-path: inset(0% 0% 0% 0% round 4px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    position: relative;
+    max-height: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+
+    flex: 1 1 auto;
+
+    // Hide scrollbars
+    scrollbar-width: none; // Edge
+    -ms-overflow-style: none; // Firefox
+
+    // Chrome, Safari
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .border-container {
+    border: 1px solid $blue-20;
+    border-radius: 4px;
+    box-sizing: border-box;
+    height: calc(100% - var(--axis-height));
+    left: 0;
+    position: absolute;
+    width: 100%;
+    pointer-events: none;
+    z-index: 2;
+
+    &.bottom {
+      top: 0;
+    }
+
+    &.top {
+      top: var(--axis-height);
+    }
+  }
+
+  .node-container {
+    background-color: transparent;
+    position: relative;
+    z-index: 1;
+
+    .node {
+      position: absolute;
+      border-radius: 8px;
+      transition: all 250ms;
+      z-index: 2;
+
+      &:focus,
+      &:hover {
+        border: 2px solid $primary;
+        box-shadow: $box-shadow-md;
+        outline: none;
+      }
+    }
+  }
+}

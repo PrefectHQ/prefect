@@ -1,0 +1,21 @@
+/* see https://squidfunk.github.io/mkdocs-material/reference/code-blocks/#custom-syntax-theme
+ * for details on syntax highlighting overrides */
+:root > * {
+  /* code blocks */
+  --md-code-hl-number-color: #3b8dff;
+  --md-code-hl-function-color: #3b8dff;
+  --md-code-hl-constant-color: #3b8dff;
+  --md-code-hl-keyword-color: #27b1ff;
+  --md-code-hl-string-color: #fe5196;
+  --md-code-hl-name-color: #4d606e;
+  --md-code-hl-operator-color: #3b8dff;
+  --md-code-hl-punctuation-color: #1061d0;
+  --md-code-hl-comment-color: #a5b4be;
+  --md-code-hl-variable-color: #e90;
+  --md-code-hl-color: #EBEEF7;
+  --md-code-bg-color: #f7f7f8;
+}
+
+.highlight .nd {
+  color: #fe5196;
+}
