@@ -123,7 +123,7 @@ const flow_filter_body: FlowsFilter = {
 
 const taskRunHistoryFilter = computed(() => {
   const interval = Math.floor(
-    Math.max(1, (end.value.getTime() - start.value.getTime()) / 1000 / 20)
+    Math.max(1, (end.value.getTime() - start.value.getTime()) / 1000 / 5)
   )
   return {
     history_start: start.value.toISOString(),
