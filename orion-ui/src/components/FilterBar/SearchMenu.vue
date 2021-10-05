@@ -68,7 +68,10 @@
                 d-flex
                 justify-space-between
               "
-              :class="{ disabled: loadingIds.includes(search.id) }"
+              :class="{
+                disabled: loadingIds.includes(search.id),
+                active: selectedSearch?.id == search.id
+              }"
               @click.self="
                 mdAndDown ? selectSearch(search) : selectAndApply(search)
               "
@@ -245,6 +248,11 @@ const mdAndDown = computed(() => {
   &.disabled {
     cursor: not-allowed;
     color: $grey-20 !important;
+  }
+
+  &.active {
+    background-color: $blue-10;
+    color: $primary;
   }
 
   &:hover,
