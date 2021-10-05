@@ -9,7 +9,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 import prefect
@@ -44,12 +44,6 @@ app.include_router(api.deployments.router)
 app.include_router(api.saved_searches.router)
 
 
-@app.get("/", include_in_schema=False)
-async def root_redirect():
-    """Redirect the root path to docs."""
-    return RedirectResponse(url="/docs")
-
-
 app.mount(
     "/static",
     StaticFiles(
@@ -57,6 +51,19 @@ app.mount(
     ),
     name="static",
 )
+
+if os.path.exists(prefect.__ui_static_path__):
+    app.mount("/ui", StaticFiles(directory=prefect.__ui_static_path__), name="ui")
+else:
+    print(
+        "Warning! The UI has not been built and cannot be served. "
+        "Run `prefect orion build-ui` to package the UI into Orion."
+    )
+
+
+@app.get("/")
+async def root():
+    return HTMLResponse(open(prefect.__ui_static_path__ / "index.html").read())
 
 
 def openapi():

@@ -1,2 +1,15 @@
+# Things to always exclude
+global-exclude .git*
+global-exclude .ipynb_checkpoints
+global-exclude *.py[co]
+global-exclude __pycache__/**
+
+# Top-level Config
+include MANIFEST.in
+include setup.cfg
 include versioneer.py
 include src/prefect/_version.py
+
+# Package files and data
+graft src/prefect/orion/ui
+graft src/prefect/orion/api/static
