@@ -83,7 +83,14 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, computed, defineEmits, watch, getCurrentInstance } from 'vue'
+import {
+  reactive,
+  computed,
+  defineEmits,
+  watch,
+  getCurrentInstance,
+  readonly
+} from 'vue'
 import { useStore } from 'vuex'
 import FilterAccordion from './FilterAccordion.vue'
 
@@ -95,18 +102,22 @@ const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const store = useStore()
 
-const gf = store.getters.globalFilter
+const gf = readonly(store.getters.globalFilter)
 const defaultFilters = {
   flows: {
+    ids: [],
+    names: [],
     tags: [...(gf.flows.tags || [])]
   },
-  deployments: { tags: [...(gf.deployments.tags || [])] },
+  deployments: { ids: [], names: [], tags: [...(gf.deployments.tags || [])] },
   flow_runs: {
+    ids: [],
     tags: [...(gf.flow_runs.tags || [])],
     states: [...(gf.flow_runs.states || [])],
     timeframe: { ...(gf.flow_runs.timeframe || {}) }
   },
   task_runs: {
+    ids: [],
     tags: [...(gf.task_runs.tags || [])],
     states: [...(gf.task_runs.states || [])],
     timeframe: { ...(gf.task_runs.timeframe || {}) }
@@ -115,7 +126,7 @@ const defaultFilters = {
 
 console.log(defaultFilters)
 
-const filters = reactive(defaultFilters)
+const filters = reactive({ ...defaultFilters })
 
 watch(filters, () => {
   console.log(filters)
@@ -127,7 +138,8 @@ const smAndDown = computed(() => {
 })
 
 const apply = () => {
-  store.commit('globalFilter', filters)
+  console.log('applying')
+  store.commit('globalFilter', { ...filters })
 }
 
 const close = () => {

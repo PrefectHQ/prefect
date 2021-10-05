@@ -19,18 +19,6 @@
       </button-card>
     </row>
 
-    <!-- These can be used to paginate the chart -->
-    <IconButton
-      v-if="false"
-      icon="pi-arrow-left-line"
-      @click="previous30Minutes"
-    />
-    <IconButton
-      v-if="false"
-      icon="pi-arrow-right-line"
-      @click="next30Minutes"
-    />
-
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
@@ -326,24 +314,6 @@ const resultsCount = computed<number>(() => {
   if (!resultsTab.value) return 0
   return queries[resultsTab.value].response || 0
 })
-
-const previous30Minutes = (): void => {
-  const start_ = new Date(start.value || new Date())
-  const end_ = new Date(end.value || new Date())
-  start_.setMinutes(start_.getMinutes() - 30)
-  end_.setMinutes(end_.getMinutes() - 30)
-  store.commit('start', start_)
-  store.commit('end', end_)
-}
-
-const next30Minutes = (): void => {
-  const start_ = new Date(start.value || new Date())
-  const end_ = new Date(end.value || new Date())
-  start_.setMinutes(start_.getMinutes() + 30)
-  end_.setMinutes(end_.getMinutes() + 30)
-  store.commit('start', start_)
-  store.commit('end', end_)
-}
 
 watch([resultsTab], () => {
   router.push({ hash: `#${resultsTab.value}` })
