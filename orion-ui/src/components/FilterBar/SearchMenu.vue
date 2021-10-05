@@ -19,8 +19,24 @@
       </div>
     </template>
 
-    <div class="menu-content d-flex align-center justify-start pa-2">
-      This is where a search menu goes
+    <div class="menu-content d-flex align-center justify-center pa-2">
+      <div
+        v-if="error"
+        class="
+          my-6
+          d-flex
+          flex-column
+          align-center
+          justify-center
+          font--secondary
+        "
+      >
+        <i class="pi pi-error-warning-line pi-3x" />
+        <h2>Couldn't fetch saved searches</h2>
+      </div>
+      <div v-else>
+        <div v-for="search in searches" :key="search.id">{{ search }}</div>
+      </div>
     </div>
 
     <template v-if="smAndDown" v-slot:actions>
@@ -39,10 +55,26 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, computed, defineEmits, watch, getCurrentInstance } from 'vue'
+import { computed, defineEmits, ref, getCurrentInstance } from 'vue'
+import { Api, Endpoints } from '@/plugins/api'
 
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
+
+const searches = ref([])
+const error = ref(true)
+
+const getSavedSearches = async () => {
+  const query = Api.query({
+    endpoint: Endpoints.saved_searches,
+    options: { paused: true }
+  })
+
+  const res = await query.fetch()
+
+  if (res.response.error) error.value = res.response.error
+  else searches.value = res.response.value
+}
 
 const close = () => {
   emit('close')
@@ -56,6 +88,8 @@ const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
   return !breakpoints.md
 })
+
+getSavedSearches()
 </script>
 
 <style lang="scss" scoped>
