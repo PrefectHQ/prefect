@@ -172,22 +172,22 @@ const applyFilter = () => {
   if (!selectedSearch.value) return
   const gf = { ...selectedSearch.value?.filters }
 
-  if (gf.flow_runs.timeframe.from.timestamp) {
+  if (gf.flow_runs?.timeframe?.from?.timestamp) {
     gf.flow_runs.timeframe.from.timestamp = new Date(
       gf.flow_runs.timeframe.from.timestamp
     )
   }
-  if (gf.flow_runs.timeframe.to.timestamp) {
+  if (gf.flow_runs?.timeframe?.to?.timestamp) {
     gf.flow_runs.timeframe.to.timestamp = new Date(
       gf.flow_runs.timeframe.to.timestamp
     )
   }
-  if (gf.task_runs.timeframe.from.timestamp) {
+  if (gf.task_runs?.timeframe?.from?.timestamp) {
     gf.task_runs.timeframe.from.timestamp = new Date(
       gf.task_runs.timeframe.from.timestamp
     )
   }
-  if (gf.task_runs.timeframe.to.timestamp) {
+  if (gf.task_runs?.timeframe?.to?.timestamp) {
     gf.task_runs.timeframe.to.timestamp = new Date(
       gf.task_runs.timeframe.to.timestamp
     )
