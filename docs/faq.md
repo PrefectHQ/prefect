@@ -141,6 +141,12 @@ Most users will begin in the *client* by annotating a function as either a `flow
 !!! tip "Always On"
 Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. Running a flow interactively will still properly interact with the orchestration API and persist metadata in your locally-configured database. You only need to run a stateful Orion server and related services when you require the features they provide, such as automatic scheduling and execution, or a hosted UI. This means that for interactive runs against a SQLite database, Orion can operate as a completely serverless platform.
 
+### What external requirements does Orion have?
+
+Orion does not have any additional requirements besides those installed by `pip install prefect>=2.0a1`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
+
+To use Postgres, users must provide the [connection string][prefect.utilities.settings.DatabaseSettings.connection_url] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
+
 ### What databases does Orion support?
 
 Orion works with SQLite and Postgres. New Orion installs default to a SQLite database hosted at `~/.prefect/orion.db`.
