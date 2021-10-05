@@ -55,29 +55,6 @@
           <!-- <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" /> -->
         </div>
       </FilterAccordion>
-      <!-- <Button
-          v-for="(menu, i) in menuButtons"
-          :key="i"
-          class="mr-2"
-          height="36px"
-          :ref="(el) => elRef(el, i)"
-          @click="toggleMenu(i)"
-        >
-          <i class="pi" :class="menu.icon ? menu.icon : 'pi-filter-3-line'" />
-          <span class="text-capitalize ml-1">{{ menu.label }}</span>
-        </Button>
-      </div>
-
-      <div v-if="filters.length" class="mt-2 d-flex align-center justify-start">
-        <FilterTag
-          v-for="(filter, i) in filters"
-          :key="i"
-          :item="filter"
-          class="mr--half"
-          @click.self="handleTagClick(filter)"
-          @remove="removeFilter"
-        /> -->
-      <!-- </div> -->
     </div>
 
     <template v-slot:actions>
@@ -101,35 +78,12 @@
         </Button>
       </CardActions>
     </template>
-
-    <!-- <component
-      v-for="(menu, i) in menus.filter((m) => m.show)"
-      :key="i"
-      :is="menu.component"
-      v-model="selectedObject"
-      class="sub-menu"
-      :object="selectedObject"
-      :style="subMenuStyle"
-      @close="menu.show = false"
-    /> -->
   </Card>
 </template>
 
 <script lang="ts" setup>
-import {
-  ref,
-  reactive,
-  shallowRef,
-  computed,
-  ComponentPublicInstance,
-  defineEmits,
-  watch
-} from 'vue'
+import { reactive, computed, defineEmits, watch } from 'vue'
 import { useStore } from 'vuex'
-// import TimeForm from './Form--DateTime.vue'
-// import ObjectMenu from './ObjectMenu.vue'
-// import FilterTag from './FilterTag.vue'
-import { parseFilters, FilterObject } from './util'
 import { getCurrentInstance } from 'vue'
 import FilterAccordion from './FilterAccordion.vue'
 
@@ -140,13 +94,6 @@ import TimeForm from './Form--DateTime.vue'
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const store = useStore()
-
-const iconMap: { [key: string]: string } = {
-  flow_runs: 'pi-flow-run',
-  task_runs: 'pi-task',
-  flows: 'pi-flow',
-  deployments: 'pi-map-pin-line'
-}
 
 const gf = store.getters.globalFilter
 const defaultFilters = {

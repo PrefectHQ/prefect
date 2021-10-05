@@ -1,101 +1,131 @@
+import { GlobalFilter, RunState, RunTimeFrame } from '@/typings/global'
+
 export type FilterObject = {
-  objectKey: string
+  object: string
   label: string
-  filterKey: string
-  filterValue: any
-  icon: string
-  clearable?: boolean
+  key: string
+  icon?: string
+}
+type ValueOf<T> = T[keyof T]
+
+const parseStateFilter = (
+  object: string,
+  key: string,
+  states: RunState[]
+): FilterObject[] => {
+  const arr: FilterObject[] = []
+  if (states.length == 6) {
+    arr.push({
+      object: object,
+      label: 'All States',
+      key: key,
+      icon: 'pi-focus-3-line'
+    })
+  } else if (states.length > 0) {
+    states.forEach((state) => {
+      arr.push({
+        object: object,
+        label: state.name,
+        key: key,
+        icon: 'pi-focus-3-line'
+      })
+    })
+  }
+  return arr
 }
 
-// TODO: This is really messy, need to clean this up a lot.
+const parseStringFilter = (
+  object: string,
+  key: string,
+  values: string[]
+): FilterObject[] => {
+  const iconMap: { [key: string]: string } = {
+    tags: 'pi-price-tag-3-line',
+    ids: 'pi-search-line',
+    names: 'pi-search-line'
+  }
+  return values.map<FilterObject>((value) => {
+    return {
+      object: object,
+      label: value,
+      key: key,
+      icon: iconMap[key]
+    }
+  })
+}
 
-export const parseFilters = (gf: any) => {
+const parseTimeframeFilter = (
+  object: string,
+  key: string,
+  timeframe: RunTimeFrame
+): FilterObject[] => {
   const arr: FilterObject[] = []
-  const keys = Object.keys(gf)
-  keys.forEach((key) => {
-    Object.entries(gf[key as keyof any]).forEach(([k, v]: [string, any]) => {
-      if (k == 'states' && Array.isArray(v)) {
-        if (v.length == 6 || v.length == 0) {
-          let label
-          if (v.length == 6) label = 'All States'
-          else label = 'No states'
 
-          arr.push({
-            objectKey: key,
-            label: label,
-            filterKey: k,
-            filterValue: v,
-            icon: 'pi-focus-3-line',
-            clearable: v.length === 0
-          })
-        } else {
-          v.forEach((state) => {
-            arr.push({
-              objectKey: key,
-              label: state.name,
-              filterKey: k,
-              filterValue: v,
-              icon: 'pi-focus-3-line',
-              clearable: true
-            })
-          })
-        }
-      } else if (k == 'timeframe') {
-        if (v.from) {
-          let filterValue
-          if (v.from.timestamp)
-            filterValue = new Date(v.from.timestamp).toLocaleString()
-          else if (v.from.value && v.from.unit)
-            filterValue = `${v.from.value}${v.from.unit.slice(0, 1)}`
+  if (timeframe.from) {
+    let filterValue
+    if (timeframe.from.timestamp)
+      filterValue = new Date(timeframe.from.timestamp).toLocaleString()
+    else if (timeframe.from.value && timeframe.from.unit)
+      filterValue = `${timeframe.from.value}${timeframe.from.unit.slice(0, 1)}`
 
-          // TODO: We should use a different icon or indicator for flow run and task run timeframes
-          arr.push({
-            objectKey: key,
-            label: `Past ${filterValue}`,
-            filterKey: k,
-            filterValue: filterValue,
-            icon: 'pi-scheduled',
-            clearable: true
-          })
-        }
-        if (v.to) {
-          let filterValue
-          if (v.to.timestamp)
-            filterValue = new Date(v.to.timestamp).toLocaleString()
-          else if (v.to.value && v.to.unit)
-            filterValue = `${v.to.value}${v.to.unit.slice(0, 1)}`
+    if (filterValue) {
+      arr.push({
+        object: object,
+        label: `${
+          timeframe.from.timestamp ? 'From: ' : 'Past '
+        } ${filterValue}`,
+        key: key,
+        icon: 'pi-scheduled'
+      })
+    }
+  }
+  if (timeframe.to) {
+    let filterValue
+    if (timeframe.to.timestamp)
+      filterValue = new Date(timeframe.to.timestamp).toLocaleString()
+    else if (timeframe.to.value && timeframe.to.unit)
+      filterValue = `${timeframe.to.value}${timeframe.to.unit.slice(0, 1)}`
 
-          arr.push({
-            objectKey: key,
-            label: `Next ${filterValue}`,
-            filterKey: k,
-            filterValue: filterValue,
-            icon: 'pi-scheduled',
-            clearable: true
-          })
-        }
-      } else if (k == 'tags') {
-        v.forEach((tag: string) => {
-          console.log(tag)
-          arr.push({
-            objectKey: key,
-            label: tag,
-            filterKey: k,
-            filterValue: tag,
-            icon: 'pi-price-tag-3-line',
-            clearable: true
-          })
-        })
-      } else {
-        arr.push({
-          objectKey: key,
-          label: `${key.replace('_', ' ')}: ${v}`,
-          filterKey: k,
-          filterValue: v,
-          icon: 'pi-search-line',
-          clearable: true
-        })
+    if (filterValue) {
+      arr.push({
+        object: object,
+        label: `${timeframe.to.timestamp ? 'To: ' : 'Next '} ${filterValue}`,
+        key: key,
+        icon: 'pi-scheduled'
+      })
+    }
+  }
+
+  return arr
+}
+
+export const parseFilters = (gf: GlobalFilter): FilterObject[] => {
+  let arr: FilterObject[] = []
+  const objects = Object.entries(gf)
+  objects.forEach(([object, f]: [string, ValueOf<GlobalFilter>]) => {
+    const filters = Object.entries(f)
+
+    filters.forEach(([filter, value]) => {
+      let parsed: FilterObject[]
+
+      switch (filter) {
+        case 'states':
+          parsed = parseStateFilter(object, filter, value as RunState[])
+          break
+        case 'timeframe':
+          parsed = parseTimeframeFilter(object, filter, value as RunTimeFrame)
+          break
+        case 'tags':
+        case 'ids':
+        case 'names':
+          parsed = parseStringFilter(object, filter, value as string[])
+          break
+        default:
+          parsed = []
+          break
       }
+
+      arr = [...arr, ...parsed]
     })
   })
 
