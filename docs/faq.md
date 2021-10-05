@@ -48,29 +48,35 @@ As Orion matures, most or all of its components will be released under the [Apac
 
 We will publish a complete roadmap for Orion soon. Here are a few important milestones currently under consideration:
 
-- Python client
-    - Task mapping
-    - Porting the Prefect task library and integrations
-    - Track inputs across tasks
-- UI
-    - Task Run pages
-    - Create deployments from UI
-    - Create schedules from UI
-    - Share dashboards
-    - Configure storage locations
-    - Update server settings from UI
-    - View flow run execution and data tracking in schematic
-- Orion server
-    - States
-        - Add `CRASHED` states for capturing and reacting to infrastructure failures
-    - Orion engine orchestration rules
-        - Configurable retry on `CRASHED`
-        - Automatically expire caches when tasks are taken out of `TERMINAL` states
-        - Linear scheduling: cancel runs attempting to enter `RUNNING` states if another run of the same flow is already running
-        - Exponential backoff for `AWAITING_RETRY`
-    - Configurable storage locations for flows and persisted data
-- Prefect IDE
-    - Time travel debugging: download states from remote runs to replay them interactively
+#### Python client
+  
+- Task mapping
+- Porting the Prefect task library and integrations
+- Track inputs across tasks
+
+#### UI
+
+- Task Run pages
+- Create deployments from UI
+- Create schedules from UI
+- Share dashboards
+- Configure storage locations
+- Update server settings from UI
+- View flow run execution and data tracking in schematic
+
+#### Orion server
+
+- Add `CRASHED` states for capturing and reacting to infrastructure failures
+- Orion engine orchestration rules
+- Configurable retry on `CRASHED`
+- Automatically expire caches when tasks are taken out of `TERMINAL` states
+- Linear scheduling: cancel runs attempting to enter `RUNNING` states if another run of the same flow is already running
+- Exponential backoff for `AWAITING_RETRY`
+- Configurable storage locations for flows and persisted data
+
+#### Prefect IDE
+
+- Time travel debugging: download states from remote runs to replay them interactively
 
 One of the reasons we are open-sourcing the technical preview is to begin soliciting priorities from our community. We will integrate these with our internal designs to publish a clear roadmap for the project.
 
@@ -96,7 +102,7 @@ Note that when tasks are called on constant values, they can not detect their up
 
 ### How do I tell enforce ordering between tasks that don't share data?
 
-To create a dependency between two tasks that do not exchange data but one needs to wait for the other to finish, use the special [`wait_for` keyword argument][prefect.tasks.task.__call__]:
+To create a dependency between two tasks that do not exchange data but one needs to wait for the other to finish, use the special [`wait_for` keyword argument][prefect.tasks.Task.__call__]:
 
 ```python
 @task
