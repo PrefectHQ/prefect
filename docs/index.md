@@ -9,20 +9,20 @@
 
 Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [technical preview](faq/#why-is-orion-a-technical-preview).
 
-Orion was designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, async rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
+Orion has been designed from the ground up to handle the dynamic, scalable workloads that the modern data stack demands. Powered by a brand-new, asynchronous rules engine, it represents an enormous amount of research, development, and dedication to a simple idea:
 
 _**You should love your workflows again.**_
 
-Read the docs, run the code, or host the UI. Join thousands of community members in [Slack](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
+Read the docs, run the code, or host the UI. Join thousands of community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
 
 !!! info "Don't Panic"
-    Prefect Orion is under active development and may change rapidly. For production use, please prefer [Prefect Core](https://github.com/prefecthq/prefect).
+    Prefect Orion is under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
 
 ## Hello, Orion!
 
 Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
 
-Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion UI.
+Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
 
 === "Basic orchestration"
 
