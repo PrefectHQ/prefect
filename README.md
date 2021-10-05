@@ -4,8 +4,6 @@
 
 A development repo for Prefect Orion; reference documentation can be found at https://orion-docs.prefect.io/.
 
-TODO: instructions for installing
-
 ## Welcome!
 
 Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [technical preview](https://orion-docs.prefect.io/faq/#why-is-orion-a-technical-preview).
@@ -16,8 +14,9 @@ _**You should love your workflows again.**_
 
 Read the docs, run the code, or host the UI. Join thousands of community members in [our Slack community](https://www.prefect.io/slack) to share your thoughts and feedback. Thanks for being part of the mission to build a new kind of workflow system and, of course, **happy engineering!**
 
-!!! info "Don't Panic"
-    Prefect Orion is under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
+**"Don't Panic"**
+
+Prefect Orion is under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
 
 ---
 
@@ -52,17 +51,15 @@ def github_stars(repos: List[str]):
 github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
 ```
 
-After running any of these flows, fire up the UI to gain insight into their execution:
+After running any running some flows, fire up the UI to gain insight into their execution:
 
 ```bash
 prefect orion start
 ```
 
-<figure markdown=1>
-![](./docs/img/tutorials/hello-orion-dashboard.png){: max-width=600px}
-</figure>
+![](/docs/img/tutorials/hello-orion-dashboard.png)
 
-From here, you can continue to use Prefect interactively or set up automated [deployments](https://orion-docs.prefect.io/concepts/deployments.md).
+From here, you can continue to use Prefect interactively or set up automated [deployments](https://orion-docs.prefect.io/concepts/deployments).
 
 ## Next steps
 
@@ -70,15 +67,15 @@ Orion was designed to be incrementally adopted into your workflows, and our docu
 
 ### Getting started
 
-Begin by [installing Orion](getting-started/installation.md) on your machine, then follow one of our [friendly tutorials](https://orion-docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://orion-docs.prefect.io/getting-started/overview) for more.
+Begin by [installing Orion](https://orion-docs.prefect.io/getting-started/installation) on your machine, then follow one of our [friendly tutorials](https://orion-docs.prefect.io/tutorials/first-steps) to learn by example. See the [Getting Started overview](https://orion-docs.prefect.io/getting-started/overview) for more.
 
 ### Concepts
 
-Learn more about Orion's features and design by reading our in-depth [concept docs](https://orion-docs.prefect.io/concepts/overview.md). These are intended to introduce the building blocks of Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
+Learn more about Orion's features and design by reading our in-depth [concept docs](https://orion-docs.prefect.io/concepts/overview). These are intended to introduce the building blocks of Orion, build up to orchestration and deployment, and finally cover some of the advanced use cases that Orion makes possible.
 
 ### Frequently asked questions
 
-Orion represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://orion-docs.prefect.io/faq.md).
+Orion represents a fundamentally new way of building and orchestrating data workflows. Learn more about the project by reading our [FAQ](https://orion-docs.prefect.io/faq).
 
 ### API reference
 
