@@ -27,7 +27,7 @@ import { defineProps, computed } from 'vue'
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()
 
 const filter = computed(() => {
-  return props.filter
+  return { ...props.filter }
 })
 
 const queries: { [key: string]: Query } = {
