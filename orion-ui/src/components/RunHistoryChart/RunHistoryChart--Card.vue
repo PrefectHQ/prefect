@@ -35,7 +35,7 @@ const queries: { [key: string]: Query } = {
     endpoint: Endpoints.flow_runs_history,
     body: filter,
     options: {
-      pollInterval: 5000
+      pollInterval: 30000
     }
   })
 }
