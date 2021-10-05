@@ -26,5 +26,7 @@ async def client(OrionTestAsyncClient):
     Yield a test client for testing the orion api
     """
 
-    async with OrionTestAsyncClient(app=app, base_url="https://test") as async_client:
+    async with OrionTestAsyncClient(
+        app=app, base_url="https://test/api"
+    ) as async_client:
         yield async_client

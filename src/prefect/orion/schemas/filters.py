@@ -665,26 +665,19 @@ class DeploymentFilter(PrefectFilterBaseModel):
         return filters
 
 
-class BaseFilterCriteria(PrefectBaseModel):
-    """Filter criteria for common objects in the system"""
+class FilterSet(PrefectBaseModel):
+    """A collection of filters for common objects"""
 
-    flow_filter: FlowFilter = Field(default_factory=FlowFilter)
-    flow_run_filter: FlowRunFilter = Field(default_factory=FlowRunFilter)
-    task_run_filter: TaskRunFilter = Field(default_factory=TaskRunFilter)
-    deployment_filter: DeploymentFilter = Field(default_factory=DeploymentFilter)
-
-
-class FlowFilterCriteria(BaseFilterCriteria):
-    """Criteria by which flows can be filtered"""
-
-
-class FlowRunFilterCriteria(BaseFilterCriteria):
-    """Criteria by which flow runs can be filtered"""
-
-
-class TaskRunFilterCriteria(BaseFilterCriteria):
-    """Criteria by which task runs can be filtered"""
-
-
-class DeploymentFilterCriteria(BaseFilterCriteria):
-    """Criteria by which deployments can be filtered"""
+    flows: FlowFilter = Field(
+        default_factory=FlowFilter, description="Filters that apply to flows"
+    )
+    flow_runs: FlowRunFilter = Field(
+        default_factory=FlowRunFilter, description="Filters that apply to flow runs"
+    )
+    task_runs: TaskRunFilter = Field(
+        default_factory=TaskRunFilter, description="Filters that apply to task runs"
+    )
+    deployments: DeploymentFilter = Field(
+        default_factory=DeploymentFilter,
+        description="Filters that apply to deployments",
+    )

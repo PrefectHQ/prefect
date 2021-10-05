@@ -33,15 +33,15 @@ app.add_middleware(
 
 
 # routers
-app.include_router(api.admin.router)
-app.include_router(api.data.router)
-app.include_router(api.flows.router)
-app.include_router(api.flow_runs.router)
-app.include_router(api.task_runs.router)
-app.include_router(api.flow_run_states.router)
-app.include_router(api.task_run_states.router)
-app.include_router(api.deployments.router)
-app.include_router(api.saved_searches.router)
+app.include_router(api.admin.router, prefix="/api")
+app.include_router(api.data.router, prefix="/api")
+app.include_router(api.flows.router, prefix="/api")
+app.include_router(api.flow_runs.router, prefix="/api")
+app.include_router(api.task_runs.router, prefix="/api")
+app.include_router(api.flow_run_states.router, prefix="/api")
+app.include_router(api.task_run_states.router, prefix="/api")
+app.include_router(api.deployments.router, prefix="/api")
+app.include_router(api.saved_searches.router, prefix="/api")
 
 
 app.mount(

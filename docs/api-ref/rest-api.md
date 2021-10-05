@@ -20,6 +20,7 @@ The Orion REST API adheres to the following guidelines:
 - We indicate variable placeholders with colons (e.g., `GET /flows/:id`)
 - We use snake case for route names (e.g. `GET /task_runs`)
 - We avoid nested resources unless there is no possibility of accessing the child resource outside the parent context. For example, we query `/task_runs` with a flow run filter instead of accessing `/flow_runs/:id/task_runs`.
+- The API is hosted with an `/api/:version` prefix that (optionally) allows versioning in the future. By convention, we treat that as part of the base URL and do not include that in API examples
 - Filtering, sorting, and pagination parameters are provided in the request body of `POST` requests where applicable
     - Pagination parameters are `limit` and `offset`
     - Sorting is specified with a single `sort` parameter
