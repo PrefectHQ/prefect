@@ -1,29 +1,34 @@
 <template>
-  <div class="component-container">
+  <div
+    ref="container"
+    class="component-container d-flex flex-column"
+    :class="{
+      'header-hidden': hideHeader,
+      'header-visible': !hideHeader,
+      'axis-bottom': axisPosition == 'bottom',
+      'axis-top': axisPosition == 'top'
+    }"
+    style="max-height: inherit"
+  >
     <IconButton
+      v-if="!hideHeader"
       class="pan-button left bg--white"
-      icon="pi pi-arrow-left-s-line pi-2x"
+      icon="pi pi-arrow-left-s-line pi-lg"
       flat
-      height="36px"
       :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
-
     <IconButton
+      v-if="!hideHeader"
       class="pan-button right bg--white"
-      icon="pi pi-arrow-right-s-line pi-2x"
+      icon="pi pi-arrow-right-s-line pi-lg"
       flat
-      height="36px"
       :disabled="disableRightScrollButton"
       @click="panRight"
     />
 
-    <div ref="container" class="chart-container" @scroll="handleScroll">
-      <svg :id="id + '-axis'" ref="chart-axis" class="timeline-axis"></svg>
-
-      <svg :id="id" ref="chart" class="timeline-chart"></svg>
-
-      <div class="node-container">
+    <div class="scroll-container" ref="scrollContainer" @scroll="handleScroll">
+      <div class="node-container" :style="nodeContainerStyle">
         <div
           v-for="item in computedItems"
           :key="item.id"
@@ -33,8 +38,26 @@
           :style="item.style"
           tabindex="0"
         />
+
+        <div
+          class="timeline-axis"
+          :class="{ 'shadow-sm': axisPosition == 'top' }"
+          :style="timelineAxisPosition"
+        >
+          <svg :id="id + '-axis'" ref="chart-axis"></svg>
+        </div>
+
+        <svg :id="id" class="timeline-background"></svg>
       </div>
     </div>
+
+    <div
+      class="border-container"
+      :class="{
+        top: axisPosition == 'top',
+        bottom: axisPosition == 'bottom'
+      }"
+    />
   </div>
 </template>
 
@@ -44,6 +67,8 @@ import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
 import { intervals } from '@/util/util'
+import { ref } from 'vue'
+import { StyleValue } from '@vue/runtime-dom'
 
 interface Item extends TaskRun {
   style: {
@@ -85,10 +110,15 @@ const formatLabel = (date: Date) => {
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
 class Props {
+  axisPosition = prop<string>({ required: false, default: 'bottom' })
   backgroundColor = prop<string>({ required: false, default: null })
-  // interval = prop<string>({ required: false, default: 'minute' })
   items = prop<Item[]>({ required: true })
   maxEndTime = prop<string>({ required: false, default: null })
+  hideHeader = prop<boolean>({
+    required: false,
+    default: () => false,
+    type: Boolean
+  })
   padding = prop<{
     top: number
     bottom: number
@@ -121,10 +151,14 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   disableLeftScrollButton: boolean = true
   disableRightScrollButton: boolean = true
   computedItems: Item[] = []
-  intervalHeight: number = 24
-  intervalWidth: number = 125
+  readonly axisHeight: number = this.hideHeader ? 20 : 38
+  readonly intervalHeight: number = 20
+  readonly intervalWidth: number = 125
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
+  rows: [number, number][] = []
+
+  scrollContainer = ref<HTMLElement>() as unknown as HTMLElement
 
   axisSvg: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
@@ -141,6 +175,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   >
 
   xAxisGroup: SelectionType = null as unknown as d3.Selection<
+    SVGGElement,
+    unknown,
+    HTMLElement,
+    null
+  >
+
+  backgroundRect: SelectionType = null as unknown as d3.Selection<
     SVGGElement,
     unknown,
     HTMLElement,
@@ -167,10 +208,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get numberRows(): number {
-    return (
-      Math.ceil(
-        Math.max(this.sortedItems.length, this.height / this.intervalHeight)
-      ) + 3
+    return Math.max(
+      this.rows.length,
+      Math.ceil(this.height / this.intervalHeight)
     )
   }
 
@@ -203,11 +243,8 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   get chartHeight(): number {
-    return (
-      Math.max(this.numberRows * this.intervalHeight, this.height) -
-      this.paddingY -
-      40
-    )
+    if (!this.container) return 0
+    return this.numberRows * this.intervalHeight - this.paddingY
   }
 
   get chartWidth(): number {
@@ -226,21 +263,32 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .filter((item: Item) => item.state_type !== 'PENDING' && item.start_time)
   }
 
+  get nodeContainerStyle(): StyleValue {
+    return { height: this.chartHeight + 'px', width: this.chartWidth + 'px' }
+  }
+
+  get timelineAxisPosition(): StyleValue {
+    if (!this.container || this.axisPosition == 'top')
+      return { height: this.axisHeight + 'px' }
+    return {
+      height: this.axisHeight + 'px',
+      // transform: `translate(0, ${
+      //   this.container.offsetHeight - this.axisHeight / 2
+      // }px)`
+      top: this.container.offsetHeight - this.axisHeight / 2 + 'px'
+    }
+  }
+
   xAxis = (g: any): Selection => {
-    return g
-      .attr('class', 'x-axis')
-      .style('transform', `translate(0,${this.intervalHeight}px)`)
-      .transition()
-      .duration(250)
-      .call(
-        d3
-          .axisTop(this.xScale)
-          .ticks(this.numberIntervals + 2)
-          // @ts-expect-error: I haven't quite figured out the correct typing for D3 axis
-          .tickFormat(formatLabel)
-          .tickSizeOuter(0)
-          .tickSizeInner(0)
-      )
+    return g.transition().duration(250).attr('class', 'x-axis').call(
+      d3
+        .axisBottom(this.xScale)
+        .ticks(this.numberIntervals) // + 2
+        // @ts-expect-error: I haven't quite figured out the correct typing for D3 axis
+        .tickFormat(formatLabel)
+        .tickSizeOuter(0)
+        .tickSizeInner(0)
+    )
   }
 
   resize(): void {
@@ -249,15 +297,19 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 
   mounted(): void {
     this.createChart()
+
     this.update()
     this.handleScroll()
   }
 
   update(): void {
-    this.updateScales()
-    this.updateChart()
-    this.updateGrid()
-    this.updateNodes()
+    if (!this.items?.length) return
+    requestAnimationFrame(() => {
+      this.updateChart()
+      this.updateScales()
+      this.updateNodes()
+      this.updateGrid()
+    })
   }
 
   updated(): void {
@@ -277,10 +329,10 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   createChart(): void {
     this.svg = d3.select(`#${this.id}`)
     this.axisSvg = d3.select(`#${this.id}-axis`)
+    this.xAxisGroup = this.axisSvg.append('g')
 
-    this.updateChart()
-
-    this.svg
+    this.backgroundRect = this.svg.append('g')
+    this.backgroundRect
       .append('rect')
       .attr(
         'fill',
@@ -290,11 +342,7 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .attr('width', '100%')
       .attr('height', '100%')
 
-    this.gridSelection = this.svg
-      .append('g')
-      .style('transform', 'translate(0, 36px)')
-
-    this.xAxisGroup = this.axisSvg.append('g')
+    this.gridSelection = this.svg.append('g')
   }
 
   updateChart(): void {
@@ -304,8 +352,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       .style('height', this.chartHeight + 'px')
 
     this.axisSvg
-      .attr('viewbox', `0, 0, ${this.chartWidth}, 100`)
+      .attr('viewbox', `0, 0, ${this.chartWidth}, ${this.axisHeight}`)
       .style('width', this.chartWidth + 'px')
+      .style('height', this.axisHeight + 'px')
   }
 
   updateNodes(): void {
@@ -316,6 +365,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
       const end = item.end_time ? new Date(item.end_time) : new Date()
       const left = this.xScale(start)
       const width = Math.max(16, this.xScale(end) - this.xScale(start))
+      const height = 8
+      const offset =
+        this.axisPosition == 'top' ? height + this.axisHeight : height
       let row = 0
 
       // eslint-disable-next-line
@@ -345,11 +397,13 @@ export default class Timeline extends mixins(D3Base).with(Props) {
           height: 8 + 'px',
           left: left + 'px',
           top: row * this.intervalHeight + 'px',
-          transform: 'translate(0, 44px)', // 36px axis offset + height
+          transform: `translate(0, ${offset}px)`,
           width: width + 'px'
         }
       }
     })
+
+    this.rows = rows
   }
 
   updateGrid(): void {
@@ -402,21 +456,21 @@ export default class Timeline extends mixins(D3Base).with(Props) {
   }
 
   handleScroll(): void {
-    this.disableLeftScrollButton = this.container.scrollLeft <= 0
+    this.disableLeftScrollButton = this.scrollContainer.scrollLeft <= 0
     this.disableRightScrollButton =
-      this.container.scrollLeft >= this.container.scrollWidth
+      this.scrollContainer.scrollLeft >= this.scrollContainer.scrollWidth
   }
 
   panLeft(): void {
-    this.container.scroll({
-      left: this.container.scrollLeft - this.width,
+    this.scrollContainer.scroll({
+      left: this.scrollContainer.scrollLeft - this.width,
       behavior: 'smooth'
     })
   }
 
   panRight(): void {
-    this.container.scroll({
-      left: this.container.scrollLeft + this.width,
+    this.scrollContainer.scroll({
+      left: this.scrollContainer.scrollLeft + this.width,
       behavior: 'smooth'
     })
   }
@@ -428,9 +482,9 @@ export default class Timeline extends mixins(D3Base).with(Props) {
 </style>
 
 <style lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
-svg.timeline-axis {
+.timeline-axis > svg {
   .tick {
     font-size: 13px;
     font-family: $font--secondary;
@@ -438,6 +492,10 @@ svg.timeline-axis {
 
   .domain {
     opacity: 0;
+  }
+
+  > g {
+    transform: translate(0, 25%);
   }
 }
 </style>

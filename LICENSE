@@ -1,0 +1,169 @@
+                               Prefect Community License
+                                       Version 1.0
+
+A copy of this license may be found at
+https://www.prefect.io/legal/prefect-community-license
+
+The Prefect Community License (this “Agreement”) sets forth the terms on which
+Prefect Technologies, Inc. (“Prefect”) makes available Prefect source code
+through one or more files each within a directory or containing a header stating
+the contents are subject to Prefect copyright (the “Software”). BY INSTALLING,
+DOWNLOADING, ACCESSING, USING OR DISTRIBUTING ANY OF THE SOFTWARE, YOU AGREE TO
+THE TERMS AND CONDITIONS OF THIS AGREEMENT.  IF YOU DO NOT AGREE TO SUCH TERMS
+AND CONDITIONS, YOU MUST NOT USE THE SOFTWARE.  IF YOU ARE RECEIVING THE
+SOFTWARE ON BEHALF OF A LEGAL ENTITY, YOU REPRESENT AND WARRANT THAT YOU HAVE
+THE ACTUAL AUTHORITY TO AGREE TO THE TERMS AND CONDITIONS OF THIS AGREEMENT ON
+BEHALF OF SUCH ENTITY. “Licensee” as used herein means you, an individual, or
+the entity on behalf of whom you are receiving the Software.
+
+1. LICENSE GRANT AND LIMITATIONS
+   
+   A. License.  Provided that Licensee remains in compliance with the terms and
+   conditions that are set forth in this Agreement, Prefect grants you the
+   following limited, revocable, non-exclusive, non-transferrable,
+   non-sublicensable, worldwide license during the term of this Agreement to (a)
+   only use the Software internally; (b) prepare modifications and derivative
+   works of the Software; (c) distribute the Software (including without
+   limitation in source code or object code form); and (d) reproduce copies of
+   the Software (the “License”). 
+   
+   B. Limitations on License Grant.  In consideration of the rights granted
+   herein by this Agreement, Licensee’s distribution of the Software is subject
+   to the following conditions:
+      
+      i. Licensee is not granted the right to, and Licensee shall not, exercise
+      the License for an Excluded Purpose. For purposes of this Agreement,
+      “Excluded Purpose” includes, but is not limited to, using the Software, or
+      any derivative works thereof, to make available any software-as-a-service,
+      platform-as-a-service, infrastructure-as-a-service or other similar
+      service that competes with Prefect products or services.
+      
+      ii. Licensee must cause any Software modified by Licensee to carry
+      prominent notices stating that Licensee modified the Software; and
+      
+      iii. On any copy of the Software distributed by the Licensee, Licensee
+      shall reproduce and not remove or alter all Prefect or third-party
+      copyright or other notices contained in the Software, and Licensee must
+      provide the following notice with any copy:
+
+            “This software is made available by Prefect Technologies, Inc.,
+            under the terms of the Prefect Community License Agreement located
+            at https://www.prefect.io/legal/prefect-community-license . BY
+            INSTALLING, DOWNLOADING, ACCESSING, USING OR DISTRIBUTING ANY OF THE
+            SOFTWARE, YOU AGREE TO THE TERMS OF SUCH LICENSE AGREEMENT.”
+   
+   C. Modifications.  Licensee may add its own copyright notices to
+   modifications made by Licensee and may provide additional or different
+   license terms and conditions for use, reproduction, or distribution of
+   Licensee’s modifications. While redistributing the Software or modifications
+   thereof, Licensee may choose to offer, for a fee or free of charge, support,
+   warranty, indemnity, or other obligations.  Licensee, and not Prefect, will
+   be solely responsible for any such obligations.
+   
+   D. No Sublicense. The License does not include any right to sublicense the
+   Software. Each recipient to which Licensee provides the Software, however,
+   may exercise the License so long as such recipient agrees to the terms and
+   conditions of this Agreement.
+
+2. TERM AND TERMINATION
+   
+   A. Term.  This Agreement will continue unless and until earlier terminated as
+   set forth herein.
+   
+   B. Termination.  If Licensee breaches any of the conditions or obligations
+   set forth under this Agreement, this Agreement shall automatically terminate,
+   and the License rights granted therein shall be automatically and permanently
+   revoked.
+
+3. INTELLECTUAL PROPERTY
+
+As between the parties, Prefect retains all right, title, and interest in the
+Software, and all intellectual property rights contained therein, regardless of
+whether such intellectual property rights are registered or unregistered.
+Prefect hereby similarly reserves all rights in its trademarks and service
+marks, and all goodwill developed therefrom shall inure to the benefit of
+Prefect; no licenses therein are granted by way of this Agreement.  Prefect
+hereby reserves all rights not expressly granted to Licensee by way of this
+Agreement.
+
+4. DISCLAIMER OF WARRANTIES
+
+EXCEPT AS SPECIFICALLY PROVIDED FOR HEREIN, THE SOFTWARE AND ANY MATERIALS ARE
+PROVIDED “AS IS”.  PREFECT AND ANY THIRD-PARTY PROVIDERS SPECIFICALLY DISCLAIM,
+WITHOUT LIMITATION, ALL WARRANTIES OF ANY KIND, WHETHER EXPRESS OR IMPLIED,
+INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT OR THOSE WARRANTIES ARISING
+FROM A COURSE OF PERFORMANCE, A COURSE OF DEALING OR TRADE USAGE.  EXCEPT AS
+EXPRESSLY PROVIDED HEREIN, PREFECT MAKES NO REPRESENTATION OR WARRANTY (I) AS TO
+THE SOFTWARE; (II) AS TO THE RESULTS TO BE ATTAINED BY LICENSEE OR ANY THIRD
+PARTY FROM THE SOFTWARE; (III) AS TO THE LIFE OF ANY URL USED BY THE SOFTWARE;
+OR (IV) THAT ALL USES THAT CAN BE MADE OF THE SOFTWARE COMPLY WITH APPLICABLE
+LAW; RATHER, IT IS LICENSEE’S RESPONSIBILITY TO CONFORM ITS USE OF THE SOFTWARE
+WITH THE LAW.  LICENSEE ACKNOWLEDGES THAT CERTAIN SOFTWARE AND EQUIPMENT USED BY
+IT MAY NOT BE CAPABLE OF SUPPORTING CERTAIN FEATURES OF THE SOFTWARE. EACH PARTY
+HERETO HEREBY ACKNOWLEDGES THAT IT HAS NOT RELIED UPON ANY REPRESENTATIONS OR
+WARRANTIES MADE BY THE OTHER EXCEPT AS SPECIFICALLY SET FORTH IN THIS AGREEMENT.
+
+5. LIMITATIONS ON LIABILITY
+
+EXCEPT FOR A BREACH OF SECTION 6 AND REGARDLESS OF THE FORM OF ACTION, IN NO
+EVENT WILL EITHER PARTY (OR ITS OFFICERS, DIRECTORS, EMPLOYEES, MEMBERS,
+MANAGERS OR AGENTS) BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL, PUNITIVE,
+EXEMPLARY OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, LOST PROFITS,
+LOST DATA, BUSINESS INTERRUPTION, LOSS OF REPUTATION OR COSTS OF SUBSTITUTE
+SERVICES) THAT THE OTHER PARTY MAY INCUR OR EXPERIENCE ARISING OUT OF OR
+RELATING TO THE SOFTWARE, THIS AGREEMENT OR ITS TERMINATION, EVEN IF ADVISED OF
+THE POSSIBILITY THEREOF. FURTHER, PREFECT SHALL NOT BE LIABLE (AND ITS OFFICERS,
+DIRECTORS, MEMBERS, MANAGERS, EMPLOYEES AND AGENTS, AND AFFILIATES THEREOF) TO
+LICENSEE FOR DAMAGES FOR ANY CAUSE WHATSOEVER NOTWITHSTANDING THE FORM OF SUCH
+CLAIMS (INCLUDING NEGLIGENCE).
+
+6. MISCELLANEOUS
+   
+   A. Governing law and venue. This Agreement shall be governed by and construed
+   in accordance with the laws of the State of Delaware applicable to contracts
+   to be performed entirely within Delaware. Any action or proceeding to enforce
+   or arising out of this Agreement shall be commenced in the state and federal
+   courts located in Delaware.  The parties hereto consent to the exclusive
+   jurisdiction of such courts, agree that venue will be proper in such courts
+   and waive any objections based upon forum non conveniens.  The choice of
+   forum set forth in this Section 7 will not be deemed to preclude the
+   enforcement of any judgment obtained in such forum or the taking of any
+   action under this Agreement to enforce such judgment in any other
+   jurisdiction.   
+   
+   B. Export Control Restrictions. Licensee warrants that its use of the
+   Software shall comply with all export control laws of the United States and
+   Licensee agrees to indemnify, defend and hold Prefect harmless from any
+   liability, claim, loss or expense suffered or incurred by Prefect as a result
+   of a breach of this warranty.
+   
+   C. Assignment. This Agreement shall be binding upon Licensee’s successors and
+   permitted assigns; neither this Agreement nor any right or obligation arising
+   under it may be assigned, licensed, sublicensed, sold, mortgaged, pledged or
+   otherwise disposed of (collectively, a “disposition”) by Licensee without the
+   prior written consent of Prefect, and any attempted disposition shall be null
+   and void.  Prefect may freely assign its rights under this Agreement to any
+   third party.
+   
+   D. Entire Agreement; Modifications; No Waiver.  This Agreement constitutes
+   the entire Agreement of the parties with respect to the subject matter
+   hereof, supersedes any and all existing agreements relating to the subject
+   matter hereof, and may not be modified or amended except by a written
+   instrument signed by both parties.  No failure or delay in exercising any
+   right, power or remedy under the Agreement shall operate as a waiver thereof,
+   nor shall any single or partial exercise of any right under this Agreement
+   preclude any other or further exercise thereof or the exercise of any other
+   right.  
+   
+   E. Severability.  If any provision of this Agreement shall be held to be
+   illegal, invalid or unenforceable, such illegality, invalidity or
+   unenforceability shall apply only to such provision and shall not in any
+   manner affect or render illegal, invalid or unenforceable any other provision
+   of this Agreement, and this Agreement shall be reformed, construed and
+   enforced to the fullest extent as if any such illegal, invalid or
+   unenforceable provision were not contained herein.
+   
+   F. Survival.  The obligations under Sections 3 and 6.B, as well as any other
+   provision that by its nature is intended to survive, shall survive the
+   termination or expiration of this Agreement.  

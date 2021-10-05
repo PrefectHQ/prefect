@@ -1,0 +1,20 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
+.copy-link {
+  border-radius: 4px;
+  color: $primary !important;
+  padding: 4px 8px;
+  text-decoration: none;
+  transition: all 50ms;
+  user-select: none;
+
+  &:hover,
+  &:focus {
+    color: $white !important;
+    background-color: $grey-20;
+  }
+
+  &:active {
+    background-color: $grey-40;
+  }
+}

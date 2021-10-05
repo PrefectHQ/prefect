@@ -1,54 +1,70 @@
-import { App, Plugin, ref, watchEffect, reactive } from 'vue'
+import { App, Plugin, ref, ComputedRef, watch, WatchStopHandle } from 'vue'
 
-export interface DeploymentsFilter {
-  limit?: limit
-  offset?: offset
+export interface BaseFilter {
   flows?: FlowFilter
   flow_runs?: FlowRunFilter
   task_runs?: TaskRunFilter
   deployments?: DeploymentFilter
 }
 
-export interface FlowsFilter {
-  limit?: limit
-  offset?: offset
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
+export interface LimitOffsetFilter {
+  limit?: number
+  offset?: number
+}
+export interface SortableFilter extends BaseFilter {
+  // TODO: We can improve this by using keyof[Object]
+  sort?: string
 }
 
-export interface TaskRunsFilter {
-  limit?: limit
-  offset?: offset
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
+export interface HistoryFilter extends BaseFilter {
+  history_start: string
+  history_end: string
+  history_interval_seconds: number
 }
 
-export interface FlowRunsFilter {
-  limit?: limit
-  offset?: offset
-  flows?: FlowFilter
-  flow_runs?: FlowRunFilter
-  task_runs?: TaskRunFilter
-  deployments?: DeploymentFilter
+export type DeploymentsFilter = SortableFilter
+export type FlowsFilter = SortableFilter
+export type TaskRunsFilter = SortableFilter
+export type FlowRunsFilter = SortableFilter
+
+export type FlowRunsHistoryFilter = HistoryFilter
+export type TaskRunsHistoryFilter = HistoryFilter
+
+export interface DatabaseClearBody {
+  confirm: boolean
+}
+
+export interface InterpolationBody {
+  id: string
+}
+
+export interface SaveSearchBody {
+  name: string
+  filters: any
 }
 
 export type Filters = {
-  flow: null
+  flow: InterpolationBody
   flows: FlowsFilter
   flows_count: FlowsFilter
-  flow_run: null
+  flow_run: InterpolationBody
   flow_runs: FlowRunsFilter
-  flow_runs_count: FlowRunsFilter
-  task_run: null
+  flow_runs_count: BaseFilter
+  flow_runs_history: FlowRunsHistoryFilter
+  task_run: InterpolationBody
   task_runs: TaskRunsFilter
-  task_runs_count: TaskRunsFilter
-  deployment: null
+  task_runs_count: BaseFilter
+  task_runs_history: TaskRunsHistoryFilter
+  deployment: InterpolationBody
   deployments: DeploymentsFilter
-  deployments_count: DeploymentsFilter
+  deployments_count: BaseFilter
+  create_flow_run: CreateFlowRunBody
+  create_flow_run_from_deployment: CreateDeploymentFlowRunBody
+  set_schedule_inactive: InterpolationBody
+  set_schedule_active: InterpolationBody
+  database_clear: DatabaseClearBody
+  save_search: SaveSearchBody
+  saved_searches: LimitOffsetFilter
 }
 
 export type FilterBody = Filters[keyof Filters]
@@ -56,51 +72,95 @@ export type FilterBody = Filters[keyof Filters]
 export const Endpoints: { [key: string]: Endpoint } = {
   flow: {
     method: 'GET',
-    url: '/flows/'
+    url: '/flows/{id}',
+    interpolate: true
   },
   flows: {
     method: 'POST',
-    url: '/flows/filter/'
+    url: '/flows/filter'
   },
   flows_count: {
     method: 'POST',
-    url: '/flows/count/'
+    url: '/flows/count'
+  },
+  create_flow_run: {
+    method: 'POST',
+    url: '/flow_runs'
   },
   deployment: {
     method: 'GET',
-    url: '/deployments/'
+    url: '/deployments/{id}',
+    interpolate: true
   },
   deployments: {
     method: 'POST',
-    url: '/deployments/filter/'
+    url: '/deployments/filter'
   },
   deployments_count: {
     method: 'POST',
-    url: '/deployments/count/'
+    url: '/deployments/count'
+  },
+  set_schedule_inactive: {
+    method: 'POST',
+    url: '/deployments/{id}/set_schedule_inactive',
+    interpolate: true
+  },
+  set_schedule_active: {
+    method: 'POST',
+    url: '/deployments/{id}/set_schedule_active',
+    interpolate: true
+  },
+  create_flow_run_from_deployment: {
+    method: 'POST',
+    url: '/deployments/{id}/create_flow_run',
+    interpolate: true
   },
   flow_run: {
     method: 'GET',
-    url: '/flow_runs/'
+    url: '/flow_runs/{id}',
+    interpolate: true
   },
   flow_runs: {
     method: 'POST',
-    url: '/flow_runs/filter/'
+    url: '/flow_runs/filter'
+  },
+  flow_runs_history: {
+    method: 'POST',
+    url: '/flow_runs/history'
   },
   flow_runs_count: {
     method: 'POST',
-    url: '/flow_runs/count/'
+    url: '/flow_runs/count'
   },
   task_run: {
     method: 'GET',
-    url: '/task_runs/'
+    url: '/task_runs/{id}',
+    interpolate: true
   },
   task_runs: {
     method: 'POST',
-    url: '/task_runs/filter/'
+    url: '/task_runs/filter'
   },
   task_runs_count: {
     method: 'POST',
-    url: '/task_runs/count/'
+    url: '/task_runs/count'
+  },
+  task_runs_history: {
+    method: 'POST',
+    url: '/task_runs/history'
+  },
+  save_search: {
+    method: 'PUT',
+    url: '/saved_searches'
+  },
+  delete_search: {
+    method: 'DELETE',
+    url: '/saved_searches/{id}',
+    interpolate: true
+  },
+  saved_searches: {
+    method: 'POST',
+    url: '/saved_searches/filter'
   },
   settings: {
     method: 'GET',
@@ -121,85 +181,169 @@ export interface QueryOptions {
    * This query will be sent every <pollInterval> milliseconds
    */
   pollInterval?: number
+  paused?: boolean
 }
 
-const base_url = 'http://localhost:8000'
+export interface QueryConfig {
+  endpoint: Endpoint | undefined
+  body?: FilterBody | (() => FilterBody) | ComputedRef
+  options?: QueryOptions
+}
+
+const base_url = 'http://localhost:4200/api'
 
 export class Query {
   private interval: ReturnType<typeof setInterval> | null = null
+  private endpointRegex: RegExp = /{\w+}/gm
   readonly endpoint: Endpoint
   readonly base_url: string = base_url
 
-  body: FilterBody = {}
+  private watcher?: WatchStopHandle
+
+  private _body(): FilterBody {
+    return {}
+  }
   error: string | unknown | null = null
   id: number
   pollInterval: number = 0
   loading = ref(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   response: any = ref(null)
+  paused: boolean = false
+
+  pause(): void {
+    this.paused = true
+  }
+
+  resume(): void {
+    this.paused = false
+    this.fetch()
+  }
 
   stopPolling(): void {
     if (this.interval) clearTimeout(this.interval)
   }
 
+  unwatch(): void {
+    if (this.watcher) this.watcher()
+  }
+
   async startPolling(): Promise<void> {
     this.stopPolling()
     if (!this.pollInterval) return
-    await this.fetch()
+    if (!this.paused) await this.fetch()
     this.interval = setTimeout(() => this.startPolling(), this.pollInterval)
   }
 
-  async fetch(): Promise<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async fetch(): Promise<Query> {
     this.loading.value = true
     this.error = null
     try {
       this.response.value = await this.http()
     } catch (e) {
       this.error = e
+      console.error(e)
     } finally {
       this.loading.value = false
     }
     return this
   }
 
+  get body(): FilterBody {
+    return this._body()
+  }
+
+  set body(val: FilterBody | (() => FilterBody) | ComputedRef | any | null) {
+    this._body = () => {
+      this.unwatch()
+
+      let _val
+      if (!val) _val = {}
+
+      const cName = val?.constructor.name
+      const isRef = val?.__v_isRef
+      if (isRef) {
+        _val = (val as ComputedRef).value
+
+        this.watcher = watch(
+          () => (val as ComputedRef).value,
+          () => {
+            // Check that polling is active
+            if (this.pollInterval) this.startPolling()
+            else if (!this.paused) this.fetch()
+          }
+        )
+      } else if (cName == 'Object' || cName == 'Function') {
+        _val = val instanceof Function ? val() : val
+      } else {
+        _val = val
+      }
+
+      return _val
+    }
+  }
+
   private get route(): string {
     return this.base_url + this.endpoint.url
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
-    return fetch(this.route, {
+    let route = this.route
+    const body = JSON.parse(JSON.stringify(this.body)) || {}
+
+    if (this.endpoint.interpolate) {
+      const keys: Array<string> = []
+      route = route.replaceAll(this.endpointRegex, (match) => {
+        const key = match.replace('{', '').replace('}', '')
+        if (key in body) {
+          keys.push(key)
+          return body[key as keyof FilterBody]
+        } else
+          throw new Error(
+            `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
+          )
+      })
+      keys.forEach((k, i) => {
+        delete body[k]
+      })
+    }
+
+    const res = await fetch(route, {
       headers: { 'Content-Type': 'application/json' },
       method: this.endpoint.method,
-      body: this.endpoint.method !== 'GET' ? JSON.stringify(this.body) : null
+      body: this.endpoint.method !== 'GET' ? JSON.stringify(body) : null
     })
       .then((res) => res)
       .then((res) => {
-        if (res.status == 200) return res.json()
+        if (res.status == 200 || res.status == 201) return res.json()
         if (res.status == 204) return res
+        console.error(this.endpoint, body)
         throw new Error(`Response status ${res.status}: ${res.statusText}`)
       })
+
+    return res
   }
 
-  constructor(
-    endpoint: Endpoint,
-    body: FilterBody = {},
-    { pollInterval = 0 }: QueryOptions = {},
-    id: number
-  ) {
+  constructor(config: QueryConfig, id: number) {
     this.id = id
+    this.paused = config.options?.paused || false
 
-    if (!endpoint)
+    if (!config.endpoint)
       throw new Error('Query constructors must provide an endpoint.')
-    this.endpoint = endpoint
+    this.endpoint = config.endpoint
 
-    if (pollInterval !== 0 && pollInterval < 1000)
+    this.pollInterval = config?.options?.pollInterval || 0
+
+    if (this.pollInterval !== 0 && this.pollInterval < 1000)
       throw new Error('Poll intervals cannot be less than 1000ms.')
 
-    this.body = body
+    this.body = config.body || {}
 
-    if (pollInterval > 0) {
-      this.pollInterval = pollInterval
+    if (this.pollInterval > 0) {
       this.startPolling()
-    } else {
+    } else if (!this.paused) {
       this.fetch()
     }
 
@@ -222,25 +366,21 @@ export class Api {
   /**
    * Returns an instance of the Query class and registers the query if a poll interval is specified
    */
-  static query(
-    endpoint: Endpoint,
-    body: FilterBody = {},
-    options: QueryOptions = {}
-  ): Query {
-    if (!endpoint)
+  static query(config: QueryConfig): Query {
+    if (!config.endpoint)
       throw new Error('You must provide an endpoint when registering a query.')
 
     if (
-      options.pollInterval &&
-      options.pollInterval !== 0 &&
-      options.pollInterval < 1000
+      config?.options?.pollInterval &&
+      config.options.pollInterval !== 0 &&
+      config.options.pollInterval < 1000
     )
       throw new Error('Poll intervals cannot be less than 1000ms.')
 
     const id = this.queries.size
-    const query = new Query(endpoint, body, options, id)
+    const query = new Query(config, id)
 
-    if (options.pollInterval) {
+    if (config?.options?.pollInterval) {
       this.queries.set(id, query)
     }
 
@@ -255,7 +395,7 @@ declare module '@vue/runtime-core' {
 }
 
 const ApiPlugin: Plugin = {
-  install(app: App, options: any = {}) {
+  install(app: App) {
     const api = Api
     app.config.globalProperties.$api = api
     app.provide('$api', api)

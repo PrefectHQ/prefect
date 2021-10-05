@@ -1,3 +1,7 @@
+"""
+Schedule schemas
+"""
+
 import asyncio
 import datetime
 from typing import List, Set, Union
@@ -14,6 +18,23 @@ MAX_ITERATIONS = 10000
 
 
 class IntervalSchedule(PrefectBaseModel):
+    """
+    A schedule formed by adding `interval` increments to an `anchor_date`. If no
+    `anchor_date` is supplied, January 1, 2020 at midnight UTC is used.
+
+    NOTE: If the `IntervalSchedule` `anchor_date` or `timezone` is provided in a
+    DST-observing timezone, then the schedule will adjust itself appropriately.
+    Intervals greater than 24 hours will follow DST conventions, while intervals
+    of less than 24 hours will follow UTC intervals. For example, an hourly
+    schedule will fire every UTC hour, even across DST boundaries. When clocks
+    are set back, this will result in two runs that *appear* to both be
+    scheduled for 1am local time, even though they are an hour apart in UTC
+    time. For longer intervals, like a daily schedule, the interval schedule
+    will adjust for DST boundaries so that the clock-hour remains constant. This
+    means that a daily schedule that always fires at 9am will observe DST and
+    continue to fire at 9am in the local time zone.
+    """
+
     class Config:
         exclude_none = True
 
@@ -83,7 +104,7 @@ class IntervalSchedule(PrefectBaseModel):
             interval_days * 24 * 60 * 60
         )
 
-        # daylight savings time boundaries can create a situation where the next date is before
+        # daylight saving time boundaries can create a situation where the next date is before
         # the start date, so we advance it if necessary
         while next_date < start:
             next_date = next_date.add(days=interval_days, seconds=interval_seconds)
@@ -245,7 +266,7 @@ class RRuleSchedule(PrefectBaseModel):
     adjustments, and more.
 
     Note that as a calendar-oriented standard, `RRuleSchedules` are sensitive to
-    to the initial timezone provided. A 9am daily schedule with a daylight savings
+    to the initial timezone provided. A 9am daily schedule with a daylight saving
     time-aware start date will maintain a local 9am time through DST boundaries;
     a 9am daily schedule with a UTC start date will maintain a 9am UTC time.
     """

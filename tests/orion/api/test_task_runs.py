@@ -322,7 +322,7 @@ class TestSetTaskRunState:
 
         api_response = OrchestrationResult.parse_obj(response.json())
         assert api_response.status == responses.SetStateStatus.REJECT
-        assert api_response.state.name == "Awaiting Retry"
+        assert api_response.state.name == "AwaitingRetry"
         assert api_response.state.type == states.StateType.SCHEDULED
 
     async def test_set_task_run_state_force_skips_orchestration(

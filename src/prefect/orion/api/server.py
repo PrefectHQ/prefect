@@ -1,13 +1,15 @@
-# import prefect
+"""
+Defines the Orion FastAPI app.
+"""
+
 import asyncio
 from functools import partial
 import os
-from sys import exc_info
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 import prefect
@@ -31,20 +33,15 @@ app.add_middleware(
 
 
 # routers
-app.include_router(api.admin.router)
-app.include_router(api.data.router)
-app.include_router(api.flows.router)
-app.include_router(api.flow_runs.router)
-app.include_router(api.task_runs.router)
-app.include_router(api.flow_run_states.router)
-app.include_router(api.task_run_states.router)
-app.include_router(api.deployments.router)
-app.include_router(api.saved_searches.router)
-
-
-@app.get("/", include_in_schema=False)
-async def root_redirect():
-    return RedirectResponse(url="/docs")
+app.include_router(api.admin.router, prefix="/api")
+app.include_router(api.data.router, prefix="/api")
+app.include_router(api.flows.router, prefix="/api")
+app.include_router(api.flow_runs.router, prefix="/api")
+app.include_router(api.task_runs.router, prefix="/api")
+app.include_router(api.flow_run_states.router, prefix="/api")
+app.include_router(api.task_run_states.router, prefix="/api")
+app.include_router(api.deployments.router, prefix="/api")
+app.include_router(api.saved_searches.router, prefix="/api")
 
 
 app.mount(
@@ -54,6 +51,16 @@ app.mount(
     ),
     name="static",
 )
+
+if os.path.exists(prefect.__ui_static_path__):
+    app.mount("/ui", StaticFiles(directory=prefect.__ui_static_path__), name="ui")
+else:
+    pass
+
+
+@app.get("/")
+async def root():
+    return HTMLResponse(open(prefect.__ui_static_path__ / "index.html").read())
 
 
 def openapi():
@@ -74,6 +81,7 @@ app.openapi = openapi
 
 @app.on_event("startup")
 async def start_services():
+    """Start additional services when the Orion API starts up."""
     if settings.orion.services.run_in_app:
         loop = asyncio.get_running_loop()
         service_instances = [
@@ -82,8 +90,7 @@ async def start_services():
             services.late_runs.MarkLateRuns(),
         ]
         app.state.services = {
-            service: loop.create_task(service.start(), name=service.name)
-            for service in service_instances
+            service: loop.create_task(service.start()) for service in service_instances
         }
 
         for service, task in app.state.services.items():
@@ -98,6 +105,7 @@ async def start_services():
 
 @app.on_event("shutdown")
 async def wait_for_service_shutdown():
+    """Ensure services are stopped before the Orion API shuts down."""
     if app.state.services:
         await asyncio.gather(*[service.stop() for service in app.state.services])
         try:

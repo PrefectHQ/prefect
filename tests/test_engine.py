@@ -1,3 +1,4 @@
+import sys
 from functools import partial
 from unittest.mock import MagicMock
 
@@ -9,17 +10,16 @@ from prefect import flow, task
 from prefect.client import OrionClient
 from prefect.engine import (
     begin_flow_run,
-    create_and_begin_subflow_run,
-    create_then_begin_flow_run,
     orchestrate_flow_run,
     orchestrate_task_run,
     raise_failed_state,
     resolve_datadoc,
     user_return_value_to_state,
 )
-from prefect.executors import BaseExecutor
+from prefect.executors import SequentialExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
+from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.states import (
     Cancelled,
     Completed,
@@ -30,8 +30,12 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.orion.schemas.filters import FlowRunFilter
-from prefect.utilities.compat import AsyncMock
+
+if sys.version_info < (3, 8):
+    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
+    from mock import AsyncMock
+else:
+    from unittest.mock import AsyncMock
 
 
 class TestUserReturnValueToState:
@@ -471,7 +475,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=BaseExecutor(),
+            executor=SequentialExecutor(),
             sync_portal=None,
             client=orion_client,
         )
@@ -502,7 +506,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=BaseExecutor(),
+            executor=SequentialExecutor(),
             sync_portal=None,
             client=orion_client,
         )

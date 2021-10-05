@@ -1,0 +1,215 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
+.observe {
+  position: absolute;
+  height: 16px;
+  left: 0;
+  opacity: 0;
+  top: 0;
+  width: 100px;
+}
+
+.bar-wrapper {
+  height: 100%;
+  margin: 16px 32px 16px 32px;
+  position: sticky;
+  top: 0;
+  transition: all 150ms;
+  left: 0;
+
+  z-index: 9;
+
+  &.detached {
+    margin: 0;
+    border-radius: 0;
+  }
+
+  @media (max-width: 1024px) {
+    margin: 0;
+    border-radius: 0;
+    z-index: 9;
+  }
+
+  @media (max-width: 640px) {
+    z-index: 10;
+
+    &.detached {
+      top: 62px;
+    }
+  }
+}
+
+.bar {
+  background-color: #fff;
+  filter: $drop-shadow-sm;
+  border-radius: 4px;
+  display: flex;
+  font-size: 14px;
+  width: 100%;
+
+  &.menu-opened {
+    border-radius: 4px 4px 0 0;
+  }
+}
+
+.filter-menu {
+  position: absolute !important;
+  border-radius: 0 0 4px 4px;
+  left: 0;
+  height: auto !important;
+  max-height: 80vh;
+  top: 100%;
+  width: 100%;
+  z-index: 1;
+
+  @media (max-width: 1024px) {
+    left: 0;
+    top: 0;
+    height: 100vh !important;
+    max-height: 100vh;
+  }
+
+  @media (max-width: 640px) {
+    left: 0;
+    top: -62px;
+    height: 100vh !important;
+    max-height: 100vh;
+  }
+}
+
+.save-search-menu {
+  position: absolute !important;
+  right: 0;
+  left: unset;
+  top: 100%;
+  width: 400px !important;
+  z-index: 1;
+
+  @media (max-width: 1024px) {
+    left: 0;
+    top: 0;
+    right: unset;
+    height: 100vh !important;
+    max-height: 100vh;
+    width: inherit !important;
+  }
+
+  @media (max-width: 640px) {
+    left: 0;
+    top: -62px;
+    right: unset;
+    height: 100vh !important;
+    max-height: 100vh;
+    width: inherit !important;
+  }
+}
+
+.search-menu {
+  position: absolute !important;
+  border-radius: 0 0 4px 4px;
+  left: 0;
+  top: 100%;
+  max-height: 80vh !important;
+  width: 100%;
+  z-index: 1;
+
+  @media (max-width: 1024px) {
+    top: 0;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    width: inherit !important;
+  }
+
+  @media (max-width: 640px) {
+    left: 0;
+    top: -62px;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    width: inherit !important;
+  }
+}
+
+.overlay {
+  background-color: rgba(0, 0, 0, 0.1);
+  // Note: this will only work in browsers that allow backdrop-filter, (so Chrome, Edge, and FF only if the experimental prop is enabled)
+  backdrop-filter: blur(1px);
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 8;
+}
+
+.filter-button {
+  align-items: center;
+  background-color: $white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  height: 100%;
+  min-width: 52px;
+  outline: none;
+
+  &.active,
+  &:hover,
+  &:focus {
+    background-color: $grey-10;
+  }
+
+  &:active {
+    background-color: $grey-20;
+  }
+
+  $border-style: 1px solid $secondary-hover;
+
+  &.objects {
+    border-right: $border-style;
+    border-radius: 4px 0 0 4px;
+  }
+
+  &.filters {
+    border-left: $border-style;
+    border-radius: 0 4px 4px 0;
+  }
+
+  &.saved-searches {
+    border-left: $border-style;
+  }
+}
+
+.fade-slide-leave-active {
+  animation: slide 200ms reverse linear forwards;
+  backface-visibility: hidden;
+  transform-origin: top;
+  z-index: -1 !important;
+}
+
+.fade-slide-enter-active {
+  animation: slide 200ms linear forwards;
+  backface-visibility: hidden;
+  transform-origin: top;
+  z-index: -1 !important;
+}
+
+@keyframes slide {
+  0% {
+    transform: rotateX(-180deg);
+  }
+
+  100% {
+    transform: rotateX(0);
+  }
+}
+
+@media (max-width: 1024px) {
+  @keyframes slide {
+    from {
+      transform: translate(0, 200%);
+    }
+
+    to {
+      transform: translate(0);
+    }
+  }
+}

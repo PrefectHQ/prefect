@@ -1,13 +1,14 @@
-import json
-import os
+"""
+Command line interface for working with Orion
+"""
 import typer
 import uvicorn
 
-from prefect.orion.api.server import app as orion_fastapi_app
-from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect import settings
+from prefect.cli.base import app, console, exit_with_error, exit_with_success
+from prefect.orion.utilities.database import create_db, drop_db, get_engine
 from prefect.utilities.asyncio import sync_compatible
-from prefect.orion.utilities.database import drop_db, create_db, get_engine
+
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)
@@ -20,6 +21,10 @@ def start(
     log_level: str = settings.logging.default_level,
     services: bool = True,
 ):
+    """Start an Orion server"""
+    # Delay this import so we don't instantiate the API uncessarily
+    from prefect.orion.api.server import app as orion_fastapi_app
+
     console.print("Starting Orion API...")
     # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
     # See https://github.com/PrefectHQ/orion/issues/281
@@ -40,29 +45,8 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
         if not confirm:
             exit_with_error("Database reset aborted")
     console.print("Resetting Orion database...")
-    console.print("Droping tables...")
+    console.print("Dropping tables...")
     await drop_db()
     console.print("Creating tables...")
     await create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')
-
-
-@orion_app.command()
-def build_docs(schema_path: str = None):
-    """
-    Builds REST API reference documentation for static display.
-
-    Note that this command only functions properly with an editable install.
-    """
-    if not schema_path:
-        schema_path = os.path.abspath(
-            os.path.join(__file__, "../../../../docs/api-ref/schema.json")
-        )
-
-    schema = orion_fastapi_app.openapi()
-
-    # overwrite info for display purposes
-    schema["info"] = {}
-    with open(schema_path, "w") as f:
-        json.dump(schema, f)
-    console.print(f"OpenAPI schema written to {schema_path}")

@@ -1,53 +1,67 @@
 <template>
   <div class="application">
     <NavBar class="nav" />
-    <router-view class="router-view" />
+    <FilterBar v-if="validFilterRoute" class="filter-bar" />
+    <suspense>
+      <router-view class="router-view" />
+    </suspense>
   </div>
 </template>
 
-<script lang="ts">
-import { Options, Vue } from 'vue-class-component'
+<script lang="ts" setup>
 import NavBar from '@/components/ApplicationNav/NavBar.vue'
+import FilterBar from '@/components/FilterBar/FilterBar.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 
-@Options({
-  components: { NavBar }
+const route = useRoute()
+
+const invalidRoutes = ['/settings']
+
+const validFilterRoute = computed(() => {
+  return !invalidRoutes.includes(route.path)
 })
-export default class App extends Vue {}
 </script>
 
 <style lang="scss">
-@use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .application {
   background-color: $grey-10;
   display: grid;
-  grid-template-areas: 'nav main';
+  grid-template-areas:
+    'nav filter-bar'
+    'nav main';
   grid-template-columns: 62px 1fr;
-  height: 100vh;
+  grid-template-rows: 62px 1fr;
+  row-gap: 16px;
+  min-height: 100vh;
 
   @media (max-width: 640px) {
     grid-template-areas:
       'nav'
+      'filter-bar'
       'main';
     grid-template-columns: unset;
-    grid-template-rows: 62px 1fr;
+    grid-template-rows: 62px 62px 1fr;
+    row-gap: 0;
   }
 
   .nav {
     grid-area: nav;
   }
 
+  .filter-bar {
+    grid-area: filter-bar;
+  }
+
   .router-view {
     grid-area: main;
-    height: 100%;
-    max-height: 100vh;
-    padding: 32px;
+    padding: 0 32px;
     overflow: auto;
-    overscroll-behavior: contain;
 
     @media (max-width: 640px) {
-      padding: 16px;
-      max-height: calc(100vh - 62px);
+      padding: 0px 16px 32px 16px;
     }
   }
 }

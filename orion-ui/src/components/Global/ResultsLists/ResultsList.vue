@@ -1,17 +1,15 @@
 <template>
-  <div class="container">
-    <list class="results-list">
-      <component
-        v-for="item in items"
-        :key="item.id"
-        :item="item"
-        :is="props.component"
-        :ref="(el) => createItemRef(item.id, el)"
-      />
+  <list class="results-list">
+    <component
+      v-for="[key, item] in items"
+      :key="key"
+      :item="item"
+      :is="props.component"
+      :ref="(el) => createItemRef(key, el)"
+    />
 
-      <Observer @intersection="fetchMore" />
-    </list>
-  </div>
+    <Observer @intersection="fetchMore" />
+  </list>
 </template>
 
 <script lang="ts" setup>
@@ -33,34 +31,46 @@ const props = defineProps<{
   component: string
   endpoint: string
 }>()
-const limit = ref(200)
+const limit = ref(20)
 const offset = ref(0)
 const loading = ref(false)
-const items = ref<any[]>([])
+const items = ref<Map<string, any>>(new Map())
 
 const itemRefs = shallowRef<{ [key: string]: Element }>({})
 
 const filter_ = computed(() => {
-  return { ...props.filter, limit: limit.value, offset: offset.value }
+  return {
+    ...props.filter,
+    limit: limit.value,
+    offset: offset.value
+    // sort: 'EXPECTED_START_TIME_ASC'
+  }
 })
 
 const getData = async () => {
   loading.value = true
-  const query = Api.query(Endpoints[props.endpoint], filter_.value, {})
+  const query = Api.query({
+    endpoint: Endpoints[props.endpoint],
+    body: filter_.value,
+    options: {}
+  })
   await query.fetch()
   loading.value = false
   return query.response.value
 }
 
 const fetchMore = async () => {
-  offset.value = (items.value?.length || 0) + limit.value
+  offset.value = (items.value?.size || 0) + offset.value
   const results = await getData()
-  items.value = [...(items.value || []), ...(results || [])]
+  results.forEach((r: any) => {
+    items.value.set(r.id, r)
+  })
 }
 
 const init = async () => {
-  items.value = await getData()
-  limit.value = 5
+  const results = await getData()
+  items.value = new Map(results.map((r: any) => [r.id, r]))
+  limit.value = 10
 }
 
 init()
@@ -92,6 +102,15 @@ onMounted(() => {
 
   observer = new IntersectionObserver(handleIntersectionObserver, options)
 })
+
+watch(
+  () => props.filter,
+  () => {
+    offset.value = 0
+    limit.value = 20
+    init()
+  }
+)
 
 watch(
   () => items.value,

@@ -1,5 +1,8 @@
 """
 Orchestration logic that fires on state transitions.
+
+`CoreFlowPolicy` and `CoreTaskPolicy` contain all default orchestration rules that Orion
+enforces on a state transition.
 """
 
 from typing import Optional
@@ -38,12 +41,12 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            CacheRetrieval,
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
-            CacheRetrieval,
         ]
 
 
@@ -155,7 +158,7 @@ class RenameReruns(BaseOrchestrationRule):
     """
     Name the states if they have run more than once.
 
-    In the special case where the initial state is an "Awaiting Retry" scheduled state,
+    In the special case where the initial state is an "AwaitingRetry" scheduled state,
     the proposed state will be renamed to "Retrying" instead.
     """
 
@@ -170,7 +173,7 @@ class RenameReruns(BaseOrchestrationRule):
     ) -> None:
         run_count = context.run.run_count
         if run_count > 0:
-            if initial_state.name == "Awaiting Retry":
+            if initial_state.name == "AwaitingRetry":
                 await self.rename_state("Retrying")
             else:
                 await self.rename_state("Rerunning")

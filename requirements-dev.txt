@@ -3,9 +3,10 @@ ipython
 mkdocs
 mkdocs-material
 mkdocstrings
-mypy @ git+git://github.com/python/mypy.git
+mypy 
 pytest
 pytest-asyncio
+pytkdocs 
 flake8
 pytest-env
 requests

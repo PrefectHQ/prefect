@@ -1,4 +1,4 @@
-# First Steps
+# First steps
 
 Before we stand up our own Orion webserver, database, and UI let's explore the building blocks of a Prefect workflow via an interactive Python session.  All code below is copy / pastable into your favorite async-compatible Python REPL.
 
@@ -19,6 +19,7 @@ Any function will work, including those that accept arguments:
 
 ```python
 import requests
+from prefect import flow
 
 @flow
 def send_post(url):
@@ -31,6 +32,7 @@ The positional and keyword arguments defined on your flow function are called _p
     Even asynchronous functions work with Prefect!  We can alter the above example to be fully asynchronous using the `httpx` library:
     ```python
     import httpx
+    from prefect import flow
 
     @flow
     async def send_post(url):
@@ -48,13 +50,13 @@ Running a Prefect workflow manually is as easy as calling the annotated function
 >>> state = my_favorite_function()
 This function doesn't do much
 >>> print(state)
-State(name='Completed', type=StateType.COMPLETED)
+Completed(message=None, type=COMPLETED)
 ```
 </div>
 
 !!! note "Flows return states"
-    You may notice that this call did not return the number 42 but rather a [Prefect State object][prefect.orion.schemas.states.State].
-    States are the basic currency of communication between Prefect Clients and the Prefect API, and can be used to define the conditions 
+    You may notice that this call did not return the number 42 but rather a [Prefect `State` object][prefect.orion.schemas.states.State].
+    States are the basic currency of communication between Prefect clients and the Prefect API, and can be used to define the conditions 
     for orchestration rules as well as an interface for client-side logic.  Data can be accessed via the `.result()` method on the `State` object.
 
 
@@ -65,7 +67,7 @@ We can see what happens whenever our flow does not complete successfully by runn
 ```
 >>> state = send_post("foo")
 >>> print(state)
-State(name='Failed', type=StateType.FAILED, message='Flow run encountered an exception.')
+Failed(message='Flow run encountered an exception.', type=FAILED)
 ```
 </div>
 
@@ -82,7 +84,6 @@ from prefect import task, flow
 
 import requests
 
-
 @task
 def extract_url_content(url, params=None):
     return requests.get(url, params=params).content
@@ -92,7 +93,7 @@ def extract_url_content(url, params=None):
 def is_trending(trending_page, repo="prefect"):
     is_trending = repo.encode() in trending_page
     is_phrase = 'not ' if not is_trending else ' '
-    print(f"{repo} is {is_phrase}trending.")
+    print(f"{repo} is {is_phrase}trending.", "\n")
     return is_trending
 
 
@@ -108,6 +109,43 @@ call our flow function just as before and see the printed output - Prefect will 
 
 !!! note "Combining task code with arbitrary Python code"
     Notice in the above example that *all* of our Python logic is encapsulated within task functions. While there are many benefits to using Prefect in this way, it is not a strict requirement.  Interacting with the results of your Prefect tasks requires an understanding of [Prefect futures](/api-ref/prefect/futures/) which will be covered in a [later section](/tutorials/futures-and-parallelism/).
+
+## Run a flow within a flow
+
+Not only can you call _task_ functions within a flow, but you can also call other flow functions! Flows run within other flows are called **subflows** and allow you to efficiently manage, track and version common multi-task logic.  Consider the following simple example:
+
+```python
+from prefect import flow
+
+@flow
+def common_flow(config: dict):
+    print("I am a subgraph that shows up in lots of places!")
+    intermediate_result = 42
+    return intermediate_result
+
+@flow
+def main_flow():
+    # do some things
+    # then call another flow function
+    data = common_flow(config={})
+    # do more things
+
+# run the flow
+flow_state = main_flow()
+```
+
+Whenever we run the main flow as above, a new run will be generated for `common_flow` as well.  Not only is this run tracked as a subflow run of `main_flow`, but it is also independently inspectable in the UI!  You can confirm this for yourself by spinning up the UI using the `prefect orion start` CLI command from your terminal:
+
+<div class="termy">
+```
+$ prefect orion start
+```
+</div>
+and navigating to the displayed UI URL; you should see all of the runs that we have run throughout this tutorial, including one for `common_flow`:
+
+<figure markdown=1>
+![](/img/tutorials/first-steps-ui.png){: max-width=600px}
+</figure>
 
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:

@@ -1,3 +1,6 @@
+"""
+Utilities for complex operations on Python collections
+"""
 import itertools
 from collections import OrderedDict, defaultdict
 from collections.abc import Iterator as IteratorABC
@@ -164,6 +167,15 @@ class Quote(Generic[T]):
 
 
 def quote(expr: T) -> Quote[T]:
+    """
+    Create a `Quote` object
+
+    Examples:
+        >>> from prefect.utilities.collections import quote
+        >>> x = quote(1)
+        >>> x.unquote()
+        1
+    """
     return Quote(expr)
 
 

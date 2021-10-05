@@ -1,3 +1,7 @@
+"""
+Routes for interacting with saved search objects.
+"""
+
 from typing import List
 from uuid import UUID
 

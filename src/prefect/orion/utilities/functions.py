@@ -1,3 +1,7 @@
+"""
+Utilities for working with Python functions.
+"""
+
 import inspect
 from typing import Any, Callable, Dict, List
 
@@ -6,7 +10,7 @@ from typing_extensions import Literal
 
 
 class ParameterSchema(pydantic.BaseModel):
-    """Simple data model corresponding to an OpenAPI `Schema`"""
+    """Simple data model corresponding to an OpenAPI `Schema`."""
 
     title: Literal["Parameters"] = "Parameters"
     type: Literal["object"] = "object"

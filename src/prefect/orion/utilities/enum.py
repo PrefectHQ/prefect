@@ -1,19 +1,22 @@
 from enum import Enum, auto
 
 
-class AutoEnum(Enum):
+class AutoEnum(str, Enum):
     """An enum class that automatically generates values
     from variable names. This guards against common errors
     where variable names are updated but values are not.
 
+    In addition, because AutoEnums inherit from `str`, they
+    are automatically JSON-serializable.
+
     See https://docs.python.org/3/library/enum.html#using-automatic-values
 
     Example:
-            >>> from enum import auto
-            >>> class MyEnum(AutoEnum):
-            ...     red = AutoEnum.auto() # equivalent to red = 'red'
-            ...     blue = AutoEnum.auto() # equivalent to blue = 'blue'
-            ...
+        ```python
+        class MyEnum(AutoEnum):
+            RED = AutoEnum.auto() # equivalent to RED = 'RED'
+            BLUE = AutoEnum.auto() # equivalent to BLUE = 'BLUE'
+        ```
     """
 
     def _generate_next_value_(name, start, count, last_values):

@@ -5,6 +5,7 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [vue()],
+  base: process.env["ORION_UI_SERVE_BASE"] || "",
   resolve: {
     alias: [{ find: '@', replacement: resolve(__dirname, './src') }]
   },
@@ -12,7 +13,7 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         additionalData: `
-        @use '@prefect/miter-design/src/styles/abstracts/variables' as *;
+        @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
         `
       }
     }

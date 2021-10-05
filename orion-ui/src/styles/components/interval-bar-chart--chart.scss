@@ -1,0 +1,46 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
+.chart-container {
+  height: 100%;
+  position: relative;
+  width: 100%;
+
+  > svg {
+    height: 100%;
+    width: 100%;
+  }
+
+  .median {
+    height: 1px;
+    background-color: $blue-20;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    transition: top 150ms;
+    width: 100%;
+  }
+
+  .bucket-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+
+    .interval-bucket {
+      $r: 999px;
+      background-color: $grey-40;
+      border-radius: $r;
+      position: absolute;
+      transition: all 150ms;
+      transform-origin: bottom;
+      z-index: 1;
+
+      &:hover,
+      &:focus {
+        background-color: $primary;
+      }
+    }
+  }
+}
