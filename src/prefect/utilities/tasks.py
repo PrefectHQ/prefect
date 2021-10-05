@@ -29,7 +29,8 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
     """
     Map a function that adds tasks to a flow elementwise across one or more
     tasks.  Arguments that should _not_ be mapped over should be wrapped with
-    `prefect.unmapped`.
+    `prefect.unmapped`. Nested arguments that should be unnested before mapping
+    over should be wrapped with `prefect.flatten`
 
     This can be useful when wanting to create complicated mapped pipelines
     (e.g. ones using control flow components like `case`).
@@ -107,10 +108,11 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
             a2 = as_task(a, flow=flow2)
             is_mapped = not isinstance(a, prefect.utilities.edges.unmapped)
             is_constant = isinstance(a2, Constant)
+            is_flattened = isinstance(a, prefect.utilities.edges.flatten)
             if not is_constant:
                 flow2.add_task(a2)  # type: ignore
 
-        arg_info[a2] = (is_mapped, is_constant)
+        arg_info[a2] = (is_mapped, is_constant, is_flattened)
         if not is_constant:
             flow.add_task(a2)  # type: ignore
         if is_mapped and is_constant:
@@ -141,6 +143,7 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
             downstream_task=edge.downstream_task,
             key=edge.key,
             mapped=arg_info.get(edge.upstream_task, (True,))[0],
+            flattened=arg_info.get(edge.upstream_task, (0, 0, False))[2],
         )
 
     # Copy over all constants, updating any constants that should be mapped
@@ -149,9 +152,14 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
         for key, c in constants.items():
             if id(c) in id_to_const:
                 c_task = id_to_const[id(c)]
+                is_flattened = arg_info.get(c_task, (0, 0, False))[2]
                 flow.add_task(c_task)
                 flow.add_edge(
-                    upstream_task=c_task, downstream_task=task, key=key, mapped=True
+                    upstream_task=c_task,
+                    downstream_task=task,
+                    key=key,
+                    mapped=True,
+                    flattened=is_flattened,
                 )
             else:
                 flow.constants[task][key] = c
@@ -182,12 +190,15 @@ def apply_map(func: Callable, *args: Any, flow: "Flow" = None, **kwargs: Any) ->
         upstream_tasks = flow.upstream_tasks(task)
         is_root_in_subgraph = not upstream_tasks.intersection(new_tasks)
         if is_root_in_subgraph:
-            for arg_task, (is_mapped, is_constant) in arg_info.items():
+            for arg_task, (is_mapped, is_constant, is_flattened) in arg_info.items():
                 # Add all args except unmapped constants as direct
                 # upstream tasks if they're not already upstream tasks
                 if arg_task not in upstream_tasks and (is_mapped or not is_constant):
                     flow.add_edge(
-                        upstream_task=arg_task, downstream_task=task, mapped=is_mapped
+                        upstream_task=arg_task,
+                        downstream_task=task,
+                        mapped=is_mapped,
+                        flattened=is_flattened,
                     )
 
     return res

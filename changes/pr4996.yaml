@@ -1,0 +1,5 @@
+enhancement:
+  - 'Add flatten support to apply_map [#4996](https://github.com/PrefectHQ/prefect/pull/4996)'
+
+contributor:
+  - '[Emre Akgün](https://github.com/Fraznist)'
