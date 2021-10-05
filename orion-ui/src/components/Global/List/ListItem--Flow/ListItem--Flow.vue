@@ -46,9 +46,9 @@
     <div v-breakpoints="'md'" class="chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
-        :interval-start="store.getters.globalFilter.start"
-        :interval-end="store.getters.globalFilter.end"
-        :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        :interval-start="store.getters.start"
+        :interval-end="store.getters.end"
+        :interval-seconds="store.getters.baseInterval * 2"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
       />
@@ -77,9 +77,9 @@ const flows: FlowsFilter = {
 
 const flowRunHistoryFilter = computed(() => {
   return {
-    history_start: store.getters.globalFilter.start.toISOString(),
-    history_end: store.getters.globalFilter.end.toISOString(),
-    history_interval_seconds: store.getters.globalFilter.intervalSeconds * 4,
+    history_start: store.getters.start.toISOString(),
+    history_end: store.getters.end.toISOString(),
+    history_interval_seconds: store.getters.baseInterval * 2,
     flows: flows.flows
   }
 })
@@ -91,11 +91,11 @@ const queries: { [key: string]: Query } = {
   }),
   flow_run_count: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: flows.value
+    body: flows
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: flows.value
+    body: flows
   })
 }
 

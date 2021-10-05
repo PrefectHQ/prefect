@@ -1,11 +1,11 @@
 <template>
   <list class="results-list">
     <component
-      v-for="item in items"
-      :key="item.id"
+      v-for="[key, item] in items"
+      :key="key"
       :item="item"
       :is="props.component"
-      :ref="(el) => createItemRef(item.id, el)"
+      :ref="(el) => createItemRef(key, el)"
     />
 
     <Observer @intersection="fetchMore" />
@@ -34,7 +34,7 @@ const props = defineProps<{
 const limit = ref(20)
 const offset = ref(0)
 const loading = ref(false)
-const items = ref<any[]>([])
+const items = ref<Map<string, any>>(new Map())
 
 const itemRefs = shallowRef<{ [key: string]: Element }>({})
 
@@ -60,13 +60,16 @@ const getData = async () => {
 }
 
 const fetchMore = async () => {
-  offset.value = (items.value?.length || 0) + limit.value
+  offset.value = (items.value?.size || 0) + offset.value
   const results = await getData()
-  items.value = [...(items.value || []), ...(results || [])]
+  results.forEach((r: any) => {
+    items.value.set(r.id, r)
+  })
 }
 
 const init = async () => {
-  items.value = await getData()
+  const results = await getData()
+  items.value = new Map(results.map((r: any) => [r.id, r]))
   limit.value = 10
 }
 
@@ -99,6 +102,15 @@ onMounted(() => {
 
   observer = new IntersectionObserver(handleIntersectionObserver, options)
 })
+
+watch(
+  () => props.filter,
+  () => {
+    offset.value = 0
+    limit.value = 20
+    init()
+  }
+)
 
 watch(
   () => items.value,

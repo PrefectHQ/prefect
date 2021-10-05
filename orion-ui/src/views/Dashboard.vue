@@ -19,18 +19,6 @@
       </button-card>
     </row>
 
-    <!-- These can be used to paginate the chart -->
-    <IconButton
-      v-if="false"
-      icon="pi-arrow-left-line"
-      @click="previous30Minutes"
-    />
-    <IconButton
-      v-if="false"
-      icon="pi-arrow-right-line"
-      @click="next30Minutes"
-    />
-
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
@@ -55,7 +43,10 @@
 
     <Tabs v-model="resultsTab" class="mt-5">
       <Tab href="flows" class="subheader">
-        <i class="pi pi-flow mr-1 text--grey-40" />
+        <i
+          class="pi pi-flow mr-1"
+          :class="resultsTab == 'flows' ? 'text--primary' : 'text--grey-40'"
+        />
         Flows
         <span
           class="result-badge caption ml-1"
@@ -65,7 +56,12 @@
         </span>
       </Tab>
       <Tab href="deployments" class="subheader">
-        <i class="pi pi-map-pin-line mr-1 text--grey-40" />
+        <i
+          class="pi pi-map-pin-line mr-1"
+          :class="
+            resultsTab == 'deployments' ? 'text--primary' : 'text--grey-40'
+          "
+        />
         Deployments
         <span
           class="result-badge caption ml-1"
@@ -75,7 +71,10 @@
         </span>
       </Tab>
       <Tab href="flow_runs" class="subheader">
-        <i class="pi pi-flow-run mr-1 text--grey-40" />
+        <i
+          class="pi pi-flow-run mr-1"
+          :class="resultsTab == 'flow_runs' ? 'text--primary' : 'text--grey-40'"
+        />
         Flow Runs
         <span
           class="result-badge caption ml-1"
@@ -85,7 +84,10 @@
         </span>
       </Tab>
       <Tab href="task_runs" class="subheader">
-        <i class="pi pi-task mr-1 text--grey-40" />
+        <i
+          class="pi pi-task mr-1"
+          :class="resultsTab == 'task_runs' ? 'text--primary' : 'text--grey-40'"
+        />
         Task Runs
         <span
           class="result-badge caption ml-1"
@@ -122,7 +124,7 @@
         <results-list
           v-else-if="resultsTab == 'flows'"
           key="flows"
-          :filter="flowFilter"
+          :filter="filter"
           component="flow-list-item"
           endpoint="flows"
         />
@@ -130,7 +132,7 @@
         <results-list
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
-          :filter="deploymentFilter"
+          :filter="filter"
           component="deployment-list-item"
           endpoint="deployments"
         />
@@ -138,7 +140,7 @@
         <results-list
           v-else-if="resultsTab == 'flow_runs'"
           key="flow_runs"
-          :filter="flowRunFilter"
+          :filter="filter"
           component="flow-run-list-item"
           endpoint="flow_runs"
         />
@@ -146,7 +148,7 @@
         <results-list
           v-else-if="resultsTab == 'task_runs'"
           key="task_runs"
-          :filter="taskRunFilter"
+          :filter="filter"
           component="task-run-list-item"
           endpoint="task_runs"
         />
@@ -157,7 +159,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, Ref, onBeforeMount, ComputedRef } from 'vue'
+import { computed, ref, Ref, onBeforeMount, ComputedRef, watch } from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
 import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
 import {
@@ -173,31 +175,25 @@ import {
 } from '@/plugins/api'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
+import router from '@/router'
 
 const store = useStore()
 const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
-const flowFilter = computed<FlowsFilter>(() => {
-  return {}
-})
-const flowRunFilter = computed<FlowRunsFilter>(() => {
-  return {}
-})
-const taskRunFilter = computed<TaskRunsFilter>(() => {
-  return {}
-})
-const deploymentFilter = computed<DeploymentsFilter>(() => {
-  return {}
+const filter = computed<
+  FlowsFilter | FlowRunsFilter | TaskRunsFilter | DeploymentsFilter
+>(() => {
+  return { ...store.getters.composedFilter }
 })
 
 const start = computed<Date>(() => {
-  return store.getters.globalFilter.start
+  return store.getters.start
 })
 
 const end = computed<Date>(() => {
-  return store.getters.globalFilter.end
+  return store.getters.end
 })
 
 const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
@@ -211,67 +207,69 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
 
-    return {
-      flow_runs: {
-        expected_start_time: start_time,
-        state: {
-          name: {
-            any_: [state_name]
-          }
-        }
+    const composedFilter = store.getters.composedFilter
+    composedFilter.flow_runs.state = {
+      name: {
+        any_: [state_name]
       }
+    }
+
+    return {
+      ...composedFilter
     }
   })
 }
 
+const basePollInterval = 30000
+
 const queries: { [key: string]: Query } = {
   deployments: Api.query({
     endpoint: Endpoints.deployments_count,
-    body: deploymentFilter.value,
+    body: filter,
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   flows: Api.query({
     endpoint: Endpoints.flows_count,
-    body: flowFilter.value,
+    body: filter,
     options: {
-      pollInterval: 10000
-    }
-  }),
-  flow_runs: Api.query({
-    endpoint: Endpoints.flow_runs_count,
-    body: flowRunFilter.value,
-    options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: taskRunFilter.value,
+    body: filter,
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
+    }
+  }),
+  flow_runs: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: filter,
+    options: {
+      pollInterval: basePollInterval
     }
   }),
   filter_counts_failed: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Failed').value,
+    body: countsFilter('Failed'),
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   filter_counts_late: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Late').value,
+    body: countsFilter('Late'),
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   filter_counts_scheduled: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Scheduled').value,
+    body: countsFilter('Scheduled'),
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   })
 }
@@ -315,55 +313,34 @@ const taskRunsCount = computed<number>(() => {
 })
 
 const interval = computed<number>(() => {
-  return store.getters.globalFilter.intervalSeconds
-})
-
-const loading = computed<boolean>(() => {
-  return (
-    queries.flows.loading.value ||
-    queries.deployments.loading.value ||
-    queries.flow_runs.loading.value ||
-    queries.task_runs.loading.value
-  )
+  return store.getters.baseInterval
 })
 
 const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
-    history_interval_seconds: interval.value
+    history_interval_seconds: interval.value,
+    ...store.getters.composedFilter
   }
 })
 
 const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
-    history_interval_seconds: interval.value * 2
+    history_interval_seconds: interval.value * 2,
+    ...store.getters.composedFilter
   }
 })
 
 const resultsCount = computed<number>(() => {
   if (!resultsTab.value) return 0
-  return queries[resultsTab.value].response || 0
+  return queries[resultsTab.value].response.value || 0
 })
 
-const previous30Minutes = (): void => {
-  const start_ = new Date(start.value || new Date())
-  const end_ = new Date(end.value || new Date())
-  start_.setMinutes(start_.getMinutes() - 30)
-  end_.setMinutes(end_.getMinutes() - 30)
-  store.commit('start', start_)
-  store.commit('end', end_)
-}
-
-const next30Minutes = (): void => {
-  const start_ = new Date(start.value || new Date())
-  const end_ = new Date(end.value || new Date())
-  start_.setMinutes(start_.getMinutes() + 30)
-  end_.setMinutes(end_.getMinutes() + 30)
-  store.commit('start', start_)
-  store.commit('end', end_)
-}
+watch([resultsTab], () => {
+  router.push({ hash: `#${resultsTab.value}` })
+})
 
 onBeforeMount(() => {
   resultsTab.value = route.hash?.substr(1) || 'flows'

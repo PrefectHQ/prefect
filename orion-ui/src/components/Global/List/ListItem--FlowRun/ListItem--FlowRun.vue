@@ -123,7 +123,7 @@ const flow_filter_body: FlowsFilter = {
 
 const taskRunHistoryFilter = computed(() => {
   const interval = Math.floor(
-    Math.max(1, (end.value.getTime() - start.value.getTime()) / 1000 / 20)
+    Math.max(1, (end.value.getTime() - start.value.getTime()) / 1000 / 5)
   )
   return {
     history_start: start.value.toISOString(),
@@ -140,11 +140,11 @@ const queries: { [key: string]: Query } = {
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: flow_runs_filter_body.value
+    body: flow_runs_filter_body
   }),
   flow: Api.query({
     endpoint: Endpoints.flows,
-    body: flow_filter_body.value
+    body: flow_filter_body
   })
 }
 

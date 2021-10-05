@@ -5,9 +5,11 @@
       <aside v-if="modelValue" class="drawer pa-2 d-flex flex-column">
         <h2>
           <div class="d-flex justify-start align-center">
-            <Button class="mr-1" :icon="true" @click="close">
-              <i class="pi pi-2x pi-arrow-left-s-line text--grey-40" />
-            </Button>
+            <IconButton
+              class="mr-1"
+              :icon="'pi-arrow-left-s-line'"
+              @click="close"
+            />
 
             <slot v-if="$slots.title" name="title">Title</slot>
           </div>
