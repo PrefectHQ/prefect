@@ -1,22 +1,23 @@
 <template>
   <div ref="container" class="filter-tag-group d-flex">
     <template v-if="overflow">
-      <div class="filter-tag mr-1 font--secondary caption" tabindex="0">
-        <div class="px-1 py--half d-flex align-center text-capitalize">
-          <i class="pi pi-filter-3-line pi-xs mr--half" />
-          {{ tags.length }} filters
-        </div>
-      </div>
+      <Tag>
+        <i class="pi pi-filter-3-line pi-xs mr--half" />
+        {{ tags.length }} filters
+      </Tag>
     </template>
     <template v-else>
-      <FilterTag
+      <Tag
         v-for="(tag, i) in props.tags"
         :key="i"
-        :item="tag"
         class="mr--half"
+        clearable
         @click="emit('click-tag', tag)"
         @remove="emit('remove', tag)"
-      />
+      >
+        <i class="pi pi-xs mr--half" :class="tag.icon" />
+        {{ tag.label }}
+      </Tag>
     </template>
   </div>
 </template>
@@ -31,7 +32,7 @@ import {
   onBeforeUnmount
 } from 'vue'
 import { FilterObject } from './util'
-import FilterTag from './FilterTag.vue'
+import Tag from './Tag.vue'
 
 const emit = defineEmits(['remove', 'click-tag'])
 const maxWidth = ref(0)
@@ -64,5 +65,5 @@ console.log(this)
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/global-filter--filter-tag.scss';
+// @use '@/styles/components/global-filter--tag.scss';
 </style>

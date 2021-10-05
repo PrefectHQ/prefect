@@ -6,7 +6,7 @@
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
       <FilterSearch @focused="openSearchMenu">
-        <FilterTagGroup
+        <TagGroup
           :tags="filters"
           @click="openFilterMenu"
           @remove="removeFilter"
@@ -19,6 +19,7 @@
             font--secondary
             caption
             nowrap
+            ml-1
           "
         >
           Clear all
@@ -81,11 +82,10 @@ import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useStore } from 'vuex'
 import FilterMenu from './FilterMenu.vue'
-import FilterTag from './FilterTag.vue'
 import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
-import FilterTagGroup from './FilterTagGroup.vue'
+import TagGroup from './TagGroup.vue'
 
 const store = useStore()
 const route = useRoute()

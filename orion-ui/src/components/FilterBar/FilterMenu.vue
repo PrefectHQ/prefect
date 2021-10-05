@@ -32,16 +32,28 @@
     <div class="menu-content pa-2">
       <!-- <div class="d-flex align-center flex-grow-1 justify-start"> -->
       <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
-        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
+        <div class="accordion-body">
+          <TagsForm v-model="filters.flows.tags" class="px-2 py-1" />
+        </div>
       </FilterAccordion>
       <FilterAccordion class="mb-1" title="Deployments" icon="pi-filter-3-line">
-        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
+        <div class="accordion-body">
+          <TagsForm v-model="filters.deployments.tags" />
+        </div>
       </FilterAccordion>
       <FilterAccordion class="mb-1" title="Flow Runs" icon="pi-filter-3-line">
-        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
+        <div class="accordion-body">
+          <StatesForm v-model="filters.flow_runs.states" class="px-2 py-1" />
+          <TagsForm v-model="filters.flow_runs.tags" class="px-2 py-1" />
+          <!-- <TimeForm v-model="filters.flow_runs.timeframe" class="px-2 py-1" /> -->
+        </div>
       </FilterAccordion>
       <FilterAccordion class="mb-1" title="Task Runs" icon="pi-filter-3-line">
-        <div v-for="n in 5" :key="n"> TEST TEST TEST </div>
+        <div class="accordion-body">
+          <StatesForm v-model="filters.task_runs.states" class="px-2 py-1" />
+          <TagsForm v-model="filters.task_runs.tags" />
+          <!-- <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" /> -->
+        </div>
       </FilterAccordion>
       <!-- <Button
           v-for="(menu, i) in menuButtons"
@@ -109,24 +121,24 @@ import {
   shallowRef,
   computed,
   ComponentPublicInstance,
-  defineEmits
+  defineEmits,
+  watch
 } from 'vue'
 import { useStore } from 'vuex'
-import RunStatesMenu from './RunStatesMenu.vue'
-import TimeframeMenu from './TimeframeMenu.vue'
-import TagsMenu from './TagsMenu.vue'
-import ObjectMenu from './ObjectMenu.vue'
-import FilterTag from './FilterTag.vue'
+// import TimeForm from './Form--DateTime.vue'
+// import ObjectMenu from './ObjectMenu.vue'
+// import FilterTag from './FilterTag.vue'
 import { parseFilters, FilterObject } from './util'
 import { getCurrentInstance } from 'vue'
 import FilterAccordion from './FilterAccordion.vue'
 
+import TagsForm from './Form--Tags.vue'
+import StatesForm from './Form--States.vue'
+import TimeForm from './Form--DateTime.vue'
+
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const store = useStore()
-const selectedObject = ref('flow_runs')
-
-const menuRefs = ref<ComponentPublicInstance[]>([])
 
 const iconMap: { [key: string]: string } = {
   flow_runs: 'pi-flow-run',
@@ -135,91 +147,72 @@ const iconMap: { [key: string]: string } = {
   deployments: 'pi-map-pin-line'
 }
 
-// TODO: This is really hacky so we probably want to refactor sooner rather than later.
-const menus = reactive([
-  {
-    key: 'object',
-    label: computed(() => selectedObject.value.replace('_', ' ')),
-    component: shallowRef(ObjectMenu),
-    icon: computed(() => iconMap[selectedObject.value]),
-    show: false,
-    objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
-  },
-  {
-    key: 'states',
-    label: 'Run States',
-    component: shallowRef(RunStatesMenu),
-    show: false,
-    objects: ['flow_runs', 'task_runs']
-  },
-  {
-    key: 'timeframe',
-    label: 'Timeframe',
-    component: shallowRef(TimeframeMenu),
-    show: false,
-    objects: ['flow_runs', 'task_runs']
-  },
-  {
-    key: 'tags',
-    label: 'Tags',
-    component: shallowRef(TagsMenu),
-    show: false,
-    objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
-  }
-])
+console.log(store.getters.globalFilter)
 
-const removeFilter = (filter: FilterObject): void => {
-  console.log('remove', filter)
-}
-
-const handleTagClick = (tag: FilterObject) => {
-  const menu = menus.findIndex((m) => m.key == tag.filterKey)
-
-  if (menu > -1) {
-    closeAllMenus()
-    menus[menu].show = true
+const gf = store.getters.globalFilter
+const defaultFilters = {
+  flows: {
+    tags: gf.flows.tags || []
+  },
+  deployments: { tags: gf.deployments.tags || [] },
+  flow_runs: {
+    tags: gf.flow_runs.tags || [],
+    states: gf.flow_runs.states || []
+  },
+  task_runs: {
+    tags: gf.task_runs.tags || [],
+    states: gf.task_runs.states || []
   }
 }
 
-const filters = computed<FilterObject[]>(() => {
-  return parseFilters({
-    [selectedObject.value]: store.getters.globalFilter[selectedObject.value]
-  })
+console.log(defaultFilters)
+
+const filters = reactive(defaultFilters)
+
+watch(filters, () => {
+  console.log(filters)
 })
+
+// TODO: This is really hacky so we probably want to refactor sooner rather than later.
+// const menus = reactive([
+//   {
+//     key: 'object',
+//     label: computed(() => selectedObject.value.replace('_', ' ')),
+//     component: shallowRef(ObjectMenu),
+//     icon: computed(() => iconMap[selectedObject.value]),
+//     show: false,
+//     objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
+//   },
+//   {
+//     key: 'states',
+//     label: 'Run States',
+//     component: shallowRef(RunStatesMenu),
+//     show: false,
+//     objects: ['flow_runs', 'task_runs']
+//   },
+//   {
+//     key: 'timeframe',
+//     label: 'Timeframe',
+//     component: shallowRef(TimeframeMenu),
+//     show: false,
+//     objects: ['flow_runs', 'task_runs']
+//   },
+//   {
+//     key: 'tags',
+//     label: 'Tags',
+//     component: shallowRef(TagsMenu),
+//     show: false,
+//     objects: ['flow_runs', 'task_runs', 'flows', 'deployments']
+//   }
+// ])
 
 const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
   return !breakpoints.md
 })
 
-const menuButtons = computed(() => {
-  return menus.filter((m) => m.objects.includes(selectedObject.value))
-})
-
-const elRef = (el: ComponentPublicInstance, i: number) => {
-  if (el) menuRefs.value[i] = el
-}
-
-const subMenuStyle = computed(() => {
-  const index = menus.findIndex((m) => m.show)
-  const bb = menuRefs.value[index].$el
-  return {
-    top: bb.offsetHeight + bb.offsetHeight / 2 + 2 + 'px',
-    left: bb.offsetLeft + 'px'
-  }
-})
-
 const close = () => {
   emit('close')
-}
-
-const closeAllMenus = () => {
-  menus.forEach((m) => (m.show = false))
-}
-
-const toggleMenu = (i: number) => {
-  menus.filter((m, j) => j !== i).forEach((m) => (m.show = false))
-  menus[i].show = !menus[i].show
 }
 </script>
 

@@ -28,10 +28,37 @@
 
   > ::v-deep(div) {
     border-radius: 0 0 3px 3px !important;
+    max-height: inherit;
   }
 
   .menu-container {
     position: relative;
+  }
+}
+
+.accordion-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+
+  > *:not(:first-child) {
+    border-left: 1px solid $secondary-hover;
+    border-top: 0;
+  }
+
+  > * {
+    max-width: 50%;
+    width: 100%;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+
+    > * {
+      max-width: 100%;
+      border-left: 0;
+      border-top: 1px solid $secondary-hover;
+    }
   }
 }
 

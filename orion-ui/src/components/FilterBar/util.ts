@@ -32,7 +32,7 @@ export const parseFilters = (gf: any) => {
           v.forEach((state) => {
             arr.push({
               objectKey: key,
-              label: state.name.toLowerCase(),
+              label: state.name,
               filterKey: k,
               filterValue: v,
               icon: 'pi-focus-3-line',
@@ -76,6 +76,7 @@ export const parseFilters = (gf: any) => {
         }
       } else if (k == 'tags') {
         v.forEach((tag: string) => {
+          console.log(tag)
           arr.push({
             objectKey: key,
             label: tag,
