@@ -72,6 +72,7 @@
                 disabled: loadingIds.includes(search.id),
                 active: selectedSearch?.id == search.id
               }"
+              tabindex="0"
               @click.self="
                 mdAndDown ? selectSearch(search) : selectAndApply(search)
               "
@@ -111,7 +112,8 @@ import {
   defineEmits,
   ref,
   getCurrentInstance,
-  onBeforeMount
+  onBeforeMount,
+  onBeforeUnmount
 } from 'vue'
 import { Api, Endpoints } from '@/plugins/api'
 import { useStore } from 'vuex'
@@ -171,8 +173,32 @@ const applyFilter = () => {
   emit('close')
 }
 
+// TODO: Add keyboard arrow navigation for search results (tab navigation works)
+// const currentItem = ref<number>(0)
+// const selectNextItem = (e: KeyboardEvent) => {
+//   switch (e.key) {
+//     case 'Down': // IE/Edge specific value
+//     case 'ArrowDown':
+//       if (currentItem.value > 0) currentItem.value--
+//       else currentItem.value = searches.value.length - 1
+//       break
+//     case 'Up': // IE/Edge specific value
+//     case 'ArrowUp':
+//       if (currentItem.value < searches.value.length - 1) currentItem.value++
+//       else currentItem.value = 0
+//       break
+//     default:
+//       break
+//   }
+// }
+
 onBeforeMount(() => {
   getSavedSearches()
+  // window.addEventListener('keyup', selectNextItem)
+})
+
+onBeforeUnmount(() => {
+  // window.removeEventListener('keyup', selectNextItem)
 })
 
 const remove = async (id: string) => {
@@ -255,10 +281,12 @@ const mdAndDown = computed(() => {
     color: $primary;
   }
 
+  .hovered,
   &:hover,
   &:focus {
     background-color: $blue-5;
     color: $primary;
+    outline: none;
 
     ::v-deep(i) {
       color: $grey-40 !important;
