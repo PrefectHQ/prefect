@@ -9,4 +9,4 @@
 [build]
   base    = ""
   publish = "site"
-  command = 'pip install -e ".[dev]" && prefect orion build-docs && mkdocs build'
+  command = 'pip install git+https://github.com/mkdocstrings/pytkdocs@4b99cbc7192ab4a1093237a1c79fdf8d70c39b6b && pip install -e ".[dev]" && prefect orion build-docs && mkdocs build'
