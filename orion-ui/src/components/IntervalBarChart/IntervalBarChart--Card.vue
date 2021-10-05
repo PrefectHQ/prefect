@@ -23,14 +23,13 @@ import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
 import { defineProps, computed } from 'vue'
 import { Bucket, StateBucket } from '@/typings/run_history'
 
-const props =
-  defineProps<{
-    endpoint: string
-    filter: FlowRunsHistoryFilter
-    title: string
-    stateBucketKey: keyof StateBucket
-    height: string
-  }>()
+const props = defineProps<{
+  endpoint: string
+  filter: FlowRunsHistoryFilter
+  title: string
+  stateBucketKey: keyof StateBucket
+  height: string
+}>()
 
 const filter = computed(() => {
   return props.filter
@@ -39,7 +38,7 @@ const filter = computed(() => {
 const queries: { [key: string]: Query } = {
   query: Api.query({
     endpoint: Endpoints[props.endpoint],
-    body: filter.value,
+    body: filter,
     options: {
       pollInterval: 5000
     }
