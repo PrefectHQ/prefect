@@ -153,7 +153,7 @@ class PostgresExecuteMany(Task):
         host: str = None,
         port: int = 5432,
         query: str = None,
-        data: tuple = None,
+        data: list = None,
         commit: bool = False,
         password: str = None,
     ):
@@ -167,8 +167,8 @@ class PostgresExecuteMany(Task):
             - port (int, optional): port used to connect to Postgres database, defaults to 5432 if
                 not provided
             - query (str, optional): query to execute against database
-            - data (tuple, optional): values to use in query, must be specified using
-                placeholder in query string
+            - data (List[tuple], optional): list of values to use in query, must be specified using
+                placeholder
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
