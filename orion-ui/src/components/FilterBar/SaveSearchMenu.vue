@@ -84,29 +84,18 @@ const close = () => {
 const save = async () => {
   console.log('saving')
   loading.value = true
-  //   const filters = store.getters.composedFilter
 
-  // Note: this is a bit of a hack since the API is expecting a much more complex filter but we only need one field
-  //   console.log(filters)
-  //   const body: { [key: string]: any } = {}
+  const query = await Api.query({
+    endpoint: Endpoints.save_search,
+    body: {
+      name: name.value,
+      filters: store.getters.globalFilter
+    },
+    options: { paused: true }
+  })
 
-  //   Object.keys(filters).forEach((key) => {
-  //     body[key.slice(0, key.length - 1) + '_filter'] = filters[key]
-  //   })
-
-  //   console.log(body)
-  //   const query = await Api.query({
-  //     endpoint: Endpoints.save_search,
-  //     body: {
-  //       flow_filter_criteria: {
-  //         ...body as keyof SavedSearchesBody
-  //       }
-  //     },
-  //     options: { paused: true }
-  //   })
-
-  //   const res = await query.fetch()
-  //   console.log(res.response.value)
+  const res = await query.fetch()
+  console.log(res.response.value)
 }
 
 const filters = computed<FilterObject[]>(() => {
