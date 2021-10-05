@@ -111,6 +111,21 @@
   top: 100%;
   width: 100%;
   z-index: 1;
+
+  @media (max-width: 1024px) {
+    top: 0;
+    height: 100vh !important;
+    max-height: 100vh;
+    width: inherit !important;
+  }
+
+  @media (max-width: 640px) {
+    left: 0;
+    top: -62px;
+    height: 100vh !important;
+    max-height: 100vh;
+    width: inherit !important;
+  }
 }
 
 .overlay {

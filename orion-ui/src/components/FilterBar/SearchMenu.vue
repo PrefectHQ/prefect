@@ -1,21 +1,10 @@
 <template>
   <Card class="menu font--primary" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
-      <div class="pa-2 d-flex justify-space-between align-center">
-        <a
-          class="
-            text--primary text-decoration-none
-            font--secondary
-            caption
-            nowrap
-          "
-        >
-          Clear all
-        </a>
-
-        <h3 class="d-flex align-center font--secondary">
-          <i class="pi pi-filter-3-line mr-1" />
-          Save filters
+      <div class="pa-2 d-flex justify-center align-center">
+        <h3 class="d-flex align-center font--secondary ml-auto">
+          <i class="pi pi-search-line mr-1" />
+          Search
         </h3>
 
         <IconButton
@@ -23,6 +12,7 @@
           height="34px"
           width="34px"
           flat
+          class="ml-auto"
           style="border-radius: 50%"
           @click="close"
         />
@@ -33,17 +23,8 @@
       This is where a search menu goes
     </div>
 
-    <template v-slot:actions>
+    <template v-if="smAndDown" v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
-        <Button
-          v-if="!smAndDown"
-          flat
-          height="35px"
-          class="ml-auto mr-1"
-          @click="close"
-        >
-          Cancel
-        </Button>
         <Button
           color="primary"
           height="35px"
@@ -85,7 +66,6 @@ const smAndDown = computed(() => {
   .menu-content {
     border-top: 1px solid $secondary-hover;
     border-radius: 0 !important;
-    background-color: $grey-10;
     overscroll-behavior: contain;
     height: 100%;
     overflow: auto;
