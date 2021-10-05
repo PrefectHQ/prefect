@@ -3,8 +3,12 @@ from . import _version
 import pathlib as _pathlib
 
 __version__ = _version.get_versions()["version"]
-__root_path__ = _pathlib.Path(__file__).parents[0]
-__ui_static_path__ = __root_path__ / "orion" / "ui"
+# The absolute path to this module
+__module_path__ = _pathlib.Path(__file__).parent
+# The absolute path to the root of the repository
+__root_path__ = __module_path__.parents[1]
+# The absolute path to the built UI within the Python module
+__ui_static_path__ = __module_path__ / "orion" / "ui"
 
 del _version
 del _pathlib
