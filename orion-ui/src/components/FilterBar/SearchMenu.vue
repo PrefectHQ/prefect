@@ -22,7 +22,7 @@
     <div class="menu-content">
       <transition name="fade" mode="out-in">
         <div
-          v-if="loading"
+          v-if="loading && !searches.length"
           class="
             my-6
             d-flex
@@ -60,6 +60,7 @@
               d-flex
               justify-space-between
             "
+            :disabled="loadingIds.includes(search.id)"
             @click.self="applyFilter"
           >
             <div>{{ search.name }}</div>
@@ -67,6 +68,7 @@
             <IconButton
               flat
               icon="pi-delete-bin-line text--grey-20 pi-sm"
+              :disabled="loadingIds.includes(search.id)"
               @click="remove(search.id)"
             />
           </div>
@@ -142,6 +144,7 @@ const remove = async (id: string) => {
     timeout: 10000
   })
 
+  await getSavedSearches()
   loadingIds.value.splice(loadingIds.value.indexOf(id), 1)
 }
 
