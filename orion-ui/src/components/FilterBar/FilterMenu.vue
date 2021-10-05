@@ -148,8 +148,6 @@ const iconMap: { [key: string]: string } = {
   deployments: 'pi-map-pin-line'
 }
 
-console.log(store.getters.globalFilter)
-
 const gf = store.getters.globalFilter
 const defaultFilters = {
   flows: {
@@ -183,6 +181,7 @@ const smAndDown = computed(() => {
 
 const apply = () => {
   store.commit('globalFilter', filters)
+  console.log(store.getters.globalFilter)
 }
 
 const close = () => {

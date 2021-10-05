@@ -10,8 +10,8 @@ export interface State {
 
 const state: State = {
   globalFilter: {
-    flows: {},
-    deployments: {},
+    flows: { ids: [], names: [], tags: [] },
+    deployments: { ids: [], names: [], tags: [] },
     flow_runs: {
       timeframe: {
         dynamic: true,
@@ -33,7 +33,10 @@ const state: State = {
         { name: 'Cancelled', type: 'CANCELLED' }
       ]
     },
-    task_runs: {}
+    task_runs: {
+      states: [],
+      tags: []
+    }
   }
 }
 
