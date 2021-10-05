@@ -27,15 +27,15 @@ import { defineProps, computed } from 'vue'
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()
 
 const filter = computed(() => {
-  return props.filter
+  return { ...props.filter }
 })
 
 const queries: { [key: string]: Query } = {
   flow_run_history: Api.query({
     endpoint: Endpoints.flow_runs_history,
-    body: filter.value,
+    body: filter,
     options: {
-      pollInterval: 5000
+      pollInterval: 30000
     }
   })
 }

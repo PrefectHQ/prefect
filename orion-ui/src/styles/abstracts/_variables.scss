@@ -140,7 +140,6 @@ body {
             $sum: $r + $g + $b;
             $perceived-lightness: math.div($sum, 255);
 
-            @debug $perceived-lightness;
             /* switch font color based on perceived lightness */
             color: if(
               $perceived-lightness > 0.65,

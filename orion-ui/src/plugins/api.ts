@@ -7,6 +7,10 @@ export interface BaseFilter {
   deployments?: DeploymentFilter
 }
 
+export interface LimitOffsetFilter {
+  limit?: number
+  offset?: number
+}
 export interface SortableFilter extends BaseFilter {
   // TODO: We can improve this by using keyof[Object]
   sort?: string
@@ -34,6 +38,11 @@ export interface InterpolationBody {
   id: string
 }
 
+export interface SaveSearchBody {
+  name: string
+  filters: any
+}
+
 export type Filters = {
   flow: InterpolationBody
   flows: FlowsFilter
@@ -50,10 +59,12 @@ export type Filters = {
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
   create_flow_run: CreateFlowRunBody
-  create_flow_run_from_deployment: CreateDeploymentFlowRunBody,
+  create_flow_run_from_deployment: CreateDeploymentFlowRunBody
   set_schedule_inactive: InterpolationBody
   set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
+  save_search: SaveSearchBody
+  saved_searches: LimitOffsetFilter
 }
 
 export type FilterBody = Filters[keyof Filters]
@@ -137,6 +148,19 @@ export const Endpoints: { [key: string]: Endpoint } = {
   task_runs_history: {
     method: 'POST',
     url: '/task_runs/history'
+  },
+  save_search: {
+    method: 'PUT',
+    url: '/saved_searches'
+  },
+  delete_search: {
+    method: 'DELETE',
+    url: '/saved_searches/{id}',
+    interpolate: true
+  },
+  saved_searches: {
+    method: 'POST',
+    url: '/saved_searches/filter'
   },
   settings: {
     method: 'GET',
@@ -230,7 +254,7 @@ export class Query {
     return this._body()
   }
 
-  set body(val: FilterBody | (() => FilterBody) | ComputedRef | null) {
+  set body(val: FilterBody | (() => FilterBody) | ComputedRef | any | null) {
     this._body = () => {
       this.unwatch()
 
@@ -238,7 +262,8 @@ export class Query {
       if (!val) _val = {}
 
       const cName = val?.constructor.name
-      if (cName == 'ComputedRefImpl') {
+      const isRef = val?.__v_isRef
+      if (isRef) {
         _val = (val as ComputedRef).value
 
         this.watcher = watch(
@@ -266,10 +291,10 @@ export class Query {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
     let route = this.route
-    let body = JSON.parse(JSON.stringify(this.body)) || {}
+    const body = JSON.parse(JSON.stringify(this.body)) || {}
 
     if (this.endpoint.interpolate) {
-      let keys: Array<String> = []
+      const keys: Array<string> = []
       route = route.replaceAll(this.endpointRegex, (match) => {
         const key = match.replace('{', '').replace('}', '')
         if (key in body) {
@@ -280,7 +305,9 @@ export class Query {
             `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
           )
       })
-      keys.forEach((k, i) => { delete body[k] })
+      keys.forEach((k, i) => {
+        delete body[k]
+      })
     }
 
     const res = await fetch(route, {
@@ -379,7 +406,7 @@ const ApiPlugin: Plugin = {
           Object.values(this.queries)
             .filter((query) => query instanceof Query)
             .forEach((query) => {
-              ; (query as Query).stopPolling()
+              ;(query as Query).stopPolling()
               Api.queries.delete((query as Query).id)
             })
         }

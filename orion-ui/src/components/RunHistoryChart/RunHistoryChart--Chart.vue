@@ -277,9 +277,9 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   updateScales(): void {
-    // console.log('items from bar chart', this.items, this.padding)
     const start = this.intervalStart
     const end = this.intervalEnd
+
     this.xScale
       .domain([start, end])
       .range([this.padding.left, this.width - this.padding.right])
@@ -303,11 +303,9 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
           startMin || startEqual ? min : 0,
           startMin || startEqual ? 0 : max
         ])
-        .rangeRound([0, this.viewHeight - this.paddingY])
+        .range([0, this.viewHeight - this.paddingY])
     } else {
-      this.yScale
-        .domain([min, max])
-        .rangeRound([0, this.viewHeight - this.paddingY])
+      this.yScale.domain([min, max]).range([0, this.viewHeight - this.paddingY])
     }
 
     if (this.showAxis && this.xAxisGroup) {

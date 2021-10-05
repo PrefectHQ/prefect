@@ -1,0 +1,90 @@
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
+
+.menu {
+  border-radius: 0;
+  position: relative;
+
+  .sub-menu {
+    position: absolute;
+  }
+
+  .menu-content {
+    border-top: 1px solid $secondary-hover;
+    border-radius: 0 !important;
+    background-color: $grey-10;
+    overscroll-behavior: contain;
+    height: 100%;
+    overflow: auto;
+
+    @media (max-width: 640px) {
+      width: 100%;
+    }
+  }
+
+  .menu-actions {
+    border-top: 1px solid $secondary-hover;
+  }
+
+  > ::v-deep(div) {
+    border-radius: 0 0 3px 3px !important;
+    max-height: inherit;
+  }
+
+  .menu-container {
+    position: relative;
+  }
+}
+
+.accordion-body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+
+  > *:not(:first-child) {
+    border-left: 1px solid $secondary-hover;
+    border-top: 0;
+  }
+
+  > * {
+    max-width: 50%;
+    width: 100%;
+  }
+
+  @media (max-width: 1024px) {
+    flex-direction: column;
+
+    > * {
+      max-width: 100%;
+      border-left: 0;
+      border-top: 1px solid $secondary-hover;
+    }
+  }
+}
+
+.filter-button {
+  align-items: center;
+  background-color: $white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  height: 100%;
+  min-width: 52px;
+  outline: none;
+
+  &:hover,
+  &:focus {
+    background-color: $grey-10;
+  }
+
+  &:active {
+    background-color: $grey-20;
+  }
+
+  $border-style: 2px solid $grey-10;
+
+  &.objects {
+    border-right: $border-style;
+    border-radius: 4px 0 0 4px;
+  }
+}

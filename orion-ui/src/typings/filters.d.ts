@@ -41,14 +41,14 @@ declare interface DeploymentFilter {
      * A list of ids
      * Example: [ "abc-123", "def-456" ]
      */
-    any_: any_
+    any_?: any_
   }
   name?: {
     /**
      * A list of names
      * Example: [ "my-flow-1", "my-flow-2" ]
      */
-    any_: any_
+    any_?: any_
   }
   tags?: {
     /**
@@ -58,9 +58,9 @@ declare interface DeploymentFilter {
     /**
      * If true, only include flows without tags
      */
-    is_null_: is_null_
+    is_null_?: is_null_
   }
-  is_schedule_active: {
+  is_schedule_active?: {
     eq_: eq_
   }
 }
@@ -71,14 +71,14 @@ declare interface FlowFilter {
      * A list of ids
      * Example: [ "abc-123", "def-456" ]
      */
-    any_: any_
+    any_?: any_
   }
   name?: {
     /**
      * A list of names
      * Example: [ "my-flow-1", "my-flow-2" ]
      */
-    any_: any_
+    any_?: any_
   }
   tags?: {
     /**
@@ -97,6 +97,13 @@ declare interface FlowRunFilter {
     any_?: any_
     not_any_?: not_any_
   }
+  name?: {
+    /**
+     * A list of names
+     * Example: [ "my-flow-1", "my-flow-2" ]
+     */
+    any_?: any_
+  }
   tags?: {
     /**
      * Results will be returned only if their tags are a superset of the list.
@@ -105,7 +112,7 @@ declare interface FlowRunFilter {
     /**
      * If true, only include flow runs without tags
      */
-    is_null_: is_null_
+    is_null_?: is_null_
   }
   deployment_id?: {
     any_?: any_
@@ -113,10 +120,10 @@ declare interface FlowRunFilter {
   }
   state?: {
     type?: {
-      any_: any_
+      any_?: any_
     }
-    name: {
-      any_: any_
+    name?: {
+      any_?: any_
     }
   }
   flow_version?: {
@@ -151,6 +158,13 @@ declare interface TaskRunFilter {
     any_?: any_
     not_any_?: not_any_
   }
+  name?: {
+    /**
+     * A list of names
+     * Example: [ "my-flow-1", "my-flow-2" ]
+     */
+    any_?: any_
+  }
   tags?: {
     /**
      * Results will be returned only if their tags are a superset of the list.
@@ -161,8 +175,13 @@ declare interface TaskRunFilter {
      */
     is_null_?: is_null_
   }
-  state_type?: {
-    any_: any_
+  state?: {
+    type?: {
+      any_: any_
+    }
+    name?: {
+      any_: any_
+    }
   }
   start_time?: {
     before_?: before_
