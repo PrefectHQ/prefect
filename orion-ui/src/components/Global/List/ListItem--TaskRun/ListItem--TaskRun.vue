@@ -65,11 +65,11 @@ const flow_run_filter_body: FlowRunsFilter = {
 const queries: { [key: string]: Query } = {
   flow_run: Api.query({
     endpoint: Endpoints.flow_runs,
-    body: flow_run_filter_body
+    body: flow_run_filter_body.value
   }),
   flow: Api.query({
     endpoint: Endpoints.flows,
-    body: flow_run_filter_body
+    body: flow_run_filter_body.value
   })
 }
 

@@ -225,14 +225,14 @@ const queries: { [key: string]: Query } = {
   }),
   task_runs_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: taskRunsFilter,
+    body: taskRunsFilter.value,
     options: {
       pollInterval: 10000
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs,
-    body: taskRunsFilter,
+    body: taskRunsFilter.value,
     options: {
       pollInterval: 10000
     }
