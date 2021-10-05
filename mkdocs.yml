@@ -1,6 +1,6 @@
 site_name: Prefect Orion
-repo_url: https://github.com/PrefectHQ/orion
-edit_uri: edit/main/docs/
+repo_url: https://github.com/PrefectHQ/prefect
+edit_uri: edit/orion/docs/
 extra_css:
     - stylesheets/theme.css
     - stylesheets/admonitions.css
