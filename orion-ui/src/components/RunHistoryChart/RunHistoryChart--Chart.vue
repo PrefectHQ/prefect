@@ -207,13 +207,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   calculateBucketPosition(item: Bucket): StyleValue {
-    if (!this.xScale(new Date(item.interval_start))) {
-      console.log(
-        item,
-        new Date(item.interval_start),
-        this.xScale(new Date(item.interval_start))
-      )
-    }
     return {
       left: this.xScale(new Date(item.interval_start)) + 'px'
     }
@@ -284,10 +277,9 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   }
 
   updateScales(): void {
-    // console.log('items from bar chart', this.items, this.padding)
     const start = this.intervalStart
     const end = this.intervalEnd
-    console.log(start, end)
+
     this.xScale
       .domain([start, end])
       .range([this.padding.left, this.width - this.padding.right])
