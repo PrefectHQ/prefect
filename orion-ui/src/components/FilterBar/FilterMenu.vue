@@ -38,7 +38,7 @@
       </FilterAccordion>
       <FilterAccordion class="mb-1" title="Deployments" icon="pi-filter-3-line">
         <div class="accordion-body">
-          <TagsForm v-model="filters.deployments.tags" />
+          <TagsForm v-model="filters.deployments.tags" class="px-2 py-1" />
         </div>
       </FilterAccordion>
       <FilterAccordion class="mb-1" title="Flow Runs" icon="pi-filter-3-line">
@@ -51,7 +51,7 @@
       <FilterAccordion class="mb-1" title="Task Runs" icon="pi-filter-3-line">
         <div class="accordion-body">
           <StatesForm v-model="filters.task_runs.states" class="px-2 py-1" />
-          <TagsForm v-model="filters.task_runs.tags" />
+          <TagsForm v-model="filters.task_runs.tags" class="px-2 py-1" />
           <!-- <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" /> -->
         </div>
       </FilterAccordion>
@@ -95,6 +95,7 @@
           color="primary"
           height="35px"
           :width="smAndDown ? '100%' : 'auto'"
+          @click="apply"
         >
           Apply
         </Button>
@@ -157,11 +158,13 @@ const defaultFilters = {
   deployments: { tags: [...(gf.deployments.tags || [])] },
   flow_runs: {
     tags: [...(gf.flow_runs.tags || [])],
-    states: [...(gf.flow_runs.states || [])]
+    states: [...(gf.flow_runs.states || [])],
+    timeframe: { ...(gf.flow_runs.timeframe || {}) }
   },
   task_runs: {
     tags: [...(gf.task_runs.tags || [])],
-    states: [...(gf.task_runs.states || [])]
+    states: [...(gf.task_runs.states || [])],
+    timeframe: { ...(gf.task_runs.timeframe || {}) }
   }
 }
 
@@ -177,6 +180,10 @@ const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
   return !breakpoints.md
 })
+
+const apply = () => {
+  store.commit('globalFilter', filters)
+}
 
 const close = () => {
   emit('close')
