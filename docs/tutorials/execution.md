@@ -15,7 +15,7 @@ If, however, we want our tasks to run in parallel (or asynchronously) then we ne
 
 ## Parallel Execution
 
-Achieving parallelism within a flow run is as simple as switching your executor to Prefect's `DaskExecutor`:
+Achieving parallelism within a flow run is as simple as switching your executor to Prefect's `DaskExecutor`; however please note that because the `DaskExecutor` uses multiprocessing, it can only be used when running interactively or when protected by an `if __name__ == "__main__":` guard when used in a script.
 
 ```python
 import time
@@ -81,3 +81,8 @@ Asynchronous task execution is currently supported with all executors.
     RuntimeError: Your task is async, but your flow is synchronous. 
     Async tasks may only be called from async flows.
     ```
+
+!!! tip "Additional Reading"
+    To learn more about the concepts presented here, check out the following resources:
+
+    - [Executors](/api-ref/prefect/executors/)
