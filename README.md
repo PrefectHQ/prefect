@@ -1,8 +1,8 @@
-<p align="center"><img src="docs/img/logos/orion_logo.jpg" width=500></p>
+<p align="center"><img src="docs/img/logos/prefect-orion-constellation-banner-light.png" width=750></p>
 
 # Orion
 
-A development repo for Prefect Orion; reference documentation can be found at https://orion-docs.prefect.io/
+The development repo for Prefect Orion; reference documentation can be found at https://orion-docs.prefect.io/
 
 ## Installation
 
