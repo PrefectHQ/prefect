@@ -135,8 +135,8 @@ export const baseFilter =
     if (object == 'flow_runs' || object == 'task_runs') {
       const from = state.globalFilter[object]?.timeframe?.from
       const to = state.globalFilter[object]?.timeframe?.to
-      const fromExists = from && from.value && from.unit
-      const toExists = to && to.value && to.unit
+      const fromExists = from && ((from.value && from.unit) || from.timestamp)
+      const toExists = to && ((to.value && to.unit) || to.timestamp)
 
       if (fromExists || toExists) {
         val[timeKey] = {
@@ -145,7 +145,12 @@ export const baseFilter =
         }
       }
 
-      if (fromExists && from.value) {
+      if (fromExists && from.timestamp) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        val[timeKey]!.after_ = from.timestamp.toISOString()
+      }
+
+      if (fromExists && from.value && !from.timestamp) {
         const date = new Date()
 
         switch (from.unit) {
@@ -166,7 +171,12 @@ export const baseFilter =
         val[timeKey]!.after_ = date.toISOString()
       }
 
-      if (toExists && to.value) {
+      if (toExists && to.timestamp) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        val[timeKey]!.before_ = to.timestamp.toISOString()
+      }
+
+      if (toExists && to.value && !to.timestamp) {
         const date = new Date()
 
         switch (to.unit) {
@@ -215,11 +225,15 @@ export const baseFilter =
 
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
 export const composedFilter = (state: State, getters: any): UnionFilters => {
-  //   (object: GlobalFilterKeys): UnionFilters => {
   const val: FlowsFilter | DeploymentsFilter | FlowRunsFilter | TaskRunsFilter =
     {}
 
-  keys.forEach((k) => (val[k] = getters.baseFilter(k)))
+  keys.forEach((k) => {
+    const filter = getters.baseFilter(k)
+    if (Object.keys(filter).length > 0) {
+      val[k] = filter
+    }
+  })
 
   return { ...val }
 }
