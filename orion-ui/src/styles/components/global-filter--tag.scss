@@ -1,7 +1,7 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 @use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
 
-.filter-tag {
+.tag {
   @include mixins.miter(1, 1);
   background: none;
   border: none;

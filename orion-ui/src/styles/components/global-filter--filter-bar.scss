@@ -56,8 +56,8 @@
   position: absolute !important;
   border-radius: 0 0 4px 4px;
   left: 0;
-  height: 500px;
-  max-height: 100vh;
+  height: auto !important;
+  max-height: 80vh;
   top: 100%;
   width: 100%;
   z-index: 1;
@@ -66,12 +66,14 @@
     left: 0;
     top: 0;
     height: 100vh !important;
+    max-height: 100vh;
   }
 
   @media (max-width: 640px) {
     left: 0;
     top: -62px;
     height: 100vh !important;
+    max-height: 100vh;
   }
 }
 
