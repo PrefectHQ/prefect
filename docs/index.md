@@ -18,6 +18,8 @@ Read the docs, run the code, or host the UI. Join thousands of community members
 !!! info "Don't Panic"
     Prefect Orion is under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
 
+---
+
 ## Hello, Orion!
 
 Prefect is the easiest way to transform any function into a unit of work that can be observed and governed by orchestration rules. 
@@ -112,7 +114,11 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
     asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
     ```
 
-After running any of these flows, fire up the UI to gain insight into their execution.
+After running any of these flows, fire up the UI to gain insight into their execution:
+
+```bash
+prefect orion start
+```
 
 <figure markdown=1>
 ![](./img/tutorials/hello-orion-dashboard.png){: max-width=600px}
