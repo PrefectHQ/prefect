@@ -19,6 +19,8 @@ Achieving parallelism within a flow run is as simple as switching your executor 
 
 ```python
 import time
+
+from prefect import task, flow
 from prefect.executors import DaskExecutor
 
 @task
@@ -47,6 +49,8 @@ Prefect supports asynchronous task and flow definitions.  All of [the standard r
 ```python
 import asyncio
 
+from prefect import task, flow
+
 @task
 async def print_values(values):
     for value in values:
@@ -58,7 +62,7 @@ async def async_flow():
     await print_values([1, 2]) # runs immediately
     coros = [] 
     coros.append(print_values("abcd"))
-    coros.append(print_values("6789"))
+    coros.append(print_values("6789", "\n"))
 
     # asynchronously gather the tasks
     await asyncio.gather(*coros)
