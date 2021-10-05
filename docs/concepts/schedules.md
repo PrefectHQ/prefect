@@ -48,7 +48,3 @@ The `Scheduler` service is started automatically when `prefect orion start` is r
 !!! info "The scheduler does not affect execution"
     The Orion `Scheduler` service only creates new flow runs and places them in `Scheduled` states; it is not at all involved in flow or task execution. Making the scheduler loop faster will not make flows start or run faster.
 
-!!! tip "Additional Reading"
-    To learn more about the concepts presented here, check out the following resources:
-
-    - [Deployments](/api-ref/prefect/deployments/)
