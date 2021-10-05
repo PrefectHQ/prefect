@@ -34,6 +34,34 @@ export interface InterpolationBody {
   id: string
 }
 
+export interface SaveSearchBody {
+  name: string
+  flow_filter_criteria?: {
+    flow_filter?: FlowFilter
+    flow_run_filter?: FlowRunFilter
+    deployment_filter?: TaskRunFilter
+    task_run_filter?: DeploymentFilter
+  }
+  flow_run_filter_criteria?: {
+    flow_filter?: FlowFilter
+    flow_run_filter?: FlowRunFilter
+    deployment_filter?: TaskRunFilter
+    task_run_filter?: DeploymentFilter
+  }
+  deployment_filter_criteria?: {
+    flow_filter?: FlowFilter
+    flow_run_filter?: FlowRunFilter
+    deployment_filter?: TaskRunFilter
+    task_run_filter?: DeploymentFilter
+  }
+  task_run_filter_criteria?: {
+    flow_filter?: FlowFilter
+    flow_run_filter?: FlowRunFilter
+    deployment_filter?: TaskRunFilter
+    task_run_filter?: DeploymentFilter
+  }
+}
+
 export type Filters = {
   flow: InterpolationBody
   flows: FlowsFilter
@@ -53,6 +81,7 @@ export type Filters = {
   set_schedule_inactive: InterpolationBody
   set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
+  save_search: SaveSearchBody
 }
 
 export type FilterBody = Filters[keyof Filters]
@@ -131,6 +160,14 @@ export const Endpoints: { [key: string]: Endpoint } = {
   task_runs_history: {
     method: 'POST',
     url: '/task_runs/history'
+  },
+  save_search: {
+    method: 'PUT',
+    url: '/saved_searches'
+  },
+  saved_searches: {
+    method: 'POST',
+    url: '/saved_searches/filter'
   },
   settings: {
     method: 'GET',
