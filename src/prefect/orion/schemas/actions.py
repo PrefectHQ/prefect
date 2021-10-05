@@ -128,13 +128,7 @@ class DeploymentFlowRunCreate(
 class SavedSearchCreate(
     schemas.core.SavedSearch.subclass(
         name="SavedSearchCreate",
-        include_fields=[
-            "name",
-            "flow_filter_criteria",
-            "flow_run_filter_criteria",
-            "task_run_filter_criteria",
-            "deployment_filter_criteria",
-        ],
+        include_fields=["name", "filters"],
     )
 ):
     """Data used by the Orion API to create a saved search."""
