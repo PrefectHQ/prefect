@@ -33,10 +33,11 @@ const emit = defineEmits(['update:modelValue'])
 
 const input = ref('')
 
-const tags = reactive(props.modelValue)
+const tags = reactive([...props.modelValue])
 
 const addTag = () => {
   if (!input.value) return
+  if (tags.includes(input.value)) return
   tags.push(input.value)
   input.value = ''
 }
@@ -46,6 +47,7 @@ const removeTag = (i: number) => {
 }
 
 watch(tags, () => {
+  console.log('emitting')
   emit('update:modelValue', tags)
 })
 </script>

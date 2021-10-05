@@ -8,6 +8,7 @@
       <FilterSearch @focused="openSearchMenu">
         <TagGroup
           :tags="filters"
+          :clearable="false && filtersApplied"
           @click="openFilterMenu"
           @remove="removeFilter"
         />
@@ -187,12 +188,6 @@ const overlay = computed(() => {
 })
 
 const filtersApplied = computed(() => {
-  console.log(
-    JSON.stringify(initialGlobalFilterState) !==
-      JSON.stringify(store.getters.globalFilters)
-  )
-  console.log(JSON.stringify(initialGlobalFilterState))
-  console.log(JSON.stringify(store.getters.globalFilter))
   return (
     JSON.stringify(initialGlobalFilterState) !==
     JSON.stringify(store.getters.globalFilter)
