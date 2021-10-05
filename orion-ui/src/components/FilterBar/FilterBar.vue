@@ -150,7 +150,6 @@ const removeFilter = (filter: FilterObject): void => {
 }
 
 const filters = computed<FilterObject[]>(() => {
-  console.log(store.getters.globalFilter)
   return parseFilters(store.getters.globalFilter)
 })
 
