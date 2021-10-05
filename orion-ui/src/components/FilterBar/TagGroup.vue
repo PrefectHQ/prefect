@@ -43,6 +43,7 @@ const overflow = computed(() => {
 })
 
 const handleResize = () => {
+  console.log(container.value)
   maxWidth.value = container.value.parentNode.offsetWidth
 }
 

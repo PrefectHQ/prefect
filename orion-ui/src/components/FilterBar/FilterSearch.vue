@@ -7,15 +7,15 @@
       d-flex
       align-center
       font--primary
-      justify-space-between
+      justify-start
     "
     @click.self="focusSearchInput"
   >
-    <i class="pi pi-search-line mr-1" />
+    <i class="pi pi-search-line mr-1 flex-shrink-1" />
     <input
       v-model="search"
       ref="searchInput"
-      class="flex-grow-1"
+      class="flex-shrink-1"
       placeholder="Search..."
       @focus="emitFocused"
       @input="emitInput"
@@ -23,7 +23,14 @@
     />
     <div
       v-breakpoints="'xs'"
-      class="d-flex align-center justify-end flex-grow-1 slot-content"
+      class="
+        ml-auto
+        d-flex
+        align-center
+        justify-end
+        flex-shrink-0 flex-grow-1
+        slot-content
+      "
       @click.self="focusSearchInput"
     >
       <slot />
@@ -89,7 +96,7 @@ onBeforeUnmount(() => {
   }
 
   .slot-content {
-    max-width: 50%;
+    max-width: 90%;
     z-index: 1;
   }
 }
