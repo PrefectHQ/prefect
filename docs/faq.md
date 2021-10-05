@@ -153,4 +153,4 @@ Yes! Prefect Core is our battle-tested, production-ready workflow engine. Its AP
 
 ### Is there an upgrade guide from Prefect Core to Prefect Orion?
 
-As Orion moves closer to release, we will provide upgrade guides and tools to make Orion adoption as easy as possible for Prefect 1.0 users.
+As Orion moves closer to release, we will provide upgrade guides and tools to make Orion adoption as easy as possible for Prefect 1.0 users. Given the similarity of the Orion and Core client APIs, upgrading should require minimal effort on users' behalf.
