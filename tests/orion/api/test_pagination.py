@@ -1,4 +1,4 @@
-from pydantic.types import Json
+from httpx import AsyncClient
 import pytest
 from fastapi import FastAPI, Body
 
@@ -11,8 +11,8 @@ def app():
 
 
 @pytest.fixture
-async def client(app, OrionTestAsyncClient):
-    async with OrionTestAsyncClient(app=app, base_url="http://test/") as async_client:
+async def client(app):
+    async with AsyncClient(app=app, base_url="http://test/") as async_client:
         yield async_client
 
 
