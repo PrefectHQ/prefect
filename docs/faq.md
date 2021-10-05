@@ -34,7 +34,13 @@ Orion is the latest step in a long-term mission to codify the best practices of
 
 ### Can I use Orion in production?
 
-Orion is alpha software and we do not recommend Orion for production use at this time. 
+Orion is alpha software and we do not recommend Orion for production use at this time.
+
+### How is Orion licensed?
+
+The Orion technical preview is licensed under the [Prefect Community License 1.0](https://www.prefect.io/legal/prefect-community-license), a highly permissive open-source license. The Prefect Community License places no restrictions on use except for distributing Prefect Orion as a service outside your organization. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
+
+As Orion matures, most or all of its components will be released under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
 
 ## Features
 
@@ -64,8 +70,7 @@ We will publish a complete roadmap for Orion soon. Here are a few important mile
         - Exponential backoff for `AWAITING_RETRY`
     - Configurable storage locations for flows and persisted data
 - Prefect IDE
-    - Time travel debugging: download states from remote runs to replay them interactively
-
+  - Time travel debugging: download states from remote runs to replay them interactively
 
 One of the reasons we are open-sourcing the technical preview is to begin soliciting priorities from our community. We will integrate these with our internal designs to publish a clear roadmap for the project.
 
