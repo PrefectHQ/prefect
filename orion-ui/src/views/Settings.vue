@@ -11,7 +11,7 @@
       </span>
     </header>
 
-    <section class="mt-1">
+    <section class="mt-4">
       <h3 class="font-weight-semibold">Color theme</h3>
       <StateColorModeSelector />
     </section>
