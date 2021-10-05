@@ -196,4 +196,3 @@ As we can see here, mixing native Python logic with your Prefect tasks is straig
 
     - [Tasks](/concepts/tasks/)
     - [States](/concepts/states/)
-    - [Futures](/concepts/futures/)
