@@ -206,54 +206,56 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
   })
 }
 
+const basePollInterval = 30000
+
 const queries: { [key: string]: Query } = {
   deployments: Api.query({
     endpoint: Endpoints.deployments_count,
     body: filter,
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   flows: Api.query({
     endpoint: Endpoints.flows_count,
     body: filter,
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs_count,
     body: filter,
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   flow_runs: Api.query({
     endpoint: Endpoints.flow_runs_count,
     body: filter,
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   filter_counts_failed: Api.query({
     endpoint: Endpoints.flow_runs_count,
     body: countsFilter('Failed'),
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   filter_counts_late: Api.query({
     endpoint: Endpoints.flow_runs_count,
     body: countsFilter('Late'),
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   }),
   filter_counts_scheduled: Api.query({
     endpoint: Endpoints.flow_runs_count,
     body: countsFilter('Scheduled'),
     options: {
-      pollInterval: 10000
+      pollInterval: basePollInterval
     }
   })
 }
