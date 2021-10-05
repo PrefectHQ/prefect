@@ -4,23 +4,16 @@
 
 Now that we've written our first flow, let's explore various configuration options that Prefect exposes.
 
-### Flow names
-
-Flow names are a distinguished piece of metadata within Prefect - the name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.  
-
-### Flow descriptions
-
-Flow descriptions allow you to provide documentation right alongside your flow object. By default, Prefect will use the flow function's docstring as a description.
-
-### Flow versions
-
-Flow versions allow you to associate a given run of your workflow with the version of code or configuration that was used; for example, if we were using `git` to version control our code we might use the commit hash as our version:
+- `name`: flow names are a distinguished piece of metadata within Prefect - the name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.
+- `description`: flow descriptions allow you to provide documentation right alongside your flow object. By default, Prefect will use the flow function's docstring as a description.
+- `version`: flow versions allow you to associate a given run of your workflow with the version of code or configuration that was used; for example, if we were using `git` to version control our code we might use the commit hash as our version as the following example shows. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined so that you can detect when your code changes easily.  However, this computation is not always possible and so depending on your setup you may see that your flow has a version of `None`.
 
 ```python
 from prefect import flow
 import os
 
 @flow(name="My Example Flow", version=os.getenv("GIT_COMMIT_SHA"))
+    """This flow doesn't do much honestly."""
 def my_flow(*args, **kwargs):
     ...
 ```
@@ -32,10 +25,11 @@ from prefect import flow
 
 @flow(name="My Example Flow", version="IGNORE ME")
 def my_flow(*args, **kwargs):
+    """This flow still doesn't do much honestly."""
     ...
 ```
 
-Ultimately, how you choose to leverage the `version` field is up to you!  By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined so that you can detect when your code changes easily.  However, this computation is not always possible and so depending on your setup you may see that your flow has a version of `None`.
+Ultimately, how you choose to leverage these fields is up to you!
 
 
 ### Parameter type conversion
@@ -97,13 +91,6 @@ As we will see, this pattern is particularly useful when triggering flow runs vi
     If you would like to turn this feature off for any reason, you can provide `validate_parameters=False` to your flow decorator and Prefect will passively accept whatever input values you provide.
 
     For more information, please refer to the pydantic's [official documentation](https://pydantic-docs.helpmanual.io/usage/models/).
-
-### Flow state determination
-
-Describe the rules of final flow state determination:
-- returning task values
-- returning states
-- returning raw values
 
 ## Basic Task configuration
 
@@ -192,7 +179,7 @@ Caching can be configured further in the following ways:
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
-    - Orchestration Policies
+    - [Orchestration Policies](/concepts/orchestration/)
     - [Flows](/concepts/flows/)
     - [Tasks](/concepts/tasks/)
     - [States](/concepts/states/)
