@@ -55,7 +55,7 @@
             leave-to-class="slide-out-leave-to"
           >
             <h4 key="search-header" class="pa-2 font-weight-semibold">
-              Saved searches
+              Saved Searches
             </h4>
             <div
               v-for="search in searches"
