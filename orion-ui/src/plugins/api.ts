@@ -155,7 +155,8 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   delete_search: {
     method: 'DELETE',
-    url: '/saved_searches/{id}'
+    url: '/saved_searches/{id}',
+    interpolate: true
   },
   saved_searches: {
     method: 'POST',
