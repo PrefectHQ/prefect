@@ -105,7 +105,20 @@ nav:
                 - 'prefect.cli.base': api-ref/prefect/cli/base.md
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
                 - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
-        - Orion Python API: 
+        - Orion Python API:
+            - 'API':
+                - 'orion.api.admin': api-ref/orion/api/admin.md
+                - 'orion.api.data': api-ref/orion/api/data.md
+                - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
+                - 'orion.api.deployments': api-ref/orion/api/deployments.md
+                - 'orion.api.flows': api-ref/orion/api/flows.md
+                - 'orion.api.flow_runs': api-ref/orion/api/flow_runs.md
+                - 'orion.api.flow_run_states': api-ref/orion/api/flow_run_states.md
+                - 'orion.api.run_history': api-ref/orion/api/run_history.md
+                - 'orion.api.saved_searches': api-ref/orion/api/saved_searches.md
+                - 'orion.api.server': api-ref/orion/api/server.md
+                - 'orion.api.task_runs': api-ref/orion/api/task_runs.md
+                - 'orion.api.task_run_states': api-ref/orion/api/task_run_states.md 
             - 'Models':
                 - 'orion.models.deployments': api-ref/orion/models/deployments.md
                 - 'orion.models.flows': api-ref/orion/models/flows.md
