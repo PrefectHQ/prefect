@@ -90,8 +90,7 @@ async def start_services():
             services.late_runs.MarkLateRuns(),
         ]
         app.state.services = {
-            service: loop.create_task(service.start(), name=service.name)
-            for service in service_instances
+            service: loop.create_task(service.start()) for service in service_instances
         }
 
         for service, task in app.state.services.items():
