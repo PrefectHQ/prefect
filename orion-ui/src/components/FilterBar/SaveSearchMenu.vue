@@ -104,6 +104,7 @@ const save = async () => {
   if (!res.error) {
     close()
   }
+  loading.value = false
 }
 
 const filters = computed<FilterObject[]>(() => {

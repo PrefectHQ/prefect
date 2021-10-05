@@ -153,6 +153,10 @@ export const Endpoints: { [key: string]: Endpoint } = {
     method: 'PUT',
     url: '/saved_searches'
   },
+  delete_search: {
+    method: 'DELETE',
+    url: '/saved_searches/{id}'
+  },
   saved_searches: {
     method: 'POST',
     url: '/saved_searches/filter'

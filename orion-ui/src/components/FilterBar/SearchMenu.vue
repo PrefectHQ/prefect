@@ -19,7 +19,7 @@
       </div>
     </template>
 
-    <div class="menu-content d-flex align-center justify-center pa-2">
+    <div class="menu-content">
       <div
         v-if="error"
         class="
@@ -34,8 +34,23 @@
         <i class="pi pi-error-warning-line pi-3x" />
         <h2>Couldn't fetch saved searches</h2>
       </div>
-      <div v-else>
-        <div v-for="search in searches" :key="search.id">{{ search }}</div>
+      <div v-else class="justify-self-start">
+        <div
+          v-for="search in searches"
+          :key="search.id"
+          class="
+            pa-2
+            font--primary
+            body
+            search-item
+            d-flex
+            justify-space-between
+          "
+        >
+          <div>{{ search.name }}</div>
+
+          <IconButton flat icon="pi-delete-bin-line text--grey-20 pi-sm" />
+        </div>
       </div>
     </div>
 
@@ -61,8 +76,9 @@ import { Api, Endpoints } from '@/plugins/api'
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 
-const searches = ref([])
-const error = ref(true)
+const searches = ref<{ name: string; id: string; filters: any }[]>([])
+const loadingIds = ref<string[]>([])
+const error = ref(false)
 
 const getSavedSearches = async () => {
   const query = Api.query({
@@ -80,8 +96,26 @@ const close = () => {
   emit('close')
 }
 
-const save = () => {
-  console.log('save')
+const remove = async (id: string) => {
+  loadingIds.value.push(id)
+
+  const query = await Api.query({
+    endpoint: Endpoints.delete_search,
+    body: {
+      id: id
+    },
+    options: { paused: true }
+  })
+
+  const res = await query.fetch()
+
+  instance?.appContext.config.globalProperties.$toast.add({
+    type: res.error ? 'error' : 'success',
+    content: res.error ? `Error: ${res.error}` : 'Search removed',
+    timeout: 10000
+  })
+
+  loadingIds.value.splice(loadingIds.value.indexOf(id), 1)
 }
 
 const smAndDown = computed(() => {
@@ -93,6 +127,8 @@ getSavedSearches()
 </script>
 
 <style lang="scss" scoped>
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
 .menu {
   border-radius: 0;
   position: relative;
@@ -120,6 +156,27 @@ getSavedSearches()
 
   .menu-container {
     position: relative;
+  }
+}
+
+.search-item {
+  cursor: pointer;
+
+  &:hover,
+  &:focus {
+    background-color: $blue-5;
+    color: $primary;
+
+    ::v-deep(i) {
+      color: $grey-40 !important;
+    }
+  }
+
+  ::v-deep(i) {
+    &:hover,
+    &:focus {
+      color: $error !important;
+    }
   }
 }
 </style>
