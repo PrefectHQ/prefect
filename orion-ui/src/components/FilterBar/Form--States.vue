@@ -55,6 +55,10 @@ const toggleAll = () => {
     states.value = [...availableStates]
   }
 }
+
+watch(states.value, () => {
+  emit('update:modelValue', states.value)
+})
 </script>
 
 <style lang="scss" scoped>

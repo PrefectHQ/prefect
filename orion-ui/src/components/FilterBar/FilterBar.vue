@@ -150,8 +150,13 @@ const removeFilter = (filter: FilterObject): void => {
 }
 
 const filters = computed<FilterObject[]>(() => {
+  console.log(store.getters.globalFilter)
   return parseFilters(store.getters.globalFilter)
 })
+
+const clearFilters = () => {
+  store.commit('resetFilters')
+}
 
 /**
  * This section is for performantly handling intersection of the filter bar
@@ -193,10 +198,6 @@ const filtersApplied = computed(() => {
     JSON.stringify(store.getters.globalFilter)
   )
 })
-
-const clearFilters = () => {
-  store.commit('resetFilters')
-}
 
 onMounted(() => {
   createIntersectionObserver('0px')
