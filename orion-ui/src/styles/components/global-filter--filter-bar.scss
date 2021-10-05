@@ -77,6 +77,33 @@
   }
 }
 
+.save-search-menu {
+  position: absolute !important;
+  right: 0;
+  left: unset;
+  top: 100%;
+  width: 400px !important;
+  z-index: 1;
+
+  @media (max-width: 1024px) {
+    left: 0;
+    top: 0;
+    right: unset;
+    height: 100vh !important;
+    max-height: 100vh;
+    width: inherit !important;
+  }
+
+  @media (max-width: 640px) {
+    left: 0;
+    top: -62px;
+    right: unset;
+    height: 100vh !important;
+    max-height: 100vh;
+    width: inherit !important;
+  }
+}
+
 .search-menu {
   position: absolute !important;
   border-radius: 0 0 4px 4px;
