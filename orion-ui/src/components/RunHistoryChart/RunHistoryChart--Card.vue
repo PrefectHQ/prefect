@@ -33,7 +33,7 @@ const filter = computed(() => {
 const queries: { [key: string]: Query } = {
   flow_run_history: Api.query({
     endpoint: Endpoints.flow_runs_history,
-    body: filter,
+    body: filter.value,
     options: {
       pollInterval: 5000
     }

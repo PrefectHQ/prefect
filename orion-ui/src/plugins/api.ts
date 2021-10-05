@@ -378,7 +378,7 @@ const ApiPlugin: Plugin = {
           Object.values(this.queries)
             .filter((query) => query instanceof Query)
             .forEach((query) => {
-              ;(query as Query).stopPolling()
+              ; (query as Query).stopPolling()
               Api.queries.delete((query as Query).id)
             })
         }
