@@ -106,7 +106,7 @@ nav:
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
                 - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
         - Orion Python API:
-            - 'Api':
+            - 'API':
                 - 'orion.api.admin': api-ref/orion/api/admin.md
                 - 'orion.api.data': api-ref/orion/api/data.md
                 - 'orion.api.dependencies': api-ref/orion/api/dependencies.md
