@@ -519,27 +519,9 @@ class SavedSearch(Base):
     """SQLAlchemy model of a saved search."""
 
     name = Column(String, nullable=False, unique=True)
-    flow_filter_criteria = Column(
-        Pydantic(filters.FlowFilterCriteria),
+    filters = Column(
+        JSON,
         server_default="{}",
-        default=filters.FlowFilterCriteria,
-        nullable=False,
-    )
-    flow_run_filter_criteria = Column(
-        Pydantic(filters.FlowRunFilterCriteria),
-        server_default="{}",
-        default=filters.FlowRunFilterCriteria,
-        nullable=False,
-    )
-    task_run_filter_criteria = Column(
-        Pydantic(filters.TaskRunFilterCriteria),
-        server_default="{}",
-        default=filters.TaskRunFilterCriteria,
-        nullable=False,
-    )
-    deployment_filter_criteria = Column(
-        Pydantic(filters.DeploymentFilterCriteria),
-        server_default="{}",
-        default=filters.DeploymentFilterCriteria,
+        default=dict,
         nullable=False,
     )
