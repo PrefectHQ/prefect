@@ -657,27 +657,27 @@ async def detect_crashes(flow_run: FlowRun):
     except anyio.get_cancelled_exc_class() as exc:
         logger.error(f"Flow run {flow_run.name!r} was cancelled by the async runtime.")
         with anyio.CancelScope(shield=True):
-            client = OrionClient()
+            async with OrionClient() as client:
+                await client.propose_state(
+                    state=Failed(
+                        name="Crashed",
+                        message="Execution of this flow was cancelled by the async runtime.",
+                        data=DataDocument.encode("cloudpickle", exc),
+                    ),
+                    flow_run_id=flow_run.id,
+                )
+        raise
+    except KeyboardInterrupt as exc:
+        logger.error(f"Flow run {flow_run.name!r} received an interrupt signal.")
+        async with OrionClient() as client:
             await client.propose_state(
                 state=Failed(
                     name="Crashed",
-                    message="Execution of this flow was cancelled by the async runtime.",
+                    message="Execution of this flow was interrupted by the system.",
                     data=DataDocument.encode("cloudpickle", exc),
                 ),
                 flow_run_id=flow_run.id,
             )
-        raise
-    except KeyboardInterrupt as exc:
-        logger.error(f"Flow run {flow_run.name!r} received an interrupt signal.")
-        client = OrionClient()
-        await client.propose_state(
-            state=Failed(
-                name="Crashed",
-                message="Execution of this flow was interrupted by the system.",
-                data=DataDocument.encode("cloudpickle", exc),
-            ),
-            flow_run_id=flow_run.id,
-        )
         raise
 
 
