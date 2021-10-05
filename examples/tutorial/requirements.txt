@@ -1,2 +1,0 @@
-prefect
-sqlalchemy

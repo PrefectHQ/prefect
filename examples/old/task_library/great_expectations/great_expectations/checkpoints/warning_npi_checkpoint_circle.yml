@@ -1,9 +1,0 @@
-# This checkpoint is the same as warning_npi_checkpoint.yml, with a path change to work on test automation.
-validation_operator_name: action_list_operator
-batches:
-  - batch_kwargs:
-      path: examples/task_library/great_expectations/data/npidata/npidata_pfile_20190902-20190908.csv
-      datasource: npidata__dir
-      data_asset_name: npidata_pfile_20190902-20190908
-    expectation_suite_names:
-      - npidata_pfile_20190902-20190908.warning

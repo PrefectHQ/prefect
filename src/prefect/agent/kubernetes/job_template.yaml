@@ -1,7 +1,0 @@
-apiVersion: batch/v1
-kind: Job
-spec:
-  template:
-    spec:
-      containers:
-        - name: flow

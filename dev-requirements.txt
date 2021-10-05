@@ -1,5 +1,0 @@
-black
-graphviz >= 0.8
-jinja2 >= 2.0, < 3.0
-mypy >= 0.600, < 0.813
-Pygments >= 2.2, < 3.0
