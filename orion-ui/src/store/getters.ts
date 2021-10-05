@@ -110,12 +110,26 @@ export const baseFilter =
       [timeKey]: undefined
     }
 
-    if (state.globalFilter[object]?.ids)
+    if (
+      state.globalFilter[object]?.ids &&
+      state.globalFilter[object]?.ids?.length
+    ) {
       val.id = { any_: state.globalFilter[object].ids }
-    if (state.globalFilter[object]?.names)
+    }
+
+    if (
+      state.globalFilter[object]?.names &&
+      state.globalFilter[object]?.names?.length
+    ) {
       val.name = { any_: state.globalFilter[object].names }
-    if (state.globalFilter[object]?.tags)
-      val.tags = { all_: state.globalFilter[object]?.tags }
+    }
+
+    if (
+      state.globalFilter[object]?.tags &&
+      state.globalFilter[object]?.tags?.length
+    ) {
+      val.tags = { all_: state.globalFilter[object].tags }
+    }
 
     // Only add state and timeframe filters for flow run and task run objects
     if (object == 'flow_runs' || object == 'task_runs') {
@@ -175,7 +189,7 @@ export const baseFilter =
 
       const states = state.globalFilter[object]?.states
 
-      if (states) {
+      if (states && states.length) {
         val['state'] = {
           type: states.reduce<{
             any_: string[]
