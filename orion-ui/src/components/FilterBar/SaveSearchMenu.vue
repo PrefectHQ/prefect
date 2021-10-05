@@ -53,7 +53,7 @@
           color="primary"
           height="35px"
           :width="smAndDown ? '100%' : 'auto'"
-          :disabled="!name"
+          :disabled="!name || loading"
           @click="save"
         >
           Save
@@ -82,7 +82,6 @@ const close = () => {
 }
 
 const save = async () => {
-  console.log('saving')
   loading.value = true
 
   const query = await Api.query({
@@ -95,7 +94,16 @@ const save = async () => {
   })
 
   const res = await query.fetch()
-  console.log(res.response.value)
+
+  instance?.appContext.config.globalProperties.$toast.add({
+    type: res.error ? 'error' : 'success',
+    content: res.error ? `Error: ${res.error}` : 'Filter saved!',
+    timeout: 10000
+  })
+
+  if (!res.error) {
+    close()
+  }
 }
 
 const filters = computed<FilterObject[]>(() => {
