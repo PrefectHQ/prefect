@@ -75,7 +75,6 @@ nav:
         - Orchestration Rules: concepts/orchestration.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
-        - Futures: concepts/futures.md
         - Settings: concepts/settings.md
     - FAQ: faq.md
     - 'API Reference': 
