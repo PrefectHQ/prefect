@@ -16,4 +16,4 @@ Once you are comfortable writing and running workflows interactively and/or manu
 
 ## Advanced Concepts
 
-More advanced use cases require understanding the internals of the system; dive in to [futures](futures.md) to understand the mechanics of task run execution and write advanced flow logic or [settings](settings.md) to understand the configuration options available to you.
+More advanced use cases require understanding the internals of the system; begin by diving into [settings](settings.md) to understand the configuration options available to you.
