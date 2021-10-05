@@ -34,7 +34,13 @@ Orion is the latest step in a long-term mission to codify the best practices of
 
 ### Can I use Orion in production?
 
-Orion is alpha software and we do not recommend Orion for production use at this time. 
+Orion is alpha software and we do not recommend Orion for production use at this time.
+
+### How is Orion licensed?
+
+The Orion technical preview is licensed under the [Prefect Community License 1.0](https://www.prefect.io/legal/prefect-community-license), a highly permissive open-source license. The Prefect Community License places no restrictions on use except for distributing Prefect Orion as a service outside your organization. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
+
+As Orion matures, most or all of its components will be released under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
 
 ## Features
 
@@ -42,30 +48,35 @@ Orion is alpha software and we do not recommend Orion for production use at this
 
 We will publish a complete roadmap for Orion soon. Here are a few important milestones currently under consideration:
 
-- Python client
-    - Task mapping
-    - Porting the Prefect task library and integrations
-    - Track inputs across tasks
-- UI
-    - Task Run pages
-    - Create deployments from UI
-    - Create schedules from UI
-    - Share dashboards
-    - Configure storage locations
-    - Update server settings from UI
-    - View flow run execution and data tracking in schematic
-- Orion server
-    - States
-        - Add `CRASHED` states for capturing and reacting to infrastructure failures
-    - Orion engine orchestration rules
-        - Configurable retry on `CRASHED`
-        - Automatically expire caches when tasks are taken out of `TERMINAL` states
-        - Linear scheduling: cancel runs attempting to enter `RUNNING` states if another run of the same flow is already running
-        - Exponential backoff for `AWAITING_RETRY`
-    - Configurable storage locations for flows and persisted data
-- Prefect IDE
-    - Time travel debugging: download states from remote runs to replay them interactively
+#### Python client
+  
+- Task mapping
+- Porting the Prefect task library and integrations
+- Track inputs across tasks
 
+#### UI
+
+- Task Run pages
+- Create deployments from UI
+- Create schedules from UI
+- Share dashboards
+- Configure storage locations
+- Update server settings from UI
+- View flow run execution and data tracking in schematic
+
+#### Orion server
+
+- Add `CRASHED` states for capturing and reacting to infrastructure failures
+- Orion engine orchestration rules
+- Configurable retry on `CRASHED`
+- Automatically expire caches when tasks are taken out of `TERMINAL` states
+- Linear scheduling: cancel runs attempting to enter `RUNNING` states if another run of the same flow is already running
+- Exponential backoff for `AWAITING_RETRY`
+- Configurable storage locations for flows and persisted data
+
+#### Prefect IDE
+
+- Time travel debugging: download states from remote runs to replay them interactively
 
 One of the reasons we are open-sourcing the technical preview is to begin soliciting priorities from our community. We will integrate these with our internal designs to publish a clear roadmap for the project.
 
@@ -91,7 +102,7 @@ Note that when tasks are called on constant values, they can not detect their up
 
 ### How do I tell enforce ordering between tasks that don't share data?
 
-To create a dependency between two tasks that do not exchange data but one needs to wait for the other to finish, use the special [`wait_for` keyword argument][prefect.tasks.task.__call__]:
+To create a dependency between two tasks that do not exchange data but one needs to wait for the other to finish, use the special [`wait_for` keyword argument][prefect.tasks.Task.__call__]:
 
 ```python
 @task
