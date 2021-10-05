@@ -43,7 +43,6 @@ const overflow = computed(() => {
 })
 
 const handleResize = () => {
-  console.log(container.value)
   maxWidth.value = container.value.parentNode.offsetWidth
 }
 
@@ -60,11 +59,3 @@ const props = defineProps<{
   tags: FilterObject[]
 }>()
 </script>
-
-<script lang="ts">
-console.log(this)
-</script>
-
-<style lang="scss" scoped>
-// @use '@/styles/components/global-filter--tag.scss';
-</style>
