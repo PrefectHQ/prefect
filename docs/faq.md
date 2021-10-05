@@ -140,11 +140,12 @@ SQLite is appropriate for getting started and exploring Orion. We have tested it
 
 This answer will be updated with more concrete guidelines in the future.
 
-## Relationship with Prefect Core
+## Relationship with other Prefect products
 
-### Does Orion replace Prefect Core?
+### Does Orion replace Prefect Core and Prefect Server?
 
-Orion represents the future of Prefect's orchestration engine and API. It will power a new generation of self-hosted and commercial Prefect products. We are releasing it as a technical preview because it has achieved its primary design objectives, but it still has a ways to go. In the coming months, you will see Orion undergo rapid changes as it approaches a stable release in early 2022. At that time, Orion will become the "default" version of Prefect, replacing Prefect Core and powering all of our products.
+Orion represents the future of Prefect's orchestration engine and API. It will power a new generation of self-hosted and commercial Prefect products. We are releasing it as a technical preview because it has achieved its primary design objectives, but it still has a ways to go. In the coming months, you will see Orion undergo rapid changes as it approaches a stable release in early 2022. At that time, Orion will become the "default" version of Prefect, replacing Prefect Core and Prefect Server. 
+
 
 ### Can I still use Prefect Core?
 
