@@ -8,36 +8,38 @@ export interface State {
   globalFilter: GlobalFilter
 }
 
-const state: State = {
-  globalFilter: {
-    flows: { ids: [], names: [], tags: [] },
-    deployments: { ids: [], names: [], tags: [] },
-    flow_runs: {
-      timeframe: {
-        dynamic: true,
-        from: {
-          value: 60,
-          unit: 'minutes'
-        },
-        to: {
-          value: 60,
-          unit: 'minutes'
-        }
+export const initialGlobalFilterState: GlobalFilter = {
+  flows: { ids: [], names: [], tags: [] },
+  deployments: { ids: [], names: [], tags: [] },
+  flow_runs: {
+    timeframe: {
+      dynamic: true,
+      from: {
+        value: 60,
+        unit: 'minutes'
       },
-      states: [
-        { name: 'Scheduled', type: 'SCHEDULED' },
-        { name: 'Pending', type: 'PENDING' },
-        { name: 'Running', type: 'RUNNING' },
-        { name: 'Completed', type: 'COMPLETED' },
-        { name: 'Failed', type: 'FAILED' },
-        { name: 'Cancelled', type: 'CANCELLED' }
-      ]
+      to: {
+        value: 60,
+        unit: 'minutes'
+      }
     },
-    task_runs: {
-      states: [],
-      tags: []
-    }
+    states: [
+      { name: 'Scheduled', type: 'SCHEDULED' },
+      { name: 'Pending', type: 'PENDING' },
+      { name: 'Running', type: 'RUNNING' },
+      { name: 'Completed', type: 'COMPLETED' },
+      { name: 'Failed', type: 'FAILED' },
+      { name: 'Cancelled', type: 'CANCELLED' }
+    ]
+  },
+  task_runs: {
+    states: [],
+    tags: []
   }
+}
+
+const state: State = {
+  globalFilter: { ...initialGlobalFilterState }
 }
 
 const actions = {}
