@@ -5,6 +5,7 @@ global-exclude *.py[co]
 global-exclude __pycache__/**
 
 # Top-level Config
+include LICENSE
 include MANIFEST.in
 include setup.cfg
 include versioneer.py
