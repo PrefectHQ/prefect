@@ -265,17 +265,15 @@ class OrionClient:
         context = context or {}
         state = state or Scheduled()
 
-        flow_run_create = schemas.actions.FlowRunCreate(
-            flow_id=deployment.flow_id,
-            deployment_id=deployment.id,
-            flow_version=None,  # Not yet determined
+        flow_run_create = schemas.actions.DeploymentFlowRunCreate(
             parameters=parameters,
             context=context,
             state=state,
         )
 
         response = await self.post(
-            "/flow_runs/", json=flow_run_create.dict(json_compatible=True)
+            f"/deployments/{deployment.id}/create_flow_run",
+            json=flow_run_create.dict(json_compatible=True),
         )
         return schemas.core.FlowRun.parse_obj(response.json())
 

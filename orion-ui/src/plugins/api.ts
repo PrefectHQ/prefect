@@ -78,6 +78,7 @@ export type Filters = {
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
   create_flow_run: CreateFlowRunBody
+  create_flow_run_from_deployment: CreateDeploymentFlowRunBody
   set_schedule_inactive: InterpolationBody
   set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
@@ -125,6 +126,11 @@ export const Endpoints: { [key: string]: Endpoint } = {
   set_schedule_active: {
     method: 'POST',
     url: '/deployments/{id}/set_schedule_active',
+    interpolate: true
+  },
+  create_flow_run_from_deployment: {
+    method: 'POST',
+    url: '/deployments/{id}/create_flow_run',
     interpolate: true
   },
   flow_run: {
@@ -297,20 +303,23 @@ export class Query {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
     let route = this.route
-    let body = this.body || {}
+    const body = JSON.parse(JSON.stringify(this.body)) || {}
 
     if (this.endpoint.interpolate) {
+      const keys: Array<string> = []
       route = route.replaceAll(this.endpointRegex, (match) => {
         const key = match.replace('{', '').replace('}', '')
         if (key in body) {
+          keys.push(key)
           return body[key as keyof FilterBody]
         } else
           throw new Error(
             `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
           )
       })
-
-      body = {}
+      keys.forEach((k, i) => {
+        delete body[k]
+      })
     }
 
     const res = await fetch(route, {
