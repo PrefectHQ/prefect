@@ -189,6 +189,14 @@ a.prefect-heading:hover {
     font-size: 1em;
 }
 
+.md-typeset h2 code {
+    font-size: 1.1em;
+}
+
+.md-typeset h3 code {
+    font-size: 1.1em;
+}
+
 .md-typeset code {
     font-size: var(--default-font-size);
 }
