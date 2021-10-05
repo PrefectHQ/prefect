@@ -16,7 +16,7 @@ pip install prefect==2.0a1
 
 ## Installing the bleeding edge
 
-If you'd like to test with the most up-to-date code, you can install directly off the `main` branch on GitHub:
+If you'd like to test with the most up-to-date code, you can install directly off the `orion` branch on GitHub:
 
 ```bash
 pip install https://github.com/PrefectHQ/prefect@orion
