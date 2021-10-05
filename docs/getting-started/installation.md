@@ -22,7 +22,7 @@ If you'd like to test with the most up-to-date code, you can install directly of
 pip install https://github.com/PrefectHQ/prefect@orion
 ```
 
-!!! warning "`main` may not be stable"
+!!! warning "`orion` may not be stable"
     Please be aware that this method installs unreleased code and may not be stable.
 
 ## Installing for development
