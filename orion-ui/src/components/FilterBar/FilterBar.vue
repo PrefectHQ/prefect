@@ -29,6 +29,7 @@
       <div class="saved-searches-container">
         <button
           class="filter-button saved-searches text--grey-80 px-2"
+          :class="{ active: showSaveSearch }"
           @click="showSaveSearch ? closeSaveSearchMenu() : openSaveSearchMenu()"
         >
           <i class="pi pi-star-line" />
