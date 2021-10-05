@@ -70,7 +70,7 @@ We will publish a complete roadmap for Orion soon. Here are a few important mile
         - Exponential backoff for `AWAITING_RETRY`
     - Configurable storage locations for flows and persisted data
 - Prefect IDE
-  - Time travel debugging: download states from remote runs to replay them interactively
+    - Time travel debugging: download states from remote runs to replay them interactively
 
 One of the reasons we are open-sourcing the technical preview is to begin soliciting priorities from our community. We will integrate these with our internal designs to publish a clear roadmap for the project.
 
