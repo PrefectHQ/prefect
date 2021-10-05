@@ -346,6 +346,7 @@ export default class NotFound extends Vue {
 .not-found__message {
   width: 600px;
   max-width: 80%;
+  margin-top: -15%;
 }
 
 .not-found__circle {
