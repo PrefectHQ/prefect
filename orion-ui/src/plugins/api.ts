@@ -272,9 +272,7 @@ export class Query {
       route = route.replaceAll(this.endpointRegex, (match) => {
         const key = match.replace('{', '').replace('}', '')
         if (key in body) {
-          const interpolatedKey = body[key as keyof FilterBody]
-          delete body[key as keyof FilterBody]
-          return interpolatedKey
+          return body[key as keyof FilterBody]
         } else
           throw new Error(
             `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
