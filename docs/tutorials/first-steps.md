@@ -19,6 +19,7 @@ Any function will work, including those that accept arguments:
 
 ```python
 import requests
+from prefect import flow
 
 @flow
 def send_post(url):
@@ -31,6 +32,7 @@ The positional and keyword arguments defined on your flow function are called _p
     Even asynchronous functions work with Prefect!  We can alter the above example to be fully asynchronous using the `httpx` library:
     ```python
     import httpx
+    from prefect import flow
 
     @flow
     async def send_post(url):
@@ -82,7 +84,6 @@ from prefect import task, flow
 
 import requests
 
-
 @task
 def extract_url_content(url, params=None):
     return requests.get(url, params=params).content
@@ -92,7 +93,7 @@ def extract_url_content(url, params=None):
 def is_trending(trending_page, repo="prefect"):
     is_trending = repo.encode() in trending_page
     is_phrase = 'not ' if not is_trending else ' '
-    print(f"{repo} is {is_phrase}trending.")
+    print(f"{repo} is {is_phrase}trending.", "\n")
     return is_trending
 
 
