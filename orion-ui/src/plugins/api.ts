@@ -266,18 +266,21 @@ export class Query {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async http(): Promise<any> {
     let route = this.route
-    let body = this.body || {}
+    let body = JSON.parse(JSON.stringify(this.body)) || {}
 
     if (this.endpoint.interpolate) {
+      let keys: Array<String> = []
       route = route.replaceAll(this.endpointRegex, (match) => {
         const key = match.replace('{', '').replace('}', '')
         if (key in body) {
+          keys.push(key)
           return body[key as keyof FilterBody]
         } else
           throw new Error(
             `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
           )
       })
+      keys.forEach((k, i) => { delete body[k] })
     }
 
     const res = await fetch(route, {
