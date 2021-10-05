@@ -47,7 +47,6 @@ const removeTag = (i: number) => {
 }
 
 watch(tags, () => {
-  console.log('emitting')
   emit('update:modelValue', tags)
 })
 </script>

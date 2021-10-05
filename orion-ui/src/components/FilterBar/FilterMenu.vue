@@ -83,17 +83,10 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  reactive,
-  computed,
-  defineEmits,
-  watch,
-  getCurrentInstance,
-  readonly
-} from 'vue'
+import { ref, computed, defineEmits, getCurrentInstance, readonly } from 'vue'
 import { useStore } from 'vuex'
-import FilterAccordion from './FilterAccordion.vue'
 
+import FilterAccordion from './FilterAccordion.vue'
 import TagsForm from './Form--Tags.vue'
 import StatesForm from './Form--States.vue'
 import TimeForm from './Form--DateTime.vue'
@@ -103,34 +96,33 @@ const emit = defineEmits(['close'])
 const store = useStore()
 
 const gf = readonly(store.getters.globalFilter)
+
 const defaultFilters = {
   flows: {
-    ids: [],
-    names: [],
+    ids: [...(gf.flows.ids || [])],
+    names: [...(gf.flows.names || [])],
     tags: [...(gf.flows.tags || [])]
   },
-  deployments: { ids: [], names: [], tags: [...(gf.deployments.tags || [])] },
+  deployments: {
+    ids: [...(gf.deployments.ids || [])],
+    names: [...(gf.deployments.names || [])],
+    tags: [...(gf.deployments.tags || [])]
+  },
   flow_runs: {
-    ids: [],
+    ids: [...(gf.flow_runs.ids || [])],
     tags: [...(gf.flow_runs.tags || [])],
     states: [...(gf.flow_runs.states || [])],
     timeframe: { ...(gf.flow_runs.timeframe || {}) }
   },
   task_runs: {
-    ids: [],
+    ids: [...(gf.task_runs.ids || [])],
     tags: [...(gf.task_runs.tags || [])],
     states: [...(gf.task_runs.states || [])],
     timeframe: { ...(gf.task_runs.timeframe || {}) }
   }
 }
 
-console.log(defaultFilters)
-
-const filters = reactive({ ...defaultFilters })
-
-watch(filters, () => {
-  console.log(filters)
-})
+const filters = ref({ ...defaultFilters })
 
 const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
@@ -138,8 +130,8 @@ const smAndDown = computed(() => {
 })
 
 const apply = () => {
-  console.log('applying')
-  store.commit('globalFilter', { ...filters })
+  store.commit('globalFilter', { ...filters.value })
+  emit('close')
 }
 
 const close = () => {

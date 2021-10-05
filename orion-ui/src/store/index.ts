@@ -1,5 +1,5 @@
 import { InjectionKey } from 'vue'
-import { createStore, Store } from 'vuex'
+import { createStore, Store, createLogger } from 'vuex'
 import { GlobalFilter } from '@/typings/global'
 import * as getters from './getters'
 import * as mutations from './mutations'
@@ -9,8 +9,8 @@ export interface State {
 }
 
 export const initialGlobalFilterState: GlobalFilter = {
-  flows: { ids: [], names: [], tags: [] },
-  deployments: { ids: [], names: [], tags: [] },
+  flows: {},
+  deployments: {},
   flow_runs: {
     timeframe: {
       dynamic: true,
@@ -32,10 +32,7 @@ export const initialGlobalFilterState: GlobalFilter = {
       { name: 'Cancelled', type: 'CANCELLED' }
     ]
   },
-  task_runs: {
-    states: [],
-    tags: []
-  }
+  task_runs: {}
 }
 
 const state: State = {
@@ -50,7 +47,8 @@ const store = createStore<State>({
   state,
   getters,
   mutations,
-  actions
+  actions,
+  plugins: [createLogger()]
 })
 
 export default store
