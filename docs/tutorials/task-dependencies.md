@@ -113,6 +113,8 @@ You may have observed that all of the `add_project` tasks have an implicit depen
 
 Luckily, Prefect makes it easy to configure a state dependency between two or more task runs using the special `wait_for` keyword argument:
 ```python
+from prefect import flow
+
 @flow(name="Add Projects to DB")
 def main(project_names, db_file="/tmp/example.db"):
 
