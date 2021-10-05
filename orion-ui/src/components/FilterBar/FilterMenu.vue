@@ -52,8 +52,8 @@
       <FilterAccordion class="mb-1" title="Task Runs" icon="pi-filter-3-line">
         <div class="accordion-body">
           <StatesForm v-model="filters.task_runs.states" class="px-2 py-1" />
+          <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" />
           <TagsForm v-model="filters.task_runs.tags" class="px-2 py-1" />
-          <!-- <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" /> -->
         </div>
       </FilterAccordion>
     </div>
