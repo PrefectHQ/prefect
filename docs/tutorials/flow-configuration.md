@@ -4,7 +4,7 @@
 
 Now that we've written our first flow, let's explore various configuration options that Prefect exposes.
 
-- `name`: flow names are a distinguished piece of metadata within Prefect - the name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.  
+- `name`: flow names are a distinguished piece of metadata within Prefect - the name that you give to a flow becomes the unifying identifier for all future runs of that flow, regardless of version or task structure.
 - `description`: flow descriptions allow you to provide documentation right alongside your flow object. By default, Prefect will use the flow function's docstring as a description.
 - `version`: flow versions allow you to associate a given run of your workflow with the version of code or configuration that was used; for example, if we were using `git` to version control our code we might use the commit hash as our version as the following example shows. By default, Prefect makes a best effort to compute a stable hash of the `.py` file in which the flow is defined so that you can detect when your code changes easily.  However, this computation is not always possible and so depending on your setup you may see that your flow has a version of `None`.
 
@@ -13,21 +13,23 @@ from prefect import flow
 import os
 
 @flow(name="My Example Flow", version=os.getenv("GIT_COMMIT_SHA"))
-def my_flow(...):
     """This flow doesn't do much honestly."""
+def my_flow(*args, **kwargs):
     ...
 ```
 
 In other situations we may be doing fast iterative testing and so we might have a little more fun:
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow", version="IGNORE ME")
-def my_flow(...):
+def my_flow(*args, **kwargs):
     """This flow still doesn't do much honestly."""
     ...
 ```
 
-Ultimately, how you choose to leverage these fields is up to you!  
+Ultimately, how you choose to leverage these fields is up to you!
 
 
 ### Parameter type conversion
@@ -63,6 +65,7 @@ You can see that Prefect coerced the provided inputs into the types specified on
 While the above example is basic, this can be extended in incredibly powerful ways - in particular, _any_ pydantic model type hint will be automatically coerced into the correct form:
 
 ```python
+from prefect import flow
 from pydantic import BaseModel
 
 class Model(BaseModel):
@@ -98,6 +101,8 @@ By design, tasks follow a very similar metadata model to flows: we can independe
 Prefect allows for off-the-shelf configuration of task level retries.  The only two decisions we need to make are how many retries we want to attempt and what delay we need between run attempts:
 
 ```python
+from prefect import task, flow
+
 @task(retries=2, retry_delay_seconds=0)
 def failure():
     print('running')
@@ -125,6 +130,8 @@ Caching refers to the ability of a task run to reflect a finished state without 
 
 To illustrate:
 ```python
+from prefect import task, flow
+
 def static_cache_key(context, parameters):
     # return a constant
     return "static cache key"
