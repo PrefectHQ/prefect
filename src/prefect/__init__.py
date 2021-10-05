@@ -4,7 +4,7 @@ import pathlib as _pathlib
 
 __version__ = _version.get_versions()["version"]
 __root_path__ = _pathlib.Path(__file__).parents[2]
-__ui_static_path__ = __root_path__ / "src" / "prefect" / "orion" / "ui"
+__ui_static_path__ = __root_path__ / "orion" / "ui"
 
 del _version
 del _pathlib
