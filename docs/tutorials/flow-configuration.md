@@ -21,15 +21,17 @@ from prefect import flow
 import os
 
 @flow(name="My Example Flow", version=os.getenv("GIT_COMMIT_SHA"))
-def my_flow(...):
+def my_flow(*args, **kwargs):
     ...
 ```
 
 In other situations we may be doing fast iterative testing and so we might have a little more fun:
 
 ```python
+from prefect import flow
+
 @flow(name="My Example Flow", version="IGNORE ME")
-def my_flow(...):
+def my_flow(*args, **kwargs):
     ...
 ```
 
@@ -113,6 +115,7 @@ Prefect allows for off-the-shelf configuration of task level retries.  The only 
 
 ```python
 from prefect import task, flow
+
 @task(retries=2, retry_delay_seconds=0)
 def failure():
     print('running')
