@@ -21,8 +21,8 @@ class EmailTask(Task):
     SMTP server is set to the Gmail SMTP server on port 465 (SMTP-over-SSL). Sending messages
     containing HTML code is supported - the default MIME type is set to the text/html.
 
-    You can also use smtp_type "INSECURE" and smtp_port 25 to use an insecure, internal SMTP server.
-    The `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` Secrets are not required in this case.
+    You can also use `smtp_type="INSECURE"` and `smtp_port=25` to use an insecure, internal SMTP server.
+    The `"EMAIL_USERNAME"` and `"EMAIL_PASSWORD"` secrets are not required in this case.
 
     Args:
         - subject (str, optional): the subject of the email; can also be provided at runtime
