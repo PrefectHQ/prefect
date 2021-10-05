@@ -69,7 +69,9 @@
                 justify-space-between
               "
               :class="{ disabled: loadingIds.includes(search.id) }"
-              @click.self="applyFilter"
+              @click.self="
+                mdAndDown ? selectSearch(search) : selectAndApply(search)
+              "
             >
               <div>{{ search.name }}</div>
 
@@ -109,11 +111,20 @@ import {
   onBeforeMount
 } from 'vue'
 import { Api, Endpoints } from '@/plugins/api'
+import { useStore } from 'vuex'
 
+const store = useStore()
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 
-const searches = ref<{ name: string; id: string; filters: any }[]>([])
+type SavedSearch = {
+  name: string
+  id: string
+  filters: any
+}
+
+const selectedSearch = ref<SavedSearch>()
+const searches = ref<SavedSearch[]>([])
 const loadingIds = ref<string[]>([])
 const error = ref()
 const loading = ref()
@@ -142,8 +153,19 @@ const close = () => {
   emit('close')
 }
 
+const selectSearch = (search: SavedSearch) => {
+  selectedSearch.value = search
+}
+
+const selectAndApply = (search: SavedSearch) => {
+  selectSearch(search)
+  applyFilter()
+}
+
 const applyFilter = () => {
-  // emit('close')
+  if (!selectedSearch.value) return
+  store.commit('globalFilter', selectedSearch.value?.filters)
+  emit('close')
 }
 
 onBeforeMount(() => {
@@ -176,6 +198,11 @@ const remove = async (id: string) => {
 const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
   return !breakpoints.md
+})
+
+const mdAndDown = computed(() => {
+  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
+  return !breakpoints.lg
 })
 </script>
 
