@@ -11,7 +11,7 @@
         v-for="(tag, i) in props.tags"
         :key="i"
         class="mr--half"
-        clearable
+        :clearable="clearable"
         @click="emit('click-tag', tag)"
         @remove="emit('remove', tag)"
       >
@@ -34,6 +34,10 @@ import {
 import { FilterObject } from './util'
 import Tag from './Tag.vue'
 
+const props = defineProps<{
+  tags: FilterObject[]
+  clearable?: boolean
+}>()
 const emit = defineEmits(['remove', 'click-tag'])
 const maxWidth = ref(0)
 const container = ref()
@@ -54,8 +58,4 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
 })
-
-const props = defineProps<{
-  tags: FilterObject[]
-}>()
 </script>
