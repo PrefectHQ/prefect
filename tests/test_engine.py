@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 import pendulum
 import pytest
+import sys
 
 from prefect import flow, task
 from prefect.client import OrionClient
