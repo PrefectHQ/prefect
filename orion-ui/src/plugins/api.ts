@@ -254,7 +254,7 @@ export class Query {
     return this._body()
   }
 
-  set body(val: FilterBody | (() => FilterBody) | ComputedRef | null) {
+  set body(val: FilterBody | (() => FilterBody) | ComputedRef | any | null) {
     this._body = () => {
       this.unwatch()
 
@@ -262,7 +262,8 @@ export class Query {
       if (!val) _val = {}
 
       const cName = val?.constructor.name
-      if (cName == 'ComputedRefImpl') {
+      const isRef = val?.__v_isRef
+      if (isRef) {
         _val = (val as ComputedRef).value
 
         this.watcher = watch(
