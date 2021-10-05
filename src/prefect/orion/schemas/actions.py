@@ -104,7 +104,25 @@ class FlowRunCreate(
     """Data used by the Orion API to create a flow run."""
 
     # FlowRunCreate states must be provided as StateCreate objects
-    state: StateCreate = Field(None, description="The state of the task run to create")
+    state: StateCreate = Field(None, description="The state of the flow run to create")
+
+
+class DeploymentFlowRunCreate(
+    schemas.core.FlowRun.subclass(
+        name="FlowRunCreate",
+        include_fields=[
+            "name",
+            "parameters",
+            "context",
+            "tags",
+            "idempotency_key",
+        ],
+    )
+):
+    """Data used by the Orion API to create a flow run from a deployment."""
+
+    # FlowRunCreate states must be provided as StateCreate objects
+    state: StateCreate = Field(None, description="The state of the flow run to create")
 
 
 class SavedSearchCreate(

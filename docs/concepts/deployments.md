@@ -12,13 +12,32 @@ A deployment's `parameters` specify **how** to execute flow runs. Parameters are
 
 Deployments are linked to a flow. One flow can have multiple deployments, which do not necessarily need to execute the same code. For example, you can create three deployments of the same flow for dev/staging/prod and use flow code from their respective environments.
 
-
-
-Stuff to include
-- what is a deployment
-- what can i do with a deployment
-- how to do stuff with a deployment? just a few basic examples
-
 ## Creating A Deployment
 
-DOCSTODO
+See the [flow deployment tutorial](/tutorials/deployments/) for more information.
+
+### Specifying parameters
+
+When including parameters in a deployment specification, they should match the format of your specification. For example, if you are creating a specification in Python, you'll want to use Python objects for parameter values. 
+
+```python
+from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    name="example-deployment",
+    flow_location="./my_flow.py",
+    parameters={"numbers": [1, 2, 3]}
+)
+```
+
+When writing a specification in YAML, you specify your parameters in YAML instead.
+
+```yaml
+name: example-deployment
+flow_location: my_flow.py
+parameters:
+  numbers:
+    - 1
+    - 2
+    - 3
+```

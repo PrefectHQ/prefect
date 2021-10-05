@@ -129,7 +129,7 @@ class TestDeploymentSpecFromFile:
         assert spec.flow.name == "hello-world"
         assert spec.flow_name == "hello-world"
         assert spec.flow_location == str(TEST_FILES_DIR / "inline_deployment.py")
-        assert spec.parameters == {"foo": "bar"}
+        assert spec.parameters == {"name": "Marvin"}
         assert spec.tags == ["foo", "bar"]
 
     def test_spec_separate_from_flow(self):
