@@ -11,7 +11,7 @@
 
     <Checkbox
       v-for="state in availableStates"
-      :key="state"
+      :key="state.type"
       :modelValue="!!states.find((s) => s.type == state.type)"
       class="d-flex my-1 font--secondary checkbox text-left"
       @change="toggleState(state)"
@@ -27,8 +27,7 @@ import { defineEmits, ref, defineProps, watch } from 'vue'
 const emit = defineEmits(['close', 'update:modelValue'])
 
 const props = defineProps<{ modelValue: { name: string; type: string }[] }>()
-console.log(props.modelValue)
-const states = ref(props.modelValue)
+const states = ref([...props.modelValue])
 
 const availableStates = [
   { name: 'Scheduled', type: 'SCHEDULED' },
@@ -53,7 +52,7 @@ const toggleAll = () => {
   if (states.value.length == availableStates.length) {
     states.value = []
   } else {
-    states.value = availableStates
+    states.value = [...availableStates]
   }
 }
 </script>
