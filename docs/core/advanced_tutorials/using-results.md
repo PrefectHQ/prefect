@@ -60,8 +60,8 @@ def add(x, y=1):
     return x + y
 
 class AddTask(Task):
-        def run(self, x, y):
-            return x + y
+    def run(self, x, y):
+        return x + y
 
 # or when instantiating a Task object
 a = AddTask(result=LocalResult(dir="/Users/prefect/results"))

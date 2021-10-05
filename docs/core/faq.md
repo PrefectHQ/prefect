@@ -10,7 +10,7 @@ You can sign up for a free Cloud account [right here](https://www.prefect.io/dow
 
 ### What is the difference between Prefect Core and Prefect Cloud?
 
-[Prefect Core](https://github.com/PrefectHQ/prefect) is a complete package for building, testing and executing workflows locally. For some use cases, this is sufficient functionality. However, many people quickly begin looking for features related to monitoring, observability, multi-flow orchestration and persistence. This is where Prefect Cloud comes into play - Cloud is designed as a complete distributed orchestration and monitoring service for your Prefect Core workflows. Cloud offers such features as a database for your states, a secure GraphQL API, a UI, among many other things. Note that our "Hybrid" Cloud Architecture allows Prefect to orchestrate and monitor your workflows [without requiring access to your personal code or data](dataflow.html).
+[Prefect Core](https://github.com/PrefectHQ/prefect) is a complete package for building, testing and executing workflows locally. For some use cases, this is sufficient functionality. However, many people quickly begin looking for features related to monitoring, observability, multi-flow orchestration and persistence. This is where Prefect Cloud comes into play - Cloud is designed as a complete distributed orchestration and monitoring service for your Prefect Core workflows. Cloud offers such features as a database for your states, a secure GraphQL API, a UI, among many other things. Note that our "Hybrid" Cloud Architecture allows Prefect to orchestrate and monitor your workflows [without requiring access to your personal code or data](/orchestration/faq/dataflow.html).
 
 ### Is using Dask a requirement of Prefect?
 
