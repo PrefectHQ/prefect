@@ -45,8 +45,12 @@ def build_docs(
 @dev_app.command()
 def build_ui():
     with tmpchdir(prefect.__root_path__):
-        console.print("Building with npm...")
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
+
+            console.print("Installing npm packages...")
+            subprocess.check_output(["npm", "install"])
+
+            console.print("Building for distribution...")
             env = os.environ.copy()
             env["ORION_UI_SERVE_BASE"] = "/ui/"
             subprocess.check_output(["npm", "run", "build"], env=env)
