@@ -195,7 +195,7 @@ async def begin_flow_run(
     """
     logger.info(f"Beginning flow run {flow_run.name!r} for flow {flow.name!r}...")
 
-    async with detect_crashes(flow_run=flow_run, client=client):
+    async with detect_crashes(flow_run=flow_run):
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
@@ -272,7 +272,7 @@ async def create_and_begin_subflow_run(
 
     logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
 
-    async with detect_crashes(flow_run=flow_run, client=client):
+    async with detect_crashes(flow_run=flow_run):
         terminal_state = await orchestrate_flow_run(
             flow,
             flow_run=flow_run,
@@ -645,7 +645,7 @@ async def orchestrate_task_run(
 
 
 @asynccontextmanager
-async def detect_crashes(flow_run: FlowRun, client: OrionClient):
+async def detect_crashes(flow_run: FlowRun):
     """
     Detect flow run crashes during this context and update the run to a proper final
     state.
@@ -657,6 +657,7 @@ async def detect_crashes(flow_run: FlowRun, client: OrionClient):
     except anyio.get_cancelled_exc_class() as exc:
         logger.error(f"Flow run {flow_run.name!r} was cancelled by the async runtime.")
         with anyio.CancelScope(shield=True):
+            client = OrionClient()
             await client.propose_state(
                 state=Failed(
                     name="Crashed",
@@ -668,6 +669,7 @@ async def detect_crashes(flow_run: FlowRun, client: OrionClient):
         raise
     except KeyboardInterrupt as exc:
         logger.error(f"Flow run {flow_run.name!r} received an interrupt signal.")
+        client = OrionClient()
         await client.propose_state(
             state=Failed(
                 name="Crashed",

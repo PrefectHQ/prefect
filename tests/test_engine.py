@@ -516,21 +516,20 @@ class TestOrchestrateFlowRun:
 
 
 class TestFlowRunCrashes:
-    async def test_anyio_cancellation_crashes_flow(self, flow_run):
+    async def test_anyio_cancellation_crashes_flow(self, flow_run, orion_client):
         @flow
         async def my_flow():
             await anyio.sleep_forever()
 
-        async with OrionClient() as client:
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(
-                    partial(
-                        begin_flow_run, flow=my_flow, flow_run=flow_run, client=client
-                    )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                partial(
+                    begin_flow_run, flow=my_flow, flow_run=flow_run, client=orion_client
                 )
-                tg.cancel_scope.cancel()
+            )
+            tg.cancel_scope.cancel()
 
-            flow_run = await client.read_flow_run(flow_run.id)
+        flow_run = await orion_client.read_flow_run(flow_run.id)
 
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
