@@ -36,6 +36,7 @@ const input = ref('')
 const tags = reactive(props.modelValue)
 
 const addTag = () => {
+  if (!input.value) return
   tags.push(input.value)
   input.value = ''
 }
