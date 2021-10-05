@@ -50,6 +50,7 @@ export type Filters = {
   deployments: DeploymentsFilter
   deployments_count: BaseFilter
   create_flow_run: CreateFlowRunBody
+  create_flow_run_from_deployment: CreateDeploymentFlowRunBody,
   set_schedule_inactive: InterpolationBody
   set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
@@ -96,6 +97,11 @@ export const Endpoints: { [key: string]: Endpoint } = {
   set_schedule_active: {
     method: 'POST',
     url: '/deployments/{id}/set_schedule_active',
+    interpolate: true
+  },
+  create_flow_run_from_deployment: {
+    method: 'POST',
+    url: '/deployments/{id}/create_flow_run',
     interpolate: true
   },
   flow_run: {
@@ -266,14 +272,14 @@ export class Query {
       route = route.replaceAll(this.endpointRegex, (match) => {
         const key = match.replace('{', '').replace('}', '')
         if (key in body) {
-          return body[key as keyof FilterBody]
+          const interpolatedKey = body[key as keyof FilterBody]
+          delete body[key as keyof FilterBody]
+          return interpolatedKey
         } else
           throw new Error(
             `Attempted to interpolate a url without a correct key present in the body. Expected ${key}.`
           )
       })
-
-      body = {}
     }
 
     const res = await fetch(route, {
