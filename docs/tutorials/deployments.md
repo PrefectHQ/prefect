@@ -129,8 +129,8 @@ As you can see above, deployments allow you to interact with this workflow and i
 Deployments can additionally have schedules that automate the creation of flow runs based on clock time.  Prefect currently supports three schedule types:
 
 - [`IntervalSchedule`][prefect.orion.schemas.schedules.IntervalSchedule]: best suited for deployments that need to run at some consistent cadence that isn't related to absolute time 
-- [`CronSchedule`][prefect.orion.schemas.schedules.CronSchedule]: best suited for users who are already familiar with `cron` from use in other systems
 - [`RRuleSchedule`][prefect.orion.schemas.schedules.RRuleSchedule]: best suited for deployments that rely on calendar logic such as irregular intervals, exclusions and day-of-month adjustments
+- [`CronSchedule`][prefect.orion.schemas.schedules.CronSchedule]: best suited for users who are already familiar with `cron` from use in other systems
 
 For example, suppose we wanted to run our first deployment above every 15 minutes; we can alter our deployment spec as follows:
 ```python hl_lines="2-3 9"
