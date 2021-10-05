@@ -45,8 +45,8 @@
       <FilterAccordion class="mb-1" title="Flow Runs" icon="pi-filter-3-line">
         <div class="accordion-body">
           <StatesForm v-model="filters.flow_runs.states" class="px-2 py-1" />
+          <TimeForm v-model="filters.flow_runs.timeframe" class="px-2 py-1" />
           <TagsForm v-model="filters.flow_runs.tags" class="px-2 py-1" />
-          <!-- <TimeForm v-model="filters.flow_runs.timeframe" class="px-2 py-1" /> -->
         </div>
       </FilterAccordion>
       <FilterAccordion class="mb-1" title="Task Runs" icon="pi-filter-3-line">
@@ -112,13 +112,25 @@ const defaultFilters = {
     ids: [...(gf.flow_runs.ids || [])],
     tags: [...(gf.flow_runs.tags || [])],
     states: [...(gf.flow_runs.states || [])],
-    timeframe: { ...(gf.flow_runs.timeframe || {}) }
+    timeframe: {
+      ...(gf.flow_runs.timeframe || {
+        dynamic: false,
+        from: { units: 'minutes', value: 60, timestamp: null },
+        to: { units: 'minutes', value: 60, timestamp: null }
+      })
+    }
   },
   task_runs: {
     ids: [...(gf.task_runs.ids || [])],
     tags: [...(gf.task_runs.tags || [])],
     states: [...(gf.task_runs.states || [])],
-    timeframe: { ...(gf.task_runs.timeframe || {}) }
+    timeframe: {
+      ...(gf.task_runs.timeframe || {
+        dynamic: false,
+        from: { units: 'minutes', value: 60, timestamp: null },
+        to: { units: 'minutes', value: 60, timestamp: null }
+      })
+    }
   }
 }
 
