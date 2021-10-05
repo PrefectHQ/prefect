@@ -224,7 +224,6 @@ async def begin_flow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
-
     return terminal_state
 
 
@@ -373,6 +372,9 @@ async def orchestrate_flow_run(
             message=f"Flow run timed out after {flow.timeout_seconds} seconds"
         )
     except Exception as exc:
+        logger.error(
+            f"Flow run {flow_run.name!r} encountered exception:", exc_info=True
+        )
         state = Failed(
             message="Flow run encountered an exception.",
             data=DataDocument.encode("cloudpickle", exc),
@@ -596,6 +598,9 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await result
         except Exception as exc:
+            logger.error(
+                f"Task run {task_run.name!r} encountered exception:", exc_info=True
+            )
             terminal_state = Failed(
                 message="Task run encountered an exception.",
                 data=DataDocument.encode("cloudpickle", exc),

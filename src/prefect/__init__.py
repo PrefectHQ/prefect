@@ -1,8 +1,15 @@
-# versioneer
+# Internal constants
 from . import _version
+import pathlib as _pathlib
 
 __version__ = _version.get_versions()["version"]
+__root_path__ = _pathlib.Path(__file__).parents[2]
+__ui_static_path__ = __root_path__ / "src" / "prefect" / "orion" / "ui"
 
+del _version
+del _pathlib
+
+# Prepare settings and logging first
 from prefect.utilities.settings import settings
 from prefect.utilities.logging import setup_logging
 

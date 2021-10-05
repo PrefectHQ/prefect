@@ -49,6 +49,9 @@ The following executors are currently supported:
 - `SequentialExecutor`: the simplest executor and the default; submits each task run sequentially as they are called and blocks until completion
 - `DaskExecutor`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
 
+!!! warning "The DaskExecutor uses multiprocessing"
+    Please note that because the `DaskExecutor` uses multiprocessing, it must only be used interactively or protected by an `if __name__ == "__main__":` guard.
+
 """
 import abc
 from contextlib import asynccontextmanager
@@ -174,6 +177,9 @@ class DaskExecutor(BaseExecutor):
     A parallel executor that submits calls to a dask cluster.
 
     A local dask distributed cluster is created on use.
+
+    !!! warning "The DaskExecutor uses multiprocessing"
+        Please note that because the `DaskExecutor` uses multiprocessing, it must only be used interactively or protected by an `if __name__ == "__main__":` guard.
     """
 
     # TODO: __init__ should support cluster setup kwargs as well as existing cluster

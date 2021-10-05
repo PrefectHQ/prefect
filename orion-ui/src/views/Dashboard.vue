@@ -221,49 +221,65 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
 const queries: { [key: string]: Query } = {
   deployments: Api.query({
     endpoint: Endpoints.deployments_count,
+<<<<<<< HEAD
     body: filter,
+=======
+    body: deploymentFilter.value,
+>>>>>>> 0952c039986fb9804d20c252a4bf677b1c37ed70
     options: {
       pollInterval: 10000
     }
   }),
   flows: Api.query({
     endpoint: Endpoints.flows_count,
+<<<<<<< HEAD
     body: filter,
+=======
+    body: flowFilter.value,
+>>>>>>> 0952c039986fb9804d20c252a4bf677b1c37ed70
     options: {
       pollInterval: 10000
     }
   }),
   flow_runs: Api.query({
     endpoint: Endpoints.flow_runs_count,
+<<<<<<< HEAD
     body: filter,
+=======
+    body: flowRunFilter.value,
+>>>>>>> 0952c039986fb9804d20c252a4bf677b1c37ed70
     options: {
       pollInterval: 10000
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs_count,
+<<<<<<< HEAD
     body: filter,
+=======
+    body: taskRunFilter.value,
+>>>>>>> 0952c039986fb9804d20c252a4bf677b1c37ed70
     options: {
       pollInterval: 10000
     }
   }),
   filter_counts_failed: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Failed'),
+    body: countsFilter('Failed').value,
     options: {
       pollInterval: 10000
     }
   }),
   filter_counts_late: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Late'),
+    body: countsFilter('Late').value,
     options: {
       pollInterval: 10000
     }
   }),
   filter_counts_scheduled: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Scheduled'),
+    body: countsFilter('Scheduled').value,
     options: {
       pollInterval: 10000
     }

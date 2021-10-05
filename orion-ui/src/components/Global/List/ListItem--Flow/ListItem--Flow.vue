@@ -87,15 +87,15 @@ const flowRunHistoryFilter = computed(() => {
 const queries: { [key: string]: Query } = {
   flow_run_history: Api.query({
     endpoint: Endpoints.flow_runs_history,
-    body: flowRunHistoryFilter
+    body: flowRunHistoryFilter.value
   }),
   flow_run_count: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: flows
+    body: flows.value
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: flows
+    body: flows.value
   })
 }
 

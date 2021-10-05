@@ -1,12 +1,19 @@
+import versioneer
 from setuptools import find_packages, setup
+
 
 install_requires = open("requirements.txt").read().strip().split("\n")
 dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 
+
 setup(
+    # Package metadata
     name="prefect",
-    version="2.0.0",
-    # Package loading
+    version=versioneer.get_version(),
+    description="Workflow orchestration and management.",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
+    # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},
     include_package_data=True,
