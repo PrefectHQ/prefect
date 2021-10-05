@@ -20,38 +20,58 @@
     </template>
 
     <div class="menu-content">
-      <div
-        v-if="error"
-        class="
-          my-6
-          d-flex
-          flex-column
-          align-center
-          justify-center
-          font--secondary
-        "
-      >
-        <i class="pi pi-error-warning-line pi-3x" />
-        <h2>Couldn't fetch saved searches</h2>
-      </div>
-      <div v-else class="justify-self-start">
+      <transition name="fade" mode="out-in">
         <div
-          v-for="search in searches"
-          :key="search.id"
+          v-if="loading"
           class="
-            pa-2
-            font--primary
-            body
-            search-item
+            my-6
             d-flex
-            justify-space-between
+            flex-column
+            align-center
+            justify-center
+            font--secondary
           "
         >
-          <div>{{ search.name }}</div>
-
-          <IconButton flat icon="pi-delete-bin-line text--grey-20 pi-sm" />
+          <Loader :loading="loading" />
         </div>
-      </div>
+        <div
+          v-else-if="error"
+          class="
+            my-6
+            d-flex
+            flex-column
+            align-center
+            justify-center
+            font--secondary
+          "
+        >
+          <i class="pi pi-error-warning-line pi-3x" />
+          <h2>Couldn't fetch saved searches</h2>
+        </div>
+        <div v-else class="justify-self-start">
+          <div
+            v-for="search in searches"
+            :key="search.id"
+            class="
+              pa-2
+              font--primary
+              body
+              search-item
+              d-flex
+              justify-space-between
+            "
+            @click.self="applyFilter"
+          >
+            <div>{{ search.name }}</div>
+
+            <IconButton
+              flat
+              icon="pi-delete-bin-line text--grey-20 pi-sm"
+              @click="remove(search.id)"
+            />
+          </div>
+        </div>
+      </transition>
     </div>
 
     <template v-if="smAndDown" v-slot:actions>
@@ -79,8 +99,10 @@ const emit = defineEmits(['close'])
 const searches = ref<{ name: string; id: string; filters: any }[]>([])
 const loadingIds = ref<string[]>([])
 const error = ref(false)
+const loading = ref(false)
 
 const getSavedSearches = async () => {
+  loading.value = true
   const query = Api.query({
     endpoint: Endpoints.saved_searches,
     options: { paused: true }
@@ -90,10 +112,15 @@ const getSavedSearches = async () => {
 
   if (res.response.error) error.value = res.response.error
   else searches.value = res.response.value
+  loading.value = false
 }
 
 const close = () => {
   emit('close')
+}
+
+const applyFilter = () => {
+  // emit('close')
 }
 
 const remove = async (id: string) => {
@@ -178,5 +205,15 @@ getSavedSearches()
       color: $error !important;
     }
   }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
