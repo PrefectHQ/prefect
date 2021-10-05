@@ -43,7 +43,7 @@ const maxWidth = ref(0)
 const container = ref()
 
 const overflow = computed(() => {
-  return props.tags.length * 150 + 150 > maxWidth.value
+  return props.tags.length * 250 + 250 > maxWidth.value
 })
 
 const handleResize = () => {
