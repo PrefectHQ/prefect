@@ -24,15 +24,11 @@ class TestCreateSavedSearch:
             session=session,
             saved_search=schemas.core.SavedSearch(
                 name="My SavedSearch",
-                flow_filter_criteria=dict(
-                    flow_filter=filters.FlowFilter(
-                        id=filters.FlowFilterId(any_=[uuid4()])
-                    )
-                ),
+                filters=dict(x=1),
             ),
         )
         assert saved_search.name == "My SavedSearch"
-        assert saved_search.flow_filter_criteria.flow_filter.id.any_
+        assert saved_search.filters == dict(x=1)
 
         saved_search = await models.saved_searches.create_saved_search(
             session=session,
@@ -42,7 +38,7 @@ class TestCreateSavedSearch:
         )
         assert saved_search.name == "My SavedSearch"
         # should be removed
-        assert not saved_search.flow_filter_criteria.flow_filter.id
+        assert not saved_search.filters
 
 
 class TestReadSavedSearch:

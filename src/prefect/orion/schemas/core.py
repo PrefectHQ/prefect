@@ -269,21 +269,8 @@ class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
     name: str = Field(..., description="The name of the saved search.")
-    flow_filter_criteria: schemas.filters.FlowFilterCriteria = Field(
-        default_factory=schemas.filters.FlowFilterCriteria,
-        description="Filter criteria that can be applied to flows.",
-    )
-    flow_run_filter_criteria: schemas.filters.FlowRunFilterCriteria = Field(
-        default_factory=schemas.filters.FlowRunFilterCriteria,
-        description="Filter criteria that can be applied to flow runs.",
-    )
-    task_run_filter_criteria: schemas.filters.TaskRunFilterCriteria = Field(
-        default_factory=schemas.filters.TaskRunFilterCriteria,
-        description="Filter criteria that can be applied to task runs.",
-    )
-    deployment_filter_criteria: schemas.filters.DeploymentFilterCriteria = Field(
-        default_factory=schemas.filters.DeploymentFilterCriteria,
-        description="Filter criteria that can be applied to deployments.",
+    filters: dict = Field(
+        default_factory=dict, description="The filter set for the saved search."
     )
 
 
