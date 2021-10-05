@@ -25,7 +25,12 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.utilities.compat import AsyncMock
+
+if sys.version_info < (3, 8):
+    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
+    from mock import AsyncMock
+else:
+    from unittest.mock import AsyncMock
 
 
 class TestUserReturnValueToState:

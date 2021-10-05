@@ -3,14 +3,6 @@ Utilities for Python version compatibility
 """
 import sys
 
-if sys.version_info < (3, 8):
-    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-
-    from mock import AsyncMock
-else:
-    from unittest.mock import AsyncMock
-
-
 if sys.version_info < (3, 9):
     # https://docs.python.org/3/library/asyncio-task.html#asyncio.to_thread
 
