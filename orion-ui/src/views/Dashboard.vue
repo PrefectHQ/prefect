@@ -228,23 +228,30 @@ const queries: { [key: string]: Query } = {
       pollInterval: 10000
     }
   }),
+  flow_runs: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: filter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
   filter_counts_failed: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Failed').value,
+    body: countsFilter('Failed'),
     options: {
       pollInterval: 10000
     }
   }),
   filter_counts_late: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Late').value,
+    body: countsFilter('Late'),
     options: {
       pollInterval: 10000
     }
   }),
   filter_counts_scheduled: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Scheduled').value,
+    body: countsFilter('Scheduled'),
     options: {
       pollInterval: 10000
     }
