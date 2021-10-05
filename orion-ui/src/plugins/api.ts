@@ -7,6 +7,10 @@ export interface BaseFilter {
   deployments?: DeploymentFilter
 }
 
+export interface LimitOffsetFilter {
+  limit?: number
+  offset?: number
+}
 export interface SortableFilter extends BaseFilter {
   // TODO: We can improve this by using keyof[Object]
   sort?: string
@@ -60,6 +64,7 @@ export type Filters = {
   set_schedule_active: InterpolationBody
   database_clear: DatabaseClearBody
   save_search: SaveSearchBody
+  saved_searches: LimitOffsetFilter
 }
 
 export type FilterBody = Filters[keyof Filters]
