@@ -10,10 +10,9 @@ Users can add a schedule to any [deployment](/concepts/deployments/). The Orion 
 
 Prefect supports three different types of schedules that cover a wide range of use cases and offer a large degree of customization:
 
-- The `IntervalSchedule` is appropriate for simple programmatic use cases
-- THe `RRulesSchedule` is appropriate for complex recurrance and calendar-based logic
-- The `CronSchedule` is appropriate for users that love cron
-
+- The `IntervalSchedule` is best suited for deployments that need to run at some consistent cadence that isn't related to absolute time 
+- The `RRuleSchedule` is best suited for deployments that rely on calendar logic for simple recurrance, irregular intervals, exclusions or day-of-month adjustments
+- The `CronSchedule` is most appropriate for users who are already familiar with `cron` from use in other systems
 ### IntervalSchedule
 
 (For more detail, please see the [`IntervalSchedule` API reference][prefect.orion.schemas.schedules.intervalschedule].)
