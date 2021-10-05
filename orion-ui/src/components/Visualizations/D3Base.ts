@@ -6,35 +6,6 @@ const suid = () => '_' + Math.random().toString(36).substr(2, 9)
 
 type SelectionType = d3.Selection<SVGGElement, unknown, HTMLElement, null>
 
-// declare class D3Base {
-//   constructor()
-//   id: string
-//   height: number
-//   width: number
-
-//   container: HTMLElement
-//   svg: SelectionType
-
-//   padding: {
-//     top: number
-//     bottom: number
-//     middle: number
-//     left: number
-//     right: number
-//   }
-
-//   /**
-//    * A hook called after the component handles the window resize event
-//    */
-//   resize(): void
-
-//   private handleWindowResize(): void
-//   private initializeChartDimensions(): void
-
-//   mounted(): void
-//   destroyed(): void
-// }
-
 @Options({})
 export class D3Base extends Vue {
   public id: string = suid()
@@ -57,15 +28,20 @@ export class D3Base extends Vue {
     left: number
     right: number
   } = {
-    top: 12,
-    bottom: 12,
-    middle: 12,
-    left: 16,
-    right: 16
+    top: 0,
+    bottom: 0,
+    middle: 0,
+    left: 0,
+    right: 0
   }
 
-  public paddingY = this.padding.top + this.padding.middle + this.padding.bottom
-  public paddingX = this.padding.left + this.padding.right
+  public get paddingY(): number {
+    return this.padding.top + this.padding.middle + this.padding.bottom
+  }
+
+  public get paddingX(): number {
+    return this.padding.left + this.padding.right
+  }
 
   resize(): void {
     return
@@ -83,18 +59,6 @@ export class D3Base extends Vue {
         'viewbox',
         `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
       )
-
-      this.svg
-        .select('rect')
-        .attr(
-          'height',
-          `${
-            this.height -
-            this.padding.top -
-            this.padding.bottom -
-            this.padding.middle
-          }px`
-        )
     }
 
     this.resize()
@@ -112,27 +76,17 @@ export class D3Base extends Vue {
         'viewbox',
         `0, 0, ${this.width - this.paddingX}, ${this.height - this.paddingY}`
       )
-
-      this.svg
-        .select('rect')
-        .attr(
-          'height',
-          `${
-            this.height -
-            this.padding.top -
-            this.padding.bottom -
-            this.padding.middle
-          }px`
-        )
     }
   }
 
   mounted(): void {
-    this.initializeChartDimensions()
+    requestAnimationFrame(() => {
+      this.initializeChartDimensions()
+    })
     window.addEventListener('resize', this.handleWindowResize)
   }
 
-  destroyed() {
+  destroyed(): void {
     window.removeEventListener('resize', this.handleWindowResize)
   }
 }

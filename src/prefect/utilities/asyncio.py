@@ -1,3 +1,6 @@
+"""
+Utilities for interoperability with async functions and workers from various contexts.
+"""
 import inspect
 from contextvars import copy_context
 from functools import partial, wraps
@@ -56,7 +59,6 @@ def run_async_in_new_loop(__fn: Callable[..., Awaitable[T]], *args: Any, **kwarg
 
 
 def in_async_worker_thread() -> bool:
-
     try:
         anyio.from_thread.threadlocals.current_async_module
     except AttributeError:

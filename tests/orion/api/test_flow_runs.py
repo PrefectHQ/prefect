@@ -359,6 +359,26 @@ class TestReadFlowRuns:
         response = await client.post(
             "/flow_runs/filter/",
             json=dict(
+                limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_1.id)
+
+        response = await client.post(
+            "/flow_runs/filter/",
+            json=dict(
+                limit=1,
+                offset=1,
+                sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value,
+            ),
+        )
+        assert response.status_code == 200
+        assert response.json()[0]["id"] == str(flow_run_2.id)
+
+        response = await client.post(
+            "/flow_runs/filter/",
+            json=dict(
                 limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value
             ),
         )

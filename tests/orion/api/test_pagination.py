@@ -12,7 +12,7 @@ def app():
 
 @pytest.fixture
 async def client(app, OrionTestAsyncClient):
-    async with OrionTestAsyncClient(app=app, base_url="http://test") as async_client:
+    async with OrionTestAsyncClient(app=app, base_url="http://test/") as async_client:
         yield async_client
 
 

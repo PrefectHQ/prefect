@@ -1,3 +1,8 @@
+"""
+Functions for interacting with saved search ORM objects.
+Intended for internal use by the Orion API.
+"""
+
 from typing import List
 from uuid import UUID
 
@@ -32,15 +37,7 @@ async def create_saved_search(
         .values(**saved_search.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
             index_elements=["name"],
-            set_=saved_search.dict(
-                shallow=True,
-                include={
-                    "flow_filter_criteria",
-                    "flow_run_filter_criteria",
-                    "task_run_filter_criteria",
-                    "deployment_filter_criteria",
-                },
-            ),
+            set_=saved_search.dict(shallow=True, include={"filters"}),
         )
     )
 

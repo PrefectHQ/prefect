@@ -199,7 +199,7 @@ async def begin_flow_run(
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-        with flow.executor.start() as executor:
+        async with flow.executor.start() as executor:
             with portal_context as sync_portal:
                 terminal_state = await orchestrate_flow_run(
                     flow,
@@ -215,15 +215,15 @@ async def begin_flow_run(
             flow_run_id=flow_run.id,
         )
 
-    # Display the full state (including the result) if debugging
+    # If debugging, use the more complete `repr` than the usual `str` description
     display_state = (
-        terminal_state if prefect.settings.debug_mode else repr(terminal_state.name)
+        repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
     )
+
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
-
     return terminal_state
 
 
@@ -281,7 +281,6 @@ async def create_and_begin_subflow_run(
             sync_portal=parent_flow_run_context.sync_portal,
         )
 
-        # Update the flow to the terminal state _after_ the executor has shut down
         terminal_state = await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
@@ -373,6 +372,9 @@ async def orchestrate_flow_run(
             message=f"Flow run timed out after {flow.timeout_seconds} seconds"
         )
     except Exception as exc:
+        logger.error(
+            f"Flow run {flow_run.name!r} encountered exception:", exc_info=True
+        )
         state = Failed(
             message="Flow run encountered an exception.",
             data=DataDocument.encode("cloudpickle", exc),
@@ -596,6 +598,9 @@ async def orchestrate_task_run(
                 if task.isasync:
                     result = await result
         except Exception as exc:
+            logger.error(
+                f"Task run {task_run.name!r} encountered exception:", exc_info=True
+            )
             terminal_state = Failed(
                 message="Task run encountered an exception.",
                 data=DataDocument.encode("cloudpickle", exc),
@@ -628,8 +633,9 @@ async def orchestrate_task_run(
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
 
-    # Display the full state (including the result) if debugging
-    display_state = state if prefect.settings.debug_mode else repr(state.name)
+    # If debugging, use the more complete `repr` than the usual `str` description
+    display_state = repr(state) if prefect.settings.debug_mode else str(state)
+
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Task run {task_run.name!r} finished in state {display_state}",

@@ -1,3 +1,7 @@
+"""
+Routes for interacting with Deployment objects.
+"""
+
 import datetime
 from typing import List
 from uuid import UUID
@@ -21,7 +25,11 @@ async def create_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
-    same name and flow_id already exists, the deployment is updated."""
+    same name and flow_id already exists, the deployment is updated.
+
+    If the deployment has an active schedule, flow runs will be scheduled.
+    When upserting, any scheduled runs from the existing deployment will be deleted.
+    """
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
@@ -61,7 +69,7 @@ async def read_deployment_by_name(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
-    Get a deployment using the name of the flow and the deployment
+    Get a deployment using the name of the flow and the deployment.
     """
     deployment = await models.deployments.read_deployment_by_name(
         session=session, name=deployment_name, flow_name=flow_name
@@ -77,7 +85,7 @@ async def read_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
-    Get a deployment by id
+    Get a deployment by id.
     """
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
@@ -102,7 +110,7 @@ async def read_deployments(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Deployment]:
     """
-    Query for deployments
+    Query for deployments.
     """
     return await models.deployments.read_deployments(
         session=session,
@@ -124,7 +132,7 @@ async def count_deployments(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> int:
     """
-    Count deployments
+    Count deployments.
     """
     return await models.deployments.count_deployments(
         session=session,
@@ -141,7 +149,7 @@ async def delete_deployment(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
-    Delete a deployment by id
+    Delete a deployment by id.
     """
     result = await models.deployments.delete_deployment(
         session=session, deployment_id=deployment_id
@@ -179,6 +187,9 @@ async def set_schedule_active(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
+    """
+    Set a deployment schedule to active. Runs will be scheduled immediately.
+    """
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
@@ -202,6 +213,10 @@ async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> None:
+    """
+    Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
+    state will be deleted.
+    """
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
@@ -219,3 +234,50 @@ async def set_schedule_inactive(
         models.orm.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
+
+
+@router.post("/{id}/create_flow_run")
+async def create_flow_run_from_deployment(
+    flow_run: schemas.actions.DeploymentFlowRunCreate,
+    deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+    response: Response = None,
+) -> schemas.core.FlowRun:
+    """
+    Create a flow run from a deployment.
+
+    Any parameters not provided will be inferred from the deployment's parameters.
+    If tags are not provided, the deployment's tags will be used.
+
+    If no state is provided, the flow run will be created in a PENDING state.
+    """
+    # get relevant info from the deployment
+    deployment = await models.deployments.read_deployment(
+        session=session, deployment_id=deployment_id
+    )
+
+    if not deployment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Deployment not found"
+        )
+
+    parameters = deployment.parameters
+    parameters.update(flow_run.parameters or {})
+
+    # hydrate the input model into a full flow run / state model
+    flow_run = schemas.core.FlowRun(
+        **flow_run.dict(exclude={"parameters", "tags"}),
+        flow_id=deployment.flow_id,
+        deployment_id=deployment.id,
+        parameters=parameters,
+        tags=set(deployment.tags).union(flow_run.tags)
+    )
+
+    if not flow_run.state:
+        flow_run.state = schemas.states.Pending()
+
+    now = pendulum.now("UTC")
+    model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
+    if model.created >= now:
+        response.status_code = status.HTTP_201_CREATED
+    return model

@@ -1,3 +1,8 @@
+"""
+Functions for interacting with deployment ORM objects.
+Intended for internal use by the Orion API.
+"""
+
 import datetime
 from typing import List
 from uuid import UUID, uuid4
@@ -9,7 +14,7 @@ from sqlalchemy import delete, select
 import prefect
 from prefect.orion import schemas
 from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert, get_dialect, now
+from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
 
 
 async def create_deployment(
@@ -162,7 +167,7 @@ async def read_deployments(
     Args:
         session: A database session
         offset: Query offset
-        limi: Query limit
+        limit: Query limit
         flow_filter: only select deployments whose flows match these criteria
         flow_run_filter: only select deployments whose flow runs match these criteria
         task_run_filter: only select deployments whose task runs match these criteria

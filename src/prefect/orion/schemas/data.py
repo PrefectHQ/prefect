@@ -1,3 +1,7 @@
+"""
+Schemas for interacting with the Orion Data API.
+"""
+
 from typing import Any, Generic, Type, TypeVar
 
 from typing_extensions import Literal
@@ -80,6 +84,8 @@ class DataDocument(PrefectBaseModel, Generic[D]):
 
 
 class DataLocation(PrefectBaseModel):
+    """Represents the location of data stored in a file"""
+
     name: str
     # TODO: Consider using `FILE_SYSTEM_SCHEMES` which would need to be an Enum
     scheme: Literal["file", "s3"] = "file"

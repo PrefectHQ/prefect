@@ -9,7 +9,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
-    "@prefect/miter-design": "^0.1.0",
+    "@prefecthq/miter-design": "^0.1.7",
     "core-js": "^3.6.5",
     "d3": "^7.0.0",
     "register-service-worker": "^1.7.1",
@@ -60,9 +60,9 @@
     "ts-node": "^10.1.0",
     "typescript": "^4.1.6",
     "vite": "^2.4.2",
+    "vue-class-component": "^8.0.0-0",
     "vue-jest": "^5.0.0-0",
     "vue-property-decorator": "^9.1.2",
-    "vue-class-component": "^8.0.0-0",
     "vue-tsc": "^0.0.24"
   }
 }

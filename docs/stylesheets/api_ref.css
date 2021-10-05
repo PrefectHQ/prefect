@@ -5,9 +5,21 @@
     --blue: #3b8dff;
     --blue-transparent: rgba(59, 141, 255, 0.3);
     --gray-1: #EBEEF7;
-    --gray-2: #8EA0AE;
+    --gray-2: #cfd0d1;
+    --gray-3: #8EA0AE;
     --pink-transparent: rgba(254, 81, 150, 0.3);
     --pink: #fe5196;
+    --default-font-size: .7rem;
+    --code-font-size: .7rem;
+    --nav-size: .6rem;
+    --text-code-font-size:  1em;
+    --table-font-size: 1em;
+    --anchor-font-size: 1em;
+    --header-prefix-font-size: .7em;
+    --content-relative-size: 1rem;
+    --h1-font-size: 1.3rem;
+    --h2-font-size: 1.0em;
+    --h3-font-size: 1.0em;
 }
 
 .prefect-container {
@@ -29,18 +41,18 @@
     display: inline-block;
     opacity: 0;
     color: var(--blue);
-    padding: 8px;
     position: absolute;
-    font-size: 20px;
-    margin-left: -24px;
+    font-size: var(--anchor-font-size);
+    margin-left: -.8em;
 }
 
 .prefect-heading:hover::before {
     opacity: 1;
 }
 
-.doc.doc-method .prefect-heading:before {
-    margin-top: -2px;
+.doc.doc-method .prefect-heading:before,
+.doc.doc-attribute .prefect-heading:before {
+    margin-top: 2px;
 }
 
 a.prefect-heading, 
@@ -49,31 +61,59 @@ a.prefect-heading:hover {
 }
 
 .prefect-heading h1,
-.prefect-heading h2,
+.prefect-heading h2 {
+    border-bottom: 2px solid var(--gray-3);
+}
+
 .prefect-heading h3,
 .prefect-heading h4 {
     border-bottom: 2px solid var(--gray-2);
 }
 
+.prefect-heading > h1:target,
+.prefect-heading > h2:target,
+.prefect-heading > h3:target,
+.prefect-heading > h4:target {
+    scroll-margin-top: 50px !important;
+}
+
+@media (min-width:1220px) {
+    .prefect-heading > h1:target,
+    .prefect-heading > h2:target,
+    .prefect-heading > h3:target,
+    .prefect-heading > h4:target {
+        scroll-margin-top: 105px !important;
+    }   
+}
+
+@media (min-width:2000px) {
+    .prefect-heading > h1:target,
+    .prefect-heading > h2:target,
+    .prefect-heading > h3:target,
+    .prefect-heading > h4:target {
+        scroll-margin-top: 120px !important;
+    }   
+}
+
 .doc.doc-module > h1 {
-    font-size: 32px;
+    font-size: var(--h1-font-size);
     font-weight: bold;
 }
 
 .prefect-heading h2 {
-    font-size: 28px;
+    font-size: var(--h2-font-size);
 }
 
 .prefect-heading h3 {
-    font-size: 24px;
+    font-size: var(--h3-font-size);
 }
 
 .prefect-heading > h1:before,
 .prefect-heading > h2:before,
 .prefect-heading > h3:before,
 .prefect-heading > h4:before {
-    color: var(--gray-2);
-    font-size: 14px;
+    color: var(--gray-3);
+    font-size: var(--default-font-size);
     font-weight: 900;
     text-transform: lowercase;
     white-space: nowrap;
@@ -90,12 +130,12 @@ a.prefect-heading:hover {
 .prefect-table {
     width: 100%;
     border-collapse: collapse;
-    border-left: .2rem solid var(--gray-2);
+    border-left: .2rem solid var(--gray-3);
     margin-bottom: 18px;
 }
 
 .prefect-table code {
-    font-size: 14px;
+    font-size: var(--default-font-size);
 }
 
 .prefect-table tr {
@@ -117,26 +157,70 @@ a.prefect-heading:hover {
 }
 
 .prefect-table td, .prefect-table th {
-    font-size: 14px;
+    font-size: var(--default-font-size);
     vertical-align: text-top;
 }
 
 .doc.doc-class > .prefect-heading > h2:before {
     content: "class";
+    font-size: var(--header-prefix-font-size);
 }
 
 .doc.doc-function > .prefect-heading > h2:before {
     content: "function";
+    font-size: var(--header-prefix-font-size);
 }
 
 .doc.doc-method > .prefect-heading > h3:before {
     content: "method";
+    font-size: var(--header-prefix-font-size);
+} 
+
+.doc.doc-attribute > .prefect-heading > h3:before {
+    content: "attribute";
+    font-size: var(--header-prefix-font-size);
+}
+
+.md-nav {
+    font-size: var(--nav-size);
+}
+
+.md-typeset .admonition {
+    font-size: 1em;
+}
+
+.md-typeset h2 code {
+    font-size: 1.1em;
+}
+
+.md-typeset h3 code {
+    font-size: 1.1em;
+}
+
+.md-typeset code {
+    font-size: var(--default-font-size);
 }
 
 .doc p, .doc em, .doc li {
+    font-size: var(--default-font-size);
     margin-top: 4px;
 }
 
+.doc.doc-heading code {
+    font-size: var(--text-code-font-size);
+}
+
+.doc p code {
+    font-size: var(--text-code-font-size);
+}
+
+.doc.doc-contents {
+    font-size: var(--content-relative-size);
+}
+
+.highlight code {
+    font-size: var(--code-font-size);
+}
 
 details.quote:not([open]),
 details.quote[open] {
@@ -170,7 +254,8 @@ details.quote[open] > summary > code {
 .doc-property { display: none; }
 
 /* arguments & returns tables */
-/* .doc-contents table td { } */
+ .doc-contents table td { font-size: var(--table-font-size); }
 
 /* bold the argument name column */
 .doc-contents table td:nth-child(1) { font-weight: bold; }
+

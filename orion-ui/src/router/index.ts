@@ -8,24 +8,28 @@ const routes: Array<RouteRecordRaw> = [
     component: Dashboard // We don't implement route level code splitting for the Dashboard route because we don't want this to load asyncronously
   },
   {
-    path: '/flow-run',
+    path: '/flow-run/:id',
     name: 'FlowRun',
-    component: () => import('../views/FlowRun.vue')
+    component: () => import('../views/FlowRun.vue'),
+    children: [
+      {
+        path: '',
+        component: () => import('../views/FlowRun--views/Index.vue')
+      },
+      {
+        path: 'timeline',
+        component: () => import('../views/FlowRun--views/Timeline.vue')
+      },
+      {
+        path: 'schematic',
+        component: () => import('../views/FlowRun--views/Schematic.vue')
+      }
+    ]
   },
   {
     path: '/settings',
     name: 'Settings',
     component: () => import('../views/Settings.vue')
-  },
-  {
-    path: '/schematics',
-    name: 'Schematics',
-    component: () => import('../views/Schematics.vue')
-  },
-  {
-    path: '/timeline/:id?',
-    name: 'Timeline',
-    component: () => import('../views/Timeline.vue')
   },
   {
     path: '/:pathMatch(.*)*',
