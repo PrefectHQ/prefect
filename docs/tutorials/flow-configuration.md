@@ -69,6 +69,7 @@ You can see that Prefect coerced the provided inputs into the types specified on
 While the above example is basic, this can be extended in incredibly powerful ways - in particular, _any_ pydantic model type hint will be automatically coerced into the correct form:
 
 ```python
+from prefect import flow
 from pydantic import BaseModel
 
 class Model(BaseModel):
@@ -111,6 +112,7 @@ By design, tasks follow a very similar metadata model to flows: we can independe
 Prefect allows for off-the-shelf configuration of task level retries.  The only two decisions we need to make are how many retries we want to attempt and what delay we need between run attempts:
 
 ```python
+from prefect import task, flow
 @task(retries=2, retry_delay_seconds=0)
 def failure():
     print('running')
@@ -138,6 +140,8 @@ Caching refers to the ability of a task run to reflect a finished state without 
 
 To illustrate:
 ```python
+from prefect import task, flow
+
 def static_cache_key(context, parameters):
     # return a constant
     return "static cache key"
