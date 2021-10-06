@@ -1,48 +1,69 @@
 <template>
-  <div class="node">
-    <!-- :class="[
-        node.data.state.toLowerCase() + '-bg',
-        node.data.state.toLowerCase() + '-border'
-      ]"
-    :class="node.data.state.toLowerCase() + '-border'" -->
-    <!-- <div class="d-flex align-center justify-center border px-1">
-
+  <div
+    ref="observe"
+    class="node d-flex"
+    :class="{
+      observed: observed,
+      [state.type.toLowerCase() + '-border']: true
+    }"
+  >
+    <div
+      class="d-flex align-center justify-center border px-1"
+      :class="state.type.toLowerCase() + '-bg'"
+    >
       <i
         class="pi text--white pi-lg"
         :class="'pi-' + state.type.toLowerCase()"
       />
-    </div> -->
+    </div>
 
-    <div class="d-flex align-center justify-center px-1">
-      <div class="text-truncate" style="width: 110px">
-        <!-- {{ node.data.name }} - {{ node.ring }} -->
+    <div
+      class="d-flex align-stretch flex-column justify-center px-1 flex-grow-1"
+    >
+      <div v-skeleton="!taskRun.name" class="text-truncate">
+        {{ taskRun.name }}
       </div>
 
-      <a
-        v-if="node.downstreamNodes.size > 0"
-        class="collapse-link"
-        tabindex="-1"
-        @click.stop="toggle"
-      >
-        {{ collapsed ? 'Show' : 'Hide' }}
-      </a>
+      <div class="d-flex align-center justify-space-between">
+        <div
+          v-skeleton="!taskRun.estimated_run_time"
+          class="
+            text-truncate
+            font--secondary
+            caption
+            flex-grow-1 flex-shrink-0
+          "
+        >
+          {{ duration }}
+        </div>
 
-      <!-- <div class="text-caption-2">
-              <span class="text--grey-4">D: </span>
-              {{ node.downstreamNodes.size }}
-              <span class="text--grey-4 ml-1">U: </span>
-              {{ node.upstreamNodes.size }}
-              <span class="text--grey-4 ml-1">P: </span>
-              {{ node.position }}
-            </div> -->
+        <a
+          v-if="node.downstreamNodes.size > 0"
+          class="collapse-link caption-small flex-shrink"
+          tabindex="-1"
+          @click.stop="toggle"
+        >
+          {{ collapsed ? 'Show' : 'Hide' }}
+        </a>
+      </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { defineProps, computed, defineEmits } from 'vue'
+import {
+  defineProps,
+  computed,
+  defineEmits,
+  onMounted,
+  onBeforeUnmount,
+  Ref,
+  ref
+} from 'vue'
+import { Api, Endpoints, Query } from '@/plugins/api'
 import { SchematicNode } from '@/typings/schematic'
-import { State } from '@/typings/objects'
+import { State, TaskRun } from '@/typings/objects'
+import { secondsToApproximateString } from '@/util/util'
 
 const emit = defineEmits(['toggle-tree'])
 
@@ -50,6 +71,19 @@ const props = defineProps<{
   node: SchematicNode
   collapsed?: boolean
 }>()
+
+const queries: { [key: string]: Query } = {
+  task_run: Api.query({
+    endpoint: Endpoints.task_run,
+    body: {
+      id: props.node.id
+    },
+    options: {
+      pollInterval: 5000,
+      paused: true
+    }
+  })
+}
 
 const toggle = () => {
   emit('toggle-tree', props.node)
@@ -66,11 +100,60 @@ const collapsed = computed(() => {
 const state = computed<State>(() => {
   return props.node.data.state
 })
+
+const duration = computed<string>(() => {
+  return taskRun.value
+    ? secondsToApproximateString(taskRun.value.estimated_run_time)
+    : '--'
+})
+
+const taskRun = computed<TaskRun>(() => {
+  return queries.task_run.response.value || {}
+})
+
+/**
+ * Intersection Observer
+ */
+
+const observed: Ref<boolean> = ref(false)
+
+const handleEmit = ([entry]: IntersectionObserverEntry[]) => {
+  if (entry.isIntersecting) {
+    observed.value = entry.isIntersecting
+    queries.task_run.resume()
+  } else {
+    queries.task_run.pause()
+  }
+}
+
+const observe = ref<Element>()
+
+let observer: IntersectionObserver
+
+const createIntersectionObserver = (margin: string) => {
+  if (observe.value) observer?.unobserve(observe.value)
+
+  const options = {
+    rootMargin: margin,
+    threshold: [0.5, 1]
+  }
+
+  observer = new IntersectionObserver(handleEmit, options)
+  if (observe.value) observer.observe(observe.value)
+}
+
+onMounted(() => {
+  createIntersectionObserver('12px')
+})
+
+onBeforeUnmount(() => {
+  if (observe.value) observer?.unobserve(observe.value)
+})
 </script>
 
 <style lang="scss" scoped>
 .node {
-  // visibility: hidden;
+  visibility: hidden;
   background-color: white;
   border-radius: 10px;
   box-shadow: 0px 0px 6px rgb(8, 29, 65, 0.06);
@@ -80,13 +163,15 @@ const state = computed<State>(() => {
   content-visibility: auto;
   cursor: pointer;
   position: absolute;
-  //   height: 53px;
-  height: 50px;
+  height: 53px;
   pointer-events: all;
   transition: top 150ms, left 150ms, transform 150ms, box-shadow 50ms;
   transform: translate(-50%, -50%);
-  //   width: 188px;
-  width: 50px;
+  width: 275px;
+
+  &.observed {
+    visibility: visible;
+  }
 
   &:hover {
     box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
@@ -100,18 +185,12 @@ const state = computed<State>(() => {
   }
 
   .border {
-    border-top-left-radius: inherit;
-    border-bottom-left-radius: inherit;
-    margin-left: -2px;
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
     height: 100%;
   }
 
   .collapse-link {
-    border-radius: 50%;
-    // height: 20px;
-    text-align: center;
-    // width: 20px;
-
     &:hover {
       background-color: var(--grey-5);
     }
