@@ -445,6 +445,7 @@ export default class Schematic extends Vue.with(Props) {
   transform-origin: 0 0;
   top: 0;
   left: 0;
+  z-index: 0;
 }
 </style>
 

@@ -1,8 +1,17 @@
 <template>
   <div>
-    <div class="d-flex align-center justify-space-between mb-2">
+    <div
+      class="
+        d-flex
+        align-center
+        justify-space-between
+        mb-2
+        position-relative
+        z-1
+      "
+    >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
-      <div class="text-truncate">
+      <div v-breakpoints="'sm'" class="text-truncate">
         <span>
           Flow Version:
           <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
