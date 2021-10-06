@@ -46,8 +46,8 @@ export class RadialSchematic {
   x1: number = 1
   y1: number = 1
 
-  width: number = 188 // node width
-  height: number = 53 // node height
+  width: number = 275 // node width
+  height: number = 60 // node height
 
   /* Padding */
   py: number = 0
