@@ -144,7 +144,7 @@ export class RadialSchematic {
     const len = items.length
     for (let i = 0; i < len; i++) {
       const item = items[i]
-      this.nodes.set(item.id, {
+      this.nodes.set(item[this._id], {
         id: item[this._id],
         cx: 0,
         cy: 0,
@@ -170,10 +170,10 @@ export class RadialSchematic {
           source: source!
         }
 
-        node.upstreamNodes.set(upstream[j], source!)
+        node.upstreamNodes.set(upstream[j][this._id], source!)
         source!.downstreamNodes.set(key, node)
 
-        this.nodes.set(upstream[j], source!)
+        this.nodes.set(upstream[j][this._id], source!)
         this.nodes.set(key, node)
 
         this.links.push(link)

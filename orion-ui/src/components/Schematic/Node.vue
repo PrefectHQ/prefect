@@ -48,12 +48,20 @@ const emit = defineEmits(['toggle-tree'])
 
 const props = defineProps<{
   node: SchematicNode
-  collapsed: boolean
+  collapsed?: boolean
 }>()
 
 const toggle = () => {
   emit('toggle-tree', props.node)
 }
+
+const node = computed<SchematicNode>(() => {
+  return props.node
+})
+
+const collapsed = computed(() => {
+  return props.collapsed
+})
 
 const state = computed<State>(() => {
   return props.node.data.state
