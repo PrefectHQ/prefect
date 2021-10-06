@@ -10,13 +10,12 @@
         :id="`node-${key}`"
         :key="key"
         :node="node"
-        :collapsed="collapsedTrees.get(key)"
+        :collapsed="collapsedTrees.get(key) ? true : false"
         :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
         tabindex="0"
         @toggle-tree="toggleTree"
         @focus.self="panToNode(node)"
-      >
-      </Node>
+      />
     </div>
   </div>
 </template>
@@ -48,6 +47,7 @@ class Props {
   components: { Node },
   watch: {
     items(val) {
+      console.log(val)
       this.radial.center([this.width / 2, this.height / 2]).items(val)
       requestAnimationFrame(() => this.updateCanvas())
     },
@@ -315,10 +315,10 @@ export default class Schematic extends Vue.with(Props) {
           selection
             .append('path')
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-            .attr('class', (d: Link) => {
-              console.log(d)
-              return `${d.source.data.state.type.toLowerCase()}-stroke`
-            })
+            .attr(
+              'class',
+              (d: Link) => `${d.source.data.state.type.toLowerCase()}-stroke`
+            )
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
                 ? `url("#${d.source.data.name + i}")`
