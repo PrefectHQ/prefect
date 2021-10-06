@@ -44,7 +44,7 @@ export PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:////full/path/to/
     ```
 
 !!! danger "Migrations"
-    Recall that Orion is available as [a technical preivew](/faq/#why-is-orion-a-technical-preview); this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
+    Recall that Orion is available as [a technical preview](/faq/#why-is-orion-a-technical-preview); this means that aspects of Orion's schema are still under active development and therefore upgrades should be considered destructive.  As it nears official release, database migration guides and tooling will be available and documented.
 
 If at any point in your testing you'd like to reset your database, you can run the `prefect orion reset-db` CLI command to do so.  This will completely clear all data and reapply the schema.
 
