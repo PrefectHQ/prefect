@@ -120,6 +120,11 @@ export const Endpoints: { [key: string]: Endpoint } = {
     url: '/flow_runs/{id}',
     interpolate: true
   },
+  schematic: {
+    method: 'GET',
+    url: '/flow_runs/{id}/schematic',
+    interpolate: true
+  },
   flow_runs: {
     method: 'POST',
     url: '/flow_runs/filter'

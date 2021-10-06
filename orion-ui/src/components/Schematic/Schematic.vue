@@ -5,57 +5,18 @@
     </svg>
 
     <div class="node-container">
-      <div
+      <Node
         v-for="[key, node] of visibleNodes"
         :id="`node-${key}`"
         :key="key"
+        :node="node"
         :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
         class="node d-flex align-stretch justify-start"
-        :class="node.data.state.toLowerCase() + '-border'"
         tabindex="0"
+        @toggle-tree="toggleTree"
         @focus.self="panToNode(node)"
       >
-        <div
-          class="d-flex align-center justify-center border px-1"
-          :class="[
-            node.data.state.toLowerCase() + '-bg',
-            node.data.state.toLowerCase() + '-border'
-          ]"
-        >
-          <i class="pi text--white pi-lg" :class="iconMap(node.data.state)" />
-        </div>
-
-        <div class="d-flex align-center justify-center px-1">
-          <div class="text-truncate" style="width: 110px">
-            {{ node.data.name }} - {{ node.ring }}
-          </div>
-
-          <div
-            v-if="node.downstreamNodes.size > 0"
-            class="collapse-button"
-            tabindex="-1"
-            @click.stop="toggleTree(node)"
-          >
-            <i
-              class="pi pi-lg"
-              :class="
-                collapsedTrees.get(key)
-                  ? 'pi-Small-Arrows-Separating'
-                  : 'pi-Small-Arrows-Joining'
-              "
-            />
-          </div>
-
-          <!-- <div class="text-caption-2">
-              <span class="text--grey-4">D: </span>
-              {{ node.downstreamNodes.size }}
-              <span class="text--grey-4 ml-1">U: </span>
-              {{ node.upstreamNodes.size }}
-              <span class="text--grey-4 ml-1">P: </span>
-              {{ node.position }}
-            </div> -->
-        </div>
-      </div>
+      </Node>
     </div>
   </div>
 </template>
@@ -67,6 +28,7 @@ import * as d3 from 'd3'
 import { RadialSchematic } from './util'
 import { curveMetro } from './curveMetro'
 import { curveMiter } from './curveMiter'
+import Node from './Node.vue'
 
 import {
   Item,
@@ -83,6 +45,7 @@ class Props {
 }
 
 @Options<Schematic>({
+  components: { Node },
   watch: {
     items(val) {
       this.radial.center([this.width / 2, this.height / 2]).items(val)
@@ -280,7 +243,7 @@ export default class Schematic extends Vue.with(Props) {
             g.attr('id', (d: Link, i: number) => d.source.data.name + i)
               .attr(
                 'class',
-                (d: Link) => `${d.source.data.state.toLowerCase()}-text`
+                (d: Link) => `${d.source.data.state.type.toLowerCase()}-text`
               )
               .attr('gradientUnits', 'userSpaceOnUse')
               .attr('x1', (d: Link) => calcGradientCoord(d).x1)
@@ -316,7 +279,7 @@ export default class Schematic extends Vue.with(Props) {
               .attr('id', (d: Link, i: number) => d.source.data.name + i)
               .attr(
                 'class',
-                (d: Link) => `${d.source.data.state.toLowerCase()}-text`
+                (d: Link) => `${d.source.data.state.type.toLowerCase()}-text`
               )
               .attr('gradientUnits', 'userSpaceOnUse')
               .attr('x1', (d: Link) => calcGradientCoord(d).x1)
@@ -352,10 +315,10 @@ export default class Schematic extends Vue.with(Props) {
           selection
             .append('path')
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-            .attr(
-              'class',
-              (d: Link) => `${d.source.data.state.toLowerCase()}-stroke`
-            )
+            .attr('class', (d: Link) => {
+              console.log(d)
+              return `${d.source.data.state.type.toLowerCase()}-stroke`
+            })
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
                 ? `url("#${d.source.data.name + i}")`
@@ -377,7 +340,7 @@ export default class Schematic extends Vue.with(Props) {
             .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
             .attr(
               'class',
-              (d: Link) => `${d.source.data.state.toLowerCase()}-stroke`
+              (d: Link) => `${d.source.data.state.type.toLowerCase()}-stroke`
             )
             .style('stroke', (d: Link, i: number) =>
               this.useLinearGradient
@@ -436,7 +399,11 @@ export default class Schematic extends Vue.with(Props) {
     this.handleWindowResize()
     window.addEventListener('resize', this.handleWindowResize)
 
-    this.radial.center([this.width / 2, this.height / 2]).items(this.items)
+    this.radial
+      .id('id')
+      .dependencies('upstream_dependencies')
+      .center([this.width / 2, this.height / 2])
+      .items(this.items)
     this.createChart()
   }
 
@@ -478,57 +445,6 @@ export default class Schematic extends Vue.with(Props) {
   transform-origin: 0 0;
   top: 0;
   left: 0;
-}
-
-.node {
-  // visibility: hidden;
-  background-color: white;
-  border-radius: 10px;
-  box-shadow: 0px 0px 6px rgb(8, 29, 65, 0.06);
-  box-sizing: content-box;
-  // These don't work in firefox yet but are being prototyped (https://github.com/mozilla/standards-positions/issues/135)
-  contain-intrinsic-size: 53px;
-  content-visibility: auto;
-  cursor: pointer;
-  position: absolute;
-  height: 53px;
-  pointer-events: all;
-  transition: top 150ms, left 150ms, transform 150ms, box-shadow 50ms;
-  transform: translate(-50%, -50%);
-  width: 188px;
-
-  &:hover {
-    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  &:focus {
-    border-width: 2px;
-    border-style: solid;
-    transition: border-color 150ms;
-    outline: none;
-  }
-
-  .border {
-    border-top-left-radius: inherit;
-    border-bottom-left-radius: inherit;
-    margin-left: -2px;
-    height: 100%;
-  }
-
-  .collapse-button {
-    border-radius: 50%;
-    height: 20px;
-    text-align: center;
-    width: 20px;
-
-    &:hover {
-      background-color: var(--grey-5);
-    }
-
-    > i {
-      color: rgba(0, 0, 0, 0.3);
-    }
-  }
 }
 </style>
 
