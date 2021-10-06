@@ -16,13 +16,9 @@ export declare interface SchematicNode {
 }
 
 export declare interface Item {
-  id: string
-  name: string
-  upstream_ids: string[]
-  state: string
-  tags: string[]
-  start_time: string
-  end_time: string
+  task_run_id: string
+  upstream_dependencies: Item[]
+  [key: string]: any
 }
 
 export declare interface Position {

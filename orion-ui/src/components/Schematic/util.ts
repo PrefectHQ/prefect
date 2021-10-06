@@ -19,12 +19,6 @@ import {
   Items
 } from '@/typings/schematic'
 
-function defaultId(d: any) {
-  // We could use d.index for this since this is a map
-  // but we'll assume UUIDs for now
-  return d.id
-}
-
 function getAvailablePositions(positions: Positions): [number, Position][] {
   return Array.from(positions).filter(
     ([key, position]) => position.nodes.size == 0
@@ -37,7 +31,8 @@ function getAvailablePositionId(positions: Positions): number | undefined {
 }
 
 export class RadialSchematic {
-  id = defaultId
+  private _id: string = 'id'
+  private _dependencies: string = 'upstream_ids'
 
   nodes: SchematicNodes = new Map()
   links: Links = []
@@ -67,6 +62,26 @@ export class RadialSchematic {
     this.cx = x
     this.cy = y
 
+    return this
+  }
+
+  /**
+   *
+   * @param key string; defines the id key accessor
+   * @returns instance of radial schematic
+   */
+  id(key: string): RadialSchematic {
+    this._id = key
+    return this
+  }
+
+  /**
+   *
+   * @param key string; defines the dependencies key accessor
+   * @returns instance of radial schematic
+   */
+  dependencies(key: string): RadialSchematic {
+    this._dependencies = key
     return this
   }
 
@@ -130,7 +145,7 @@ export class RadialSchematic {
     for (let i = 0; i < len; i++) {
       const item = items[i]
       this.nodes.set(item.id, {
-        id: item.id,
+        id: item[this._id],
         cx: 0,
         cy: 0,
         radian: 0,
@@ -145,11 +160,11 @@ export class RadialSchematic {
 
   private computeLinks() {
     for (const [key, node] of this.nodes) {
-      const upstream = node.data.upstream_ids
+      const upstream = node.data[this._dependencies]
       const len = upstream.length
 
       for (let j = 0; j < len; j++) {
-        const source = this.nodes.get(upstream[j])
+        const source = this.nodes.get(upstream[j][this._id])
         const link: Link = {
           target: node!,
           source: source!
