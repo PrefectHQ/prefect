@@ -165,7 +165,7 @@ async def read_flow_run_schematic(
     for task_run in task_runs:
         inputs = list(set(i for v in task_run.task_inputs.values() for i in v))
         dependency_graph.append(
-            {"task_run_id": task_run.id, "upstream_dependencies": inputs, "state": task_run.state}
+            {"id": task_run.id, "upstream_dependencies": inputs, "state": task_run.state}
         )
 
     return dependency_graph
