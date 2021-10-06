@@ -105,8 +105,7 @@ def enter_flow_run_engine_from_flow_call(
 
     # Sync flow run
     if not is_subflow_run:
-        with start_blocking_portal() as portal:
-            return portal.call(begin_run)
+        return anyio.run(begin_run)
 
     # Sync subflow run
     if not parent_flow_run_context.flow.isasync:
