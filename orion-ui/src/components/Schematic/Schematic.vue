@@ -12,7 +12,7 @@
         :id="`node-${key}`"
         :key="key"
         :node="node"
-        :collapsed="collapsedTrees.get(key) ? true : false"
+        :collapsed="collapsedTrees.get(key)"
         :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
         tabindex="0"
         @toggle-tree="toggleTree"
@@ -130,8 +130,8 @@ const updateCanvas = (): void => {
           .attr('r', ([, d]: [number, Ring]) => d.radius)
           .style('opacity', 1)
           .attr('fill', 'transparent')
-          .attr('stroke', 'rgba(0, 0, 0, 0.02)')
-          .attr('stroke-width', '50px')
+          .attr('stroke', 'rgba(0, 0, 0, 0.05)')
+          .attr('stroke-width', '2px')
         return g
       },
       // update

@@ -1,7 +1,7 @@
 <template>
   <div
     ref="observe"
-    class="node d-flex"
+    class="node d-flex position-relative"
     :class="{
       observed: observed,
       [state.type.toLowerCase() + '-border']: true
@@ -19,8 +19,13 @@
 
     <div
       class="d-flex align-stretch flex-column justify-center px-1 flex-grow-1"
+      style="min-width: 0"
     >
-      <div v-skeleton="!taskRun.name" class="text-truncate">
+      <div
+        v-skeleton="!taskRun.name"
+        v-tooltip.top="taskRun.name"
+        class="text-truncate"
+      >
         {{ taskRun.name }}
       </div>
 
@@ -47,6 +52,12 @@
         </a>
       </div>
     </div>
+
+    <transition name="scale" mode="out-in">
+      <div v-if="collapsed" class="position-absolute collapsed-badge caption">
+        {{ collapsed.size.toLocaleString() }}
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -58,7 +69,8 @@ import {
   onMounted,
   onBeforeUnmount,
   Ref,
-  ref
+  ref,
+  watch
 } from 'vue'
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { SchematicNode } from '@/typings/schematic'
@@ -69,7 +81,7 @@ const emit = defineEmits(['toggle-tree'])
 
 const props = defineProps<{
   node: SchematicNode
-  collapsed?: boolean
+  collapsed?: undefined | Map<string, SchematicNode>
 }>()
 
 const queries: { [key: string]: Query } = {
@@ -142,6 +154,15 @@ const createIntersectionObserver = (margin: string) => {
   if (observe.value) observer.observe(observe.value)
 }
 
+watch(taskRun, () => {
+  if (
+    taskRun.value?.state_type == 'COMPLETED' ||
+    taskRun.value?.state_type == 'FAILED'
+  ) {
+    queries.task_run.pollInterval = 0
+  }
+})
+
 onMounted(() => {
   createIntersectionObserver('12px')
 })
@@ -152,6 +173,8 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
 .node {
   visibility: hidden;
   background-color: white;
@@ -199,5 +222,24 @@ onBeforeUnmount(() => {
       color: rgba(0, 0, 0, 0.3);
     }
   }
+
+  .collapsed-badge {
+    background-color: $primary;
+    border-radius: 99999999px; // Ensures a consistent border radius
+    color: $white;
+    padding: 2px 4px;
+    right: -2%;
+    top: -7.5px;
+  }
+}
+
+.scale-enter-active,
+.scale-leave-active {
+  transition: transform 150ms ease;
+}
+
+.scale-enter-from,
+.scale-leave-to {
+  transform: scale(0);
 }
 </style>
