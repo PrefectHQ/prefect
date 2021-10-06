@@ -66,7 +66,7 @@ const scaleExtentLower = computed<number>(() => {
 })
 
 const visibleNodes = computed<SchematicNodes>(() => {
-  const collapsed = [...collapsedTrees.entries()]
+  const collapsed = [...collapsedTrees.value.entries()]
   return new Map(
     [...radial.value.nodes.entries()].filter(([, node]) =>
       collapsed.every(([, tree]) => !tree.get(node.id))
@@ -84,7 +84,7 @@ const visibleRings = computed<Rings>(() => {
 })
 
 const visibleLinks = computed<Links>(() => {
-  const collapsed = [...collapsedTrees.entries()]
+  const collapsed = [...collapsedTrees.value.entries()]
   return radial.value.links.filter((link: Link) =>
     collapsed.every(([, tree]) => !tree.get(link.target.id))
   )
@@ -98,7 +98,6 @@ const zoomed = ({
 }: {
   transform: { x: number; y: number; k: number }
 }): void => {
-  console.log('zoomed', transform)
   const ts = `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`
   ringContainer.value?.style('transform', ts)
   edgeContainer.value?.style('transform', ts)
@@ -106,11 +105,11 @@ const zoomed = ({
 }
 
 const toggleTree = (node: SchematicNode) => {
-  if (collapsedTrees.get(node.id)) {
-    collapsedTrees.delete(node.id)
+  if (collapsedTrees.value.get(node.id)) {
+    collapsedTrees.value.delete(node.id)
   } else {
     const tree = radial.value.traverse(node)
-    collapsedTrees.set(node.id, tree)
+    collapsedTrees.value.set(node.id, tree)
   }
 }
 
@@ -309,7 +308,7 @@ const height = ref<number>(0)
 const width = ref<number>(0)
 const baseRadius: number = 300
 
-const collapsedTrees: Map<string, Map<string, SchematicNode>> = new Map()
+const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
 const line = d3.line().curve(curveMetro)
 
