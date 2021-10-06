@@ -9,9 +9,23 @@ Note that this requires both `docker-compose >= 1.18.0` and `docker` to be insta
 prefect server start
 ```
 
+
+::: warning Changes in Prefect 0.15.5
+To start Prefect Server on a remote compute instance (such as AWS, GCP, ...), make sure to add the `--expose` flag, which ensures that the Server and UI listen to all interfaces. Under the hood, this flag changes the host IP to "0.0.0.0" instead of using the default localhost.
+
+```bash
+prefect server start --expose
+```
+
+
+This flag was introduced in [0.15.5](https://github.com/PrefectHQ/prefect/pull/4821) - if you use an older version of Prefect, you should skip it. 
+:::
+
+
 Note that this command may take a bit to complete, as the various docker images are pulled. Once running,
 you should see some "Prefect Server" ASCII art along with the logs output from each service, and the UI should be available at
 [http://localhost:8080](http://localhost:8080).
+
 
 ::: tip Installing Docker
 We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop) following their instructions then installing docker-compose with `pip install docker-compose`.
