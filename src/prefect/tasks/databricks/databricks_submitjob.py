@@ -38,7 +38,7 @@ def _deep_string_coerce(content, json_path="json"):
         raise ValueError(msg)
 
 
-def _handle_databricks_task_execution(task, hook, log):
+def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
     """
     Handles the Databricks + Prefect lifecycle logic for a Databricks task
 
@@ -46,16 +46,17 @@ def _handle_databricks_task_execution(task, hook, log):
         - task (prefect.Task) : Prefect task being handled
         - hook (prefect.tasks.databricks.databricks_hook.DatabricksHook): Databricks Hook
         - log (logger): Prefect logging instance
+        - submitted_run_id (str): run ID returned after submitting or running Databricks job
     """
 
-    log.info("Run submitted with run_id: %s", task.run_id)
-    run_page_url = hook.get_run_page_url(task.run_id)
+    log.info("Run submitted with run_id: %s", submitted_run_id)
+    run_page_url = hook.get_run_page_url(submitted_run_id)
 
     log.info("Run submitted with config : %s", task.json)
 
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
     while True:
-        run_state = hook.get_run_state(task.run_id)
+        run_state = hook.get_run_state(submitted_run_id)
         if run_state.is_terminal:
             if run_state.is_successful:
                 log.info("%s completed successfully.", task.name)
@@ -236,8 +237,6 @@ class DatabricksSubmitRun(Task):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
 
-        self.run_id = None
-
         super().__init__(**kwargs)
 
     def get_hook(self):
@@ -371,10 +370,10 @@ class DatabricksSubmitRun(Task):
         self.json = _deep_string_coerce(self.json)
 
         # Submit the job
-        self.run_id = hook.submit_run(self.json)
-        _handle_databricks_task_execution(self, hook, self.logger)
+        submitted_run_id = hook.submit_run(self.json)
+        _handle_databricks_task_execution(self, hook, self.logger, submitted_run_id)
 
-        return self.run_id
+        return submitted_run_id
 
 
 class DatabricksRunNow(Task):
@@ -551,8 +550,6 @@ class DatabricksRunNow(Task):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
 
-        self.run_id = None
-
         super().__init__(**kwargs)
 
     def get_hook(self):
@@ -685,7 +682,7 @@ class DatabricksRunNow(Task):
         self.json = _deep_string_coerce(run_now_json)
 
         # Submit the job
-        self.run_id = hook.run_now(self.json)
-        _handle_databricks_task_execution(self, hook, self.logger)
+        submitted_run_id = hook.run_now(self.json)
+        _handle_databricks_task_execution(self, hook, self.logger, submitted_run_id)
 
-        return self.run_id
+        return submitted_run_id
