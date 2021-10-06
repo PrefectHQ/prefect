@@ -181,8 +181,9 @@ onBeforeUnmount(() => {
   box-shadow: 0px 0px 6px rgb(8, 29, 65, 0.06);
   box-sizing: content-box;
   // These don't work in firefox yet but are being prototyped (https://github.com/mozilla/standards-positions/issues/135)
-  contain-intrinsic-size: 53px;
-  content-visibility: auto;
+  contain-intrinsic-size: 300px 60px;
+  content-visibility: hidden;
+  overflow: visible;
   cursor: pointer;
   position: absolute;
   height: 53px;
@@ -193,6 +194,7 @@ onBeforeUnmount(() => {
 
   &.observed {
     visibility: visible;
+    content-visibility: visible;
   }
 
   &:hover {
