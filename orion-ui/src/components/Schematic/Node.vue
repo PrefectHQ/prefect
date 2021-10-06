@@ -154,11 +154,10 @@ const createIntersectionObserver = (margin: string) => {
   if (observe.value) observer.observe(observe.value)
 }
 
+const terminalStates = ['COMPLETED', 'FAILED', 'CANCELLED']
+
 watch(taskRun, () => {
-  if (
-    taskRun.value?.state_type == 'COMPLETED' ||
-    taskRun.value?.state_type == 'FAILED'
-  ) {
+  if (terminalStates.includes(taskRun.value?.state_type)) {
     queries.task_run.pollInterval = 0
   }
 })
