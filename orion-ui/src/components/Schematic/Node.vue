@@ -1,37 +1,31 @@
 <template>
   <div class="node">
-    <div class="d-flex align-center justify-center border px-1">
-      <!-- :class="[
+    <!-- :class="[
         node.data.state.toLowerCase() + '-bg',
         node.data.state.toLowerCase() + '-border'
       ]"
     :class="node.data.state.toLowerCase() + '-border'" -->
+    <!-- <div class="d-flex align-center justify-center border px-1">
+
       <i
         class="pi text--white pi-lg"
         :class="'pi-' + state.type.toLowerCase()"
       />
-    </div>
+    </div> -->
 
     <div class="d-flex align-center justify-center px-1">
       <div class="text-truncate" style="width: 110px">
-        {{ node.data.name }} - {{ node.ring }}
+        <!-- {{ node.data.name }} - {{ node.ring }} -->
       </div>
 
-      <div
+      <a
         v-if="node.downstreamNodes.size > 0"
-        class="collapse-button"
+        class="collapse-link"
         tabindex="-1"
         @click.stop="toggle"
       >
-        <!-- <i
-          class="pi pi-lg"
-          :class="
-            collapsedTrees.get(key)
-              ? 'pi-Small-Arrows-Separating'
-              : 'pi-Small-Arrows-Joining'
-          "
-        /> -->
-      </div>
+        {{ collapsed ? 'Show' : 'Hide' }}
+      </a>
 
       <!-- <div class="text-caption-2">
               <span class="text--grey-4">D: </span>
@@ -54,6 +48,7 @@ const emit = defineEmits(['toggle-tree'])
 
 const props = defineProps<{
   node: SchematicNode
+  collapsed: boolean
 }>()
 
 const toggle = () => {
@@ -77,11 +72,13 @@ const state = computed<State>(() => {
   content-visibility: auto;
   cursor: pointer;
   position: absolute;
-  height: 53px;
+  //   height: 53px;
+  height: 50px;
   pointer-events: all;
   transition: top 150ms, left 150ms, transform 150ms, box-shadow 50ms;
   transform: translate(-50%, -50%);
-  width: 188px;
+  //   width: 188px;
+  width: 50px;
 
   &:hover {
     box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
@@ -101,11 +98,11 @@ const state = computed<State>(() => {
     height: 100%;
   }
 
-  .collapse-button {
+  .collapse-link {
     border-radius: 50%;
-    height: 20px;
+    // height: 20px;
     text-align: center;
-    width: 20px;
+    // width: 20px;
 
     &:hover {
       background-color: var(--grey-5);
