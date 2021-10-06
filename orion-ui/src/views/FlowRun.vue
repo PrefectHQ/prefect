@@ -6,9 +6,11 @@
         align-center
         justify-space-between
         mb-2
+        py-1
         position-relative
         z-1
       "
+      :class="{ blur: route.fullPath.includes('/schematic') }"
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
       <div v-breakpoints="'sm'" class="text-truncate">
