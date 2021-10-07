@@ -60,6 +60,7 @@ from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
+    in_async_main_thread,
 )
 from prefect.utilities.callables import (
     assert_parameters_are_serializable,
@@ -105,8 +106,14 @@ def enter_flow_run_engine_from_flow_call(
 
     # Sync flow run
     if not is_subflow_run:
-        with start_blocking_portal() as portal:
-            return portal.call(begin_run)
+        if in_async_main_thread():
+            # An event loop is already running and we must create a blocking portal to
+            # run async code from this synchronous context
+            with start_blocking_portal() as portal:
+                return portal.call(begin_run)
+        else:
+            # An event loop is not running so we will create one
+            return anyio.run(begin_run)
 
     # Sync subflow run
     if not parent_flow_run_context.flow.isasync:
