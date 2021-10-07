@@ -19,6 +19,14 @@
         @focus.self="panToNode(node)"
       />
     </div>
+
+    <div class="mini-map position-absolute mr-2 mb-2" :style="miniMapStyle">
+      <div
+        ref="miniViewport"
+        class="mini-map--viewport position-absolute"
+        :style="miniMapViewportStyle"
+      />
+    </div>
   </div>
 </template>
 
@@ -49,6 +57,7 @@ const items = ref<Item[]>(props.items)
 type Selection = d3.Selection<SVGGElement, unknown, HTMLElement, any>
 
 const container = ref<HTMLElement>()
+const miniViewport = ref<HTMLElement>()
 const svg = ref<Selection>()
 const defs = ref<Selection>()
 const edgeContainer = ref<Selection>()
@@ -90,6 +99,47 @@ const visibleLinks = computed<Links>(() => {
   )
 })
 
+const viewportOffset = computed<number>(() => {
+  return visibleRings.value.size * baseRadius
+})
+
+const viewportExtent = computed<[[number, number], [number, number]]>(() => {
+  /**
+   * So we don't forget this later:
+   * The translation extent is the min coordinates of the translation axis;
+   * In the negative direction, this means the negative radius of the outtermost circle (- 1 radius unit for padding)
+   * In the positive direction, it's the radius of the outermost circle PLUS the circle offset, which is 1/2 the height in the Y direction and 1/2 the width in the X direction
+   */
+  const maxX = width.value + viewportOffset.value
+  const maxY = height.value + viewportOffset.value
+  return [
+    [-viewportOffset.value, -viewportOffset.value],
+    [maxX, maxY]
+  ]
+})
+
+const miniMapStyle = computed<{
+  width: string
+  height: string
+}>(() => {
+  const x = viewportExtent.value[1][0] - viewportExtent.value[0][0]
+  const y = viewportExtent.value[1][1] - viewportExtent.value[0][1]
+  return {
+    height: y + 'px',
+    width: x + 'px'
+  }
+})
+
+const miniMapViewportStyle = computed<{
+  width: string
+  height: string
+}>(() => {
+  return {
+    height: height.value + 'px',
+    width: width.value + 'px'
+  }
+})
+
 /**
  * Methods
  */
@@ -102,6 +152,14 @@ const zoomed = ({
   ringContainer.value?.style('transform', ts)
   edgeContainer.value?.style('transform', ts)
   nodeContainer.value?.style('transform', ts)
+
+  if (miniViewport.value) {
+    const x = 1 - transform.x + viewportOffset.value
+    const y = 1 - transform.y + viewportOffset.value
+    miniViewport.value.style.transform = `translate(${x}px, ${y}px) scale(${
+      1 / transform.k
+    })`
+  }
 }
 
 const toggleTree = (node: SchematicNode) => {
@@ -324,7 +382,12 @@ watch(props, () => {
 })
 
 watch(visibleRings, () => {
-  zoom.value.scaleExtent([scaleExtentLower.value, 1])
+  zoom.value.scaleExtent([1, 1]).translateExtent(viewportExtent.value)
+
+  d3.select('.schematic-svg')
+    .transition()
+    .duration(250)
+    .call(zoom.value.transform, d3.zoomIdentity)
 })
 
 watch(visibleLinks, () => {
@@ -355,8 +418,9 @@ const createChart = (): void => {
       [0, 0],
       [width.value, height.value]
     ])
-    .scaleExtent([scaleExtentLower.value, 1])
-    // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
+    .translateExtent(viewportExtent.value)
+    .scaleExtent([1, 1])
+    .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
   svg.value
@@ -394,7 +458,7 @@ onUnmounted(() => {
 })
 </script>
 
-<style scoped lang="scss">
+<style lang="scss" scoped>
 .schematic-container {
   height: 100vh;
   max-height: 100vh;
@@ -417,6 +481,23 @@ onUnmounted(() => {
       cursor: grabbing;
     }
   }
+
+  .mini-map {
+    backdrop-filter: blur(1px);
+    background-color: rgba(142, 160, 174, 0.1);
+    border-radius: 40px;
+    bottom: 0;
+    overflow: hidden;
+    transform: scale(0.05);
+    right: 0;
+    transform-origin: 100% 100%;
+    z-index: 9999;
+
+    .mini-map--viewport {
+      background-color: rgba(142, 160, 174, 0.5);
+      border-radius: 40px;
+    }
+  }
 }
 
 .node-container {
@@ -434,7 +515,6 @@ onUnmounted(() => {
 .schematic-container {
   svg {
     path {
-      // display: none;
       fill: none;
       opacity: 0.8;
       stroke-width: 20;
