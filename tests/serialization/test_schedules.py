@@ -206,6 +206,34 @@ def test_serialize_rrule_clocks():
     assert t2.next(2, after=start) == days
 
 
+def test_serialize_rruleset_clocks():
+    s = (
+        "DTSTART:20120201T023000Z\n"
+        "RRULE:FREQ=MONTHLY;COUNT=5\n"
+        "RDATE:20120701T023000Z,20120702T023000Z\n"
+        "EXRULE:FREQ=MONTHLY;COUNT=2\n"
+        "EXDATE:20120601T023000Z"
+    )
+    rr = rrule.rrulestr(s)
+    days = [pendulum.datetime(2012, 4, 1, 2, 30), pendulum.datetime(2012, 5, 1, 2, 30)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+
+    s = (
+        "DTSTART:20120201T023000Z\n"
+        "RDATE:20120701T023000Z,20120702T023000Z\n"
+        "EXDATE:20120601T023000Z"
+    )
+    rr = rrule.rrulestr(s)
+    days = [pendulum.datetime(2012, 7, 1, 2, 30), pendulum.datetime(2012, 7, 2, 2, 30)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+
+
 def test_serialize_multiple_clocks():
 
     dt = pendulum.datetime(2019, 1, 1)
