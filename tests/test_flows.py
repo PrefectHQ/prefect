@@ -487,6 +487,7 @@ class TestFlowTimeouts:
 
         state = my_flow()
         assert state.is_failed()
+        assert state.name == "TimedOut"
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     async def test_async_flows_fail_with_timeout(self):
@@ -496,6 +497,7 @@ class TestFlowTimeouts:
 
         state = await my_flow()
         assert state.is_failed()
+        assert state.name == "TimedOut"
         assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
