@@ -680,7 +680,6 @@ async def detect_crashes(flow_run: FlowRun):
             )
         raise
 
-
 async def user_return_value_to_state(
     result: Any, serializer: str = "cloudpickle"
 ) -> State:
