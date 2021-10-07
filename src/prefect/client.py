@@ -21,11 +21,10 @@ from uuid import UUID
 
 import anyio
 import httpx
-import httpx._types as httpx_types
 import pydantic
 
 import prefect
-from prefect import exceptions
+from prefect import exceptions, settings
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
@@ -212,10 +211,44 @@ class OrionClient:
         self,
         *,
         flow_filter: schemas.filters.FlowFilter = None,
+        flow_run_filter: schemas.filters.FlowRunFilter = None,
+        task_run_filter: schemas.filters.TaskRunFilter = None,
+        deployment_filter: schemas.filters.DeploymentFilter = None,
+        limit: int = settings.orion.api.default_limit,
+        offset: int = 0,
     ) -> List[schemas.core.Flow]:
-        body = {}
-        if flow_filter:
-            body["flows"] = flow_filter.dict(json_compatible=True)
+        """
+        Query Orion for flows. Only flows matching all criteria will
+        be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            limit: limit for the flow query
+            offset: offset for the flow query
+
+        Returns:
+            a list of [Flow model][prefect.orion.schemas.core.Flow] representation
+                of the flows
+        """
+        body = {
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "limit": limit,
+            "offset": offset,
+        }
 
         response = await self.post(f"/flows/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Flow], response.json())
@@ -411,6 +444,15 @@ class OrionClient:
         self,
         deployment_id: UUID,
     ) -> schemas.core.Deployment:
+        """
+        Query Orion for a deployment by id.
+
+        Args:
+            deployment_id: the deployment ID of interest
+
+        Returns:
+            a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
+        """
         response = await self.get(f"/deployments/{deployment_id}")
         return schemas.core.Deployment.parse_obj(response.json())
 
@@ -418,14 +460,73 @@ class OrionClient:
         self,
         name: str,
     ) -> schemas.core.Deployment:
+        """
+        Query Orion for a deployment by name.
+
+        Args:
+            name: the deployment name of interest
+
+        Returns:
+            a [Deployment model][prefect.orion.schemas.core.Deployment] representation of the deployment
+        """
         response = await self.get(f"/deployments/name/{name}")
         return schemas.core.Deployment.parse_obj(response.json())
 
-    async def read_deployments(self) -> schemas.core.Deployment:
-        response = await self.post(f"/deployments/filter")
+    async def read_deployments(
+        self,
+        *,
+        flow_filter: schemas.filters.FlowFilter = None,
+        flow_run_filter: schemas.filters.FlowRunFilter = None,
+        task_run_filter: schemas.filters.TaskRunFilter = None,
+        deployment_filter: schemas.filters.DeploymentFilter = None,
+        limit: int = settings.orion.api.default_limit,
+        offset: int = 0,
+    ) -> schemas.core.Deployment:
+        """
+        Query Orion for deployments. Only deployments matching all
+        the provided criteria will be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            limit: a limit for the deployment query
+            offset: an offset for the deployment query
+
+        Returns:
+            a list of [Deployment model][prefect.orion.schemas.core.Deployment] representation
+                of the deployments
+        """
+        body = {
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self.post(f"/deployments/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.Deployment], response.json())
 
     async def read_flow_run(self, flow_run_id: UUID) -> schemas.core.FlowRun:
+        """
+        Query Orion for a flow run by id.
+
+        Args:
+            flow_run_id: the flow run ID of interest
+
+        Returns:
+            a [Flow Run model][prefect.orion.schemas.core.FlowRun] representation of the flow run
+        """
         response = await self.get(f"/flow_runs/{flow_run_id}")
         return schemas.core.FlowRun.parse_obj(response.json())
 
@@ -435,18 +536,45 @@ class OrionClient:
         flow_filter: schemas.filters.FlowFilter = None,
         flow_run_filter: schemas.filters.FlowRunFilter = None,
         task_run_filter: schemas.filters.TaskRunFilter = None,
+        deployment_filter: schemas.filters.DeploymentFilter = None,
         sort: schemas.sorting.FlowRunSort = None,
+        limit: int = settings.orion.api.default_limit,
+        offset: int = 0,
     ) -> List[schemas.core.FlowRun]:
-        body = {}
-        if flow_filter:
-            body["flows"] = flow_filter.dict(json_compatible=True)
-        if flow_run_filter:
-            body["flow_runs"] = flow_run_filter.dict(json_compatible=True)
-        if task_run_filter:
-            body["task_runs"] = task_run_filter.dict(json_compatible=True)
+        """
+        Query Orion for flow runs. Only flow runs matching all criteria will
+        be returned.
 
-        if sort:
-            body["sort"] = sort
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            sort: sort criteria for the flow runs
+            limit: limit for the flow run query
+            offset: offset for the flow run query
+
+        Returns:
+            a list of [Flow Run model][prefect.orion.schemas.core.FlowRun] representation
+                of the flow runs
+        """
+        body = {
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
 
         response = await self.post(f"/flow_runs/filter", json=body)
         return pydantic.parse_obj_as(List[schemas.core.FlowRun], response.json())
@@ -455,6 +583,15 @@ class OrionClient:
         self,
         data: bytes,
     ) -> DataDocument:
+        """
+        Persist data in orion and return the orion data document
+
+        Args:
+            data: the data to persist
+
+        Returns:
+            orion data document pointing to persisted data
+        """
         response = await self.post("/data/persist", content=data)
         orion_doc = DataDocument.parse_obj(response.json())
         return orion_doc
@@ -463,6 +600,15 @@ class OrionClient:
         self,
         orion_datadoc: DataDocument,
     ) -> bytes:
+        """
+        Exchange an orion data document for the data previously persisted.
+
+        Args:
+            orion_datadoc: the orion data document to retrieve
+
+        Returns:
+            the persisted data in bytes
+        """
         if orion_datadoc.has_cached_data():
             return orion_datadoc.decode()
 
@@ -471,11 +617,32 @@ class OrionClient:
         )
         return response.content
 
-    async def persist_object(self, obj: Any, encoder: str = "cloudpickle"):
+    async def persist_object(
+        self, obj: Any, encoder: str = "cloudpickle"
+    ) -> DataDocument:
+        """
+        Persist an object in orion and return the orion data document
+
+        Args:
+            obj: the object to persist
+            encoder: an optional encoder for data document
+
+        Returns:
+            orion data document pointing to persisted data
+        """
         datadoc = DataDocument.encode(encoding=encoder, data=obj)
         return await self.persist_data(datadoc.json().encode())
 
     async def retrieve_object(self, orion_datadoc: DataDocument) -> Any:
+        """
+        Exchange an orion data document for the object previously persisted.
+
+        Args:
+            orion_datadoc: the orion data document to retrieve
+
+        Returns:
+            the persisted object
+        """
         datadoc = DataDocument.parse_raw(await self.retrieve_data(orion_datadoc))
         return datadoc.decode()
 
@@ -486,6 +653,21 @@ class OrionClient:
         force: bool = False,
         orion_doc: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
+        """
+        Set the state of a flow run.
+
+        Args:
+            flow_run_id: the id of the flow run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Orion API to accept the state
+            orion_doc: an optional orion data document representing the state's data,
+                if provided it will override `state.data`
+
+        Returns:
+            a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
+                representation of state orchestration output
+        """
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
@@ -511,6 +693,16 @@ class OrionClient:
     async def read_flow_run_states(
         self, flow_run_id: UUID
     ) -> List[schemas.states.State]:
+        """
+        Query for the states of a flow run
+
+        Args:
+            flow_run_id: the id of the flow run
+
+        Returns:
+            a list of [State model][prefect.orion.schemas.core.State] representation
+                of the flow run states
+        """
         response = await self.get(
             "/flow_run_states/", params=dict(flow_run_id=flow_run_id)
         )
@@ -577,8 +769,65 @@ class OrionClient:
         return TaskRun.parse_obj(response.json())
 
     async def read_task_run(self, task_run_id: UUID) -> schemas.core.TaskRun:
+        """
+        Query Orion for a task run by id.
+
+        Args:
+            task_run_id: the task run ID of interest
+
+        Returns:
+            a [Task Run model][prefect.orion.schemas.core.TaskRun] representation of the task run
+        """
         response = await self.get(f"/task_runs/{task_run_id}")
         return schemas.core.TaskRun.parse_obj(response.json())
+
+    async def read_task_runs(
+        self,
+        *,
+        flow_filter: schemas.filters.FlowFilter = None,
+        flow_run_filter: schemas.filters.FlowRunFilter = None,
+        task_run_filter: schemas.filters.TaskRunFilter = None,
+        deployment_filter: schemas.filters.DeploymentFilter = None,
+        sort: schemas.sorting.TaskRunSort = None,
+        limit: int = settings.orion.api.default_limit,
+        offset: int = 0,
+    ) -> List[schemas.core.TaskRun]:
+        """
+        Query Orion for task runs. Only task runs matching all criteria will
+        be returned.
+
+        Args:
+            flow_filter: filter criteria for flows
+            flow_run_filter: filter criteria for flow runs
+            task_run_filter: filter criteria for task runs
+            deployment_filter: filter criteria for deployments
+            sort: sort criteria for the task runs
+            limit: a limit for the task run query
+            offset: an offset for the task run query
+
+        Returns:
+            a list of [Task Run model][prefect.orion.schemas.core.TaskRun] representation
+                of the task runs
+        """
+        body = {
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+        response = await self.post(f"/task_runs/filter", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.TaskRun], response.json())
 
     async def propose_state(
         self,
@@ -586,6 +835,36 @@ class OrionClient:
         task_run_id: UUID = None,
         flow_run_id: UUID = None,
     ) -> schemas.states.State:
+        """
+        Propose a new state for a flow run or task run, invoking Orion
+        orchestration logic.
+
+        If the proposed state is accepted, the provided `state` will be
+        augmented with details and returned.
+
+        If the proposed state is rejected, a new state returned by the
+        Orion API will be returned.
+
+        If the proposed state results in a WAIT instruction from the Orion
+        API, the function will sleep and attempt to propose the state again.
+
+        If the proposed state results in an ABORT instruction from the Orion
+        API, an error will be raised.
+
+        Args:
+            state: a new state for the task or flow run
+            task_run_id: an optional task run id, used when proposing task run states
+            flow_run_id: an optional flow run id, used when proposing flow run states
+
+        Returns:
+            a [State model][prefect.orion.schemas.core.State] representation of the
+                flow or task run state
+
+        Raises:
+            ValueError: if neither task_run_id or flow_run_id is provided
+            prefect.exceptions.Abort: if an ABORT instruction is received from
+                the Orion API
+        """
 
         # Determine if working with a task run or flow run
         if not task_run_id and not flow_run_id:
@@ -655,6 +934,21 @@ class OrionClient:
         force: bool = False,
         orion_doc: schemas.data.DataDocument = None,
     ) -> OrchestrationResult:
+        """
+        Set the state of a task run.
+
+        Args:
+            task_run_id: the id of the task run
+            state: the state to set
+            force: if True, disregard orchestration logic when setting the state,
+                forcing the Orion API to accept the state
+            orion_doc: an optional orion data document representing the state's data,
+                if provided it will override `state.data`
+
+        Returns:
+            a [OrchestrationResult model][prefect.orion.orchestration.rules.OrchestrationResult]
+                representation of state orchestration output
+        """
         state_data = schemas.actions.StateCreate(
             type=state.type,
             message=state.message,
@@ -680,6 +974,16 @@ class OrionClient:
     async def read_task_run_states(
         self, task_run_id: UUID
     ) -> List[schemas.states.State]:
+        """
+        Query for the states of a task run
+
+        Args:
+            task_run_id: the id of the task run
+
+        Returns:
+            a list of [State model][prefect.orion.schemas.core.State] representation
+                of the task run states
+        """
         response = await self.get(
             "/task_run_states", params=dict(task_run_id=task_run_id)
         )
