@@ -234,16 +234,18 @@ class OrionClient:
                 of the flows
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
-            "flow_runs": flow_run_filter.dict(json_compatible=True)
-            if flow_run_filter
-            else None,
-            "task_runs": task_run_filter.dict(json_compatible=True)
-            if task_run_filter
-            else None,
-            "deployments": deployment_filter.dict(json_compatible=True)
-            if deployment_filter
-            else None,
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
         }
@@ -497,16 +499,18 @@ class OrionClient:
                 of the deployments
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
-            "flow_runs": flow_run_filter.dict(json_compatible=True)
-            if flow_run_filter
-            else None,
-            "task_runs": task_run_filter.dict(json_compatible=True)
-            if task_run_filter
-            else None,
-            "deployments": deployment_filter.dict(json_compatible=True)
-            if deployment_filter
-            else None,
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
             "limit": limit,
             "offset": offset,
         }
@@ -555,16 +559,18 @@ class OrionClient:
                 of the flow runs
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
-            "flow_runs": flow_run_filter.dict(json_compatible=True)
-            if flow_run_filter
-            else None,
-            "task_runs": task_run_filter.dict(json_compatible=True)
-            if task_run_filter
-            else None,
-            "deployments": deployment_filter.dict(json_compatible=True)
-            if deployment_filter
-            else None,
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
             "sort": sort,
             "limit": limit,
             "offset": offset,
@@ -804,16 +810,18 @@ class OrionClient:
                 of the task runs
         """
         body = {
-            "flows": flow_filter.dict(json_compatible=True) if flow_filter else None,
-            "flow_runs": flow_run_filter.dict(json_compatible=True)
-            if flow_run_filter
-            else None,
-            "task_runs": task_run_filter.dict(json_compatible=True)
-            if task_run_filter
-            else None,
-            "deployments": deployment_filter.dict(json_compatible=True)
-            if deployment_filter
-            else None,
+            "flows": (flow_filter.dict(json_compatible=True) if flow_filter else None),
+            "flow_runs": (
+                flow_run_filter.dict(json_compatible=True) if flow_run_filter else None
+            ),
+            "task_runs": (
+                task_run_filter.dict(json_compatible=True) if task_run_filter else None
+            ),
+            "deployments": (
+                deployment_filter.dict(json_compatible=True)
+                if deployment_filter
+                else None
+            ),
             "sort": sort,
             "limit": limit,
             "offset": offset,
