@@ -603,6 +603,11 @@ class TestFlowRunCrashes:
         assert "Execution was interrupted by the system" in flow_run.state.message
 
     async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
+        """
+        Since timeouts use anyio cancellation scopes, we want to ensure that they are
+        not marked as crashes
+        """
+
         @flow(timeout_seconds=0.1)
         async def my_flow():
             await anyio.sleep_forever()
@@ -616,3 +621,41 @@ class TestFlowRunCrashes:
 
         assert flow_run.state.is_failed()
         assert flow_run.state.name != "Crashed"
+        assert "timed out" in flow_run.state.message
+
+    async def test_timeouts_do_not_hide_crashes(self, flow_run, orion_client):
+        """
+        Since timeouts capture anyio cancellations, we want to ensure that something
+        still ends up in a 'Crashed' state if it is cancelled independently from our
+        timeout cancellation.
+        """
+
+        @flow(timeout_seconds=100)
+        async def my_flow():
+            await anyio.sleep_forever()
+
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(
+                    partial(
+                        begin_flow_run,
+                        flow=my_flow,
+                        flow_run=flow_run,
+                        client=orion_client,
+                    )
+                )
+                await anyio.sleep(0.2)  # Give the flow time to start
+                tg.cancel_scope.cancel()
+        except BaseException:
+            # In python 3.8+ cancellation raises a `BaseException` that will not
+            # be captured by `orchestrate_flow_run` and needs to be trapped here to
+            # prevent the test from failing before we can assert things are 'Crashed'
+            pass
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name == "Crashed"
+        assert (
+            "Execution was interrupted by the async runtime" in flow_run.state.message
+        )
