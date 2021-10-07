@@ -544,8 +544,7 @@ class TestFlowRunCrashes:
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
         assert (
-            "Execution of this flow was cancelled by the async runtime"
-            in flow_run.state.message
+            "Execution was interrupted by the async runtime" in flow_run.state.message
         )
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
@@ -587,8 +586,7 @@ class TestFlowRunCrashes:
         assert child_run.state.is_failed()
         assert child_run.state.name == "Crashed"
         assert (
-            "Execution of this flow was cancelled by the async runtime"
-            in child_run.state.message
+            "Execution was interrupted by the async runtime" in child_run.state.message
         )
 
     async def test_keyboard_interrupt_crashes_flow(self, flow_run, orion_client):
@@ -602,7 +600,19 @@ class TestFlowRunCrashes:
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_failed()
         assert flow_run.state.name == "Crashed"
-        assert (
-            "Execution of this flow was interrupted by the system"
-            in flow_run.state.message
+        assert "Execution was interrupted by the system" in flow_run.state.message
+
+    async def test_flow_timeouts_are_not_crashes(self, flow_run, orion_client):
+        @flow(timeout_seconds=0.1)
+        async def my_flow():
+            await anyio.sleep_forever()
+
+        await begin_flow_run(
+            flow=my_flow,
+            flow_run=flow_run,
+            client=orion_client,
         )
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+
+        assert flow_run.state.is_failed()
+        assert flow_run.state.name != "Crashed"

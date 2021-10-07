@@ -661,7 +661,7 @@ async def detect_crashes(flow_run: FlowRun):
                 await client.propose_state(
                     state=Failed(
                         name="Crashed",
-                        message="Execution of this flow was cancelled by the async runtime.",
+                        message="Execution was interrupted by the async runtime.",
                         data=DataDocument.encode("cloudpickle", exc),
                     ),
                     flow_run_id=flow_run.id,
@@ -673,12 +673,13 @@ async def detect_crashes(flow_run: FlowRun):
             await client.propose_state(
                 state=Failed(
                     name="Crashed",
-                    message="Execution of this flow was interrupted by the system.",
+                    message="Execution was interrupted by the system.",
                     data=DataDocument.encode("cloudpickle", exc),
                 ),
                 flow_run_id=flow_run.id,
             )
         raise
+
 
 async def user_return_value_to_state(
     result: Any, serializer: str = "cloudpickle"
