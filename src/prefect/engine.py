@@ -224,6 +224,7 @@ async def begin_flow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
+
     return terminal_state
 
 
@@ -286,17 +287,17 @@ async def create_and_begin_subflow_run(
             flow_run_id=flow_run.id,
         )
 
-        # Display the full state (including the result) if debugging
-        display_state = (
-            terminal_state if prefect.settings.debug_mode else repr(terminal_state.name)
-        )
-        logger.log(
-            level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
-            msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
-        )
+    # Display the full state (including the result) if debugging
+    display_state = (
+        repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
+    )
+    logger.log(
+        level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
+        msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
+    )
 
-        # Track the subflow state so the parent flow can use it to determine its final state
-        parent_flow_run_context.subflow_states.append(terminal_state)
+    # Track the subflow state so the parent flow can use it to determine its final state
+    parent_flow_run_context.subflow_states.append(terminal_state)
 
     return terminal_state
 
