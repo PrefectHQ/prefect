@@ -521,13 +521,23 @@ class TestFlowRunCrashes:
         async def my_flow():
             await anyio.sleep_forever()
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(
-                partial(
-                    begin_flow_run, flow=my_flow, flow_run=flow_run, client=orion_client
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(
+                    partial(
+                        begin_flow_run,
+                        flow=my_flow,
+                        flow_run=flow_run,
+                        client=orion_client,
+                    )
                 )
-            )
-            tg.cancel_scope.cancel()
+                await anyio.sleep(0.2)  # Give the flow time to start
+                tg.cancel_scope.cancel()
+        except BaseException:
+            # In python 3.8+ cancellation raises a `BaseException` that will not
+            # be captured by `orchestrate_flow_run` and needs to be trapped here to
+            # prevent the test from failing before we can assert things are 'Crashed'
+            pass
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
@@ -547,17 +557,23 @@ class TestFlowRunCrashes:
         async def parent_flow():
             await child_flow()
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(
-                partial(
-                    begin_flow_run,
-                    flow=parent_flow,
-                    flow_run=flow_run,
-                    client=orion_client,
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(
+                    partial(
+                        begin_flow_run,
+                        flow=parent_flow,
+                        flow_run=flow_run,
+                        client=orion_client,
+                    )
                 )
-            )
-            await anyio.sleep(0.5)  # Give the subflow time to start
-            tg.cancel_scope.cancel()
+                await anyio.sleep(0.5)  # Give the subflow time to start
+                tg.cancel_scope.cancel()
+        except BaseException:
+            # In python 3.8+ cancellation raises a `BaseException` that will not
+            # be captured by `orchestrate_flow_run` and needs to be trapped here to
+            # prevent the test from failing before we can assert things are 'Crashed'
+            pass
 
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
         assert parent_flow_run.state.is_failed()
