@@ -487,7 +487,7 @@ class TestFlowTimeouts:
 
         state = my_flow()
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
@@ -496,7 +496,7 @@ class TestFlowTimeouts:
 
         state = await my_flow()
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
         @flow(timeout_seconds=0.5)
@@ -524,7 +524,7 @@ class TestFlowTimeouts:
         t1 = time.time()
 
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
         assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
@@ -552,7 +552,7 @@ class TestFlowTimeouts:
         state = my_flow()
 
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
@@ -576,7 +576,7 @@ class TestFlowTimeouts:
         t1 = anyio.current_time()
 
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(1)
@@ -606,7 +606,7 @@ class TestFlowTimeouts:
         state = await my_flow()
 
         runtime, subflow_state = state.result()
-        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(1)
@@ -640,7 +640,7 @@ class TestFlowTimeouts:
         state = my_flow()
 
         runtime, subflow_state = state.result()
-        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
         assert runtime < 0.5, "The engine returns without waiting"
 
         # Wait in case the flow is just sleeping
