@@ -92,7 +92,7 @@ def test_create_git_storage_with_git_clone_url_secret_name_and_other_repo_params
 def test_create_git_storage_without_repo_or_git_clone_url_secret_name_errors():
     with pytest.raises(
         ValueError,
-        match="One of `repo` or `git_clone_url_secret_name` must be provided",
+        match="Either `repo` or `git_clone_url_secret_name` must be provided",
     ):
         storage = Git(flow_path="flow.py")
 
