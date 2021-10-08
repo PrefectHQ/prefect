@@ -34,7 +34,8 @@ class Git(Storage):
 
     Args:
         - flow_path (str): A file path pointing to a .py file containing a flow
-        - repo (str): the name of a git repository to store this Flow
+        - repo (str, optional): The name of a git repository to store this Flow.
+            One of `repo` or `git_clone_url_secret_name` is required.
         - repo_host (str, optional): The site hosting the repo. Defaults to 'github.com'
         - flow_name (str, optional): A specific name of a flow to extract from a file.
             If not set then the first flow object retrieved from file will be returned.
@@ -63,7 +64,7 @@ class Git(Storage):
     def __init__(
         self,
         flow_path: str,
-        repo: str,
+        repo: str = None,
         repo_host: str = "github.com",
         flow_name: str = None,
         git_token_secret_name: str = None,
@@ -80,6 +81,11 @@ class Git(Storage):
         if sum([bool(x) for x in (branch_name, tag, commit)]) > 1:
             raise ValueError(
                 "Please provide only one of the following parameters: `branch_name`, `tag`, `commit`"
+            )
+
+        if repo is None and git_clone_url_secret_name is None:
+            raise ValueError(
+                "One of `repo` or `git_clone_url_secret_name` must be provided"
             )
 
         if use_ssh and git_token_secret_name is not None:
