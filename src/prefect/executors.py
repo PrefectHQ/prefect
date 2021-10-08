@@ -65,6 +65,7 @@ from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun
 from prefect.utilities.logging import get_logger
+from prefect.utilities.asyncio import A
 
 T = TypeVar("T", bound="BaseExecutor")
 
@@ -80,7 +81,8 @@ class BaseExecutor(metaclass=abc.ABCMeta):
         task_run: TaskRun,
         run_fn: Callable[..., State],
         run_kwargs: Dict[str, Any],
-    ) -> PrefectFuture:
+        asynchronous: A = True,
+    ) -> PrefectFuture[Any, A]:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
         get the call result.
@@ -157,14 +159,17 @@ class SequentialExecutor(BaseExecutor):
         task_run: TaskRun,
         run_fn: Callable[..., Awaitable[State]],
         run_kwargs: Dict[str, Any],
-    ) -> PrefectFuture:
+        asynchronous: A = True,
+    ) -> PrefectFuture[Any, A]:
         if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
         # Run the function immediately and store the result in memory
         self._results[task_run.id] = await run_fn(**run_kwargs)
 
-        return PrefectFuture(task_run=task_run, executor=self)
+        return PrefectFuture(
+            task_run=task_run, executor=self, asynchronous=asynchronous
+        )
 
     async def wait(
         self, prefect_future: PrefectFuture, timeout: float = None
@@ -195,13 +200,16 @@ class DaskExecutor(BaseExecutor):
         task_run: TaskRun,
         run_fn: Callable[..., State],
         run_kwargs: Dict[str, Any],
-    ) -> PrefectFuture:
+        asynchronous: A = True,
+    ) -> PrefectFuture[Any, A]:
         if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
         self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
 
-        return PrefectFuture(task_run=task_run, executor=self)
+        return PrefectFuture(
+            task_run=task_run, executor=self, asynchronous=asynchronous
+        )
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
         """
