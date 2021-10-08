@@ -621,7 +621,7 @@ class TestFlowRunCrashes:
 
         assert flow_run.state.is_failed()
         assert flow_run.state.name != "Crashed"
-        assert "timed out" in flow_run.state.message
+        assert "exceeded timeout" in flow_run.state.message
 
     async def test_timeouts_do_not_hide_crashes(self, flow_run, orion_client):
         """
