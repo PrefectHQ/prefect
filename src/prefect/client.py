@@ -49,12 +49,13 @@ def inject_client(fn):
 
     @wraps(fn)
     async def wrapper(*args, **kwargs):
-        if "client" in kwargs:
+        if "client" in kwargs and kwargs["client"] is not None:
             return await fn(*args, **kwargs)
         else:
             client = OrionClient()
             async with client:
-                return await fn(*args, client=client, **kwargs)
+                kwargs["client"] = client
+                return await fn(*args, **kwargs)
 
     return wrapper
 
