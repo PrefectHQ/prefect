@@ -144,9 +144,34 @@ class PrefectFuture(Generic[R, A]):
         self._final_state = await self._executor.wait(self, timeout)
         return self._final_state
 
-    @sync_compatible
+    @overload
+    def get_state(
+        self: "PrefectFuture[R, Async]", client: OrionClient = None
+    ) -> Awaitable[State[R]]:
+        ...
+
+    @overload
+    def get_state(
+        self: "PrefectFuture[R, Sync]", client: OrionClient = None
+    ) -> State[R]:
+        ...
+
+    def get_state(self, client: OrionClient = None):
+        """
+        Wait for the run to finish and return the final state
+
+        If the timeout is reached before the run reaches a final state,
+        `None` is returned.
+        """
+        if self.asynchronous:
+            return cast(Awaitable[State[R]], self._get_state(client=client))
+        else:
+            return cast(State[R], sync(self._get_state, client=client))
+
     @inject_client
-    async def get_state(self, client: OrionClient) -> State[R]:
+    async def _get_state(self, client: OrionClient = None) -> State[R]:
+        assert client is not None  # always injected
+
         task_run = await client.read_task_run(self.run_id)
 
         if not task_run:
