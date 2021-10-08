@@ -144,6 +144,10 @@ def test_raises_if_invalid_host_runnow(notebook_job_config):
         task.run()
 
 
+def test_ensure_run_id_not_defined_within_class_arguments(job_config):
+    assert not hasattr(job_config, "run_id")
+
+
 class TestDatabricksRunNowAttributeOverrides:
     """Test various expected attribute override behavior with `DatabricksRunNow.run`"""
 
@@ -203,3 +207,6 @@ class TestDatabricksRunNowAttributeOverrides:
             run_now_json.get("notebook_params", {}).get("notebookparam1")
             == "notebookvalue1"
         )
+
+    def test_ensure_run_id_not_defined_within_class_arguments(self, task_template):
+        assert not hasattr(task_template, "run_id")
