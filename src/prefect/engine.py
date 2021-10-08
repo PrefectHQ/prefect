@@ -376,7 +376,8 @@ async def orchestrate_flow_run(
 
     except TimeoutError as exc:
         state = Failed(
-            message=f"Flow run timed out after {flow.timeout_seconds} seconds"
+            name="TimedOut",
+            message=f"Flow run exceeded timeout of {flow.timeout_seconds} seconds",
         )
     except Exception as exc:
         logger.error(
