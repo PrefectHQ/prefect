@@ -71,7 +71,7 @@ from prefect.utilities.collections import DotDict, merge_dicts
 
 
 @contextlib.contextmanager
-def nullcontext(enter_result=None):
+def nullcontext(enter_result: Any = None) -> Iterator[None]:
     """Null context manager for python 3.6."""
     yield enter_result
 
