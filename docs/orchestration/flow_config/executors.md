@@ -273,3 +273,43 @@ argument:
 # Connect to an existing cluster running at a specified address
 flow.executor = DaskExecutor(address="tcp://...")
 ```
+
+### Performance Reports
+
+To generate a [performance report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report)
+for a flow run, specify a `performance_report_path` for the `DaskExecutor`.
+
+The performance report html will be available as a string in the flow's terminal state handler.
+
+
+```python
+from prefect.executors import DaskExecutor
+from prefect import Flow, task, Parameter
+from prefect.engine.state import State
+from typing import Set, Optional
+
+def custom_terminal_state_handler(
+	flow: Flow,
+	state: State,
+	reference_task_states: Set[State],
+) -> Optional[State]:
+  # test_perf_report.html can be viewed in a web browser
+	with open("/Users/me/test_perf_report.html", "w+") as fp:
+		fp.write(flow.executor.performance_report)
+
+# define a simple task and flow
+@task
+def hello():
+  return "hi"
+
+with Flow('performance_report') as flow:
+  x = hello()
+
+# specify where the executor should write the performance report
+flow.executor = DaskExecutor(performance_report_path="/tmp/hi_performance_report.html")
+
+# specify a terminal state handler for custom logic
+flow.terminal_state_handler = custom_terminal_state_handler
+
+flow.register('test')
+```

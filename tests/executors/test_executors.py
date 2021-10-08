@@ -2,6 +2,7 @@ import logging
 import os
 import random
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -388,6 +389,27 @@ class TestDaskExecutor:
         executor = DaskExecutor(debug=debug)
         level = logging.WARNING if debug else logging.CRITICAL
         assert executor.cluster_kwargs["silence_logs"] == level
+
+    def test_performance_report(self):
+        # should not error
+        assert DaskExecutor().performance_report == ""
+        assert (
+            DaskExecutor(
+                performance_report_path="not a readable path"
+            ).performance_report
+            == ""
+        )
+
+        with tempfile.TemporaryDirectory() as report_dir:
+            with open(f"{report_dir}/report.html", "w") as fp:
+                fp.write("very advanced report")
+
+            assert (
+                DaskExecutor(
+                    performance_report_path=f"{report_dir}/report.html"
+                ).performance_report
+                == "very advanced report"
+            )
 
     def test_cant_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
