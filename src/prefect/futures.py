@@ -202,7 +202,7 @@ async def resolve_futures_to_data(
 
     async def visit_fn(expr):
         if isinstance(expr, PrefectFuture):
-            return (await expr.wait()).result(raise_on_failure=False)
+            return (await expr._wait()).result(raise_on_failure=False)
         else:
             return expr
 
