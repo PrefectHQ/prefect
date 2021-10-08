@@ -35,7 +35,7 @@ class Git(Storage):
     Args:
         - flow_path (str): A file path pointing to a .py file containing a flow
         - repo (str, optional): The name of a git repository to store this Flow.
-            One of `repo` or `git_clone_url_secret_name` is required.
+            If not provided, the repo must be set using a secret. See `git_clone_url_secret_name`.
         - repo_host (str, optional): The site hosting the repo. Defaults to 'github.com'
         - flow_name (str, optional): A specific name of a flow to extract from a file.
             If not set then the first flow object retrieved from file will be returned.
@@ -85,7 +85,7 @@ class Git(Storage):
 
         if repo is None and git_clone_url_secret_name is None:
             raise ValueError(
-                "One of `repo` or `git_clone_url_secret_name` must be provided"
+                "Either `repo` or `git_clone_url_secret_name` must be provided"
             )
 
         if use_ssh and git_token_secret_name is not None:
