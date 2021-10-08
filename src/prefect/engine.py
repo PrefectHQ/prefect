@@ -16,7 +16,7 @@ Engine process overview
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
 import pendulum
-from contextlib import contextmanager, nullcontext
+from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import partial
 from typing import Any, Awaitable, Dict, Set, TypeVar, Union, Iterable, Optional
 from uuid import UUID, uuid4
@@ -70,9 +70,8 @@ from prefect.utilities.collections import ensure_iterable
 from prefect.serializers import resolve_datadoc
 from prefect.utilities.logging import get_logger
 
+
 R = TypeVar("R")
-
-
 logger = get_logger("engine")
 
 
@@ -203,24 +202,25 @@ async def begin_flow_run(
     """
     logger.info(f"Beginning flow run {flow_run.name!r} for flow {flow.name!r}...")
 
-    # If the flow is async, we need to provide a portal so sync tasks can run
-    portal_context = start_blocking_portal() if flow.isasync else nullcontext()
+    async with detect_crashes(flow_run=flow_run):
+        # If the flow is async, we need to provide a portal so sync tasks can run
+        portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-    async with flow.executor.start() as executor:
-        with portal_context as sync_portal:
-            terminal_state = await orchestrate_flow_run(
-                flow,
-                flow_run=flow_run,
-                executor=executor,
-                client=client,
-                sync_portal=sync_portal,
-            )
+        async with flow.executor.start() as executor:
+            with portal_context as sync_portal:
+                terminal_state = await orchestrate_flow_run(
+                    flow,
+                    flow_run=flow_run,
+                    executor=executor,
+                    client=client,
+                    sync_portal=sync_portal,
+                )
 
-    # Update the flow to the terminal state _after_ the executor has shut down
-    await client.propose_state(
-        state=terminal_state,
-        flow_run_id=flow_run.id,
-    )
+        # Update the flow to the terminal state _after_ the executor has shut down
+        await client.propose_state(
+            state=terminal_state,
+            flow_run_id=flow_run.id,
+        )
 
     # If debugging, use the more complete `repr` than the usual `str` description
     display_state = (
@@ -231,6 +231,7 @@ async def begin_flow_run(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Flow run {flow_run.name!r} finished in state {display_state}",
     )
+
     return terminal_state
 
 
@@ -278,25 +279,25 @@ async def create_and_begin_subflow_run(
     )
 
     logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
-    terminal_state = await orchestrate_flow_run(
-        flow,
-        flow_run=flow_run,
-        executor=parent_flow_run_context.executor,
-        client=client,
-        sync_portal=parent_flow_run_context.sync_portal,
-    )
 
-    # Update the flow to the terminal state _after_ the executor has shut down
-    terminal_state = await client.propose_state(
-        state=terminal_state,
-        flow_run_id=flow_run.id,
-    )
+    async with detect_crashes(flow_run=flow_run):
+        terminal_state = await orchestrate_flow_run(
+            flow,
+            flow_run=flow_run,
+            executor=parent_flow_run_context.executor,
+            client=client,
+            sync_portal=parent_flow_run_context.sync_portal,
+        )
 
-    # If debugging, use the more complete `repr` than the usual `str` description
+        terminal_state = await client.propose_state(
+            state=terminal_state,
+            flow_run_id=flow_run.id,
+        )
+
+    # Display the full state (including the result) if debugging
     display_state = (
         repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
     )
-
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Subflow run {flow_run.name!r} finished in state {display_state}",
@@ -651,6 +652,43 @@ async def orchestrate_task_run(
     )
 
     return state
+
+
+@asynccontextmanager
+async def detect_crashes(flow_run: FlowRun):
+    """
+    Detect flow run crashes during this context and update the run to a proper final
+    state.
+
+    This context _must_ reraise the exception to properly exit the run.
+    """
+    try:
+        yield
+    except anyio.get_cancelled_exc_class() as exc:
+        logger.error(f"Flow run {flow_run.name!r} was cancelled by the async runtime.")
+        with anyio.CancelScope(shield=True):
+            async with OrionClient() as client:
+                await client.propose_state(
+                    state=Failed(
+                        name="Crashed",
+                        message="Execution was interrupted by the async runtime.",
+                        data=DataDocument.encode("cloudpickle", exc),
+                    ),
+                    flow_run_id=flow_run.id,
+                )
+        raise
+    except KeyboardInterrupt as exc:
+        logger.error(f"Flow run {flow_run.name!r} received an interrupt signal.")
+        async with OrionClient() as client:
+            await client.propose_state(
+                state=Failed(
+                    name="Crashed",
+                    message="Execution was interrupted by the system.",
+                    data=DataDocument.encode("cloudpickle", exc),
+                ),
+                flow_run_id=flow_run.id,
+            )
+        raise
 
 
 async def user_return_value_to_state(
