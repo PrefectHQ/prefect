@@ -68,6 +68,7 @@ from prefect.utilities.logging import get_logger
 from prefect.utilities.asyncio import A
 
 T = TypeVar("T", bound="BaseExecutor")
+R = TypeVar("R")
 
 
 class BaseExecutor(metaclass=abc.ABCMeta):
@@ -79,10 +80,10 @@ class BaseExecutor(metaclass=abc.ABCMeta):
     async def submit(
         self,
         task_run: TaskRun,
-        run_fn: Callable[..., State],
+        run_fn: Callable[..., Awaitable[State[R]]],
         run_kwargs: Dict[str, Any],
         asynchronous: A = True,
-    ) -> PrefectFuture[Any, A]:
+    ) -> PrefectFuture[R, A]:
         """
         Submit a call for execution and return a `PrefectFuture` that can be used to
         get the call result.
@@ -157,10 +158,10 @@ class SequentialExecutor(BaseExecutor):
     async def submit(
         self,
         task_run: TaskRun,
-        run_fn: Callable[..., Awaitable[State]],
+        run_fn: Callable[..., Awaitable[State[R]]],
         run_kwargs: Dict[str, Any],
         asynchronous: A = True,
-    ) -> PrefectFuture[Any, A]:
+    ) -> PrefectFuture[R, A]:
         if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
@@ -198,10 +199,10 @@ class DaskExecutor(BaseExecutor):
     async def submit(
         self,
         task_run: TaskRun,
-        run_fn: Callable[..., State],
+        run_fn: Callable[..., Awaitable[State[R]]],
         run_kwargs: Dict[str, Any],
         asynchronous: A = True,
-    ) -> PrefectFuture[Any, A]:
+    ) -> PrefectFuture[R, A]:
         if not self._started:
             raise RuntimeError("The executor must be started before submitting work.")
 
