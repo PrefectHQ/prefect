@@ -6,10 +6,7 @@ import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional, Dict
 
-if sys.version_info < (3, 7):
-    from prefect.utilities.context import nullcontext
-else:
-    from contextlib import nullcontext
+from prefect.utilities.compatibility import nullcontext
 
 from prefect import context
 from prefect.executors.base import Executor
