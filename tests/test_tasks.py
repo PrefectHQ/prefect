@@ -767,6 +767,7 @@ class TestTaskWaitFor:
         def test_flow():
             f = fails()
             b = bar(2, wait_for=[f])
+
             return quote(b)
 
         flow_state = test_flow()
