@@ -11,6 +11,10 @@ setup(
     name="prefect",
     version=versioneer.get_version(),
     description="Workflow orchestration and management.",
+    license="Prefect Community License",
+    author="Prefect Technologies, Inc.",
+    author_email="help@prefect.io",
+    url="https://github.com/PrefectHQ/prefect/tree/orion",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     # Package setup
