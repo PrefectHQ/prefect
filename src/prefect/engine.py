@@ -508,13 +508,14 @@ async def create_and_submit_task_run(
 
     future = await flow_run_context.executor.submit(
         task_run,
-        orchestrate_task_run,
-        dict(
+        run_fn=orchestrate_task_run,
+        run_kwargs=dict(
             task=task,
             task_run=task_run,
             parameters=parameters,
             wait_for=wait_for,
         ),
+        asynchronous=task.isasync,
     )
 
     # Track the task run future in the flow run context
@@ -810,7 +811,7 @@ async def resolve_upstream_task_futures(
         # Resolves futures into data, raising if they are not completed after `wait` is
         # called.
         if isinstance(expr, PrefectFuture):
-            state = await expr.wait()
+            state = await expr._wait()
             if not state.is_completed():
                 raise UpstreamTaskError(
                     f"Upstream task run '{state.state_details.task_run_id}' did not reach a 'COMPLETED' state."
