@@ -720,7 +720,7 @@ class TestTaskInputs:
 
     async def test_task_with_complex_upstream_structure(self, orion_client):
         @task
-        def foo(x) -> str:
+        def foo(x):
             return x
 
         @task
