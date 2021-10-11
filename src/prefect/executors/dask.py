@@ -447,7 +447,7 @@ class DaskExecutor(Executor):
                 "Executor was not configured to generate performance report"
             )
             return ""
-        self.logger.info(
+        self.logger.debug(
             f"Retreiving dask performance report from {self.performance_report_path!r}"
         )
         try:
