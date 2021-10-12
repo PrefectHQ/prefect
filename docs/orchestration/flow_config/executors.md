@@ -284,7 +284,7 @@ for a flow run, specify a `performance_report_path` for the `DaskExecutor`.
 The performance report will saved as a `.html` file where the flow run is executed based on the `performance_report_path`.
 To view the report, open the html file in a web browser.
 
-::: warning For local execution or flows executed using a Local Agent, the file will be accessible on your local machine.
+For local execution or flows executed using a Local Agent, the file will be accessible on your local machine.
 
 For other agent types, the report file location is not guaranteed to be easily accessible after execution.
 When using a Kubernetes Agent, for example, the report will be saved on the Kubernetes pod responsible for
@@ -293,8 +293,8 @@ executing the flow run.
 For cases in which the performance report location is not easily accessile after flow execution, the report 
 is also available as a string in the flow's terminal state handler, which can be used to write the report to a convenient location
 by accessing `flow.executor.performance_report`.
-:::
 
+#### Generating the report
 
 ```python
 # performance_report_flow.py
