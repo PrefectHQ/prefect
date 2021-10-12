@@ -279,10 +279,26 @@ flow.executor = DaskExecutor(address="tcp://...")
 To generate a [performance report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report)
 for a flow run, specify a `performance_report_path` for the `DaskExecutor`.
 
-The performance report html will be available as a string in the flow's terminal state handler.
+#### How can I access the performance report?
+
+The performance report will saved as a `.html` file where the flow run is executed based on the `performance_report_path`.
+To view the report, open the html file in a web browser.
+
+::: warning For local execution or flows executed using a Local Agent, the file will be accessible on your local machine.
+
+For other agent types, the report file location is not guaranteed to be easily accessible after execution.
+When using a Kubernetes Agent, for example, the report will be saved on the Kubernetes pod responsible for
+executing the flow run.
+
+For cases in which the performance report location is not easily accessile after flow execution, the report 
+is also available as a string in the flow's terminal state handler, which can be used to write the report to a convenient location
+by accessing `flow.executor.performance_report`.
+:::
 
 
 ```python
+# performance_report_flow.py
+import os
 from prefect.executors import DaskExecutor
 from prefect import Flow, task, Parameter
 from prefect.engine.state import State
@@ -293,8 +309,11 @@ def custom_terminal_state_handler(
 	state: State,
 	reference_task_states: Set[State],
 ) -> Optional[State]:
+  # in our state handler we can write to S3, GCS, Azure Blob
+  # or perform any other custom logic with the report
+
   # test_perf_report.html can be viewed in a web browser
-	with open("/Users/me/test_perf_report.html", "w+") as fp:
+	with open(os.path.expanduser("~/test_perf_report.html"), "w+") as fp:
 		fp.write(flow.executor.performance_report)
 
 # define a simple task and flow
@@ -310,6 +329,15 @@ flow.executor = DaskExecutor(performance_report_path="/tmp/hi_performance_report
 
 # specify a terminal state handler for custom logic
 flow.terminal_state_handler = custom_terminal_state_handler
-
-flow.register('test')
 ```
+
+To execute the flow and generate the performance report
+
+```bash
+prefect run -p performance_report_flow.py 
+```
+
+The performance report will be available at `/tmp/hi_performance_report.html` and `~/test_perf_report.html`.
+To view the report, open the html file in a web browser.
+
+You can also register the flow and execute it with an agent to generate a performance report.
