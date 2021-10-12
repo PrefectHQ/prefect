@@ -66,6 +66,7 @@ module.exports = {
     repo: 'PrefectHQ/prefect',
     docsDir: 'docs',
     editLinks: true,
+    lastUpdated: false,
     // repoLabel: 'GitHub',
     logo: '/assets/logomark-color.png',
     nav: [
