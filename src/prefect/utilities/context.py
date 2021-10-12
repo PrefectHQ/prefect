@@ -70,12 +70,6 @@ from prefect.configuration import config
 from prefect.utilities.collections import DotDict, merge_dicts
 
 
-@contextlib.contextmanager
-def nullcontext() -> Iterator[None]:
-    """Null context manager for python 3.6."""
-    yield
-
-
 class Context(DotDict, threading.local):
     """
     A thread safe context store for Prefect data.
