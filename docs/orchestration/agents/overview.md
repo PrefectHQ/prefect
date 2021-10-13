@@ -216,4 +216,4 @@ $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 
 If enabled, the HTTP health check will be available via the `/api/health`
 route at the configured agent address. This route returns `200 OK` if the
-agent is running and health, and will error otherwise.
+agent is healthy, and will error otherwise.

@@ -8,7 +8,6 @@ module = "prefect.triggers"
 functions = [
     "all_finished",
     "manual_only",
-    "always_run",
     "all_successful",
     "all_failed",
     "any_successful",
@@ -724,3 +723,8 @@ classes = ["DremioFetch"]
 title = "SendGrid Tasks"
 module = "prefect.tasks.sendgrid"
 classes = ["SendEmail"]
+
+[pages.tasks.census]
+title = "Census Tasks"
+module = "prefect.tasks.census"
+classes = ["CensusSyncTask"]

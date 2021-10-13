@@ -40,7 +40,7 @@ class IntervalClockSchema(ObjectSchema):
     end_date = DateTimeTZ(allow_none=True)
     interval = fields.TimeDelta(precision="microseconds", required=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
 
@@ -73,7 +73,7 @@ class CronClockSchema(ObjectSchema):
     end_date = DateTimeTZ(allow_none=True)
     cron = fields.String(required=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
     day_or = fields.Boolean(allow_none=True)
@@ -85,7 +85,7 @@ class DatesClockSchema(ObjectSchema):
 
     dates = fields.List(DateTimeTZ(), required=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
 

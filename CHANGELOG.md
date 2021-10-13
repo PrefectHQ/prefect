@@ -1,5 +1,74 @@
 # Changelog
 
+## 0.15.6 <Badge text="beta" type="success" />
+
+Released on September 21, 2021.
+
+### Enhancements
+
+- Improve setting the Azure storage connection string - [#4955](https://github.com/PrefectHQ/prefect/pull/4955)
+- Allow disabling retries for a task with `max_retries=0` when retries are globally configured - [#4971](https://github.com/PrefectHQ/prefect/pull/4971)
+
+### Task Library
+
+- Allow Exasol Tasks to handle Prefect Secrets directly - [#4436](https://github.com/PrefectHQ/prefect/pull/4436)
+- Adding [Census](https://www.getcensus.com/) Syncs to the task library - [#4935](https://github.com/PrefectHQ/prefect/pull/4935)
+
+### Fixes
+
+- Fix bug where `LocalDaskExecutor` did not respond to a `PrefectSignal` - [#4924](https://github.com/PrefectHQ/prefect/pull/4924)
+- Fix `PostgresFetch` with headers for one row - [#4968](https://github.com/PrefectHQ/prefect/pull/4968)
+- Fix bug where `apply_map` could create acyclic flows - [#4970](https://github.com/PrefectHQ/prefect/pull/4970)
+
+### Contributors
+
+- [Donny Flynn](https://github.com/dflynn20)
+- [Noah Holm](https://github.com/noppaz)
+- [Timo S.](https://github.com/sti0)
+
+## 0.15.5 <Badge text="beta" type="success" />
+
+Released on September 2, 2021.
+
+### Features
+
+- Python 3.9 docker images are now published - [#4896](https://github.com/PrefectHQ/prefect/pull/4896)
+
+### Enhancements
+
+- Add `--expose` flag to `prefect server` cli to make the Core server and UI listen to all interfaces - [#4821](https://github.com/PrefectHQ/prefect/pull/4821)
+- Pass existing/local environment variables to agentless flow runs - [#4917](https://github.com/PrefectHQ/prefect/pull/4917)
+- Add `--idempotency-key` to `prefect run` - [#4928](https://github.com/PrefectHQ/prefect/pull/4928)
+- Add support for larger flow registration calls - [#4930](https://github.com/PrefectHQ/prefect/pull/4930)
+- Ignore schedules by default for CLI flow runs and add flag to run based on schedule for local only runs [#4817](https://github.com/PrefectHQ/prefect/pull/4817)
+
+### Task Library
+
+- Feature: Added `SnowflakeQueryFromFile` task [#3744](https://github.com/PrefectHQ/prefect/pull/4363)
+- Enhancement: Log boto exceptions encountered in the in AWS `BatchSubmit` task - [#4771](https://github.com/PrefectHQ/prefect/pull/4771)
+- Breaking: Legacy Dremio authentication has been updated to the new pattern in `DremioFetch` - [#4872](https://github.com/PrefectHQ/prefect/pull/4872)
+- Fix: Use runtime arguments over init arguments instead of ignoring them for MySQL Tasks - [#4907](https://github.com/PrefectHQ/prefect/pull/4907)
+### Fixes
+
+- Adjust log limits to match backend logic for better UX - [#4900](https://github.com/PrefectHQ/prefect/pull/4900)
+- Fix use of `marshmallow.fields.Dict` to use `keys` as a kwarg rather than `key`. - [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
+- API server settings are passed correctly to task workers when using Prefect Server - [#4914](https://github.com/PrefectHQ/prefect/pull/4914)
+- Do not attempt attempt to set `host_gateway` if using an unsupported Docker Engine version - [#4809](https://github.com/PrefectHQ/prefect/pull/4809)
+- Ignore jobs without a `flow_run_id` label in `KubernetesAgent.manage_jobs` - [#4934](https://github.com/PrefectHQ/prefect/pull/4934)
+### Breaking Changes
+
+- Services run by `prefect server` cli are now local by default (listen to localhost instead of 0.0.0.0); use `--expose` if you want to connect from a remote location - [#4821](https://github.com/PrefectHQ/prefect/pull/4821)
+- The changes in flow registration require Prefect Server 2021.09.02. Prefect Server will need to be upgraded before flows can be registered from this version - [#4930](https://github.com/PrefectHQ/prefect/pull/4930)
+
+### Contributors
+
+- [Deepyaman Datta](https://github.com/deepyaman)
+- [Henri Hannetel](https://github.com/HenriTEL)
+- [Johnny Tirado](https://github.com/jclocks)
+- [Kathryn Klarich](https://github.com/klarich)
+- [Tenzin Choedak](https://github.com/tchoedak)
+- [Vincent Xue](https://github.com/xuevin)
+
 ## 0.15.4 <Badge text="beta" type="success" />
 
 Released on August 17, 2021.

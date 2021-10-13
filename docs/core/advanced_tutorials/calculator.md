@@ -99,7 +99,7 @@ assert run(flow, x=1, op='/', y=2) == 0.5
 
 ## Parsing input
 
-Our arithmatic calculator works, but it's a bit cumbersome. Let's write a quick custom task to take a string expression and parse it into our `x`, `y`, and `op`; the rest of the code is the same as before:
+Our arithmetic calculator works, but it's a bit cumbersome. Let's write a quick custom task to take a string expression and parse it into our `x`, `y`, and `op`; the rest of the code is the same as before:
 
 ```python
 @task

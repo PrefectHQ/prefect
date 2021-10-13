@@ -357,7 +357,7 @@ class Task(metaclass=TaskMetaclass):
         )
         retry_delay = (
             retry_delay
-            if retry_delay is not None
+            if retry_delay is not None or not max_retries
             else prefect.config.tasks.defaults.retry_delay
         )
         timeout = (
@@ -372,7 +372,6 @@ class Task(metaclass=TaskMetaclass):
         if retry_delay is not None and not max_retries:
             raise ValueError(
                 "A `max_retries` argument greater than 0 must be provided if specifying "
-                "a retry delay."
                 "a retry delay."
             )
         # Make sure timeout is an integer in seconds

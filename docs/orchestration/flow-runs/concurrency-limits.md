@@ -116,7 +116,7 @@ There are situations in which you want to actively prevent too many tasks from r
 Prefect Cloud has built-in functionality for achieving this; tasks can be "tagged" with as many tags as you wish, and each tag can optionally be provided a concurrency limit. If a task has multiple tags, it will only run if _all_ tags have available concurrency. Tag concurrency limits are enforced globally across your entire team, and tags without explicit limits are considered to have unlimited concurrency.
 
 <!-- TODO:tokens -->
-Note that the ability to _alter_ or _update_ your task tag concurrency limits requires [tenant admin level permissions](tokens.md#tenant).
+Note that the ability to _alter_ or _update_ your task tag concurrency limits requires tenant admin level permissions.
 
 ### Tagging your tasks
 

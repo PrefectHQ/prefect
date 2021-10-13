@@ -3,19 +3,19 @@ from typing import Any
 from marshmallow import fields, post_load
 
 from prefect.storage import (
+    GCS,
+    S3,
     Azure,
     Bitbucket,
     CodeCommit,
     Docker,
-    GCS,
+    Git,
     GitHub,
     GitLab,
     Local,
     Module,
-    S3,
     Storage,
     Webhook,
-    Git,
 )
 from prefect.utilities.serialization import JSONCompatible, ObjectSchema, OneOfSchema
 
@@ -24,7 +24,7 @@ class BaseStorageSchema(ObjectSchema):
     class Meta:
         object_class = Storage
 
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    flows = fields.Dict(keys=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
@@ -40,6 +40,7 @@ class AzureSchema(BaseStorageSchema):
         object_class = Azure
 
     container = fields.String(allow_none=False)
+    connection_string_secret = fields.String(allow_none=True)
     blob_name = fields.String(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
 
@@ -87,7 +88,7 @@ class S3Schema(BaseStorageSchema):
     key = fields.String(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
     client_options = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
 
 
@@ -136,7 +137,7 @@ class CodeCommitSchema(BaseStorageSchema):
     path = fields.String(allow_none=True)
     commit = fields.String(allow_none=True)
     client_options = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
 
 
@@ -144,9 +145,9 @@ class WebhookSchema(BaseStorageSchema):
     class Meta:
         object_class = Webhook
 
-    build_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    build_request_kwargs = fields.Dict(keys=fields.Str, allow_none=False)
     build_request_http_method = fields.String(allow_none=False)
-    get_flow_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    get_flow_request_kwargs = fields.Dict(keys=fields.Str, allow_none=False)
     get_flow_request_http_method = fields.String(allow_none=False)
     stored_as_script = fields.Bool(allow_none=True)
 

@@ -88,7 +88,7 @@ class GitLab(Storage):
         client = self._get_gitlab_client()
 
         try:
-            project = client.projects.get(quote_plus(self.repo), safe="/")
+            project = client.projects.get(quote_plus(self.repo, safe="/"))
             contents = project.files.get(file_path=flow_location, ref=ref)
         except GitlabAuthenticationError:
             self.logger.error(

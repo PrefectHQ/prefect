@@ -677,20 +677,24 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     flow.result = flow.storage.result
 
     client.register(
-        flow, project_name="my-default-project", compressed=compressed, no_url=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
 
 
@@ -735,19 +739,20 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
         compressed=compressed,
         build=True,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
     assert "test_image" in serialized_flow["environment"]["metadata"]["image"]
 
@@ -795,19 +800,20 @@ def test_client_register_default_prefect_image(
         compressed=compressed,
         build=True,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
     assert "prefecthq/prefect" in serialized_flow["environment"]["metadata"]["image"]
 
@@ -850,19 +856,20 @@ def test_client_register_optionally_avoids_building_flow(
         build=False,
         compressed=compressed,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is None
 
 
@@ -1881,3 +1888,19 @@ def test_artifacts_client_functions(patch_post, cloud_api):
 
     with pytest.raises(ValueError):
         client.delete_task_run_artifact(task_run_artifact_id=None)
+
+
+def test_client_posts_graphql_to_api_server_backend_server(patch_post):
+    post = patch_post(dict(data=dict(success=True)))
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "backend": "server",
+        }
+    ):
+        client = Client()
+    result = client.graphql("{projects{name}}")
+    assert result.data == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-cloud.foo"

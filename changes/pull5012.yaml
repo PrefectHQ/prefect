@@ -16,8 +16,8 @@
 #
 # Here's an example of a PR that adds an enhancement
 
-fix:
-  - "Fix broken link to local server/UI deployment docs - [#4887](https://github.com/PrefectHQ/prefect/pull/4887)"
+enhancement:
+  - 'Adds "INSECURE" option to `smtp_type` parameter in `EmailTask` to send using non-secure internal SMTP server'
 
 contributor:
-  - "[Deepyaman Datta](https://github.com/deepyaman)"
+  - "[Jessica Smith](https://github.com/NodeJSmith)"

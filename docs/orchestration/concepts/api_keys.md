@@ -1,6 +1,6 @@
 # API Keys <Badge text="Cloud"/>
 
-API Keys are how clients authenticate with the Prefect Cloud API.  They encapsulate the identity of a User or a service account.  Ultimately, all clients that interact with the Prefect Cloud API must provide an API Key as a Bearer Token included in the request header.
+API keys are how clients authenticate with the Prefect Cloud API.  They encapsulate the identity of a User or a service account.  Ultimately, all clients that interact with the Prefect Cloud API must provide an API key as a Bearer Token included in the request header.
 
 See our [API documentation](api.html) more information on how to use these keys to interact with the GraphQL API.
 
@@ -10,17 +10,17 @@ Users can generate API keys to interact with the API with their personal permiss
 
 - **API Key Name**: A memorable name for the key
 - **API Key Expiration**: An optional expiration date for the key. If no expiration is provided, the key will never expire
-- **Default Tenant**: The tenant to associate with the API Key. Clients using this key will default to performing actions in this tenant, but they can also provide another tenant to perform actions in.
+- **Default Tenant**: The tenant to associate with the API key. Clients using this key will default to performing actions in this tenant, but they can also provide another tenant to perform actions in.
 
-To generate an API key for your User, navigate to User > API Keys within the UI and click "Create an API Key".
+To generate an API key for your User, navigate to Account Settings > API Keys within the UI and click "Create an API Key".
 
 ::: tip Security best practice
-When you need to create a long-lived token for CI, a Prefect Agent, or any use beyond local development, create an API key for a service account instead of for your user. Actions performed in an automated setting should not be linked to your user identity and should not require the permissions of a full user.
+When you need to create a long-lived key for CI, a Prefect Agent, or any use beyond local development, create an API key for a service account instead of for your user. Actions performed in an automated setting should not be linked to your user identity and should not require the permissions of a full user.
 :::
 
 ### Service Account API Keys
 
-Users can generate API Keys for service accounts, which have permissions restricted to the tenant the service account belongs to. These keys will not inherit the full permissions of the user creating them. To create and manage your tenant's service accounts and their associated API keys, navigate to Team > Service Accounts.  
+Users can generate API keys for service accounts, which have permissions restricted to the tenant the service account belongs to. These keys will not inherit the full permissions of the user creating them. To create and manage your tenant's service accounts and their associated API keys, navigate to Team > Service Accounts.  
 
 When creating an API key, you can configure the following attributes:
 
@@ -37,7 +37,7 @@ To create an API key using GraphQL use the `create_api_key` mutation. For more i
 ```graphql
 mutation {
   create_api_key(input: { user_id: <user_id>, name: "my-api-key" }) {
-    token
+    key
   }
 }
 ```
@@ -72,9 +72,7 @@ export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
 Modify `~/.prefect/config.toml`
 
 ```toml
-
 [cloud]
-
 api_key = "<YOUR-KEY>"
 
 # Optional
@@ -167,7 +165,7 @@ Example response:
 
 ::: tab UI
 
-To revoke an API key in the UI navigate to Team Settings > Service Accounts or User > API Keys. On your list of keys click the trash bin icon next to any key in order to revoke it. A confirmation box should appear asking if you are sure you want to revoke the key.
+To revoke an API key in the UI navigate to Team Settings > Service Accounts or Account Settings > API Keys. On your list of keys click the trash bin icon next to any key in order to revoke it. A confirmation box should appear asking if you are sure you want to revoke the key.
 
 ![api key revoke](/api_key_revoke.png)
 
@@ -210,7 +208,7 @@ export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
 
 Using an API key as a token for starting an agent by CLI
 ```bash
-$ prefect agent local start -t "<SERVICE_ACCOUNT_API_KEY>"
+$ prefect agent local start -k "<SERVICE_ACCOUNT_API_KEY>"
 ```
 
 Using an API key as a token for starting an agent by environment

@@ -11,7 +11,7 @@ When a flow is run with Prefect Core, it executes locally and its state is not p
 
 Flow runs can be created with
 - [the Prefect CLI](./creation.md#cli)
-- [the UI](/ui/flow_run.md#creation)
+- [the UI](/ui/dashboard.md)
 - [the Python client](./creation.md#prefect-library)
 - [a task in another Flow](./creation.md#task)
 - [a schedule](./scheduling.md)

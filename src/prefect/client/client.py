@@ -153,7 +153,11 @@ class Client:
 
         self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
 
-        if not self.api_key and not api_server:
+        if (
+            not self.api_key
+            and not api_server
+            and prefect.context.config.backend == "cloud"
+        ):
             # The default value for the `api_server` changed for API keys but we want
             # to load API tokens from the correct backwards-compatible location on disk
             self.api_server = prefect.config.cloud.graphql
@@ -1042,7 +1046,7 @@ class Client:
         idempotency_key: str = None,
     ) -> str:
         """
-        Push a new flow to Prefect Cloud
+        Register a new flow with Prefect Cloud.
 
         Args:
             - flow (Flow): a flow to register
@@ -1067,7 +1071,7 @@ class Client:
             - str: the ID of the newly-registered flow
 
         Raises:
-            - ClientError: if the register failed
+            - ClientError: if the registration failed
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
@@ -1149,13 +1153,18 @@ class Client:
                 )
             ) from exc
 
+        # prepare for batched registration
+        serialized_tasks = serialized_flow.pop("tasks")
+        serialized_edges = serialized_flow.pop("edges")
+
         if compressed:
             serialized_flow = compress(serialized_flow)
 
         inputs = dict(
             project_id=(project[0].id if project else None),
             serialized_flow=serialized_flow,
-            set_schedule_active=set_schedule_active,
+            # we don't want to begin scheduling work until all tasks are registered
+            set_schedule_active=False,
             version_group_id=version_group_id,
         )
         # Add newly added inputs only when set for backwards compatibility
@@ -1173,6 +1182,67 @@ class Client:
             if compressed
             else res.data.create_flow.id
         )
+
+        # batch register tasks and edges separately
+        task_mutation = {
+            "mutation($input: register_tasks_input!)": {
+                "register_tasks(input: $input)": {"success"}
+            }
+        }
+        edge_mutation = {
+            "mutation($input: register_edges_input!)": {
+                "register_edges(input: $input)": {"success"}
+            }
+        }
+
+        # tasks in batches of 500
+        start = 0
+        batch_size = 500
+        stop = start + batch_size
+
+        while start <= len(serialized_tasks):
+            task_batch = serialized_tasks[start:stop]
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_tasks=task_batch,
+            )
+            self.graphql(
+                task_mutation,
+                variables=dict(input=inputs),
+            )
+            start = stop
+            stop += batch_size
+
+        # edges in batches of 500
+        start = 0
+        batch_size = 500
+        stop = start + batch_size
+
+        while start <= len(serialized_edges):
+            edge_batch = serialized_edges[start:stop]
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_edges=edge_batch,
+            )
+            self.graphql(
+                edge_mutation,
+                variables=dict(input=inputs),
+            )
+            start = stop
+            stop += batch_size
+
+        # finally, if requested, we turn on the schedule
+        if set_schedule_active:
+            schedule_mutation = {
+                "mutation($input: set_schedule_active_input!)": {
+                    "set_schedule_active(input: $input)": {"success"}
+                }
+            }
+            inputs = dict(flow_id=flow_id)
+            self.graphql(
+                schedule_mutation,
+                variables=dict(input=inputs),
+            )
 
         if not no_url:
             # Query for flow group id

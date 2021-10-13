@@ -431,10 +431,31 @@ See `prefect run --help` for more details on the options.
     default=None,
 )
 @click.option(
+    "--idempotency-key",
+    help=(
+        "A key to prevent duplicate flow runs. If a flow run has already been started "
+        "with the provided value, the command will display information for the "
+        "existing run. If using `--execute`, duplicate flow runs will exit with an "
+        "error. If not using the backing API, this flag has no effect."
+    ),
+    default=None,
+)
+@click.option(
     "--execute",
     help=(
         "Execute the flow run in-process without an agent. If this process exits, the "
         "flow run will be marked as 'Failed'."
+    ),
+    is_flag=True,
+)
+@click.option(
+    "--schedule",
+    "-s",
+    help=(
+        "Execute the flow run according to the schedule attached to the flow. If this "
+        "flag is set, this command will wait between scheduled flow runs. If the flow "
+        "has no schedule, this flag will be ignored. If used with a non-local run, an "
+        "exception will be thrown."
     ),
     is_flag=True,
 )
@@ -473,6 +494,8 @@ def run(
     context_vars,
     params,
     execute,
+    idempotency_key,
+    schedule,
     log_level,
     param_file,
     run_name,
@@ -587,7 +610,9 @@ def run(
         ):
             with prefect.context(**context_dict):
                 try:
-                    result_state = flow.run(parameters=params_dict)
+                    result_state = flow.run(
+                        parameters=params_dict, run_on_schedule=schedule
+                    )
                 except Exception as exc:
                     quiet_echo("Flow runner encountered an exception!")
                     log_exception(exc, indent=2)
@@ -602,6 +627,9 @@ def run(
         return
 
     # Backend flow run -----------------------------------------------------------------
+
+    if schedule:
+        raise ClickException("`--schedule` can only be specified for local flow runs")
 
     client = Client()
 
@@ -648,6 +676,7 @@ def run(
                 run_name=run_name,
                 # We only use the run config for setting logging levels right now
                 run_config=run_config,
+                idempotency_key=idempotency_key,
             )
 
         if quiet:

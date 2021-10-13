@@ -60,7 +60,7 @@ flow.register(
 :::
 
 
-Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](../tutorial/configure.html#log-in-to-prefect-cloud). For more information on Flow registration see [here](../tutorial/first.html#register-flow-with-prefect-cloud).
+Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](/orchestration/getting-started/set-up.html#authenticate-with-prefect-cloud). For more information on Flow registration see [here](/orchestration/getting-started/registering-and-running-a-flow.html#register-a-flow).
 
 ### GraphQL <Badge text="GQL"/>
 

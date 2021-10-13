@@ -12,6 +12,8 @@ from prefect.engine.state import Scheduled, Success, Failed, Submitted
 from prefect.run_configs import UniversalRun
 from prefect.storage import Local as LocalStorage
 from prefect.backend import FlowRunView, FlowView
+from prefect.utilities.executors import run_with_thread_timeout
+from prefect.exceptions import TaskTimeoutSignal
 
 from prefect.cli.run import load_json_key_values, run
 
@@ -526,6 +528,7 @@ def test_run_local_handles_flow_load_failure_with_missing_module_attr(tmpdir):
             ["--no-logs"],
             dict(),
         ),
+        (["--idempotency-key", "foo-key"], dict(idempotency_key="foo-key")),
     ],
 )
 def test_run_cloud_creates_flow_run(
@@ -550,6 +553,7 @@ def test_run_cloud_creates_flow_run(
     cloud_kwargs.setdefault("labels", None)
     cloud_kwargs.setdefault("run_name", None)
     cloud_kwargs.setdefault("run_config", None)
+    cloud_kwargs.setdefault("idempotency_key", None)
 
     if execute_flag:
         labels = cloud_kwargs["labels"] or []
@@ -808,3 +812,29 @@ def test_run_cloud_execute_respects_no_logs(cloud_mocks):
     assert "Executing flow run..." in result.output
     # Run logs do not
     assert "LOG MESSAGE" not in result.output
+
+
+def test_run_local_with_schedule(monkeypatch):
+    mock_flow = MagicMock()
+
+    def mock_get_flow_from_path_or_module(*args, **kwargs):
+        return mock_flow
+
+    monkeypatch.setattr(
+        "prefect.cli.run.get_flow_from_path_or_module",
+        mock_get_flow_from_path_or_module,
+    )
+    CliRunner().invoke(run, ["--path", hello_world_flow_file, "--schedule"])
+
+    mock_flow.run.assert_called_once_with(parameters={}, run_on_schedule=True)
+
+
+def test_run_cloud_with_schedule_fails():
+    result = CliRunner().invoke(run, ["--id", "fake-run-id", "--schedule"])
+
+    assert result.exit_code == 1
+    assert "`--schedule` can only be specified for local flow runs" in result.output
+
+    result = CliRunner().invoke(run, ["--name", "fake-run-name", "--schedule"])
+    assert result.exit_code == 1
+    assert "`--schedule` can only be specified for local flow runs" in result.output

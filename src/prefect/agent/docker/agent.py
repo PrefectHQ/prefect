@@ -1,12 +1,13 @@
 import ntpath
 import posixpath
+from packaging.version import parse as parse_version
 
 import multiprocessing
 import re
 import warnings
 from slugify import slugify
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Any
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -400,11 +401,26 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(image))
 
-        host_config = {
-            "auto_remove": True,
+        # By default, auto-remove containers
+        host_config: Dict[str, Any] = {"auto_remove": True}
+
+        # Set up a host gateway for local communication; check the docker version since
+        # this is not supported by older versions
+        docker_engine_version = parse_version(self.docker_client.version()["Version"])
+        host_gateway_version = parse_version("20.10.0")
+
+        if docker_engine_version < host_gateway_version:
+            warnings.warn(
+                "`host.docker.internal` could not be automatically resolved to your "
+                "local host. This feature is not supported on Docker Engine "
+                f"v{docker_engine_version}, upgrade to v{host_gateway_version}+ if you "
+                "encounter issues."
+            )
+        else:
             # Compatibility for linux -- https://github.com/docker/cli/issues/2290
-            "extra_hosts": {"host.docker.internal": "host-gateway"},
-        }  # type: dict
+            # Only supported by Docker v20.10.0+ which is our minimum recommend version
+            host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
+
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)

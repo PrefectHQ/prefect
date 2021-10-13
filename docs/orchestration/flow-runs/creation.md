@@ -32,7 +32,7 @@ See `prefect run --help` or [optional settings](#optional-settings) for addition
 
 ::: tip Agentless flow run execution
 
-`prefect run` can be used to create an execute a flow run in the current environment, without requiring an agent. Just provide the `--execute` flag. This allows you to take ownership of your flow's execution environment or run flows locally while retaining the benefits of the backend API. There are a few different behaviors from typical flow runs:
+`prefect run` can be used to create and execute a flow run in the current environment, without requiring an agent. Just provide the `--execute` flag. This allows you to take ownership of your flow's execution environment or run flows locally while retaining the benefits of the backend API. There are a few different behaviors from typical flow runs:
 
 - Other than environment variables, your `RunConfig` will be ignored; by using this, you are taking ownership of your flow's environment.
 - The flow run will be given a special label to indicate that it should not be picked up by an agent.
@@ -155,7 +155,7 @@ client.create_flow_run(
 mutation {
   create_flow_run(input: { 
   flow_id: "d7bfb996-b8fe-4055-8d43-2c9f82a1e3c7", 
-  flow_run_name="docs example hello-world",
+  flow_run_name: "docs example hello-world",
 }
 ```
 :::
