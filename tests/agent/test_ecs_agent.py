@@ -317,7 +317,7 @@ class TestGenerateTaskDefinition:
 
     def test_generate_task_definition_family_and_tags(self):
         taskdef = self.generate_task_definition(ECSRun())
-        assert taskdef["family"] == "prefect-test-flow"
+        assert taskdef["family"] == "prefect-test-flow-flow-run-id"
         assert sorted(taskdef["tags"], key=lambda x: x["key"]) == [
             {"key": "prefect:flow-id", "value": "flow-id"},
             {"key": "prefect:flow-version", "value": "1"},
