@@ -2356,3 +2356,35 @@ def test_task_runner_logs_map_index_for_mapped_tasks(caplog):
         msg = line.split("INFO")[1]
         logged_map_index = msg[-1]
         assert msg.count(logged_map_index) == 2
+
+
+def test_task_runner_sets_task_name_in_context():
+    task = Task(name="test", task_run_name="asdf")
+    runner = TaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
+        runner.set_task_run_name(task_inputs={})
+        assert prefect.context.get("task_run_name") == "asdf"
+
+    task = Task(name="test", task_run_name="{map_index}")
+    runner = TaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    class Temp:
+        value = 100
+
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
+        runner.set_task_run_name(task_inputs={"map_index": Temp()})
+        assert prefect.context.get("task_run_name") == "100"
+
+    task = Task(name="test", task_run_name=lambda **kwargs: "name")
+    runner = TaskRunner(task=task)
+    runner.task_run_id = "id"
+
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
+        runner.set_task_run_name(task_inputs={})
+        assert prefect.context.get("task_run_name") == "name"
