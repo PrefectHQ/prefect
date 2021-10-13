@@ -11,7 +11,7 @@ We assume you are familiar with managing a Python installation using tools like 
 Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell
 
 ```bash
-pip install prefect>=2.0a1
+pip install -U "prefect>=2.0.0a"
 ```
 
 ## Installing the bleeding edge
