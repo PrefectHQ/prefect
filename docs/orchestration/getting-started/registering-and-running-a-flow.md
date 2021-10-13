@@ -82,7 +82,8 @@ Flow URL: https://cloud.prefect.io/dev-prefectio/flow/fc5e630d-9154-489d-98d4-ea
 
 After registering your flow, you should see it in the UI on the tutorial
 project [dashboard](/orchestration/ui/dashboard.md). Clicking on the flow
-will bring you to the [flow](/orchestration/ui/flow.md) page.
+will bring you to the [flow](/orchestration/ui/flow.md) page. You can
+navigate to the Flow URL directly as well.
 
 ![](/orchestration/tutorial/hello-flow-page.png)
 
