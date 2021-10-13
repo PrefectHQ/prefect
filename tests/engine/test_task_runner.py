@@ -2358,33 +2358,65 @@ def test_task_runner_logs_map_index_for_mapped_tasks(caplog):
         assert msg.count(logged_map_index) == 2
 
 
-def test_task_runner_sets_task_name_in_context():
-    task = Task(name="test", task_run_name="asdf")
-    runner = TaskRunner(task=task)
-    runner.task_run_id = "id"
+class TestTaskRunNames:
+    def test_task_runner_set_task_name(self):
+        task = Task(name="test", task_run_name="asdf")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
 
-    with prefect.context():
-        assert prefect.context.get("task_run_name") is None
-        runner.set_task_run_name(task_inputs={})
-        assert prefect.context.get("task_run_name") == "asdf"
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={})
+            assert prefect.context.get("task_run_name") == "asdf"
 
-    task = Task(name="test", task_run_name="{map_index}")
-    runner = TaskRunner(task=task)
-    runner.task_run_id = "id"
+        task = Task(name="test", task_run_name="{map_index}")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
 
-    class Temp:
-        value = 100
+        class Temp:
+            value = 100
 
-    with prefect.context():
-        assert prefect.context.get("task_run_name") is None
-        runner.set_task_run_name(task_inputs={"map_index": Temp()})
-        assert prefect.context.get("task_run_name") == "100"
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={"map_index": Temp()})
+            assert prefect.context.get("task_run_name") == "100"
 
-    task = Task(name="test", task_run_name=lambda **kwargs: "name")
-    runner = TaskRunner(task=task)
-    runner.task_run_id = "id"
+        task = Task(name="test", task_run_name=lambda **kwargs: "name")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
 
-    with prefect.context():
-        assert prefect.context.get("task_run_name") is None
-        runner.set_task_run_name(task_inputs={})
-        assert prefect.context.get("task_run_name") == "name"
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={})
+            assert prefect.context.get("task_run_name") == "name"
+
+    def test_task_runner_sets_task_run_name_in_context(self):
+        def dynamic_task_run_name(**task_inputs):
+            return f"hello-{task_inputs['input']}"
+
+        @prefect.task(name="hey", task_run_name=dynamic_task_run_name)
+        def test_task(input):
+            return prefect.context.get("task_run_name")
+
+        edge = Edge(Task(), Task(), key="input")
+        state = Success(result="my-value")
+        state = TaskRunner(task=test_task).run(upstream_states={edge: state})
+
+        assert state.result == "hello-my-value"
+
+    def test_mapped_task_run_name_set_in_context(self):
+        def dynamic_task_run_name(**task_inputs):
+            return f"hello-{task_inputs['input']}"
+
+        @prefect.task(name="hey", task_run_name=dynamic_task_run_name)
+        def test_task(input):
+            return prefect.context.get("task_run_name")
+
+        from prefect import Flow
+
+        with Flow("test") as flow:
+            data = [1, 2, 3]
+            test_task_key = test_task.map(data)
+
+        state = flow.run()
+        assert state.result[test_task_key].result == ["hello-1", "hello-2", "hello-3"]
