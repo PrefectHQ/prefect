@@ -685,12 +685,11 @@ class TaskRunner(Runner):
 
     def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
         """
-        Sets the name for this task run.
+        Sets the name for this task run and adds to `prefect.context`
 
         Args:
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
-
 
         """
 
