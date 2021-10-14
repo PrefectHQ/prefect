@@ -34,15 +34,30 @@ async def inspect(name: str):
 
 @deployment_app.command()
 @sync_compatible
-async def ls(flow_name: str = None):
+async def ls(flow_name: List[str] = None, by_created: bool = False):
     """
-    View all deployments or deployments for a specific flow
+    View all deployments or deployments for specific flows
     """
     async with OrionClient() as client:
-        deployments = await client.read_deployments()
+        deployments = await client.read_deployments(
+            flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None
+        )
+        flows = {
+            flow.id: flow
+            for flow in await client.read_flows(
+                flow_filter=FlowFilter(id={"any_": [d.flow_id for d in deployments]})
+            )
+        }
 
-    for deployment in sorted(deployments, key=lambda d: d.created, reverse=True):
-        console.print(deployment.name)
+    sort_by_name_keys = lambda d: (flows[d.flow_id].name, d.name)
+    sort_by_created_key = lambda d: pendulum.now("utc") - d.created
+
+    for deployment in sorted(
+        deployments, key=sort_by_created_key if by_created else sort_by_name_keys
+    ):
+        console.print(
+            f"[blue]{flows[deployment.flow_id].name}/[bold]{deployment.name}[/][/]"
+        )
 
 
 @deployment_app.command()
