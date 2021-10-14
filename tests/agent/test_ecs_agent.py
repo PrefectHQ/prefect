@@ -685,7 +685,7 @@ class TestDeployFlow:
         assert aws.ecs.register_task_definition.called
         assert (
             aws.ecs.register_task_definition.call_args[1]["family"]
-            == "prefect-test-flow"
+            == "prefect-test-flow-flow-run-id"
         )
         assert aws.ecs.run_task.called
         assert aws.ecs.run_task.call_args[1]["taskDefinition"] == "my-taskdef-arn"
