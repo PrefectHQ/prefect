@@ -245,7 +245,6 @@ async def create_and_begin_subflow_run(
     Async entrypoint for flows calls within a flow run
 
     Subflows differ from parent flows in that they
-    - Use the existing parent flow executor
     - Resolve futures in passed parameters into values
     - Create a dummy task for representation in the parent flow
 
@@ -281,13 +280,14 @@ async def create_and_begin_subflow_run(
     logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
 
     async with detect_crashes(flow_run=flow_run):
-        terminal_state = await orchestrate_flow_run(
-            flow,
-            flow_run=flow_run,
-            executor=parent_flow_run_context.executor,
-            client=client,
-            sync_portal=parent_flow_run_context.sync_portal,
-        )
+        async with flow.executor.start() as executor:
+            terminal_state = await orchestrate_flow_run(
+                flow,
+                flow_run=flow_run,
+                executor=executor,
+                client=client,
+                sync_portal=parent_flow_run_context.sync_portal,
+            )
 
         terminal_state = await client.propose_state(
             state=terminal_state,
