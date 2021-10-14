@@ -987,7 +987,7 @@ class OrionClient:
                 of the task run states
         """
         response = await self.get(
-            "/task_run_states", params=dict(task_run_id=task_run_id)
+            "/task_run_states/", params=dict(task_run_id=task_run_id)
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
