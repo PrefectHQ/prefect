@@ -1,4 +1,6 @@
 import pytest
+import time
+import anyio
 
 from prefect import flow, task
 from prefect.executors import DaskExecutor, SequentialExecutor
@@ -140,3 +142,194 @@ def test_subflow_run_by_executor(parent_executor, child_executor):
     # child
     a, b, c, d = d.result()
     assert (a.result(), b.result(), c.result(), d.result()) == ("a", "b", "bc", "bcc")
+
+
+SEQUENTIAL_EXECUTORS = [SequentialExecutor]
+PARALLEL_EXECUTORS = [DaskExecutor]
+
+
+class TestExecutorParallelism:
+    """
+    These tests use a simple canary file to indicate if a items in a flow have run
+    sequentially or concurrently.
+
+    foo writes 'foo' to the file after sleeping for a second
+    bar writes 'bar' to the file immediately
+
+    If they run concurrently, 'foo' will be the final content of the file
+    If they run sequentially, 'bar' will be the final content of of the file
+    """
+
+    @pytest.fixture
+    def tmp_file(self, tmp_path):
+        tmp_file = tmp_path / "canary.txt"
+        tmp_file.touch()
+        return tmp_file
+
+    @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS)
+    def test_sync_tasks_run_sequentially(self, executor, tmp_file):
+        @task
+        def foo():
+            time.sleep(1)
+            tmp_file.write_text("foo")
+
+        @task
+        def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        def test_flow():
+            foo()
+            bar()
+
+        test_flow().result()
+
+        assert tmp_file.read_text() == "bar"
+
+    @pytest.mark.parametrize("executor", PARALLEL_EXECUTORS)
+    def test_sync_tasks_run_concurrently(self, executor, tmp_file):
+        @task
+        def foo():
+            time.sleep(1)
+            tmp_file.write_text("foo")
+
+        @task
+        def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        def test_flow():
+            foo()
+            bar()
+
+        test_flow().result()
+
+        assert tmp_file.read_text() == "foo"
+
+    @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS)
+    async def test_async_tasks_run_sequentially(self, executor, tmp_file):
+        @task
+        async def foo():
+            await anyio.sleep(1)
+            tmp_file.write_text("foo")
+
+        @task
+        async def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            await foo()
+            await bar()
+
+        (await test_flow()).result()
+
+        assert tmp_file.read_text() == "bar"
+
+    @pytest.mark.parametrize("executor", PARALLEL_EXECUTORS)
+    async def test_async_tasks_run_concurrently(self, executor, tmp_file):
+        @task
+        async def foo():
+            await anyio.sleep(1)
+            tmp_file.write_text("foo")
+
+        @task
+        async def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            await foo()
+            await bar()
+
+        (await test_flow()).result()
+
+        assert tmp_file.read_text() == "foo"
+
+    @pytest.mark.parametrize(
+        # All executors should display concurrency when using task groups or gathering
+        "executor",
+        SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS,
+    )
+    async def test_async_tasks_run_concurrently_with_task_group(
+        self, executor, tmp_file
+    ):
+        @task
+        async def foo():
+            await anyio.sleep(1)
+            tmp_file.write_text("foo")
+
+        @task
+        async def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(foo)
+                tg.start_soon(bar)
+
+        (await test_flow()).result()
+
+        assert tmp_file.read_text() == "foo"
+
+    @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
+    def test_sync_subflows_run_sequentially(self, executor, tmp_file):
+        @flow
+        def foo():
+            time.sleep(1)
+            tmp_file.write_text("foo")
+
+        @flow
+        def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        def test_flow():
+            foo()
+            bar()
+
+        test_flow().result()
+
+        assert tmp_file.read_text() == "bar"
+
+    @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
+    async def test_async_subflows_run_sequentially(self, executor, tmp_file):
+        @flow
+        async def foo():
+            await anyio.sleep(1)
+            tmp_file.write_text("foo")
+
+        @flow
+        async def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            await foo()
+            await bar()
+
+        (await test_flow()).result()
+        assert tmp_file.read_text() == "bar"
+
+    @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
+    async def test_async_subflows_run_concurrently_with_task_group(
+        self, executor, tmp_file
+    ):
+        @flow
+        async def foo():
+            await anyio.sleep(1)
+            tmp_file.write_text("foo")
+
+        @flow
+        async def bar():
+            tmp_file.write_text("bar")
+
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(foo)
+                tg.start_soon(bar)
+
+        (await test_flow()).result()
+        assert tmp_file.read_text() == "foo"
