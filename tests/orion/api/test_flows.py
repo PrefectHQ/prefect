@@ -1,6 +1,4 @@
-import json
 from uuid import uuid4, UUID
-from httpx import request
 
 import pendulum
 import pydantic
