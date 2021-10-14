@@ -3,9 +3,14 @@ Command line interface for working with deployments.
 """
 import sys
 from pathlib import Path
+from typing import List
 
+import fastapi
+import httpx
+import pendulum
 import typer
 from rich.padding import Padding
+from rich.pretty import Pretty
 from rich.traceback import Traceback
 
 from prefect.cli.base import app, console, exit_with_error
@@ -17,10 +22,18 @@ from prefect.deployments import (
     load_flow_from_deployment,
 )
 from prefect.exceptions import FlowScriptError
+from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
 
 deployment_app = typer.Typer(name="deployment")
 app.add_typer(deployment_app)
+
+
+def assert_deployment_name_format(name: str) -> None:
+    if "/" not in name:
+        exit_with_error(
+            "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
+        )
 
 
 @deployment_app.command()
@@ -28,8 +41,34 @@ app.add_typer(deployment_app)
 async def inspect(name: str):
     """
     View details about a deployment
+
+    \b
+    Example:
+        \b
+        $ prefect deployment inspect "hello-world/inline-deployment"
+        Deployment(
+            id='dfd3e220-a130-4149-9af6-8d487e02fea6',
+            created='39 minutes ago',
+            updated='39 minutes ago',
+            name='inline-deployment',
+            flow_id='fe50cfa6-fd54-42e3-8930-6d9192678f89',
+            flow_data=DataDocument(encoding='file'),
+            parameters={'name': 'Marvin'},
+            tags=['foo', 'bar']
+        )
     """
-    ...
+    assert_deployment_name_format(name)
+
+    async with OrionClient() as client:
+        try:
+            deployment = await client.read_deployment_by_name(name)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == fastapi.status.HTTP_404_NOT_FOUND:
+                exit_with_error(f"Deployment {name!r} not found!")
+            else:
+                raise
+
+    console.print(Pretty(deployment))
 
 
 @deployment_app.command()
@@ -66,11 +105,7 @@ async def execute(name: str):
     """
     Create and execute a local flow run for the given deployment
     """
-
-    if "/" not in name:
-        raise ValueError(
-            "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
-        )
+    assert_deployment_name_format(name)
 
     async with OrionClient() as client:
         deployment = await client.read_deployment_by_name(name)
