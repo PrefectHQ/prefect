@@ -83,7 +83,6 @@ class OrionClient:
         self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
     ) -> None:
         httpx_settings = httpx_settings or {}
-        httpx_settings.setdefault("follow_redirects", True)
 
         if host:
             # Connect to an existing instance
@@ -988,7 +987,7 @@ class OrionClient:
                 of the task run states
         """
         response = await self.get(
-            "/task_run_states", params=dict(task_run_id=task_run_id)
+            "/task_run_states/", params=dict(task_run_id=task_run_id)
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
