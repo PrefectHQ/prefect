@@ -2,14 +2,21 @@
 Command line interface for working with flow runs
 """
 from typing import List
+from uuid import UUID
 
+import fastapi
+import httpx
+import pendulum
 import typer
+from rich.pretty import Pretty
 from rich.table import Table
 
-from prefect.cli.base import app, console
+from prefect.cli.base import app, console, exit_with_error
 from prefect.client import OrionClient
+from prefect.orion.schemas.filters import FlowFilter, FlowRunFilter
+from prefect.orion.schemas.sorting import FlowRunSort
+from prefect.orion.schemas.states import StateType
 from prefect.utilities.asyncio import sync_compatible
-from prefect.orion.schemas.filters import FlowFilter
 
 flow_run_app = typer.Typer(name="flow-run")
 app.add_typer(flow_run_app)
@@ -17,7 +24,20 @@ app.add_typer(flow_run_app)
 
 @flow_run_app.command()
 @sync_compatible
-async def ls(flow_name: List[str] = None):
+async def inspect(id: UUID):
+    """
+    View details about a flow run
+    """
+    async with OrionClient() as client:
+        try:
+            flow_run = await client.read_flow_run(id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == fastapi.status.HTTP_404_NOT_FOUND:
+                exit_with_error(f"Flow run {id!r} not found!")
+            else:
+                raise
+
+    console.print(Pretty(flow_run))
     """
     View all flow runs or flow runs for specific flows
     """
