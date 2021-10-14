@@ -82,6 +82,9 @@ class DataDocument(PrefectBaseModel, Generic[D]):
     def __repr__(self) -> str:
         return f"{type(self).__name__}(encoding={self.encoding!r})"
 
+    def __rich_repr__(self):
+        yield "encoding", self.encoding
+
 
 class DataLocation(PrefectBaseModel):
     """Represents the location of data stored in a file"""
