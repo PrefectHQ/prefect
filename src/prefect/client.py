@@ -83,6 +83,7 @@ class OrionClient:
         self, host: str = prefect.settings.orion_host, httpx_settings: dict = None
     ) -> None:
         httpx_settings = httpx_settings or {}
+        httpx_settings.setdefault("follow_redirects", True)
 
         if host:
             # Connect to an existing instance
