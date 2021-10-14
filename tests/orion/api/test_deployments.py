@@ -372,7 +372,7 @@ class TestReadDeployments:
         await session.commit()
 
     async def test_read_deployments(self, deployments, client):
-        response = await client.post("/deployments/filter/")
+        response = await client.post("/deployments/filter")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
@@ -384,7 +384,7 @@ class TestReadDeployments:
                 name=schemas.filters.DeploymentFilterName(any_=["My Deployment X"])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1)
@@ -395,7 +395,7 @@ class TestReadDeployments:
                 name=schemas.filters.DeploymentFilterName(any_=["My Deployment 123"])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert len(response.json()) == 0
 
@@ -404,7 +404,7 @@ class TestReadDeployments:
                 name=schemas.filters.FlowFilterName(any_=[flow.name])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1),
@@ -419,24 +419,24 @@ class TestReadDeployments:
                 name=schemas.filters.FlowFilterName(any_=["not a flow name"])
             ).dict(json_compatible=True),
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert len(response.json()) == 0
 
     async def test_read_deployments_applies_limit(self, deployments, client):
-        response = await client.post("/deployments/filter/", json=dict(limit=1))
+        response = await client.post("/deployments/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
-        response = await client.post("/deployments/filter/", json=dict(offset=1))
+        response = await client.post("/deployments/filter", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
 
     async def test_read_deployments_returns_empty_list(self, client):
-        response = await client.post("/deployments/filter/")
+        response = await client.post("/deployments/filter")
         assert response.status_code == 200
         assert response.json() == []
 

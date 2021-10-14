@@ -127,7 +127,7 @@ class TestReadFlows:
         assert len(response.json()) == 2
 
     async def test_read_flows_applies_limit(self, flows, client):
-        response = await client.post("/flows/filter/", json=dict(limit=1))
+        response = await client.post("/flows/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
@@ -146,7 +146,7 @@ class TestReadFlows:
                 name=schemas.filters.FlowFilterName(any_=["my-flow-1"])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flows/filter/", json=flow_filter)
+        response = await client.post("/flows/filter", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
@@ -171,7 +171,7 @@ class TestReadFlows:
             ).dict(json_compatible=True)
         )
 
-        response = await client.post("/flows/filter/", json=flow_filter)
+        response = await client.post("/flows/filter", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
@@ -203,7 +203,7 @@ class TestReadFlows:
                 id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flows/filter/", json=flow_filter)
+        response = await client.post("/flows/filter", json=flow_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert UUID(response.json()[0]["id"]) == flow_1.id
@@ -212,13 +212,13 @@ class TestReadFlows:
         # right now this works because flows are ordered by name
         # by default, when ordering is actually implemented, this test
         # should be re-written
-        response = await client.post("/flows/filter/", json=dict(offset=1))
+        response = await client.post("/flows/filter", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["name"] == "my-flow-2"
 
     async def test_read_flows_returns_empty_list(self, client):
-        response = await client.post("/flows/filter/")
+        response = await client.post("/flows/filter")
         assert response.status_code == 200
         assert response.json() == []
 
