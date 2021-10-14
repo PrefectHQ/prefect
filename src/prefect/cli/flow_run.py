@@ -38,27 +38,50 @@ async def inspect(id: UUID):
                 raise
 
     console.print(Pretty(flow_run))
+
+
+@flow_run_app.command()
+@sync_compatible
+async def ls(
+    flow_name: List[str] = None,
+    limit: int = 15,
+    state_type: List[StateType] = None,
+):
     """
-    View all flow runs or flow runs for specific flows
+    View recent flow runs or flow runs for specific flows
     """
-    flow_filter = FlowFilter(name=flow_name) if flow_name else None
     async with OrionClient() as client:
-        flow_runs = await client.read_flow_runs(flow_filter=flow_filter)
+        flow_runs = await client.read_flow_runs(
+            flow_filter=FlowFilter(name={"any_": flow_name}) if flow_name else None,
+            flow_run_filter=(
+                FlowRunFilter(state={"type": {"any_": state_type}})
+                if state_type
+                else None
+            ),
+            limit=limit,
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
+        )
         flows_by_id = {
             flow.id: flow
             for flow in await client.read_flows(
-                flow_filter=FlowFilter(id=[run.flow_id for run in flow_runs])
+                flow_filter=FlowFilter(id={"any_": [run.flow_id for run in flow_runs]})
             )
         }
 
-    table = Table("flow name", "id", "state", "timestamp")
+    table = Table("flow", "name", "id", "state", "when")
     for flow_run in sorted(flow_runs, key=lambda d: d.created, reverse=True):
         flow = flows_by_id[flow_run.flow_id]
+        timestamp = (
+            flow_run.state.state_details.scheduled_time
+            if flow_run.state.is_scheduled()
+            else flow_run.state.timestamp
+        )
         table.add_row(
-            flow.name,
-            str(flow_run.id),
-            flow_run.state.type.value,
-            str(flow_run.state.timestamp),
+            f"[blue]{flow.name}[/]",
+            f"[bold blue]{flow_run.name}[/]",
+            f"[green]{flow_run.id}[/]",
+            f"[bold]{flow_run.state.type.value}[/]",
+            pendulum.instance(timestamp).diff_for_humans(),
         )
 
     console.print(table)
