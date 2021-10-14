@@ -157,7 +157,7 @@ class TestExecutorParallelism:
     bar writes 'bar' to the file immediately
 
     If they run concurrently, 'foo' will be the final content of the file
-    If they run sequentially, 'bar' will be the final content of of the file
+    If they run sequentially, 'bar' will be the final content of the file
     """
 
     @pytest.fixture
