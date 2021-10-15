@@ -21,6 +21,7 @@
     "docs:generate-api": "cd docs && python generate_docs.py",
     "docs:dev": "npm run docs:generate-api && vuepress dev docs",
     "docs:build": "npm run docs:generate-api && vuepress build docs",
+    "docs:build-ci": "npm run docs:generate-api && vuepress build docs --cache /opt/build/cache/",
     "docs:dev-no-build": "vuepress dev docs"
   },
   "repository": {
