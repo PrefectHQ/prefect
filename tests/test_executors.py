@@ -167,7 +167,9 @@ class TestExecutorParallelism:
         return tmp_file
 
     @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS)
-    def test_sync_tasks_run_sequentially(self, executor, tmp_file):
+    def test_sync_tasks_run_sequentially_with_sequential_executors(
+        self, executor, tmp_file
+    ):
         @task
         def foo():
             time.sleep(1)
@@ -187,7 +189,9 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "bar"
 
     @pytest.mark.parametrize("executor", PARALLEL_EXECUTORS)
-    def test_sync_tasks_run_concurrently(self, executor, tmp_file):
+    def test_sync_tasks_run_concurrently_with_parallel_executors(
+        self, executor, tmp_file
+    ):
         @task
         def foo():
             time.sleep(1)
@@ -207,7 +211,9 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "foo"
 
     @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS)
-    async def test_async_tasks_run_sequentially(self, executor, tmp_file):
+    async def test_async_tasks_run_sequentially_with_sequential_executors(
+        self, executor, tmp_file
+    ):
         @task
         async def foo():
             await anyio.sleep(1)
@@ -227,7 +233,9 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "bar"
 
     @pytest.mark.parametrize("executor", PARALLEL_EXECUTORS)
-    async def test_async_tasks_run_concurrently(self, executor, tmp_file):
+    async def test_async_tasks_run_concurrently_with_parallel_executors(
+        self, executor, tmp_file
+    ):
         @task
         async def foo():
             await anyio.sleep(1)
@@ -246,12 +254,8 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "foo"
 
-    @pytest.mark.parametrize(
-        # All executors should display concurrency when using task groups or gathering
-        "executor",
-        SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS,
-    )
-    async def test_async_tasks_run_concurrently_with_task_group(
+    @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
+    async def test_async_tasks_run_concurrently_with_task_group_with_all_executors(
         self, executor, tmp_file
     ):
         @task
@@ -274,7 +278,9 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "foo"
 
     @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
-    def test_sync_subflows_run_sequentially(self, executor, tmp_file):
+    def test_sync_subflows_run_sequentially_with_all_executors(
+        self, executor, tmp_file
+    ):
         @flow
         def foo():
             time.sleep(1)
@@ -294,7 +300,9 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "bar"
 
     @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
-    async def test_async_subflows_run_sequentially(self, executor, tmp_file):
+    async def test_async_subflows_run_sequentially_with_all_executors(
+        self, executor, tmp_file
+    ):
         @flow
         async def foo():
             await anyio.sleep(1)
@@ -313,7 +321,7 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "bar"
 
     @pytest.mark.parametrize("executor", SEQUENTIAL_EXECUTORS + PARALLEL_EXECUTORS)
-    async def test_async_subflows_run_concurrently_with_task_group(
+    async def test_async_subflows_run_concurrently_with_task_group_with_all_executors(
         self, executor, tmp_file
     ):
         @flow
