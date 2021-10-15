@@ -247,17 +247,15 @@ class DaskExecutor(BaseExecutor):
     def __getstate__(self):
         """
         Allow the `DaskExecutor` to be serialized by dropping the `distributed.Client`
-        which contains locks.
-
-        Must be deserialized on a dask worker.
+        which contains locks. Must be deserialized on a dask worker.
         """
         data = self.__dict__.copy()
         data["_client"] = None
         return data
 
-    def __setstate__(self, data):
+    def __setstate__(self, data: dict):
         """
         Restore the `distributed.Client` by loading the client on a dask worker.
         """
-        self.__dict__ = data
+        self.__dict__.update(data)
         self._client = distributed.get_client()
