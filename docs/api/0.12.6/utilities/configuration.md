@@ -1,0 +1,17 @@
+---
+sidebarDepth: 2
+editLink: false
+---
+# Configuration
+---
+Utilities for interacting with [Prefect
+configuration](https://docs.prefect.io/core/concepts/configuration.html).  These are only
+intended to be used for testing.
+
+## Functions
+|top-level functions: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-utilities-configuration-set-temporary-config'><p class="prefect-class">prefect.utilities.configuration.set_temporary_config</p>(temp_config)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/utilities/configuration.py#L13">[source]</a></span></div>
+<p class="methods">Temporarily sets configuration values for the duration of the context manager.<br><br>**Args**:     <ul class="args"><li class="args">`temp_config (dict)`: a dictionary containing (possibly nested) configuration keys and         values. Nested configuration keys should be supplied as `.`-delimited strings.</li></ul>**Example**:     <br><pre class="language-python"><code class="language-python">    <span class="token keyword">with</span> set_temporary_config<span class="token punctuation">(</span><span class="token punctuation">{</span><span class="token string">'</span><span class="token string">setting</span><span class="token string">'</span><span class="token punctuation">:</span> <span class="token number">1</span><span class="token punctuation">,</span> <span class="token string">'</span><span class="token string">nested.setting</span><span class="token string">'</span><span class="token punctuation">:</span> <span class="token number">2</span><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">:</span><br>        <span class="token keyword">assert</span> prefect<span class="token operator">.</span>config<span class="token operator">.</span>setting <span class="token operator">==</span> <span class="token number">1</span><br>        <span class="token keyword">assert</span> prefect<span class="token operator">.</span>config<span class="token operator">.</span>nested<span class="token operator">.</span>setting <span class="token operator">==</span> <span class="token number">2</span><br>    <br></code></pre><br></p>|
+
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on August 6, 2020 at 13:56 UTC</p>
