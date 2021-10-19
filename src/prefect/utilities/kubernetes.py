@@ -77,7 +77,7 @@ def get_kubernetes_client(
     return k8s_client
 
 
-def _keep_alive(client: KubernetesClient):
+def _keep_alive(client: KubernetesClient) -> None:
     """
     Setting the keep-alive flags on the kubernetes client object.
     Unfortunately neither the kubernetes library nor the urllib3 library which kubernetes is using internally offer
