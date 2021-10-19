@@ -82,7 +82,7 @@ class TestGetKubernetesClient:
         with set_temporary_config(
             {"cloud.agent.kubernetes_keep_alive": keep_alive_enabled}
         ):
-            k8s_client = get_kubernetes_client("job", kubernetes_api_key_secret=None)
+            k8s_client = get_kubernetes_client("job")
 
             assert (
                 not (
