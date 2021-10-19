@@ -1,9 +1,13 @@
 """
 This module implements the Prefect context that is available when tasks run.
 
-Tasks can import `prefect` and access `prefect.context` attributes that will be overwritten
+Tasks can import `prefect` and access `prefect.context` values that will be set
 when the task is run.
 
+Context values can be accessed as attributes or as dictionary items.
+
+Mutating the context from within a task is not recommended as it will not behave
+consistently across execution environments.
 Example:
 
 ```python
