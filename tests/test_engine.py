@@ -13,7 +13,6 @@ from prefect.engine import (
     orchestrate_flow_run,
     orchestrate_task_run,
     raise_failed_state,
-    resolve_datadoc,
     user_return_value_to_state,
 )
 from prefect.executors import SequentialExecutor
@@ -160,38 +159,6 @@ class TestRaiseFailedState:
                     type=StateType.FAILED,
                     data=DataDocument.encode("cloudpickle", "foo"),
                 )
-            )
-
-
-class TestResolveDataDoc:
-    async def test_does_not_allow_other_types(self):
-        with pytest.raises(TypeError, match="invalid type str"):
-            await resolve_datadoc("foo")
-
-    async def test_resolves_data_document(self):
-        assert (
-            await resolve_datadoc(DataDocument.encode("cloudpickle", "hello"))
-            == "hello"
-        )
-
-    async def test_resolves_nested_data_documents(self):
-        assert (
-            await resolve_datadoc(
-                DataDocument.encode("cloudpickle", DataDocument.encode("json", "hello"))
-            )
-            == "hello"
-        )
-
-    async def test_resolves_persisted_data_documents(self):
-        async with OrionClient() as client:
-            assert (
-                await resolve_datadoc(
-                    await client.persist_data(
-                        DataDocument.encode("json", "hello").json().encode()
-                    ),
-                    client=client,
-                )
-                == "hello"
             )
 
 
