@@ -49,7 +49,7 @@ falls back to `now` for unscheduled runs |
 | `task_run_name` | the run name of the current task (if provided, otherwise `None`) |
 | `task_loop_result` | if the Task is looping, the current loop result |
 
-In addition, Prefect Cloud and Server supply some additional context variables:
+Prefect Cloud and Server supply some additional context variables:
 
 | Variable | Description |
 | :--- | --- |
