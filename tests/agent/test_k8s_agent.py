@@ -30,7 +30,7 @@ def mocked_k8s_config(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def mocked_k8s_clients(monkeypatch):
-    client = MagicMock(return_value=MagicMock())
+    client = MagicMock()
     for job_key in kubernetes.K8S_CLIENTS.keys():
         monkeypatch.setitem(kubernetes.K8S_CLIENTS, job_key, client)
 
@@ -1456,6 +1456,7 @@ class TestK8sAgentRunConfig:
         expected_logging_level,
         tmpdir,
         backend,
+        kube_secret
     ):
         """
         Check that PREFECT__LOGGING__LEVEL is set in precedence order
