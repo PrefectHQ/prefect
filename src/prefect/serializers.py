@@ -68,25 +68,3 @@ class PickleSerializer:
     @staticmethod
     def loads(blob: bytes) -> Any:
         return cloudpickle.loads(base64.decodebytes(blob))
-
-
-@inject_client
-async def resolve_datadoc(datadoc: DataDocument, client: OrionClient) -> Any:
-    if not isinstance(datadoc, DataDocument):
-        raise TypeError(
-            f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
-        )
-    result = datadoc
-    while isinstance(result, DataDocument):
-        if result.encoding == "orion":
-            inner_doc_bytes = await client.retrieve_data(result)
-            try:
-                result = DataDocument.parse_raw(inner_doc_bytes)
-            except pydantic.ValidationError as exc:
-                raise ValueError(
-                    "Expected `orion` encoded document to contain another data "
-                    "document but it could not be parsed."
-                ) from exc
-        else:
-            result = result.decode()
-    return result
