@@ -19,6 +19,8 @@ class SodaSQLScan(Task):
             Can be either a path to a SodaSQL Warehouse YAML file or a dictionary.
             For more information regarding SodaSQL Warehouse YAML files
             refer to https://docs.soda.io/soda-sql/documentation/warehouse.html
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
     """
 
     def __init__(

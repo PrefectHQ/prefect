@@ -528,6 +528,11 @@ title = "Snowflake Tasks"
 module = "prefect.tasks.snowflake"
 classes = ["SnowflakeQuery"]
 
+[pages.tasks.sodasql]
+title = "SodaSQL Tasks"
+module = "prefect.tasks.sodasql"
+classes = ["SodaSQLScan"]
+
 [pages.tasks.databricks]
 title = "Databricks Tasks"
 module = "prefect.tasks.databricks"
