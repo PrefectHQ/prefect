@@ -48,14 +48,19 @@ The following executors are currently supported:
 
 - `SequentialExecutor`: the simplest executor and the default; submits each task run sequentially as they are called and blocks until completion
 - `DaskExecutor`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
-
-!!! warning "The DaskExecutor uses multiprocessing"
-    Please note that because the `DaskExecutor` uses multiprocessing, it must only be used interactively or protected by an `if __name__ == "__main__":` guard.
-
 """
 import abc
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Dict, Optional, TypeVar, Awaitable, AsyncIterator
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    TypeVar,
+    Awaitable,
+    AsyncIterator,
+    Union,
+)
 from uuid import UUID
 
 # TODO: Once executors are split into separate files this should become an optional dependency
@@ -66,6 +71,8 @@ from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun
 from prefect.utilities.logging import get_logger
 from prefect.utilities.asyncio import A
+from prefect.utilities.importtools import import_object
+from prefect.utilities.hashing import to_qualified_name
 
 T = TypeVar("T", bound="BaseExecutor")
 R = TypeVar("R")
@@ -180,21 +187,105 @@ class SequentialExecutor(BaseExecutor):
 
 class DaskExecutor(BaseExecutor):
     """
-    A parallel executor that submits calls to a dask cluster.
+    A parallel executor that submits tasks to the `dask.distributed` scheduler.
 
-    A local dask distributed cluster is created on use.
+    By default a temporary `distributed.LocalCluster` is created (and
+    subsequently torn down) within the `start()` contextmanager. To use a
+    different cluster class (e.g.
+    [`dask_kubernetes.KubeCluster`](https://kubernetes.dask.org/)), you can
+    specify `cluster_class`/`cluster_kwargs`.
 
-    !!! warning "The DaskExecutor uses multiprocessing"
-        Please note that because the `DaskExecutor` uses multiprocessing, it must only be used interactively or protected by an `if __name__ == "__main__":` guard.
+    Alternatively, if you already have a dask cluster running, you can provide
+    the address of the scheduler via the `address` kwarg.
+
+    !!! warning "Multiprocessing safety"
+        Please note that because the `DaskExecutor` uses multiprocessing, calls to flows
+        in scripts must be guarded with `if __name__ == "__main__":` or warnings will
+        be displayed.
+
+    Args:
+        - address (string, optional): address of a currently running dask
+            scheduler; if one is not provided, a temporary cluster will be
+            created in `executor.start()`.  Defaults to `None`.
+        - cluster_class (string or callable, optional): the cluster class to use
+            when creating a temporary dask cluster. Can be either the full
+            class name (e.g. `"distributed.LocalCluster"`), or the class itself.
+        - cluster_kwargs (dict, optional): addtional kwargs to pass to the
+           `cluster_class` when creating a temporary dask cluster.
+        - adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
+            when creating a temporary dask cluster. Note that adaptive scaling
+            is only enabled if `adapt_kwargs` are provided.
+        - client_kwargs (dict, optional): additional kwargs to use when creating a
+            [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client).
+
+    Examples:
+
+        Using a temporary local dask cluster
+        >>> from prefect import flow
+        >>> from prefect.executors import DaskExecutor
+        >>> @flow(executor=DaskExecutor)
+
+        Using a temporary cluster running elsewhere. Any Dask cluster class should
+        work, here we use [dask-cloudprovider](https://cloudprovider.dask.org)
+        >>> DaskExecutor(
+        >>>     cluster_class="dask_cloudprovider.FargateCluster",
+        >>>     cluster_kwargs={
+        >>>          "image": "prefecthq/prefect:latest",
+        >>>          "n_workers": 5,
+        >>>     },
+        >>> )
+
+
+        Connecting to an existing dask cluster
+        >>> DaskExecutor(address="192.0.2.255:8786")
     """
 
-    # TODO: __init__ should support cluster setup kwargs as well as existing cluster
-    #      connection args
+    def __init__(
+        self,
+        address: str = None,
+        cluster_class: Union[str, Callable] = None,
+        cluster_kwargs: dict = None,
+        adapt_kwargs: dict = None,
+        client_kwargs: dict = None,
+    ):
 
-    def __init__(self) -> None:
-        super().__init__()
+        # Validate settings and infer defaults
+        if address:
+            if cluster_class or cluster_kwargs or adapt_kwargs:
+                raise ValueError(
+                    "Cannot specify `address` and `cluster_class`/`cluster_kwargs`/`adapt_kwargs`"
+                )
+        else:
+            if isinstance(cluster_class, str):
+                cluster_class = import_object(cluster_class)
+            else:
+                cluster_class = cluster_class or distributed.LocalCluster
+
+        # Create a copies of incoming kwargs since we may mutate them
+        cluster_kwargs = cluster_kwargs.copy() if cluster_kwargs else {}
+        adapt_kwargs = adapt_kwargs.copy() if adapt_kwargs else {}
+        client_kwargs = client_kwargs.copy() if client_kwargs else {}
+
+        # Update kwargs defaults
+        client_kwargs.setdefault("set_as_default", False)
+
+        # Ensure we're working with async client/cluster objects
+        client_kwargs["asynchronous"] = True
+        cluster_kwargs["asynchronous"] = True
+
+        # Store settings
+        self.address = address
+        self.cluster_class = cluster_class
+        self.cluster_kwargs = cluster_kwargs
+        self.adapt_kwargs = adapt_kwargs
+        self.client_kwargs = client_kwargs
+
+        # Runtime attributes
         self._client: "distributed.Client" = None
+        self._cluster: "distributed.deploy.Cluster" = None
         self._dask_futures: Dict[UUID, "distributed.Future"] = {}
+
+        super().__init__()
 
     async def submit(
         self,
@@ -232,8 +323,37 @@ class DaskExecutor(BaseExecutor):
             return None
 
     async def on_startup(self):
-        self._client = await distributed.Client(asynchronous=True)
-        self.logger.info(f"Dask dashboard available at {self._client.dashboard_link}")
+        if self.address:
+            self.logger.info(
+                f"Connecting to an existing Dask cluster at {self.address}"
+            )
+            connect_to = self.address
+        else:
+            self.logger.info(
+                f"Creating a new Dask cluster with `{to_qualified_name(self.cluster_class)}`"
+            )
+            self._cluster = await self._create_cluster()
+            connect_to = self._cluster
+
+        self._client = await distributed.Client(connect_to, **self.client_kwargs)
+
+        if self._client.dashboard_link:
+            self.logger.info(
+                f"The Dask dashboard is available at {self._client.dashboard_link}",
+            )
+
+    async def _create_cluster(self) -> "distributed.deploy.Cluster":
+        """
+        Create a new Dask cluster as specified by `cluster_class`, `cluster_kwargs`, and
+        `adapt_kwargs`
+        """
+        cluster = self.cluster_class(**self.cluster_kwargs)
+        await cluster._start()
+
+        if self.adapt_kwargs:
+            cluster.adapt(**self.adapt_kwargs)
+
+        return cluster
 
     async def on_shutdown(self) -> None:
         # Attempt to wait for all futures to complete
@@ -242,22 +362,24 @@ class DaskExecutor(BaseExecutor):
                 await future.result()
             except Exception:
                 pass
-        await self._client.close()
+        # Close down the client and cluster
+        if self._client:
+            await self._client.close()
+        if self._cluster:
+            await self._cluster.close()
 
     def __getstate__(self):
         """
         Allow the `DaskExecutor` to be serialized by dropping the `distributed.Client`
-        which contains locks.
-
-        Must be deserialized on a dask worker.
+        which contains locks. Must be deserialized on a dask worker.
         """
         data = self.__dict__.copy()
-        data["_client"] = None
+        data.update({k: None for k in {"_client", "_cluster"}})
         return data
 
-    def __setstate__(self, data):
+    def __setstate__(self, data: dict):
         """
         Restore the `distributed.Client` by loading the client on a dask worker.
         """
-        self.__dict__ = data
+        self.__dict__.update(data)
         self._client = distributed.get_client()
