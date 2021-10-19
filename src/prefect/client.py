@@ -991,6 +991,37 @@ class OrionClient:
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
+    async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
+        """
+        Recursively decode possibly nested data documents.
+
+        "orion" encoded documents will be retrieved from the server.
+
+        Args:
+            datadoc: The data document to resolve
+
+        Returns:
+            a decoded object, the innermost data
+        """
+        if not isinstance(datadoc, DataDocument):
+            raise TypeError(
+                f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
+            )
+        result = datadoc
+        while isinstance(result, DataDocument):
+            if result.encoding == "orion":
+                inner_doc_bytes = await self.retrieve_data(result)
+                try:
+                    result = DataDocument.parse_raw(inner_doc_bytes)
+                except pydantic.ValidationError as exc:
+                    raise ValueError(
+                        "Expected `orion` encoded document to contain another data "
+                        "document but it could not be parsed."
+                    ) from exc
+            else:
+                result = result.decode()
+        return result
+
     async def __aenter__(self):
         await self._client.__aenter__()
         return self

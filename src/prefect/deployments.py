@@ -64,7 +64,6 @@ from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.serializers import resolve_datadoc
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
@@ -313,7 +312,7 @@ async def load_flow_from_deployment(
     """
     flow_model = await client.read_flow(deployment.flow_id)
 
-    maybe_flow = await resolve_datadoc(deployment.flow_data, client=client)
+    maybe_flow = await client.resolve_datadoc(deployment.flow_data)
     if isinstance(maybe_flow, (str, bytes)):
         flow = load_flow_from_text(maybe_flow, flow_model.name)
     else:
