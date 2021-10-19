@@ -361,19 +361,22 @@ aws ecs create-service
 
 Now, AWS service scheduler will create a task with running Prefect Agent, and you can check your logs in CloudWatch `/ecs/prefect-agent` log group.
 
-### Working with the AWS CLI Rate Limiter
+### Throttling errors on flow submission
 
-When using the ECS Agent, the AWS CLI rate limiter might prevent ECS task definition
-registration--thus preventing your flows from running. While the ECS Agent tries to
-be conservative with how many times the CLI is called, it's still possible to trigger
-the rate limiter at larger scales. One way to work with the rate limiter is to modify
-the AWS CLI retry behavior.
+When using the ECS Agent, the AWS API rate limiter might throttle ECS task definition
+registration while submitting a flow--thus preventing your flows from running. AWS does
+not publish these limits as they are dynamically adjusted, so one way to work around the
+rate limiter is to modify retry behavior by configuring `boto`.
 
-If starting an agent from the command line, the retry behavior can be modified [using
-environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
+If starting an agent from the command line, the retry behavior can be modified only for
+the ECS agent [using environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
 
-For example, when starting the agent from the CLI:
+For example:
 
 ```bash
 AWS_RETRY_MODE='adaptive' AWS_MAX_ATTEMPTS=10 prefect agent ecs start
 ```
+
+If running the ECS agent in a container, you can set the environment variables in the
+container definition, but note that these retry settings will be applied to all AWS API
+calls.
