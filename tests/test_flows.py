@@ -521,9 +521,9 @@ class TestFlowTimeouts:
             time.sleep(1)
             canary_file.touch()
 
-        t0 = time.time()
+        t0 = time.perf_counter()
         state = my_flow()
-        t1 = time.time()
+        t1 = time.perf_counter()
 
         assert state.is_failed()
         assert "exceeded timeout of 0.1 seconds" in state.message
@@ -634,9 +634,9 @@ class TestFlowTimeouts:
 
         @flow
         def my_flow():
-            t0 = time.time()
+            t0 = time.perf_counter()
             subflow_state = my_subflow()
-            t1 = time.time()
+            t1 = time.perf_counter()
             return t1 - t0, subflow_state
 
         state = my_flow()
