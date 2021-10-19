@@ -372,10 +372,8 @@ the AWS CLI retry behavior.
 If starting an agent from the command line, the retry behavior can be modified [using
 environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
 
-For example:
+For example, when starting the agent from the CLI:
 
 ```bash
-export AWS_RETRY_MODE='adaptive'
-export AWS_MAX_ATTEMPTS=10
-prefect agent ecs start
+AWS_RETRY_MODE='adaptive' AWS_MAX_ATTEMPTS=10 prefect agent ecs start
 ```
