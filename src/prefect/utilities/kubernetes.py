@@ -39,9 +39,11 @@ def get_kubernetes_client(
     2. Attempt in-cluster connection (will only work when running on a Pod in a cluster)
     3. Attempt out-of-cluster connection using the default location for a kube config file
 
-    In some cases connections to the kubernetes server are dropped after being idle for some time (e.g. Azure
-    Firewall drops idle connections after 4 minutes) which would result in ReadTimeoutErrors. In order to prevent
-    that a periodic keep-alive message can be sent to the server to keep the connection open.
+    In some cases connections to the kubernetes server are dropped after being idle for some time
+    (e.g. Azure Firewall drops idle connections after 4 minutes) which would result in
+    ReadTimeoutErrors.
+    In order to prevent that a periodic keep-alive message can be sent to the server to keep the
+    connection open.
 
     Args:
         - resource (str): the name of the resource to retrieve a client for. Currently
@@ -80,11 +82,13 @@ def get_kubernetes_client(
 def _keep_alive(client: KubernetesClient) -> None:
     """
     Setting the keep-alive flags on the kubernetes client object.
-    Unfortunately neither the kubernetes library nor the urllib3 library which kubernetes is using internally offer
-    the functionality to enable keep-alive messages. Thus the flags are added to be used on the underlying sockets.
+    Unfortunately neither the kubernetes library nor the urllib3 library which kubernetes is using
+    internally offer the functionality to enable keep-alive messages. Thus the flags are added to
+    be used on the underlying sockets.
 
     Args:
-        - client (KubernetesClient): the kubernetes client object on which the keep-alive should be enabled
+        - client (KubernetesClient): the kubernetes client object on which the keep-alive should be
+            enabled
     """
     import socket
 
