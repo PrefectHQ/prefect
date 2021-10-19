@@ -76,11 +76,25 @@ class TestGetKubernetesClient:
         assert config.load_kube_config.called
 
     @pytest.mark.parametrize("keep_alive_enabled", [True, False])
-    def test_kube_client_with_keep_alive(self, keep_alive_enabled, monkeypatch, cloud_api, kube_secret):
-        with set_temporary_config({"cloud.agent.kubernetes_keep_alive": keep_alive_enabled}):
+    def test_kube_client_with_keep_alive(
+        self, keep_alive_enabled, monkeypatch, cloud_api, kube_secret
+    ):
+        with set_temporary_config(
+            {"cloud.agent.kubernetes_keep_alive": keep_alive_enabled}
+        ):
             k8s_client = get_kubernetes_client("job", kubernetes_api_key_secret=None)
 
-            assert not ('socket_options' in k8s_client.api_client.rest_client.pool_manager.connection_pool_kw) ^ \
-                   keep_alive_enabled
-            assert not ('socket_options' in k8s_client.api_client.rest_client.pool_manager.connection_pool_kw) ^ \
-                   keep_alive_enabled
+            assert (
+                not (
+                    "socket_options"
+                    in k8s_client.api_client.rest_client.pool_manager.connection_pool_kw
+                )
+                ^ keep_alive_enabled
+            )
+            assert (
+                not (
+                    "socket_options"
+                    in k8s_client.api_client.rest_client.pool_manager.connection_pool_kw
+                )
+                ^ keep_alive_enabled
+            )

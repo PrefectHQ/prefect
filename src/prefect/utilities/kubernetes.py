@@ -105,4 +105,6 @@ def _keep_alive(client: KubernetesClient):
         TCP_KEEP_ALIVE = 0x10
         socket_options.append((socket.IPPROTO_TCP, TCP_KEEP_ALIVE, 30))
 
-    client.api_client.rest_client.pool_manager.connection_pool_kw['socket_options'] = socket_options
+    client.api_client.rest_client.pool_manager.connection_pool_kw[
+        "socket_options"
+    ] = socket_options
