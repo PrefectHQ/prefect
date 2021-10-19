@@ -366,7 +366,7 @@ Now, AWS service scheduler will create a task with running Prefect Agent, and yo
 When using the ECS Agent, the AWS CLI rate limiter might prevent ECS task definition
 registration--thus preventing your flows from running. While the ECS Agent tries to
 be conservative with how many times the CLI is called, it's still possible to trigger
-the rate limiter at larger scales. One way to work with the rate limiteris to modify
+the rate limiter at larger scales. One way to work with the rate limiter is to modify
 the AWS CLI retry behavior.
 
 If starting an agent from the command line, the retry behavior can be modified [using
