@@ -18,21 +18,11 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.executors import DaskExecutor, SequentialExecutor
+from prefect.executors import DaskExecutor, SequentialExecutor, BaseExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
-
-
-@contextmanager
-def dask_executor():
-    yield DaskExecutor()
-
-
-@contextmanager
-def sequential_executor():
-    yield SequentialExecutor()
 
 
 @contextmanager
@@ -46,17 +36,63 @@ def dask_executor_with_existing_cluster():
             yield DaskExecutor(address=address)
 
 
-ALL_EXECUTORS = [
-    dask_executor,
-    sequential_executor,
-    dask_executor_with_existing_cluster,
-]
-SEQUENTIAL_EXECUTORS = [sequential_executor]
-PARALLEL_EXECUTORS = [dask_executor, dask_executor_with_existing_cluster]
+@pytest.fixture
+def executor(request):
+    """
+    An indirect fixture that expects to receive one of the following
+    - executor instance
+    - executor type
+    - callable generator that yields an executor instance
+
+    Returns an executor instance that can be used in the test
+    """
+    if isinstance(request.param, BaseExecutor):
+        yield request.param
+
+    elif isinstance(request.param, type) and issubclass(request.param, BaseExecutor):
+        yield request.param()
+
+    elif callable(request.param):
+        with request.param() as executor:
+            yield executor
+
+    else:
+        raise TypeError(
+            "Received invalid executor parameter. Expected executor type, instance, "
+            f"or callable generator. Received {type(request.param).__name__}"
+        )
 
 
-@pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
-def test_flow_run_by_executor(gen_executor):
+parameterize_with_all_executors = pytest.mark.parametrize(
+    "executor",
+    [
+        DaskExecutor,
+        SequentialExecutor,
+        dask_executor_with_existing_cluster,
+    ],
+    indirect=True,
+)
+
+
+parameterize_with_parallel_executors = pytest.mark.parametrize(
+    "executor",
+    [
+        DaskExecutor,
+        dask_executor_with_existing_cluster,
+    ],
+    indirect=True,
+)
+
+
+parameterize_with_sequential_executors = pytest.mark.parametrize(
+    "executor",
+    [SequentialExecutor],
+    indirect=True,
+)
+
+
+@parameterize_with_all_executors
+def test_flow_run_by_executor(executor):
     @task
     def task_a():
         return "a"
@@ -69,16 +105,14 @@ def test_flow_run_by_executor(gen_executor):
     def task_c(b):
         return b + "c"
 
-    with gen_executor() as executor:
+    @flow(version="test", executor=executor)
+    def test_flow():
+        a = task_a()
+        b = task_b()
+        c = task_c(b)
+        return a, b, c
 
-        @flow(version="test", executor=executor)
-        def test_flow():
-            a = task_a()
-            b = task_b()
-            c = task_c(b)
-            return a, b, c
-
-        a, b, c = test_flow().result()
+    a, b, c = test_flow().result()
 
     assert (a.result(), b.result(), c.result()) == (
         "a",
@@ -87,8 +121,8 @@ def test_flow_run_by_executor(gen_executor):
     )
 
 
-@pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
-def test_failing_flow_run_by_executor(gen_executor):
+@parameterize_with_all_executors
+def test_failing_flow_run_by_executor(executor):
     @task
     def task_a():
         raise RuntimeError("This task fails!")
@@ -102,18 +136,16 @@ def test_failing_flow_run_by_executor(gen_executor):
         # This task attempts to use the upstream data and should fail too
         return b + "c"
 
-    with gen_executor() as executor:
+    @flow(version="test", executor=executor)
+    def test_flow():
+        a = task_a()
+        b = task_b()
+        c = task_c(b)
+        d = task_c(c)
 
-        @flow(version="test", executor=executor)
-        def test_flow():
-            a = task_a()
-            b = task_b()
-            c = task_c(b)
-            d = task_c(c)
+        return a, b, c, d
 
-            return a, b, c, d
-
-        state = test_flow()
+    state = test_flow()
 
     assert state.is_failed()
     a, b, c, d = state.result(raise_on_failure=False)
@@ -205,9 +237,9 @@ class TestExecutorParallelism:
         tmp_file.touch()
         return tmp_file
 
-    @pytest.mark.parametrize("gen_executor", SEQUENTIAL_EXECUTORS)
+    @parameterize_with_sequential_executors
     def test_sync_tasks_run_sequentially_with_sequential_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @task
         def foo():
@@ -218,20 +250,18 @@ class TestExecutorParallelism:
         def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        def test_flow():
+            foo()
+            bar()
 
-            @flow(version="test", executor=executor)
-            def test_flow():
-                foo()
-                bar()
-
-            test_flow().result()
+        test_flow().result()
 
         assert tmp_file.read_text() == "bar"
 
-    @pytest.mark.parametrize("gen_executor", PARALLEL_EXECUTORS)
+    @parameterize_with_parallel_executors
     def test_sync_tasks_run_concurrently_with_parallel_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @task
         def foo():
@@ -242,20 +272,18 @@ class TestExecutorParallelism:
         def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        def test_flow():
+            foo()
+            bar()
 
-            @flow(version="test", executor=executor)
-            def test_flow():
-                foo()
-                bar()
-
-            test_flow().result()
+        test_flow().result()
 
         assert tmp_file.read_text() == "foo"
 
-    @pytest.mark.parametrize("gen_executor", SEQUENTIAL_EXECUTORS)
+    @parameterize_with_sequential_executors
     async def test_async_tasks_run_sequentially_with_sequential_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @task
         async def foo():
@@ -266,20 +294,18 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            await foo()
+            await bar()
 
-            @flow(version="test", executor=executor)
-            async def test_flow():
-                await foo()
-                await bar()
-
-            (await test_flow()).result()
+        (await test_flow()).result()
 
         assert tmp_file.read_text() == "bar"
 
-    @pytest.mark.parametrize("gen_executor", PARALLEL_EXECUTORS)
+    @parameterize_with_parallel_executors
     async def test_async_tasks_run_concurrently_with_parallel_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @task
         async def foo():
@@ -290,20 +316,18 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            await foo()
+            await bar()
 
-            @flow(version="test", executor=executor)
-            async def test_flow():
-                await foo()
-                await bar()
-
-            (await test_flow()).result()
+        (await test_flow()).result()
 
         assert tmp_file.read_text() == "foo"
 
-    @pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
+    @parameterize_with_all_executors
     async def test_async_tasks_run_concurrently_with_task_group_with_all_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @task
         async def foo():
@@ -314,21 +338,19 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(foo)
+                tg.start_soon(bar)
 
-            @flow(version="test", executor=executor)
-            async def test_flow():
-                async with anyio.create_task_group() as tg:
-                    tg.start_soon(foo)
-                    tg.start_soon(bar)
-
-            (await test_flow()).result()
+        (await test_flow()).result()
 
         assert tmp_file.read_text() == "foo"
 
-    @pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
+    @parameterize_with_all_executors
     def test_sync_subflows_run_sequentially_with_all_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @flow
         def foo():
@@ -339,20 +361,18 @@ class TestExecutorParallelism:
         def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        def test_flow():
+            foo()
+            bar()
 
-            @flow(version="test", executor=executor)
-            def test_flow():
-                foo()
-                bar()
-
-            test_flow().result()
+        test_flow().result()
 
         assert tmp_file.read_text() == "bar"
 
-    @pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
+    @parameterize_with_all_executors
     async def test_async_subflows_run_sequentially_with_all_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @flow
         async def foo():
@@ -363,20 +383,18 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            await foo()
+            await bar()
 
-            @flow(version="test", executor=executor)
-            async def test_flow():
-                await foo()
-                await bar()
-
-            (await test_flow()).result()
+        (await test_flow()).result()
 
         assert tmp_file.read_text() == "bar"
 
-    @pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
+    @parameterize_with_all_executors
     async def test_async_subflows_run_concurrently_with_task_group_with_all_executors(
-        self, gen_executor, tmp_file
+        self, executor, tmp_file
     ):
         @flow
         async def foo():
@@ -387,60 +405,56 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        with gen_executor() as executor:
+        @flow(version="test", executor=executor)
+        async def test_flow():
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(foo)
+                tg.start_soon(bar)
 
-            @flow(version="test", executor=executor)
-            async def test_flow():
-                async with anyio.create_task_group() as tg:
-                    tg.start_soon(foo)
-                    tg.start_soon(bar)
-
-            (await test_flow()).result()
+        (await test_flow()).result()
 
         assert tmp_file.read_text() == "foo"
 
 
-@pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
-async def test_is_pickleable_after_start(gen_executor):
+@parameterize_with_all_executors
+async def test_is_pickleable_after_start(executor):
     """
     The executor must be picklable as it is attached to `PrefectFuture` objects
     """
-    with gen_executor() as executor:
-        if isinstance(executor, DaskExecutor):
-            # We must set the dask client as the default for it to be unpicklable in the
-            # main process
-            executor.client_kwargs["set_as_default"] = True
+    if isinstance(executor, DaskExecutor):
+        # We must set the dask client as the default for it to be unpicklable in the
+        # main process
+        executor.client_kwargs["set_as_default"] = True
 
-        async with executor.start():
-            pickled = cloudpickle.dumps(executor)
-            unpickled = cloudpickle.loads(pickled)
-            assert isinstance(unpickled, type(executor))
+    async with executor.start():
+        pickled = cloudpickle.dumps(executor)
+        unpickled = cloudpickle.loads(pickled)
+        assert isinstance(unpickled, type(executor))
 
 
-@pytest.mark.parametrize("gen_executor", ALL_EXECUTORS)
-async def test_submit_and_wait(gen_executor):
-    with gen_executor() as executor:
-        task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
+@parameterize_with_all_executors
+async def test_submit_and_wait(executor):
+    task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
 
-        async def fake_orchestrate_task_run(example_kwarg):
-            return State(
-                type=StateType.COMPLETED,
-                data=DataDocument.encode("json", example_kwarg),
-            )
+    async def fake_orchestrate_task_run(example_kwarg):
+        return State(
+            type=StateType.COMPLETED,
+            data=DataDocument.encode("json", example_kwarg),
+        )
 
-        async with executor.start():
-            fut = await executor.submit(
-                task_run=task_run,
-                run_fn=fake_orchestrate_task_run,
-                run_kwargs=dict(example_kwarg=1),
-            )
-            assert isinstance(fut, PrefectFuture), "submit should return a future"
-            assert fut.task_run == task_run, "the future should have the same task run"
-            assert fut.asynchronous == True
+    async with executor.start():
+        fut = await executor.submit(
+            task_run=task_run,
+            run_fn=fake_orchestrate_task_run,
+            run_kwargs=dict(example_kwarg=1),
+        )
+        assert isinstance(fut, PrefectFuture), "submit should return a future"
+        assert fut.task_run == task_run, "the future should have the same task run"
+        assert fut.asynchronous == True
 
-            state = await executor.wait(fut)
-            assert isinstance(state, State), "wait should return a state"
-            assert state.result() == 1
+        state = await executor.wait(fut)
+        assert isinstance(state, State), "wait should return a state"
+        assert state.result() == 1
 
 
 class TestDaskExecutor:
