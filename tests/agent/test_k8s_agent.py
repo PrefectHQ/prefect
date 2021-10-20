@@ -784,12 +784,12 @@ class TestK8sAgentRunConfig:
 
     @pytest.mark.parametrize("run_config", [None, UniversalRun()])
     def test_generate_job_spec_null_or_universal_run_config(self, run_config):
-        self.agent.generate_job_spec_from_run_config = MagicMock(
-            wraps=self.agent.generate_job_spec_from_run_config
+        self.agent.generate_job_spec = MagicMock(
+            wraps=self.agent.generate_job_spec
         )
         flow_run = self.build_flow_run(run_config)
         self.agent.generate_job_spec(flow_run)
-        assert self.agent.generate_job_spec_from_run_config.called
+        assert self.agent.generate_job_spec.called
 
     def test_generate_job_spec_errors_if_non_kubernetesrun_run_config(self):
         with pytest.raises(
