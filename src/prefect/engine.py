@@ -54,7 +54,6 @@ from prefect.orion.schemas.states import (
 )
 from prefect.orion.schemas.core import TaskRun, FlowRun
 from prefect.orion.states import StateSet, is_state, is_state_iterable
-from prefect.serializers import resolve_datadoc
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
     run_async_from_worker_thread,
@@ -67,7 +66,6 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
 )
 from prefect.utilities.collections import ensure_iterable
-from prefect.serializers import resolve_datadoc
 from prefect.utilities.logging import get_logger
 
 
@@ -758,7 +756,8 @@ async def user_return_value_to_state(
 
 
 @sync_compatible
-async def raise_failed_state(state: State) -> None:
+@inject_client
+async def raise_failed_state(state: State, client: OrionClient = None) -> None:
     """
     Given a FAILED state, raise the contained exception.
 
@@ -773,7 +772,7 @@ async def raise_failed_state(state: State) -> None:
     if not state.is_failed():
         return
 
-    result = await resolve_datadoc(state.data)
+    result = await client.resolve_datadoc(state.data)
 
     if isinstance(result, BaseException):
         raise result
