@@ -356,7 +356,7 @@ class TestCountFlowsModels:
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
-            "/flows/count/",
+            "/flows/count",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -538,7 +538,7 @@ class TestCountFlowRunModels:
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
-            "/flow_runs/count/",
+            "/flow_runs/count",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -695,7 +695,7 @@ class TestCountTaskRunsModels:
                 k = "deployments"
             adjusted_kwargs[k] = v
         repsonse = await client.post(
-            "/task_runs/count/",
+            "/task_runs/count",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -835,7 +835,7 @@ class TestCountDeploymentModels:
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
-            "/deployments/count/",
+            "/deployments/count",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
