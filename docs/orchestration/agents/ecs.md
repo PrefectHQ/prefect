@@ -363,13 +363,25 @@ Now, AWS service scheduler will create a task with running Prefect Agent, and yo
 
 ### Throttling errors on flow submission
 
-When using the ECS Agent, the AWS API rate limiter might throttle ECS task definition
-registration while submitting a flow--thus preventing your flows from running. AWS does
-not publish these limits as they are dynamically adjusted, so one way to work around the
-rate limiter is to modify retry behavior by configuring `boto`.
+When using the ECS agent, you may encounter task definition registration limits based
+on AWS API throttling and Service Quotas (formerly referred to as service limits). If
+you encounter a registration limit due to AWS API throttling or Service Quotas, the
+task definition fails to register and your flow will not run.
 
-If starting an agent from the command line, the retry behavior can be modified only for
-the ECS agent [using environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
+To learn more about AWS API throttling and Service Quotas see [Managing and monitoring API throttling in your workloads](https://aws.amazon.com/blogs/mt/managing-monitoring-api-throttling-in-workloads/)
+on the AWS Management & Governance Blog.
+
+AWS recommends employing retry logic when encountering AWS API rate limit and throttling
+events.
+
+When starting an ECS agent from the command line, you can configure retry behavior for
+the ECS agent by setting [AWS CLI retry modes](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
+
+For example, the following example specifies the AWS Adaptive retry mode and up to 10
+retry attemps, then starts the ECS agent:
+
+When starting an ECS agent from the command line, you can configure retry behavior for
+the ECS agent by [setting environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
 
 For example:
 
@@ -377,6 +389,5 @@ For example:
 AWS_RETRY_MODE='adaptive' AWS_MAX_ATTEMPTS=10 prefect agent ecs start
 ```
 
-If running the ECS agent in a container, you can set the environment variables in the
-container definition, but note that these retry settings will be applied to all AWS API
-calls.
+If you are running the ECS agent in a container, set the environment variables in the
+container definition.
