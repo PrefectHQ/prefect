@@ -303,21 +303,11 @@ class CloudTaskRunner(TaskRunner):
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
         """
-        task_run_name = self.task.task_run_name
+        super().set_task_run_name(task_inputs)
 
-        if task_run_name:
-            raw_inputs = {k: r.value for k, r in task_inputs.items()}
-            formatting_kwargs = {
-                **prefect.context.get("parameters", {}),
-                **prefect.context,
-                **raw_inputs,
-            }
+        task_run_name = prefect.context.get("task_run_name")
 
-            if not isinstance(task_run_name, str):
-                task_run_name = task_run_name(**formatting_kwargs)
-            else:
-                task_run_name = task_run_name.format(**formatting_kwargs)
-
+        if task_run_name is not None:
             self.client.set_task_run_name(
                 task_run_id=self.task_run_id, name=task_run_name  # type: ignore
             )

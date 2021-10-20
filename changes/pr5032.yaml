@@ -1,0 +1,2 @@
+enhancement:
+  - "Add dask performance report to DaskExecutor - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)"
