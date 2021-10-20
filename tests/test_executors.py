@@ -36,6 +36,11 @@ def dask_executor_with_existing_cluster():
             yield DaskExecutor(address=address)
 
 
+@contextmanager
+def dask_executor_with_process_pool():
+    yield DaskExecutor(cluster_kwargs={"processes": True})
+
+
 @pytest.fixture
 def executor(request):
     """
@@ -69,6 +74,7 @@ parameterize_with_all_executors = pytest.mark.parametrize(
         DaskExecutor,
         SequentialExecutor,
         dask_executor_with_existing_cluster,
+        dask_executor_with_process_pool,
     ],
     indirect=True,
 )
@@ -224,12 +230,16 @@ class TestExecutorParallelism:
     These tests use a simple canary file to indicate if a items in a flow have run
     sequentially or concurrently.
 
-    foo writes 'foo' to the file after sleeping for a second
+    foo writes 'foo' to the file after sleeping for a little bit
     bar writes 'bar' to the file immediately
 
     If they run concurrently, 'foo' will be the final content of the file
     If they run sequentially, 'bar' will be the final content of the file
     """
+
+    # Amount of time to sleep before writing 'foo'
+    # A larger value will decrease brittleness but increase test times
+    SLEEP_TIME = 0.25
 
     @pytest.fixture
     def tmp_file(self, tmp_path):
@@ -243,7 +253,7 @@ class TestExecutorParallelism:
     ):
         @task
         def foo():
-            time.sleep(1)
+            time.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @task
@@ -265,7 +275,7 @@ class TestExecutorParallelism:
     ):
         @task
         def foo():
-            time.sleep(1)
+            time.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @task
@@ -287,7 +297,7 @@ class TestExecutorParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(1)
+            await anyio.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @task
@@ -309,7 +319,7 @@ class TestExecutorParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(1)
+            await anyio.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @task
@@ -331,7 +341,7 @@ class TestExecutorParallelism:
     ):
         @task
         async def foo():
-            await anyio.sleep(1)
+            await anyio.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @task
@@ -354,7 +364,7 @@ class TestExecutorParallelism:
     ):
         @flow
         def foo():
-            time.sleep(1)
+            time.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @flow
@@ -376,7 +386,7 @@ class TestExecutorParallelism:
     ):
         @flow
         async def foo():
-            await anyio.sleep(1)
+            await anyio.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @flow
@@ -398,7 +408,7 @@ class TestExecutorParallelism:
     ):
         @flow
         async def foo():
-            await anyio.sleep(1)
+            await anyio.sleep(self.SLEEP_TIME)
             tmp_file.write_text("foo")
 
         @flow
