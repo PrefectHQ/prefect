@@ -39,7 +39,7 @@ def get_flow_image(flow: "Flow") -> str:
     """
     run_config = flow.run_config
     if run_config is not None and hasattr(run_config, "image"):
-        return run_config.image
+        return run_config.image  # type: ignore
     else:
         storage = flow.storage
         if not isinstance(storage, prefect.storage.Docker):
