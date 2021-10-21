@@ -13,7 +13,7 @@ Released on October 21, 2021.
 
 ### Fixes
 
-- Reduce rate limit related failures with the ECS agent [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
+- Reduce rate limit related failures with the ECS agent - [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
 
 ### Task Library
 
