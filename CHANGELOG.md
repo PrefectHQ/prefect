@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.15.7 <Badge text="beta" type="success" />
+
+Released on October 21, 2021.
+
+### Enhancements
+
+- Add data parameter to SQLiteQuery task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)
+- Add flatten support to apply_map [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
+- Add dask performance report to DaskExecutor - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)
+- Changes git storage `repo` parameter to optional if specifying `git_clone_url_secret_name` [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
+- Adds `task_run_name` to `prefect.context` [#5055](https://github.com/PrefectHQ/prefect/pull/5055)
+- Adds "INSECURE" option to `smtp_type` parameter in `EmailTask` to send using non-secure internal SMTP server
+
+### Fixes
+
+- Prevent Databricks run_id to be modified outside of run() method [#4958](https://github.com/PrefectHQ/prefect/issues/4958)
+- Typos in the documentation [#5019](https://github.com/PrefectHQ/prefect/pull/5019)
+- Adding Server documentation about --expose flag [#5022](https://github.com/PrefectHQ/prefect/pull/5022)
+- Uses the flow-run-id to try and alleviate AWS CLI rate limit issues when using the ECS agent. [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
+
+### Contributors
+
+- [Daniel Saxton](https://github.com/dsaxton)
+- [Emre Akgün](https://github.com/Fraznist)
+- [Jessica Smith](https://github.com/NodeJSmith)
+
 ## 0.15.6 <Badge text="beta" type="success" />
 
 Released on September 21, 2021.
