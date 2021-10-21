@@ -267,7 +267,7 @@ classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun", "VertexRun"]
 
 [pages.storage]
 title = "Storage"
@@ -636,6 +636,11 @@ classes = {FargateAgent = ["start"]}
 title = "ECS Agent"
 module = "prefect.agent.ecs"
 classes = {ECSAgent = ["start"]}
+
+[pages.agent.vertex]
+title = "Vertex Agent"
+module = "prefect.agent.vertex"
+classes = {VertexAgent = ["start"]}
 
 [pages.artifacts.artifacts]
 title = "Artifacts"
