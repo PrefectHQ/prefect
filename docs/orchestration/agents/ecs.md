@@ -380,9 +380,6 @@ the ECS agent by setting [AWS CLI retry modes](https://docs.aws.amazon.com/cli/l
 For example, the following example specifies the AWS Adaptive retry mode and up to 10
 retry attemps, then starts the ECS agent:
 
-When starting an ECS agent from the command line, you can configure retry behavior for
-the ECS agent by [setting environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
-
 For example:
 
 ```bash

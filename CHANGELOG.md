@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.15.7 <Badge text="beta" type="success" />
+
+Released on October 21, 2021.
+
+### Enhancements
+
+- Add flatten support to `apply_map` - [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
+- Add dask performance report to `DaskExecutor` - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)
+- Update git storage `repo` parameter to be optional if specifying `git_clone_url_secret_name` - [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
+- Add `task_run_name` to `prefect.context` - [#5055](https://github.com/PrefectHQ/prefect/pull/5055)
+
+### Fixes
+
+- Reduce rate limit related failures with the ECS agent - [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
+
+### Task Library
+
+- Add `data` parameter to `SQLiteQuery` task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)
+- Allow `EmailTask` to use insecure internal SMTP servers with `smtp_type="INSECURE"` - [#5012](https://github.com/PrefectHQ/prefect/pull/5012)
+- Fix Databricks `run_id` mutation during task runs - [#4958](https://github.com/PrefectHQ/prefect/issues/4958)
+- Add `manual` setting to `FivetranSyncTask` allowing retention of Fivetan scheduling -[#5065](https://github.com/PrefectHQ/prefect/pull/5065)
+
+### Contributors
+
+- [Daniel Saxton](https://github.com/dsaxton)
+- [Emre Akgün](https://github.com/Fraznist)
+- [Jessica Smith](https://github.com/NodeJSmith)
+
 ## 0.15.6 <Badge text="beta" type="success" />
 
 Released on September 21, 2021.
