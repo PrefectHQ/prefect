@@ -20,6 +20,7 @@ Released on October 21, 2021.
 - Add `data` parameter to `SQLiteQuery` task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)
 - Allow `EmailTask` to use insecure internal SMTP servers with `smtp_type="INSECURE"` - [#5012](https://github.com/PrefectHQ/prefect/pull/5012)
 - Fix Databricks `run_id` mutation during task runs - [#4958](https://github.com/PrefectHQ/prefect/issues/4958)
+- Add `manual` setting to `FivetranSyncTask` allowing retention of Fivetan scheduling -[#5065](https://github.com/PrefectHQ/prefect/pull/5065)
 
 ### Contributors
 
