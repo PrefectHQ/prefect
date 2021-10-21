@@ -239,7 +239,6 @@ module.exports = {
             'agents/docker',
             'agents/kubernetes',
             'agents/ecs',
-            'agents/fargate'
           ]
         },
         {
