@@ -1,0 +1,5 @@
+task:
+  - "Adds task `Glob` - [#4218](https://github.com/PrefectHQ/prefect/pull/4218)"
+
+contributor:
+  - "[Timo S.](https://github.com/sti0)"
