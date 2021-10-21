@@ -360,7 +360,7 @@ class ECSAgent(Agent):
             taskdef = deepcopy(self.task_definition)
 
         slug = slugify.slugify(
-            flow_run.flow.name,
+            f"{flow_run.flow.name}-{flow_run.id}",
             max_length=255 - len("prefect-"),
             word_boundary=True,
             save_order=True,
