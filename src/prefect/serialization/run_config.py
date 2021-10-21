@@ -62,6 +62,7 @@ class DockerRunSchema(RunConfigSchemaBase):
         object_class = DockerRun
 
     image = fields.String(allow_none=True)
+    host_config = fields.Dict(keys=fields.String(), allow_none=True)
 
 
 class RunConfigSchema(OneOfSchema):

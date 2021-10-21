@@ -113,6 +113,12 @@ COMMON_SERVER_OPTIONS = [
         hidden=True,
     ),
     click.option(
+        "--expose",
+        help="Make the UI and Core server listen on all interfaces",
+        is_flag=True,
+        hidden=True,
+    ),
+    click.option(
         "--server-port",
         help="The port used to serve the Core server",
         default=config.server.host_port,
@@ -174,13 +180,14 @@ def setup_compose_file(
     no_ui_port=False,
     no_server_port=False,
     use_volume=True,
+    temp_dir: str = None,
 ) -> str:
     # Defaults should be set in the `click` command option, these defaults are to
     # simplify testing
 
     base_compose_path = Path(__file__).parents[0].joinpath("docker-compose.yml")
 
-    temp_dir = tempfile.gettempdir()
+    temp_dir = temp_dir or tempfile.gettempdir()
     temp_path = os.path.join(temp_dir, "docker-compose.yml")
 
     # Copy the docker-compose file to the temp location
@@ -244,6 +251,7 @@ def setup_compose_env(
     hasura_port=None,
     graphql_port=None,
     ui_port=None,
+    expose=False,
     server_port=None,
     volume_path=None,
 ):
@@ -272,6 +280,7 @@ def setup_compose_env(
         DB_CONNECTION_URL=db_connection_url,
         GRAPHQL_HOST_PORT=str(graphql_port),
         UI_HOST_PORT=str(ui_port),
+        UI_HOST_IP="0.0.0.0" if expose else config.server.ui.host_ip,
         # Pass the Core version so the Server API can return it
         PREFECT_CORE_VERSION=prefect.__version__,
         # Set the server image tag
@@ -284,6 +293,7 @@ def setup_compose_env(
         PREFECT_API_URL=f"http://graphql:{graphql_port}{config.server.graphql.path}",
         PREFECT_API_HEALTH_URL=f"http://graphql:{graphql_port}/health",
         APOLLO_HOST_PORT=str(server_port),
+        APOLLO_HOST_IP="0.0.0.0" if expose else config.server.host_ip,
         PREFECT_SERVER__TELEMETRY__ENABLED=(
             "true" if config.server.telemetry.enabled is True else "false"
         ),
@@ -386,6 +396,7 @@ def config_cmd(
     hasura_port,
     graphql_port,
     ui_port,
+    expose,
     server_port,
     no_postgres_port,
     no_hasura_port,
@@ -409,6 +420,8 @@ def config_cmd(
         --no-upgrade, -n            Flag to avoid running a database upgrade when the
                                     database spins up
         --no-ui, -u                 Flag to avoid starting the UI
+        --expose                    Flag to expose the server to external hosts by listening
+                                    to 0.0.0.0 instead of localhost.
 
     \b
         --external-postgres, -ep    Disable the Postgres service, connect to an external one instead
@@ -472,6 +485,7 @@ def config_cmd(
         hasura_port=hasura_port,
         graphql_port=graphql_port,
         ui_port=ui_port,
+        expose=expose,
         server_port=server_port,
         volume_path=volume_path,
     )
@@ -507,6 +521,7 @@ def start(
     hasura_port,
     graphql_port,
     ui_port,
+    expose,
     server_port,
     no_postgres_port,
     no_hasura_port,
@@ -597,6 +612,7 @@ def start(
         hasura_port=hasura_port,
         graphql_port=graphql_port,
         ui_port=ui_port,
+        expose=expose,
         server_port=server_port,
         volume_path=volume_path,
     )

@@ -1,7 +1,9 @@
 import datetime
 import json
+from threading import RLock
 
 import pendulum
+import cloudpickle
 import pytest
 
 import prefect
@@ -676,3 +678,74 @@ def test_n_map_states():
 def test_init_with_falsey_value():
     state = Success(result={})
     assert state.result == {}
+
+
+def test_state_pickle():
+    class Data:
+        def __init__(self, foo: int = 1, bar: str = "") -> None:
+            self.foo = foo
+            self.bar = bar
+
+        def __eq__(self, o: object) -> bool:
+            return o.bar == self.bar and o.foo == self.foo
+
+    state = State(message="message", result=Data(bar="bar"))
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    assert state.message == new_state.message  # message not included in __eq__
+    assert state == new_state
+
+
+def test_state_pickle_with_unpicklable_result_raises():
+    state = State(result=RLock())  # An unpickable result type
+    with pytest.raises(TypeError, match="pickle"):
+        cloudpickle.dumps(state)
+
+
+def test_state_pickle_with_unpicklable_result_raises_when_not_from_cloudpickle():
+    # This test covers the case where the exception during pickle does not come from
+    # cloudpickle
+    class AtypicalUnpickableData:
+        def __getstate__(self):
+            raise TypeError("Foo!")
+
+    state = State(result=AtypicalUnpickableData())
+    with pytest.raises(TypeError, match="Foo"):
+        cloudpickle.dumps(state)
+
+
+def test_state_pickle_with_exception():
+    state = State(result=Exception("foo"))
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    assert isinstance(new_state.result, Exception)
+    assert new_state.result.args == ("foo",)
+
+
+def test_state_pickle_with_unpicklable_exception_converts_to_repr():
+    class UnpicklableException(Exception):
+        def __init__(self, *args) -> None:
+            self.lock = RLock()
+            super().__init__(*args)
+
+    state = State(result=UnpicklableException())
+    new_state = cloudpickle.loads(cloudpickle.dumps(state))
+
+    # Get the pickle error directly -- this is robust to changes across python versions
+    pickle_exc = None
+    try:
+        cloudpickle.dumps(UnpicklableException())
+    except Exception as exc:
+        pickle_exc = exc
+
+    # Cast to a string
+    assert isinstance(new_state.result, str)
+    # Includes the repr of our exception result
+    assert repr(UnpicklableException()) in new_state.result
+    # Includes context for the exception
+    assert "The following exception could not be pickled" in new_state.result
+    # Includes pickle error
+    assert repr(pickle_exc) in new_state.result
+
+    # Does not alter the original object
+    assert isinstance(state.result, UnpicklableException)

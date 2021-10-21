@@ -46,7 +46,7 @@ from prefect.engine.state import (
 from prefect.engine.task_runner import ENDRUN, TaskRunner
 from prefect.utilities.configuration import set_temporary_config
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.tasks import pause_task
 
 
@@ -133,6 +133,24 @@ def test_task_that_has_an_error_is_marked_fail():
     assert isinstance(task_runner.run(), Failed)
 
 
+def test_task_with_error_has_helpful_messages(caplog):
+    task_runner = TaskRunner(task=ErrorTask())
+    state = task_runner.run()
+    assert state.is_failed()
+    exc_repr = (
+        # Support py3.6 exception reprs
+        "ValueError('custom-error-message',)"
+        if sys.version_info < (3, 7)
+        else "ValueError('custom-error-message')"
+    )
+    assert state.message == f"Error during execution of task: {exc_repr}"
+    assert "ValueError: custom-error-message" in caplog.text
+    assert "Traceback" in caplog.text  # Traceback should be included
+    assert (
+        "Task 'ErrorTask': Exception encountered during task execution!" in caplog.text
+    )
+
+
 def test_task_that_raises_fail_is_marked_fail():
     task_runner = TaskRunner(task=RaiseFailTask())
     assert isinstance(task_runner.run(), Failed)
@@ -161,6 +179,13 @@ def test_task_that_fails_gets_retried_up_to_max_retry_time():
     # second run should fail
     state = task_runner.run(state=state)
     assert isinstance(state, Failed)
+
+
+def test_task_with_max_retries_0_does_not_retry():
+    task = ErrorTask(max_retries=0, retry_delay=None)
+    task_runner = TaskRunner(task)
+    state = task_runner.run()
+    assert isinstance(state, Finished) and not isinstance(state, Retrying)
 
 
 def test_task_that_raises_retry_has_start_time_recognized():
@@ -344,7 +369,7 @@ def test_timeout_actually_stops_execution():
 
     assert state.is_failed()
     assert isinstance(state, TimedOut)
-    assert isinstance(state.result, TaskTimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_can_handle_timeouts_by_default():
@@ -355,7 +380,7 @@ def test_task_runner_can_handle_timeouts_by_default():
     )
     assert isinstance(state, TimedOut)
     assert "timed out" in state.message
-    assert isinstance(state.result, TaskTimeoutError)
+    assert isinstance(state.result, TaskTimeoutSignal)
 
 
 def test_task_runner_handles_secrets():
@@ -1141,6 +1166,20 @@ class TestRunTaskStep:
                 state=None, upstream_states={edge: Success(result=Result(2))}
             )
         assert new_state.is_successful()
+        assert new_state._result.location == "3"
+
+    def test_raised_success_state_is_checkpointed(self):
+        @prefect.task(checkpoint=True, result=PrefectResult())
+        def fn(x):
+            raise prefect.engine.signals.SUCCESS("custom-message", result=x + 1)
+
+        edge = Edge(Task(), fn, key="x")
+        with set_temporary_config({"flows.checkpointing": True}):
+            new_state = TaskRunner(task=fn).run(
+                state=None, upstream_states={edge: Success(result=Result(2))}
+            )
+        assert new_state.is_successful()
+        assert new_state.message == "custom-message"
         assert new_state._result.location == "3"
 
     def test_result_formatting_with_checkpointing(self, tmpdir):
@@ -2317,3 +2356,67 @@ def test_task_runner_logs_map_index_for_mapped_tasks(caplog):
         msg = line.split("INFO")[1]
         logged_map_index = msg[-1]
         assert msg.count(logged_map_index) == 2
+
+
+class TestTaskRunNames:
+    def test_task_runner_set_task_name(self):
+        task = Task(name="test", task_run_name="asdf")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
+
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={})
+            assert prefect.context.get("task_run_name") == "asdf"
+
+        task = Task(name="test", task_run_name="{map_index}")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
+
+        class Temp:
+            value = 100
+
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={"map_index": Temp()})
+            assert prefect.context.get("task_run_name") == "100"
+
+        task = Task(name="test", task_run_name=lambda **kwargs: "name")
+        runner = TaskRunner(task=task)
+        runner.task_run_id = "id"
+
+        with prefect.context():
+            assert prefect.context.get("task_run_name") is None
+            runner.set_task_run_name(task_inputs={})
+            assert prefect.context.get("task_run_name") == "name"
+
+    def test_task_runner_sets_task_run_name_in_context(self):
+        def dynamic_task_run_name(**task_inputs):
+            return f"hello-{task_inputs['input']}"
+
+        @prefect.task(name="hey", task_run_name=dynamic_task_run_name)
+        def test_task(input):
+            return prefect.context.get("task_run_name")
+
+        edge = Edge(Task(), Task(), key="input")
+        state = Success(result="my-value")
+        state = TaskRunner(task=test_task).run(upstream_states={edge: state})
+
+        assert state.result == "hello-my-value"
+
+    def test_mapped_task_run_name_set_in_context(self):
+        def dynamic_task_run_name(**task_inputs):
+            return f"hello-{task_inputs['input']}"
+
+        @prefect.task(name="hey", task_run_name=dynamic_task_run_name)
+        def test_task(input):
+            return prefect.context.get("task_run_name")
+
+        from prefect import Flow
+
+        with Flow("test") as flow:
+            data = [1, 2, 3]
+            test_task_key = test_task.map(data)
+
+        state = flow.run()
+        assert state.result[test_task_key].result == ["hello-1", "hello-2", "hello-3"]

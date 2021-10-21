@@ -22,7 +22,7 @@ mutation {
 
 ### API Keys
 
-To authenticate with Prefect Cloud, an API Key is required. Users can generate a key associated with their user, or they can generate keys associated with a Service Account User. See [the API keys page](api_keys.html) for more details.
+To authenticate with Prefect Cloud, an API key is required. Users can generate a key associated with their user, or they can generate keys associated with a Service Account User. See [the API keys page](api_keys.html) for more details.
 
 ## Python Client
 
@@ -32,7 +32,7 @@ Prefect Core includes a Python client for interacting with the API. The Python c
 
 ### Getting Started
 
-If using Prefect Core's server, no authentication is required. This means the Python client can be used immediately without any extra configuration:
+If using Prefect Server, no authentication is required. This means the Python Client can be used immediately without any extra configuration:
 
 ```python
 import prefect
@@ -51,40 +51,51 @@ client.graphql(
 
 ### Authenticating the Client with Cloud <Badge text="Cloud"/>
 
-If using Prefect Cloud, authentication is required. For interactive use, the most common way to use the Cloud Client is to generate an API key and provide it to the client. After doing so, users can save the API key so it persists across all Python sessions:
+If using Prefect Cloud, authentication is required. See the [API key documentation](./api_keys.md) for instructions on creating and using API keys.
+
+We recommend using the CLI to manage authentication, but authentication may be passed directly to the `Client` as well.
+
+The API key can be passed directly to the client:
 
 ```python
 import prefect
-client = prefect.Client(api_token="API_KEY")
-client.save_api_token()
+
+client = prefect.Client(api_key="API_KEY")
 ```
 
-Now, starting a client in another session will automatically reload the token:
+Since API keys can be used across tenants if linked to a user account, you may also pass a tenant:
 
 ```python
-client = prefect.Client()
-assert client._api_token == "API_KEY"  # True
+client = prefect.Client(api_key="API_KEY", tenant_id="<id>")
 ```
 
-Note that an API key can be provided by environment variable (`PREFECT__CLOUD__AUTH_TOKEN`) or in your Prefect config (under `cloud.auth_token`).
-
-Once provisioned with an API key, the Cloud Client can query for available tenants and login to those tenants. In order to query for tenants, call:
+If you do not pass a tenant, it will be left as `None` which means the default tenant associated with the API key will be used for requests. In that case, you can get the default tenant associated with the key from the client:
 
 ```python
-client.get_available_tenants()
+client.tenant_id
 ```
 
-This will print the id, name, and slug of all the tenants the user can login to.
+The tenant id can be changed on an existing client, but requests will fail if the API key is not valid for that tenant:
 
 ```python
-client.login_to_tenant(tenant_slug='a-tenant-slug')
-# OR
-client.login_to_tenant(tenant_id='A_TENANT_ID')
+client.tenant_id = "<new-id>"
 ```
 
-Both of these calls persist the active tenant in local storage, so you won't have to login again until you're ready to switch tenants.
+Authentication can be saved to disk. This will save the current API key and tenant id to `~/.prefect/auth.toml` and future clients instantiated without an API key or tenant id will load these values as defaults.
 
-Once logged in, you can make any GraphQL query against the Cloud API:
+```python
+client.save_auth_to_disk()
+```
+
+
+To inspect the auth stored on disk, you may also use the client method `load_auth_from_disk()`:
+
+```python
+disk_auth = client.load_auth_from_disk()
+# {"api_key": "API_KEY", "tenant_id": "ID"}
+```
+
+After authenticating, you can make any GraphQL query against the Cloud API:
 
 ```python
 client.graphql(
@@ -96,14 +107,6 @@ client.graphql(
         }
     }
 )
-```
-
-(Note that this illustrates how Prefect can parse Python structures to construct GraphQL query strings!)
-
-Finally, you can logout:
-
-```python
-client.logout_from_tenant()
 ```
 
 ## GraphQL

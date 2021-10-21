@@ -22,9 +22,20 @@ class TestInitialization:
             "subject",
             "html_content",
             "attachment_file_path",
-            "sendgrid_secret",
+            "sendgrid_api_key",
         ],
     )
     def test_initializes_attr_from_kwargs(self, attr):
         task = SendEmail(**{attr: "my-value"})
         assert getattr(task, attr) == "my-value"
+
+    def test_raises_if_secret_not_eventually_provided(self):
+        task = SendEmail(
+            from_email="hello@itsme.com",
+            to_emails=["hello@itsme.com"],
+            subject="Subject",
+            html_content="Hello!",
+        )
+
+        with pytest.raises(ValueError, match="SendGrid API key"):
+            task.run()

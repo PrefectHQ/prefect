@@ -15,7 +15,8 @@ import threading
 import time
 import warnings
 from queue import Empty, Queue
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Generator, Union
+from contextlib import contextmanager
 
 import pendulum
 
@@ -33,7 +34,7 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 20_000_000  # 20 MB - max total batch size for log messages
+MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
 
 
 class LogManager:
@@ -120,7 +121,12 @@ class LogManager:
                 except Exception as exc:
                     # An error occurred on upload, warn and exit the loop (will
                     # retry later)
-                    warnings.warn(f"Failed to write logs with error: {exc!r}")
+                    warnings.warn(
+                        f"Failed to write logs with error: {exc!r}, "
+                        f"Pending log length: {self.pending_length:,}, "
+                        f"Max batch log length: {MAX_BATCH_LOG_LENGTH:,}, "
+                        f"Queue size: {self.queue.qsize():,}"
+                    )
                     cont = False
 
     def enqueue(self, message: dict) -> None:
@@ -139,7 +145,16 @@ class CloudHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:  # type: ignore
         """Emit a new log"""
         # if we shouldn't log to cloud, don't emit
-        if not context.config.logging.log_to_cloud:
+        if not context.config.cloud.send_flow_run_logs:
+            return
+
+        # backwards compatibility for `PREFECT__LOGGING__LOG_TO_CLOUD` which is
+        # a deprecated config variable as of 0.14.20
+        if not context.config.logging.get("log_to_cloud", True):
+            return
+
+        # if its not during a backend flow run, don't emit
+        if not context.get("running_with_backend"):
             return
 
         # ensures emitted logs respect configured logging level
@@ -209,14 +224,19 @@ def _create_logger(name: str) -> logging.Logger:
     logging.setLogRecordFactory(_log_record_context_injector)
 
     logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
+
+    # Set the format from the config for stdout
     formatter = logging.Formatter(
         context.config.logging.format, context.config.logging.datefmt
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    # Set the level
     logger.setLevel(context.config.logging.level)
     logger.addHandler(CloudHandler())
+
     return logger
 
 
@@ -234,6 +254,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
         - logging.Logger: a configured logging object
     """
     name = "prefect-test-logger" if testing else "prefect"
+
     return _create_logger(name)
 
 
@@ -280,6 +301,53 @@ def get_logger(name: str = None) -> logging.Logger:
         return prefect_logger
     else:
         return prefect_logger.getChild(name)
+
+
+@contextmanager
+def temporary_logger_config(
+    level: Union[int, str] = None,
+    stream_fmt: str = None,
+    stream_datefmt: str = None,
+) -> Generator[logging.Logger, None, None]:
+    """
+    Set a temporary config for the `prefect` logger. The formatting can be updated
+    for `StreamHandlers` but will not update the CloudHandler (or any others)
+
+    This function is only intended to be used internally.
+
+    Args:
+        - level (optional): The log level to use
+        - stream_fmt (optional): The log message format to set for stream handlers
+        - stream_datefmt (optional): The log date format to set for stream handlers
+
+    Yields:
+        The configured logger; also affects any `prefect` loggers in use
+    """
+    logger = get_logger()
+
+    # This is the only key that seems likely to be adjusted after the config has been
+    # loaded
+    previous_log_level = logger.level
+
+    overrides = {
+        "logging.level": level if level else None,
+        "logging.format": stream_fmt,
+        "logging.datefmt": stream_datefmt,
+    }
+    # Drop empty values to retain existing settings
+    overrides = {key: value for key, value in overrides.items() if value}
+
+    try:
+        with prefect.utilities.configuration.set_temporary_config(overrides):
+            logger.handlers.clear()
+            logger = configure_logging()
+            yield logger
+    finally:
+        # Restore the old logger
+        logger = get_logger()
+        logger.handlers.clear()
+        logger = configure_logging()
+        logger.setLevel(previous_log_level)
 
 
 LOG_MANAGER = LogManager()

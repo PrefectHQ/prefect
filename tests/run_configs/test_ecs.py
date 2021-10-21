@@ -1,5 +1,4 @@
-import os
-
+import sys
 import pytest
 import yaml
 
@@ -85,10 +84,9 @@ def test_local_task_definition_path(tmpdir, scheme):
     if scheme is None:
         task_definition_path = path
     else:
-        # With a scheme, unix-style slashes are required
-        task_definition_path = f"{scheme}://" + os.path.splitdrive(path)[1].replace(
-            "\\", "/"
-        )
+        if sys.platform == "win32":
+            pytest.skip("Schemes are not supported on win32")
+        task_definition_path = f"{scheme}://" + path
 
     with open(path, "w") as f:
         yaml.safe_dump(task_definition, f)

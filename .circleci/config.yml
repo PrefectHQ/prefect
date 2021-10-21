@@ -39,7 +39,7 @@ jobs:
 
       - run:
           name: Install python packages for static analysis
-          command: pip install black mypy mypy_extensions flake8 profimp
+          command: pip install black 'mypy<0.900' mypy_extensions flake8 profimp
 
       - run:
           name: Quick installation of Prefect
@@ -128,7 +128,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
@@ -158,7 +158,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # test task library explicitly
   test_task_library:
@@ -192,10 +192,10 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests/tasks -vvrfEsx
+          command: pytest tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # ----------------------------------
-  # Run unit tests in Python 3.6-3.8
+  # Run unit tests in Python 3.6-3.9
   # ----------------------------------
 
   test_36:
@@ -226,7 +226,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_37:
     docker:
@@ -255,7 +255,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_38:
     docker:
@@ -284,7 +284,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_39:
     docker:
@@ -316,7 +316,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   build_docker_image:
     docker:
@@ -605,6 +605,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_docker_image:
+          python_version: '3.9'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
           filters:
             branches:
@@ -612,7 +620,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
-          python_version: '3.8'
+          python_version: '3.9'
           tag_latest: true
           filters:
             branches:

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import prefect
+from prefect.utilities.compatibility import nullcontext
 from prefect import context
 from prefect.agent.docker.agent import DockerAgent, _stream_container_logs
 from prefect.environments import LocalEnvironment
@@ -15,10 +16,10 @@ from prefect.utilities.graphql import GraphQLResult
 docker = pytest.importorskip("docker")
 
 
-@pytest.fixture(autouse=True)
-def mock_cloud_config(cloud_api):
+@pytest.fixture
+def config_with_token(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
         yield
 
@@ -29,6 +30,7 @@ def api(monkeypatch):
     client.ping.return_value = True
     client.create_container.return_value = {"Id": "container_id"}
     client.create_host_config.return_value = {"AutoRemove": True}
+    client.version.return_value = {"Version": "20.10.0"}  # Our recommend min version
     monkeypatch.setattr(
         "prefect.agent.docker.agent.DockerAgent._get_docker_client",
         MagicMock(return_value=client),
@@ -51,7 +53,7 @@ def test_docker_agent_init(api):
         ("win32", "npipe:////./pipe/docker_engine"),
     ],
 )
-def test_docker_agent_config_options(platform, url, monkeypatch):
+def test_docker_agent_config_options(platform, url, monkeypatch, config_with_token):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
     monkeypatch.setattr("prefect.agent.docker.agent.platform", platform)
@@ -64,7 +66,7 @@ def test_docker_agent_config_options(platform, url, monkeypatch):
     assert api.call_args[1]["base_url"] == url
 
 
-def test_docker_agent_config_options_populated(monkeypatch):
+def test_docker_agent_config_options_populated(monkeypatch, config_with_token):
     api = MagicMock()
     monkeypatch.setattr("docker.APIClient", api)
 
@@ -133,12 +135,15 @@ def test_populate_env_vars(api, backend):
     expected_vars = {
         "PREFECT__BACKEND": backend,
         "PREFECT__CLOUD__API": cloud_api,
-        "PREFECT__CLOUD__AUTH_TOKEN": "TEST_TOKEN",
+        "PREFECT__CLOUD__AUTH_TOKEN": "",
+        "PREFECT__CLOUD__API_KEY": "",
+        "PREFECT__CLOUD__TENANT_ID": "",
         "PREFECT__CLOUD__AGENT__LABELS": "[]",
         "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
         "PREFECT__CONTEXT__FLOW_ID": "foo",
         "PREFECT__CONTEXT__IMAGE": "test-image",
         "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+        "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
         "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
         "PREFECT__LOGGING__LEVEL": "INFO",
         "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
@@ -146,6 +151,59 @@ def test_populate_env_vars(api, backend):
     }
 
     assert env_vars == expected_vars
+
+
+def test_environment_has_agent_token_from_config(api, config_with_token):
+    agent = DockerAgent()
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
+    )
+
+    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_config(api, tenant_id):
+    with set_temporary_config(
+        {
+            "cloud.api_key": "TEST_KEY",
+            "cloud.tenant_id": tenant_id,
+            "cloud.agent.auth_token": None,
+        }
+    ):
+        agent = DockerAgent()
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+
+        env_vars = agent.populate_env_vars(
+            GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+            "test-image",
+        )
+
+    assert env_vars["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env_vars["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+    assert env_vars["PREFECT__CLOUD__TENANT_ID"] == "ID"
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_disk(api, monkeypatch, tenant_id):
+    """Check that the API key is passed through from the on disk cache"""
+    monkeypatch.setattr(
+        "prefect.Client.load_auth_from_disk",
+        MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
+    )
+
+    agent = DockerAgent()
+    agent.client._get_auth_tenant = MagicMock(return_value="ID")
+
+    env = agent.populate_env_vars(
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}),
+        "test-image",
+    )
+
+    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
 
 def test_populate_env_vars_includes_agent_labels(api):
@@ -158,12 +216,15 @@ def test_populate_env_vars_includes_agent_labels(api):
 
 
 @pytest.mark.parametrize("flag", [True, False])
-def test_populate_env_vars_sets_log_to_cloud(flag, api):
+def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_token):
     agent = DockerAgent(labels=["42", "marvin"], no_cloud_logs=flag)
 
     env_vars = agent.populate_env_vars(
         GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}}), "test-image"
     )
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
+
+    # Backwards compatibility variable for containers on Prefect <0.15.0
     assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
 
 
@@ -406,6 +467,7 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
 def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
+
     if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
@@ -417,10 +479,21 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
 
     if run_kind == "docker":
         env = {"TESTING": "VALUE"}
-        run = DockerRun(image=image, env=env)
+        host_config = {"auto_remove": False, "shm_size": "128m"}
+        exp_host_config = {
+            "auto_remove": False,
+            "shm_size": "128m",
+        }
+        run = DockerRun(image=image, env=env, host_config=host_config)
     else:
         env = {}
+        host_config = {}
+        exp_host_config = {
+            "auto_remove": True,
+        }
         run = None if run_kind == "missing" else UniversalRun()
+
+    exp_host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
 
     agent = DockerAgent()
     agent.deploy_flow(
@@ -446,6 +519,47 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
     res_env = api.create_container.call_args[1]["environment"]
     for k, v in env.items():
         assert res_env[k] == v
+    res_host_config = api.create_host_config.call_args[1]
+    for k, v in exp_host_config.items():
+        assert res_host_config[k] == v
+
+
+@pytest.mark.parametrize("docker_engine_version", ["0.25.10", "19.1.1"])
+def test_docker_agent_deploy_flow_does_not_include_host_gateway_for_old_engine_versions(
+    api, docker_engine_version
+):
+    api.version.return_value = {"Version": docker_engine_version}
+
+    run = UniversalRun()
+    storage = Local()
+
+    agent = DockerAgent()
+    with pytest.warns(
+        UserWarning,
+        match=(
+            "`host.docker.internal` could not be automatically resolved.*"
+            f"feature is not supported on Docker Engine v{docker_engine_version}"
+        ),
+    ):
+        agent.deploy_flow(
+            flow_run=GraphQLResult(
+                {
+                    "flow": GraphQLResult(
+                        {
+                            "id": "foo",
+                            "name": "flow-name",
+                            "storage": storage.serialize(),
+                            "core_version": "0.13.11",
+                        }
+                    ),
+                    "run_config": run.serialize() if run else None,
+                    "id": "id",
+                    "name": "name",
+                }
+            )
+        )
+
+    assert "extra_hosts" not in api.create_host_config.call_args[1]
 
 
 def test_docker_agent_deploy_flow_unsupported_run_config(api):
@@ -825,7 +939,7 @@ def test_docker_agent_is_named_volume_win32(monkeypatch, api, path, result):
             ["some-name:/ctr/path"],
             ["some-name"],
             ["/ctr/path"],
-            {},
+            {"some-name": {"bind": "/ctr/path", "mode": "rw"}},
         ),
         (
             # multiple volumes
@@ -839,6 +953,7 @@ def test_docker_agent_is_named_volume_win32(monkeypatch, api, path, result):
             {
                 "/another/path": {"bind": "/ctr/path2", "mode": "ro"},
                 "/some/path": {"bind": "/ctr/path1", "mode": "rw"},
+                "some-name": {"bind": "/ctr/path3", "mode": "rw"},
             },
         ),
     ],
@@ -888,7 +1003,7 @@ def test_docker_agent_parse_volume_spec_unix(
             ["some-name:/ctr/path"],
             ["some-name"],
             ["/ctr/path"],
-            {},
+            {"some-name": {"bind": "/ctr/path", "mode": "rw"}},
         ),
         (
             # multiple volumes
@@ -902,6 +1017,7 @@ def test_docker_agent_parse_volume_spec_unix(
             {
                 "D:\\another\\path": {"bind": "/ctr/path2", "mode": "ro"},
                 "C:\\some\\path": {"bind": "/ctr/path1", "mode": "rw"},
+                "some-name": {"bind": "/ctr/path3", "mode": "rw"},
             },
         ),
     ],
@@ -940,44 +1056,6 @@ def test_docker_agent_parse_volume_spec_raises_on_invalid_spec(
         agent._parse_volume_spec([candidate])
 
 
-def test_docker_agent_network(api):
-    api.create_networking_config.return_value = {"test-network": "config"}
-
-    with pytest.warns(UserWarning):
-        agent = DockerAgent(network="test-network")
-    agent.deploy_flow(
-        flow_run=GraphQLResult(
-            {
-                "flow": GraphQLResult(
-                    {
-                        "id": "foo",
-                        "name": "flow-name",
-                        "storage": Docker(
-                            registry_url="test", image_name="name", image_tag="tag"
-                        ).serialize(),
-                        "environment": LocalEnvironment().serialize(),
-                        "core_version": "0.13.0",
-                    }
-                ),
-                "id": "id",
-                "name": "name",
-            }
-        )
-    )
-
-    assert agent.network == "test-network"
-    assert agent.networks is None
-    args, kwargs = api.create_container.call_args
-    assert kwargs["networking_config"] == {"test-network": "config"}
-
-
-def test_docker_agent_network_network_and_networks(api):
-    with pytest.raises(ValueError):
-        DockerAgent(
-            network="test-network", networks=["test-network-1", "test-network-2"]
-        )
-
-
 def test_docker_agent_networks(api):
     api.create_networking_config.return_value = {
         "test-network-1": "config1",
@@ -1007,7 +1085,6 @@ def test_docker_agent_networks(api):
 
     assert "test-network-1" in agent.networks
     assert "test-network-2" in agent.networks
-    assert agent.network is None
     args, kwargs = api.create_container.call_args
     assert kwargs["networking_config"] == {
         "test-network-1": "config1",

@@ -75,6 +75,10 @@ One of the most common reasons to put code in a Prefect task is to automatically
 Task(max_retries=3, retry_delay=datetime.timedelta(minutes=10))
 ```
 
+::: tip Retries don't create new task runs
+A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
+:::
+
 ## Triggers
 
 Before a Prefect task runs, it evaluates a "trigger function" to decide whether it should run at all. Triggers are functions that receive the states of any upstream tasks and return `True` if the task should run, or `False` (or raise an error) otherwise. If a task's trigger fails and does not raise a more specific error, the task will enter a `TriggerFailed` state, which is a more specific type of `Failed` state that indicates that the task failed to run, but because of its trigger function, not its own code.

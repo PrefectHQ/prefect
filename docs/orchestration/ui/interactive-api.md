@@ -93,7 +93,7 @@ query {
     }
 }
 ```
-You can see more about query filters in the [Hasura Docs](https://hasura.io/docs/1.0/graphql/manual/queries/query-filters.html).
+To learn more about the various query filters available (there are many more than the examples above!) head over to the [Hasura Docs](https://hasura.io/docs/1.0/graphql/core/queries/index.html).
 
 ### Schema
 

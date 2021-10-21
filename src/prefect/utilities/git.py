@@ -52,6 +52,9 @@ class TemporaryGitRepo:
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        # 'close' the repo so files are not still in use
+        self.repo.close()
+        # then remove the temporary files
         self.temp_dir.cleanup()
 
     def checkout_ref(self) -> None:

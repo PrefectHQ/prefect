@@ -54,41 +54,16 @@ LocalAgent().start()
 
 The following configuration options are shared for all agents.
 
-### API Keys <Badge text="Cloud"/>
+### Authentication <Badge text="Cloud"/>
 
-Prefect agents rely on the use of a service account API key from Prefect Cloud. For
-information on API keys and how they are used visit the
-[API keys](../concepts/tokens.html) page.
+Prefect agents rely on the use of an API key from Prefect Cloud. For information on how to create and configure API keys, see the
+[API key documentation](../concepts/api_keys.md).
 
-When starting an Agent with Prefect Cloud, you'll need to provide the API key. There are a few different ways to do this:
-
-:::: tabs
-::: tab CLI
+In addition to the methods outlined there, you may pass an API key via CLI to an agent
 
 ```bash
-prefect agent <AGENT TYPE> start --token <SERVICE_ACCOUNT_API_KEY>
+$ prefect agent <agent-type> start --key "API_KEY"
 ```
-
-:::
-
-::: tab "Prefect Config"
-
-```toml
-# ~/.prefect/config.toml
-[cloud.agent]
-auth_token = "<SERVICE_ACCOUNT_API_KEY>"
-```
-
-:::
-
-::: tab "Environment Variable"
-
-```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
-```
-
-:::
-::::
 
 ### Prefect API Address
 
@@ -125,7 +100,7 @@ prefect agent <AGENT TYPE> start --label dev --label staging
 
 :::
 
-::: tab "Python API"
+::: tab Python API
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -135,7 +110,7 @@ DockerAgent(labels=["dev", "staging"]).start()
 
 :::
 
-::: tab "Prefect Config"
+::: tab Prefect Config
 
 ```toml
 # ~/.prefect/config.toml
@@ -145,7 +120,7 @@ labels = ["dev", "staging"]
 
 :::
 
-::: tab "Environment Variable"
+::: tab Environment Variable
 
 ```bash
 export PREFECT__CLOUD__AGENT__LABELS='["dev", "staging"]'
@@ -171,7 +146,7 @@ prefect agent <AGENT TYPE> start --env KEY=VALUE --env KEY2=VALUE2
 
 :::
 
-::: tab "Python API"
+::: tab Python API
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -181,6 +156,16 @@ DockerAgent(env_vars={"KEY": "VALUE", "KEY2": "VALUE2"})
 
 :::
 ::::
+
+### Agent Automations <Badge text="Cloud"/>
+
+Users on Standard or Enterprise licenses in Cloud can create an agent [automation](orchestration/concepts/automations.html) to notify them if all agents from a configuration group (agent config ids can be added to multiple agents) have not queried for work in a certain time frame.   To do so go to the [automations tab of the dashboard](https://cloud.prefect.io/automations=) in the UI and set up an agent configuration then copy the agent config id that is provided once your automation is created.  You can then provide the agent configuration to your agent using the --agent-config-id flag:
+
+```bash
+prefect agent <AGENT TYPE> start --agent-config-id <AGENT CONFIG ID>
+```
+
+Note - Agent automations can only be added as a flag when starting an agent at present.  They can not be added at install. 
 
 ### Health Checks
 
@@ -200,7 +185,7 @@ prefect agent <AGENT TYPE> start --agent-address http://localhost:8080
 
 :::
 
-::: tab "Python API"
+::: tab Python API
 
 ```python
 from prefect.agent.docker import DockerAgent
@@ -210,7 +195,7 @@ DockerAgent(agent_address="http://localhost:8080").start()
 
 :::
 
-::: tab "Prefect Config"
+::: tab Prefect Config
 
 ```toml
 # ~/.prefect/config.toml
@@ -220,7 +205,7 @@ agent_address = "http://localhost:8080"
 
 :::
 
-::: tab "Environment Variable"
+::: tab Environment Variable
 
 ```bash
 $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
@@ -231,4 +216,4 @@ $ export PREFECT__CLOUD__AGENT__AGENT_ADDRESS=http://localhost:8080
 
 If enabled, the HTTP health check will be available via the `/api/health`
 route at the configured agent address. This route returns `200 OK` if the
-agent is running and health, and will error otherwise.
+agent is healthy, and will error otherwise.

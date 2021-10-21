@@ -1,9 +1,9 @@
 from pathlib import Path
 from typing import Iterable, Union
-import warnings
 import pyexasol
 
 from prefect import Task
+from prefect.client import Secret
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -13,10 +13,12 @@ class ExasolExecute(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
-            should be passed at runtime instead.
-        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
-            should be passed at runtime instead.
+        - dsn_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            dsn connection string (server:port)
+        - user_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            user name
+        - password_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            password
         - query (str, optional): query to execute against database
         - query_params (dict, optional): Values for SQL query placeholders
         - autocommit (bool, optional): turn autocommit on or off (default: False)
@@ -29,37 +31,30 @@ class ExasolExecute(Task):
     def __init__(
         self,
         dsn: str = "",
-        user: str = "",
-        password: str = "",
+        dsn_secret: str = "",
+        user_secret: str = "",
+        password_secret: str = "",
         query: str = None,
         query_params: dict = None,
         autocommit: bool = False,
         commit: bool = True,
         **kwargs,
     ):
-        if user or password:
-            warnings.warn(
-                "Passing `user` or `password` to the `ExasolExecute` constructor "
-                "is deprecated. These should be passed as runtime arguments instead."
-            )
-
-        self.user = user
-        self.password = password
-
         self.dsn = dsn
+        self.dsn_secret = dsn_secret
+        self.user_secret = user_secret
+        self.password_secret = password_secret
         self.query = query
         self.query_params = query_params
         self.autocommit = autocommit
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(
-        "dsn", "user", "password", "query", "query_params", "autocommit", "commit"
-    )
+    @defaults_from_attrs("dsn", "query", "query_params", "autocommit", "commit")
     def run(
         self,
-        user: str,
-        password: str,
+        user: str = "",
+        password: str = "",
         dsn: str = "",
         query: str = None,
         query_params: dict = None,
@@ -71,9 +66,12 @@ class ExasolExecute(Task):
         Task run method. Executes a query against Exasol database.
 
         Args:
-            - user (str): user name used to authenticate
-            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - user (str, optional): user name used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
+            - password (str, optional): password used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
             - dsn (str, optional): dsn string of the database (server:port)
+                This overrides the initial `user_secret` parameter (if set)
             - query (str, optional): query to execute against database
             - query_params (dict, optional): Values for SQL query placeholders
             - autocommit (bool, optional): turn autocommit on or off (default: False)
@@ -82,7 +80,7 @@ class ExasolExecute(Task):
             - **kwargs (dict, optional): additional connection parameter (connection_timeout...)
 
         Returns:
-            - ExaStatement object
+            - Nothing
 
         Raises:
             - ValueError: if dsn string is not provided
@@ -90,10 +88,19 @@ class ExasolExecute(Task):
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
-        if not dsn:
+        if not dsn and not self.dsn_secret:
             raise ValueError("A dsn string must be provided.")
         if not query:
             raise ValueError("A query string must be provided.")
+
+        if not dsn and self.dsn_secret:
+            dsn = Secret(self.dsn_secret).get()
+
+        if not user and self.user_secret:
+            user = Secret(self.user_secret).get()
+
+        if not password and self.password_secret:
+            password = Secret(self.password_secret).get()
 
         con = pyexasol.connect(
             dsn=dsn,
@@ -106,14 +113,14 @@ class ExasolExecute(Task):
         # try to execute query
         # context manager automatically rolls back failed transactions
         with con as db:
-            result = db.execute(query, query_params)
+            db.execute(query, query_params)
             if not autocommit:
                 if commit:
                     con.commit()
                 else:
                     con.rollback()
 
-            return result
+            return
 
 
 class ExasolFetch(Task):
@@ -122,10 +129,12 @@ class ExasolFetch(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
-            should be passed at runtime instead.
-        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
-            should be passed at runtime instead.
+        - dsn_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            dsn connection string (server:port)
+        - user_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            user name
+        - password_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            password
         - fetch (str, optional): one of "one" "many" "val" or "all", used to determine how many
             results to fetch from executed query
         - fetch_size (int, optional): if fetch = 'many', determines the number of results to
@@ -139,37 +148,30 @@ class ExasolFetch(Task):
     def __init__(
         self,
         dsn: str = "",
-        user: str = "",
-        password: str = "",
+        dsn_secret: str = "",
+        user_secret: str = "",
+        password_secret: str = "",
         fetch: str = "one",
         fetch_size: int = 10,
         query: str = None,
         query_params: dict = None,
         **kwargs,
     ):
-        if user or password:
-            warnings.warn(
-                "Passing `user` or `password` to the `ExasolFetch` constructor "
-                "is deprecated. These should be passed as runtime arguments instead."
-            )
-
-        self.user = user
-        self.password = password
-
         self.dsn = dsn
+        self.dsn_secret = dsn_secret
+        self.user_secret = user_secret
+        self.password_secret = password_secret
         self.fetch = fetch
         self.fetch_size = fetch_size
         self.query = query
         self.query_params = query_params
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(
-        "dsn", "user", "password", "fetch", "fetch_size", "query", "query_params"
-    )
+    @defaults_from_attrs("dsn", "fetch", "fetch_size", "query", "query_params")
     def run(
         self,
-        user: str,
-        password: str,
+        user: str = "",
+        password: str = "",
         dsn: str = "",
         fetch: str = "one",
         fetch_size: int = 10,
@@ -181,9 +183,12 @@ class ExasolFetch(Task):
         Task run method. Executes a query against Exasol database and fetches results.
 
         Args:
-            - user (str): user name used to authenticate
-            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - user (str, optional): user name used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
+            - password (str, optional): password used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
             - dsn (str, optional): dsn string of the database (server:port)
+                This overrides the initial `user_secret` parameter (if set)
             - fetch (str, optional): one of "one" "many" "val" or "all", used to determine how many
                 results to fetch from executed query
             - fetch_size (int, optional): if fetch = 'many', determines the number of results
@@ -203,7 +208,7 @@ class ExasolFetch(Task):
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
-        if not dsn:
+        if not dsn and not self.dsn_secret:
             raise ValueError("A dsn string must be provided.")
         if not query:
             raise ValueError("A query string must be provided.")
@@ -212,6 +217,16 @@ class ExasolFetch(Task):
             raise ValueError(
                 "The 'fetch' parameter must be one of the following - ('one', 'many', 'val', 'all')."
             )
+
+        if not dsn and self.dsn_secret:
+            dsn = Secret(self.dsn_secret).get()
+
+        if not user and self.user_secret:
+            user = Secret(self.user_secret).get()
+
+        if not password and self.password_secret:
+            password = Secret(self.password_secret).get()
+
         con = pyexasol.connect(
             dsn=dsn,
             user=user,
@@ -238,10 +253,12 @@ class ExasolImportFromIterable(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
-            should be passed at runtime instead.
-        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
-            should be passed at runtime instead.
+        - dsn_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            dsn connection string (server:port)
+        - user_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            user name
+        - password_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            password
         - target_schema (str, optional): target schema for importing data
         - target_table (str, optional): target table for importing data
         - data (Iterable, optional): an iterable which holds the import data
@@ -256,8 +273,9 @@ class ExasolImportFromIterable(Task):
     def __init__(
         self,
         dsn: str = "",
-        user: str = "",
-        password: str = "",
+        dsn_secret: str = "",
+        user_secret: str = "",
+        password_secret: str = "",
         target_schema: str = None,
         target_table: str = None,
         data: Iterable = None,
@@ -266,16 +284,10 @@ class ExasolImportFromIterable(Task):
         commit: bool = True,
         **kwargs,
     ):
-        if user or password:
-            warnings.warn(
-                "Passing `user` or `password` to the `ExasolImportFromIterable` constructor "
-                "is deprecated. These should be passed as runtime arguments instead."
-            )
-
-        self.user = user
-        self.password = password
-
         self.dsn = dsn
+        self.dsn_secret = dsn_secret
+        self.user_secret = user_secret
+        self.password_secret = password_secret
         self.target_schema = target_schema
         self.target_table = target_table
         self.data = data
@@ -286,8 +298,6 @@ class ExasolImportFromIterable(Task):
 
     @defaults_from_attrs(
         "dsn",
-        "user",
-        "password",
         "target_schema",
         "target_table",
         "data",
@@ -297,8 +307,8 @@ class ExasolImportFromIterable(Task):
     )
     def run(
         self,
-        user: str,
-        password: str,
+        user: str = "",
+        password: str = "",
         dsn: str = "",
         target_schema: str = None,
         target_table: str = None,
@@ -312,9 +322,12 @@ class ExasolImportFromIterable(Task):
         Task run method. Executes a query against Postgres database.
 
         Args:
-            - user (str): user name used to authenticate
-            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - user (str, optional): user name used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
+            - password (str, optional): password used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
             - dsn (str, optional): dsn string of the database (server:port)
+                This overrides the initial `user_secret` parameter (if set)
             - target_schema (str, optional): target schema for importing data
             - target_table (str, optional): target table for importing data
             - data (Iterable, optional): an iterable which holds the import data
@@ -334,12 +347,21 @@ class ExasolImportFromIterable(Task):
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
-        if not dsn:
+        if not dsn and not self.dsn_secret:
             raise ValueError("A dsn string must be provided.")
         if not data or len(data) == 0:
             raise ValueError("Import Data must be provided.")
         if not target_table:
             raise ValueError("Target table must be provided.")
+
+        if not dsn and self.dsn_secret:
+            dsn = Secret(self.dsn_secret).get()
+
+        if not user and self.user_secret:
+            user = Secret(self.user_secret).get()
+
+        if not password and self.password_secret:
+            password = Secret(self.password_secret).get()
 
         if not target_schema:
             target = target_table
@@ -373,10 +395,12 @@ class ExasolExportToFile(Task):
 
     Args:
         - dsn (str, optional): dsn string of the database (server:port)
-        - user (str, optional, DEPRECATED): user name used to authenticate. Deprecated,
-            should be passed at runtime instead.
-        - password (str, optional, DEPRECATED): password used to authenticate. Deprecated,
-            should be passed at runtime instead.
+        - dsn_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            dsn connection string (server:port)
+        - user_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            user name
+        - password_secret (str, optional): the name of the Prefect Secret that stores the Exasol
+            password
         - destination ([str, Path], optional): Path to file or file-like object
         - query_or_table (str, optional): SQL query or table for export
             could be:
@@ -392,24 +416,19 @@ class ExasolExportToFile(Task):
     def __init__(
         self,
         dsn: str = "",
-        user: str = "",
-        password: str = "",
+        dsn_secret: str = "",
+        user_secret: str = "",
+        password_secret: str = "",
         destination: Union[str, Path] = None,
         query_or_table: Union[str, tuple] = None,
         query_params: dict = None,
         export_params: dict = None,
         **kwargs,
     ):
-        if user or password:
-            warnings.warn(
-                "Passing `user` or `password` to the `ExasolExportToFile` constructor "
-                "is deprecated. These should be passed as runtime arguments instead."
-            )
-
-        self.user = user
-        self.password = password
-
         self.dsn = dsn
+        self.dsn_secret = dsn_secret
+        self.user_secret = user_secret
+        self.password_secret = password_secret
         self.destination = destination
         self.query_or_table = query_or_table
         self.query_params = query_params
@@ -418,8 +437,6 @@ class ExasolExportToFile(Task):
 
     @defaults_from_attrs(
         "dsn",
-        "user",
-        "password",
         "destination",
         "query_or_table",
         "query_params",
@@ -427,8 +444,8 @@ class ExasolExportToFile(Task):
     )
     def run(
         self,
-        user: str,
-        password: str,
+        user: str = "",
+        password: str = "",
         dsn: str = "",
         destination: Union[str, Path] = None,
         query_or_table: Union[str, tuple] = None,
@@ -440,9 +457,12 @@ class ExasolExportToFile(Task):
         Task run method. Executes a query against Postgres database.
 
         Args:
-            - user (str): user name used to authenticate
-            - password (str): password used to authenticate; should be provided from a `Secret` task
+            - user (str, optional): user name used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
+            - password (str, optional): password used to authenticate. This overrides the
+                initial `user_secret` parameter (if set)
             - dsn (str, optional): dsn string of the database (server:port)
+                This overrides the initial `user_secret` parameter (if set)
             - destination ([str, Path], optional): Path to file or file-like object
             - query_or_table (str, optional): SQL query or table for export
                 could be:
@@ -463,12 +483,21 @@ class ExasolExportToFile(Task):
             - Exa*Error: multiple exceptions raised from the underlying pyexasol package
                 (e.g. ExaQueryError, ExaAuthError..)
         """
-        if not dsn:
+        if not dsn and not self.dsn_secret:
             raise ValueError("A dsn string must be provided.")
         if not destination:
             raise ValueError("A destination must be provided.")
         if not query_or_table:
             raise ValueError("A query or a table must be provided.")
+
+        if not dsn and self.dsn_secret:
+            dsn = Secret(self.dsn_secret).get()
+
+        if not user and self.user_secret:
+            user = Secret(self.user_secret).get()
+
+        if not password and self.password_secret:
+            password = Secret(self.password_secret).get()
 
         con = pyexasol.connect(
             dsn=dsn,

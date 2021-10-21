@@ -58,9 +58,9 @@ class TestFunctionTask:
         f = FunctionTask(fn=my_fn)
         assert f.__doc__ == my_fn.__doc__
 
-        # Except when no docstring on wrapped function
+        # Lambdas do not have a function docstring
         f = FunctionTask(fn=lambda x: x + 1)
-        assert "FunctionTask" in f.__doc__
+        assert f.__doc__ is None
 
     def test_function_task_sets__wrapped__(self):
         def my_fn():
@@ -77,11 +77,11 @@ class TestFunctionTask:
             pass
 
         t = FunctionTask(fn=my_fn)
-        with pytest.raises(AttributeError) as exc:
+        with pytest.raises(
+            AttributeError,
+            match="'FunctionTask' object has no attribute 'unknown_attribute'",
+        ):
             t.unknown_attribute
-
-        assert "unknown_attribute" in str(exc.value)
-        assert "@prefect.task" in str(exc.value)
 
 
 class TestCollections:

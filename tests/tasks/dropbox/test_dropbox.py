@@ -25,29 +25,12 @@ class TestInitialization:
 
 
 class TestCredentials:
-    def test_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = DropboxDownload(path="test", access_token_secret="DROPBOX_ACCESS_TOKEN")
+    def test_uses_access_token(self, monkeypatch):
+        task = DropboxDownload(path="test")
 
         dbx = MagicMock()
         monkeypatch.setattr("prefect.tasks.dropbox.dropbox.dropbox.Dropbox", dbx)
 
-        with prefect.context(secrets=dict(DROPBOX_ACCESS_TOKEN="HI")):
-            task.run()
+        task.run(access_token="HI")
 
         assert dbx.call_args[0][0] == "HI"
-
-    def test_non_dropbox_creds_are_pulled_from_secret_at_runtime(self, monkeypatch):
-        task = DropboxDownload(path="test", access_token_secret="DROPBOX_ACCESS_TOKEN")
-
-        dbx = MagicMock()
-        monkeypatch.setattr("prefect.tasks.dropbox.dropbox.dropbox.Dropbox", dbx)
-
-        with prefect.context(
-            secrets=dict(DROPBOX_ACCESS_TOKEN="HI", TEST_SECRET="BYE")
-        ):
-            task.run()
-            task.run(access_token_secret="TEST_SECRET")
-
-        first_call, second_call = dbx.call_args_list
-        assert first_call[0][0] == "HI"
-        assert second_call[0][0] == "BYE"

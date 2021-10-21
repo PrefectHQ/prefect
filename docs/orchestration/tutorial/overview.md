@@ -63,60 +63,18 @@ Note that you can change backends at any time by rerunning the `prefect backend 
 If you're using Prefect Cloud, you'll also need to authenticate with the
 backend before you can proceed further.
 
-### Create an API Key
+### Create an API key and login
 
-To authenticate, you'll need to create an [API Key](/orchestration/concepts/tokens.html#user) and save it. 
+To authenticate, you'll need to create an [API key](/orchestration/concepts/api_keys.md) and save it. 
 
 - Login to [https://cloud.prefect.io](https://cloud.prefect.io)
 - Navigate to the [API Keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
 - Copy the created key
-- Save the key locally either in your `~/.prefect/config.toml` config file, or as an environment variable:
+- Login with the Prefect CLI `prefect auth login --key <YOUR-KEY>`
 
-:::: tabs
-::: tab config.toml
 
-```toml
-# ~/.prefect/config.toml
-[cloud]
-auth_token = <API_KEY>
-```
+::: tip Authentication for agents
+
+When running deployed Flows with an [Agent](/orchestration/agents/overview.html) we recommend creating an API key associated with a service account instead of your user. See the [API keys documentation](/orchestration/concepts/api_keys.md) for details.
 
 :::
-::: tab "Environment Variable"
-
-```bash
-export PREFECT__CLOUD__AUTH_TOKEN=<API_KEY>
-```
-
-:::
-
-::::
-
-
-### Create a Service Account Key
-
-Running deployed Flows with an [Agent](/orchestration/agents/overview.html)
-also requires an API key for the Agent. You can create one in the [Service Accounts page](https://cloud.prefect.io/team/service-accounts) of the UI.  
-
-You'll need this token later in the tutorial. You can save it locally either in
-your `~/.prefect/config.toml` config file, or as an environment variable:
-
-:::: tabs
-::: tab config.toml
-
-```toml
-# ~/.prefect/config.toml
-[cloud.agent]
-auth_token = <SERVICE_ACCOUNT_API_KEY>
-```
-
-:::
-::: tab "Environment Variable"
-
-```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<SERVICE_ACCOUNT_API_KEY>
-```
-
-:::
-
-::::

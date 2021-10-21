@@ -87,7 +87,7 @@ When possible we recommend using the `~/.aws/config` file, but
 also work:
 
 :::: tabs
-::: tab "Config file"
+::: tab Config file
 
 ```toml
 # ~/.aws/config
@@ -98,7 +98,7 @@ region=...
 ```
 
 :::
-::: tab "Environment Variables"
+::: tab Environment Variables
 
 ```bash
 export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_DEFAULT_REGION=...
@@ -153,6 +153,8 @@ ECS provides a builtin policy `AmazonECSTaskExecutionPolicy` that provides
 common settings. This supports pulling images from ECR and enables using
 CloudWatch logs. The full policy is below:
 
+:::: tabs
+::: tab Execution Role Policy
 ```json
 {
   "Version": "2012-10-17",
@@ -172,6 +174,53 @@ CloudWatch logs. The full policy is below:
   ]
 }
 ```
+:::
+::: tab Agent Role Policy
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:CreateSecurityGroup",
+                "ec2:CreateTags",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeVpcs",
+                "ec2:DeleteSecurityGroup",
+                "ecs:CreateCluster",
+                "ecs:DeleteCluster",
+                "ecs:DeregisterTaskDefinition",
+                "ecs:DescribeClusters",
+                "ecs:DescribeTaskDefinition",
+                "ecs:DescribeTasks",
+                "ecs:ListAccountSettings",
+                "ecs:ListClusters",
+                "ecs:ListTaskDefinitions",
+                "ecs:RegisterTaskDefinition",
+                "ecs:RunTask",
+                "ecs:StopTask",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:GetLogEvents"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+```
+:::
+::: tab Prefect Tasks Role Policy
+```
+Depends on AWS API calls your Prefect tasks make. For example, if your Prefect task make calls to DynamoDB, you need to attach a policy with DynamoDB permissions to the task role, and provide this role to `task-role-arn` option in ECSRun config or prefect ecs agent.
+```
+:::
+::::
 
 Usually AWS will automatically create an IAM role with this policy named
 `ecsTaskExecutionRole` (if not, you may need to create one yourself, see [the
@@ -235,3 +284,110 @@ prefect agent ecs start --run-task-kwargs /path/to/options.yaml
 # Stored on S3
 prefect agent ecs start --run-task-kwargs s3://bucket/path/to/options.yaml
 ```
+
+### Running ECS Agent in Production
+
+An [`Amazon ECS service`](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html) enables creating long running task in your cluster. If any AWS task fails or stops for any reason, service scheduler launches a new instance of the task definition, which makes it great for running Prefect ECS Agent. 
+
+For running agent as ECS service, you need to provide service definition parameters such as task definition, cluster name, service name, etc. You can create a service and provide those parameters using AWS console, or any Infrastructure as Code tools (Terraform, Pulumi, etc), or AWS CLI.
+
+Let's see an example of creating a Fargate service type for Prefect Agent using AWS CLI. Assuming you have already created an ECS cluster in your VPC (you can use default cluster and VPC created by AWS), and have an API key for your Prefect agent, let's create a task definition for ECS Prefect agent using AWS CLI. Save the following task definition in `prefect-agent-td.json` file. Note, some values should be substituted with your API key and AWS account id.
+
+```json
+{
+    "family": "prefect-agent",
+    "requiresCompatibilities": ["FARGATE"],
+    "networkMode": "awsvpc",
+    "cpu": "512",
+    "memory": "1024",
+    "taskRoleArn": "arn:aws:iam::<>:role/prefectTaskRole",
+    "executionRoleArn": "arn:aws:iam::<>:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "prefect-agent",
+            "image": "prefecthq/prefect:0.14.13-python3.8",
+            "essential": true,
+            "command": ["prefect","agent","ecs","start"],
+            "environment": [
+                {
+                    "name": "PREFECT__CLOUD__API_KEY",
+                    "value": "<your-key>"
+                },
+                {
+                    "name": "PREFECT__CLOUD__AGENT__LABELS",
+                    "value": "['label1', 'label2']"},
+                {
+                    "name": "PREFECT__CLOUD__AGENT__LEVEL",
+                    "value": "INFO"
+                },
+                {
+                    "name": "PREFECT__CLOUD__API",
+                    "value": "https://api.prefect.io"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/prefect-agent",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs",
+                    "awslogs-create-group": "true"
+                }
+            }
+        }
+    ]
+}
+```
+
+Register this task definition by running following command:
+
+```bash
+aws ecs register-task-definition --cli-input-json file://<full_path_to_task_definition_file>/prefect-agent-td.json
+```
+
+Finally, create a service from your task definition template:
+
+```bash
+aws ecs create-service 
+    --service-name prefect-agent \
+    --task-definition prefect-agent:1 \
+    --desired-count 1 \
+    --launch-type FARGATE \
+    --platform-version LATEST \
+    --cluster default \
+    --network-configuration "awsvpcConfiguration={subnets=[subnet-12344321],securityGroups=[sg-12344321],assignPublicIp=ENABLED}" \
+    --tags key=key1,value=value1 key=key2,value=value2 key=key3,value=value3
+```
+
+Now, AWS service scheduler will create a task with running Prefect Agent, and you can check your logs in CloudWatch `/ecs/prefect-agent` log group.
+
+### Throttling errors on flow submission
+
+When using the ECS agent, you may encounter task definition registration limits based
+on AWS API throttling and Service Quotas (formerly referred to as service limits). If
+you encounter a registration limit due to AWS API throttling or Service Quotas, the
+task definition fails to register and your flow will not run.
+
+To learn more about AWS API throttling and Service Quotas see [Managing and monitoring API throttling in your workloads](https://aws.amazon.com/blogs/mt/managing-monitoring-api-throttling-in-workloads/)
+on the AWS Management & Governance Blog.
+
+AWS recommends employing retry logic when encountering AWS API rate limit and throttling
+events.
+
+When starting an ECS agent from the command line, you can configure retry behavior for
+the ECS agent by setting [AWS CLI retry modes](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
+
+For example, the following example specifies the AWS Adaptive retry mode and up to 10
+retry attemps, then starts the ECS agent:
+
+When starting an ECS agent from the command line, you can configure retry behavior for
+the ECS agent by [setting environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-retries.html).
+
+For example:
+
+```bash
+AWS_RETRY_MODE='adaptive' AWS_MAX_ATTEMPTS=10 prefect agent ecs start
+```
+
+If you are running the ECS agent in a container, set the environment variables in the
+container definition.

@@ -16,7 +16,7 @@ class PostgresExecute(Task):
             not provided
         - query (str, optional): query to execute against database
         - data (tuple, optional): values to use in query, must be specified using placeholder
-            is query string
+            in query string
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -56,7 +56,7 @@ class PostgresExecute(Task):
         Args:
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using
-                placeholder is query string
+                placeholder in query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
 
@@ -261,7 +261,7 @@ class PostgresFetch(Task):
                 to fetch, defaults to 10
             - query (str, optional): query to execute against database
             - data (tuple, optional): values to use in query, must be specified using
-                placeholder is query string
+                placeholder in query string
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - password (str): password used to authenticate; should be provided from a `Secret` task
             - col_names (bool, optional): set to True to add column names to records, defaults to False
@@ -313,6 +313,10 @@ class PostgresFetch(Task):
                         col_description[0] for col_description in cursor.description
                     ]
                     header = [tuple(col_name for col_name in names_list)]
+
+                    if isinstance(records, tuple):
+                        records = [records]
+
                     records = header + records
 
             return records

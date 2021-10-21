@@ -1,5 +1,6 @@
 import json
 import os
+import pathlib
 import textwrap
 import threading
 from unittest.mock import MagicMock
@@ -19,6 +20,7 @@ from prefect.cli.build_register import (
     build_and_register,
     get_project_id,
     register_serialized_flow,
+    expand_paths,
 )
 from prefect.engine.results import LocalResult
 from prefect.environments.execution import LocalEnvironment
@@ -110,6 +112,65 @@ def register_flow_errors_if_pass_options_to_register_group():
     assert "Got unexpected extra argument (flow)" in result.stdout
 
 
+def test_expand_paths_glob(tmpdir):
+    glob_path = str(tmpdir.join("**").join("*.py"))
+
+    expected_paths = [
+        pathlib.Path(tmpdir) / "a.py",
+        pathlib.Path(tmpdir) / "foo" / "b.py",
+        pathlib.Path(tmpdir) / "bar" / "c.py",
+        pathlib.Path(tmpdir) / "foobar" / "baz" / "d.py",
+    ]
+    other_paths = [
+        pathlib.Path(tmpdir) / "a.foo",
+        pathlib.Path(tmpdir) / "bar" / "b.bar",
+    ]
+    for path in expected_paths + other_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+    result = expand_paths([glob_path])
+    assert set(result) == set(str(path.absolute()) for path in expected_paths)
+
+
+def test_expand_paths_dir_listing(tmpdir):
+    dir_path = str(tmpdir)
+
+    expected_paths = [
+        pathlib.Path(tmpdir) / "a.py",
+        pathlib.Path(tmpdir) / "b.py",
+    ]
+    other_paths = [
+        pathlib.Path(tmpdir) / "a.foo",
+        pathlib.Path(tmpdir) / "bar" / "b.bar",
+        pathlib.Path(tmpdir) / "foo" / "c.py",
+    ]
+    for path in expected_paths + other_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+    result = expand_paths([dir_path])
+    assert set(result) == set(str(path.absolute()) for path in expected_paths)
+
+
+def test_expand_paths_full_paths(tmpdir):
+    paths = [
+        pathlib.Path(tmpdir) / "a.py",
+        pathlib.Path(tmpdir) / "b.py",
+    ]
+    other_paths = [
+        pathlib.Path(tmpdir) / "a.foo",
+        pathlib.Path(tmpdir) / "bar" / "b.bar",
+        pathlib.Path(tmpdir) / "foo" / "c.py",
+    ]
+    for path in paths + other_paths:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+
+    result = expand_paths([str(path.absolute()) for path in paths])
+    assert set(result) == set(str(path.absolute()) for path in paths)
+
+
 class TestWatchForChanges:
     def test_errors_path_does_not_exist(self, tmpdir):
         missing = str(tmpdir.join("not-real"))
@@ -141,10 +202,8 @@ class TestWatchForChanges:
 
         # Later iterations only yield paths that are new or changed
         def update():
-            with open(path3, "wb"):
-                pass
-            with open(path4, "wb"):
-                pass
+            pathlib.Path(path3).touch()
+            pathlib.Path(path4).touch()
             os.utime(path1)
 
         timer = threading.Timer(0.15, update)
@@ -270,8 +329,40 @@ class TestRegister:
         assert flow_version == exp_version
         assert is_new == is_new_version
 
-    def test_load_flows_from_script(self, tmpdir):
-        path = str(tmpdir.join("test.py"))
+    @pytest.mark.parametrize("schedule", [True, False])
+    def test_register_serialized_flow_toggle_schedule(self, schedule):
+        client = MagicMock()
+        client.graphql.side_effect = [
+            GraphQLResult({"data": {"flow": []}}),
+            GraphQLResult(
+                {"data": {"create_flow_from_compressed_string": {"id": "id"}}}
+            ),
+        ]
+
+        serialized_flow = Flow("testing").serialize(build=False)
+
+        register_serialized_flow(
+            client, serialized_flow, "my-project-id", schedule=schedule
+        )
+
+        assert (
+            client.graphql.call_args[1]["variables"]["input"]["set_schedule_active"]
+            == schedule
+        )
+
+    @pytest.mark.parametrize("relative", [False, True])
+    def test_load_flows_from_script(self, tmpdir, relative):
+        abs_path = str(tmpdir.join("test.py"))
+        if relative:
+            if os.name == "nt":
+                pytest.skip(
+                    "This test can fail on windows if the test file is on a different "
+                    "drive. This should have no effect during actual execution."
+                )
+            path = os.path.relpath(abs_path)
+        else:
+            path = abs_path
+
         source = textwrap.dedent(
             """
             from prefect import Flow
@@ -285,7 +376,7 @@ class TestRegister:
             assert __name__ != "__main__"
             """
         )
-        with open(path, "w") as f:
+        with open(abs_path, "w") as f:
             f.write(source)
 
         tmpdir.join("my_prefect_helper_file.py").write("def helper():\n    pass")
@@ -293,9 +384,9 @@ class TestRegister:
         flows = {f.name: f for f in load_flows_from_script(path)}
         assert len(flows) == 2
         assert isinstance(flows["f1"].storage, S3)
-        assert flows["f1"].storage.local_script_path == path
+        assert flows["f1"].storage.local_script_path == abs_path
         assert isinstance(flows["f2"].storage, Local)
-        assert flows["f2"].storage.path == path
+        assert flows["f2"].storage.path == abs_path
         assert flows["f2"].storage.stored_as_script
 
     def test_load_flows_from_script_error(self, tmpdir, capsys):
@@ -530,7 +621,10 @@ class TestRegister:
 
     @pytest.mark.parametrize("force", [False, True])
     @pytest.mark.parametrize("names", [[], ["flow 1"]])
-    def test_register_cli(self, tmpdir, monkeypatch, mock_get_project_id, force, names):
+    @pytest.mark.parametrize("schedule", [True, False])
+    def test_register_cli(
+        self, tmpdir, monkeypatch, mock_get_project_id, force, names, schedule
+    ):
         path = str(tmpdir.join("test.py"))
         source = textwrap.dedent(
             """
@@ -558,19 +652,28 @@ class TestRegister:
             cmd.append("--force")
         for name in names:
             cmd.extend(["--name", name])
+        if not schedule:
+            cmd.append("--no-schedule")
         result = CliRunner().invoke(cli, cmd)
 
         assert result.exit_code == 0
         if not names:
             names = ["flow 1", "flow 2"]
 
+        storage_labels = Local().labels
+
         assert register_serialized_flow.call_count == len(names)
         for args, kwargs in register_serialized_flow.call_args_list:
             assert not args
             assert kwargs["project_id"] == "my-project-id"
             assert kwargs["serialized_flow"]["name"] in names
-            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {"a", "b"}
+            assert set(kwargs["serialized_flow"]["run_config"]["labels"]) == {
+                "a",
+                "b",
+                *storage_labels,
+            }
             assert kwargs["force"] == force
+            assert kwargs["schedule"] == schedule
 
         # Bulk of the output is tested elsewhere, only a few smoketests here
         assert "Building `Local` storage..." in result.stdout
@@ -742,7 +845,8 @@ class TestBuild:
         written_names = [f["name"] for f in out["flows"]]
         assert written_names == exp_names
 
-        assert flow2["run_config"]["labels"] == ["a", "b", "new"]
+        storage_labels = Local().labels
+        assert set(flow2["run_config"]["labels"]) == {"a", "b", "new", *storage_labels}
         assert flow2["run_config"]["type"] == "LocalRun"
 
         build_logs = "\n".join(

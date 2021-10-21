@@ -5,6 +5,7 @@ import time
 import pytest
 
 import prefect
+from prefect.exceptions import PrefectSignal
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.result import Result, NoResult
@@ -255,7 +256,8 @@ def test_map_skips_return_exception_as_result(executor):
     assert isinstance(m.map_states, list)
     assert len(m.result) == 3
     assert m.result[1:] == [3, 4]
-    assert isinstance(m.result[0], Exception)
+    assert isinstance(m.result[0], BaseException)
+    assert isinstance(m.result[0], prefect.engine.signals.SKIP)
     assert isinstance(m.map_states[0], prefect.engine.state.Skipped)
 
 

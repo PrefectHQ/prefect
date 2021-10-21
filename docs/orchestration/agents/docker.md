@@ -12,7 +12,7 @@ The Docker agent requires a valid [Prefect
 installation](/core/getting_started/installation.md), as well as an active and
 accessible [Docker Daemon](https://docs.docker.com/get-docker/). Before
 starting the Docker agent, you should check that you have Docker installed and
-running.
+running. The minimum supported Docker engine version is v20.10.0.
 
 ## Flow Configuration
 

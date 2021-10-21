@@ -128,8 +128,11 @@ After registration, the flow will be stored at
 :::tip Automatic Labels
 Flows registered with this storage option will automatically be labeled with
 the hostname of the machine from which it was registered; this prevents agents
-not running on the same machine from attempting to run this flow. This behavior
-can be overridden by passing `add_default_labels=False` to the object:
+not running on the same machine from attempting to run this flow. This default
+prevents the common issue where an agent cannot find a flow that is stored on a
+different machine. You can override this behavior by passing `add_default_labels=False`
+to the object, but then you must make sure that the flow file is available on
+the local file system of other agents.
 ```python
 flow = Flow("local-flow", storage=Local(add_default_labels=False))
 ```
@@ -248,11 +251,16 @@ which means both upload (build) and download (local agent) times need to have
 the proper Google Application Credentials configuration.
 :::
 
+:::tip Extra dependency
+You need to install `google` PIP extra (`pip install prefect[google]`) to use
+GCS Storage.
+:::
+
 ### Git
 [Git Storage](/api/latest/storage.md#git) is a storage option for referencing flows
 stored in a git repository as `.py` files.
 
-This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages
+This storage class uses underlying git protocol instead of specific client libaries (e.g. `PyGithub` for GitHub), superseding other git based storages.
 
 ```python
 from prefect import Flow
@@ -261,7 +269,7 @@ from prefect.storage import Git
 # using https by default
 storage = Git(
     repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
+    flow_path="flows/my_flow.py",               # location of flow file in repo
     repo_host="github.com",                     # repo host name
     git_token_secret_name="MY_GIT_ACCESS_TOKEN" # name of personal access token secret
 )
@@ -270,9 +278,23 @@ storage = Git(
 # (environment must be configured for ssh access to repo)
 storage = Git(
     repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
+    flow_path="flows/my_flow.py",               # location of flow file in repo
     repo_host="github.com",                     # repo host name
     use_ssh=True                                # use ssh for cloning repo
+)
+```
+
+`Git` storage will attempt to build the correct git clone url based on the parameters provided. Users can override this logic and provide their git clone url directly.
+
+To use a custom git clone url, first create a Secret containing the url. Next, specify the name of the secret when creating your `Git` storage class.
+
+```python
+# example using Azure devops url
+# using a secret named 'MY_REPO_CLONE_URL' with value 'https://<username>:<personal_access_token>@dev.azure.com/<organization>/<project>/_git/<repo>'
+
+storage = Git(
+    flow_path="flows/my_flow.py",
+    git_clone_url_secret_name="MY_REPO_CLONE_URL" # use the value of this secret to clone the repository
 )
 ```
 
@@ -283,6 +305,11 @@ You can find more information about configuring Deploy Keys for common providers
 - [GitHub](https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys)
 - [GitLab](https://docs.gitlab.com/ee/user/project/deploy_keys/)
 - [BitBucket](https://bitbucket.org/blog/deployment-keys)
+
+For Deploy Keys to work correctly, the flow execution environment must be configured to clone a repository using SSH.
+This configuration is not Prefect specific and varies across infrastructure.
+
+For more information and examples, see [configuring SSH + Git storage](/orchestration/flow_config/storage.html#ssh-git-storage).
 :::
 
 :::tip GitLab Deploy Tokens
@@ -290,13 +317,16 @@ To use `Git` storage with GitLab Deploy Tokens, first create a Secret storing yo
 ```
 storage = Git(
     repo="org/repo",                            # name of repo
-    path="flows/my_flow.py",                    # location of flow file in repo
+    flow_path="flows/my_flow.py",               # location of flow file in repo
     repo_host="gitlab.com",                     # repo host name, which may be custom
     git_token_secret_name="MY_GIT_ACCESS_TOKEN",# name of Secret containing Deploy Token
     git_token_username="myuser"                 # username associated with the Deploy Token
 )
 ```
+:::
 
+:::tip Loading additional files from git repository
+`Git` storage allows you to load additional files alongside your flow file. For more information, see [Loading Additional Files with Git Storage](/orchestration/flow_config/storage.html#loading-additional-files-with-git-storage)
 :::
 
 ### GitHub
@@ -515,3 +545,115 @@ Template strings in `${}` are used to reference sensitive information. Given
 secrets](/core/concepts/secrets.md) `SOME_TOKEN`. Because this resolution is
 at runtime, this storage option never has your sensitive information stored in
 it and that sensitive information is never sent to Prefect Cloud.
+
+## Loading Additional Files with Git Storage
+
+`Git` storage clones the full repository when loading a flow from storage. This allows you to load non-Python files that live alongside your flow in your repository. For example, you may have a `.sql` file containing a query run in your flow that you want to use in one of your tasks.
+
+To get the file path of your flow, use Python's `__file__` builtin.
+
+For example, let's say we want to say hello to a person and their name is specified by a `.txt` file in our repository.
+
+Our git repository contains two files in the root directory, `flow.py` and `person.txt`.
+
+`flow.py` contains our flow, including logic for loading information from `person.txt`, and should look like this
+
+```python
+from pathlib import Path
+
+import prefect
+from prefect import task, Flow
+from prefect.storage import Git
+
+# get the path to the flow file using pathlib and __file__
+# this path is dynamically populated when the flow is loaded from storage
+file_path = Path(__file__).resolve().parent
+
+# using our flow path, load the file
+with open(str(file_path) + '/person.txt', 'r') as my_file:
+        name = my_file.read()
+
+@task
+def say_hello(name):
+        logger = prefect.context.get("logger")
+        logger.info(f"Hi {name}")
+
+with Flow("my-hello-flow") as flow:
+        say_hello(name)
+
+# configure our flow to use `Git` storage
+flow.storage = Git(flow_path="flow.py", repo='org/repo')
+```
+
+## SSH + Git Storage
+
+To use SSH with `Git` storage, you'll need to ensure your repository can be cloned using SSH from where your flow is being run.
+
+For this to work correctly, the environment must have 
+1. An SSH client available
+2. Required SSH keys configured
+
+
+### Adding SSH client to Docker images
+
+When using Docker images, please note the Prefect image does not include an SSH client by default. You will need to build a custom image that includes an SSH client. 
+
+The easiest way to do accomplish this is to add `openssh-client` to a Prefect image.
+
+```dockerfile
+FROM prefecthq/prefect:latest
+RUN apt update && apt install -y openssh-client
+```
+
+You can configure your flow to use the new image via the `image` field in your flow's [run config](/orchestration/flow_config/run_configs.html).
+
+### Configuring SSH keys
+
+SSH keys should be mounted to the `/root/.ssh` directory. If using a custom image not based on `prefecthq/prefect:latest`, this may change.
+
+*Please note management of SSH keys presents significant security challenges. The following examples may not represent industry best practice.*
+
+#### Docker agent - mounting SSH keys as volumes
+
+When using a [Docker agent](/orchestration/agents/docker.html#docker-agent), SSH keys can be mounted as volumes at run time using the `--volume` flag.
+
+```bash
+prefect agent docker start --volume /path/to/ssh_directory:/root/.ssh
+```
+
+#### Kubernetes agent - mounting SSH keys as Kubernetes Secrets
+
+When using a [Kubernetes agent](/orchestration/agents/kubernetes.html#kubernetes-agent), SSH keys can be mounted as secret volumes.
+
+First, create a [Kubernetes Secret](https://kubernetes.io/docs/concepts/configuration/secret/) containing our SSH key and known hosts file.
+
+```bash
+kubectl create secret generic my-ssh-key --from-file=<ssh-key-name>=/path/to/<ssh-key-name> --from-file=known_hosts=/path/to/known_hosts
+```
+
+Next, create a custom job template to mount the secret volume to `/root/.ssh`.
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+spec:
+  template:
+    spec:
+      containers:
+        - name: flow
+          volumeMounts:
+            - name: ssh-key
+              readOnly: true
+              mountPath: "/root/.ssh"
+      volumes:
+        - name: ssh-key
+          secret:
+            secretName: my-ssh-key
+            optional: false
+            defaultMode: 0600
+```
+
+Finally, [configure the agent or flow to use the custom job template](https://docs.prefect.io/orchestration/agents/kubernetes.html#custom-job-template). 
+
+
+Creating a [Kubernetes service account](https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/) to permission the Secret properly is recommended. Once configured in Kubernetes, service account can be set either [on agent start or on the run config](https://docs.prefect.io/orchestration/agents/kubernetes.html#service-account).

@@ -11,7 +11,7 @@ from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, call_state_handlers
 from prefect.engine.state import Cached, ClientFailed, Failed, Queued, Retrying, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 from prefect.utilities.executors import tail_recursive
 
 
@@ -94,7 +94,7 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except VersionLockError as exc:
+        except VersionLockMismatchSignal as exc:
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():
@@ -303,21 +303,11 @@ class CloudTaskRunner(TaskRunner):
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
         """
-        task_run_name = self.task.task_run_name
+        super().set_task_run_name(task_inputs)
 
-        if task_run_name:
-            raw_inputs = {k: r.value for k, r in task_inputs.items()}
-            formatting_kwargs = {
-                **prefect.context.get("parameters", {}),
-                **prefect.context,
-                **raw_inputs,
-            }
+        task_run_name = prefect.context.get("task_run_name")
 
-            if not isinstance(task_run_name, str):
-                task_run_name = task_run_name(**formatting_kwargs)
-            else:
-                task_run_name = task_run_name.format(**formatting_kwargs)
-
+        if task_run_name is not None:
             self.client.set_task_run_name(
                 task_run_id=self.task_run_id, name=task_run_name  # type: ignore
             )
@@ -334,7 +324,7 @@ class CloudTaskRunner(TaskRunner):
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
         `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
         state which allow this Task to run.  Additionally, this method will wait and perform
-        Task retries which are scheduled for <= 1 minute in the future.
+        Task retries which are scheduled for <= 10 minutes in the future.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;
@@ -364,20 +354,9 @@ class CloudTaskRunner(TaskRunner):
                 naptime = max(
                     (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
                 )
-                for _ in range(int(naptime) // 30):
-                    # send heartbeat every 30 seconds to let API know task run is still alive
-                    self.client.update_task_run_heartbeat(
-                        task_run_id=prefect.context.get("task_run_id")
-                    )
-                    naptime -= 30
-                    time.sleep(30)
 
                 if naptime > 0:
                     time.sleep(naptime)  # ensures we don't start too early
-
-                self.client.update_task_run_heartbeat(
-                    task_run_id=prefect.context.get("task_run_id")
-                )
 
                 end_state = super().run(
                     state=end_state,

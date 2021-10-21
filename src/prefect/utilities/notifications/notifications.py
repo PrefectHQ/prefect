@@ -54,7 +54,7 @@ def callback_factory(
         callback = callback_factory(fn, check)
 
         t = Task(state_handlers=[callback])
-        f = Flow(tasks=[t], state_handlers=[callback])
+        f = Flow("My Example Flow", tasks=[t], state_handlers=[callback])
         f.run()
         # prints:
         # Success("Task run succeeded.")

@@ -9,8 +9,8 @@ import pytest
 from prefect.agent import Agent
 from prefect.engine.state import Scheduled, Failed, Submitted
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import AuthorizationError
-from prefect.utilities.graphql import GraphQLResult
+from prefect.exceptions import AuthorizationError
+from prefect.utilities.graphql import GraphQLResult, EnumValue, with_args
 from prefect.utilities.compatibility import nullcontext
 
 
@@ -74,6 +74,25 @@ def test_agent_log_level_responds_to_config(cloud_api):
         assert agent.agent_address == "http://localhost:8000"
 
 
+@pytest.mark.parametrize("toggle", [True, False])
+def test_agent_cloud_logs_responds_to_config_by_default(cloud_api, toggle):
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": toggle}
+    ):
+        agent = Agent()
+        assert agent.log_to_cloud is toggle
+
+
+@pytest.mark.parametrize("toggle", [True, False])
+def test_agent_cloud_logs_allows_explicit_override(cloud_api, toggle):
+    # Set the config to the opposite so we can ensure it's ignored
+    with set_temporary_config(
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": not toggle}
+    ):
+        agent = Agent(no_cloud_logs=not toggle)
+        assert agent.log_to_cloud is toggle
+
+
 def test_agent_env_vars(cloud_api):
     with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
         agent = Agent(env_vars=dict(AUTH_THING="foo"))
@@ -118,8 +137,9 @@ def test_agent_log_level_debug(cloud_api):
 
 
 def test_agent_fails_no_auth_token(cloud_api):
-    with pytest.raises(AuthorizationError):
-        agent = Agent().start()
+    with pytest.raises(RuntimeError, match="Error while contacting API") as err:
+        Agent().start()
+    assert isinstance(err.value.__cause__, AuthorizationError)
 
 
 def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
@@ -136,8 +156,9 @@ def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
     session.return_value.post = post
     monkeypatch.setattr("requests.Session", session)
 
-    with pytest.raises(AuthorizationError):
-        agent = Agent().start()
+    with pytest.raises(RuntimeError, match="Error while contacting API") as err:
+        Agent().start()
+    assert isinstance(err.value.__cause__, AuthorizationError)
 
 
 def test_get_ready_flow_runs(monkeypatch, cloud_api):
@@ -156,62 +177,105 @@ def test_get_ready_flow_runs(monkeypatch, cloud_api):
 
     agent = Agent()
     flow_runs = agent._get_ready_flow_runs()
-    assert flow_runs == [GraphQLResult({"id": "id", "scheduled_start_time": str(dt)})]
+    assert flow_runs == {"id"}
 
 
 def test_get_ready_flow_runs_ignores_currently_submitting_runs(monkeypatch, cloud_api):
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(
-                get_runs_in_queue=MagicMock(flow_run_ids=["id1", "id2"]),
-                flow_run=[
-                    GraphQLResult(
-                        {"id": "id", "scheduled_start_time": str(pendulum.now())}
-                    )
-                ],
-            )
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", client)
+    Client = MagicMock()
+    Client().graphql.return_value.data.get_runs_in_queue.flow_run_ids = ["id1", "id2"]
+    monkeypatch.setattr("prefect.agent.agent.Client", Client)
 
     agent = Agent()
     agent.submitting_flow_runs.add("id2")
-    agent._get_ready_flow_runs()
-
-    assert len(gql_return.call_args_list) == 2
-    assert (
-        'id: { _in: ["id1"] }'
-        in list(gql_return.call_args_list[1][0][0]["query"].keys())[0]
-    )
+    assert agent._get_ready_flow_runs() == {"id1"}
 
 
-def test_get_ready_flow_runs_does_not_use_submitting_flow_runs_directly(
+def test_get_ready_flow_runs_copies_submitting_flow_runs(
     monkeypatch, caplog, cloud_api
 ):
-    gql_return = MagicMock(
-        return_value=MagicMock(
-            data=MagicMock(
-                get_runs_in_queue=MagicMock(flow_run_ids=["already-submitted-id"]),
-                flow_run=[{"id": "id"}],
-            )
-        )
-    )
-    client = MagicMock()
-    client.return_value.graphql = gql_return
-    monkeypatch.setattr("prefect.agent.agent.Client", client)
+    Client = MagicMock()
+    Client().graphql.return_value.data.get_runs_in_queue.flow_run_ids = [
+        "already-submitted-id"
+    ]
+    monkeypatch.setattr("prefect.agent.agent.Client", Client)
 
     agent = Agent()
     agent.logger.setLevel(logging.DEBUG)
-    copy_mock = MagicMock(return_value=set(["already-submitted-id"]))
-    agent.submitting_flow_runs = MagicMock(copy=copy_mock)
+    agent.submitting_flow_runs = MagicMock()
+    agent.submitting_flow_runs.copy.return_value = {"already-submitted-id"}
 
     flow_runs = agent._get_ready_flow_runs()
-
-    assert flow_runs == []
+    assert flow_runs == set()
     assert "1 already being submitted: ['already-submitted-id']" in caplog.text
-    copy_mock.assert_called_once_with()
+    agent.submitting_flow_runs.copy.assert_called_once_with()
+
+
+def test_get_flow_run_metadata(monkeypatch, cloud_api):
+    Client = MagicMock()
+    monkeypatch.setattr("prefect.agent.agent.Client", Client)
+    now = pendulum.now()
+    monkeypatch.setattr("prefect.agent.agent.pendulum.now", lambda *args: now)
+
+    agent = Agent()
+    agent._get_flow_run_metadata(["id1", "id2"])
+
+    Client().graphql.assert_called_with(
+        {
+            "query": {
+                with_args(
+                    "flow_run",
+                    {
+                        "where": {
+                            "id": {"_in": ["id1", "id2"]},
+                            "_or": [
+                                {"state": {"_eq": "Scheduled"}},
+                                {
+                                    "state": {"_eq": "Running"},
+                                    "task_runs": {
+                                        "state_start_time": {
+                                            "_lte": now.subtract(seconds=3).isoformat()
+                                        }
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ): {
+                    "id": True,
+                    "version": True,
+                    "state": True,
+                    "serialized_state": True,
+                    "parameters": True,
+                    "scheduled_start_time": True,
+                    "run_config": True,
+                    "name": True,
+                    "flow": {
+                        "version",
+                        "id",
+                        "environment",
+                        "core_version",
+                        "name",
+                        "storage",
+                    },
+                    with_args(
+                        "task_runs",
+                        {
+                            "where": {
+                                "state_start_time": {
+                                    "_lte": now.subtract(seconds=3).isoformat()
+                                }
+                            }
+                        },
+                    ): {
+                        "serialized_state",
+                        "version",
+                        "id",
+                        "task_id",
+                    },
+                }
+            }
+        }
+    )
 
 
 @pytest.mark.parametrize("with_task_runs", [True, False])
@@ -391,15 +455,19 @@ def test_deploy_flow_run_sleeps_until_start_time(monkeypatch, cloud_api):
         flow_run=GraphQLResult(
             {
                 "id": "id",
-                "serialized_state": Scheduled().serialize(),
-                "scheduled_start_time": str(dt.add(seconds=10)),
+                "serialized_state": Scheduled(
+                    start_time=dt.add(seconds=10)
+                ).serialize(),
+                "scheduled_start_time": str(dt),
                 "version": 1,
                 "task_runs": [
                     GraphQLResult(
                         {
                             "id": "id",
                             "version": 1,
-                            "serialized_state": Scheduled().serialize(),
+                            "serialized_state": Scheduled(
+                                start_time=dt.add(seconds=10)
+                            ).serialize(),
                         }
                     )
                 ],
@@ -446,7 +514,7 @@ def test_deploy_flow_run_logs_flow_run_exceptions(monkeypatch, caplog, cloud_api
     client.write_run_logs.assert_called_with(
         [dict(flow_run_id="id", level="ERROR", message="Error Here", name="agent")]
     )
-    assert "Encountered exception while deploying flow run id" in caplog.text
+    assert "Exception encountered while deploying flow run id" in caplog.text
 
 
 def test_submit_deploy_flow_run_jobs_raises_exception_and_logs(monkeypatch, cloud_api):

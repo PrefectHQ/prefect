@@ -1,12 +1,13 @@
 import ntpath
 import posixpath
+from packaging.version import parse as parse_version
 
 import multiprocessing
 import re
 import warnings
 from slugify import slugify
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple
+from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Any
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -39,6 +40,8 @@ class DockerAgent(Agent):
     Agent which deploys flow runs locally as Docker containers. Information on using the
     Docker Agent can be found at https://docs.prefect.io/orchestration/agents/docker.html
 
+    This agent requires Docker v20.10.0+
+
     Environment variables may be set on the agent to be provided to each flow run's container:
     ```
     prefect agent docker start --env MY_SECRET_KEY=secret --env OTHER_VAR=$OTHER_VAR
@@ -48,6 +51,7 @@ class DockerAgent(Agent):
     ```
     prefect agent docker start --base-url "tcp://0.0.0.0:2375"
     ```
+
 
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
@@ -75,8 +79,6 @@ class DockerAgent(Agent):
             re-route Flow run logs to stdout; defaults to `False`
         - volumes (List[str], optional): a list of Docker volume mounts to be attached to any
             and all created containers.
-        - network (str, optional): Add containers to an existing docker network
-            (deprecated in favor of `networks`).
         - networks (List[str], optional): Add containers to existing Docker networks.
         - reg_allow_list (List[str], optional): Limits Docker Agent to only pull images
             from the listed registries.
@@ -93,16 +95,15 @@ class DockerAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         base_url: str = None,
         no_pull: bool = None,
         volumes: List[str] = None,
         show_flow_logs: bool = False,
-        network: str = None,
         networks: List[str] = None,
         reg_allow_list: List[str] = None,
         docker_client_timeout: int = None,
-        docker_interface: bool = None,
+        docker_interface: bool = None,  # Deprecated in 0.14.18
     ) -> None:
         super().__init__(
             agent_config_id=agent_config_id,
@@ -144,20 +145,7 @@ class DockerAgent(Agent):
             )
 
         # Add containers to the given Docker networks
-        if networks and network:
-            raise ValueError(
-                "Only provide either `network` or `networks` argument, not both!"
-            )
-        if network:
-            warnings.warn(
-                "DockerAgent `network` argument is deprecated and will be removed from Prefect. "
-                "Use `networks` instead.",
-                UserWarning,
-            )
-        self.network = network
-        self.logger.debug(f"Docker network set to {self.network}")
         self.networks = networks
-        self.logger.debug(f"Docker networks set to {self.networks}")
 
         self.docker_client_timeout = docker_client_timeout or 60
 
@@ -297,15 +285,16 @@ class DockerAgent(Agent):
                             mode
                         )
                     )
-            else:
-                if not external:
-                    # no internal container path given, assume the host path is the same as the
-                    # internal path
-                    external = internal
-                host_spec[external] = {
-                    "bind": internal,
-                    "mode": mode,
-                }
+
+            if not external:
+                # no internal container path given, assume the host path is the same as the
+                # internal path
+                external = internal
+
+            host_spec[external] = {
+                "bind": internal,
+                "mode": mode,
+            }
 
         return named_volumes, container_mount_paths, host_spec
 
@@ -346,15 +335,16 @@ class DockerAgent(Agent):
                             mode
                         )
                     )
-            else:
-                if not external:
-                    # no internal container path given, assume the host path is the same as the
-                    # internal path
-                    external = internal
-                host_spec[external] = {
-                    "bind": internal,
-                    "mode": mode,
-                }
+
+            if not external:
+                # no internal container path given, assume the host path is the same as the
+                # internal path
+                external = internal
+
+            host_spec[external] = {
+                "bind": internal,
+                "mode": mode,
+            }
 
         return named_volumes, container_mount_paths, host_spec
 
@@ -411,10 +401,32 @@ class DockerAgent(Agent):
         # Create a container
         self.logger.debug("Creating Docker container {}".format(image))
 
-        host_config = {"auto_remove": True}  # type: dict
+        # By default, auto-remove containers
+        host_config: Dict[str, Any] = {"auto_remove": True}
+
+        # Set up a host gateway for local communication; check the docker version since
+        # this is not supported by older versions
+        docker_engine_version = parse_version(self.docker_client.version()["Version"])
+        host_gateway_version = parse_version("20.10.0")
+
+        if docker_engine_version < host_gateway_version:
+            warnings.warn(
+                "`host.docker.internal` could not be automatically resolved to your "
+                "local host. This feature is not supported on Docker Engine "
+                f"v{docker_engine_version}, upgrade to v{host_gateway_version}+ if you "
+                "encounter issues."
+            )
+        else:
+            # Compatibility for linux -- https://github.com/docker/cli/issues/2290
+            # Only supported by Docker v20.10.0+ which is our minimum recommend version
+            host_config["extra_hosts"] = {"host.docker.internal": "host-gateway"}
+
         container_mount_paths = self.container_mount_paths
         if container_mount_paths:
             host_config.update(binds=self.host_spec)
+        if run_config is not None and run_config.host_config:
+            # The host_config passed from the run_config will overwrite defaults
+            host_config.update(run_config.host_config)
 
         networking_config = None
         # At the time of creation, you can only connect a container to a single network,
@@ -425,11 +437,6 @@ class DockerAgent(Agent):
         if self.networks:
             networking_config = self.docker_client.create_networking_config(
                 {self.networks[0]: self.docker_client.create_endpoint_config()}
-            )
-        # Try fallback on old, deprecated, behaviour.
-        if self.network:
-            networking_config = self.docker_client.create_networking_config(
-                {self.network: self.docker_client.create_endpoint_config()}
             )
         labels = {
             "io.prefect.flow-name": flow_run.flow.name,
@@ -497,11 +504,6 @@ class DockerAgent(Agent):
                     container.get("Id"), self.networks
                 )
             )
-        if self.network:
-            self.logger.debug(
-                "Adding container to docker network: {}".format(self.network)
-            )
-
         self.docker_client.start(container=container.get("Id"))
 
         if self.show_flow_logs:
@@ -568,15 +570,30 @@ class DockerAgent(Agent):
             {
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": api,
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
                 "PREFECT__CONTEXT__IMAGE": image,
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         return env

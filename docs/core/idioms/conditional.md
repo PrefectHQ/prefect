@@ -31,7 +31,7 @@ The resulting flow looks like:
 
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from random import random
 
@@ -67,7 +67,7 @@ with Flow("conditional-branches") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import random
 
@@ -134,7 +134,7 @@ The resulting flow looks like:
 
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from random import random
 
@@ -173,7 +173,7 @@ with Flow("conditional-branches") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from random import random
 

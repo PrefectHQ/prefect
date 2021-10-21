@@ -456,7 +456,7 @@ def test_populate_custom_worker_spec_yaml(log_flag):
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.log_to_cloud": log_flag,
+            "cloud.send_flow_run_logs": log_flag,
             "logging.extra_loggers": ["test_logger"],
         }
     ):
@@ -502,7 +502,7 @@ def test_populate_custom_scheduler_spec_yaml(log_flag):
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.log_to_cloud": log_flag,
+            "cloud.send_flow_run_logs": log_flag,
             "logging.extra_loggers": ["test_logger"],
         }
     ):
@@ -547,7 +547,7 @@ def test_populate_custom_yaml_specs_with_logging_vars(log_flag):
 
     log_vars = [
         {
-            "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+            "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
             "value": "YES",
         },
         {
@@ -569,7 +569,7 @@ def test_populate_custom_yaml_specs_with_logging_vars(log_flag):
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.log_to_cloud": log_flag,
+            "cloud.send_flow_run_logs": log_flag,
             "logging.extra_loggers": ["test_logger"],
         }
     ):
@@ -599,7 +599,7 @@ def test_populate_custom_yaml_specs_with_logging_vars(log_flag):
         {
             "cloud.graphql": "gql_test",
             "cloud.auth_token": "auth_test",
-            "logging.log_to_cloud": log_flag,
+            "cloud.send_flow_run_logs": log_flag,
             "logging.extra_loggers": ["test_logger"],
         }
     ):

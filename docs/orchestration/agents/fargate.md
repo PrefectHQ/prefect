@@ -41,12 +41,13 @@ $ prefect agent fargate start
 The Fargate Agent can be started either through the Prefect CLI or by importing the `FargateAgent` class from the core library. Starting the agent from the CLI will require that the required AWS configuration arguments are set at the environment level while importing the agent class in a Python process will allow you to specify them at initialization.
 
 ::: tip API Keys <Badge text="Cloud"/>
-There are a few ways in which you can specify a service account API key:
+You can specify a service account API key via the CLI with
 
-- command argument `prefect agent fargate start -t SERVICE_ACCOUNT_API_KEY`
-- environment variable `export PREFECT__CLOUD__AGENT__AUTH_TOKEN=SERVICE_ACCOUNT_API_KEY`
-- API key will be used from `prefect.config.cloud.auth_token` if not provided from one of the two previous methods
+```bash
+$ prefect agent fargate start -k SERVICE_ACCOUNT_API_KEY
+```
 
+For additional methods of specifying API keys, see the [API key documentation](../concepts/api_keys.md).
 :::
 
 ### Installation

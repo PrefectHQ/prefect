@@ -1,10 +1,9 @@
-const sidebar115 = require('../api/0.11.5/sidebar')
-const sidebar126 = require('../api/0.12.6/sidebar')
 const sidebar1319 = require('../api/0.13.19/sidebar')
+const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function(parent_path, dir) {
+const getChildren = function (parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -80,10 +79,9 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.14.19)', link: '/api/latest/' },
+          { text: 'Latest (0.15.6)', link: '/api/latest/' },
+          { text: '0.14.22', link: '/api/0.14.22/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
-          { text: '0.12.6', link: '/api/0.12.6/' },
-          { text: '0.11.5', link: '/api/0.11.5/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
         ]
       },
@@ -93,9 +91,8 @@ module.exports = {
       }
     ],
     sidebar: {
-      '/api/0.11.5/': sidebar115.sidebar,
-      '/api/0.12.6/': sidebar126.sidebar,
       '/api/0.13.19/': sidebar1319.sidebar,
+      '/api/0.14.22/': sidebar1422.sidebar,
       '/api/latest/': [
         {
           title: 'API Reference',
@@ -103,13 +100,14 @@ module.exports = {
         },
         'changelog',
         {
-          title: 'Test Coverage',
-          path: 'https://codecov.io/gh/PrefectHQ/prefect'
-        },
-        {
           title: 'prefect',
           collapsable: true,
           children: ['triggers']
+        },
+        {
+          title: 'prefect.backend',
+          collapsable: true,
+          children: getChildren('docs/api/latest', 'backend')
         },
         {
           title: 'prefect.client',
@@ -180,14 +178,17 @@ module.exports = {
       '/orchestration/': [
         '/orchestration/',
         {
-          title: 'Tutorial',
+          title: 'Getting Started',
           collapsable: true,
           children: [
-            'tutorial/overview',
-            'tutorial/first',
-            'tutorial/parameters',
-            'tutorial/flow_config',
-            'tutorial/next-steps'
+            'getting-started/quick-start',
+            'getting-started/install',
+            'getting-started/basic-core-flow.md',
+            'getting-started/set-up',
+            'getting-started/registering-and-running-a-flow',
+            'getting-started/next-steps',
+            'getting-started/flow-configs',
+            'getting-started/more-resources'
           ]
         },
         {
@@ -195,21 +196,19 @@ module.exports = {
           collapsable: true,
           children: [
             'concepts/api',
-            'concepts/cli',
-            'concepts/projects',
-            'concepts/flows',
-            'concepts/flow_runs',
-            'concepts/cloud_hooks',
-            'concepts/automations',
-            'concepts/secrets',
-            'concepts/services',
             'concepts/api_keys',
-            'concepts/roles',
-            'concepts/task-concurrency-limiting'
+            'concepts/cli',
+            'concepts/flows',
+            'concepts/projects',
+            'concepts/kv_store',
+            'concepts/secrets',
+            'concepts/automations',
+            'concepts/cloud_hooks',
+            'concepts/services'
           ]
         },
         {
-          title: 'Flow Run Configuration',
+          title: 'Flow Configuration',
           collapsable: true,
           children: [
             'flow_config/overview',
@@ -218,6 +217,19 @@ module.exports = {
             'flow_config/executors',
             'flow_config/docker',
             'flow_config/upgrade'
+          ]
+        },
+        {
+          title: 'Flow Runs',
+          collapsable: true,
+          children: [
+            'flow-runs/overview',
+            'flow-runs/creation',
+            'flow-runs/inspection',
+            'flow-runs/task-runs',
+            'flow-runs/scheduling',
+            'flow-runs/setting-states',
+            'flow-runs/concurrency-limits'
           ]
         },
         {
@@ -245,6 +257,13 @@ module.exports = {
           ]
         },
         {
+          title: 'RBAC',
+          collapsable: true,
+          children: [
+            'rbac/overview'
+          ]
+        },
+        {
           title: 'Server',
           collapsable: true,
           children: [
@@ -263,6 +282,13 @@ module.exports = {
             'recipes/multi_flow_storage',
             'recipes/k8s_dask',
             'recipes/k8s_docker_sidecar'
+          ]
+        },
+        {
+          title: 'Integrations',
+          collapsable: true,
+          children: [
+            'integrations/pagerduty'
           ]
         },
         {
@@ -288,18 +314,27 @@ module.exports = {
       '/core/': [
         '/core/',
         {
-          title: 'Getting Started',
+          title: 'About Prefect',
           collapsable: true,
           children: [
-            'getting_started/installation',
-            'getting_started/first-steps',
-            'getting_started/next-steps',
-            'getting_started/why-prefect',
-            'getting_started/why-not-airflow'
+            'about_prefect/why-prefect',
+            'about_prefect/why-not-airflow',
+            'about_prefect/thinking-prefectly',
+            'about_prefect/next-steps'
           ]
         },
         {
-          title: 'Tutorial',
+          title: 'Getting Started',
+          collapsable: true,
+          children: [
+            'getting_started/quick-start',
+            'getting_started/install',
+            'getting_started/basic-core-flow',
+            'getting_started/more-resources'
+          ]
+        },
+        {
+          title: ' ETL Tutorial',
           collapsable: true,
           children: getChildren('docs/core', 'tutorial')
         },

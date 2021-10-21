@@ -2,7 +2,7 @@ import time
 from typing import Optional
 
 from prefect import context, Client
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 
 
 def _running_with_backend() -> bool:

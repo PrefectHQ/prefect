@@ -25,7 +25,7 @@ with Flow("Hello", schedule) as flow:
 flow.run()
 ```
 
-You can see a cron schedule in [this example](https://docs.prefect.io/core/examples/daily_github_stats_to_airtable.html).
+You can see a cron schedule in [this example](https://github.com/PrefectHQ/prefect/blob/d61fa6aac9330c5817cc8e8b8f8cca2d634ea7e1/examples/old/daily_github_stats_to_airtable.py).
 
 ## Complex Schedules
 

@@ -5,6 +5,7 @@ import re
 import sys
 import textwrap
 from functools import partial, wraps
+from unittest.mock import MagicMock
 
 import pytest
 from toolz import curry
@@ -375,6 +376,8 @@ def test_consistency_of_function_docs(fn):
     "obj", [obj for page in OUTLINE for obj, _ in page.get("classes", [])]
 )
 def test_consistency_of_class_docs(obj):
+    if isinstance(obj, MagicMock):
+        pytest.skip("Mocked classes from optional requirements cannot be checked")
     consistency_check(obj, f"{obj.__module__}.{obj.__name__}")
 
 

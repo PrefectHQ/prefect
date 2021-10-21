@@ -1,5 +1,4 @@
-import os
-
+import sys
 import pytest
 import yaml
 
@@ -49,10 +48,9 @@ def test_local_job_template_path(tmpdir, scheme):
     if scheme is None:
         job_template_path = path
     else:
-        # With a scheme, unix-style slashes are required
-        job_template_path = f"{scheme}://" + os.path.splitdrive(path)[1].replace(
-            "\\", "/"
-        )
+        if sys.platform == "win32":
+            pytest.skip("Schemes are not supported on win32")
+        job_template_path = f"{scheme}://" + path
 
     with open(path, "w") as f:
         yaml.safe_dump(job_template, f)

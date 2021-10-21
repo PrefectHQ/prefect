@@ -1,4 +1,3 @@
-import warnings
 from typing import Any
 
 import prefect
@@ -60,13 +59,3 @@ class RenameFlowRun(Task):
 
         client = Client()
         return client.set_flow_run_name(flow_run_id, flow_run_name)
-
-
-class RenameFlowRunTask(RenameFlowRun):
-    def __new__(cls, *args, **kwargs):  # type: ignore
-        warnings.warn(
-            "`RenameFlowRunTask` has been renamed to `prefect.tasks.prefect.RenameFlowRun`,"
-            "please update your code accordingly",
-            stacklevel=2,
-        )
-        return super().__new__(cls)

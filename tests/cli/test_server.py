@@ -230,13 +230,15 @@ class TestSetupComposeFile:
     @pytest.mark.parametrize(
         "service", ["postgres", "hasura", "graphql", "ui", "server"]
     )
-    def test_disable_port_mapping(self, service):
-        compose_file = setup_compose_file(**{f"no_{service}_port": True})
+    def test_disable_port_mapping(self, service, tmpdir):
+        compose_file = setup_compose_file(
+            **{f"no_{service}_port": True}, temp_dir=str(tmpdir)
+        )
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
@@ -250,15 +252,13 @@ class TestSetupComposeFile:
         default_compose_yml["services"][service].pop("ports")
         assert compose_yml == default_compose_yml
 
-    def test_disable_ui_service(
-        self,
-    ):
-        compose_file = setup_compose_file(no_ui=True)
+    def test_disable_ui_service(self, tmpdir):
+        compose_file = setup_compose_file(no_ui=True, temp_dir=str(tmpdir))
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
@@ -269,13 +269,13 @@ class TestSetupComposeFile:
         default_compose_yml["services"].pop("ui")
         assert compose_yml == default_compose_yml
 
-    def test_external_postgres(self):
-        compose_file = setup_compose_file(external_postgres=True)
+    def test_external_postgres(self, tmpdir):
+        compose_file = setup_compose_file(external_postgres=True, temp_dir=str(tmpdir))
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
@@ -289,15 +289,13 @@ class TestSetupComposeFile:
         default_compose_yml["services"]["hasura"]["depends_on"].remove("postgres")
         assert compose_yml == default_compose_yml
 
-    def test_disable_postgres_volumes(
-        self,
-    ):
-        compose_file = setup_compose_file(use_volume=False)
+    def test_disable_postgres_volumes(self, tmpdir):
+        compose_file = setup_compose_file(use_volume=False, temp_dir=str(tmpdir))
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 

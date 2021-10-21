@@ -29,7 +29,7 @@ export PREFECT__CONTEXT__SECRETS__MY_SECRET=api_key
 Local Prefect Secrets can be retrieved directly through the Client Secrets API. This should **only** be used inside tasks and never passed between tasks. For passing Secrets between tasks you should use a [Secret task](/api/latest/tasks/secrets.html) as described below.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.client.secrets import Secret
@@ -44,7 +44,7 @@ with Flow("secret-retrieval") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 from prefect.client.secrets import Secret
@@ -65,7 +65,7 @@ flow.add_task(AccessSecret())
 Prefect also has [Secret tasks](/api/latest/tasks/secrets.html) for passing secrets around between tasks. A Secret task is a special kind of task that has no result ever persisted. This means that you can securely provide secrets to the inputs of your tasks.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.tasks.secrets import PrefectSecret
@@ -81,7 +81,7 @@ with Flow("secret-retrieval") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 from prefect.tasks.secrets import PrefectSecret

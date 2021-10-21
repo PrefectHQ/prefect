@@ -1,0 +1,55 @@
+---
+sidebarDepth: 2
+editLink: false
+---
+# Redis Tasks
+---
+This module contains a collection of tasks for interacting with Redis via
+the redis-py library.
+ ## RedisSet
+ <div class='class-sig' id='prefect-tasks-redis-redis-tasks-redisset'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.redis.redis_tasks.RedisSet</p>(host=&quot;localhost&quot;, port=6379, db=0, password_secret=&quot;REDIS_PASSWORD&quot;, redis_key=None, redis_val=None, redis_connection_params=None, ex=None, px=None, nx=False, xx=False, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/redis/redis_tasks.py#L8">[source]</a></span></div>
+
+Task for setting a Redis key-value pair.
+
+**Args**:     <ul class="args"><li class="args">`host (str, optional)`: name of Redis host, defaults to 'localhost'     </li><li class="args">`port (int, optional)`: Redis port, defaults to 6379     </li><li class="args">`db (int, optional)`: redis database index, defaults to 0     </li><li class="args">`password_secret (str, optional)`: the name of the Prefect Secret         that stores your Redis credentials     </li><li class="args">`redis_key (str, optional)`: Redis key to be set, can be provided at         initialization or runtime     </li><li class="args">`redis_val (Redis native type, optional)`: Redis val to be set, can be         provided at initialization or runtime, Redis native types include         strings, dictionaries, lists, sets, and sorted sets     </li><li class="args">`redis_connection_params (dict, optional)`: key-value pairs passed to         the redis.Redis connection initializer     </li><li class="args">`ex (int, optional)`: if provided, sets an expire flag, in seconds, on         'redis_key' set     </li><li class="args">`px (int, optional)`: if provided, sets an expire flag, in         milliseconds, on 'redis_key' set     </li><li class="args">`nx (int, optional)`: if set to True, set the value at 'redis_key' to         'redis_val' only if it does not exist, defaults to False     </li><li class="args">`xx (int, optional)`: if set to True, set the value at 'redis_key' to         'redis_val' only if it already exists, defaults to False     </li><li class="args">`**kwargs (dict, optional)`: additional keyword arguments to pass to the         Task constructor</li></ul>
+
+|methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-tasks-redis-redis-tasks-redisset-run'><p class="prefect-class">prefect.tasks.redis.redis_tasks.RedisSet.run</p>(redis_key=None, redis_val=None, ex=None, px=None, nx=False, xx=False)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/redis/redis_tasks.py#L66">[source]</a></span></div>
+<p class="methods">Task run method. Sets Redis key-value pair.<br><br>**Args**:     <ul class="args"><li class="args">`redis_key (str, optional)`: Redis key to be set, can be provided         at initialization or runtime     </li><li class="args">`redis_val (Redis native type, optional)`: Redis val to be set, can         be provided at initialization or runtime, Redis native types         include strings, dictionaries, lists, sets, and sorted sets     </li><li class="args">`ex (int, optional)`: if provided, sets an expire flag, in seconds,         on 'redis_key' set     </li><li class="args">`px (int, optional)`: if provided, sets an expire flag, in         milliseconds, on 'redis_key' set     </li><li class="args">`nx (int, optional)`: if set to True, set the value at 'redis_key'         to 'redis_val' only if it does not exist, defaults to False     </li><li class="args">`xx (int, optional)`: if set to True, set the value at 'redis_key'         to 'redis_val' only if it already exists, defaults to False</li></ul> **Returns**:     <ul class="args"><li class="args">`bool`: status of set operation</li></ul> **Raises**:     <ul class="args"><li class="args">`ValueError`: if redis_key or redis_val is not provided</li></ul></p>|
+
+---
+<br>
+
+ ## RedisGet
+ <div class='class-sig' id='prefect-tasks-redis-redis-tasks-redisget'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.redis.redis_tasks.RedisGet</p>(host=&quot;localhost&quot;, port=6379, db=0, password_secret=&quot;REDIS_PASSWORD&quot;, redis_connection_params=None, redis_key=None, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/redis/redis_tasks.py#L120">[source]</a></span></div>
+
+Task for getting a value based on key from a Redis connection.
+
+**Args**:     <ul class="args"><li class="args">`host (str, optional)`: name of Redis host, defaults to 'localhost'     </li><li class="args">`port (int, optional)`: Redis port, defaults to 6379     </li><li class="args">`db (int, optional)`: redis database index, defaults to 0     </li><li class="args">`password_secret (str, optional)`: the name of the Prefect Secret         that stores your Redis password     </li><li class="args">`redis_connection_params (dict, optional)`: key-value pairs passed to         the redis.Redis connection initializer     </li><li class="args">`redis_key (str, optional)`: Redis key to get value, can be provided at         initialization or runtime     </li><li class="args">`**kwargs (dict, optional)`: additional keyword arguments to pass to the         Task constructor</li></ul>
+
+|methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-tasks-redis-redis-tasks-redisget-run'><p class="prefect-class">prefect.tasks.redis.redis_tasks.RedisGet.run</p>(redis_key=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/redis/redis_tasks.py#L157">[source]</a></span></div>
+<p class="methods">Task run method.<br><br>**Args**:     <ul class="args"><li class="args">`redis_key (str, optional)`: Redis key to get value, can be         provided at initialization or runtime</li></ul> **Returns**:     <ul class="args"><li class="args">`value`: value associated with redis_key</li></ul> **Raises**:     <ul class="args"><li class="args">`ValueError`: if redis_key is not provided</li></ul></p>|
+
+---
+<br>
+
+ ## RedisExecute
+ <div class='class-sig' id='prefect-tasks-redis-redis-tasks-redisexecute'><p class="prefect-sig">class </p><p class="prefect-class">prefect.tasks.redis.redis_tasks.RedisExecute</p>(host=&quot;localhost&quot;, port=6379, db=0, password_secret=&quot;REDIS_PASSWORD&quot;, redis_connection_params=None, redis_cmd=None, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/redis/redis_tasks.py#L190">[source]</a></span></div>
+
+Task for executing a command against a Redis connection
+
+**Args**:     <ul class="args"><li class="args">`host (str, optional)`: name of Redis host, defaults to 'localhost'     </li><li class="args">`port (int, optional)`: Redis port, defaults to 6379     </li><li class="args">`db (int, optional)`: redis database index, defaults to 0     </li><li class="args">`password_secret (str, optional)`: the name of the Prefect Secret         that stores your Redis credentials     </li><li class="args">`redis_connection_params (dict, optional)`: key-value pairs passed to         the redis.Redis connection initializer     </li><li class="args">`redis_cmd (str, optional)`: Redis command to execute, must be provided         at initialization or runtime     </li><li class="args">`**kwargs (dict, optional)`: additional keyword arguments to pass to the         Task constructor</li></ul>
+
+|methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-tasks-redis-redis-tasks-redisexecute-run'><p class="prefect-class">prefect.tasks.redis.redis_tasks.RedisExecute.run</p>(redis_cmd=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/tasks/redis/redis_tasks.py#L227">[source]</a></span></div>
+<p class="methods">Task run method. Executes a command against a Redis connection.<br><br>**Args**:     <ul class="args"><li class="args">`redis_cmd (str, optional)`: Redis command to execute, must be         provided at initialization or runtime</li></ul> **Returns**:     <ul class="args"><li class="args">`result`: result of executed Redis command</li></ul></p>|
+
+---
+<br>
+
+
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on July 1, 2021 at 18:35 UTC</p>

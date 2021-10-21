@@ -12,16 +12,12 @@ The most likely culprit when a flow is stuck in a Scheduled state is agent misco
 Here are some tips for debugging your agent:
 
 1. Verify that your agent is running on your desired platform
-2. If using Prefect Cloud as your API, confirm that the API token given to the agent is scoped to the same tenant as your flow
+2. If using Prefect Cloud as your backend API, confirm that the API key given to the agent is set to the same tenant as the flow
 
+```bash
+$ PREFECT__CLOUD__API_KEY="YOUR-KEY" prefect get flows
+# If you do not see your flow then there is a tenant mismatch
 ```
-
-
-$ export PREFECT__CLOUD__AUTH_TOKEN=YOUR_TOKEN
-$ prefect get flows
-# if you do not see your flow then there is a tenant mismatch
-```
-
 3. Open an issue on [GitHub](https://github.com/PrefectHQ/prefect/issues/new/choose)!
 
 ## My flow is stuck in a `Submitted` state!
