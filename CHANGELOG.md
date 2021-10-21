@@ -6,19 +6,20 @@ Released on October 21, 2021.
 
 ### Enhancements
 
-- Add data parameter to SQLiteQuery task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)
-- Add flatten support to apply_map [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
-- Add dask performance report to DaskExecutor - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)
-- Changes git storage `repo` parameter to optional if specifying `git_clone_url_secret_name` [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
-- Adds `task_run_name` to `prefect.context` [#5055](https://github.com/PrefectHQ/prefect/pull/5055)
-- Adds "INSECURE" option to `smtp_type` parameter in `EmailTask` to send using non-secure internal SMTP server
+- Add flatten support to `apply_map` [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
+- Add dask performance report to `DaskExecutor` - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)
+- Update git storage `repo` parameter to be optional if specifying `git_clone_url_secret_name` [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
+- Add `task_run_name` to `prefect.context` - [#5055](https://github.com/PrefectHQ/prefect/pull/5055)
 
 ### Fixes
 
-- Prevent Databricks run_id to be modified outside of run() method [#4958](https://github.com/PrefectHQ/prefect/issues/4958)
-- Typos in the documentation [#5019](https://github.com/PrefectHQ/prefect/pull/5019)
-- Adding Server documentation about --expose flag [#5022](https://github.com/PrefectHQ/prefect/pull/5022)
-- Uses the flow-run-id to try and alleviate AWS CLI rate limit issues when using the ECS agent. [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
+- Reduce rate limit related failures with the ECS agent [#5059](https://github.com/PrefectHQ/prefect/pull/5059)
+
+### Task Library
+
+- Add `data` parameter to `SQLiteQuery` task - [#4981](https://github.com/PrefectHQ/prefect/pull/4981)
+- Allow `EmailTask` to use insecure internal SMTP servers with `smtp_type="INSECURE"` - [#5012](https://github.com/PrefectHQ/prefect/pull/5012)
+- Fix Databricks `run_id` mutation during task runs - [#4958](https://github.com/PrefectHQ/prefect/issues/4958)
 
 ### Contributors
 
