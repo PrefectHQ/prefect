@@ -25,7 +25,7 @@ class TestAirbyteIntegration:
         """
         task = AirbyteConnectionTask(connection_id=self.CONNECTION_ID)
         response = task.run()
-        print(response)
+        # print(response)
         assert response["connection_id"] == self.CONNECTION_ID
         assert response["status"] == "active"
         assert response["job_status"] == "succeeded"

@@ -2,9 +2,7 @@ import re
 from time import sleep
 
 import requests
-import pendulum
 from requests import RequestException
-from urllib3.exceptions import MaxRetryError, NewConnectionError
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -54,23 +52,12 @@ class AirbyteConnectionTask(Task):
         self.connection_id = connection_id
         super().__init__(**kwargs)
 
-    def parse_timestamp(self, api_time: str):
-        """Returns either the pendulum-parsed actual timestamp or
-        a very out-of-date timestamp if not set
-        """
-        return (
-            pendulum.parse(api_time)
-            if api_time is not None
-            else pendulum.from_timestamp(-1)
-        )
-
     def check_health_status(self, session, airbyte_base_url):
         get_connection_url = airbyte_base_url + "/health/"
         try:
             response = session.get(get_connection_url)
             self.logger.info(response.json())
             health_status = response.json()["db"]
-            self.logger.info(f"Airbyte Server health status: {health_status}")
             if not health_status:
                 raise AirbyteServerNotHealthyException(f"Airbyte Server health status: {health_status}")
         except RequestException as e:
@@ -85,7 +72,6 @@ class AirbyteConnectionTask(Task):
             response = session.post(get_connection_url, json={"connectionId": connection_id})
             self.logger.info(response.json())
             connection_status = response.json()["status"]
-            self.logger.info(f"Connection {connection_id}: status {connection_status}")
             return connection_status
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
@@ -112,7 +98,6 @@ class AirbyteConnectionTask(Task):
                 self.logger.info(response.json())
                 job_id = response.json()["job"]["id"]
                 job_created_at = response.json()["job"]["createdAt"]
-                self.logger.info(f"Connection {connection_id}: job_id {job_id}, job_created_at {job_created_at}")
                 return job_id, job_created_at
             elif response.status_code == 404:
                 # connection_id not found
@@ -133,7 +118,6 @@ class AirbyteConnectionTask(Task):
                 job_status = response.json()["job"]["status"]
                 job_created_at = response.json()["job"]["createdAt"]
                 job_updated_at = response.json()["job"]["updatedAt"]
-                self.logger.info(f"Job {job_id}: status {job_status}, job_created_at {job_created_at}, job_updated_at {job_updated_at}")
                 return job_status, job_created_at, job_updated_at
             elif response.status_code == 404:
                 self.logger.error(f"Job {job_id} not found...")
