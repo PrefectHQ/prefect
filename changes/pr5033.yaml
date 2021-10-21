@@ -1,0 +1,2 @@
+enhancement:
+  - 'Changes git storage `repo` parameter to optional if specifying `git_clone_url_secret_name` [#5033](https://github.com/PrefectHQ/prefect/pull/5033)'

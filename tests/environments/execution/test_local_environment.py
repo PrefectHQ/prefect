@@ -13,8 +13,8 @@ class DummyStorage(Local):
         self.flows[flow.name] = flow
         return flow.name
 
-    def get_flow(self, location):
-        return self.flows[location]
+    def get_flow(self, flow_name):
+        return self.flows[flow_name]
 
 
 def test_create_environment():
@@ -93,31 +93,6 @@ def test_environment_execute():
 
     assert global_dict.get("run") is True
     assert executor.submit_called
-
-
-def test_environment_execute_with_env_runner():
-    class TestStorage(DummyStorage):
-        def get_flow(self, *args, **kwargs):
-            raise NotImplementedError()
-
-        def get_env_runner(self, flow_loc):
-            runner = super().get_flow(flow_loc)
-            return lambda env: runner.run()
-
-    global_dict = {}
-
-    @prefect.task
-    def add_to_dict():
-        global_dict["run"] = True
-
-    environment = LocalEnvironment()
-    storage = TestStorage()
-    flow = prefect.Flow("test", tasks=[add_to_dict])
-    storage.add_flow(flow)
-    flow.storage = storage
-
-    environment.execute(flow)
-    assert global_dict.get("run") is True
 
 
 def test_environment_execute_calls_callbacks():

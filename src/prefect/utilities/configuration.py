@@ -15,6 +15,8 @@ def set_temporary_config(temp_config: dict) -> Iterator:
     """
     Temporarily sets configuration values for the duration of the context manager.
 
+    This is only intended to be used for testing.
+
     Args:
         - temp_config (dict): a dictionary containing (possibly nested) configuration keys and
             values. Nested configuration keys should be supplied as `.`-delimited strings.

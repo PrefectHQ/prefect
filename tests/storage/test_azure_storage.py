@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import Flow
+from prefect import Flow, context
 from prefect.storage import Azure
 
 pytest.importorskip("azure.storage.blob")
@@ -17,14 +17,14 @@ def test_create_azure_storage():
 def test_create_azure_storage_init_args():
     storage = Azure(
         container="test",
-        connection_string="conn",
+        connection_string_secret="conn",
         blob_name="name",
         secrets=["foo"],
     )
     assert storage
     assert storage.flows == dict()
     assert storage.container == "test"
-    assert storage.connection_string == "conn"
+    assert storage.connection_string_secret == "conn"
     assert storage.blob_name == "name"
     assert storage.secrets == ["foo"]
 
@@ -36,16 +36,39 @@ def test_serialize_azure_storage():
     assert serialized_storage["type"] == "Azure"
 
 
-def test_blob_service_client_property(monkeypatch):
+@pytest.mark.parametrize(
+    "secret_name,secret_arg",
+    [
+        ("SECRET_NAME", "conn_string_value_one"),
+        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
+    ],
+)
+def test_blob_service_client_property(monkeypatch, secret_name, secret_arg):
     connection = MagicMock()
     azure = MagicMock(from_connection_string=connection)
     monkeypatch.setattr("azure.storage.blob.BlobServiceClient", azure)
 
-    storage = Azure(container="test", connection_string="conn")
+    with context(secrets={secret_name: secret_arg}):
+        storage = Azure(container="test", connection_string_secret=secret_name)
+        client = storage._azure_block_blob_service()
+        azure_client = storage._azure_block_blob_service
+        assert storage.connection_string == secret_arg
 
-    azure_client = storage._azure_block_blob_service
     assert azure_client
-    connection.assert_called_with(conn_str="conn")
+    connection.assert_called_with(conn_str=secret_arg)
+
+
+@pytest.mark.parametrize(
+    "secret_name,secret_arg",
+    [
+        ("SECRET_NAME", "conn_string_value_one"),
+        ("AZURE_STORAGE_CONNECTION_STRING", "conn_string_value_two"),
+    ],
+)
+def test_connection_string_property(secret_name, secret_arg):
+    with context(secrets={secret_name: secret_arg}):
+        storage = Azure(container="test", connection_string_secret=secret_name)
+        assert storage.connection_string == secret_arg
 
 
 def test_add_flow_to_azure():
@@ -166,13 +189,10 @@ def test_get_flow_azure(monkeypatch):
 
     storage = Azure(container="container")
 
-    with pytest.raises(ValueError):
-        storage.get_flow()
-
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    assert storage.get_flow(flow_location)
+    assert storage.get_flow(f.name)
     assert client.download_blob.called
     assert f.name in storage
 
@@ -191,7 +211,7 @@ def test_get_flow_azure_bucket_key(monkeypatch):
     assert f.name not in storage
     flow_location = storage.add_flow(f)
 
-    assert storage.get_flow(flow_location)
+    assert storage.get_flow(f.name)
     assert service.get_blob_client.call_args[1]["container"] == "container"
     assert service.get_blob_client.call_args[1]["blob"] == flow_location
 
@@ -208,9 +228,9 @@ def test_get_flow_azure_runs(monkeypatch):
     storage = Azure(container="container")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
     assert client.download_blob.called
     assert f.name in storage
 
@@ -229,19 +249,19 @@ def test_get_flow_from_file_azure_runs(monkeypatch):
 
     f = Flow("test")
 
+    extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
-        "prefect.storage.azure.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.azure.extract_flow_from_file", extract_flow_from_file
     )
 
     storage = Azure(container="container", stored_as_script=True)
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
     assert client.download_blob.called
-    assert f.name in storage
+    assert extract_flow_from_file.call_args[1]["flow_name"] == f.name
 
     assert isinstance(new_flow, Flow)
     assert new_flow.name == "test"

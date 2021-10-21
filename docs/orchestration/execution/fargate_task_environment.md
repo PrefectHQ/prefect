@@ -2,8 +2,9 @@
 
 ::: warning
 Flows configured with environments are being deprecated - we recommend users
-transition to using "Run Configs" instead. See
-[the documentation](/orchestration/flow_config/overview.md) for more information.
+transition to using "Run Configs" instead. See [flow
+configuration](/orchestration/flow_config/overview.md) and [upgrading
+tips](/orchestration/flow_config/upgrade.md) for more information.
 :::
 
 [[toc]]
@@ -112,7 +113,7 @@ PREFECT__CLOUD__GRAPHQL
 PREFECT__CLOUD__USE_LOCAL_SECRETS
 PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS
 PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS
-PREFECT__LOGGING__LOG_TO_CLOUD
+PREFECT__CLOUD__SEND_FLOW_RUN_LOGS
 PREFECT__LOGGING__EXTRA_LOGGERS
 ```
 
@@ -121,7 +122,7 @@ All other aspects of your `containerDefinitions` will remain untouched. In some 
 During the execute step of your Environment the following container overrides will be set for boto3's `run_task`:
 
 ```
-PREFECT__CLOUD__AUTH_TOKEN
+PREFECT__CLOUD__API_KEY
 PREFECT__CONTEXT__FLOW_RUN_ID
 PREFECT__CONTEXT__IMAGE
 PREFECT__CONTEXT__FLOW_FILE_PATH

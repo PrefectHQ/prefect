@@ -85,6 +85,15 @@ class TestMagicInteractionMethods:
         assert isinstance(y.result, LocalResult)
         assert y.result.dir.endswith("home")
 
+    def test_getitem_name(self):
+        with Flow(name="test") as f:
+            x = Parameter("x")[0]
+            assert x.name == "x[0]"
+            y = Parameter("y")["a"]
+            assert y.name == "y['a']"
+            z = Parameter("z")[Parameter("a")]
+            assert z.name == "z[a]"
+
     # -----------------------------------------
     # or / pipe / |
 

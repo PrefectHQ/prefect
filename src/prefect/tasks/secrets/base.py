@@ -1,5 +1,3 @@
-import warnings
-
 from prefect.client.secrets import Secret as _Secret
 from prefect.core.task import Task
 from prefect.engine.results import SecretResult
@@ -66,13 +64,3 @@ class PrefectSecret(SecretBase):
         if name is None:
             raise ValueError("A secret name must be provided.")
         return _Secret(name).get()
-
-
-class Secret(PrefectSecret):
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "The `Secret` task is deprecated and has been renamed `PrefectSecret`.",
-            UserWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

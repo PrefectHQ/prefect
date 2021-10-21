@@ -1,14 +1,17 @@
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
 import prefect
 from prefect.engine.results import GCSResult
 from prefect.storage import Storage
-from prefect.utilities.exceptions import StorageError
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.exceptions import FlowStorageError
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_from_bytes_pickle,
+    flow_to_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -25,9 +28,6 @@ class GCS(Storage):
     This storage class optionally takes a `key` which will be the name of the Flow object
     when stored in GCS. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
-
-    **Note**: Flows registered with this Storage option will automatically be
-     labeled with `gcs-flow-storage`.
 
     Args:
         - bucket (str, optional): the name of the GCS Bucket to store the Flow
@@ -53,9 +53,6 @@ class GCS(Storage):
         local_script_path: str = None,
         **kwargs: Any
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
-
         self.bucket = bucket
         self.key = key
         self.project = project
@@ -66,27 +63,19 @@ class GCS(Storage):
         result = GCSResult(bucket=bucket)
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
-    def get_flow(self, flow_location: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to. Will use `key` if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.key:
-            flow_location = self.key
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
 
         bucket = self._gcs_client.get_bucket(self.bucket)
 
@@ -94,17 +83,22 @@ class GCS(Storage):
 
         blob = bucket.get_blob(flow_location)
         if not blob:
-            raise StorageError(
+            raise FlowStorageError(
                 "Flow not found in bucket: flow={} bucket={}".format(
                     flow_location, self.bucket
                 )
             )
-        content = blob.download_as_string()
+        # Support GCS < 1.31
+        content = (
+            blob.download_as_bytes()
+            if hasattr(blob, "download_as_bytes")
+            else blob.download_as_string()
+        )
 
         if self.stored_as_script:
-            return extract_flow_from_file(file_contents=content)
+            return extract_flow_from_file(file_contents=content, flow_name=flow_name)
 
-        return cloudpickle.loads(content)
+        return flow_from_bytes_pickle(content)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -135,14 +129,6 @@ class GCS(Storage):
         self.flows[flow.name] = key
         self._flows[flow.name] = flow
         return key
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
 
     def build(self) -> "Storage":
         """
@@ -178,7 +164,7 @@ class GCS(Storage):
             return self
 
         for flow_name, flow in self._flows.items():
-            content = cloudpickle.dumps(flow)
+            content = flow_to_bytes_pickle(flow)
 
             bucket = self._gcs_client.get_bucket(self.bucket)
 

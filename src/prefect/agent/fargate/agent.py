@@ -114,7 +114,7 @@ class FargateAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         launch_type: str = "FARGATE",
         aws_access_key_id: str = None,
         aws_secret_access_key: str = None,
@@ -465,8 +465,6 @@ class FargateAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         # create copies of kwargs to apply overrides as needed
         flow_task_definition_kwargs = copy.deepcopy(self.task_definition_kwargs)
         flow_task_run_kwargs = copy.deepcopy(self.task_run_kwargs)
@@ -612,6 +610,10 @@ class FargateAgent(Agent):
                 "command": ["/bin/sh", "-c", flow_run_command],
                 "environment": [
                     {
+                        "name": "PREFECT__BACKEND",
+                        "value": config.backend,
+                    },
+                    {
                         "name": "PREFECT__CLOUD__API",
                         "value": config.cloud.api or "https://api.prefect.io",
                     },
@@ -621,7 +623,7 @@ class FargateAgent(Agent):
                     },
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {
-                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                        "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
                         "value": str(self.log_to_cloud).lower(),
                     },
                     {"name": "PREFECT__LOGGING__LEVEL", "value": config.logging.level},
@@ -632,6 +634,10 @@ class FargateAgent(Agent):
                     {
                         "name": "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS",
                         "value": "prefect.engine.cloud.CloudTaskRunner",
+                    },
+                    {
+                        "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
+                        "value": str(self.log_to_cloud).lower(),
                     },
                 ],
                 "essential": True,

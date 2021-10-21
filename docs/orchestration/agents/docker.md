@@ -12,7 +12,7 @@ The Docker agent requires a valid [Prefect
 installation](/core/getting_started/installation.md), as well as an active and
 accessible [Docker Daemon](https://docs.docker.com/get-docker/). Before
 starting the Docker agent, you should check that you have Docker installed and
-running.
+running. The minimum supported Docker engine version is v20.10.0.
 
 ## Flow Configuration
 
@@ -44,9 +44,9 @@ The Docker agent can be started from the Prefect CLI as
 prefect agent docker start
 ```
 
-::: tip Tokens <Badge text="Cloud"/>
-When using Prefect Cloud, this will require a `RUNNER` API token, see
-[here](./overview.md#tokens) for more information.
+::: tip API Keys <Badge text="Cloud"/>
+When using Prefect Cloud, this will require a service account API key, see
+[here](./overview.md#api_keys) for more information.
 :::
 
 Below we cover a few common configuration options, see the [CLI

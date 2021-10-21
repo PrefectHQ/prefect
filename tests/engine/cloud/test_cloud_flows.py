@@ -7,11 +7,15 @@ import pendulum
 import pytest
 
 import prefect
-from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
+from prefect.client.client import (
+    Client,
+    FlowRunInfoResult,
+    ProjectInfo,
+    TaskRunInfoResult,
+)
 from prefect.engine.cloud import CloudFlowRunner, CloudTaskRunner
-from prefect.executors import LocalExecutor
-from prefect.engine.result_handlers import JSONResultHandler, ResultHandler
-from prefect.engine.results import LocalResult
+from prefect.engine.result import Result
+from prefect.engine.results import LocalResult, PrefectResult
 from prefect.engine.state import (
     Failed,
     Finished,
@@ -24,6 +28,7 @@ from prefect.engine.state import (
     TimedOut,
     TriggerFailed,
 )
+from prefect.executors import LocalExecutor
 from prefect.utilities.configuration import set_temporary_config
 
 pytestmark = pytest.mark.filterwarnings("ignore::UserWarning")
@@ -143,6 +148,7 @@ class MockedCloudClient(MagicMock):
             id=flow_run.id,
             flow_id=flow_run.flow_id,
             name=flow_run.name,
+            project=ProjectInfo(id="my-project-id", name="my-project-name"),
             parameters={},
             context=None,
             version=flow_run.version,
@@ -165,6 +171,9 @@ class MockedCloudClient(MagicMock):
         Return task run if found, otherwise create it
         """
         self.call_count["get_task_run_info"] += 1
+
+        if map_index is None:
+            map_index = -1
 
         task_run = next(
             (
@@ -256,7 +265,7 @@ class QueueingMockCloudClient(MockedCloudClient):
 
 
 @pytest.mark.parametrize("executor", ["local", "sync"], indirect=True)
-def test_simple_two_task_flow2(monkeypatch, executor):
+def test_simple_two_task_flow_2(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
     task_run_id_2 = str(uuid.uuid4())
@@ -270,10 +279,14 @@ def test_simple_two_task_flow2(monkeypatch, executor):
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
             TaskRun(
-                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id
+                id=task_run_id_1,
+                task_slug=flow.slugs[t1],
+                flow_run_id=flow_run_id,
             ),
             TaskRun(
-                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id
+                id=task_run_id_2,
+                task_slug=flow.slugs[t2],
+                flow_run_id=flow_run_id,
             ),
         ],
         monkeypatch=monkeypatch,
@@ -296,9 +309,7 @@ def test_scheduled_start_time_is_in_context(monkeypatch, executor):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
 
-    flow = prefect.Flow(
-        name="test", tasks=[whats_the_time], result_handler=ResultHandler()
-    )
+    flow = prefect.Flow(name="test", tasks=[whats_the_time], result=Result())
 
     client = MockedCloudClient(
         flow_runs=[FlowRun(id=flow_run_id)],
@@ -515,7 +526,7 @@ def test_simple_map(monkeypatch):
     flow_run_id = str(uuid.uuid4())
     task_run_id_1 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
+    with prefect.Flow(name="test", result=PrefectResult()) as flow:
         t1 = plus_one.map([0, 1, 2])
 
     client = MockedCloudClient(
@@ -556,7 +567,7 @@ def test_deep_map(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
+    with prefect.Flow(name="test", result=PrefectResult()) as flow:
         t1 = plus_one.map([0, 1, 2])
         t2 = plus_one.map(t1)
         t3 = plus_one.map(t2)
@@ -617,7 +628,7 @@ def test_deep_map_with_a_failure(monkeypatch, executor):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
+    with prefect.Flow(name="test", result=PrefectResult()) as flow:
         t1 = plus_one.map([-1, 0, 1])
         t2 = invert_fail_once.map(t1)
         t3 = plus_one.map(t2)
@@ -697,7 +708,7 @@ def test_deep_map_with_a_retry(monkeypatch):
     task_run_id_2 = str(uuid.uuid4())
     task_run_id_3 = str(uuid.uuid4())
 
-    with prefect.Flow(name="test", result_handler=JSONResultHandler()) as flow:
+    with prefect.Flow(name="test", result=PrefectResult()) as flow:
         t1 = plus_one.map([-1, 0, 1])
         t2 = invert_fail_once.map(t1)
         t3 = plus_one.map(t2)
@@ -1008,7 +1019,7 @@ def test_slug_mismatch_raises_informative_error(monkeypatch):
     ## assert informative message; can't use `match` because the real exception is one layer depeer than the ENDRUN
     assert "KeyError" in repr(state.result)
     assert "not found" in repr(state.result)
-    assert "changing the Flow" in repr(state.result)
+    assert "mismatch between the flow version" in repr(state.result)
 
 
 def test_can_queue_successfully_and_run(monkeypatch):

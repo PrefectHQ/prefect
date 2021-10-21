@@ -24,13 +24,16 @@ try:
         RunNamespacedJob,
     )
     from prefect.tasks.kubernetes.pod import (
+        ConnectGetNamespacedPodExec,
         CreateNamespacedPod,
         DeleteNamespacedPod,
         ListNamespacedPod,
         PatchNamespacedPod,
         ReadNamespacedPod,
         ReplaceNamespacedPod,
+        ReadNamespacedPodLogs,
     )
+    from prefect.tasks.kubernetes.secrets import KubernetesSecret
     from prefect.tasks.kubernetes.service import (
         CreateNamespacedService,
         DeleteNamespacedService,
@@ -39,7 +42,7 @@ try:
         ReadNamespacedService,
         ReplaceNamespacedService,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.kubernetes` requires Prefect to be installed with the "kubernetes" extra.'
-    )
+    ) from err

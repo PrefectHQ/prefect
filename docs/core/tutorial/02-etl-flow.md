@@ -145,7 +145,7 @@ At this point, the `Tasks` (our Python functions) are executed in the appropriat
 
 ::: tip Prefect Task Library
 
-Prefect provides a [Task Library](/core/task_library/) that includes common Task implementations and integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, and more!
+Prefect provides a [Task Library](/core/task_library/overview.html) that includes common Task implementations and integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, and more!
 
 :::
 

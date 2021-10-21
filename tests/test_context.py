@@ -120,11 +120,13 @@ def test_modify_context_by_calling_update_inside_contextmanager():
 
 def test_context_loads_values_from_config(monkeypatch):
     subsection = Config(password="1234")
-    config = Config(context=Config(subsection=subsection, my_key="my_value"))
+    config = Config(context=Config(subsection=subsection, key1="val1", key2="val2"))
     monkeypatch.setattr(prefect.utilities.context, "config", config)
-    fresh_context = Context()
+
+    fresh_context = Context(key2="new")
     assert "subsection" in fresh_context
-    assert fresh_context.my_key == "my_value"
+    assert fresh_context.key1 == "val1"
+    assert fresh_context.key2 == "new"  # overridden by constructor
     assert fresh_context.subsection == subsection
 
 
@@ -137,20 +139,41 @@ def test_context_loads_secrets_from_config(monkeypatch):
     assert fresh_context.secrets == secrets_dict
 
 
+def test_context_contextmanager_prioritizes_new_keys_even_on_context_exit(monkeypatch):
+    """Previously exiting a context block would reload from the config,
+    overwriting any explicitly set values in a nested context. This was due to
+    the `Context` constructor being implicitly called when stashing the old
+    context, and the constructor prioritizing `config.context` over explicit
+    values."""
+    config = Config(context=Config(my_key="fizz"))
+    monkeypatch.setattr(prefect.utilities.context, "config", config)
+
+    context = Context()
+    assert context.my_key == "fizz"
+
+    with context(my_key="buzz"):
+        assert context.my_key == "buzz"
+        with context({"config": {"cloud": {"send_flow_run_logs": "FOO"}}}):
+            assert context.config.cloud.send_flow_run_logs == "FOO"
+            assert context.my_key == "buzz"
+        assert context.my_key == "buzz"
+    assert context.my_key == "fizz"
+
+
 def test_context_contextmanager_prioritizes_new_config_keys():
-    with prefect.context({"config": {"logging": {"log_to_cloud": "FOO"}}}):
-        assert prefect.context.config.logging.log_to_cloud == "FOO"
+    with prefect.context({"config": {"cloud": {"send_flow_run_logs": "FOO"}}}):
+        assert prefect.context.config.cloud.send_flow_run_logs == "FOO"
 
 
 def test_context_init_prioritizes_new_config_keys():
-    ctx = Context(config=dict(logging=dict(log_to_cloud="FOO")))
-    assert ctx.config.logging.log_to_cloud == "FOO"
+    ctx = Context(config=dict(cloud=dict(send_flow_run_logs="FOO")))
+    assert ctx.config.cloud.send_flow_run_logs == "FOO"
 
 
 def test_context_init_prioritizes_new_config_keys_when_passed_a_dict():
-    old = dict(config=dict(logging=dict(log_to_cloud="FOO")))
+    old = dict(config=dict(cloud=dict(send_flow_run_logs="FOO")))
     ctx = Context(old)
-    assert ctx.config.logging.log_to_cloud == "FOO"
+    assert ctx.config.cloud.send_flow_run_logs == "FOO"
 
 
 def test_contexts_are_thread_safe():

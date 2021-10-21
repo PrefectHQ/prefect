@@ -16,15 +16,32 @@ In the details tile of the flow overview, you can add and remove flow group labe
 The flow schematic shows an interactive overview of all the tasks in the flow and their dependency structure.
 ![](/orchestration/ui/flow-schematic.png)
 
-## Versions
+## Read Me
 
-The "versions" page shows a history of all versions of this flow.
-![](/orchestration/ui/flow-versions.png)
+You can use markdown to add a Read Me description for your flow group in the flow Read Me tab.  When you update the Read Me in the UI, it updates the description for all versions of your flow.  
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-description.png">
+</div>
+
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-description-edit.png">
+</div>
 
 ## Run
 
-From this page, you can schedule a new run of your flow. You may provide parameter values, if appropriate, and give your run a name for easy queries or retrieval in the future.
-![](/orchestration/ui/flow-run.png)
+From this page, you can schedule a new run of your flow for now or some point in the future.
+
+You can also customize the new run of your flow, including:
+- Providing parameter values
+- Updating your run configuration
+- Specifying logging level
+- Customizing your run name for easy queries or retrieval in the future
+
+<div class="add-shadow">
+  <img src="/orchestration/ui/flow-run.png">
+</div>
 
 ## Settings
 

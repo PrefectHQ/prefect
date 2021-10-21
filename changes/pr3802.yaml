@@ -1,3 +1,0 @@
-breaking:
-  - "Remove deprecated `RemoteEnvironment`/`RemoteDaskEnvironment` - [#3802](https://github.com/PrefectHQ/prefect/pull/3802)"
-  - "Remove deprecated `executor_kwargs` argument to `KubernetesJobEnvironment`/`FargateTaskEnvironment` - [#3802](https://github.com/PrefectHQ/prefect/pull/3802)"

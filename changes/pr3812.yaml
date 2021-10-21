@@ -1,2 +1,0 @@
-deprecation:
-  - "Deprecate the Fargate Agent in favor of the ECS Agent - [#3812](https://github.com/PrefectHQ/prefect/pull/3812)"

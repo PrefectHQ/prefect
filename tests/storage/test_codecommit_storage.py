@@ -2,11 +2,17 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import context, Flow
-from prefect.storage import CodeCommit
-
 pytest.importorskip("boto3")
 pytest.importorskip("botocore")
+
+from prefect import context, Flow
+from prefect.storage import CodeCommit
+from prefect.utilities.aws import _CLIENT_CACHE
+
+
+@pytest.fixture(autouse=True)
+def clear_boto3_cache():
+    _CLIENT_CACHE.clear()
 
 
 def test_create_codecommit_storage():
@@ -77,6 +83,7 @@ def test_codecommit_client_property(monkeypatch):
         aws_access_key_id="id",
         aws_secret_access_key="secret",
         aws_session_token="session",
+        region_name=None,
         endpoint_url="http://some-endpoint",
         use_ssl=False,
     )
@@ -112,19 +119,17 @@ def test_get_flow_codecommit(monkeypatch):
 
     f = Flow("test")
 
+    extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
-        "prefect.storage.github.extract_flow_from_file",
-        MagicMock(return_value=f),
+        "prefect.storage.codecommit.extract_flow_from_file",
+        extract_flow_from_file,
     )
-
-    with pytest.raises(ValueError):
-        storage = CodeCommit(repo="test/repo")
-        storage.get_flow()
 
     storage = CodeCommit(repo="test/repo", path="flow", commit="master")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
+    assert extract_flow_from_file.call_args[1]["flow_name"] == f.name
     assert new_flow.run()

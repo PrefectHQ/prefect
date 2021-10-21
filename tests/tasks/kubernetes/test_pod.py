@@ -10,8 +10,11 @@ from prefect.tasks.kubernetes import (
     PatchNamespacedPod,
     ReadNamespacedPod,
     ReplaceNamespacedPod,
+    ReadNamespacedPodLogs,
 )
 from prefect.utilities.configuration import set_temporary_config
+
+from kubernetes.client.rest import ApiException
 
 
 @pytest.fixture
@@ -29,6 +32,17 @@ def api_client(monkeypatch):
         MagicMock(return_value=client),
     )
     return client
+
+
+@pytest.fixture
+def stream(monkeypatch):
+    stream = MagicMock(return_value=["msg"])
+    monkeypatch.setattr(
+        "kubernetes.watch.watch.Watch.stream",
+        stream,
+    )
+
+    return stream
 
 
 class TestCreateNamespacedPodTask:
@@ -404,3 +418,78 @@ class TestReplaceNamespacedPodTask:
 
         task.run(kube_kwargs={"test": "a"})
         assert api_client.replace_namespaced_pod.call_args[1]["test"] == "a"
+
+
+class TestReadNamespacedPodLogs:
+    def _on_log_entry(message):
+        pass
+
+    def test_empty_initialization(self, kube_secret):
+        task = ReadNamespacedPodLogs()
+        assert not task.pod_name
+        assert task.namespace == "default"
+        assert task.on_log_entry == None
+        assert task.kubernetes_api_key_secret == "KUBERNETES_API_KEY"
+
+    def test_filled_initialization(self, kube_secret):
+        task = ReadNamespacedPodLogs(
+            pod_name="test",
+            namespace="test",
+            on_log_entry=self._on_log_entry,
+            kubernetes_api_key_secret="test",
+        )
+        assert task.pod_name == "test"
+        assert task.namespace == "test"
+        assert task.on_log_entry == self._on_log_entry
+        assert task.kubernetes_api_key_secret == "test"
+
+    def test_empty_name_raises_error(self, kube_secret):
+        task = ReadNamespacedPodLogs()
+        with pytest.raises(ValueError):
+            task.run()
+
+    def test_log_is_read_once(self, kube_secret, api_client):
+        task = ReadNamespacedPodLogs(pod_name="test")
+
+        task.run()
+        assert api_client.read_namespaced_pod_log.call_count == 1
+        assert api_client.read_namespaced_pod_log.call_args[1]["name"] == "test"
+
+    def test_log_is_streamed(self, kube_secret, api_client, stream):
+        on_log_entry = MagicMock()
+        task = ReadNamespacedPodLogs(pod_name="test", on_log_entry=on_log_entry)
+
+        task.run()
+        assert stream.call_count == 1
+        assert stream.call_args[0][0] == api_client.read_namespaced_pod_log
+        assert stream.call_args[1]["name"] == "test"
+
+        assert on_log_entry.call_count == 1
+        assert on_log_entry.call_args[0][0] == "msg"
+
+    def test_log_stream_retry_on_410(self, kube_secret, api_client, stream):
+        stream.side_effect = [ApiException(status=410), ["msg 2"]]
+
+        on_log_entry = MagicMock()
+        task = ReadNamespacedPodLogs(pod_name="test", on_log_entry=on_log_entry)
+
+        task.run()
+        assert stream.call_count == 2
+        assert stream.call_args[0][0] == api_client.read_namespaced_pod_log
+        assert stream.call_args[1]["name"] == "test"
+
+        assert on_log_entry.call_count == 1
+        assert on_log_entry.call_args[0][0] == "msg 2"
+
+    def test_log_stream_raise_on_non_410(self, kube_secret, api_client, stream):
+        stream.side_effect = [ValueError, ["msg 2"]]
+
+        on_log_entry = MagicMock()
+        task = ReadNamespacedPodLogs(pod_name="test", on_log_entry=on_log_entry)
+
+        with pytest.raises(ValueError):
+            task.run()
+
+        assert stream.call_count == 1
+        assert stream.call_args[0][0] == api_client.read_namespaced_pod_log
+        assert stream.call_args[1]["name"] == "test"

@@ -8,7 +8,6 @@ import pytest
 import prefect
 from prefect.core import Edge, Flow, Parameter, Task
 from prefect.engine.cache_validators import all_inputs, duration_only, never_use
-from prefect.engine.result_handlers import JSONResultHandler
 from prefect.engine.results import PrefectResult, LocalResult
 from prefect.utilities.configuration import set_temporary_config
 from prefect.configuration import process_task_defaults
@@ -93,6 +92,21 @@ class TestCreateTask:
         ):
             Task(retry_delay=timedelta(seconds=30), max_retries=max_retries)
 
+    def test_create_task_with_max_retry_override_to_0(self):
+        with set_temporary_config(
+            {"tasks.defaults.max_retries": 3, "tasks.defaults.retry_delay": 3}
+        ) as config:
+            process_task_defaults(config)
+            t = Task(max_retries=0, retry_delay=None)
+            assert t.max_retries == 0
+            assert t.retry_delay is None
+
+            # max_retries set to 0 will not pull retry_delay from the config
+            process_task_defaults(config)
+            t = Task(max_retries=0)
+            assert t.max_retries == 0
+            assert t.retry_delay is None
+
     def test_create_task_with_timeout(self):
         t1 = Task()
         assert t1.timeout is None
@@ -108,6 +122,13 @@ class TestCreateTask:
             process_task_defaults(config)
             t4 = Task()
             assert t4.timeout == 3
+
+        t4 = Task(timeout=timedelta(seconds=2))
+        assert t4.timeout == 2
+
+        with pytest.warns(UserWarning):
+            t5 = Task(timeout=timedelta(seconds=3, milliseconds=1, microseconds=1))
+        assert t5.timeout == 3
 
     def test_create_task_with_trigger(self):
         t1 = Task()
@@ -248,7 +269,7 @@ class TestCreateTask:
 
     def test_task_signature_generation(self):
         class Test(Task):
-            def run(self, x: int, y: bool, z: int = 1):
+            def run(self, x: int, y: bool, z: int = 1, **kwargs):
                 pass
 
         t = Test()
@@ -278,16 +299,6 @@ class TestCreateTask:
     def test_bad_cache_kwarg_combo(self):
         with pytest.warns(UserWarning, match=".*Task will not be cached.*"):
             Task(cache_validator=all_inputs)
-
-    def test_create_task_with_result_handler_is_deprecated_and_converts_to_result(self):
-        t1 = Task()
-        assert not hasattr(t1, "result_handler")
-
-        with pytest.warns(UserWarning, match="deprecated"):
-            t2 = Task(result_handler=JSONResultHandler())
-
-        assert not hasattr(t2, "result_handler")
-        assert isinstance(t2.result, PrefectResult)
 
     def test_create_task_with_and_without_result(self):
         t1 = Task()
@@ -728,6 +739,15 @@ class TestTaskNout:
         assert res.result[a].result == 2
         assert res.result[b].result == 0
 
+    def test_nout_not_set_on_mapped_tasks(self):
+        @task(nout=2)
+        def test(a):
+            return a + 1, a - 1
+
+        with Flow("test"):
+            with pytest.raises(TypeError, match="Task is not iterable"):
+                a, b = test.map(range(10))
+
 
 @pytest.mark.skip("Result handlers not yet deprecated")
 def test_cache_options_show_deprecation():
@@ -754,7 +774,7 @@ def test_passing_task_to_task_constructor_raises_helpful_warning():
             self.b = b
             super().__init__(**kwargs)
 
-    with Flow("test") as flow:
+    with Flow("test"):
         a = Task()()
         with pytest.warns(
             UserWarning, match="A Task was passed as an argument to MyTask"
@@ -763,3 +783,45 @@ def test_passing_task_to_task_constructor_raises_helpful_warning():
         # Warning doesn't stop normal operation
         assert t.a == 1
         assert t.b == a
+
+
+def test_task_init_uses_reserved_attribute_raises_helpful_warning():
+    class MyTask(Task):
+        def __init__(self, **kwargs):
+            self.a = 1
+            self.target = "oh no!"
+            super().__init__(**kwargs)
+
+    with Flow("test"):
+        with pytest.warns(UserWarning, match="`MyTask` sets a `target` attribute"):
+            MyTask()
+
+
+@pytest.mark.parametrize("use_function_task", [True, False])
+def test_task_called_outside_flow_context_raises_helpful_error(use_function_task):
+
+    if use_function_task:
+
+        @prefect.task
+        def fn(x):
+            return x
+
+    else:
+
+        class Fn(Task):
+            def run(self, x):
+                return x
+
+        fn = Fn()
+
+    with pytest.raises(
+        ValueError,
+        match=f"Could not infer an active Flow context while creating edge to {fn}",
+    ) as exc_info:
+        fn(1)
+
+    run_call = "`fn.run(...)`" if use_function_task else "`Fn(...).run(...)`"
+    assert (
+        "If you're trying to run this task outside of a Flow context, "
+        f"you need to call {run_call}" in str(exc_info)
+    )

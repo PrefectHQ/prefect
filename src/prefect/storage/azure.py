@@ -1,13 +1,18 @@
 import os
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 
-import cloudpickle
 import pendulum
 from slugify import slugify
 
+import prefect
+from prefect.client import Secret
 from prefect.engine.results import AzureResult
 from prefect.storage import Storage
-from prefect.utilities.storage import extract_flow_from_file
+from prefect.utilities.storage import (
+    extract_flow_from_file,
+    flow_to_bytes_pickle,
+    flow_from_bytes_pickle,
+)
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
@@ -22,12 +27,10 @@ class Azure(Storage):
     when stored in Azure. If this key is not provided the Flow upload name will take the form
     `slugified-flow-name/slugified-current-timestamp`.
 
-    **Note**: Flows registered with this Storage option will automatically be
-     labeled with `azure-flow-storage`.
-
     Args:
         - container (str): the name of the Azure Blob Container to store the Flow
-        - connection_string (str, optional): an Azure connection string for communicating with
+        - connection_string_secret (str, optional): the name of a Prefect secret
+            that contains an Azure connection string for communicating with
             Blob storage. If not provided the value set in the environment as
             `AZURE_STORAGE_CONNECTION_STRING` will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
@@ -40,60 +43,51 @@ class Azure(Storage):
     def __init__(
         self,
         container: str,
-        connection_string: str = None,
+        connection_string_secret: str = None,
         blob_name: str = None,
         stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
-
-        self.connection_string = connection_string or os.getenv(
-            "AZURE_STORAGE_CONNECTION_STRING"
-        )
-
         self.container = container
+        self.connection_string_secret = connection_string_secret
         self.blob_name = blob_name
 
         result = AzureResult(
-            connection_string=self.connection_string, container=container
+            connection_string_secret=self.connection_string_secret,
+            container=container,
         )
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 
-    def get_flow(self, flow_location: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str, optional): the location of a flow within this Storage; in this case,
-                a file path where a Flow has been serialized to. Will use `blob_name` if not provided.
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.blob_name:
-            flow_location = self.blob_name
-        else:
-            raise ValueError("No flow location provided")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
+        try:
+            client = self._azure_block_blob_service.get_blob_client(
+                container=self.container, blob=flow_location
+            )
 
-        client = self._azure_block_blob_service.get_blob_client(
-            container=self.container, blob=flow_location
-        )
+            self.logger.info(
+                "Downloading {} from {}".format(flow_location, self.container)
+            )
 
-        self.logger.info("Downloading {} from {}".format(flow_location, self.container))
-
-        content = client.download_blob().content_as_bytes()
-
+            content = client.download_blob().content_as_bytes()
+        except Exception as err:
+            self.logger.error("Error downloading Flow from Azure: {}".format(err))
+            raise
         if self.stored_as_script:
-            return extract_flow_from_file(file_contents=content)  # type: ignore
+            return extract_flow_from_file(file_contents=content, flow_name=flow_name)  # type: ignore
 
-        return cloudpickle.loads(content)
+        return flow_from_bytes_pickle(content)
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -125,14 +119,6 @@ class Azure(Storage):
         self._flows[flow.name] = flow
         return blob_name
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
     def build(self) -> "Storage":
         """
         Build the Azure storage object by uploading Flows to an Azure Blob container.
@@ -152,7 +138,7 @@ class Azure(Storage):
             return self
 
         for flow_name, flow in self._flows.items():
-            data = cloudpickle.dumps(flow)
+            data = flow_to_bytes_pickle(flow)
 
             client = self._azure_block_blob_service.get_blob_client(
                 container=self.container, blob=self.flows[flow_name]
@@ -165,6 +151,20 @@ class Azure(Storage):
             client.upload_blob(data)
 
         return self
+
+    @property
+    def connection_string(self):  # type: ignore
+        if self.connection_string_secret is not None:
+            return Secret(self.connection_string_secret).get()
+        conn_string = prefect.context.get("secrets", {}).get(
+            "AZURE_STORAGE_CONNECTION_STRING"
+        ) or os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+        if conn_string is None:
+            raise Exception(
+                "Azure connection string not provided. Set `AZURE_STORAGE_CONNECTION_STRING` environment"
+                " variable or save connection string as Prefect secret."
+            )
+        return conn_string
 
     @property
     def _azure_block_blob_service(self):  # type: ignore

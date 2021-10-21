@@ -2,32 +2,44 @@
 
 export default ({ Vue, router }) => {
   // Vue.use(vClickOutside)
+  if (typeof window !== 'undefined') {
+    if (window && window.location && window.location.hash) {
+      document.onreadystatechange = () => {
+        if (document.readyState == 'complete') {
+          scrollToHash(window.location, Vue)
 
-  if (window.location.hash) {
-    document.onreadystatechange = () => {
-      if (document.readyState == 'complete') {
-        scrollToHash(window.location, Vue)
-
-        document.onreadystatechange = null
+          document.onreadystatechange = null
+        }
       }
     }
   }
 
   router.options.scrollBehavior = (to, from, savedPosition) => {
     if (savedPosition) {
-      return window.scrollTo({
-        top: savedPosition.y,
-        behavior: 'smooth'
-      })
+      if (typeof window !== 'undefined') {
+        return (
+          window &&
+          window.scrollTo({
+            top: savedPosition.y,
+            behavior: 'smooth'
+          })
+        )
+      }
     } else if (to.hash) {
       scrollToHash(to, Vue)
       return false
     } else {
-      return window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      })
+      if (typeof window !== 'undefined') {
+        return (
+          window &&
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          })
+        )
+      }
     }
+    return false
   }
 
   router.addRoutes([
@@ -51,12 +63,16 @@ function scrollToHash(to, Vue) {
 
   const targetElement = document.querySelector(to.hash)
 
-  if (targetElement) {
-    return window.scrollTo({
-      top: getElementPosition(targetElement).y,
-      behavior: 'smooth'
-    })
+  if (targetElement && typeof window !== 'undefined') {
+    return (
+      window &&
+      window.scrollTo({
+        top: getElementPosition(targetElement).y,
+        behavior: 'smooth'
+      })
+    )
   }
+  return false
 }
 
 function getElementPosition(el) {

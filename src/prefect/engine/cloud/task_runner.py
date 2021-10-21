@@ -9,18 +9,10 @@ from prefect.client import Client
 from prefect.core import Edge, Task
 from prefect.engine.result import Result
 from prefect.engine.runner import ENDRUN, call_state_handlers
-from prefect.engine.state import (
-    Cached,
-    ClientFailed,
-    Failed,
-    Queued,
-    Retrying,
-    State,
-)
+from prefect.engine.state import Cached, ClientFailed, Failed, Queued, Retrying, State
 from prefect.engine.task_runner import TaskRunner, TaskRunnerInitializeResult
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 from prefect.utilities.executors import tail_recursive
-from prefect.utilities.graphql import with_args
 
 
 class CloudTaskRunner(TaskRunner):
@@ -53,31 +45,6 @@ class CloudTaskRunner(TaskRunner):
         super().__init__(
             task=task, state_handlers=state_handlers, flow_result=flow_result
         )
-
-    def _heartbeat(self) -> bool:
-        try:
-            task_run_id = self.task_run_id  # type: str
-            self.heartbeat_cmd = ["prefect", "heartbeat", "task-run", "-i", task_run_id]
-            self.client.update_task_run_heartbeat(task_run_id)
-
-            # use empty string for testing purposes
-            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            query = {
-                "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
-                        "flow": {"settings": True},
-                    }
-                }
-            }
-            flow_run = self.client.graphql(query).data.flow_run_by_pk
-            if not flow_run.flow.settings.get("heartbeat_enabled", True):
-                return False
-            return True
-        except Exception:
-            self.logger.exception(
-                "Heartbeat failed for Task '{}'".format(self.task.name)
-            )
-            return False
 
     def call_runner_target_handlers(self, old_state: State, new_state: State) -> State:
         """
@@ -127,7 +94,7 @@ class CloudTaskRunner(TaskRunner):
                 state=cloud_state,
                 cache_for=self.task.cache_for,
             )
-        except VersionLockError as exc:
+        except VersionLockMismatchSignal as exc:
             state = self.client.get_task_run_state(task_run_id=task_run_id)
 
             if state.is_running():
@@ -182,33 +149,30 @@ class CloudTaskRunner(TaskRunner):
             - tuple: a tuple of the updated state, context, and upstream_states objects
         """
 
-        # if the map_index is not None, this is a dynamic task and we need to load
-        # task run info for it
-        map_index = context.get("map_index")
-        if map_index not in [-1, None]:
-            try:
-                task_run_info = self.client.get_task_run_info(
-                    flow_run_id=context.get("flow_run_id", ""),
-                    task_id=context.get("task_id", ""),
-                    map_index=map_index,
-                )
+        # load task run info
+        try:
+            task_run_info = self.client.get_task_run_info(
+                flow_run_id=context.get("flow_run_id", ""),
+                task_id=context.get("task_id", ""),
+                map_index=context.get("map_index"),
+            )
 
-                # if state was provided, keep it; otherwise use the one from db
-                state = state or task_run_info.state  # type: ignore
-                context.update(
-                    task_run_id=task_run_info.id,  # type: ignore
-                    task_run_version=task_run_info.version,  # type: ignore
+            # if state was provided, keep it; otherwise use the one from db
+            state = state or task_run_info.state  # type: ignore
+            context.update(
+                task_run_id=task_run_info.id,  # type: ignore
+                task_run_version=task_run_info.version,  # type: ignore
+            )
+        except Exception as exc:
+            self.logger.exception(
+                "Failed to retrieve task state with error: {}".format(repr(exc))
+            )
+            if state is None:
+                state = Failed(
+                    message="Could not retrieve state from Prefect Cloud",
+                    result=exc,
                 )
-            except Exception as exc:
-                self.logger.exception(
-                    "Failed to retrieve task state with error: {}".format(repr(exc))
-                )
-                if state is None:
-                    state = Failed(
-                        message="Could not retrieve state from Prefect Cloud",
-                        result=exc,
-                    )
-                raise ENDRUN(state=state) from exc
+            raise ENDRUN(state=state) from exc
 
         # we assign this so it can be shared with heartbeat thread
         self.task_run_id = context.get("task_run_id", "")  # type: str
@@ -339,21 +303,11 @@ class CloudTaskRunner(TaskRunner):
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
         """
-        task_run_name = self.task.task_run_name
+        super().set_task_run_name(task_inputs)
 
-        if task_run_name:
-            raw_inputs = {k: r.value for k, r in task_inputs.items()}
-            formatting_kwargs = {
-                **prefect.context.get("parameters", {}),
-                **prefect.context,
-                **raw_inputs,
-            }
+        task_run_name = prefect.context.get("task_run_name")
 
-            if not isinstance(task_run_name, str):
-                task_run_name = task_run_name(**formatting_kwargs)
-            else:
-                task_run_name = task_run_name.format(**formatting_kwargs)
-
+        if task_run_name is not None:
             self.client.set_task_run_name(
                 task_run_id=self.task_run_id, name=task_run_name  # type: ignore
             )
@@ -370,7 +324,7 @@ class CloudTaskRunner(TaskRunner):
         The main endpoint for TaskRunners.  Calling this method will conditionally execute
         `self.task.run` with any provided inputs, assuming the upstream dependencies are in a
         state which allow this Task to run.  Additionally, this method will wait and perform
-        Task retries which are scheduled for <= 1 minute in the future.
+        Task retries which are scheduled for <= 10 minutes in the future.
 
         Args:
             - state (State, optional): initial `State` to begin task run from;
@@ -400,32 +354,9 @@ class CloudTaskRunner(TaskRunner):
                 naptime = max(
                     (end_state.start_time - pendulum.now("utc")).total_seconds(), 0
                 )
-                for _ in range(int(naptime) // 30):
-                    # send heartbeat every 30 seconds to let API know task run is still alive
-                    self.client.update_task_run_heartbeat(
-                        task_run_id=prefect.context.get("task_run_id")
-                    )
-                    naptime -= 30
-                    time.sleep(30)
 
                 if naptime > 0:
                     time.sleep(naptime)  # ensures we don't start too early
-
-                self.client.update_task_run_heartbeat(
-                    task_run_id=prefect.context.get("task_run_id")
-                )
-                # mapped children will retrieve their latest info inside
-                # initialize_run(), but we can load up-to-date versions
-                # for all other task runs here
-                if prefect.context.get("map_index") in [-1, None]:
-                    task_run_info = self.client.get_task_run_info(
-                        flow_run_id=prefect.context.get("flow_run_id"),
-                        task_id=prefect.context.get("task_id"),
-                        map_index=prefect.context.get("map_index"),
-                    )
-
-                    # if state was provided, keep it; otherwise use the one from db
-                    context.update(task_run_version=task_run_info.version)  # type: ignore
 
                 end_state = super().run(
                     state=end_state,

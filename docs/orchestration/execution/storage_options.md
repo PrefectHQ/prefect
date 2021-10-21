@@ -2,8 +2,9 @@
 
 ::: warning
 Flows configured with environments are being deprecated - we recommend users
-transition to using "Run Configs" instead. See
-[the documentation](/orchestration/flow_config/overview.md) for more information.
+transition to using "Run Configs" instead. See [flow
+configuration](/orchestration/flow_config/overview.md) and [upgrading
+tips](/orchestration/flow_config/upgrade.md) for more information.
 :::
 
 Prefect includes a variety of `Storage` options for saving flows.
@@ -12,8 +13,8 @@ As of Prefect version `0.9.0` every storage option except for `Docker` and `GitH
 
 Version `0.12.0` introduces a new way to store flows using the various cloud storage options (S3, GCS, Azure) and then in turn run them using Agents which orchestrate containerized environments. For more information see [below](/orchestration/execution/storage_options.html#non-docker-storage-for-containerized-environments).
 
-Version `0.12.5` introduces file-based storage for all storage options. For more information see the
-[Using file based flow storage idiom](/core/idioms/file-based.html).
+Version `0.12.5` introduces script-based storage for all storage options. For more information see the
+[Using script based flow storage idiom](/core/idioms/script-based.html).
 
 ## Local
 
@@ -30,10 +31,14 @@ flow.storage.build()
 
 The flow is now available under `~/.prefect/flows/local-flow.prefect`.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with the hostname of the machine from which it was registered; this prevents agents not running on the same machine from attempting to run this flow.
+::: tip Automatic Labels
+Flows registered with this storage option will automatically be labeled with
+the hostname of the machine from which it was registered; this prevents agents
+not running on the same machine from attempting to run this flow.
+:::
 
-Additionally, in more recent releases of Core your flow will default to using a `LocalResult` for persisting any task results in the same file location.
+::: tip Flow Results
+In more recent releases of Core your flow will default to using a `LocalResult` for persisting any task results in the same file location.
 :::
 
 ## Azure Blob Storage
@@ -44,21 +49,19 @@ Additionally, in more recent releases of Core your flow will default to using a 
 from prefect import Flow
 from prefect.storage import Azure
 
-flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string="<my-connection-string>"))
+flow = Flow("azure-flow", storage=Azure(container="<my-container>", connection_string_secret="<my-connection-string>"))
 
 flow.storage.build()
 ```
 
 The flow is now available in the container under `azure-flow/slugified-current-timestamp`.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"azure-flow-storage"`; this prevents agents not explicitly authenticated with your Azure deployment from attempting to run this flow.
-
-Additionally, in more recent releases of Core your flow will default to using a `AzureResult` for persisting any task results in the same Azure container.
+::: tip Flow Results
+In more recent releases of Core your flow will default to using a `AzureResult` for persisting any task results in the same Azure container.
 :::
 
 :::tip Azure Credentials
-Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) which means both upload (build) and download (local agent) times need to have a working Azure connection string. Azure Storage will also look in the environment variable `AZURE_STORAGE_CONNECTION_STRING` if it is not passed to the class directly.
+Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for Azure authentication in aim to upload (build) or download flows, so make sure to provide a  valid connection string for your Azure account. A connection string can be set as a [secret](https://docs.prefect.io/orchestration/concepts/secrets.html#secrets) or an environment variable `AZURE_STORAGE_CONNECTION_STRING` in run configuration if it is not passed as `connection_string_secret`.
 :::
 
 ## AWS S3
@@ -76,10 +79,8 @@ flow.storage.build()
 
 The flow is now available in the bucket under `s3-flow/slugified-current-timestamp`.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"s3-flow-storage"`; this helps prevent agents not explicitly authenticated with your AWS deployment from attempting to run this flow.
-
-Additionally, in more recent releases of Core your flow will default to using a `S3Result` for persisting any task results in the same S3 bucket.
+::: tip Flow Results
+In more recent releases of Core your flow will default to using a `S3Result` for persisting any task results in the same S3 bucket.
 :::
 
 :::tip AWS Credentials
@@ -101,10 +102,8 @@ flow.storage.build()
 
 The flow is now available in the bucket under `gcs-flow/slugified-current-timestamp`.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"gcs-flow-storage"`; this helps prevents agents not explicitly authenticated with your GCS project from attempting to run this flow.
-
-Additionally, in more recent releases of Core your flow will default to using a `GCSResult` for persisting any task results in the same GCS location.
+::: tip Flow Results
+In more recent releases of Core your flow will default to using a `GCSResult` for persisting any task results in the same GCS location.
 :::
 
 :::tip Google Cloud Credentials
@@ -115,11 +114,7 @@ GCS Storage uses Google Cloud credentials the same way as the standard [google.c
 
 [GitHub Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitHub repository as `.py` files.
 
-For a detailed look on how to use GitHub storage visit the [Using file based storage](/core/idioms/file-based.html) idiom.
-
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"github-flow-storage"`; this helps prevents agents not explicitly authenticated with your GitHub repo from attempting to run this flow.
-:::
+For a detailed look on how to use GitHub storage visit the [Using script based storage](/core/idioms/script-based.html) idiom.
 
 :::tip GitHub Credentials
 GitHub storage uses a [personal access token](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line) for authenticating with repositories.
@@ -129,11 +124,7 @@ GitHub storage uses a [personal access token](https://help.github.com/en/github/
 
 [GitLab Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a GitLab repository as `.py` files.
 
-Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to GitLab as well.
-
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"gitlab-flow-storage"`; this helps prevents agents not explicitly authenticated with your GitLab repo from attempting to run this flow.
-:::
+Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to GitLab as well.
 
 :::tip GitLab Credentials
 GitLab storage uses a [personal access token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) for authenticating with repositories.
@@ -145,13 +136,9 @@ GitLab server users can point the `host` argument to their personal GitLab insta
 
 ## Bitbucket
 
-[Bitbucket Storage](/api/latest/storage.html#github) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
+[Bitbucket Storage](/api/latest/storage.html#bitbucket) is a storage option that uploads flows to a Bitbucket repository as `.py` files.
 
-Much of the GitHub example in the [file based storage](/core/idioms/file-based.html) documentation applies to Bitbucket as well.
-
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"bitbucket-flow-storage"`; this helps prevents agents not explicitly authenticated with your Bitbucket repo from attempting to run this flow.
-:::
+Much of the GitHub example in the [script based storage](/core/idioms/script-based.html) documentation applies to Bitbucket as well.
 
 :::tip Bitbucket Credentials
 Bitbucket storage uses a [personal access token](https://confluence.atlassian.com/bitbucketserver/personal-access-tokens-939515499.html) for authenticating with repositories.
@@ -163,17 +150,14 @@ Bitbucket server users can point the `host` argument to their personal or organi
 
 :::tip Bitbucket Projects
 Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each repo must be associated with a Project. Bitbucket storage requires a `project` argument pointing to the correct project name.
+:::
 
 ## CodeCommit
 
 [CodeCommit Storage](/api/latest/storage.html#codecommit) is a storage option that uploads flows to a CodeCommit repository as `.py` files.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"codecommit-flow-storage"`; this helps prevent agents not explicitly authenticated with your AWS deployment from attempting to run this flow.
-:::
-
 :::tip AWS Credentials
-S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
+CodeCommit uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
 :::
 
 ## Docker
@@ -245,10 +229,6 @@ flow.storage.build()
 
 Template strings in `${}` are used to reference sensitive information. Given `${SOME_TOKEN}`, this storage object will first look in environment variable `SOME_TOKEN` and then fall back to [Prefect secrets](/core/concepts/secrets.html) `SOME_TOKEN`. Because this resolution is at runtime, this storage option never has your sensitive information stored in it and that sensitive information is never sent to Prefect Cloud.
 
-::: tip Sensible Defaults
-Flows registered with this storage option will automatically be labeled with `"webhook-flow-storage"`. Add that label to an agent to tell Prefect Cloud that that agent should run flows with `Webhook` storage.
-:::
-
 ### Non-Docker Storage for Containerized Environments
 
 Prefect allows for flows to be stored in cloud storage services and executed in containerized environments. This has the added benefit of rapidly deploying new versions of flows without having to rebuild images each time. To enable this functionality add an image name to the flow's Environment metadata.
@@ -268,8 +248,6 @@ flow.environment = LocalEnvironment(metadata={"image": "repo/name:tag"})
 ```
 
 This example flow can now be run using an agent that orchestrates containerized environments. When the flow is run the image set in the environment's metadata will be used and inside that container the flow will be retrieved from the storage object (which is S3 in this example).
-
-Make sure that the agent's labels match the desired labels for the flow storage objects. For example, if you are using `prefect.storage.s3` to store flows, the agent should get label `s3-flow-storage`. See the `"Sensible Defaults"` tips in the previous sections for more details.
 
 ```bash
 # starting a kubernetes agent that will pull flows stored in S3

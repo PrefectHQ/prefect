@@ -1,11 +1,14 @@
-from typing import TYPE_CHECKING, Any, Dict
+import os
+from typing import TYPE_CHECKING, Any
 
-
+import prefect
+from prefect.client import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
+    from github import Github
 
 
 class GitHub(Storage):
@@ -30,65 +33,101 @@ class GitHub(Storage):
 
     Args:
         - repo (str): the name of a GitHub repository to store this Flow
-        - path (str, optional): a path pointing to a flow file in the repo
-        - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if not specified
+        - path (str): a path pointing to a flow file in the repo
+        - ref (str, optional): a commit SHA-1 value, tag, or branch name. If not specified,
+            defaults to the default branch for the repo.
+        - access_token_secret (str, optional): The name of a Prefect secret
+            that contains a GitHub access token to use when loading flows from
+            this storage.
+        - base_url(str, optional): the Github REST api url for the repo. If not specified,
+            https://api.github.com is used.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
     def __init__(
-        self, repo: str, path: str = None, ref: str = "master", **kwargs: Any
+        self,
+        repo: str,
+        path: str,
+        ref: str = None,
+        access_token_secret: str = None,
+        base_url: str = None,
+        **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
         self.path = path
         self.ref = ref
+        self.access_token_secret = access_token_secret
+        self.base_url = base_url
 
         super().__init__(**kwargs)
 
-    def get_flow(self, flow_location: str = None, ref: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
-        If the Flow is not found an error will be logged and `None` will be returned.
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path on a repository where a Flow file has been committed. Will use `path` if not
-                provided.
-            - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if not
-                specified
+            - flow_name (str): the name of the flow to return.
 
         Returns:
-            - Flow: the requested Flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
-            - UnknownObjectException: if the flow file is unable to be retrieved
+            - Flow: the requested flow
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.path:
-            flow_location = self.path
-        else:
-            raise ValueError("No flow location provided")
+        try:
+            from github import UnknownObjectException
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import Github, please ensure you have installed the github extra"
+            ) from exc
 
-        from github import UnknownObjectException
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        path = self.flows[flow_name]
 
-        repo = self._github_client.get_repo(self.repo)
+        # Log info about the active storage object. Only include `ref` if
+        # explicitly set.
+        self.logger.info(
+            "Downloading flow from GitHub storage - repo: %r, path: %r%s",
+            self.repo,
+            path,
+            f", ref: {self.ref!r}" if self.ref is not None else "",
+        )
+
+        client = self._get_github_client()
 
         try:
-            contents = repo.get_contents(flow_location, ref=ref or self.ref)
-            decoded_contents = contents.decoded_content
-        except UnknownObjectException as exc:
+            repo = client.get_repo(self.repo)
+        except UnknownObjectException:
             self.logger.error(
-                "Error retrieving file contents from {} on repo {}. Ensure the file exists.".format(
-                    flow_location, self.repo
-                )
+                "Repo %r not found. Check that it exists (and is spelled correctly), "
+                "and that you have configured the proper credentials for accessing it.",
+                self.repo,
             )
-            raise exc
+            raise
 
-        return extract_flow_from_file(file_contents=decoded_contents)
+        # Use the default branch if unspecified
+        ref = self.ref or repo.default_branch
+
+        # Get the current commit sha for this ref
+        try:
+            commit = repo.get_commit(ref).sha
+        except UnknownObjectException:
+            self.logger.error("Ref %r not found in repo %r.", ref, self.repo)
+            raise
+
+        try:
+            contents = repo.get_contents(path, ref=commit)
+            assert not isinstance(contents, list)  # mypy
+            decoded_contents = contents.decoded_content.decode()
+        except UnknownObjectException:
+            self.logger.error(
+                "File %r not found in repo %r, ref %r", path, self.repo, ref
+            )
+            raise
+
+        self.logger.info("Flow successfully downloaded. Using commit: %s", commit)
+
+        return extract_flow_from_file(
+            file_contents=decoded_contents, flow_name=flow_name
+        )
 
     def add_flow(self, flow: "Flow") -> str:
         """
@@ -114,30 +153,19 @@ class GitHub(Storage):
         self._flows[flow.name] = flow
         return self.path  # type: ignore
 
-    def build(self) -> "Storage":
-        """
-        Build the GitHub storage object and run basic healthchecks. Due to this object
-        supporting file based storage no files are committed to the repository during
-        this step. Instead, all files should be committed independently.
+    def _get_github_client(self) -> "Github":
+        from github import Github
 
-        Returns:
-            - Storage: a GitHub object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
+        if self.access_token_secret is not None:
+            # If access token secret specified, load it
+            access_token = Secret(self.access_token_secret).get()
+        else:
+            # Otherwise, fallback to loading from local secret or environment variable
+            access_token = prefect.context.get("secrets", {}).get("GITHUB_ACCESS_TOKEN")
+            if access_token is None:
+                access_token = os.getenv("GITHUB_ACCESS_TOKEN")
 
-        return self
-
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
-    @property
-    def _github_client(self):  # type: ignore
-        from prefect.utilities.git import get_github_client
-
-        return get_github_client()
+        if self.base_url:
+            return Github(login_or_token=access_token, base_url=self.base_url)
+        else:
+            return Github(access_token)

@@ -14,9 +14,10 @@ import datetime
 from typing import Any, Dict, List, Optional, Type, Mapping
 
 import pendulum
+import cloudpickle
 
 import prefect
-from prefect.engine.result import NoResult, Result, ResultInterface
+from prefect.engine.result import Result, NoResult
 
 
 class State:
@@ -48,12 +49,12 @@ class State:
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):
         self.message = message
-        self.result = result
+        self.result = result if result is not None else NoResult
         self.context = context or dict()
         self.cached_inputs = cached_inputs or dict()  # type: Dict[str, Result]
         if "task_tags" in prefect.context:
@@ -82,13 +83,40 @@ class State:
     def __hash__(self) -> int:
         return id(self)
 
+    def __getstate__(self) -> dict:
+        data = self.__dict__
+
+        # For 'Exception' results, we will check if it can be pickled successfully and
+        # on failure convert the exception to a string instead. This allows the engine
+        # to handle tasks with unpickable exceptions successfully. We must explicitly
+        # ignore state signals here or we will get stuck in a recursive loop because
+        # signals are exceptions that contain a state with `_result` set to the signal
+        if isinstance(self.result, Exception) and not isinstance(
+            self.result, prefect.engine.signals.PrefectStateSignal
+        ):
+
+            # Check for an exception during pickling of the 'Exception' type result
+            try:
+                cloudpickle.dumps(self.result)
+            except Exception as exc:
+                # Update the result in the dict without modifying the local object
+                data = data.copy()
+                new_result = data["_result"].copy()
+                new_result.value = (
+                    f"The following exception could not be pickled due to {exc!r}: "
+                    f"{self.result!r}"
+                )
+                data["_result"] = new_result
+
+        return data
+
     @property
     def result(self) -> Any:
         return getattr(self._result, "value", self._result)
 
     @result.setter
     def result(self, value: Any) -> None:
-        if isinstance(value, ResultInterface):
+        if isinstance(value, Result):
             self._result = value
         else:
             self._result = Result(value=value)
@@ -399,7 +427,7 @@ class Pending(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -433,7 +461,7 @@ class Scheduled(Pending):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -469,7 +497,7 @@ class Paused(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -502,7 +530,7 @@ class _MetaState(State):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         state: State = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -598,7 +626,7 @@ class Queued(_MetaState):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         state: State = None,
         start_time: datetime.datetime = None,
         context: Dict[str, Any] = None,
@@ -655,7 +683,7 @@ class Retrying(Scheduled):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         start_time: datetime.datetime = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
@@ -759,7 +787,7 @@ class Looped(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         loop_count: int = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -814,7 +842,7 @@ class Cached(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         cached_inputs: Dict[str, Result] = None,
         cached_parameters: Dict[str, Any] = None,
         cached_result_expiration: datetime.datetime = None,
@@ -862,7 +890,7 @@ class Mapped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         map_states: List[State] = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
@@ -919,7 +947,7 @@ class Failed(Finished):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         cached_inputs: Dict[str, Result] = None,
         context: Dict[str, Any] = None,
     ):
@@ -999,7 +1027,7 @@ class Skipped(Success):
     def __init__(
         self,
         message: str = None,
-        result: Any = NoResult,
+        result: Any = None,
         context: Dict[str, Any] = None,
         cached_inputs: Dict[str, Result] = None,
     ):

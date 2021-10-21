@@ -1,6 +1,6 @@
 import logging
 from abc import ABCMeta, abstractmethod
-from typing import TYPE_CHECKING, Any, List
+from typing import TYPE_CHECKING, Any, List, Dict
 
 import prefect
 from prefect import config
@@ -9,7 +9,7 @@ from prefect.storage import _healthcheck
 from prefect.utilities import logging as prefect_logging
 
 if TYPE_CHECKING:
-    import prefect.core.flow
+    from prefect import Flow
 
 
 class Storage(metaclass=ABCMeta):
@@ -43,6 +43,9 @@ class Storage(metaclass=ABCMeta):
         self.secrets = secrets or []
         self.stored_as_script = stored_as_script
 
+        self.flows = {}  # type: Dict[str, str]
+        self._flows = {}  # type: Dict[str, Flow]
+
         self._labels = labels or []
         if add_default_labels is None:
             self.add_default_labels = config.flows.defaults.storage.add_default_labels
@@ -73,27 +76,12 @@ class Storage(metaclass=ABCMeta):
     def __repr__(self) -> str:
         return "<Storage: {}>".format(type(self).__name__)
 
-    def get_env_runner(self, flow_location: str) -> Any:
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a `flow_location` within this Storage object, returns something with a
-        `run()` method that accepts a collection of environment variables for running the flow;
-        for example, to specify an executor you would need to provide
-        `{'PREFECT__ENGINE__EXECUTOR': ...}`.
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str): the location of a flow within this Storage
-
-        Returns:
-            - a runner interface (something with a `run()` method for running the flow)
-        """
-        raise NotImplementedError()
-
-    def get_flow(self, flow_location: str) -> "prefect.core.flow.Flow":
-        """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
-
-        Args:
-            - flow_location (str): the location of a flow within this Storage
+            - flow_name (str): the name of the flow to return.
 
         Returns:
             - Flow: the requested flow
@@ -101,7 +89,7 @@ class Storage(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def add_flow(self, flow: "prefect.core.flow.Flow") -> str:
+    def add_flow(self, flow: "Flow") -> str:
         """
         Method for adding a new flow to this Storage object.
 
@@ -126,13 +114,14 @@ class Storage(metaclass=ABCMeta):
         """
         return prefect_logging.get_logger(type(self).__name__)
 
-    @abstractmethod
     def __contains__(self, obj: Any) -> bool:
         """
         Method for determining whether an object is contained within this storage.
         """
+        if not isinstance(obj, str):
+            return False
+        return obj in self.flows
 
-    @abstractmethod
     def build(self) -> "Storage":
         """
         Build the Storage object.
@@ -141,7 +130,9 @@ class Storage(metaclass=ABCMeta):
             - Storage: a Storage object that contains information about how and where
                 each flow is stored
         """
-        raise NotImplementedError()
+        self.run_basic_healthchecks()
+
+        return self
 
     def serialize(self) -> dict:
         """
@@ -160,4 +151,4 @@ class Storage(metaclass=ABCMeta):
         if not hasattr(self, "_flows"):
             return
 
-        _healthcheck.result_check(self._flows.values())  # type: ignore
+        _healthcheck.result_check(self._flows.values(), quiet=True)  # type: ignore

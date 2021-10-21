@@ -1,2 +1,0 @@
-breaking:
-  - "Remove deprecated `prefect.contrib` module - [#3813](https://github.com/PrefectHQ/prefect/pull/3813)"

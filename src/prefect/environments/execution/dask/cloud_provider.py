@@ -2,13 +2,13 @@ from typing import Any, Callable, Dict, List, Type, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import prefect
-from distributed.deploy.cluster import Cluster
-from distributed.security import Security
 from prefect import Client
 from prefect.environments.execution import Environment
 
 if TYPE_CHECKING:
-    from prefect.core.flow import Flow  # pylint: disable=W0611
+    from prefect.core.flow import Flow
+    from distributed.deploy.cluster import Cluster
+    from distributed.security import Security
 
 
 class DaskCloudProviderEnvironment(Environment):
@@ -89,10 +89,10 @@ class DaskCloudProviderEnvironment(Environment):
 
     def __init__(  # type: ignore
         self,
-        provider_class: Type[Cluster],
+        provider_class: "Type[Cluster]",
         adaptive_min_workers: int = None,
         adaptive_max_workers: int = None,
-        security: Security = None,
+        security: "Security" = None,
         executor_kwargs: Dict[str, Any] = None,
         labels: List[str] = None,
         on_execute: Callable[[Dict[str, Any], Dict[str, Any]], None] = None,

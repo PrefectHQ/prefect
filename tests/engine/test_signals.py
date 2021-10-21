@@ -27,6 +27,7 @@ from prefect.engine.state import (
     TriggerFailed,
     ValidationFailed,
 )
+from prefect.exceptions import PrefectSignal
 
 
 def test_exceptions_are_displayed_with_messages():
@@ -36,7 +37,7 @@ def test_exceptions_are_displayed_with_messages():
 
 
 def test_signals_create_states():
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(PrefectSignal) as exc:
         raise PrefectStateSignal("message")
     assert isinstance(exc.value.state, State)
     assert exc.value.state.result is exc.value
@@ -44,7 +45,7 @@ def test_signals_create_states():
 
 
 def test_signals_create_states_with_results():
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(PrefectSignal) as exc:
         raise PrefectStateSignal("message", result=5)
     assert isinstance(exc.value.state, State)
     assert exc.value.state.result == 5
@@ -96,7 +97,7 @@ def test_retry_signals_prefer_supplied_run_count_to_context():
     ],
 )
 def test_signals_creates_correct_states(signal, state):
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(PrefectSignal) as exc:
         raise signal(state.__name__)
     assert isinstance(exc.value, signal)
     assert type(exc.value.state) is state
@@ -105,7 +106,7 @@ def test_signals_creates_correct_states(signal, state):
 
 
 def test_signals_creates_correct_states_for_looped():
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(PrefectSignal) as exc:
         raise LOOP("signal")
     assert isinstance(exc.value, LOOP)
     assert type(exc.value.state) is Looped
@@ -114,7 +115,7 @@ def test_signals_creates_correct_states_for_looped():
 
 
 def test_retry_signals_carry_default_retry_time_on_state():
-    with pytest.raises(Exception) as exc:
+    with pytest.raises(PrefectSignal) as exc:
         raise RETRY()
     assert exc.value.state.start_time is not None
     now = pendulum.now("utc")

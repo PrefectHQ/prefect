@@ -3,7 +3,6 @@ from typing import Any
 from marshmallow import fields, post_dump, post_load
 
 import prefect
-from prefect.serialization import schedule_compat
 from prefect.utilities.serialization import (
     DateTimeTZ,
     JSONCompatible,
@@ -40,7 +39,7 @@ class IntervalClockSchema(ObjectSchema):
     end_date = DateTimeTZ(allow_none=True)
     interval = fields.TimeDelta(precision="microseconds", required=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
 
@@ -73,7 +72,7 @@ class CronClockSchema(ObjectSchema):
     end_date = DateTimeTZ(allow_none=True)
     cron = fields.String(required=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
     day_or = fields.Boolean(allow_none=True)
@@ -85,7 +84,7 @@ class DatesClockSchema(ObjectSchema):
 
     dates = fields.List(DateTimeTZ(), required=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
 
@@ -103,10 +102,9 @@ class ClockSchema(OneOfSchema):
     }
 
 
-class NewScheduleSchema(ObjectSchema):
+class ScheduleSchema(ObjectSchema):
     """
-    This schedule schema is the "true" schedule schema; however we use a
-    backwards-compatible one to support old-style schedules.
+    The serialization schema for Schedule types
     """
 
     class Meta:
@@ -133,19 +131,3 @@ class NewScheduleSchema(ObjectSchema):
             valid_functions=ADJUSTMENTS, reject_invalid=True, allow_none=True
         )
     )
-
-
-class ScheduleSchema(OneOfSchema):
-    """
-    Field that chooses between several nested schemas. This class is preserved for pre-0.6.1
-    compatibility, and is deprecated in favor of NewScheduleSchema.
-    """
-
-    # map class name to schema
-    type_schemas = {
-        "Schedule": NewScheduleSchema,
-        "IntervalSchedule": schedule_compat.IntervalScheduleSchema,
-        "CronSchedule": schedule_compat.CronScheduleSchema,
-        "OneTimeSchedule": schedule_compat.OneTimeScheduleSchema,
-        "UnionSchedule": schedule_compat.UnionScheduleSchema,
-    }

@@ -1,0 +1,162 @@
+# Inspecting flow runs
+
+For monitoring flow runs from the UI, see the [UI documentation on flow runs](../ui/flow-run.md).
+
+## Python
+
+::: warning Experimental
+<div class="experimental-warning">
+<svg
+    aria-hidden="true"
+    focusable="false"
+    role="img"
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 448 512"
+    >
+<path
+fill="#e90"
+d="M437.2 403.5L320 215V64h8c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H120c-13.3 0-24 10.7-24 24v16c0 13.3 10.7 24 24 24h8v151L10.8 403.5C-18.5 450.6 15.3 512 70.9 512h306.2c55.7 0 89.4-61.5 60.1-108.5zM137.9 320l48.2-77.6c3.7-5.2 5.8-11.6 5.8-18.4V64h64v160c0 6.9 2.2 13.2 5.8 18.4l48.2 77.6h-172z"
+>
+</path>
+</svg>
+
+<div>
+The functionality here is experimental, and may change between versions without notice. Use at your own risk.
+</div>
+</div>
+:::
+
+The Prefect Core library provides an object for inspecting flow runs without writing queries at `prefect.backend.FlowRunView`.
+
+### Creating a `FlowRunView`
+
+A `FlowRunView` can be created using the `from_flow_run_id` class method. This methods will query for flow run information and populate a `FlowRunView` instance.
+
+```python
+from prefect.backend import FlowRunView
+
+flow_run = FlowRunView.from_flow_run_id("4c0101af-c6bb-4b96-8661-63a5bbfb5596")
+```
+
+:::warning Immutability
+`FlowRunView` objects are views of the backend `Flow Run` at the time of the view's creation.
+They will not retrieve the newest information each time you access their properties.
+To get the newest data for a flow run, use `flow_run = flow_run.get_latest()` which will return a new `FlowRunView` instance.
+:::
+
+### Getting flow run states
+
+The state of the flow run is accessible using the `.state` property
+```python
+flow_run.state
+#  <Success: "All reference tasks succeeded.">
+```
+
+This state object is deserialized into the Prefect Core `State` type, which provides some helpful utilities
+```python
+flow_run.state.is_finished()
+# True
+
+flow_run.state.is_running()
+# False
+
+flow_run.state.message
+# 'All reference tasks succeeded.'
+```
+
+### Getting flow run logs
+
+<!-- TODO after CLI merged -->
+
+### Getting flow metadata
+
+Metadata about the flow that the flow run was created for is accessible using `.get_flow_metadata()`
+
+```python
+flow_run.get_flow_metdata()
+# FlowView(
+#   flow_id='8bdcf5b5-7598-49d1-a885-61612ca550de', 
+#   name='hello-world', 
+#   project_name='default', 
+#   storage_type=Module
+# )
+```
+
+This object contains the metadata that the Prefect backend stores about your flow at registration time. See [the reference documentation](/api/latest/backend/flow.md) for more details.
+
+::: tip Flow metadata caching
+Flow metadata is lazily loaded by request then _cached_ in the `FlowRunView` for later access.
+This means the first call requires network IO but future calls are instant.
+If you want to force the `FlowView` to be reloaded, pass `no_cache=True`.
+:::
+
+### Getting flow task runs
+
+The `FlowRunView` allows you to access task runs from the flow run by `task_run_id` or `slug`.
+This will run a query to retrieve the task run of interest and store the result in a `TaskRunView`.
+
+```python
+task_run = flow_run.get_task_run(task_slug='say_hello-1')
+# TaskRunView(
+#   task_run_id='c8751f34-9d5e-4ea7-aead-8b50978dabb7', 
+#   task_id='34b0dd2d-582e-4f0a-923d-63daf1e38fe5', 
+#   task_slug='say_hello-1', 
+#   state=<Success: "Task run succeeded.">, 
+#   result=<not loaded>
+# )
+```
+
+::: tip Task run caching
+When a task run is retrieved, if it is in a finished state, it will be cached in the `FlowRunView`.
+This reduces the number of calls to the backend API. 
+When you use `flow_run.get_latest()`, these cached tasks are preserved.
+:::
+
+::: tip Listing task run ids
+All of the task run ids for a flow run can be retrieved using the `.task_run_ids` property.
+This will run a query against the backend.
+:::
+
+```python
+flow_run.task_run_ids
+# ['c8751f34-9d5e-4ea7-aead-8b50978dabb7',
+# 'f5f422f6-4f56-45d2-bd55-5ea048070d84',
+# '7cc167d3-737d-4187-85d8-d5e5a75fbd93']
+```
+:::
+
+For more details on the `TaskRunView`, see [the task runs documentation](./task-runs.md).
+
+## GraphQL
+
+### Querying for a single flow run
+
+You can query for a flow run by any of its properties. Here's a query using the flow run name
+
+```graphql
+query {
+  flow_run(where: {name: {_eq: "woodoo-leopard"}}) {
+    id
+    state
+    start_time
+  }
+}
+```
+
+Example response
+
+```json
+{
+  "data": {
+    "flow_run": [
+      {
+        "id": "8e445d74-9ca6-425b-98e5-72754b7ea174",
+        "state": "Success",
+        "start_time": "2021-05-12T17:59:56.383629+00:00"
+      }
+    ]
+  }
+}
+```
+
+Note that the response returns a `list` in the `flow_run` section because your query could return multiple results if the name is not unique.

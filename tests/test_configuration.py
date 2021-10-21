@@ -7,7 +7,8 @@ import pytest
 
 import prefect
 from prefect import configuration
-from prefect.configuration import Config
+from prefect.configuration import Config, to_environment_variables
+from prefect.utilities.collections import dict_to_flatdict
 
 template = b"""
     debug = false
@@ -114,6 +115,45 @@ def test_interpolation(config):
 
 def test_env_var_interpolation(config):
     assert config.env_vars.interpolated_path == os.environ.get("PATH")
+
+
+def test_to_environment_variables(config):
+    env = to_environment_variables(
+        config, include={"general.x", "general.y", "general.nested.x", "debug"}
+    )
+    assert env == {
+        "PREFECT__GENERAL__Y": "hi",
+        # Converts values to strings
+        "PREFECT__GENERAL__X": "1",
+        "PREFECT__DEBUG": "False",
+        # Handles nesting
+        "PREFECT__GENERAL__NESTED__X": "1",
+    }
+
+
+def test_to_environment_variables_respects_prefix():
+    env = to_environment_variables(
+        Config({"key": "value"}), include={"key"}, prefix="FOO"
+    )
+    assert env == {"FOO__KEY": "value"}
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 7), reason="One of the nested keys is a Box in Python 3.6"
+)
+def test_to_environment_variables_roundtrip(config, monkeypatch, test_config_file_path):
+    keys = [".".join(k) for k in dict_to_flatdict(config)]
+
+    # Note prefix is different to avoid colliding with the `config` fixture env
+    env = to_environment_variables(config, include=keys, prefix="PREFECT_TEST_ROUND")
+
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+    new_config = configuration.load_configuration(
+        test_config_file_path, env_var_prefix="PREFECT_TEST_ROUND"
+    )
+    assert new_config == config
 
 
 def test_string_to_type_function():

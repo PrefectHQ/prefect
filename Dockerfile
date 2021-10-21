@@ -22,10 +22,14 @@ LABEL org.label-schema.vcs-ref=${GIT_SHA}
 LABEL org.label-schema.build-date=${BUILD_DATE}
 
 RUN apt update && \
-    apt install -y gcc git && \
+    apt install -y gcc git tini build-essential && \
     mkdir /root/.prefect/ && \
     pip install "pip==20.2.4" && \
     pip install --no-cache-dir git+https://github.com/PrefectHQ/prefect.git@${PREFECT_VERSION}#egg=prefect[${EXTRAS}] && \
     apt remove -y git && \
     apt clean && apt autoremove -y && \
     rm -rf /var/lib/apt/lists/*
+
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["tini", "-g", "--", "entrypoint.sh"]

@@ -19,6 +19,9 @@ def parse_path(path: str) -> ParsedPath:
     `urllib.parse.urlparse`. The main difference is that windows paths with
     `\\` and optional drive designators are supported.
 
+    WARNING: If you pass a Windows path, you must provide a drive and must not provide
+             a scheme or the returned `ParsedPath` will have an empty path
+
     Args:
         - path (str): The path to parse.
 
@@ -58,6 +61,10 @@ def read_bytes_from_path(path: str) -> bytes:
     if not parsed.scheme or parsed.scheme in ("file", "agent"):
         with open(parsed.path, "rb") as f:
             return f.read()
+    elif parsed.scheme in {"https", "http"}:
+        import requests
+
+        return requests.get(path).content
     elif parsed.scheme == "gcs":
         from prefect.utilities.gcp import get_storage_client
 
@@ -66,13 +73,20 @@ def read_bytes_from_path(path: str) -> bytes:
         blob = bucket.get_blob(parsed.path.lstrip("/"))
         if blob is None:
             raise ValueError(f"Job template doesn't exist at {path}")
-        return blob.download_as_bytes()
+        # Support GCS < 1.31
+        return (
+            blob.download_as_bytes()
+            if hasattr(blob, "download_as_bytes")
+            else blob.download_as_string()
+        )
     elif parsed.scheme == "s3":
         from prefect.utilities.aws import get_boto_client
 
         client = get_boto_client(resource="s3")
         stream = io.BytesIO()
-        client.download_fileobj(Bucket=parsed.netloc, Key=parsed.path, Fileobj=stream)
+        client.download_fileobj(
+            Bucket=parsed.netloc, Key=parsed.path.lstrip("/"), Fileobj=stream
+        )
         return stream.getvalue()
     else:
         raise ValueError(f"Unsupported file scheme {path}")

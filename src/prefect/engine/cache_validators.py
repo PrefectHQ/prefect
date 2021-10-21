@@ -13,7 +13,6 @@ Note that _all_ validators take into account cache expiration.
 
 A cache validator returns `True` if the cache is still valid, and `False` otherwise.
 """
-from dask.base import tokenize
 from typing import Any, Callable, Dict, Iterable
 
 import pendulum
@@ -87,6 +86,8 @@ def all_inputs(
     Returns:
         - boolean specifying whether or not the cache should be used
     """
+    from dask.base import tokenize
+
     if duration_only(state, inputs, parameters) is False:
         return False
     elif getattr(state, "hashed_inputs", None) is not None:
@@ -269,6 +270,8 @@ def partial_inputs_only(validate_on: Iterable[str] = None) -> Callable:
         Returns:
             - boolean specifying whether or not the cache should be used
         """
+        from dask.base import tokenize
+
         inputs = inputs or {}
         if duration_only(state, inputs, parameters) is False:
             return False

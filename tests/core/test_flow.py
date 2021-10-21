@@ -17,6 +17,8 @@ import pendulum
 import pytest
 import toml
 
+from typing import Dict, Optional, Set
+
 import prefect
 from prefect import task
 from prefect.core.edge import Edge
@@ -28,8 +30,7 @@ from prefect.engine.cache_validators import all_inputs, partial_inputs_only
 from prefect.executors import LocalExecutor, DaskExecutor
 from prefect.engine.result import Result
 from prefect.engine.results import LocalResult, PrefectResult
-from prefect.engine.result_handlers import LocalResultHandler, ResultHandler
-from prefect.engine.signals import PrefectError, FAIL, LOOP
+from prefect.engine.signals import FAIL, LOOP
 from prefect.engine.state import (
     Cancelled,
     Failed,
@@ -49,6 +50,7 @@ from prefect.run_configs import LocalRun, UniversalRun
 from prefect.schedules.clocks import ClockEvent
 from prefect.tasks.core.function import FunctionTask
 from prefect.utilities.configuration import set_temporary_config
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.serialization import from_qualified_name
 from prefect.utilities.tasks import task
 from prefect.utilities.edges import unmapped
@@ -75,7 +77,7 @@ def clear_context_cache():
 
 
 class TestCreateFlow:
-    """ Test various Flow constructors """
+    """Test various Flow constructors"""
 
     def test_create_flow_with_no_args(self):
         # name is required
@@ -620,6 +622,14 @@ def test_copy():
     assert len(f2.tasks) == len(f.tasks) - 2
     assert len(f2.edges) == len(f.edges) - 1
     assert f.reference_tasks() == f2.reference_tasks() == set([t1])
+    assert id(f.slugs) != id(f2.slugs)
+
+
+def test_copy_copies_slugs():
+    f = Flow("test")
+    f2 = f.copy()
+    f.add_task(Parameter("p"))
+    f2.add_task(Parameter("p"))
 
 
 def test_infer_root_tasks():
@@ -778,6 +788,29 @@ def test_warning_not_raised_for_constant_tasks_as_inputs():
 
     with pytest.warns(None) as record:
         with Flow(name="test") as f:
+            tt = add_one(10)
+
+    # confirm tasks were added
+    assert len(f.tasks) == 1
+    assert f.constants[tt]["x"] == 10
+
+    # no warnings
+    assert len(record) == 0
+
+
+def test_warning_not_raised_with_called_task_subclass_in_context():
+    # Covers fix in commit e5c75adb38915485997965fcb3a4110e7a7728b2
+
+    class AddOne(Task):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+        def run(self, x):
+            return x + 1
+
+    with pytest.warns(None) as record:
+        with Flow(name="test") as f:
+            add_one = AddOne()
             tt = add_one(10)
 
     # confirm tasks were added
@@ -1003,6 +1036,37 @@ def test_update_with_parameter_merge():
 
     assert add_res == 3
     assert sub_res == 0
+
+
+@pytest.mark.parametrize("merge, expected", [(True, 3), (False, 2)])
+def test_update_with_reference_task_merge(merge, expected):
+    @task
+    def add_one(a_number: int):
+        return a_number + 1
+
+    @task
+    def mult_one(z: int):
+        return z * 1
+
+    with Flow("Add") as add_fl:
+        a_number = Parameter("a_number", default=1)
+        the_result = add_one(a_number)
+        pos_two = mult_one(the_result)
+
+    @task
+    def sub_one(a_number: int, another_number: int):
+        return a_number - another_number
+
+    with Flow("Subtract") as subtract_fl:
+        a_number = Parameter("another_number", default=2)
+        another_number = Parameter("yet_another_number", default=2)
+        the_result = sub_one(a_number, another_number)
+        neg_one = mult_one(the_result)
+
+    subtract_fl.set_reference_tasks([the_result])
+
+    add_fl.update(subtract_fl, merge_reference_tasks=merge)
+    assert len(add_fl.reference_tasks()) == expected
 
 
 def test_upstream_and_downstream_error_msgs_when_task_is_not_in_flow():
@@ -1268,7 +1332,7 @@ class TestFlowVisualize:
         )
         graphviz.backend.ExecutableNotFound = err
         with patch.dict("sys.modules", graphviz=graphviz):
-            with pytest.raises(err, match="Please install Graphviz"):
+            with pytest.raises(err):
                 f.visualize()
 
     def test_viz_returns_graph_object_if_in_ipython(self):
@@ -1888,7 +1952,7 @@ class TestSerializedHash:
         hashes = []
         for _ in range(2):
             result = subprocess.run(
-                [sys.executable, script], stdout=subprocess.PIPE, check=True
+                [sys.executable, str(script)], stdout=subprocess.PIPE, check=True
             )
             hashes.append(result.stdout)
 
@@ -2294,6 +2358,7 @@ class TestFlowRunMethod:
 
         assert storage == dict(y=[[1, 1, 1], [1, 1, 1], [3, 3, 3]])
 
+    @pytest.mark.flaky
     def test_flow_dot_run_handles_cached_states_across_runs_with_always_run_trigger(
         self, repeat_schedule
     ):
@@ -2616,7 +2681,7 @@ class TestFlowDiagnostics:
                 storage=prefect.storage.Local(),
                 run_config=prefect.run_configs.LocalRun(),
                 schedule=prefect.schedules.Schedule(clocks=[]),
-                result_handler=prefect.engine.result_handlers.JSONResultHandler(),
+                result=prefect.engine.results.PrefectResult(),
             )
 
             monkeypatch.setenv("PREFECT__TEST", "VALUE" "NOT__PREFECT", "VALUE2")
@@ -3056,11 +3121,11 @@ class TestSaveLoad:
     reason="Windows doesn't support any timeout logic",
 )
 @pytest.mark.parametrize(
-    "executor", ["local", "sync", "mthread", "mproc_local", "mproc"], indirect=True
+    "executor",
+    ["local", "sync", "mthread", "mproc_local", "mproc", "threaded_local"],
+    indirect=True,
 )
-def test_timeout_actually_stops_execution(
-    executor,
-):
+def test_timeout_actually_stops_execution(executor, tmpdir):
     # Note: this is a potentially brittle test! In some cases (local and sync) signal.alarm
     # is used as the mechanism for timing out a task. This passes off the job of measuring
     # the time for the timeout to the OS, which uses the "wallclock" as reference (the real
@@ -3078,44 +3143,45 @@ def test_timeout_actually_stops_execution(
     # lower values will decrease test time but increase chances of intermittent failure
     SLEEP_TIME = 3
 
+    # The amount of time to enforce a timeout at. Must fulfill
+    #   2 <= TIMEOUT_TIME < SLEEP_TIME
+    # Less than 2 seconds will timeout before the file is written
+    TIMEOUT_TIME = 2
+
     # Determine if the executor is distributed and using daemonic processes which
     # cannot be cancelled and throw a warning instead.
     in_daemon_process = isinstance(
         executor, DaskExecutor
     ) and not executor.address.startswith("inproc")
 
-    with tempfile.TemporaryDirectory() as call_dir:
-        # Note: a real file must be used in the case of "mthread"
-        FILE = os.path.join(call_dir, "test.txt")
+    # Note: a real file must be used in the case of "mthread"
+    FILE = str(tmpdir.join("test.txt"))
 
-        @prefect.task(timeout=2)
-        def slow_fn():
-            with open(FILE, "w") as f:
-                f.write("called!")
-            time.sleep(SLEEP_TIME)
-            with open(FILE, "a") as f:
-                f.write("invalid")
+    @prefect.task(timeout=TIMEOUT_TIME)
+    def slow_fn():
+        with open(FILE, "w") as f:
+            f.write("called!")
+        time.sleep(SLEEP_TIME)
+        with open(FILE, "a") as f:
+            f.write("invalid")
 
-        flow = Flow("timeouts", tasks=[slow_fn])
+    flow = Flow("timeouts", tasks=[slow_fn])
 
-        assert not os.path.exists(FILE)
+    assert not os.path.exists(FILE)
 
-        start_time = time.time()
-        state = flow.run(executor=executor)
-        stop_time = time.time()
+    state = flow.run(executor=executor)
 
-        # Sleep so 'invalid' will be written if the task is not killed, subtracting the
-        # actual runtime to speed up the test a little
-        time.sleep(max(1, SLEEP_TIME - (stop_time - start_time)))
+    # Sleep so 'invalid' will be written if the task is not killed
+    time.sleep(SLEEP_TIME)
 
-        assert os.path.exists(FILE)
-        with open(FILE, "r") as f:
-            # `invalid` should *only be in the file if a daemon process was used
-            assert ("invalid" in f.read()) == in_daemon_process
+    assert os.path.exists(FILE)
+    with open(FILE, "r") as f:
+        # `invalid` should *only be in the file if a daemon process was used
+        assert ("invalid" in f.read()) == in_daemon_process
 
     assert state.is_failed()
     assert isinstance(state.result[slow_fn], TimedOut)
-    assert isinstance(state.result[slow_fn].result, TimeoutError)
+    assert isinstance(state.result[slow_fn].result, TaskTimeoutSignal)
     # We cannot capture the UserWarning because it is being run by a Dask worker
     # but we can make sure the TimeoutError includes a note about it
     assert (
@@ -3196,12 +3262,16 @@ def test_run_agent_passes_flow_labels(monkeypatch, kind):
 
 class TestSlugGeneration:
     def test_slugs_are_stable(self):
-        tasks = [Task(name=str(x)) for x in range(10)]
+        tasks = [Task(name="add") for _ in range(5)]
+        tasks.extend(Task(name="mul") for _ in range(5))
         flow_one = Flow("one", tasks=tasks)
         flow_two = Flow("two", tasks=tasks)
 
-        assert set(flow_one.slugs.values()) == set([str(x) + "-1" for x in range(10)])
-        assert flow_one.slugs == flow_two.slugs
+        sol = {f"add-{i}" for i in range(1, 6)}
+        sol.update(f"mul-{i}" for i in range(1, 6))
+
+        assert set(flow_one.slugs.values()) == sol
+        assert set(flow_two.slugs.values()) == sol
 
     def test_slugs_incorporate_tags_and_order(self):
         with Flow("one") as flow_one:
@@ -3224,3 +3294,108 @@ class TestSlugGeneration:
             "a-tag1-1",
             "b-tag1-tag2-1",
         }
+
+    def test_generated_slugs_dont_collide_with_user_provided_slugs(self):
+        with Flow("test") as flow:
+            a3 = Task("a", slug="a-3")
+            flow.add_task(a3)
+            a1 = Task("a")
+            flow.add_task(a1)
+            a2 = Task("a")
+            flow.add_task(a2)
+            a4 = Task("a")
+            flow.add_task(a4)
+
+        assert flow.slugs == {a1: "a-1", a2: "a-2", a3: "a-3", a4: "a-4"}
+
+    def test_slugs_robust_to_task_name_changes(self):
+        "See https://github.com/PrefectHQ/prefect/issues/4185"
+        with Flow("test") as flow:
+            a1 = Task("a")
+            flow.add_task(a1)
+            a1.name = "changed"
+            a2 = Task("a")
+            flow.add_task(a2)
+
+        assert flow.slugs == {a1: "a-1", a2: "a-2"}
+
+
+class TestTerminalStateHandler:
+    def test_terminal_state_handler_determines_final_state(self):
+        def fake_terminal_state_handler(
+            flow: Flow,
+            state: State,
+            reference_task_states: Set[State],
+        ) -> Optional[State]:
+            for task_state in reference_task_states:
+                if task_state.is_successful():
+                    state.message = "Custom message here"
+            return state
+
+        with Flow("test", terminal_state_handler=fake_terminal_state_handler) as flow:
+            fake_task = Task("fake")
+            flow.add_task(fake_task)
+            fake_task_2 = Task("fake_2")
+            flow.add_task(fake_task_2)
+            fake_task_2.set_upstream(fake_task)
+
+        assert flow.terminal_state_handler == fake_terminal_state_handler
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+        assert flow_state.message == "Custom message here"
+
+    def test_terminal_state_handler_check_is_backwards_compatible(self):
+        with Flow("test") as flow:
+            pass
+
+        flow.__dict__.pop("terminal_state_handler")
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+
+    def test_flow_state_used_if_terminal_state_handler_does_not_return_a_new_state(
+        self,
+    ):
+        def fake_terminal_state_handler(
+            flow: Flow,
+            state: State,
+            reference_task_states: Set[State],
+        ) -> Optional[State]:
+            return None
+
+        with Flow("test", terminal_state_handler=fake_terminal_state_handler) as flow:
+            fake_task = Task("fake")
+            flow.add_task(fake_task)
+
+        flow_state = flow.run()
+        assert flow_state.is_successful()
+        assert flow_state.message == "All reference tasks succeeded."
+
+    def test_terminal_state_handler_example_from_docs(self):
+        def custom_terminal_state_handler(
+            flow: Flow,
+            state: State,
+            reference_task_states: Set[State],
+        ) -> Optional[State]:
+            failed = False
+            # iterate through reference task states looking for failures
+            for task_state in reference_task_states:
+                if task_state.is_failed():
+                    failed = True
+            # update the terminal state of the Flow and return
+            if failed:
+                state.message = "Some important tasks have failed"
+            return state
+
+        class FailingTask(Task):
+            def run(self):
+                raise Exception
+
+        flow = Flow(
+            "my flow with custom terminal state handler",
+            terminal_state_handler=custom_terminal_state_handler,
+        )
+        flow.add_task(FailingTask(name="FailingTask"))
+
+        flow_state = flow.run()
+        assert flow_state.is_failed()
+        assert flow_state.message == "Some important tasks have failed"

@@ -1,11 +1,11 @@
+import textwrap
 from unittest.mock import MagicMock, patch, call
 
-import cloudpickle
 import pytest
 
 from prefect import Flow
 from prefect.storage import GCS
-from prefect.utilities.exceptions import StorageError
+from prefect.utilities.storage import flow_to_bytes_pickle, flow_from_bytes_pickle
 
 
 class TestGCSStorage:
@@ -18,7 +18,7 @@ class TestGCSStorage:
                 "google.oauth2.service_account": MagicMock(),
             },
         ):
-            from prefect.utilities.gcp import get_storage_client
+            from prefect.utilities.gcp import get_storage_client  # noqa
 
             client_util = MagicMock()
             monkeypatch.setattr("prefect.utilities.gcp.get_storage_client", client_util)
@@ -90,41 +90,45 @@ class TestGCSStorage:
 
     def test_get_flow_from_gcs(self, google_client):
         f = Flow("awesome-flow")
-        flow_content = cloudpickle.dumps(f)
+        flow_content = flow_to_bytes_pickle(f)
 
-        blob_mock = MagicMock(download_as_string=MagicMock(return_value=flow_content))
+        blob_mock = MagicMock(download_as_bytes=MagicMock(return_value=flow_content))
         bucket_mock = MagicMock(get_blob=MagicMock(return_value=blob_mock))
         google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
-
-        with pytest.raises(ValueError):
-            storage = GCS(bucket="test")
-            storage.get_flow()
 
         storage = GCS(bucket="awesome-bucket", key="a-place")
         storage.add_flow(f)
 
-        fetched_flow = storage.get_flow("a-place")
+        fetched_flow = storage.get_flow(f.name)
 
         assert fetched_flow.name == f.name
         bucket_mock.get_blob.assert_called_with("a-place")
-        assert blob_mock.download_as_string.call_count == 1
+        assert blob_mock.download_as_bytes.call_count == 1
 
     def test_get_flow_from_gcs_as_file(self, google_client):
-        f = Flow("awesome-flow")
-        flow_content = """from prefect import Flow\nf=Flow('awesome-flow')"""
+        f1 = Flow("flow-1")
+        f2 = Flow("flow-2")
+        flow_content = textwrap.dedent(
+            """
+            from prefect import Flow
+            f1 = Flow('flow-1')
+            f2 = Flow('flow-2')
+            """
+        )
 
-        blob_mock = MagicMock(download_as_string=MagicMock(return_value=flow_content))
+        blob_mock = MagicMock(download_as_bytes=MagicMock(return_value=flow_content))
         bucket_mock = MagicMock(get_blob=MagicMock(return_value=blob_mock))
         google_client.return_value.get_bucket = MagicMock(return_value=bucket_mock)
 
         storage = GCS(bucket="awesome-bucket", key="a-place", stored_as_script=True)
-        storage.add_flow(f)
+        storage.add_flow(f1)
+        storage.add_flow(f2)
 
-        fetched_flow = storage.get_flow("a-place")
+        assert storage.get_flow(f1.name).name == f1.name
+        assert storage.get_flow(f2.name).name == f2.name
 
-        assert fetched_flow.name == f.name
         bucket_mock.get_blob.assert_called_with("a-place")
-        assert blob_mock.download_as_string.call_count == 1
+        assert blob_mock.download_as_bytes.call_count == 2
 
     def test_build_no_upload_if_file_and_no_local_script_path(self, google_client):
         storage = GCS(bucket="awesome-bucket", stored_as_script=True)
@@ -174,7 +178,7 @@ class TestGCSStorage:
         assert storage.build()
 
         bucket_mock.blob.assert_called_with(blob_name=storage.flows[f.name])
-        blob_mock.upload_from_string.assert_called_with(cloudpickle.dumps(f))
+        blob_mock.upload_from_string.assert_called_with(flow_to_bytes_pickle(f))
 
     def test_upload_single_flow_with_custom_key_to_gcs(self, google_client):
         blob_mock = MagicMock()
@@ -190,7 +194,7 @@ class TestGCSStorage:
         assert storage.build()
 
         bucket_mock.blob.assert_called_with(blob_name="the-best-key")
-        blob_mock.upload_from_string.assert_called_with(cloudpickle.dumps(f))
+        blob_mock.upload_from_string.assert_called_with(flow_to_bytes_pickle(f))
 
     def test_upload_multiple_flows_to_gcs(self, google_client):
         blob_mock = MagicMock()
@@ -211,7 +215,7 @@ class TestGCSStorage:
         expected_upload_calls = []
         for f in flows:
             expected_blob_calls.append(call(blob_name=storage.flows[f.name]))
-            expected_upload_calls.append(call(cloudpickle.dumps(f)))
+            expected_upload_calls.append(call(flow_to_bytes_pickle(f)))
 
         # note, we don't upload until build() is called, which iterates on a dictionary, which is not ordered older versions of python
         bucket_mock.blob.assert_has_calls(expected_blob_calls, any_order=True)
@@ -233,7 +237,7 @@ class TestGCSStorage:
         assert storage.build()
 
         flow_as_bytes = blob_mock.upload_from_string.call_args[0][0]
-        new_flow = cloudpickle.loads(flow_as_bytes)
+        new_flow = flow_from_bytes_pickle(flow_as_bytes)
         assert new_flow.name == "awesome-flow"
 
         state = new_flow.run()

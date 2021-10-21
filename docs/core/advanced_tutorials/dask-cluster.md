@@ -149,7 +149,7 @@ This flow will now run every minute on your local Dask cluster until you kill th
 
 Dask is a fully featured tool all on its own, including many different ways to deploy it. For the latest in how to deploy Dask, check out the [Dask setup docs](https://docs.dask.org/en/latest/setup.html). There is also [this great blog post on the Dask blog](https://blog.dask.org/2020/07/23/current-state-of-distributed-dask-clusters) describing the current state of all the ways to deploy distributed Dask clusters.
 
-Often at some point users become interested in optimizing their Dask cluster for their workload. Usually this comes down to a tweaking the resource utilization of your dask cluster through settings such as
+Often at some point users become interested in optimizing their Dask cluster for their workload. Usually this comes down to tweaking the resource utilization of your dask cluster through settings such as
 - how many workers
 - the machine type / size the workers are on
 - how many threads each worker uses to schedule work

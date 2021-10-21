@@ -1,158 +1,101 @@
-import os
 from unittest.mock import MagicMock
 
 import pytest
 
-try:
-    from github import Github
-except ImportError:
-    Github = None
+dulwich = pytest.importorskip("dulwich")
 
-try:
-    from gitlab import Gitlab
-except ImportError:
-    Gitlab = None
+from prefect.utilities.git import TemporaryGitRepo
 
-try:
-    from atlassian import Bitbucket
-except ImportError:
-    Bitbucket = None
 
-import prefect
-from prefect.utilities.git import (
-    get_github_client,
-    get_gitlab_client,
-    get_bitbucket_client,
+@pytest.fixture
+def fake_dulwich_porcelain_clone(monkeypatch):
+    fake_clone = MagicMock()
+    monkeypatch.setattr("dulwich.porcelain.clone", fake_clone)
+    return fake_clone
+
+
+@pytest.fixture
+def fake_dulwich_build_index_from_tree(monkeypatch):
+    fake_build_index_from_tree = MagicMock()
+    monkeypatch.setattr(
+        "dulwich.index.build_index_from_tree", fake_build_index_from_tree
+    )
+    return fake_build_index_from_tree
+
+
+def test_temp_git_repo_init():
+    repo = TemporaryGitRepo(
+        git_clone_url="https://github.com/my/repo",
+        branch_name="my-branch",
+        tag=None,
+        commit=None,
+        clone_depth=2,
+    )
+
+    assert repo.git_clone_url == "https://github.com/my/repo"
+    assert repo.branch_name == "my-branch"
+    assert repo.tag == None
+    assert repo.clone_depth == 2
+    assert repo.commit == None
+
+
+def test_temp_git_repo_raises_if_both_tag_and_branch_provided():
+    with pytest.raises(ValueError):
+        repo = TemporaryGitRepo(
+            git_clone_url="https://github.com/my/repo",
+            branch_name="my-branch",
+            tag="v0.1",
+            clone_depth=2,
+        )
+
+
+def test_temp_git_repo_context_management(
+    fake_dulwich_porcelain_clone, fake_dulwich_build_index_from_tree
+):
+    with TemporaryGitRepo(
+        git_clone_url="git@github.com/test/repo",
+        branch_name=None,
+        tag=None,
+        clone_depth=1,
+    ) as temp_repo:
+        fake_dulwich_porcelain_clone.assert_called_with(
+            depth=temp_repo.clone_depth,
+            source=temp_repo.git_clone_url,
+            target=temp_repo.temp_dir.name,
+        )
+        fake_dulwich_build_index_from_tree.assert_not_called()
+
+
+@pytest.mark.parametrize("branch_name, tag", [("my-branch", None), (None, "v0.1")])
+def test_temp_git_repo_context_management_with_branch_or_tag_checks_out_ref(
+    branch_name, tag, fake_dulwich_porcelain_clone, fake_dulwich_build_index_from_tree
+):
+    with TemporaryGitRepo(
+        git_clone_url="git@github.com/test/repo",
+        branch_name=branch_name,
+        tag=tag,
+        clone_depth=1,
+    ) as temp_repo:
+        fake_dulwich_porcelain_clone.assert_called_with(
+            depth=temp_repo.clone_depth,
+            source=temp_repo.git_clone_url,
+            target=temp_repo.temp_dir.name,
+        )
+        fake_dulwich_build_index_from_tree.assert_called()
+
+
+@pytest.mark.parametrize(
+    "branch_name, tag, expected_ref",
+    [
+        ("my-branch", None, b"refs/remotes/origin/my-branch"),
+        (None, "v0.1", b"refs/tags/v0.1"),
+    ],
 )
-from prefect.utilities.configuration import set_temporary_config
-
-
-@pytest.mark.skipif(Github is None, reason="requires github extra")
-class TestGetGitHubClient:
-    def test_uses_context_secrets(self, monkeypatch):
-        github = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Github", github)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN="ACCESS_TOKEN")):
-                get_github_client()
-        assert github.call_args[0][0] == "ACCESS_TOKEN"
-
-    def test_prefers_passed_credentials_over_secrets(self, monkeypatch):
-        github = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Github", github)
-        desired_credentials = {"GITHUB_ACCESS_TOKEN": "PROVIDED_KEY"}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITHUB_ACCESS_TOKEN="ACCESS_TOKEN")):
-                get_github_client(credentials=desired_credentials)
-        assert github.call_args[0][0] == "PROVIDED_KEY"
-
-    def test_creds_default_to_environment(self, monkeypatch):
-        github = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Github", github)
-        get_github_client()
-        assert github.call_args[0][0] is None
-
-        monkeypatch.setenv("GITHUB_ACCESS_TOKEN", "TOKEN")
-        get_github_client()
-        assert github.call_args[0][0] == "TOKEN"
-
-
-@pytest.mark.skipif(Gitlab is None, reason="requires gitlab extra")
-class TestGetGitLabClient:
-    def test_uses_context_secrets(self, monkeypatch):
-        gitlab = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITLAB_ACCESS_TOKEN="ACCESS_TOKEN")):
-                get_gitlab_client()
-
-        assert gitlab.call_args[1]["private_token"] == "ACCESS_TOKEN"
-
-    def test_prefers_passed_credentials_over_secrets(self, monkeypatch):
-        gitlab = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
-        desired_credentials = {"GITLAB_ACCESS_TOKEN": "PROVIDED_KEY"}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(GITlab_ACCESS_TOKEN="ACCESS_TOKEN")):
-                get_gitlab_client(credentials=desired_credentials)
-        assert gitlab.call_args[1]["private_token"] == "PROVIDED_KEY"
-
-    def test_creds_default_to_environment(self, monkeypatch):
-        if "GITLAB_ACCESS_TOKEN" in os.environ:
-            del os.environ["GITLAB_ACCESS_TOKEN"]
-
-        gitlab = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
-        get_gitlab_client()
-        assert gitlab.call_args[1].get("private_token") is None
-
-        monkeypatch.setenv("GITLAB_ACCESS_TOKEN", "TOKEN")
-        get_gitlab_client()
-        assert gitlab.call_args[1]["private_token"] == "TOKEN"
-
-    def test_default_to_cloud(self, monkeypatch):
-        gitlab = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
-        get_gitlab_client()
-        assert gitlab.call_args[0][0] == "https://gitlab.com"
-
-    def test_specify_host(self, monkeypatch):
-        gitlab = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
-        get_gitlab_client(host="http://localhost:1234")
-        assert gitlab.call_args[0][0] == "http://localhost:1234"
-
-
-@pytest.mark.skipif(Bitbucket is None, reason="requires Bitbucket extra")
-class TestGetBitbucketClient:
-    def test_uses_context_secrets(self, monkeypatch):
-        bitbucket = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(BITBUCKET_ACCESS_TOKEN="ACCESS_TOKEN")):
-                get_bitbucket_client()
-
-        assert (
-            bitbucket.call_args[1]["session"].headers["Authorization"]
-            == "Bearer ACCESS_TOKEN"
-        )
-
-    def test_prefers_passed_credentials_over_secrets(self, monkeypatch):
-        bitbucket = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        desired_credentials = {"BITBUCKET_ACCESS_TOKEN": "PROVIDED_KEY"}
-        with set_temporary_config({"cloud.use_local_secrets": True}):
-            with prefect.context(secrets=dict(BITBUCKET_ACCESS_TOKEN="ACCESS_TOKEN")):
-                get_bitbucket_client(desired_credentials)
-
-        assert (
-            bitbucket.call_args[1]["session"].headers["Authorization"]
-            == "Bearer PROVIDED_KEY"
-        )
-
-    def test_creds_default_to_environment(self, monkeypatch):
-        if "BITBUCKET_ACCESS_TOKEN" in os.environ:
-            del os.environ["BITBUCKET_ACCESS_TOKEN"]
-
-        bitbucket = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        get_bitbucket_client()
-        assert bitbucket.call_args[1]["session"].headers["Authorization"] == "Bearer "
-
-        monkeypatch.setenv("BITBUCKET_ACCESS_TOKEN", "TOKEN")
-        get_bitbucket_client()
-        assert (
-            bitbucket.call_args[1]["session"].headers["Authorization"] == "Bearer TOKEN"
-        )
-
-    def test_default_to_cloud(self, monkeypatch):
-        bitbucket = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        get_bitbucket_client()
-        assert bitbucket.call_args[0][0] == "https://bitbucket.org"
-
-    def test_specify_host(self, monkeypatch):
-        bitbucket = MagicMock()
-        monkeypatch.setattr("prefect.utilities.git.Bitbucket", bitbucket)
-        get_bitbucket_client(host="http://localhost:1234")
-        assert bitbucket.call_args[0][0] == "http://localhost:1234"
+def test_temp_git_repo_ref_for_branch_or_tag(branch_name, tag, expected_ref):
+    temp_repo = TemporaryGitRepo(
+        git_clone_url="git@github.com/test/repo",
+        branch_name=branch_name,
+        tag=tag,
+        clone_depth=1,
+    )
+    assert temp_repo.branch_or_tag_ref == expected_ref

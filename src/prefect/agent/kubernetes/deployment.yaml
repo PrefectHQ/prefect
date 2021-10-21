@@ -49,10 +49,10 @@ spec:
               value: "cloud"
             - name: PREFECT__CLOUD__AGENT__AGENT_ADDRESS
               value: "http://:8080"
-          resources:
-            limits:
-              memory: "128Mi"
-              cpu: "100m"
+            - name: PREFECT__CLOUD__API_KEY
+              value: ""
+            - name: PREFECT__CLOUD__TENANT_ID
+              value: ""
           livenessProbe:
             httpGet:
               path: /api/health
@@ -60,24 +60,3 @@ spec:
             initialDelaySeconds: 40
             periodSeconds: 40
             failureThreshold: 2
-        - name: resource-manager
-          image: prefecthq/prefect:latest
-          imagePullPolicy: Always
-          command: ["/bin/bash", "-c"]
-          args:
-            [
-              "python -c 'from prefect.agent.kubernetes import ResourceManager; ResourceManager().start()'",
-            ]
-          env:
-            - name: PREFECT__CLOUD__AGENT__AUTH_TOKEN
-              value: ""
-            - name: PREFECT__CLOUD__API
-              value: "https://api.prefect.io"
-            - name: PREFECT__CLOUD__AGENT__RESOURCE_MANAGER__LOOP_INTERVAL
-              value: "60"
-            - name: NAMESPACE
-              value: "default"
-          resources:
-            limits:
-              memory: "128Mi"
-              cpu: "100m"

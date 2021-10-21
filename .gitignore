@@ -139,6 +139,20 @@ node_modules
 # docs
 docs/api/unreleased
 docs/api/latest
+docs/core/examples/
+!docs/core/examples/overview.md
+docs/.vuepress/public/examples.json
 docs/changelog.md
 docs/deploy/dist
 docs/.vuepress/public/prefect-coverage
+
+
+# credentials and key material
+config
+credentials
+credentials.csv
+*.env
+*.pem
+*.pub
+*.rdp
+*_rsa

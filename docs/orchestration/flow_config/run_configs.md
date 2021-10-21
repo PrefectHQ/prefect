@@ -5,7 +5,7 @@
 a Local Agent, `DockerRun` pairs with a Docker Agent, ...). The options
 available on a `RunConfig` depend on the type, but generally include options
 for setting environment variables, configuring resources (CPU/memory), or
-selecting a docker image to use (if not using `Docker` storage).
+selecting a [docker image](./docker.md) to use (if not using `Docker` storage).
 
 To configure a Flow's `run_config`, you can either specify the `run_config` as
 part of the `Flow` constructor, or set it as an attribute later before calling
@@ -25,6 +25,9 @@ with Flow("example") as flow:
 
 flow.run_config = KubernetesRun()
 ```
+
+`RunConfig` objects and their properties can also be overridden for
+individual flow runs in the Prefect UI.
 
 ## Labels
 
@@ -69,7 +72,7 @@ documentation](/api/latest/run_configs.md) for more information.
 [UniversalRun](/api/latest/run_configs.md#universalrun) configures
 flow runs that can be deployed on any agent. This is the default `RunConfig`
 used if flow-labels are specified. It can be useful if agent-side configuration
-is sufficient. Only configuring the flow's labels is exposed - to configure
+is sufficient. Only configuring environment variables and the flow's labels is exposed - to configure
 backend specific fields use one of the other `RunConfig` types.
 
 #### Examples
@@ -82,10 +85,10 @@ from prefect.run_configs import UniversalRun
 flow.run_config = UniversalRun()
 ```
 
-Configure labels for this flow:
+Configure environment variables and labels for this flow:
 
 ```python
-flow.run_config = UniversalRun(labels=["label-1", "label-2"])
+flow.run_config = UniversalRun(env={"SOME_VAR": "value"}, ["label-1", "label-2"])
 ```
 
 ### LocalRun
@@ -138,7 +141,7 @@ Set an environment variable in the flow run container:
 flow.run_config = DockerRun(env={"SOME_VAR": "value"})
 ```
 
-Specify a docker image to use, if not using `Docker` storage:
+Specify a [docker image](./docker.md) to use, if not using `Docker` storage:
 
 ```python
 flow.run_config = DockerRun(image="example/image-name:with-tag")
@@ -166,7 +169,7 @@ Set an environment variable in the flow run container:
 flow.run_config = KubernetesRun(env={"SOME_VAR": "value"})
 ```
 
-Specify an image to use, if not using `Docker` storage:
+Specify an [image](./docker.md) to use, if not using `Docker` storage:
 
 ```python
 flow.run_config = KubernetesRun(image="example/image-name:with-tag")
@@ -185,6 +188,14 @@ Use a custom Kubernetes Job spec for this flow, stored in S3:
 ```python
 flow.run_config = KubernetesRun(job_template_path="s3://bucket/path/to/spec.yaml")
 ```
+
+Specify an [imagePullPolicy](https://kubernetes.io/docs/concepts/configuration/overview/#container-images) 
+for the Kubernetes job:
+
+
+```python
+flow.run_config = KubernetesRun(image_pull_policy="Always")
+````
 
 ### ECSRun
 
@@ -207,7 +218,7 @@ Set an environment variable in the flow run container:
 flow.run_config = ECSRun(env={"SOME_VAR": "value"})
 ```
 
-Specify an image to use, if not using `Docker` storage:
+Specify an [image](./docker.md) to use, if not using `Docker` storage:
 
 ```python
 flow.run_config = ECSRun(image="example/image-name:with-tag")

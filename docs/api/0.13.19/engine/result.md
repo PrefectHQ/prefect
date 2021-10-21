@@ -1,0 +1,70 @@
+---
+sidebarDepth: 2
+editLink: false
+---
+# Results
+---
+The Result classes in this `prefect.engine.result` package are results used internally by the Prefect pipeline to track and store results without persistence.
+
+If you are looking for the API docs for the result subclasses you can use to enable task return value checkpointing or to store task data, see the API docs for the [Result Subclasses in `prefect.engine.results`](results.html).
+ ## Result
+ <div class='class-sig' id='prefect-engine-result-base-result'><p class="prefect-sig">class </p><p class="prefect-class">prefect.engine.result.base.Result</p>(value=None, result_handler=None, validators=None, run_validators=True, location=None, serializer=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L76">[source]</a></span></div>
+
+A representation of the result of a Prefect task; this class contains information about the value of a task's result, a result handler specifying how to serialize or store this value securely, and a `safe_value` attribute which holds information about the current "safe" representation of this result.
+
+**Args**:     <ul class="args"><li class="args">`value (Any, optional)`: the value of the result     </li><li class="args">`result_handler (ResultHandler, optional)`: the result handler to use         when storing / serializing this result's value; required if you intend         on persisting this result in some way     </li><li class="args">`validators (Iterable[Callable], optional)`: Iterable of validation         functions to apply to the result to ensure it is `valid`.     </li><li class="args">`run_validators (bool)`: Whether the result value should be validated.     </li><li class="args">`location (Union[str, Callable], optional)`: Possibly templated location         to be used for saving the result to the destination. If a callable         function is provided, it should have signature `callable(**kwargs) ->         str` and at write time all formatting kwargs will be passed and a fully         formatted location is expected as the return value.  Can be used for         string formatting logic that `.format(**kwargs)` doesn't support     </li><li class="args">`serializer (Serializer)`: a serializer that can transform Python         objects to bytes and recover them. The serializer is used whenever the         `Result` is writing to or reading from storage. Defaults to         `PickleSerializer`.</li></ul>
+
+|methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-engine-result-base-result-copy'><p class="prefect-class">prefect.engine.result.base.Result.copy</p>()<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L190">[source]</a></span></div>
+<p class="methods">Return a copy of the current result object.</p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-exists'><p class="prefect-class">prefect.engine.result.base.Result.exists</p>(location, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L223">[source]</a></span></div>
+<p class="methods">Checks whether the target result exists.<br><br>Does not validate whether the result is `valid`, only that it is present.<br><br>**Args**:     <ul class="args"><li class="args">`location (str, optional)`: Location of the result in the specific result target.         If provided, will check whether the provided location exists;         otherwise, will use `self.location`     </li><li class="args">`**kwargs (Any)`: string format arguments for `location`</li></ul> **Returns**:     <ul class="args"><li class="args">`bool`: whether or not the target result exists.</li></ul></p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-format'><p class="prefect-class">prefect.engine.result.base.Result.format</p>(**kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L202">[source]</a></span></div>
+<p class="methods">Takes a set of string format key-value pairs and renders the result.location to a final location string<br><br>**Args**:     <ul class="args"><li class="args">`**kwargs (Any)`: string format arguments for result.location</li></ul> **Returns**:     <ul class="args"><li class="args">`Result`: a new result instance with the appropriately formatted location</li></ul></p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-from-value'><p class="prefect-class">prefect.engine.result.base.Result.from_value</p>(value)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L146">[source]</a></span></div>
+<p class="methods">Create a new copy of the result object with the provided value.<br><br>**Args**:     <ul class="args"><li class="args">`value (Any)`: the value to use</li></ul> **Returns**:     <ul class="args"><li class="args">`Result`: a new Result instance with the given value</li></ul></p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-read'><p class="prefect-class">prefect.engine.result.base.Result.read</p>(location)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L244">[source]</a></span></div>
+<p class="methods">Reads from the target result and returns a corresponding `Result` instance.<br><br>**Args**:     <ul class="args"><li class="args">`location (str)`: Location of the result in the specific result target.</li></ul> **Returns**:     <ul class="args"><li class="args">`Any`: The value saved to the result.</li></ul></p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-store-safe-value'><p class="prefect-class">prefect.engine.result.base.Result.store_safe_value</p>()<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L129">[source]</a></span></div>
+<p class="methods">Populate the `safe_value` attribute with a `SafeResult` using the result handler</p>|
+ | <div class='method-sig' id='prefect-engine-result-base-resultinterface-to-result'><p class="prefect-class">prefect.engine.result.base.ResultInterface.to_result</p>(result_handler=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L55">[source]</a></span></div>
+<p class="methods">If no result handler provided, returns self.  If a ResultHandler is provided, however, it will become the new result handler for this result.<br><br>**Args**:     <ul class="args"><li class="args">`result_handler (optional)`: an optional result handler to override         the current handler</li></ul> **Returns**:     <ul class="args"><li class="args">`ResultInterface`: a potentially new Result object</li></ul></p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-validate'><p class="prefect-class">prefect.engine.result.base.Result.validate</p>()<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L161">[source]</a></span></div>
+<p class="methods">Run any validator functions associated with this result and return whether the result is valid or not.  All individual validator functions must return True for this method to return True.  Emits a warning log if run_validators isn't true, and proceeds to run validation functions anyway.<br><br><br>**Returns**:     <ul class="args"><li class="args">`bool`: whether or not the Result passed all validation functions</li></ul></p>|
+ | <div class='method-sig' id='prefect-engine-result-base-result-write'><p class="prefect-class">prefect.engine.result.base.Result.write</p>(value_, **kwargs)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L260">[source]</a></span></div>
+<p class="methods">Serialize and write the result to the target location.<br><br>**Args**:     <ul class="args"><li class="args">`value_ (Any)`: the value to write; will then be stored as the `value` attribute         of the returned `Result` instance     </li><li class="args">`**kwargs (optional)`: if provided, will be used to format the location template         to determine the location to write to</li></ul> **Returns**:     <ul class="args"><li class="args">`Result`: a new result object with the appropriately formatted location destination</li></ul></p>|
+
+---
+<br>
+
+ ## SafeResult
+ <div class='class-sig' id='prefect-engine-result-base-saferesult'><p class="prefect-sig">class </p><p class="prefect-class">prefect.engine.result.base.SafeResult</p>(value, result_handler)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L280">[source]</a></span></div>
+
+A _safe_ representation of the result of a Prefect task; this class contains information about the serialized value of a task's result, and a result handler specifying how to deserialize this value
+
+**Args**:     <ul class="args"><li class="args">`value (Any)`: the safe representation of a value     </li><li class="args">`result_handler (ResultHandler)`: the result handler to use when reading this result's value</li></ul>
+
+|methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-engine-result-base-saferesult-to-result'><p class="prefect-class">prefect.engine.result.base.SafeResult.to_result</p>(result_handler=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L299">[source]</a></span></div>
+<p class="methods">Read the value of this result using the result handler and return a fully hydrated Result. If a new ResultHandler is provided, it will instead be used to read the underlying value and the `result_handler` attribute of this result will be reset accordingly.<br><br>**Args**:     <ul class="args"><li class="args">`result_handler (optional)`: an optional result handler to override the current handler</li></ul> **Returns**:     <ul class="args"><li class="args">`ResultInterface`: a potentially new Result object</li></ul></p>|
+
+---
+<br>
+
+ ## NoResultType
+ <div class='class-sig' id='prefect-engine-result-base-noresulttype'><p class="prefect-sig">class </p><p class="prefect-class">prefect.engine.result.base.NoResultType</p>()<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L319">[source]</a></span></div>
+
+A `SafeResult` subclass representing the _absence_ of computation / output.  A `NoResult` object returns itself for its `value` and its `safe_value`.
+
+|methods: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|
+|:----|
+ | <div class='method-sig' id='prefect-engine-result-base-noresulttype-to-result'><p class="prefect-class">prefect.engine.result.base.NoResultType.to_result</p>(result_handler=None)<span class="source"><a href="https://github.com/PrefectHQ/prefect/blob/master/src/prefect/engine/result/base.py#L341">[source]</a></span></div>
+<p class="methods">Performs no computation and returns self.<br><br>**Args**:     <ul class="args"><li class="args">`result_handler (optional)`: a passthrough for interface compatibility</li></ul></p>|
+
+---
+<br>
+
+
+<p class="auto-gen">This documentation was auto-generated from commit <a href='https://github.com/PrefectHQ/prefect/commit/n/a'>n/a</a> </br>on December 16, 2020 at 21:36 UTC</p>

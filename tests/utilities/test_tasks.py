@@ -1,6 +1,7 @@
+import functools
 import pytest
 
-from prefect import Flow, Task, case, Parameter
+from prefect import Flow, Task, case, Parameter, resource_manager, task
 from prefect.engine.flow_runner import FlowRunner
 from prefect.engine.state import Paused, Resume
 from prefect.utilities import tasks, edges
@@ -32,7 +33,10 @@ class TestTaskDecorator:
         def fn(x):
             return x
 
-        with pytest.raises(ValueError, match="Could not infer an active Flow context"):
+        with pytest.raises(
+            ValueError,
+            match=f"Could not infer an active Flow context while creating edge to {fn}",
+        ):
             fn(1)
 
     def test_task_decorator_with_no_args_must_be_called_inside_flow_context(self):
@@ -85,6 +89,59 @@ class TestTaskDecorator:
 
             @tasks.task
             def fn(upstream_tasks):
+                pass
+
+    def test_task_decorator_allows_for_decorator_chaining(self):
+        def simple_dec(func):
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return wrapped
+
+        @tasks.task
+        @simple_dec
+        def run(x):
+            pass
+
+        class A(Task):
+            @simple_dec
+            def run(self, x):
+                pass
+
+        @tasks.task
+        @simple_dec
+        @simple_dec
+        def run(x):
+            pass
+
+        class A(Task):
+            @simple_dec
+            @simple_dec
+            def run(self, x):
+                pass
+
+    def test_task_decorator_rejects_varargs_with_chained_decorator(self):
+        def simple_dec(func):
+            @functools.wraps(func)
+            def wrapped(*args, **kwargs):
+                return func(*args, **kwargs)
+
+            return wrapped
+
+        with pytest.raises(ValueError):
+
+            @tasks.task
+            @simple_dec
+            def run(self, x, *y):
+                pass
+
+        with pytest.raises(ValueError):
+
+            @tasks.task
+            @simple_dec
+            @simple_dec
+            def run(self, x, *y):
                 pass
 
 
@@ -301,25 +358,146 @@ class TestApplyMap:
         }
         assert res == sol
 
+    def test_apply_map_can_be_used_on_apply_map_result(
+        self,
+    ):
+        # Prior to commit 4b0df740de99a1fad3182c01f4b182ba83445bcc this would introduce
+        # a cycle
+        @task
+        def combine(item_combination):
+            return item_combination[0] + item_combination[1]
+
+        # mapping function one
+        def apply_map_one(item):
+            result_one = inc(item)
+            result_two = inc(inc(item))
+            return (result_one, result_two)
+
+        # mapping function two
+        def apply_map_two(item):
+            return combine(item)
+
+        with Flow("test") as flow:
+            one_result = apply_map(apply_map_one, [1, 2, 3])
+            two_result = apply_map(apply_map_two, one_result)
+
+        state = flow.run()
+        assert state.is_successful()
+        assert state.result[one_result[0]].result == [2, 3, 4]
+        assert state.result[one_result[1]].result == [3, 4, 5]
+        assert state.result[two_result].result == [5, 7, 9]
+
     def test_apply_map_inside_case_statement_works(self):
-        def func(x):
-            return add(x, 1), add(x, 2)
+        def func(x, a):
+            return add(x, 1), add(x, a)
 
         with Flow("test") as flow:
             branch = Parameter("branch")
             with case(branch, True):
-                a, b = apply_map(func, range(4))
-                c = add.map(a, b)
+                a = inc(1)
+                b, c = apply_map(func, range(4), edges.unmapped(a))
+                d = add.map(b, c)
 
         state = flow.run(branch=True)
-        assert state.result[a].result == [1, 2, 3, 4]
-        assert state.result[b].result == [2, 3, 4, 5]
-        assert state.result[c].result == [3, 5, 7, 9]
+        assert state.result[a].result == 2
+        assert state.result[b].result == [1, 2, 3, 4]
+        assert state.result[c].result == [2, 3, 4, 5]
+        assert state.result[d].result == [3, 5, 7, 9]
 
         state = flow.run(branch=False)
         assert state.result[a].is_skipped()
         assert state.result[b].is_skipped()
         assert state.result[c].is_skipped()
+        assert state.result[d].is_skipped()
+
+    def test_apply_map_inside_resource_manager_works(self):
+        @resource_manager
+        class MyResource:
+            def setup(self):
+                return 1
+
+            def cleanup(self, _):
+                pass
+
+        def func(x, a):
+            return add(x, a), add(x, 2)
+
+        with Flow("test") as flow:
+            with MyResource() as a:
+                b, c = apply_map(func, range(4), edges.unmapped(a))
+                d = add.map(b, c)
+
+        state = flow.run()
+        assert state.result[a].result == 1
+        assert state.result[b].result == [1, 2, 3, 4]
+        assert state.result[c].result == [2, 3, 4, 5]
+        assert state.result[d].result == [3, 5, 7, 9]
+
+    def test_apply_map_inputs_added_to_subflow_before_calling_func(self):
+        """We need to ensure all args to `apply_map` are added to the temporary
+        subflow *before* calling the mapped func. Otherwise things like
+        `case`/`resource_manager` statements that check the subgraph can get
+        confused and create new edges that shouldn't exist, leading to cycles."""
+
+        def func(cond, a, b):
+            with case(cond, True):
+                res1 = a + 1
+            with case(cond, False):
+                res2 = b + 1
+            return merge(res1, res2)
+
+        @tasks.task
+        def identity(x):
+            return x
+
+        with Flow("test") as flow:
+            cond = identity([True, False, True])
+            a = identity([1, 2, 3])
+            b = identity([4, 5, 6])
+            c = apply_map(func, cond, a, b)
+
+        state = flow.run()
+        assert state.result[c].result == [2, 6, 4]
+
+    @pytest.mark.parametrize("input_type", ["constant", "task"])
+    def test_apply_map_flatten_works(self, input_type):
+        def func(a):
+            return a * 2
+
+        @tasks.task
+        def nested_list():
+            return [[1], [1, 2], [1, 2, 3]]
+
+        constant_nested = nested_list.run()
+
+        with Flow("test") as flow:
+            nested = nested_list()
+            if input_type == "constant":
+                a = apply_map(func, edges.flatten(nested))
+            else:
+                a = apply_map(func, edges.flatten(constant_nested))
+
+        state = flow.run()
+        assert state.result[a].result == [2, 2, 4, 2, 4, 6]
+
+    def test_apply_map_mixed_edge_types(self):
+        @tasks.task
+        def get_mixed_types():
+            return 3, [1, 2, 3], [[1, 2], [3]]
+
+        @tasks.task
+        def identity(a, b, c):
+            return a, b, c
+
+        def func(u, m, f):
+            return identity(u, m, f)
+
+        with Flow("test") as flow:
+            m = get_mixed_types()
+            a = apply_map(func, edges.unmapped(m[0]), m[1], edges.flatten(m[2]))
+
+        state = flow.run()
+        assert state.result[a].result == [(3, 1, 1), (3, 2, 2), (3, 3, 3)]
 
 
 class TestAsTask:
@@ -354,7 +532,7 @@ class TestAsTask:
         assert res.result[val].result == obj
 
     def test_as_task_toggles_constants(self):
-        with Flow("test") as f:
+        with Flow("test"):
             t = tasks.as_task(4)
 
         assert isinstance(t, Task)
@@ -383,7 +561,7 @@ class TestAsTask:
         ],
     )
     def test_nested_collections_of_mixed_constants_are_not_constants(self, val):
-        with Flow("test") as f:
+        with Flow("test"):
             task = tasks.as_task(val)
         assert not isinstance(task, Constant)
 

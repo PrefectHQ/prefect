@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import Iterable, Dict, Optional, Any
+from typing import Iterable, Dict, Any
 
 import slugify
 import yaml
@@ -121,6 +121,8 @@ class ECSAgent(Agent):
             `"FARGATE"` (default) or `"EC2"`.
         - task_role_arn (str, optional): The default task role ARN to use when
             registering ECS tasks created by this agent.
+        - execution_role_arn (str, optional): The default execution role ARN
+            to use when registering ECS tasks created by this agent.
         - botocore_config (dict, optional): Additional botocore configuration
             options to be passed to the boto3 client. See [the boto3
             configuration docs][2] for more information.
@@ -139,7 +141,7 @@ class ECSAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         task_definition_path: str = None,
         run_task_kwargs_path: str = None,
         aws_access_key_id: str = None,
@@ -149,6 +151,7 @@ class ECSAgent(Agent):
         cluster: str = None,
         launch_type: str = None,
         task_role_arn: str = None,
+        execution_role_arn: str = None,
         botocore_config: dict = None,
     ) -> None:
         super().__init__(
@@ -167,6 +170,7 @@ class ECSAgent(Agent):
         self.cluster = cluster
         self.launch_type = launch_type.upper() if launch_type else "FARGATE"
         self.task_role_arn = task_role_arn
+        self.execution_role_arn = execution_role_arn
 
         # Load boto configuration. We want to use the standard retry mode by
         # default (which isn't boto's default due to backwards compatibility).
@@ -176,7 +180,7 @@ class ECSAgent(Agent):
         # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         # for more info.
         boto_config = Config(**botocore_config or {})
-        if not boto_config.retries:
+        if not boto_config.retries and not os.environ.get("AWS_RETRY_MODE"):
             boto_config.retries = {"mode": "standard"}
 
         self.boto_kwargs = dict(
@@ -188,9 +192,6 @@ class ECSAgent(Agent):
         )  # type: Dict[str, Any]
 
         self.ecs_client = get_boto_client("ecs", **self.boto_kwargs)
-        self.rgtag_client = get_boto_client(
-            "resourcegroupstaggingapi", **self.boto_kwargs
-        )
 
         # Load default task definition
         if not task_definition_path:
@@ -222,12 +223,6 @@ class ECSAgent(Agent):
                 raise
         else:
             self.run_task_kwargs = {}
-
-        # If `task_role_arn` is configured on the agent, add it to the default
-        # template. The agent default `task_role_arn` is only applied if using
-        # the agent's default template.
-        if self.task_role_arn:
-            self.task_definition["taskRoleArn"] = self.task_role_arn
 
         # If running on fargate, auto-configure `networkConfiguration` for the
         # user if they didn't configure it themselves.
@@ -288,13 +283,10 @@ class ECSAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info("Deploying flow run %r", flow_run.id)
-
         run_config = self._get_run_config(flow_run, ECSRun)
         assert isinstance(run_config, ECSRun)  # mypy
 
-        taskdef_arn = self.get_task_definition_arn(flow_run, run_config)
-        if taskdef_arn is None:
+        if run_config.task_definition_arn is None:
             # Register a new task definition
             self.logger.debug(
                 "Registering new task definition for flow %s", flow_run.flow.id
@@ -302,12 +294,22 @@ class ECSAgent(Agent):
             taskdef = self.generate_task_definition(flow_run, run_config)
             resp = self.ecs_client.register_task_definition(**taskdef)
             taskdef_arn = resp["taskDefinition"]["taskDefinitionArn"]
+            new_taskdef_arn = True
             self.logger.debug(
                 "Registered task definition %s for flow %s",
                 taskdef_arn,
                 flow_run.flow.id,
             )
         else:
+            from prefect.serialization.storage import StorageSchema
+            from prefect.storage import Docker
+
+            if isinstance(StorageSchema().load(flow_run.flow.storage), Docker):
+                raise ValueError(
+                    "Cannot provide `task_definition_arn` when using `Docker` storage"
+                )
+            taskdef_arn = run_config.task_definition_arn
+            new_taskdef_arn = False
             self.logger.debug(
                 "Using task definition %s for flow %s", taskdef_arn, flow_run.flow.id
             )
@@ -316,6 +318,12 @@ class ECSAgent(Agent):
         kwargs = self.get_run_task_kwargs(flow_run, run_config)
 
         resp = self.ecs_client.run_task(taskDefinition=taskdef_arn, **kwargs)
+
+        # Always deregister the task definition if a new one was registered
+        if new_taskdef_arn:
+            self.logger.debug("Deregistering task definition %s", taskdef_arn)
+            self.ecs_client.deregister_task_definition(taskDefinition=taskdef_arn)
+
         if resp.get("tasks"):
             task_arn = resp["tasks"][0]["taskArn"]
             self.logger.debug("Started task %r for flow run %r", task_arn, flow_run.id)
@@ -326,51 +334,6 @@ class ECSAgent(Agent):
                 flow_run.id, resp.get("failures")
             )
         )
-
-    def get_task_definition_tags(self, flow_run: GraphQLResult) -> dict:
-        """Get required task definition tags from a flow run.
-
-        Args:
-            - flow_run (GraphQLResult): the flow run
-
-        Returns:
-            - dict: a dict of tags to use
-        """
-        return {
-            "prefect:flow-id": flow_run.flow.id,
-            "prefect:flow-version": str(flow_run.flow.version),
-        }
-
-    def get_task_definition_arn(
-        self, flow_run: GraphQLResult, run_config: ECSRun
-    ) -> Optional[str]:
-        """Get an existing task definition ARN for a flow run.
-
-        Args:
-            - flow_run (GraphQLResult): the flow run
-            - run_config (ECSRun): The flow's run config
-
-        Returns:
-            - Optional[str]: the task definition ARN. Returns `None` if no
-                existing definition is found.
-        """
-        if run_config.task_definition_arn is not None:
-            return run_config.task_definition_arn
-
-        tags = self.get_task_definition_tags(flow_run)
-
-        from botocore.exceptions import ClientError
-
-        try:
-            res = self.rgtag_client.get_resources(
-                TagFilters=[{"Key": k, "Values": [v]} for k, v in tags.items()],
-                ResourceTypeFilters=["ecs:task-definition"],
-            )
-            if res["ResourceTagMappingList"]:
-                return res["ResourceTagMappingList"][0]["ResourceARN"]
-            return None
-        except ClientError:
-            return None
 
     def generate_task_definition(
         self, flow_run: GraphQLResult, run_config: ECSRun
@@ -397,22 +360,20 @@ class ECSAgent(Agent):
             taskdef = deepcopy(self.task_definition)
 
         slug = slugify.slugify(
-            flow_run.flow.name,
+            f"{flow_run.flow.name}-{flow_run.id}",
             max_length=255 - len("prefect-"),
             word_boundary=True,
             save_order=True,
         )
-        family = f"prefect-{slug}"
+        taskdef["family"] = f"prefect-{slug}"
 
-        tags = self.get_task_definition_tags(flow_run)
-
-        taskdef["family"] = family
-
-        taskdef_tags = [{"key": k, "value": v} for k, v in tags.items()]
-        for entry in taskdef.get("tags", []):
-            if entry["key"] not in tags:
-                taskdef_tags.append(entry)
-        taskdef["tags"] = taskdef_tags
+        # Add some metadata tags for easier tracking by users
+        taskdef.setdefault("tags", []).extend(
+            [
+                {"key": "prefect:flow-id", "value": flow_run.flow.id},
+                {"key": "prefect:flow-version", "value": str(flow_run.flow.version)},
+            ]
+        )
 
         # Get the flow container (creating one if it doesn't already exist)
         containers = taskdef.setdefault("containerDefinitions", [])
@@ -424,41 +385,37 @@ class ECSAgent(Agent):
             containers.append(container)
 
         # Set flow image
-        container["image"] = image = get_flow_image(flow_run)
+        container["image"] = image = get_flow_image(
+            flow_run, default=container.get("image")
+        )
 
-        # Set flow run command
-        container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
-
-        # Set taskRoleArn if configured
-        if run_config.task_role_arn:
-            taskdef["taskRoleArn"] = run_config.task_role_arn
-
-        # Populate static environment variables from the following sources,
-        # with precedence:
-        # - Static environment variables, hardcoded below
-        # - Values in the task definition template
-        env = {
-            "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__CONTEXT__IMAGE": image,
-            "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
-            "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
-        }
+        # Add `PREFECT__CONTEXT__IMAGE` environment variable
+        env = {"PREFECT__CONTEXT__IMAGE": image}
         container_env = [{"name": k, "value": v} for k, v in env.items()]
         for entry in container.get("environment", []):
             if entry["name"] not in env:
                 container_env.append(entry)
         container["environment"] = container_env
 
-        # Set resource requirements, if provided
-        # Also ensure that cpu/memory are strings not integers
-        if run_config.cpu:
-            taskdef["cpu"] = str(run_config.cpu)
-        elif "cpu" in taskdef:
+        # Ensure that cpu/memory are strings not integers
+        if "cpu" in taskdef:
             taskdef["cpu"] = str(taskdef["cpu"])
-        if run_config.memory:
-            taskdef["memory"] = str(run_config.memory)
-        elif "memory" in taskdef:
+        if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
+
+        # Set executionRoleArn if configured
+        # Note that we set this in both the task definition and the
+        # run_task_kwargs since ECS requires this in the definition for FARGATE
+        # tasks, but we also want to still configure it for users that provide
+        # their own `task_definition_arn`.
+        if run_config.execution_role_arn:
+            taskdef["executionRoleArn"] = run_config.execution_role_arn
+        elif self.execution_role_arn:
+            taskdef["executionRoleArn"] = self.execution_role_arn
+
+        # Set requiresCompatibilities if not already set
+        if "requiresCompatibilities" not in taskdef:
+            taskdef["requiresCompatibilities"] = [self.launch_type]
 
         return taskdef
 
@@ -476,8 +433,7 @@ class ECSAgent(Agent):
         """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
-        if self.launch_type:
-            out["launchType"] = self.launch_type
+        out["launchType"] = self.launch_type
         if self.cluster:
             out["cluster"] = self.cluster
 
@@ -495,22 +451,70 @@ class ECSAgent(Agent):
             container = {"name": "flow"}
             container_overrides.append(container)
 
+        # Set taskRoleArn if configured
+        if run_config.task_role_arn:
+            overrides["taskRoleArn"] = run_config.task_role_arn
+        elif self.task_role_arn:
+            overrides["taskRoleArn"] = self.task_role_arn
+
+        # Set executionRoleArn if configured
+        if run_config.execution_role_arn:
+            overrides["executionRoleArn"] = run_config.execution_role_arn
+        elif self.execution_role_arn:
+            overrides["executionRoleArn"] = self.execution_role_arn
+
+        # Set resource requirements, if provided
+        # Also ensure that cpu/memory are strings not integers
+        if run_config.cpu:
+            overrides["cpu"] = str(run_config.cpu)
+        elif "cpu" in overrides:
+            overrides["cpu"] = str(overrides["cpu"])
+        if run_config.memory:
+            overrides["memory"] = str(run_config.memory)
+        elif "memory" in overrides:
+            overrides["memory"] = str(overrides["memory"])
+
+        # Set flow run command
+        container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
+
+        # Add `PREFECT__LOGGING__LEVEL` environment variable
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+
         # Populate environment variables from the following sources,
         # with precedence:
-        # - Dynamic values required for flow execution, hardcoded below
+        # - Values required for flow execution, hardcoded below
         # - Values set on the ECSRun object
         # - Values set using the `--env` CLI flag on the agent
-        env = self.env_vars.copy()
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(
             {
+                "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
+                "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
+                "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+                "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]

@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -27,6 +27,24 @@ class TestInitialization:
                 res = t.run()
         assert smtp.SMTP_SSL.return_value.login.call_args[0] == ("foo", "bar")
 
+    def test_login_not_called_if_smtp_type_insecure(self, monkeypatch):
+        smtp = MagicMock()
+        monkeypatch.setattr("prefect.tasks.notifications.email_task.smtplib", smtp)
+        t = EmailTask(msg="", smtp_type="INSECURE")
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
+                res = t.run()
+        assert call.login("foo", "bar") not in smtp.SMTP.return_value.mock_calls
+
+    def test_login_called_if_smtp_type_not_insecure(self, monkeypatch):
+        smtp = MagicMock()
+        monkeypatch.setattr("prefect.tasks.notifications.email_task.smtplib", smtp)
+        t = EmailTask(msg="")
+        with set_temporary_config({"cloud.use_local_secrets": True}):
+            with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
+                res = t.run()
+        assert call.login("foo", "bar") in smtp.SMTP_SSL.return_value.mock_calls
+
     def test_run_raises_error_when_called_with_unsupported_smtp_type(self):
         t = EmailTask(msg="", smtp_type="TEST")
         with pytest.raises(
@@ -42,7 +60,7 @@ class TestInitialization:
         with set_temporary_config({"cloud.use_local_secrets": True}):
             with context({"secrets": dict(EMAIL_USERNAME="foo", EMAIL_PASSWORD="bar")}):
                 res = t.run()
-        assert smtp.SMTP_SSL.return_value.sendmail.call_args[0][0] == ("test@lvh.me")
+        assert smtp.SMTP_SSL.return_value.send_message.call_count == 1
 
     def test_kwargs_for_smtp_server_get_passed_to_task_init(self):
         t = EmailTask(smtp_server="mail.lvh.me", smtp_port=587, smtp_type="STARTTLS")

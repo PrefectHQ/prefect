@@ -1,11 +1,15 @@
-from typing import TYPE_CHECKING, Any, Dict
+import os
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote_plus
 
+import prefect
+from prefect.client import Secret
 from prefect.storage import Storage
 from prefect.utilities.storage import extract_flow_from_file
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow
+    from gitlab import Gitlab
 
 
 class GitLab(Storage):
@@ -27,14 +31,17 @@ class GitLab(Storage):
 
     - Push this `flow.py` file to the `my/repo` repository under `/flows/flow.py`.
 
-    - Call `prefect register -f flow.py` to register this flow with GitLab storage.
+    - Call `prefect register flow -f flow.py` to register this flow with GitLab storage.
 
     Args:
         - repo (str): the project path (i.e., 'namespace/project') or ID
-        - host (str, optional): If using Gitlab server, the server host. If not specified, defaults
-            to Gitlab cloud.
+        - host (str, optional): If using GitLab server, the server host. If not
+            specified, defaults to Gitlab cloud.
         - path (str, optional): a path pointing to a flow file in the repo
         - ref (str, optional): a commit SHA-1 value or branch name
+        - access_token_secret (str, optional): The name of a Prefect secret
+            that contains a GitLab access token to use when loading flows from
+            this storage.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -44,55 +51,48 @@ class GitLab(Storage):
         host: str = None,
         path: str = None,
         ref: str = None,
+        access_token_secret: str = None,
         **kwargs: Any,
     ) -> None:
-        self.flows = dict()  # type: Dict[str, str]
-        self._flows = dict()  # type: Dict[str, "Flow"]
         self.repo = repo
         self.host = host
         self.path = path
         self.ref = ref
+        self.access_token_secret = access_token_secret
 
         super().__init__(**kwargs)
 
-    def get_flow(self, flow_location: str = None, ref: str = None) -> "Flow":
+    def get_flow(self, flow_name: str) -> "Flow":
         """
-        Given a flow_location within this Storage object, returns the underlying Flow (if possible).
-        If the Flow is not found an error will be logged and `None` will be returned.
+        Given a flow name within this Storage object, load and return the Flow.
 
         Args:
-            - flow_location (str): the location of a flow within this Storage; in this case,
-                a file path on a repository where a Flow file has been committed. Will use `path` if not
-                provided.
-            - ref (str, optional): a commit SHA-1 value or branch name. Defaults to 'master' if
-                not specified
+            - flow_name (str): the name of the flow to return.
 
         Returns:
-            - Flow: the requested Flow
-
-        Raises:
-            - ValueError: if the flow is not contained in this storage
-            - UnknownObjectException: if the flow file is unable to be retrieved
+            - Flow: the requested flow
         """
-        if flow_location:
-            if flow_location not in self.flows.values():
-                raise ValueError("Flow is not contained in this Storage")
-        elif self.path:
-            flow_location = self.path
-        else:
-            raise ValueError("No flow location provided")
+        try:
+            from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import gitlab, please ensure you have installed the gitlab extra"
+            ) from exc
 
-        # Use ref argument if exists, else use attribute, else default to 'master'
-        ref = ref if ref else (self.ref if self.ref else "master")
+        if flow_name not in self.flows:
+            raise ValueError("Flow is not contained in this Storage")
+        flow_location = self.flows[flow_name]
 
-        from gitlab.exceptions import GitlabAuthenticationError, GitlabGetError
+        ref = self.ref or "master"
+
+        client = self._get_gitlab_client()
 
         try:
-            project = self._gitlab_client.projects.get(quote_plus(self.repo))
+            project = client.projects.get(quote_plus(self.repo, safe="/"))
             contents = project.files.get(file_path=flow_location, ref=ref)
         except GitlabAuthenticationError:
             self.logger.error(
-                "Unable to authenticate Gitlab account. Please check your credentials."
+                "Unable to authenticate GitLab account. Please check your credentials."
             )
             raise
         except GitlabGetError:
@@ -102,11 +102,13 @@ class GitLab(Storage):
             )
             raise
 
-        return extract_flow_from_file(file_contents=contents.decode())
+        return extract_flow_from_file(
+            file_contents=contents.decode(), flow_name=flow_name
+        )
 
     def add_flow(self, flow: "Flow") -> str:
         """
-        Method for storing a new flow as bytes in the local filesytem.
+        Method for storing a new flow as bytes in the local filesystem.
 
         Args:
             - flow (Flow): a Prefect Flow to add
@@ -128,30 +130,18 @@ class GitLab(Storage):
         self._flows[flow.name] = flow
         return self.path  # type: ignore
 
-    def build(self) -> "Storage":
-        """
-        Build the GitLab storage object and run basic healthchecks. Due to this object
-        supporting file based storage no files are committed to the repository during
-        this step. Instead, all files should be committed independently.
+    def _get_gitlab_client(self) -> "Gitlab":
+        from gitlab import Gitlab
 
-        Returns:
-            - Storage: a GitLab object that contains information about how and where
-                each flow is stored
-        """
-        self.run_basic_healthchecks()
+        if self.access_token_secret is not None:
+            # If access token secret specified, load it
+            access_token = Secret(self.access_token_secret).get()
+        else:
+            # Otherwise, fallback to loading from local secret or environment variable
+            access_token = prefect.context.get("secrets", {}).get("GITLAB_ACCESS_TOKEN")
+            if access_token is None:
+                access_token = os.getenv("GITLAB_ACCESS_TOKEN")
 
-        return self
+        host = "https://gitlab.com" if self.host is None else self.host
 
-    def __contains__(self, obj: Any) -> bool:
-        """
-        Method for determining whether an object is contained within this storage.
-        """
-        if not isinstance(obj, str):
-            return False
-        return obj in self.flows
-
-    @property
-    def _gitlab_client(self):  # type: ignore
-        from prefect.utilities.git import get_gitlab_client
-
-        return get_gitlab_client(host=self.host)
+        return Gitlab(host, private_token=access_token)

@@ -6,7 +6,7 @@ from prefect import context, Flow
 from prefect.storage import GitLab
 
 
-pytest.importorskip("gitlab")
+gitlab = pytest.importorskip("gitlab")
 
 
 def test_create_gitlab_storage():
@@ -24,32 +24,31 @@ def test_create_gitlab_storage_init_args():
     assert storage.secrets == ["auth"]
 
 
-def test_gitlab_client_cloud(monkeypatch):
-    gitlab = MagicMock()
-    monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
+@pytest.mark.parametrize(
+    "secret_name,secret_arg", [("TEST", "TEST"), ("GITLAB_ACCESS_TOKEN", None)]
+)
+@pytest.mark.parametrize("host", [None, "https://localhost:1234"])
+def test_get_gitlab_client(monkeypatch, secret_name, secret_arg, host):
+    orig_gitlab = gitlab.Gitlab
+    mock_gitlab = MagicMock(wraps=gitlab.Gitlab)
+    monkeypatch.setattr("gitlab.Gitlab", mock_gitlab)
+    storage = GitLab(
+        repo="test/repo", path="flow.py", host=host, access_token_secret=secret_arg
+    )
+    with context(secrets={secret_name: "TEST-VAL"}):
+        client = storage._get_gitlab_client()
+    assert isinstance(client, orig_gitlab)
+    assert mock_gitlab.call_args[0][0] == (host or "https://gitlab.com")
+    assert mock_gitlab.call_args[1]["private_token"] == "TEST-VAL"
 
-    storage = GitLab(repo="test/repo")
 
-    credentials = "ACCESS_TOKEN"
-    with context(secrets=dict(GITLAB_ACCESS_TOKEN=credentials)):
-        gitlab_client = storage._gitlab_client
-
-    assert gitlab_client
-    gitlab.assert_called_with("https://gitlab.com", private_token="ACCESS_TOKEN")
-
-
-def test_gitlab_client_server(monkeypatch):
-    gitlab = MagicMock()
-    monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
-
-    storage = GitLab(repo="test/repo", host="http://localhost:1234")
-
-    credentials = "ACCESS_TOKEN"
-    with context(secrets=dict(GITLAB_ACCESS_TOKEN=credentials)):
-        gitlab_client = storage._gitlab_client
-
-    assert gitlab_client
-    gitlab.assert_called_with("http://localhost:1234", private_token="ACCESS_TOKEN")
+def test_get_gitlab_client_errors_if_secret_provided_and_not_found(monkeypatch):
+    mock_gitlab = MagicMock(wraps=gitlab.Gitlab)
+    monkeypatch.setattr("gitlab.Gitlab", mock_gitlab)
+    storage = GitLab(repo="test/repo", path="flow.py", access_token_secret="MISSING")
+    with context(secrets={}):
+        with pytest.raises(Exception, match="MISSING"):
+            storage._get_gitlab_client()
 
 
 def test_add_flow_to_gitlab_storage():
@@ -79,23 +78,19 @@ def test_get_flow_gitlab(monkeypatch):
     f = Flow("test")
 
     gitlab = MagicMock()
-    monkeypatch.setattr("prefect.utilities.git.Gitlab", gitlab)
+    monkeypatch.setattr("gitlab.Gitlab", gitlab)
 
+    extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
         "prefect.storage.gitlab.extract_flow_from_file",
-        MagicMock(return_value=f),
+        extract_flow_from_file,
     )
-
-    with pytest.raises(ValueError) as ex:
-        storage = GitLab(repo="test/repo")
-        storage.get_flow()
-
-    assert "No flow location provided" in str(ex.value)
 
     storage = GitLab(repo="test/repo", path="flow.py")
 
     assert f.name not in storage
-    flow_location = storage.add_flow(f)
+    storage.add_flow(f)
 
-    new_flow = storage.get_flow(flow_location)
+    new_flow = storage.get_flow(f.name)
+    assert extract_flow_from_file.call_args[1]["flow_name"] == f.name
     assert new_flow.run()

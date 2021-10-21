@@ -10,7 +10,7 @@ You can sign up for a free Cloud account [right here](https://www.prefect.io/dow
 
 ### What is the difference between Prefect Core and Prefect Cloud?
 
-[Prefect Core](https://github.com/PrefectHQ/prefect) is a complete package for building, testing and executing workflows locally. For some use cases, this is sufficient functionality. However, many people quickly begin looking for features related to monitoring, observability, multi-flow orchestration and persistence. This is where Prefect Cloud comes into play - Cloud is designed as a complete distributed orchestration and monitoring service for your Prefect Core workflows. Cloud offers such features as a database for your states, a secure GraphQL API, a UI, among many other things. Note that our "Hybrid" Cloud Architecture allows Prefect to orchestrate and monitor your workflows [without requiring access to your personal code or data](dataflow.html).
+[Prefect Core](https://github.com/PrefectHQ/prefect) is a complete package for building, testing and executing workflows locally. For some use cases, this is sufficient functionality. However, many people quickly begin looking for features related to monitoring, observability, multi-flow orchestration and persistence. This is where Prefect Cloud comes into play - Cloud is designed as a complete distributed orchestration and monitoring service for your Prefect Core workflows. Cloud offers such features as a database for your states, a secure GraphQL API, a UI, among many other things. Note that our "Hybrid" Cloud Architecture allows Prefect to orchestrate and monitor your workflows [without requiring access to your personal code or data](/orchestration/faq/dataflow.html).
 
 ### Is using Dask a requirement of Prefect?
 
@@ -60,7 +60,7 @@ As previously stated, `flow.run` is purely a convenience method for running your
 
 ### Do you have an integration for service X?
 
-Yes! Prefect can integrate with any service and we have a [growing library](../task_library) of pre-built tasks for working with internal and external services.
+Yes! Prefect can integrate with any service and we have a [growing library](../core/task_library/overview.html) of pre-built tasks for working with internal and external services.
 
 People sometimes mistake the library for an inclusive list of possible "integrations". While our Task Library will help you save time writing custom code for a particular service, remember that Prefect is completely agnostic what your tasks do. If the Task Library doesn't have a service that you use, you can write it yourself. You could even contribute your code back to the library to help others!
 

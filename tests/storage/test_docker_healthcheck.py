@@ -3,13 +3,13 @@ import os
 import sys
 import tempfile
 
-import cloudpickle
 import pytest
 
 from prefect import Flow, Task, task
 from prefect.engine.results import LocalResult
 from prefect.environments import Environment
 from prefect.storage import _healthcheck as healthchecks
+from prefect.utilities.storage import flow_to_bytes_pickle
 
 
 pytestmark = pytest.mark.skipif(
@@ -18,18 +18,15 @@ pytestmark = pytest.mark.skipif(
 
 
 class TestSerialization:
-    def test_cloudpickle_deserialization_check_raises_on_bad_imports(self):
-        bad_bytes = b"\x80\x04\x95\x18\x00\x00\x00\x00\x00\x00\x00\x8c\x0bfoo_machine\x94\x8c\x04func\x94\x93\x94."
-        with tempfile.NamedTemporaryFile() as f:
-            f.write(bad_bytes)
-            f.seek(0)
-            with pytest.raises(ImportError, match="foo_machine"):
-                objs = healthchecks.cloudpickle_deserialization_check(
-                    ["{}".format(f.name)]
-                )
+    def test_cloudpickle_deserialization_check_raises_on_bad_imports(self, tmpdir):
+        path = str(tmpdir.join("test.prefect"))
+        with open(path, "wb") as f:
+            f.write(b'{"flow": "gASVGAAAAAAAAACMC2Zvb19tYWNoaW5llIwEZnVuY5STlC4=\\n"}')
+        with pytest.raises(ImportError, match="foo_machine"):
+            healthchecks.cloudpickle_deserialization_check([path])
 
     def test_cloudpickle_deserialization_check_passes_and_returns_objs(self):
-        good_bytes = cloudpickle.dumps(Flow("empty"))
+        good_bytes = flow_to_bytes_pickle(Flow("empty"))
         with tempfile.NamedTemporaryFile() as f:
             f.write(good_bytes)
             f.seek(0)
@@ -43,8 +40,8 @@ class TestSerialization:
         assert flow.tasks == set()
 
     def test_cloudpickle_deserialization_check_passes_and_returns_multiple_objs(self):
-        flow_one = cloudpickle.dumps(Flow("one"))
-        flow_two = cloudpickle.dumps(Flow("two"))
+        flow_one = flow_to_bytes_pickle(Flow("one"))
+        flow_two = flow_to_bytes_pickle(Flow("two"))
         with tempfile.TemporaryDirectory() as tmpdir:
             file_one = os.path.join(tmpdir, "one.flow")
             with open(file_one, "wb") as f:
@@ -116,14 +113,12 @@ class TestResultCheck:
     @pytest.mark.parametrize(
         "kwargs", [dict(checkpoint=True), dict(cache_for=datetime.timedelta(minutes=1))]
     )
-    def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result_handler(
-        self, kwargs
-    ):
+    def test_doesnt_raise_for_checkpointed_tasks_if_flow_has_result(self, kwargs):
         @task(**kwargs)
         def up():
             pass
 
-        f = Flow("foo-test", tasks=[up], result_handler=42)
+        f = Flow("foo-test", tasks=[up], result=42)
         assert healthchecks.result_check([f]) is None
 
     @pytest.mark.parametrize(
@@ -202,7 +197,7 @@ class TestResultCheck:
         def up():
             pass
 
-        @task(**kwargs, result_handler=42)
+        @task(**kwargs, result=42)
         def down():
             pass
 

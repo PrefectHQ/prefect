@@ -18,7 +18,9 @@ installed](/core/getting_started/installation.md).
 If running the local agent inside a Docker container, we recommend you also use
 an init process like [`tini`](https://github.com/krallin/tini). Running without
 an init process may result in lingering zombie processes accumulating in your
-container.
+container. If you're using the [official Prefect docker
+images](https://hub.docker.com/r/prefecthq/prefect) then this is already
+handled for you.
 :::
 
 ## Flow Configuration
@@ -51,9 +53,9 @@ The local agent can be started from the Prefect CLI as
 prefect agent local start
 ```
 
-::: tip Tokens <Badge text="Cloud"/>
-When using Prefect Cloud, this will require a `RUNNER` API token, see
-[here](./overview.md#tokens) for more information.
+::: tip API Keys <Badge text="Cloud"/>
+When using Prefect Cloud, this will require a service account API key, see
+[here](./overview.md#api_keys) for more information.
 :::
 
 Below we cover a few common configuration options, see the [CLI
@@ -92,7 +94,7 @@ prefect agent local start --show-flow-logs
 
 ## Using with Supervisor
 
-[Supervisor](http://supervisor.org) is a tool for managing long running
+[Supervisor](http://supervisord.org) is a tool for managing long running
 processes on a UNIX-like operating system. This can be useful for deployments
 where you want to ensure you have a Prefect Local Agent always running in the
 background.

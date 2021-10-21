@@ -1,5 +1,6 @@
 import os
 import signal
+import sys
 import threading
 from time import sleep as time_sleep
 from typing import Any, Callable, Dict, Iterable, Optional, Iterator
@@ -14,7 +15,7 @@ from prefect.engine.cloud import CloudTaskRunner
 from prefect.engine.flow_runner import FlowRunner, FlowRunnerInitializeResult
 from prefect.engine.runner import ENDRUN
 from prefect.engine.state import Failed, Queued, State, Cancelling, Cancelled
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 from prefect.utilities.graphql import with_args
 
 
@@ -71,13 +72,21 @@ class CloudFlowRunner(FlowRunner):
     def _heartbeat(self) -> bool:
         try:
             # use empty string for testing purposes
-            flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
-            self.client.update_flow_run_heartbeat(flow_run_id)
-            self.heartbeat_cmd = ["prefect", "heartbeat", "flow-run", "-i", flow_run_id]
+            self.flow_run_id = prefect.context.get("flow_run_id", "")  # type: str
+            self.client.update_flow_run_heartbeat(self.flow_run_id)
+            self.heartbeat_cmd = [
+                sys.executable,
+                "-m",
+                "prefect",
+                "heartbeat",
+                "flow-run",
+                "-i",
+                self.flow_run_id,
+            ]
 
             query = {
                 "query": {
-                    with_args("flow_run_by_pk", {"id": flow_run_id}): {
+                    with_args("flow_run_by_pk", {"id": self.flow_run_id}): {
                         "flow": {"settings": True},
                     }
                 }
@@ -127,7 +136,7 @@ class CloudFlowRunner(FlowRunner):
                 version=version if cloud_state.is_running() else None,
                 state=cloud_state,
             )
-        except VersionLockError as exc:
+        except VersionLockMismatchSignal as exc:
             state = self.client.get_flow_run_state(flow_run_id=flow_run_id)
 
             if state.is_running():
@@ -377,20 +386,27 @@ class CloudFlowRunner(FlowRunner):
             flow_run_version=flow_run_info.version,
             flow_run_name=flow_run_info.name,
             scheduled_start_time=flow_run_info.scheduled_start_time,
+            project_name=flow_run_info.project.name,
+            project_id=flow_run_info.project.id,
         )
 
         tasks = {slug: t for t, slug in self.flow.slugs.items()}
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
+
             try:
                 task = tasks[task_run.task_slug]
             except KeyError as exc:
-                msg = (
-                    f"Task slug {task_run.task_slug} not found in the current Flow; "
-                    f"this is usually caused by changing the Flow without reregistering "
-                    f"it with the Prefect API."
-                )
-                raise KeyError(msg) from exc
+                raise KeyError(
+                    f"Task slug {task_run.task_slug} is not found in the current Flow. "
+                    "This is usually caused by a mismatch between the flow version "
+                    "stored in the Prefect backend and the flow that was loaded from "
+                    "storage.\n"
+                    "- Did you change the flow without re-registering it?\n"
+                    "- Did you register the flow without updating it in your storage "
+                    "location (if applicable)?"
+                ) from exc
+
             task_states.setdefault(task, task_run.state)
             task_contexts.setdefault(task, {}).update(
                 task_id=task_run.task_id,

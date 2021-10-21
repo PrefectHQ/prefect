@@ -24,7 +24,7 @@ class AzureResult(Result):
             Blob storage. If not provided the value set in the environment as
             `AZURE_STORAGE_CONNECTION_STRING` will be used
         - connection_string_secret (str, optional): the name of a Prefect Secret
-            which stores your Azure connection tring
+            which stores your Azure connection string
         - **kwargs (Any, optional): any additional `Result` initialization options
     """
 
@@ -126,10 +126,10 @@ class AzureResult(Result):
             client = self.service.get_blob_client(
                 container=self.container, blob=location
             )
-            content_string = client.download_blob()
+            content_bytes = client.download_blob().content_as_bytes()
 
             try:
-                new.value = new.serializer.deserialize(content_string)
+                new.value = new.serializer.deserialize(content_bytes)
             except EOFError:
                 new.value = None
             self.logger.debug("Finished downloading result from {}.".format(location))
@@ -156,17 +156,7 @@ class AzureResult(Result):
         Returns:
             - bool: whether or not the target result exists.
         """
-        from azure.core.exceptions import ResourceNotFoundError
 
-        # initialize client and download
-        client = self.service.get_blob_client(
+        return self.service.get_blob_client(
             container=self.container, blob=location.format(**kwargs)
-        )
-
-        # Catch exception because Azure python bindings do not yet have an exists method
-        # https://github.com/Azure/azure-sdk-for-python/issues/9507
-        try:
-            client.get_blob_properties()
-            return True
-        except ResourceNotFoundError:
-            return False
+        ).exists()

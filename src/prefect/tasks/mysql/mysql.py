@@ -20,20 +20,23 @@ class MySQLExecute(Task):
         - query (str, optional): query to execute against database
         - commit (bool, optional): set to True to commit transaction, defaults to false
         - charset (str, optional): charset you want to use (defaults to utf8mb4)
+        - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
+                parameters used for establishing encrypted connections using SSL
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        password: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
         port: int = 3306,
         query: str = None,
         commit: bool = False,
         charset: str = "utf8mb4",
+        ssl: dict = None,
         **kwargs: Any,
     ):
         self.db_name = db_name
@@ -44,17 +47,48 @@ class MySQLExecute(Task):
         self.query = query
         self.commit = commit
         self.charset = charset
+        self.ssl = ssl
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("query", "commit", "charset")
-    def run(self, query: str, commit: bool = False, charset: str = "utf8mb4") -> int:
+    @defaults_from_attrs(
+        "db_name",
+        "user",
+        "password",
+        "host",
+        "port",
+        "query",
+        "commit",
+        "charset",
+        "ssl",
+    )
+    def run(
+        self,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
+        port: int = None,
+        query: str = None,
+        commit: bool = None,
+        charset: str = None,
+        ssl: dict = None,
+    ) -> int:
         """
         Task run method. Executes a query against MySQL database.
 
         Args:
+            - db_name (str): name of MySQL database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to MySQL database, defaults to 3307
+                if not provided
             - query (str, optional): query to execute against database
-            - commit (bool, optional): set to True to commit transaction, defaults to False
-            - charset (str, optional): charset of the query, defaults to "utf8mb4"
+            - commit (bool, optional): set to True to commit transaction, defaults to false
+            - charset (str, optional): charset you want to use (defaults to "utf8mb4")
+            - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
+                parameters used for establishing encrypted connections using SSL. To connect
+                with SSL, at least `ssl_ca`, `ssl_cert`, and `ssl_key` must be specified.
 
         Returns:
             - executed (int): number of affected rows
@@ -66,12 +100,13 @@ class MySQLExecute(Task):
             raise ValueError("A query string must be provided")
 
         conn = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            db=self.db_name,
-            charset=self.charset,
-            port=self.port,
+            host=host,
+            user=user,
+            password=password,
+            db=db_name,
+            charset=charset,
+            port=port,
+            ssl=ssl,
         )
 
         try:
@@ -111,16 +146,19 @@ class MySQLFetch(Task):
         - cursor_type (Union[str, Callable], optional): The cursor type to use.
             Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
             or a full cursor class.
+        - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
+                parameters used for establishing encrypted connections using SSL. To connect
+                with SSL, at least `ssl_ca`, `ssl_cert`, and `ssl_key` must be specified.
         - **kwargs (Any, optional): additional keyword arguments to pass to the
             Task constructor
     """
 
     def __init__(
         self,
-        db_name: str,
-        user: str,
-        password: str,
-        host: str,
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
         port: int = 3306,
         fetch: str = "one",
         fetch_count: int = 10,
@@ -128,6 +166,7 @@ class MySQLFetch(Task):
         commit: bool = False,
         charset: str = "utf8mb4",
         cursor_type: Union[str, Callable] = "cursor",
+        ssl: dict = None,
         **kwargs: Any,
     ):
         self.db_name = db_name
@@ -141,34 +180,60 @@ class MySQLFetch(Task):
         self.commit = commit
         self.charset = charset
         self.cursor_type = cursor_type
+        self.ssl = ssl
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "fetch", "fetch_count", "query", "commit", "charset", "cursor_type"
+        "db_name",
+        "user",
+        "password",
+        "host",
+        "port",
+        "fetch",
+        "fetch_count",
+        "query",
+        "commit",
+        "charset",
+        "cursor_type",
+        "ssl",
     )
     def run(
         self,
-        query: str,
-        fetch: str = "one",
-        fetch_count: int = 10,
-        commit: bool = False,
-        charset: str = "utf8mb4",
-        cursor_type: Union[str, Callable] = "cursor",
+        db_name: str = None,
+        user: str = None,
+        password: str = None,
+        host: str = None,
+        port: int = None,
+        fetch: str = None,
+        fetch_count: int = None,
+        query: str = None,
+        commit: bool = None,
+        charset: str = None,
+        cursor_type: Union[str, Callable] = None,
+        ssl: dict = None,
     ) -> Any:
         """
         Task run method. Executes a query against MySQL database and fetches results.
 
         Args:
+            - db_name (str): name of MySQL database
+            - user (str): user name used to authenticate
+            - password (str): password used to authenticate
+            - host (str): database host address
+            - port (int, optional): port used to connect to MySQL database, defaults to 3307 if not
+                provided
             - fetch (str, optional): one of "one" "many" or "all", used to determine how many
                 results to fetch from executed query
-            - fetch_count (int, optional): if fetch = 'many', determines the number of results
-                to fetch, defaults to 10
+            - fetch_count (int, optional): if fetch = 'many', determines the number of results to
+                fetch, defaults to 10
             - query (str, optional): query to execute against database
             - commit (bool, optional): set to True to commit transaction, defaults to false
             - charset (str, optional): charset of the query, defaults to "utf8mb4"
             - cursor_type (Union[str, Callable], optional): The cursor type to use.
                 Can be `'cursor'` (the default), `'dictcursor'`, `'sscursor'`, `'ssdictcursor'`,
                 or a full cursor class.
+            - ssl (dict, optional): A dict of arguments similar to mysql_ssl_set()’s
+                    parameters used for establishing encrypted connections using SSL
 
         Returns:
             - results (tuple or list of tuples): records from provided query
@@ -205,13 +270,14 @@ class MySQLFetch(Task):
             )
 
         conn = pymysql.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            db=self.db_name,
-            charset=self.charset,
-            port=self.port,
+            host=host,
+            user=user,
+            password=password,
+            db=db_name,
+            charset=charset,
+            port=port,
             cursorclass=cursor_class,
+            ssl=ssl,
         )
 
         try:

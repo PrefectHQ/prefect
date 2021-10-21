@@ -1,7 +1,6 @@
 from typing import Any, Callable, List
 
 from prefect import Task
-from prefect.engine.result import NoResultType
 from prefect.triggers import all_finished
 
 
@@ -16,6 +15,8 @@ class FilterTask(Task):
             results; this function should accept a single positional argument and return a boolean
             indicating whether this result should be _kept_ or not.  The default is
             to filter out `NoResult`s and Exceptions
+        - log_func (Callable, optional): a function to use for logging the result of the filter_func
+            with info log level. If no function is passed in, no logging happens (default).
         - **kwargs (optional): additional keyword arguments to pass to the Task
             constructor
 
@@ -27,6 +28,10 @@ class FilterTask(Task):
 
     default_filter = FilterTask()
     even_filter = FilterTask(filter_func=lambda x: x % 2 == 0)
+    log_filter = FilterTask(
+        filter_func=lambda x: x % 2 == 0,
+        log_func=lambda x: f"Even numbers: {', '.join([str(y) for y in x])}",
+    )
 
     @task
     def add(x):
@@ -38,6 +43,7 @@ class FilterTask(Task):
 
     with Flow("filter-numbers") as flow:
         even_numbers = even_filter(add.map(x=[-1, 0, 1, 2, 3, 99, 314]))
+        even_numbers_log = log_filter(add.map(x=[-1, 0, 1, 2, 3, 99, 314]))
         final_numbers = default_filter(div.map(even_numbers))
 
     flow_state = flow.run()
@@ -47,12 +53,18 @@ class FilterTask(Task):
     ```
     """
 
-    def __init__(self, filter_func: Callable = None, **kwargs) -> None:
+    def __init__(
+        self,
+        filter_func: Callable = None,
+        log_func: Callable = None,
+        **kwargs,
+    ) -> None:
         kwargs.setdefault("skip_on_upstream_skip", False)
         kwargs.setdefault("trigger", all_finished)
         self.filter_func = filter_func or (
-            lambda r: not isinstance(r, (type(None), NoResultType, Exception))
+            lambda r: not isinstance(r, (type(None), Exception))
         )
+        self.log_func = log_func
         super().__init__(**kwargs)
 
     def run(self, task_results: List[Any]) -> List[Any]:
@@ -66,4 +78,8 @@ class FilterTask(Task):
         Returns:
             - List[Any]: a filtered list of results
         """
-        return [r for r in task_results if self.filter_func(r)]
+        filtered = [r for r in task_results if self.filter_func(r)]
+
+        if self.log_func:
+            self.logger.info(self.log_func(filtered))
+        return filtered

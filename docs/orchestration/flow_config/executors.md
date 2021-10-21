@@ -216,6 +216,8 @@ run your flow. You have a few options here:
   )
   ```
 
+For more information on Prefect and Docker images, see [here](./docker.md).
+
 #### Adaptive Scaling
 
 One nice feature of using a `DaskExecutor` is the ability to scale adaptively
@@ -271,3 +273,102 @@ argument:
 # Connect to an existing cluster running at a specified address
 flow.executor = DaskExecutor(address="tcp://...")
 ```
+
+### Performance Reports
+
+To generate a [performance report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report)
+for a flow run, specify a `performance_report_path` for the `DaskExecutor`.
+#### Saving the report to a local file
+
+The performance report will saved as a `.html` file where the flow run is executed based on the `performance_report_path`.
+To view the report, open the html file in a web browser.
+
+For local execution or flows executed using a Local Agent, the file will be accessible on your local machine.
+
+```python
+# performance_report_flow.py
+import os
+from prefect.executors import DaskExecutor
+from prefect import Flow, task
+
+# define a simple task and flow
+@task
+def hello():
+  return "hi"
+
+with Flow('performance_report') as flow:
+  x = hello()
+
+# specify where the executor should write the performance report
+flow.executor = DaskExecutor(performance_report_path="/path/to/performance_report.html")
+```
+
+To execute the flow and generate the performance report
+
+```bash
+prefect run -p performance_report_flow.py 
+```
+
+The performance report will be available at `/path/to/performance_report.html`.
+To view the report, open the html file in a web browser.
+
+#### Saving the report using custom logic
+
+For other agent types, the report file location is not guaranteed to be easily accessible after execution.
+When using a Kubernetes Agent, for example, the report will be saved on the Kubernetes pod responsible for
+executing the flow run. (A persistent volume would need to be specified to access the report after the pod is shutdown.)
+
+For cases in which the performance report location is not easily accessible after flow execution, the report 
+is also available as a string in the flow's terminal state handler, which can be used to write the report to a convenient location
+by accessing `flow.executor.performance_report`.
+
+```python
+# performance_report_flow.py
+import io
+import os
+from prefect.executors import DaskExecutor
+from prefect import Flow, task
+from prefect.engine.state import State
+from prefect.utilities.aws import get_boto_client
+from typing import Set, Optional
+
+def custom_terminal_state_handler(
+	flow: Flow,
+	state: State,
+	reference_task_states: Set[State],
+) -> Optional[State]:
+  # get the html report as a string
+  report = flow.executor.performance_report
+
+  # now we can write to S3, GCS, Azure Blob
+  # or perform any other custom logic with the report
+  
+  # for example, saving the report to s3
+  s3_client = get_boto_client("s3")
+  report_data = io.BytesIO(report.encode())
+  s3_client.upload_fileobj(report_data, Bucket="my-bucket", Key="performance_report.html")
+
+# define a simple task and flow
+@task
+def hello():
+  return "hi"
+
+with Flow('performance_report') as flow:
+  x = hello()
+
+# specify where the executor should write the performance report
+# in this case we just write to a temporary directory
+flow.executor = DaskExecutor(performance_report_path="/tmp/performance_report.html")
+
+# specify a terminal state handler for custom logic
+flow.terminal_state_handler = custom_terminal_state_handler
+```
+
+To register the flow
+
+```bash
+prefect register -p performance_report_flow.py 
+```
+
+Then, execute the flow with an agent. The performance report will be generated and
+written to the location specified in `custom_terminal_state_handler`.

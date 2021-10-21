@@ -38,6 +38,9 @@ spec:
               value: "prefect.engine.cloud.CloudTaskRunner"
             - name: PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS
               value: "prefect.executors.DaskExecutor"
+            - name: PREFECT__CLOUD__SEND_FLOW_RUN_LOGS
+              value: "true"
+            # Backwards compatibility variable for `SEND_FLOW_RUN_LOGS`
             - name: PREFECT__LOGGING__LOG_TO_CLOUD
               value: "true"
             - name: PREFECT__LOGGING__LEVEL

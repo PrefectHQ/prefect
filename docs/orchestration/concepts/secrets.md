@@ -1,121 +1,143 @@
 # Secrets
 
-Prefect secrets are a way to store any sensitive key-value pairs to which your flow might need access. One such example is
-the [secret URL used to receive Slack notifications from Prefect](../../core/advanced_tutorials/slack-notifications.html#using-your-url-to-get-notifications).
-Other examples are [AWS Credentials](../../core/task_library/aws.html), [Github Access Tokens](../../core/task_library/github.html), or [Twitter API credentials](../../core/task_library/twitter.html).
+Prefect Secrets provide a common way to store any sensitive values (access
+tokens, passwords, credentials, ...) used by your flows. Storing these values
+external to your flow's source is good practice, and helps keep your
+credentials safe.
 
-Prefect Cloud persists secrets on a per-team basis using [Vault](https://www.vaultproject.io), however when using Prefect Core's server all secrets will be interpreted from local context. For more information on local secrets see the [Local testing](/orchestration/concepts/secrets.html#local-testing) section below.
+Secrets can be configured in two places:
 
-## Setting a secret <Badge text="Cloud"/>
+- If using Prefect Cloud, secrets can be stored directly in Cloud (these will
+  be secure in [Vault](https://www.vaultproject.io) in our backend). Note that
+  Prefect Server _does not_ support this feature.
 
-There are two standard modes of operation: local execution, intended mainly for testing and running non-production flows, and cloud execution, which utilizes the Prefect Cloud API.
+- Secrets can also be set locally using environment variables or your
+  `~/.prefect/config.toml` file.
 
-### Cloud Execution
+Secrets are resolved locally first, falling back to Prefect Cloud (if
+supported). If you're using Prefect Server, only local secrets are supported.
 
-#### UI
+We recommend using secrets stored in Prefect Cloud when possible, as these can
+be accessed in deployed flows in a uniform manner. Local secrets also work
+fine, but may require more work to deploy to remote environments.
+
+
+## Setting Cloud Secrets <Badge text="Cloud"/>
+
+There are a few different ways to configure secrets in Prefect Cloud.
+
+### UI
 
 To set a secret in the UI, visit the [Secrets page](/orchestration/ui/team-settings.md#secrets).
 
 ![](/orchestration/ui/team-secrets.png)
 
-#### Core Client
+### Prefect Client
 
-To set a secret with the Core client:
+To set a secret with the Prefect Client:
 
 ```python
-client.set_secret(name="my secret", value=42)
+from prefect import Client
+
+client = Client()
+client.set_secret(name="MYSECRET", value="MY SECRET VALUE")
 ```
 
-#### GraphQL <Badge text="GQL"/>
+### GraphQL <Badge text="GQL"/>
 
 To set a secret using GraphQL, issue the following mutation:
 
 ```graphql
 mutation {
-  set_secret(input: { name: "KEY", value: "VALUE" }) {
+  set_secret(input: { name: "MYSECRET", value: "MY SECRET VALUE" }) {
     success
   }
 }
 ```
 
-::: tip You can overwrite secrets
-Changing the value of a secret is as simple as re-issuing the above mutation with the new value.
-:::
+## Setting Local Secrets
 
-### Local testing
+To configure a secret locally (not using Prefect Cloud), you can set the value
+in your [Prefect configuration file](/core/concepts/configuration.md) through
+either the `~/.prefect/config.toml` file or an environment variable.
 
-During local execution, secrets can easily be set in your configuration file, or set directly in `prefect.context`. First, in your user configuration file set the `use_local_secrets` flag in the `[cloud]` section to `true`:
-
-```
-[cloud]
-use_local_secrets = true
-```
-
-::: tip
-When settings secrets via `.toml` config files, you can use the [TOML Keys](https://github.com/toml-lang/toml#keys) docs for data structure specifications. Running `prefect` commands with invalid `.toml` config files will lead to tracebacks that contain references to: `..../toml/decoder.py`.
-:::
-
-This is also the default setting, so you only need to change this if you've changed it yourself.
-
-Now, to populate your local secrets you can add an additional section to your user config:
-
-```
+:::: tabs
+::: tab `~/.prefect/config.toml`
+```toml
 [context.secrets]
-KEY = VALUE
+MYSECRET = "MY SECRET VALUE"
+```
+:::
+::: tab Environment Variable
+```bash
+$ export PREFECT__CONTEXT__SECRETS__MYSECRET="MY SECRET VALUE"
+```
+:::
+::::
+
+Note that this configuration only affects the environment in which it's
+configured. So if you set values locally, they'll affect flows run locally or
+via a [local agent](/orchetration/agents/local.md), but _not_ flows deployed
+via other agents (since those flow runs happen in a different environment). To
+set local secrets on flow runs deployed by an agent, you can use the `--env`
+flag to forward environment variables into the flow run environment.
+
+For example, here we configure a secret `MYSECRET` for all flow runs deployed
+by a docker agent.
+
+```bash
+$ prefect agent docker start --env PREFECT__CONTEXT__SECRETS__MYSECRET="MY SECRET VALUE"
 ```
 
-with however many key / value pairs you'd like. This will autopopulate `prefect.context.secrets["KEY"]` with your specified value. Alternatively, you can set the `KEY` / `VALUE` pair directly:
+
+## Using Secrets
+
+Though most commonly used in tasks, secrets can be used in all parts of Prefect
+for loading credentials in a secure way.
+
+### Using Secrets in Tasks
+
+When using secrets in your tasks, it's generally best practice to pass the
+secret value in as a parameter, rather than loading the secret from within your
+task. This makes it easier to swap out what secret should be used, or to pass
+in secret values loaded via other mechanisms.
+
+The standard way to do this is to use a
+[PrefectSecret](/api/latest/tasks/secrets.html#prefectsecret) task to load the
+secret, and pass the result to your task as an argument.
 
 ```python
-import prefect
+from prefect import task, Flow
+from prefect.tasks.secrets import PrefectSecret
 
-prefect.context.setdefault("secrets", {}) # to make sure context has a secrets attribute
-prefect.context.secrets["KEY"] = "VALUE"
+@task
+def my_task(credentials):
+    """A task that requires credentials to access something. Passing the
+    credentials in as an argument allows you to change how/where the
+    credentials are loaded (though we recommend using `PrefectSecret` tasks to
+    load them."""
+    pass
+
+with Flow("example") as flow:
+    my_secret = PrefectSecret("MYSECRET")
+    res = my_task(credentials=my_secret)
 ```
 
-::: tip You don't have to store raw values in your config
-Prefect will interpolate certain values from your OS environment, so you can specify values from environment variables via `"$ENV_VAR"`. Note that secrets set this way will always result in lowercase names.
-:::
+### Using Secrets Elsewhere
 
-## Deleting a secret <Badge text="Cloud"/>
-
-### UI
-
-To delete a secret in the UI, visit the [Secrets page](/orchestration/ui/team-settings.md#secrets).
-![](/orchestration/ui/team-secrets.png)
-
-## Using a secret
-
-Secrets can be used anywhere, at any time. This includes, but is not limited to:
-
-- tasks
-- state handlers
-- callbacks
-- results
-
-Creating a secret and pulling its value is as simple as:
+To load secrets in Prefect components other than tasks, you'll need to make use
+of `prefect.client.Secret`:
 
 ```python
 from prefect.client import Secret
 
-s = Secret("my secret") # create a secret object
-s.get() # retrieve its value
+# Load the value of `MYSECRET`
+my_secret_value = Secret("MYSECRET").get()
 ```
 
-Note that `s.get()` will _not_ work locally unless `use_local_secrets` is set to `true` in your config.
-
-::: warning Secrets are secret!
-You cannot query for the value of a secret after it has been set. Calls to `Secret.get()` will _only_ work during Cloud execution.
-:::
-
-## Querying for secret names <Badge text="Cloud"/> <Badge text="GQL"/>
-
-Viewing all secrets by name:
-
-```graphql
-query {
-  secret(order_by: { name: asc }) {
-    name
-  }
-}
-```
+Where it makes sense, we recommend making the secret name configurable in your
+components (e.g. passed in as a parameter, perhaps with a default value) to
+support changing the secret name without changing the code. For example, the
+[GitHub](/orchestration/flow_config/storage.md#github) storage class takes a
+`access_token_secret` kwarg for configuring the name of the access token
+secret.

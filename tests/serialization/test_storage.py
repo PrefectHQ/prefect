@@ -1,6 +1,5 @@
 import json
 import os
-import socket
 import tempfile
 
 import pytest
@@ -9,12 +8,12 @@ import prefect
 from prefect import storage
 from prefect.serialization.storage import (
     AzureSchema,
-    BaseStorageSchema,
     DockerSchema,
     GCSSchema,
     LocalSchema,
     S3Schema,
     WebhookSchema,
+    GitHubSchema,
     GitLabSchema,
     BitbucketSchema,
 )
@@ -169,7 +168,7 @@ def test_azure_empty_serialize():
 def test_azure_full_serialize():
     azure = storage.Azure(
         container="container",
-        connection_string="conn",
+        connection_string_secret="conn",
         blob_name="name",
         secrets=["foo"],
         labels=["bar", "baz"],
@@ -180,13 +179,14 @@ def test_azure_full_serialize():
     assert serialized
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
+    assert serialized["connection_string_secret"] == "conn"
     assert serialized["blob_name"] == "name"
     assert serialized["secrets"] == ["foo"]
 
 
 def test_azure_creds_not_serialized():
     azure = storage.Azure(
-        container="container", connection_string="conn", blob_name="name"
+        container="container", connection_string_secret="conn", blob_name="name"
     )
     serialized = AzureSchema().dump(azure)
 
@@ -194,13 +194,14 @@ def test_azure_creds_not_serialized():
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
     assert serialized["blob_name"] == "name"
+    assert serialized["connection_string_secret"] == "conn"
     assert serialized.get("connection_string") is None
 
 
 def test_azure_serialize_with_flows():
     azure = storage.Azure(
         container="container",
-        connection_string="conn",
+        connection_string_secret="conn",
         blob_name="name",
         secrets=["foo"],
     )
@@ -212,7 +213,7 @@ def test_azure_serialize_with_flows():
     assert serialized["__version__"] == prefect.__version__
     assert serialized["container"] == "container"
     assert serialized["blob_name"] == "name"
-    assert serialized.get("connection_string") is None
+    assert serialized["connection_string_secret"] == "conn"
     assert serialized["flows"] == {"test": "key"}
 
     deserialized = AzureSchema().load(serialized)
@@ -234,12 +235,12 @@ def test_local_empty_serialize():
 def test_local_roundtrip():
     with tempfile.TemporaryDirectory() as tmpdir:
         s = storage.Local(directory=tmpdir, secrets=["AUTH"])
-        flow_loc = s.add_flow(prefect.Flow("test"))
+        s.add_flow(prefect.Flow("test"))
         serialized = LocalSchema().dump(s)
         deserialized = LocalSchema().load(serialized)
 
         assert "test" in deserialized
-        runner = deserialized.get_flow(flow_loc)
+        runner = deserialized.get_flow("test")
 
     assert runner.run().is_successful()
     assert deserialized.secrets == ["AUTH"]
@@ -331,7 +332,7 @@ def test_webhook_full_serialize():
         secrets=["CREDS"],
     )
     f = prefect.Flow("test")
-    webhook.flows["test"] = "key"
+    webhook.add_flow(f)
 
     serialized = WebhookSchema().dump(webhook)
 
@@ -357,6 +358,28 @@ def test_webhook_full_serialize():
     assert serialized["stored_as_script"] is False
 
 
+@pytest.mark.parametrize("ref", [None, "testref"])
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+@pytest.mark.parametrize("base_url", [None, "https://some-url"])
+def test_github_serialize(ref, access_token_secret, base_url):
+    github = storage.GitHub(
+        repo="test/repo",
+        path="flow.py",
+        access_token_secret=access_token_secret,
+        base_url=base_url,
+    )
+    if ref is not None:
+        github.ref = ref
+    serialized = GitHubSchema().dump(github)
+    assert serialized["__version__"] == prefect.__version__
+    assert serialized["repo"] == "test/repo"
+    assert serialized["path"] == "flow.py"
+    assert serialized["ref"] == ref
+    assert serialized["secrets"] == []
+    assert serialized["access_token_secret"] == access_token_secret
+    assert serialized["base_url"] == base_url
+
+
 def test_gitlab_empty_serialize():
     gitlab = storage.GitLab(repo="test/repo")
     serialized = GitLabSchema().dump(gitlab)
@@ -368,13 +391,15 @@ def test_gitlab_empty_serialize():
     assert serialized["secrets"] == []
 
 
-def test_gitlab_full_serialize():
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_gitlab_full_serialize(access_token_secret):
     gitlab = storage.GitLab(
         repo="test/repo",
         path="path/to/flow.py",
         host="http://localhost:1234",
         ref="test-branch",
         secrets=["token"],
+        access_token_secret=access_token_secret,
     )
 
     serialized = GitLabSchema().dump(gitlab)
@@ -384,6 +409,7 @@ def test_gitlab_full_serialize():
     assert serialized["path"] == "path/to/flow.py"
     assert serialized["ref"] == "test-branch"
     assert serialized["secrets"] == ["token"]
+    assert serialized["access_token_secret"] == access_token_secret
 
 
 def test_bitbucket_empty_serialize():
@@ -399,7 +425,8 @@ def test_bitbucket_empty_serialize():
     assert serialized["secrets"] == []
 
 
-def test_bitbucket_full_serialize():
+@pytest.mark.parametrize("access_token_secret", [None, "secret"])
+def test_bitbucket_full_serialize(access_token_secret):
     bitbucket = storage.Bitbucket(
         project="PROJECT",
         repo="test-repo",
@@ -407,6 +434,7 @@ def test_bitbucket_full_serialize():
         host="http://localhost:7990",
         ref="develop",
         secrets=["token"],
+        access_token_secret=access_token_secret,
     )
 
     serialized = BitbucketSchema().dump(bitbucket)
@@ -417,3 +445,24 @@ def test_bitbucket_full_serialize():
     assert serialized["host"] == "http://localhost:7990"
     assert serialized["ref"] == "develop"
     assert serialized["secrets"] == ["token"]
+    assert serialized["access_token_secret"] == access_token_secret
+
+
+def test_bitbucket_incorrect_secret():
+    with pytest.raises(ValueError):
+        storage.Bitbucket(
+            project="PROJECT",
+            repo="test-repo",
+            workspace="test-workspace",
+            path="test-flow.py",
+            host="http://localhost:7990",
+            ref="develop",
+            secrets=["token"],
+            access_token_secret="secret",
+        )
+
+
+def test_module_serialize():
+    module = storage.Module("test")
+    serialized = module.serialize()
+    assert serialized["module"] == "test"

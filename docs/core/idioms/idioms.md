@@ -10,6 +10,6 @@
 - [Testing Prefect flows and tasks](testing-flows.html)
 - [Using Result targets for efficient caching](targets.html)
 - [Configuring notifications](notifications.html)
-- [Using file based flow storage](file-based.html)
+- [Using script based flow storage](script-based.html)
 - [Pause for Approval](pause-for-approval.html)
 - [Naming task runs based on inputs](task-run-names.html)

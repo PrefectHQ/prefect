@@ -4,7 +4,9 @@ import uuid
 import sys
 import weakref
 from contextlib import contextmanager
-from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional
+from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional, Dict
+
+from prefect.utilities.compatibility import nullcontext
 
 from prefect import context
 from prefect.executors.base import Executor
@@ -96,6 +98,10 @@ class DaskExecutor(Executor):
             `debug=True` will increase dask's logging level, providing
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
+        - performance_report_path (str, optional): An optional path for the [dask performance
+            report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report).
+
+    Examples:
 
     Using a temporary local dask cluster:
 
@@ -132,6 +138,7 @@ class DaskExecutor(Executor):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
+        performance_report_path: str = None,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -184,6 +191,8 @@ class DaskExecutor(Executor):
         # A ref to a background task subscribing to dask cluster events
         self._watch_dask_events_task = None  # type: Optional[concurrent.futures.Future]
 
+        self.performance_report_path = performance_report_path
+
         super().__init__()
 
     @contextmanager
@@ -196,30 +205,68 @@ class DaskExecutor(Executor):
         if sys.platform != "win32":
             # Fix for https://github.com/dask/distributed/issues/4168
             import multiprocessing.popen_spawn_posix  # noqa
-        from distributed import Client
+        from distributed import Client, performance_report
+
+        performance_report_context = (
+            performance_report(self.performance_report_path)
+            if self.performance_report_path
+            else nullcontext()
+        )
 
         try:
             if self.address is not None:
+                self.logger.info(
+                    "Connecting to an existing Dask cluster at %s", self.address
+                )
                 with Client(self.address, **self.client_kwargs) as client:
-                    self.client = client
-                    try:
-                        self._pre_start_yield()
-                        yield
-                    finally:
-                        self._post_start_yield()
-            else:
-                with self.cluster_class(**self.cluster_kwargs) as cluster:  # type: ignore
-                    if self.adapt_kwargs:
-                        cluster.adapt(**self.adapt_kwargs)
-                    with Client(cluster, **self.client_kwargs) as client:
+
+                    with performance_report_context:
                         self.client = client
                         try:
                             self._pre_start_yield()
                             yield
                         finally:
                             self._post_start_yield()
+            else:
+                assert callable(self.cluster_class)  # mypy
+                assert isinstance(self.cluster_kwargs, dict)  # mypy
+                self.logger.info(
+                    "Creating a new Dask cluster with `%s.%s`...",
+                    self.cluster_class.__module__,
+                    self.cluster_class.__qualname__,
+                )
+                with self.cluster_class(**self.cluster_kwargs) as cluster:
+                    if getattr(cluster, "dashboard_link", None):
+                        self.logger.info(
+                            "The Dask dashboard is available at %s",
+                            cluster.dashboard_link,
+                        )
+                    if self.adapt_kwargs:
+                        cluster.adapt(**self.adapt_kwargs)
+                    with Client(cluster, **self.client_kwargs) as client:
+                        with performance_report_context:
+                            self.client = client
+                            try:
+                                self._pre_start_yield()
+                                yield
+                            finally:
+                                self._post_start_yield()
         finally:
             self.client = None
+
+    async def on_worker_status_changed(self, op: str, message: dict) -> None:
+        """
+        This method is triggered when a worker is added or removed from the cluster.
+
+        Args:
+            - op (str): Either "add" or "remove"
+            - message (dict): Information about the event that the scheduler has sent
+        """
+        if op == "add":
+            for worker in message.get("workers", ()):
+                self.logger.debug("Worker %s added", worker)
+        elif op == "remove":
+            self.logger.debug("Worker %s removed", message)
 
     async def _watch_dask_events(self) -> None:
         scheduler_comm = None
@@ -243,11 +290,7 @@ class DaskExecutor(Executor):
                 except OSError:
                     break
                 for op, msg in msgs:
-                    if op == "add":
-                        for worker in msg.get("workers", ()):
-                            self.logger.debug("Worker %s added", worker)
-                    elif op == "remove":
-                        self.logger.debug("Worker %s removed", msg)
+                    await self.on_worker_status_changed(op, msg)
         except asyncio.CancelledError:
             pass
         except Exception:
@@ -396,6 +439,36 @@ class DaskExecutor(Executor):
 
         return self.client.gather(futures)
 
+    @property
+    def performance_report(self) -> str:
+        """The performance report html string."""
+        if self.performance_report_path is None:
+            self.logger.warning(
+                "Executor was not configured to generate performance report"
+            )
+            return ""
+        self.logger.debug(
+            f"Retreiving dask performance report from {self.performance_report_path!r}"
+        )
+        try:
+            with open(self.performance_report_path, "r", encoding="utf-8") as f:
+                report = f.read()
+                return report
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to get dask performance report with exception {exc}"
+            )
+            return ""
+
+
+def _multiprocessing_pool_initializer() -> None:
+    """Initialize a process used in a `multiprocssing.Pool`.
+
+    Ensures the standard atexit handlers are run."""
+    import signal
+
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit())
+
 
 class LocalDaskExecutor(Executor):
     """
@@ -436,7 +509,13 @@ class LocalDaskExecutor(Executor):
 
     def _interrupt_pool(self) -> None:
         """Interrupt all tasks in the backing `pool`, if any."""
-        if self.scheduler == "threads" and self._pool is not None:
+        if self._pool is None:
+            return
+
+        # Terminate the pool
+        self._pool.terminate()
+
+        if self.scheduler == "threads":
             # `ThreadPool.terminate()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
@@ -502,7 +581,9 @@ class LocalDaskExecutor(Executor):
                     from dask.multiprocessing import get_context
 
                     context = get_context()
-                    self._pool = context.Pool(num_workers)
+                    self._pool = context.Pool(
+                        num_workers, initializer=_multiprocessing_pool_initializer
+                    )
             try:
                 exiting_early = False
                 yield
@@ -511,9 +592,10 @@ class LocalDaskExecutor(Executor):
                 raise
             finally:
                 if self._pool is not None:
-                    self._pool.terminate()
                     if exiting_early:
                         self._interrupt_pool()
+                    else:
+                        self._pool.close()
                     self._pool.join()
                     self._pool = None
 
@@ -557,17 +639,49 @@ class LocalDaskExecutor(Executor):
         # import dask here to reduce prefect import times
         import dask
 
+        config: Dict[str, Any] = {}  # Extra config options for dask
+
         # dask's multiprocessing scheduler hardcodes task fusion in a way
         # that's not exposed via a `compute` kwarg. Until that's fixed, we
         # disable fusion globally for the multiprocessing scheduler only.
         # Since multiprocessing tasks execute in a remote process, this
         # shouldn't affect user code.
         if self.scheduler == "processes":
-            config = {"optimization.fuse.active": False}
-        else:
-            config = {}
 
-        with dask.config.set(config):
+            @contextmanager
+            def patch() -> Iterator[None]:
+                # Patch around https://github.com/PrefectHQ/prefect/issues/4086
+                # We can remove this after we drop support for dask 2021.02.0
+                from dask.optimization import cull
+
+                def cull2(dsk, keys):  # type: ignore
+                    return cull(dsk if type(dsk) is dict else dict(dsk), keys)
+
+                dask.multiprocessing.cull = cull2
+                try:
+                    yield
+                finally:
+                    dask.multiprocessing.cull = cull
+
+            config["optimization.fuse.active"] = False
+        else:
+
+            @contextmanager
+            def patch() -> Iterator[None]:
+                yield
+
+        # Patch around https://github.com/PrefectHQ/prefect/issues/4537
+        # dask >= 2021.04.0 adds task submission batching in the multiprocessing case
+        # to offset performance concerns from switching to a concurrent.Futures based
+        # process pool. Since we are using our own pool to handle cancellation robustly,
+        # we do not gain anything from the batched submission and the default task
+        # submission batch size of 6 makes users think their flows will not run in
+        # parallel. When/if we switch to using the new futures based multiprocessing in
+        # dask, we should remove this to retain performance
+        if self.scheduler == "processes":
+            config["chunksize"] = 1
+
+        with patch(), dask.config.set(config):
             return dask.compute(
                 futures, scheduler=self.scheduler, pool=self._pool, optimize_graph=False
             )[0]

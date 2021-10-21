@@ -3,12 +3,15 @@ from distutils.version import LooseVersion
 from prefect.utilities.graphql import GraphQLResult
 
 
-def get_flow_image(flow_run: GraphQLResult) -> str:
+def get_flow_image(flow_run: GraphQLResult, default: str = None) -> str:
     """
     Retrieve the image to use for this flow run deployment.
 
     Args:
         - flow_run (GraphQLResult): A GraphQLResult flow run object
+        - default (str, optional): A default image to use. If not specified,
+            The `prefecthq/prefect` image corresponding with the flow's prefect
+            version will be used.
 
     Returns:
         - str: a full image name to use for this flow run
@@ -22,20 +25,26 @@ def get_flow_image(flow_run: GraphQLResult) -> str:
     from prefect.serialization.run_config import RunConfigSchema
     from prefect.serialization.environment import EnvironmentSchema
 
-    has_run_config = getattr(flow_run.flow, "run_config", None) is not None
+    has_run_config = getattr(flow_run, "run_config", None) is not None
     has_environment = getattr(flow_run.flow, "environment", None) is not None
 
     storage = StorageSchema().load(flow_run.flow.storage)
     # Not having an environment implies run-config based flow, even if
     # run_config is None.
     if has_run_config or not has_environment:
+        # Precedence:
+        # - Image on docker storage
+        # - Image on run_config
+        # - Provided default
+        # - `prefecthq/prefect` for flow's core version
         if isinstance(storage, Docker):
             return storage.name
-        elif has_run_config:
-            run_config = RunConfigSchema().load(flow_run.flow.run_config)
+        if has_run_config:
+            run_config = RunConfigSchema().load(flow_run.run_config)
             if getattr(run_config, "image", None) is not None:
                 return run_config.image
-        # No image found on run-config, and no environment present. Use default.
+        if default is not None:
+            return default
         # core_version should always be present, but just in case
         version = flow_run.flow.get("core_version") or "latest"
         cleaned_version = version.split("+")[0]

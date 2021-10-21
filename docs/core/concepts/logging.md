@@ -30,6 +30,8 @@ class MyTask(prefect.Task):
 To log from a task generated with an @task decorator, access the `logger` from context while your task is running:
 
 ```python
+import prefect
+
 @task
 def my_task():
     logger = prefect.context.get("logger")
@@ -47,6 +49,16 @@ logger = prefect.context.get("logger")
 @task
 def my_task():
 
+    logger.info("An info message.")
+    logger.warning("A warning message.")
+```
+Note, pickling context objects is explicitly not supported. You should always access context as an attribute of the `prefect` module. For example, this WON'T work:
+```python
+from prefect import context
+
+@task
+def my_task():
+    logger = context.get("logger") # will not work
     logger.info("An info message.")
     logger.warning("A warning message.")
 ```

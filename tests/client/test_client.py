@@ -1,5 +1,6 @@
 import datetime
 import json
+from pathlib import Path
 import uuid
 from unittest.mock import MagicMock
 
@@ -7,17 +8,249 @@ import marshmallow
 import pendulum
 import pytest
 import requests
+import toml
 
 import prefect
 from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
-from prefect.engine.result import SafeResult
+from prefect.utilities.graphql import GraphQLResult
+from prefect.engine.result import Result
 from prefect.engine.state import Pending, Running, State
 from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import decompress
+
+
+class TestClientAuthentication:
+    """
+    These tests cover Client handling of API key based authentication
+    """
+
+    def test_client_determines_api_key_in_expected_order(self):
+        # 1. Directly passed
+        # 2. From the config
+        # 3. From the disk
+
+        # No key should be present yet
+        client = Client()
+        assert client.api_key is None
+
+        # Save to disk
+        client = Client(api_key="DISK_KEY")
+        client.save_auth_to_disk()
+
+        # Set in config
+        with set_temporary_config({"cloud.api_key": "CONFIG_KEY"}):
+
+            # Should ignore config/disk
+            client = Client(api_key="DIRECT_KEY")
+            assert client.api_key == "DIRECT_KEY"
+
+            # Should load from config
+            client = Client()
+            assert client.api_key == "CONFIG_KEY"
+
+        # Should load from disk
+        client = Client()
+        assert client.api_key == "DISK_KEY"
+
+    def test_client_determines_tenant_id_in_expected_order(self):
+        # 1. Directly passed
+        # 2. From the config
+        # 3. From the disk
+
+        # No key should be present yet
+        client = Client()
+        assert client._tenant_id is None
+
+        # Save to disk (and set an API key so we don't enter API token logic)
+        client = Client(api_key="KEY", tenant_id="DISK_TENANT")
+        client.save_auth_to_disk()
+
+        # Set in config
+        with set_temporary_config({"cloud.tenant_id": "CONFIG_TENANT"}):
+
+            # Should ignore config/disk
+            client = Client(tenant_id="DIRECT_TENANT")
+            assert client._tenant_id == "DIRECT_TENANT"
+
+            # Should load from config
+            client = Client()
+            assert client._tenant_id == "CONFIG_TENANT"
+
+        # Should load from disk
+        client = Client()
+        assert client._tenant_id == "DISK_TENANT"
+
+    def test_client_save_auth_to_disk(self):
+
+        # Ensure saving is robust to a missing directory
+        Path(prefect.context.config.home_dir).rmdir()
+
+        client = Client(api_key="KEY", tenant_id="ID")
+        client.save_auth_to_disk()
+
+        data = toml.loads(client._auth_file.read_text())
+        assert set(data.keys()) == {client._api_server_slug}
+        assert data[client._api_server_slug] == dict(api_key="KEY", tenant_id="ID")
+
+        old_key = client._api_server_slug
+        client.api_server = "foo"
+        client.api_key = "NEW_KEY"
+        client.tenant_id = "NEW_ID"
+        client.save_auth_to_disk()
+
+        data = toml.loads(client._auth_file.read_text())
+        assert set(data.keys()) == {client._api_server_slug, old_key}
+        assert data[client._api_server_slug] == dict(
+            api_key="NEW_KEY", tenant_id="NEW_ID"
+        )
+
+        # Old data is unchanged
+        assert data[old_key] == dict(api_key="KEY", tenant_id="ID")
+
+    def test_client_load_auth_from_disk(self):
+        client = Client(api_key="KEY", tenant_id="ID")
+        client.save_auth_to_disk()
+
+        client = Client()
+
+        assert client.api_key == "KEY"
+        assert client.tenant_id == "ID"
+
+        client._auth_file.write_text(
+            toml.dumps(
+                {
+                    client._api_server_slug: {
+                        "api_key": "NEW_KEY",
+                        "tenant_id": "NEW_ID",
+                    }
+                }
+            )
+        )
+        data = client.load_auth_from_disk()
+
+        # Does not mutate the client!
+        assert client.api_key == "KEY"
+        assert client.tenant_id == "ID"
+
+        assert data["api_key"] == "NEW_KEY"
+        assert data["tenant_id"] == "NEW_ID"
+
+    def test_client_sets_api_key_in_header(self, monkeypatch):
+        Session = MagicMock()
+        monkeypatch.setattr("requests.Session", Session)
+        client = Client(api_key="foo")
+
+        client.get("path")
+
+        headers = Session().get.call_args[1]["headers"]
+        assert "Authorization" in headers
+        assert headers["Authorization"] == "Bearer foo"
+
+        # Tenant id is _not_ included by default
+        assert "X-PREFECT-TENANT-ID" not in headers
+
+    def test_client_sets_tenant_id_in_header(self, monkeypatch):
+        Session = MagicMock()
+        monkeypatch.setattr("requests.Session", Session)
+
+        client = Client(api_key="foo", tenant_id="bar")
+        client.get("path")
+
+        headers = Session().get.call_args[1]["headers"]
+        assert "Authorization" in headers
+        assert headers["Authorization"] == "Bearer foo"
+        assert "X-PREFECT-TENANT-ID" in headers
+        assert headers["X-PREFECT-TENANT-ID"] == "bar"
+
+    def test_client_does_not_set_tenant_id_in_header_when_using_api_token(
+        self, monkeypatch
+    ):
+        Session = MagicMock()
+        monkeypatch.setattr("requests.Session", Session)
+
+        client = Client(api_token="foo", tenant_id="bar")
+        client.get("path")
+
+        headers = Session().get.call_args[1]["headers"]
+        assert "X-PREFECT-TENANT-ID" not in headers
+
+    @pytest.mark.parametrize("tenant_id", [None, "id"])
+    def test_client_tenant_id_returns_set_tenant_or_queries(self, tenant_id):
+
+        client = Client(api_key="foo", tenant_id=tenant_id)
+        client._get_auth_tenant = MagicMock(return_value="id")
+
+        assert client.tenant_id == "id"
+
+        if not tenant_id:
+            client._get_auth_tenant.assert_called_once()
+        else:
+            client._get_auth_tenant.assert_not_called()
+
+    def test_client_tenant_id_backwards_compat_for_api_tokens(self, monkeypatch):
+        client = Client(api_token="foo")
+        client._init_tenant = MagicMock()
+        client.tenant_id
+        client._init_tenant.assert_called_once()
+
+    def test_client_tenant_id_gets_default_tenant_for_server(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client._get_default_server_tenant = MagicMock(return_value="foo")
+            assert client.tenant_id == "foo"
+            client._get_default_server_tenant.assert_called_once()
+
+    def test_get_auth_tenant_queries_for_auth_info(self):
+        client = Client(api_key="foo")
+        client.graphql = MagicMock(
+            return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": "id"}}})
+        )
+
+        assert client._get_auth_tenant() == "id"
+        client.graphql.assert_called_once_with({"query": {"auth_info": "tenant_id"}})
+
+    def test_get_auth_tenant_errors_with_api_token_as_keye(self):
+        client = Client(api_key="pretend-this-is-a-token")
+        client.graphql = MagicMock(
+            return_value=GraphQLResult({"data": {"auth_info": {"tenant_id": None}}})
+        )
+
+        with pytest.raises(
+            AuthorizationError, match="API token was used as an API key"
+        ):
+            client._get_auth_tenant()
+
+    def test_get_auth_tenant_errors_without_auth_set(self):
+        client = Client()
+
+        with pytest.raises(ValueError, match="have not set an API key"):
+            assert client._get_auth_tenant() == "id"
+
+    def test_get_default_server_tenant_gets_first_tenant(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client.graphql = MagicMock(
+                return_value=GraphQLResult(
+                    {"data": {"tenant": [{"id": "id1"}, {"id": "id2"}]}}
+                )
+            )
+
+            assert client._get_default_server_tenant() == "id1"
+            client.graphql.assert_called_once_with({"query": {"tenant": {"id"}}})
+
+    def test_get_default_server_tenant_raises_on_no_tenants(self):
+        with set_temporary_config({"backend": "server"}):
+            client = Client()
+            client.graphql = MagicMock(
+                return_value=GraphQLResult({"data": {"tenant": []}})
+            )
+
+            with pytest.raises(ClientError, match="no tenant"):
+                client._get_default_server_tenant()
 
 
 def test_client_posts_to_api_server(patch_post):
@@ -444,20 +677,24 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     flow.result = flow.storage.result
 
     client.register(
-        flow, project_name="my-default-project", compressed=compressed, no_url=True
+        flow,
+        project_name="my-default-project",
+        compressed=compressed,
+        no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
 
 
@@ -502,19 +739,20 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
         compressed=compressed,
         build=True,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
     assert "test_image" in serialized_flow["environment"]["metadata"]["image"]
 
@@ -562,19 +800,20 @@ def test_client_register_default_prefect_image(
         compressed=compressed,
         build=True,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
     assert "prefecthq/prefect" in serialized_flow["environment"]["metadata"]["image"]
 
@@ -609,7 +848,7 @@ def test_client_register_optionally_avoids_building_flow(
     ):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow.result = prefect.engine.result.Result()
+    flow.result = Result()
 
     client.register(
         flow,
@@ -617,19 +856,20 @@ def test_client_register_optionally_avoids_building_flow(
         build=False,
         compressed=compressed,
         no_url=True,
+        set_schedule_active=False,
     )
 
     # extract POST info
     if compressed:
         serialized_flow = decompress(
-            json.loads(post.call_args[1]["json"]["variables"])["input"][
+            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
                 "serialized_flow"
             ]
         )
     else:
-        serialized_flow = json.loads(post.call_args[1]["json"]["variables"])["input"][
-            "serialized_flow"
-        ]
+        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
+            "input"
+        ]["serialized_flow"]
     assert serialized_flow["storage"] is None
 
 
@@ -643,7 +883,7 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
     with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
         client = Client()
     flow = prefect.Flow(name="test")
-    flow.result = prefect.engine.result.Result()
+    flow.result = Result()
 
     with pytest.raises(ValueError) as exc:
         client.register(flow, project_name="my-default-project", no_url=True)
@@ -732,7 +972,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
     # this will fail at deserialization
     task.max_retries = 3
     flow = prefect.Flow(name="test", tasks=[task])
-    flow.result = prefect.engine.result.Result()
+    flow.result = Result()
 
     with pytest.raises(
         ValueError,
@@ -850,7 +1090,7 @@ def test_client_register_flow_id_no_output(
     assert flow_id == "long-id"
 
     captured = capsys.readouterr()
-    assert captured.out == "Result check: OK\n"
+    assert not captured.out
 
 
 def test_set_flow_run_name(patch_posts, cloud_api):
@@ -881,16 +1121,16 @@ def test_get_flow_run_info(patch_post):
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "name": "flow-run-name",
+            "flow": {"project": {"id": "my-project-id", "name": "my-project-name"}},
             "version": 0,
-            "parameters": {},
+            "parameters": {"a": 1},
             "context": None,
             "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+309.gf1db024",
@@ -931,11 +1171,13 @@ def test_get_flow_run_info(patch_post):
     assert result.scheduled_start_time.minute == 15
     assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
-    assert result.state.result == "42"
+    assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.version == 0
-    assert isinstance(result.parameters, dict)
-    assert result.context is None
+    assert result.project.name == "my-project-name"
+    assert result.project.id == "my-project-id"
+    assert result.parameters == {"a": 1}
+    assert result.context == {}
 
 
 def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
@@ -944,6 +1186,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             "id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "flow_id": "da344768-5f5d-4eaf-9bca-83815617f713",
             "name": "flow-run-name",
+            "flow": {"project": {"id": "my-project-id", "name": "my-project-name"}},
             "version": 0,
             "parameters": {"x": {"deep": {"nested": 5}}},
             "context": {"my_val": "test"},
@@ -951,9 +1194,8 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+309.gf1db024",
@@ -994,9 +1236,11 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
     assert result.scheduled_start_time.minute == 15
     assert result.scheduled_start_time.year == 2019
     assert isinstance(result.state, Pending)
-    assert result.state.result == "42"
+    assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.version == 0
+    assert result.project.name == "my-project-name"
+    assert result.project.id == "my-project-id"
     assert isinstance(result.parameters, dict)
     assert result.parameters["x"]["deep"]["nested"] == 5
     # ensures all sub-dictionaries are actually dictionaries
@@ -1025,9 +1269,8 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
@@ -1041,7 +1284,7 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
     client = Client()
     state = client.get_flow_run_state(flow_run_id="72-salt")
     assert isinstance(state, Pending)
-    assert state.result == "42"
+    assert state._result.location == "42"
     assert state.message is None
 
 
@@ -1158,9 +1401,8 @@ def test_get_task_run_info(patch_posts):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
@@ -1183,7 +1425,7 @@ def test_get_task_run_info(patch_posts):
     )
     assert isinstance(result, TaskRunInfoResult)
     assert isinstance(result.state, Pending)
-    assert result.state.result == "42"
+    assert result.state._result.location == "42"
     assert result.state.message is None
     assert result.id == "772bd9ee-40d7-479c-9839-4ab3a793cabd"
     assert result.version == 0
@@ -1228,9 +1470,8 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
             "serialized_state": {
                 "type": "Pending",
                 "_result": {
-                    "type": "SafeResult",
-                    "value": "42",
-                    "result_handler": {"type": "JSONResultHandler"},
+                    "type": "PrefectResult",
+                    "location": "42",
                 },
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
@@ -1244,7 +1485,7 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
     client = Client()
     state = client.get_task_run_state(task_run_id="72-salt")
     assert isinstance(state, Pending)
-    assert state.result == "42"
+    assert state._result.location == "42"
     assert state.message is None
 
 
@@ -1315,26 +1556,6 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
     assert result.start_time >= pendulum.now("UTC").add(seconds=749)
 
 
-def test_set_task_run_state_serializes(patch_post):
-    response = {"data": {"set_task_run_states": {"states": [{"status": "SUCCESS"}]}}}
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-
-    res = SafeResult(lambda: None, result_handler=None)
-    with pytest.raises(marshmallow.exceptions.ValidationError):
-        client.set_task_run_state(
-            task_run_id="76-salt", version=0, state=Pending(result=res)
-        )
-
-
 def test_set_task_run_state_with_error(patch_post):
     response = {
         "data": {"set_task_run_states": None},
@@ -1371,12 +1592,13 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
         client.create_flow_run()
 
 
-@pytest.mark.parametrize("kwargs", [dict(flow_id="blah"), dict(version_group_id="cat")])
-def test_create_flow_run_with_input(patch_post, kwargs):
+@pytest.mark.parametrize("use_flow_id", [False, True])
+@pytest.mark.parametrize("use_extra_args", [False, True])
+def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
     response = {
         "data": {"create_flow_run": {"id": "FOO"}},
     }
-    patch_post(response)
+    post = patch_post(response)
 
     with set_temporary_config(
         {
@@ -1387,7 +1609,36 @@ def test_create_flow_run_with_input(patch_post, kwargs):
     ):
         client = Client()
 
+    kwargs = (
+        {"flow_id": "my-flow-id"}
+        if use_flow_id
+        else {"version_group_id": "my-version-group-id"}
+    )
+    if use_extra_args:
+        extra_kwargs = {
+            "parameters": {"x": 1},
+            "run_config": LocalRun(),
+            "labels": ["b"],
+            "context": {"key": "val"},
+            "idempotency_key": "my-idem-key",
+            "scheduled_start_time": datetime.datetime.now(),
+            "run_name": "my-run-name",
+        }
+        expected = extra_kwargs.copy()
+        expected.update(
+            flow_run_name=expected.pop("run_name"),
+            run_config=expected["run_config"].serialize(),
+            scheduled_start_time=expected["scheduled_start_time"].isoformat(),
+            **kwargs,
+        )
+        kwargs.update(extra_kwargs)
+    else:
+        expected = kwargs
+
     assert client.create_flow_run(**kwargs) == "FOO"
+    variables = json.loads(post.call_args[1]["json"]["variables"])
+    input = variables["input"]
+    assert variables["input"] == expected
 
 
 def test_get_default_tenant_slug_as_user(patch_post):
@@ -1405,13 +1656,47 @@ def test_get_default_tenant_slug_as_user(patch_post):
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug()
+        slug = client.get_default_tenant_slug(as_user=True)
 
         assert slug == "tslug"
 
 
 def test_get_default_tenant_slug_not_as_user(patch_post):
-    response = {"data": {"tenant": [{"slug": "tslug"}]}}
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
+
+    patch_post(response)
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.auth_token": "secret_token",
+            "cloud.tenant_id": "tenant-id",
+            "backend": "cloud",
+        }
+    ):
+        client = Client()
+        slug = client.get_default_tenant_slug(as_user=False)
+
+        assert slug == "tslug"
+
+
+def test_get_default_tenant_slug_not_as_user_with_no_tenant_id(patch_post):
+    # Generally, this would occur when using a RUNNER API token
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "firstslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
 
     patch_post(response)
 
@@ -1423,9 +1708,10 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         }
     ):
         client = Client()
+        client._tenant_id = None  # Ensure tenant id is not set
         slug = client.get_default_tenant_slug(as_user=False)
 
-        assert slug == "tslug"
+        assert slug == "firstslug"
 
 
 def test_get_cloud_url_as_user(patch_post, cloud_api):
@@ -1444,26 +1730,33 @@ def test_get_cloud_url_as_user(patch_post, cloud_api):
     ):
         client = Client()
 
-        url = client.get_cloud_url(subdirectory="flow", id="id")
+        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=True)
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2")
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=True)
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
 def test_get_cloud_url_not_as_user(patch_post, cloud_api):
-    response = {"data": {"tenant": [{"slug": "tslug"}]}}
+    response = {
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
+    }
 
     patch_post(response)
 
     with set_temporary_config(
         {
             "cloud.api": "http://api.prefect.io",
-            "cloud.auth_token": "secret_token",
             "backend": "cloud",
         }
     ):
         client = Client()
+        client._tenant_id = "tenant-id"
 
         url = client.get_cloud_url(subdirectory="flow", id="id", as_user=False)
         assert url == "http://cloud.prefect.io/tslug/flow/id"
@@ -1495,18 +1788,41 @@ def test_get_cloud_url_different_regex(patch_post, cloud_api):
         assert url == "http://hello.prefect.io/tslug/flow-run/id2"
 
 
-def test_register_agent(patch_post, cloud_api):
-    response = {"data": {"register_agent": {"id": "ID"}}}
-
-    patch_post(response)
-
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
-        client = Client()
+def test_register_agent(cloud_api):
+    with set_temporary_config({"backend": "cloud"}):
+        client = Client(api_key="foo")
+        client.graphql = MagicMock(
+            return_value=GraphQLResult(
+                {
+                    "data": {
+                        "register_agent": {"id": "AGENT-ID"},
+                        "auth_info": {"tenant_id": "TENANT-ID"},
+                    }
+                }
+            )
+        )
 
         agent_id = client.register_agent(
             agent_type="type", name="name", labels=["1", "2"], agent_config_id="asdf"
         )
-        assert agent_id == "ID"
+
+    client.graphql.assert_called_with(
+        {
+            "mutation($input: register_agent_input!)": {
+                "register_agent(input: $input)": {"id"}
+            }
+        },
+        variables={
+            "input": {
+                "type": "type",
+                "name": "name",
+                "labels": ["1", "2"],
+                "tenant_id": "TENANT-ID",
+                "agent_config_id": "asdf",
+            }
+        },
+    )
+    assert agent_id == "AGENT-ID"
 
 
 def test_register_agent_raises_error(patch_post, cloud_api):
@@ -1572,3 +1888,19 @@ def test_artifacts_client_functions(patch_post, cloud_api):
 
     with pytest.raises(ValueError):
         client.delete_task_run_artifact(task_run_artifact_id=None)
+
+
+def test_client_posts_graphql_to_api_server_backend_server(patch_post):
+    post = patch_post(dict(data=dict(success=True)))
+
+    with set_temporary_config(
+        {
+            "cloud.api": "http://my-cloud.foo",
+            "backend": "server",
+        }
+    ):
+        client = Client()
+    result = client.graphql("{projects{name}}")
+    assert result.data == {"success": True}
+    assert post.called
+    assert post.call_args[0][0] == "http://my-cloud.foo"

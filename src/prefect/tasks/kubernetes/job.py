@@ -1,12 +1,14 @@
 import time
-from typing import Any, cast
+from typing import Any, Optional, cast
 
 from kubernetes import client
+from concurrent.futures import ThreadPoolExecutor
 
 from prefect import Task
 from prefect.engine import signals
 from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.kubernetes import get_kubernetes_client
+from prefect.tasks.kubernetes.pod import ReadNamespacedPodLogs
 
 
 class CreateNamespacedJob(Task):
@@ -613,9 +615,12 @@ class RunNamespacedJob(Task):
         - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
             which stored your Kubernetes API Key; this Secret must be a string and in
             BearerToken format
-        - job_status_pool_interval (int, optional): The interval given in seconds
+        - job_status_poll_interval (int, optional): The interval given in seconds
             indicating how often the Kubernetes API will be requested about the status
             of the job being performed, defaults to the `5` seconds
+        - log_level (str, optional): Log level used when outputting logs from the job
+            should be one of `debug`, `info`, `warn`, `error`, 'critical' or `None` to
+            disable output completely. Defaults to `None`.
         - delete_job_after_completion (bool, optional): boolean value determining whether
             resources related to a given job will be removed from the Kubernetes cluster
             after completion, defaults to the `True` value
@@ -629,7 +634,8 @@ class RunNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        job_status_pool_interval: int = 5,
+        job_status_poll_interval: int = 5,
+        log_level: Optional[str] = None,
         delete_job_after_completion: bool = True,
         **kwargs: Any,
     ):
@@ -637,7 +643,8 @@ class RunNamespacedJob(Task):
         self.namespace = namespace
         self.kube_kwargs = kube_kwargs or {}
         self.kubernetes_api_key_secret = kubernetes_api_key_secret
-        self.job_status_pool_interval = job_status_pool_interval
+        self.job_status_poll_interval = job_status_poll_interval
+        self.log_level = log_level
         self.delete_job_after_completion = delete_job_after_completion
 
         super().__init__(**kwargs)
@@ -647,7 +654,8 @@ class RunNamespacedJob(Task):
         "namespace",
         "kube_kwargs",
         "kubernetes_api_key_secret",
-        "job_status_pool_interval",
+        "job_status_poll_interval",
+        "log_level",
         "delete_job_after_completion",
     )
     def run(
@@ -656,7 +664,8 @@ class RunNamespacedJob(Task):
         namespace: str = "default",
         kube_kwargs: dict = None,
         kubernetes_api_key_secret: str = "KUBERNETES_API_KEY",
-        job_status_pool_interval: int = 5,
+        job_status_poll_interval: int = 5,
+        log_level: Optional[str] = None,
         delete_job_after_completion: bool = True,
     ) -> None:
         """
@@ -672,9 +681,12 @@ class RunNamespacedJob(Task):
             - kubernetes_api_key_secret (str, optional): the name of the Prefect Secret
                 which stored your Kubernetes API Key; this Secret must be a string and in
                 BearerToken format
-            - job_status_pool_interval (int, optional): The interval given in seconds
+            - job_status_poll_interval (int, optional): The interval given in seconds
                 indicating how often the Kubernetes API will be requested about the status
-                of the job being performed, defaults to the `5` seconds
+                of the job being performed, defaults to the `5` seconds.
+            - log_level (str, optional): Log level used when outputting logs from the job
+                should be one of `debug`, `info`, `warn`, `error`, 'critical' or `None` to
+                disable output completely. Defaults to `None`.
             - delete_job_after_completion (bool, optional): boolean value determining whether
                 resources related to a given job will be removed from the Kubernetes cluster
                 after completion, defaults to the `True` value
@@ -685,6 +697,8 @@ class RunNamespacedJob(Task):
         """
         if not body:
             raise ValueError("A dictionary representing a V1Job must be provided.")
+        if log_level is not None and getattr(self.logger, log_level, None) is None:
+            raise ValueError("A valid log_level must be provided.")
 
         body = {**self.body, **(body or {})}
         kube_kwargs = {**self.kube_kwargs, **(kube_kwargs or {})}
@@ -695,34 +709,71 @@ class RunNamespacedJob(Task):
                 "The job name must be defined in the body under the metadata key."
             )
 
-        api_client = cast(
+        api_client_job = cast(
             client.BatchV1Api, get_kubernetes_client("job", kubernetes_api_key_secret)
         )
 
-        api_client.create_namespaced_job(namespace=namespace, body=body, **kube_kwargs)
+        api_client_pod = cast(
+            client.CoreV1Api, get_kubernetes_client("pod", kubernetes_api_key_secret)
+        )
+
+        api_client_job.create_namespaced_job(
+            namespace=namespace, body=body, **kube_kwargs
+        )
         self.logger.info(f"Job {job_name} has been created.")
 
-        completed = False
-        while not completed:
-            res = api_client.read_namespaced_job_status(
-                name=job_name, namespace=namespace
-            )
+        pod_log_streams = {}
 
-            if res.status.active:
-                time.sleep(job_status_pool_interval)
-            else:
-                if res.status.failed:
+        with ThreadPoolExecutor() as pool:
+            completed = False
+            while not completed:
+                job = api_client_job.read_namespaced_job_status(
+                    name=job_name, namespace=namespace
+                )
+
+                if log_level is not None:
+                    func_log = getattr(self.logger, log_level)
+
+                    pod_selector = (
+                        f"controller-uid={job.metadata.labels['controller-uid']}"
+                    )
+                    pods_list = api_client_pod.list_namespaced_pod(
+                        namespace=namespace, label_selector=pod_selector
+                    )
+
+                    for pod in pods_list.items:
+                        pod_name = pod.metadata.name
+
+                        # Can't start logs when phase is pending
+                        if pod.status.phase == "Pending":
+                            continue
+                        if pod_name in pod_log_streams:
+                            continue
+
+                        read_pod_logs = ReadNamespacedPodLogs(
+                            pod_name=pod_name,
+                            namespace=namespace,
+                            kubernetes_api_key_secret=kubernetes_api_key_secret,
+                            on_log_entry=lambda log: func_log(f"{pod_name}: {log}"),
+                        )
+
+                        self.logger.info(f"Started following logs for {pod_name}")
+                        pod_log_streams[pod_name] = pool.submit(read_pod_logs.run)
+
+                if job.status.active:
+                    time.sleep(job_status_poll_interval)
+                elif job.status.failed:
                     raise signals.FAIL(
                         f"Job {job_name} failed, check Kubernetes pod logs for more information."
                     )
-                elif res.status.succeeded:
+                elif job.status.succeeded:
                     self.logger.info(f"Job {job_name} has been completed.")
-                    completed = True
+                    break
 
-        if delete_job_after_completion:
-            api_client.delete_namespaced_job(
-                name=job_name,
-                namespace=namespace,
-                body=client.V1DeleteOptions(propagation_policy="Foreground"),
-            )
-            self.logger.info(f"Job {job_name} has been deleted.")
+            if delete_job_after_completion:
+                api_client_job.delete_namespaced_job(
+                    name=job_name,
+                    namespace=namespace,
+                    body=client.V1DeleteOptions(propagation_policy="Foreground"),
+                )
+                self.logger.info(f"Job {job_name} has been deleted.")

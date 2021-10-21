@@ -28,6 +28,7 @@ class TestInitialization:
             run_name="1234",
             run_info_at_end=False,
             disable_markdown_artifact=True,
+            evaluation_parameters=dict(prev_run_row_count=100),
         )
         assert t.checkpoint_name == "checkpoint"
         assert t.context == 1234
@@ -41,6 +42,7 @@ class TestInitialization:
         assert t.run_name == "1234"
         assert t.run_info_at_end == False
         assert t.disable_markdown_artifact == True
+        assert t.evaluation_parameters == dict(prev_run_row_count=100)
 
     def test_raises_if_params_not_mutually_exclusive(self):
         task = RunGreatExpectationsValidation(context="test")

@@ -9,7 +9,7 @@ try:
         PostgresExecuteMany,
         PostgresFetch,
     )
-except ImportError:
+except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.postgres` requires Prefect to be installed with the "postgres" extra.'
-    )
+    ) from err

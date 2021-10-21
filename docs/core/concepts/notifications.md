@@ -91,14 +91,15 @@ As our above example demonstrated, it is very easy to intercept task states and 
 ```python
 import requests
 from prefect import Task, Flow
-
+from prefect.client.secrets import Secret
 
 def post_to_slack(task, old_state, new_state):
     if new_state.is_finished():
         msg = "Task {0} finished in state {1}".format(task, new_state)
+        # replace with your Slack webhook URL secret name
+        secret_slack = Secret("SLACK_WEBHOOK_URL_SECRET_NAME").get()
 
-        # replace URL with your Slack webhook URL
-        requests.post("https://XXXXX", json={"text": msg})
+        requests.post(secret_slack, json={"text": msg})
 
     return new_state
 
@@ -115,7 +116,7 @@ We could have raised an error if the POST request returned a non-200 status code
 :::
 
 ::: tip Handlers can use Prefect Secrets
-Most notification systems will require some form of authentication. Don't despair - state handlers can retrieve Prefect Secrets just like Tasks.
+Most notification systems will require some form of authentication. Don't despair - state handlers can retrieve Prefect Secrets just like Tasks.  (See post_to_slack above for an example.)
 :::
 
 ## Responding to State

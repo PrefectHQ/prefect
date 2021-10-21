@@ -58,7 +58,11 @@ class TestAzureResult:
         assert service.get_blob_client.call_args[1]["container"] == "foo"
 
     def test_azure_reads_and_updates_location(self, monkeypatch):
-        client = MagicMock(download_blob=MagicMock(return_value=b""))
+        client = MagicMock(
+            download_blob=MagicMock(
+                return_value=MagicMock(content_as_bytes=MagicMock(return_value=b""))
+            )
+        )
         service = MagicMock(get_blob_client=MagicMock(return_value=client))
         monkeypatch.setattr(
             "prefect.engine.results.azure_result.AzureResult.service", service
@@ -87,26 +91,13 @@ class TestAzureResult:
         res = cloudpickle.loads(cloudpickle.dumps(result))
         assert isinstance(res, AzureResult)
 
-    def test_azure_exists(self, monkeypatch):
-        client = MagicMock(get_blob_properties=MagicMock())
+    @pytest.mark.parametrize("exists", [True, False])
+    def test_azure_exists(self, monkeypatch, exists):
+        client = MagicMock(exists=MagicMock(return_value=exists))
         service = MagicMock(get_blob_client=MagicMock(return_value=client))
         monkeypatch.setattr(
             "prefect.engine.results.azure_result.AzureResult.service", service
         )
 
         result = AzureResult(container="foo", location="{thing}/here.txt")
-        assert result.exists("44.txt") is True
-
-    def test_azure_does_not_exists(self, monkeypatch):
-        from azure.core.exceptions import ResourceNotFoundError
-
-        client = MagicMock(
-            get_blob_properties=MagicMock(side_effect=ResourceNotFoundError)
-        )
-        service = MagicMock(get_blob_client=MagicMock(return_value=client))
-        monkeypatch.setattr(
-            "prefect.engine.results.azure_result.AzureResult.service", service
-        )
-
-        result = AzureResult(container="foo", location="{thing}/here.txt")
-        assert result.exists("44.txt") is False
+        assert result.exists("44.txt") is exists
