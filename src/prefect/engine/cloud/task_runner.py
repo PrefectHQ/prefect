@@ -148,12 +148,18 @@ class CloudTaskRunner(TaskRunner):
         Returns:
             - tuple: a tuple of the updated state, context, and upstream_states objects
         """
-
         # load task run info
         try:
+            flow_run_id = context.get("flow_run_id")
+            task_id = context.get("task_id")
+            if not flow_run_id:
+                raise ValueError("`flow_run_id` missing from task run context.")
+            if not task_id:
+                raise ValueError("`task_id` missing from task run context")
+
             task_run_info = self.client.get_task_run_info(
-                flow_run_id=context.get("flow_run_id", ""),
-                task_id=context.get("task_id", ""),
+                flow_run_id=flow_run_id,
+                task_id=task_id,
                 map_index=context.get("map_index"),
             )
 
