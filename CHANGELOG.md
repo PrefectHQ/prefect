@@ -6,9 +6,9 @@ Released on October 21, 2021.
 
 ### Enhancements
 
-- Add flatten support to `apply_map` [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
+- Add flatten support to `apply_map` - [#4996](https://github.com/PrefectHQ/prefect/pull/4996)
 - Add dask performance report to `DaskExecutor` - [#5032](https://github.com/PrefectHQ/prefect/pull/5032)
-- Update git storage `repo` parameter to be optional if specifying `git_clone_url_secret_name` [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
+- Update git storage `repo` parameter to be optional if specifying `git_clone_url_secret_name` - [#5033](https://github.com/PrefectHQ/prefect/pull/5033)
 - Add `task_run_name` to `prefect.context` - [#5055](https://github.com/PrefectHQ/prefect/pull/5055)
 
 ### Fixes
