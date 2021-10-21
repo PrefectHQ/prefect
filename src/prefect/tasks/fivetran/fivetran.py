@@ -21,7 +21,9 @@ class FivetranSyncTask(Task):
             specified to `run`.
         - **kwargs (Any, optional): additional kwargs to pass to the base Task constructor
     """
-    api_user_agent = 'prefect/1.0.1'
+
+    api_user_agent = "prefect/1.0.1"
+
     def __init__(self, connector_id: str = None, **kwargs):
         self.connector_id = connector_id
         super().__init__(**kwargs)
@@ -33,7 +35,7 @@ class FivetranSyncTask(Task):
         api_secret: str,
         connector_id: str = None,
         poll_status_every_n_seconds: int = 15,
-        manual = True,
+        manual=True,
     ) -> dict:
         """
         Task run method for Fivetran connector syncs.
@@ -48,6 +50,8 @@ class FivetranSyncTask(Task):
             - connector_id (str, optional): if provided, will overwrite value provided at init.
             - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status,
                 if provided this value will override the default polling time of 15 seconds.
+            - manual (bool, optional): if provided, will overwrite Prefect's changes
+                to the Fivetran connector's schedule, keeping it on Fivetran auto scheduling
 
         Returns:
             - dict: connector_id (str) and succeeded_at (timestamp str)
@@ -80,9 +84,7 @@ class FivetranSyncTask(Task):
             )
         )
 
-        headers = {
-            "User-Agent": self.api_user_agent
-        }
+        headers = {"User-Agent": self.api_user_agent}
 
         # Automatically call `raise_for_status` on every request
         session = requests.Session()
@@ -124,11 +126,15 @@ class FivetranSyncTask(Task):
                 auth=(api_key, api_secret),
             )
         # Start connector sync
-        resp = session.post(URL_CONNECTOR + "/force", auth=(api_key, api_secret), headers=headers)
+        resp = session.post(
+            URL_CONNECTOR + "/force", auth=(api_key, api_secret), headers=headers
+        )
 
         loop: bool = True
         while loop:
-            resp = session.get(URL_CONNECTOR, auth=(api_key, api_secret), headers=headers)
+            resp = session.get(
+                URL_CONNECTOR, auth=(api_key, api_secret), headers=headers
+            )
             current_details = resp.json()["data"]
             # Failsafe, in case we missed a state transition – it is possible with a long enough
             # `poll_status_every_n_seconds` we could completely miss the 'syncing' state
