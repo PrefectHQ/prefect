@@ -391,6 +391,18 @@ class CloudFlowRunner(FlowRunner):
         )
 
         tasks = {slug: t for t, slug in self.flow.slugs.items()}
+
+        server_task_runs_by_slug = {
+            task_run.task_slug: task_run for task_run in flow_run_info.task_runs
+        }
+
+        missing_slugs = {slug for slug in tasks if slug not in server_task_runs_by_slug}
+        if missing_slugs:
+            self.logger.error(
+                "Task slug(s) missing from the current flow missing from the flow "
+                f"stored in the Prefect backend: {missing_slugs}\n"
+            )
+
         # update task states and contexts
         for task_run in flow_run_info.task_runs:
 
