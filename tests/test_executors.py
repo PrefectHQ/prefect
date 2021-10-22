@@ -180,6 +180,10 @@ def test_failing_flow_run_by_executor(executor):
     [
         (SequentialExecutor(), DaskExecutor()),
         (DaskExecutor(), SequentialExecutor()),
+        # Select a random port for the child executor so it does not collide with the
+        # parent. Dask will detect collisions and pick a new port, but it will display
+        # a warning
+        (DaskExecutor(), DaskExecutor(cluster_kwargs={"dashboard_address": 8790})),
     ],
 )
 def test_subflow_run_nested_executor_compatibility(parent_executor, child_executor):
@@ -570,3 +574,25 @@ class TestDaskExecutor:
                 address="localhost:8787",
                 cluster_class=distributed.LocalCluster,
             )
+
+    def test_nested_dask_executors_warn_on_port_collision_but_succeeds(self):
+        @task
+        def idenitity(x):
+            return x
+
+        @flow(version="test", executor=DaskExecutor())
+        def parent_flow():
+            a = idenitity("a")
+            return child_flow(a), a
+
+        @flow(version="test", executor=DaskExecutor())
+        def child_flow(a):
+            return idenitity(a).wait().result()
+
+        with pytest.warns(
+            UserWarning,
+            match="Port .* is already in use",
+        ):
+            task_state, subflow_state = parent_flow().result()
+            assert task_state.result() == "a"
+            assert subflow_state.result() == "a"
