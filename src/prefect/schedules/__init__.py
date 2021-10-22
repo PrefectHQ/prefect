@@ -6,4 +6,5 @@ from prefect.schedules.schedules import (
     Schedule,
     IntervalSchedule,
     CronSchedule,
+    RRuleSchedule,
 )

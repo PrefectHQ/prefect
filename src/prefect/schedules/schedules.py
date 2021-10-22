@@ -2,6 +2,7 @@ import heapq
 import itertools
 import operator
 from datetime import datetime, timedelta
+from dateutil import rrule
 from typing import Callable, Iterable, List, Optional, cast
 
 import prefect.schedules.adjustments
@@ -272,4 +273,27 @@ def CronSchedule(
                 cron=cron, start_date=start_date, end_date=end_date, day_or=day_or
             )
         ]
+    )
+
+
+def RRuleSchedule(
+    rrule_obj: rrule.rrulebase, start_date: datetime = None, end_date: datetime = None
+) -> Schedule:
+    """
+    A schedule formed from a iCal style recurrence rule (RRule).
+
+    See below links for helpful info:
+        - https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
+        - https://dateutil.readthedocs.io/en/stable/rrule.html
+
+    Args:
+        - rrule_obj (rrulebase): an rrule or rruleset object
+        - start_date (datetime, optional): an optional start date for the clock
+        - end_date (datetime, optional): an optional end date for the clock
+
+    Raises:
+        - TypeError: if provided rrule_obj is not an rrule object
+    """
+    return Schedule(
+        clocks=[prefect.schedules.clocks.RRuleClock(rrule_obj, start_date, end_date)]
     )

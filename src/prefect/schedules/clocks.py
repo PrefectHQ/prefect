@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from dateutil import rrule
 from typing import Any, Iterable, List, Set, Union
 
 import pendulum
@@ -51,6 +52,9 @@ class ClockEvent:
             )
         else:
             return self.start_time < other
+
+    def __repr__(self) -> str:
+        return "<%s,%s,%s>" % (self.start_time, self.labels, self.parameter_defaults)
 
 
 class Clock:
@@ -379,3 +383,89 @@ class DatesClock(Clock):
             for date in sorted(self.dates)
             if date > after
         )
+
+
+class RRuleClock(Clock):
+    """
+    Clock that supports iCal style RRule (recurrence rules).
+
+    See below links for helpful info:
+        - https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
+        - https://dateutil.readthedocs.io/en/stable/rrule.html
+
+    Args:
+        - rrule_obj (rrulebase): an rrule or rruleset object
+        - start_date (datetime, optional): an optional start date for the clock
+        - end_date (datetime, optional): an optional end date for the clock
+        - parameter_defaults (dict, optional): an optional dictionary of default Parameter
+            values; if provided, these values will be passed as the Parameter values for all
+            Flow Runs which are run on this clock's events
+        - labels (List[str], optional): a list of labels to apply to all flow runs generated
+            from this Clock
+
+    Raises:
+        - TypeError: if the rrule_obj passed in is not an rrule object
+    """
+
+    def __init__(
+        self,
+        rrule_obj: rrule.rrulebase,
+        start_date: datetime = None,
+        end_date: datetime = None,
+        parameter_defaults: dict = None,
+        labels: List[str] = None,
+    ):
+        if not isinstance(rrule_obj, rrule.rrulebase):
+            raise TypeError("rrule_obj must be an rrule or rruleset, got: ", rrule_obj)
+        super().__init__(
+            start_date=start_date,
+            end_date=end_date,
+            parameter_defaults=parameter_defaults,
+            labels=labels,
+        )
+        self.rrule_obj = rrule_obj
+
+    def events(self, after: datetime = None) -> Iterable[ClockEvent]:
+        """
+        Generator that emits clock events
+
+        Args:
+            - after (datetime, optional): the first result will be after this date
+
+        Returns:
+            - Iterable[datetime]: the next scheduled events
+        """
+        include_after = False
+
+        if after is None:
+            # rrule requires a start date to be passed in, but it's optional in this method.
+            # So if we don't have one passed in we use the first item in the rrule.
+            # If the rrule is empty we use 1/1/2020 which won't matter b/c rrule won't return anything
+            after = pendulum.now("UTC")
+            include_after = True
+
+        if self.start_date is not None and after < self.start_date:  # type: ignore[operator]
+            after = self.start_date
+            include_after = True
+
+        # RRule throws if trying to compare timezone-aware datetimes to timezone-naive ones.
+        # To protect from this happening we grab the first element in the RRule to see what
+        # timezone awareness it has, and use that to alter our `after` variable accordingly.
+        first_item: datetime = next(iter(self.rrule_obj), after)
+        if after.tzinfo is not None and first_item.tzinfo is None:
+            after = after.replace(tzinfo=None)
+        if after.tzinfo is None and first_item.tzinfo is not None:
+            after = after.replace(tzinfo=first_item.tzinfo)
+
+        for dt in self.rrule_obj.xafter(after, inc=include_after):
+            if self.end_date and dt > self.end_date:
+                break
+
+            # Always return UTC timezone-aware datetime objects
+            next_date = pendulum.instance(dt)
+
+            yield ClockEvent(
+                next_date,
+                parameter_defaults=self.parameter_defaults,
+                labels=self.labels,
+            )

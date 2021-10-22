@@ -121,6 +121,7 @@ classes = [
 functions = [
     "IntervalSchedule",
     "CronSchedule",
+    "RRuleSchedule",
 ]
 
 [pages.schedules.clocks]
@@ -131,6 +132,7 @@ classes = [
     "IntervalClock",
     "CronClock",
     "DatesClock",
+    "RRuleClock",
 ]
 
 [pages.schedules.filters]
