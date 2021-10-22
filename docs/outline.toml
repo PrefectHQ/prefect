@@ -428,6 +428,7 @@ title = "File and Filesystem Tasks"
 module = "prefect.tasks.files"
 classes = [
         "Copy",
+        "Glob",
         "Move",
         "Remove",
         "Unzip",
