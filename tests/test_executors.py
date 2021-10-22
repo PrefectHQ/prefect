@@ -182,7 +182,7 @@ def test_failing_flow_run_by_executor(executor):
         (DaskExecutor(), SequentialExecutor()),
     ],
 )
-def test_subflow_run_by_executor_pairing(parent_executor, child_executor):
+def test_subflow_run_nested_executor_compatibility(parent_executor, child_executor):
     @task
     def task_a():
         return "a"
