@@ -13,6 +13,7 @@ from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
 from prefect.orion.models import orm
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.rules import (
@@ -235,6 +236,7 @@ async def set_task_run_state(
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
+    task_policy: BaseOrchestrationPolicy = None,
 ) -> orm.TaskRunState:
     """
     Creates a new orchestrated task run state.
@@ -271,7 +273,11 @@ async def set_task_run_state(
     if force:
         orchestration_rules = []
     else:
-        orchestration_rules = CoreTaskPolicy.compile_transition_rules(
+        if task_policy is not None:
+            breakpoint()
+        if task_policy is None:
+            task_policy = CoreTaskPolicy
+        orchestration_rules = task_policy.compile_transition_rules(
             *intended_transition
         )
 
