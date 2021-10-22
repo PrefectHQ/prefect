@@ -14,6 +14,7 @@ from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
@@ -176,6 +177,7 @@ async def set_task_run_state(
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
+    task_policy: BaseOrchestrationPolicy = Depends(dependencies.get_task_policy),
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
@@ -183,9 +185,9 @@ async def set_task_run_state(
     orchestration_result = await models.task_runs.set_task_run_state(
         session=session,
         task_run_id=task_run_id,
-        # convert to a full State object
-        state=schemas.states.State.parse_obj(state),
+        state=schemas.states.State.parse_obj(state),  # convert to a full State object
         force=force,
+        task_policy=task_policy,
     )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.WAIT:
