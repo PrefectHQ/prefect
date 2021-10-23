@@ -24,15 +24,10 @@ class TestAirbyte:
         with pytest.raises(ValueError):
             task.run(connection_id="749c19dc-4f97-4f30-bb0f-126e5350696K")
 
-    def test_no_airbyte_server(self):
-        task = AirbyteConnectionTask()
-        with pytest.raises(AirbyteServerNotHealthyException):
-            task.run(connection_id="749c19dc-4f97-4f30-bb0f-126e53506960")
-
     @responses.activate
     def test_check_health_status(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
-        responses.add(responses.GET, airbyte_base_url + "/health/", json={"db": "True"}, status=200)
+        responses.add(responses.GET, airbyte_base_url + "/health/", json={"db": True}, status=200)
         session = requests.Session()
         task = AirbyteConnectionTask(connection_id="749c19dc-4f97-4f30-bb0f-126e53506960")
         response = task.check_health_status(session, airbyte_base_url)
@@ -41,7 +36,7 @@ class TestAirbyte:
     @responses.activate
     def test_check_health_status_2(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
-        responses.add(responses.GET, airbyte_base_url + "/health/", json={"db": "False"}, status=200)
+        responses.add(responses.GET, airbyte_base_url + "/health/", json={"db": False}, status=200)
         session = requests.Session()
         task = AirbyteConnectionTask(connection_id="749c19dc-4f97-4f30-bb0f-126e53506960")
         with pytest.raises(AirbyteServerNotHealthyException):
@@ -50,7 +45,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
-        responses.add(responses.POST, airbyte_base_url + "/connections/get/", json={"status": "active"}, status=200)
+        responses.add(responses.POST, airbyte_base_url + "/connections/get/", json={"status": "active", "schedule": {"units": None}}, status=200)
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
@@ -60,7 +55,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status_2(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
-        responses.add(responses.POST, airbyte_base_url + "/connections/get/", json={"status": "inactive"}, status=200)
+        responses.add(responses.POST, airbyte_base_url + "/connections/get/", json={"status": "inactive", "schedule": {"units": None}}, status=200)
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
@@ -70,12 +65,31 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status_3(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
-        responses.add(responses.POST, airbyte_base_url + "/connections/get/", json={"status": "deprecated"}, status=200)
+        responses.add(responses.POST, airbyte_base_url + "/connections/get/", json={"status": "deprecated", "schedule": {"units": None}}, status=200)
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
         response = task.get_connection_status(session, airbyte_base_url, connection_id)
         assert response == "deprecated"
+
+    @responses.activate
+    def test_get_connection_status_4(self):
+        """
+        Test with an existing schedule ...
+
+        Returns:
+
+        """
+        airbyte_base_url = f"http://localhost:8000/api/v1"
+        responses.add(responses.POST, airbyte_base_url + "/connections/get/",
+                      json={"status": "active", "schedule": {"units": "5"}, "syncCatalog": ""}, status=200)
+        responses.add(responses.POST, airbyte_base_url + "/connections/update/",
+                      json={}, status=200)
+        session = requests.Session()
+        connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
+        task = AirbyteConnectionTask(connection_id)
+        response = task.get_connection_status(session, airbyte_base_url, connection_id)
+        assert response == "active"
 
     @responses.activate
     def test_trigger_manual_sync_connection(self):

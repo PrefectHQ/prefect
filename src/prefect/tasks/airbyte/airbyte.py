@@ -59,7 +59,7 @@ class AirbyteConnectionTask(Task):
             response = session.get(get_connection_url)
             self.logger.info(response.json())
             health_status = response.json()["db"]
-            if not eval(health_status):
+            if not health_status:
                 raise AirbyteServerNotHealthyException(f"Airbyte Server health status: {health_status}")
             return True
         except RequestException as e:
@@ -73,6 +73,25 @@ class AirbyteConnectionTask(Task):
         try:
             response = session.post(get_connection_url, json={"connectionId": connection_id})
             self.logger.info(response.json())
+
+            # check whether a schedule exists ...
+            schedule_units = response.json()["schedule"]["units"]
+            if schedule_units:
+                self.logger.warning("Found existing Connection schedule, removing ...")
+
+                # mandatory fields for Connection update ...
+                sync_catalog = response.json()["syncCatalog"]
+                connection_status = response.json()["status"]
+
+                update_connection_url = airbyte_base_url + "/connections/update/"
+                response2 = session.post(update_connection_url, json={"connectionId": connection_id, "syncCatalog": sync_catalog, "schedule": None, "status": connection_status})
+                self.logger.info(response2.json())
+
+                if response2.status_code == 200:
+                    self.logger.info("Schedule removed ok.")
+                else:
+                    self.logger.warning("Schedule not removed.")
+
             connection_status = response.json()["status"]
             return connection_status
         except RequestException as e:
