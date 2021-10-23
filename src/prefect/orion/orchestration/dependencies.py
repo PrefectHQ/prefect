@@ -9,7 +9,7 @@ ORCHESTRATION_DEPENDENCIES = {
 
 
 async def get_task_policy():
-    provided_policy = ORCHESTRATION_DEPENDENCIES.get("task_policy", None)()
+    provided_policy = ORCHESTRATION_DEPENDENCIES.get("task_policy")()
 
     if provided_policy is None:
         from prefect.orion.orchestration.core_policy import CoreTaskPolicy
@@ -19,7 +19,7 @@ async def get_task_policy():
 
 
 async def get_flow_policy():
-    provided_policy = ORCHESTRATION_DEPENDENCIES.get("flow_policy", None)()
+    provided_policy = ORCHESTRATION_DEPENDENCIES.get("flow_policy")()
 
     if provided_policy is None:
         from prefect.orion.orchestration.core_policy import CoreFlowPolicy

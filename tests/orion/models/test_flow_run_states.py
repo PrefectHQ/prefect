@@ -5,7 +5,9 @@ import pendulum
 
 from prefect.orion import models
 from prefect.orion import schemas
+from prefect.orion.orchestration import dependencies
 from prefect.orion.orchestration.dependencies import get_flow_policy
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.schemas.states import Running, Scheduled, StateType
 
 
@@ -87,6 +89,37 @@ class TestCreateFlowRunState:
         # the original state remains in place
         await session.refresh(flow_run)
         assert flow_run.state.id == frs.state.id
+
+    async def test_no_orchestration_with_injected_empty_policy(self, flow_run, session):
+        def provide_empty_policy():
+            class EmptyPolicy(BaseOrchestrationPolicy):
+                def priority():
+                    return []
+
+            return EmptyPolicy
+
+        dependencies.ORCHESTRATION_DEPENDENCIES["flow_policy"] = provide_empty_policy
+
+        # place the run in a scheduled state in the future
+        frs = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            flow_policy=await get_flow_policy(),
+        )
+
+        # put the run in a pending state, which succeeds due to injected orchestration
+        frs2 = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Running(),
+            flow_policy=await get_flow_policy(),
+        )
+
+        assert frs2.status == schemas.responses.SetStateStatus.ACCEPT
+        # the original state remains in place
+        await session.refresh(flow_run)
+        assert flow_run.state.id != frs.state.id
 
 
 class TestReadFlowRunState:
