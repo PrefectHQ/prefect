@@ -75,8 +75,8 @@ class AirbyteConnectionTask(Task):
             self.logger.info(response.json())
 
             # check whether a schedule exists ...
-            schedule_units = response.json()["schedule"]["units"]
-            if schedule_units:
+            schedule = response.json()["schedule"]
+            if schedule:
                 self.logger.warning("Found existing Connection schedule, removing ...")
 
                 # mandatory fields for Connection update ...
