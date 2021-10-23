@@ -155,7 +155,7 @@ class TestCreateTaskRunState:
             task_policy=await get_task_policy(),
         )
 
-        # attempt to put the run in a pending state, which will tell the transition to WAIT
+        # put the run in a pending state, which succeeds due to injected orchestration
         trs2 = await models.task_runs.set_task_run_state(
             session=session,
             task_run_id=task_run.id,
