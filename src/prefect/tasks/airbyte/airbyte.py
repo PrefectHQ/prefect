@@ -45,8 +45,14 @@ class AirbyteConnectionTask(Task):
     JOB_STATUS_SUCCEEDED = "succeeded"
     JOB_STATUS_FAILED = "failed"
 
-    def __init__(self, airbyte_server_host: str = "localhost", airbyte_server_port: int = 8000,
-                 airbyte_api_version: str = "v1", connection_id: str = None, **kwargs):
+    def __init__(
+        self,
+        airbyte_server_host: str = "localhost",
+        airbyte_server_port: int = 8000,
+        airbyte_api_version: str = "v1",
+        connection_id: str = None,
+        **kwargs,
+    ):
         self.airbyte_server_host = airbyte_server_host
         self.airbyte_server_port = airbyte_server_port
         self.airbyte_api_version = airbyte_api_version
@@ -60,7 +66,9 @@ class AirbyteConnectionTask(Task):
             self.logger.info(response.json())
             health_status = response.json()["db"]
             if not health_status:
-                raise AirbyteServerNotHealthyException(f"Airbyte Server health status: {health_status}")
+                raise AirbyteServerNotHealthyException(
+                    f"Airbyte Server health status: {health_status}"
+                )
             return True
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
@@ -71,7 +79,9 @@ class AirbyteConnectionTask(Task):
         # TODO - missing authentiction ...
         # note - endpoint accepts application/json request body
         try:
-            response = session.post(get_connection_url, json={"connectionId": connection_id})
+            response = session.post(
+                get_connection_url, json={"connectionId": connection_id}
+            )
             self.logger.info(response.json())
 
             # check whether a schedule exists ...
@@ -84,7 +94,15 @@ class AirbyteConnectionTask(Task):
                 connection_status = response.json()["status"]
 
                 update_connection_url = airbyte_base_url + "/connections/update/"
-                response2 = session.post(update_connection_url, json={"connectionId": connection_id, "syncCatalog": sync_catalog, "schedule": None, "status": connection_status})
+                response2 = session.post(
+                    update_connection_url,
+                    json={
+                        "connectionId": connection_id,
+                        "syncCatalog": sync_catalog,
+                        "schedule": None,
+                        "status": connection_status,
+                    },
+                )
                 self.logger.info(response2.json())
 
                 if response2.status_code == 200:
@@ -114,7 +132,9 @@ class AirbyteConnectionTask(Task):
 
         # TODO - missing authentication ...
         try:
-            response = session.post(get_connection_url, json={"connectionId": connection_id})
+            response = session.post(
+                get_connection_url, json={"connectionId": connection_id}
+            )
             if response.status_code == 200:
                 self.logger.info(response.json())
                 job_id = response.json()["job"]["id"]
@@ -123,8 +143,11 @@ class AirbyteConnectionTask(Task):
             elif response.status_code == 404:
                 # connection_id not found
                 self.logger.warn(
-                    f"Connection {connection_id} not found, please double check the connection_id ...")
-                raise ConnectionNotFoundException(f"Connection {connection_id} not found, please double check the connection_id ...")
+                    f"Connection {connection_id} not found, please double check the connection_id ..."
+                )
+                raise ConnectionNotFoundException(
+                    f"Connection {connection_id} not found, please double check the connection_id ..."
+                )
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
@@ -179,7 +202,9 @@ class AirbyteConnectionTask(Task):
         uuid = re.compile("^[0-9A-Fa-f-]+$")
         match = uuid.match(connection_id)
         if not match:
-            raise ValueError("Parameter `connection_id` *must* be a valid UUID i.e. 32 hex characters, including hyphens.")
+            raise ValueError(
+                "Parameter `connection_id` *must* be a valid UUID i.e. 32 hex characters, including hyphens."
+            )
 
         # see https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#overview
         airbyte_base_url = f"http://{self.airbyte_server_host}:{self.airbyte_server_port}/api/{self.airbyte_api_version}"
@@ -187,15 +212,22 @@ class AirbyteConnectionTask(Task):
         session = requests.Session()
         self.check_health_status(session, airbyte_base_url)
         self.logger.info(
-            f"Getting Airbyte Connection {connection_id}, poll interval {poll_interval_s} seconds, airbyte_base_url {airbyte_base_url}")
+            f"Getting Airbyte Connection {connection_id}, poll interval {poll_interval_s} seconds, airbyte_base_url {airbyte_base_url}"
+        )
 
-        connection_status = self.get_connection_status(session, airbyte_base_url, connection_id)
+        connection_status = self.get_connection_status(
+            session, airbyte_base_url, connection_id
+        )
         if connection_status == self.CONNECTION_STATUS_ACTIVE:
             # Trigger manual sync on the Connection ...
-            job_id, job_created_at = self.trigger_manual_sync_connection(session, airbyte_base_url, connection_id)
+            job_id, job_created_at = self.trigger_manual_sync_connection(
+                session, airbyte_base_url, connection_id
+            )
 
             while True:
-                job_status, job_created_at, job_updated_at = self.get_job_status(session, airbyte_base_url, job_id)
+                job_status, job_created_at, job_updated_at = self.get_job_status(
+                    session, airbyte_base_url, job_id
+                )
 
                 # pending┃running┃incomplete┃failed┃succeeded┃cancelled
                 if job_status == self.JOB_STATUS_SUCCEEDED:
@@ -213,11 +245,15 @@ class AirbyteConnectionTask(Task):
                 "status": connection_status,
                 "job_status": job_status,
                 "job_created_at": job_created_at,
-                "job_updated_at": job_updated_at
+                "job_updated_at": job_updated_at,
             }
         elif connection_status == self.CONNECTION_STATUS_INACTIVE:
-            self.logger.error(f"Please enable the Connection {connection_id} in Airbyte Server.")
-            raise FAIL(f"Please enable the Connection {connection_id} in Airbyte Server.")
+            self.logger.error(
+                f"Please enable the Connection {connection_id} in Airbyte Server."
+            )
+            raise FAIL(
+                f"Please enable the Connection {connection_id} in Airbyte Server."
+            )
         elif connection_status == self.CONNECTION_STATUS_DEPRECATED:
             self.logger.error(f"Connection {connection_id} is deprecated.")
             raise FAIL(f"Connection {connection_id} is deprecated.")

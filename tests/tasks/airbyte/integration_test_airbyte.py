@@ -8,11 +8,11 @@ from prefect.tasks.airbyte.airbyte import ConnectionNotFoundException
 class TestAirbyteIntegration:
 
     """
-        Integration tests for AirbyteConnectionTask
+    Integration tests for AirbyteConnectionTask
 
-        Please ensure Airbyte Server is running (locally) ...
+    Please ensure Airbyte Server is running (locally) ...
 
-        """
+    """
 
     # The Connection id to use in integration tests
     CONNECTION_ID = "749c19dc-4f97-4f30-bb0f-126e53506960"
@@ -66,6 +66,8 @@ class TestAirbyteIntegration:
         """
         UNHAPPY PATH: Connection not found ...
         """
-        task = AirbyteConnectionTask(connection_id="88888888-4444-4444-4444-CCCCCCCCCCCC")
+        task = AirbyteConnectionTask(
+            connection_id="88888888-4444-4444-4444-CCCCCCCCCCCC"
+        )
         with pytest.raises(ConnectionNotFoundException):
             task.run()
