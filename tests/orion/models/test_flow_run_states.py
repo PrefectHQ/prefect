@@ -2,10 +2,10 @@ import datetime
 from uuid import uuid4
 
 import pendulum
-import pytest
 
 from prefect.orion import models
 from prefect.orion import schemas
+from prefect.orion.orchestration.dependencies import get_flow_policy
 from prefect.orion.schemas.states import Running, Scheduled, StateType
 
 
@@ -72,11 +72,13 @@ class TestCreateFlowRunState:
             session=session,
             flow_run_id=flow_run.id,
             state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            flow_policy=await get_flow_policy(),
         )
 
         # attempt to put the run in a pending state, which will tell the transition to WAIT
         frs2 = await models.flow_runs.set_flow_run_state(
-            session=session, flow_run_id=flow_run.id, state=Running()
+            session=session, flow_run_id=flow_run.id, state=Running(),
+            flow_policy=await get_flow_policy(),
         )
 
         assert frs2.status == schemas.responses.SetStateStatus.WAIT
