@@ -5,6 +5,7 @@ import requests
 from requests import RequestException
 
 from prefect import Task
+from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
 
 
@@ -58,8 +59,9 @@ class AirbyteConnectionTask(Task):
             response = session.get(get_connection_url)
             self.logger.info(response.json())
             health_status = response.json()["db"]
-            if not health_status:
+            if not eval(health_status):
                 raise AirbyteServerNotHealthyException(f"Airbyte Server health status: {health_status}")
+            return True
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
@@ -150,10 +152,11 @@ class AirbyteConnectionTask(Task):
         Returns:
             - dict: connection_id (str) and succeeded_at (timestamp str)
         """
+        # TODO - pass in the Airbyte connection info as well
+
         if not connection_id:
             raise ValueError("Value for parameter `connection_id` *must* be provided.")
 
-        # TODO - validate the connection_id as valid UUID i.e. 32 alphanumeric chars
         uuid = re.compile("^[0-9A-Fa-f-]+$")
         match = uuid.match(connection_id)
         if not match:
@@ -194,16 +197,8 @@ class AirbyteConnectionTask(Task):
                 "job_updated_at": job_updated_at
             }
         elif connection_status == self.CONNECTION_STATUS_INACTIVE:
-            self.logger.info(f"Please enable the Connection {connection_id} in Airbyte Server, aborting...")
-
-            return {
-                "connection_id": connection_id,
-                "status": connection_status
-            }
+            self.logger.error(f"Please enable the Connection {connection_id} in Airbyte Server.")
+            raise FAIL(f"Please enable the Connection {connection_id} in Airbyte Server.")
         elif connection_status == self.CONNECTION_STATUS_DEPRECATED:
-            self.logger.info(f"Connection {connection_id} is deprecated, aborting...")
-
-            return {
-                "connection_id": connection_id,
-                "status": connection_status
-            }
+            self.logger.error(f"Connection {connection_id} is deprecated.")
+            raise FAIL(f"Connection {connection_id} is deprecated.")

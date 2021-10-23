@@ -22,3 +22,4 @@ requests >= 2.20, < 2.27
 tabulate >= 0.8.0
 toml >= 0.9.4
 urllib3 >= 1.24.3
+responses >=0.14.0
