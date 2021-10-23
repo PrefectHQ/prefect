@@ -13,6 +13,8 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies, run_history
+from prefect.orion.orchestration import dependencies as orchestration_dependencies
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
@@ -196,6 +198,7 @@ async def set_flow_run_state(
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
+    flow_policy: BaseOrchestrationPolicy = Depends(orchestration_dependencies.get_flow_policy),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
@@ -206,6 +209,7 @@ async def set_flow_run_state(
         # convert to a full State object
         state=schemas.states.State.parse_obj(state),
         force=force,
+        flow_policy=flow_policy,
     )
 
     # set the 201 because a new state was created
