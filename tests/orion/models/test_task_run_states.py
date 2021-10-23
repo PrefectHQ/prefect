@@ -4,7 +4,9 @@ from uuid import uuid4
 import pendulum
 
 from prefect.orion import models, schemas
+from prefect.orion.orchestration import dependencies
 from prefect.orion.orchestration.dependencies import get_task_policy
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.schemas.states import Failed, Running, Scheduled, StateType
 
 
@@ -132,6 +134,37 @@ class TestCreateTaskRunState:
         # the original state remains in place
         await session.refresh(task_run)
         assert task_run.state.id == trs.state.id
+
+    async def test_no_orchestration_with_injected_empty_policy(
+        self, task_run, session
+    ):
+        def provide_empty_policy():
+
+            class EmptyPolicy(BaseOrchestrationPolicy):
+                def priority():
+                    return []
+            return EmptyPolicy
+
+        dependencies.ORCHESTRATION_DEPENDENCIES['task_policy'] = provide_empty_policy
+
+        # place the run in a scheduled state in the future
+        trs = await models.task_runs.set_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            task_policy=await get_task_policy(),
+        )
+
+        # attempt to put the run in a pending state, which will tell the transition to WAIT
+        trs2 = await models.task_runs.set_task_run_state(
+            session=session, task_run_id=task_run.id, state=Running(),
+            task_policy=await get_task_policy(),
+        )
+
+        assert trs2.status == schemas.responses.SetStateStatus.ACCEPT
+        # the original state remains in place
+        await session.refresh(task_run)
+        assert task_run.state.id != trs.state.id
 
 
 class TestReadTaskRunState:
