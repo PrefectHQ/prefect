@@ -198,7 +198,9 @@ async def set_flow_run_state(
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
-    flow_policy: BaseOrchestrationPolicy = Depends(orchestration_dependencies.get_flow_policy),
+    flow_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.get_flow_policy
+    ),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 

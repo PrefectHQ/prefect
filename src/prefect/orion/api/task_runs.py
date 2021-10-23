@@ -178,7 +178,9 @@ async def set_task_run_state(
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
-    task_policy: BaseOrchestrationPolicy = Depends(orchestration_dependencies.get_task_policy),
+    task_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.get_task_policy
+    ),
 ) -> OrchestrationResult:
     """Set a task run state, invoking any orchestration rules."""
 
