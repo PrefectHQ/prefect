@@ -77,7 +77,9 @@ class TestCreateFlowRunState:
 
         # attempt to put the run in a pending state, which will tell the transition to WAIT
         frs2 = await models.flow_runs.set_flow_run_state(
-            session=session, flow_run_id=flow_run.id, state=Running(),
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Running(),
             flow_policy=await get_flow_policy(),
         )
 
