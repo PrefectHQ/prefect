@@ -2,11 +2,10 @@ import datetime
 from uuid import uuid4
 
 import pendulum
-import pytest
 
 from prefect.orion import models, schemas
-from prefect.orion.schemas import states
-from prefect.orion.schemas.states import Failed, Running, Scheduled, State, StateType
+from prefect.orion.orchestration.dependencies import get_task_policy
+from prefect.orion.schemas.states import Failed, Running, Scheduled, StateType
 
 
 class TestCreateTaskRunState:
@@ -69,6 +68,7 @@ class TestCreateTaskRunState:
                 session=session,
                 task_run_id=task_run.id,
                 state=Running(),
+                task_policy=await get_task_policy(),
             )
         ).state
 
@@ -77,6 +77,7 @@ class TestCreateTaskRunState:
                 session=session,
                 task_run_id=task_run.id,
                 state=Failed(),
+                task_policy=await get_task_policy(),
             )
         ).state
 
@@ -118,11 +119,13 @@ class TestCreateTaskRunState:
             session=session,
             task_run_id=task_run.id,
             state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+            task_policy=await get_task_policy(),
         )
 
         # attempt to put the run in a pending state, which will tell the transition to WAIT
         trs2 = await models.task_runs.set_task_run_state(
-            session=session, task_run_id=task_run.id, state=Running()
+            session=session, task_run_id=task_run.id, state=Running(),
+            task_policy=await get_task_policy(),
         )
 
         assert trs2.status == schemas.responses.SetStateStatus.WAIT
