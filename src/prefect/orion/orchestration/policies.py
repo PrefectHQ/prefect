@@ -44,3 +44,8 @@ class BaseOrchestrationPolicy(ABC):
             if from_state in rule.FROM_STATES and to_state in rule.TO_STATES:
                 transition_rules.append(rule)
         return transition_rules
+
+
+class NullPolicy(BaseOrchestrationPolicy):
+    def priority():
+        return []

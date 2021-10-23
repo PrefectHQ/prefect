@@ -6,10 +6,6 @@ from prefect import settings
 from prefect.orion.utilities.database import get_session_factory, get_engine
 
 
-async def get_task_policy():
-    return None
-
-
 async def get_session():
     """
     Dependency-injected database session.
