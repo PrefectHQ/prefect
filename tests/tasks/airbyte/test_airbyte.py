@@ -54,11 +54,17 @@ class TestAirbyte:
 
     @responses.activate
     def test_get_connection_status(self):
+        """
+        Active Connection, No Schedule ...
+
+        Returns:
+
+        """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
-            json={"status": "active", "schedule": {"units": None}},
+            json={"status": "active", "schedule": None},
             status=200,
         )
         session = requests.Session()
@@ -69,11 +75,17 @@ class TestAirbyte:
 
     @responses.activate
     def test_get_connection_status_2(self):
+        """
+        Inactive Connection, No Schedule ...
+
+        Returns:
+
+        """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
-            json={"status": "inactive", "schedule": {"units": None}},
+            json={"status": "inactive", "schedule": None},
             status=200,
         )
         session = requests.Session()
@@ -84,11 +96,17 @@ class TestAirbyte:
 
     @responses.activate
     def test_get_connection_status_3(self):
+        """
+        Deprecated Connection, No Schedule ...
+
+        Returns:
+
+        """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
             responses.POST,
             airbyte_base_url + "/connections/get/",
-            json={"status": "deprecated", "schedule": {"units": None}},
+            json={"status": "deprecated", "schedule": None},
             status=200,
         )
         session = requests.Session()
@@ -100,7 +118,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status_4(self):
         """
-        Test with an existing schedule ...
+        Active Connection, Existing Schedule ...
 
         Returns:
 

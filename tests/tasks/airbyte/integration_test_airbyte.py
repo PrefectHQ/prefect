@@ -4,7 +4,8 @@ from prefect.engine.signals import FAIL
 from prefect.tasks.airbyte import AirbyteConnectionTask
 from prefect.tasks.airbyte.airbyte import ConnectionNotFoundException
 
-
+# TODO - Missing test for Connection with existing Schedule
+# i.e. Check that Schedule is removed and replaced with manual sync ...
 class TestAirbyteIntegration:
 
     """

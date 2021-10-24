@@ -169,10 +169,13 @@ class AirbyteConnectionTask(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-    @defaults_from_attrs("connection_id")
+    @defaults_from_attrs("airbyte_server_host","airbyte_server_port","airbyte_api_version","connection_id")
     def run(
         self,
-        connection_id: str = None,
+        airbyte_server_host: str,
+        airbyte_server_port: int,
+        airbyte_api_version: str,
+        connection_id: str,
         poll_interval_s: int = 15,
     ) -> dict:
         """
@@ -207,7 +210,7 @@ class AirbyteConnectionTask(Task):
             )
 
         # see https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html#overview
-        airbyte_base_url = f"http://{self.airbyte_server_host}:{self.airbyte_server_port}/api/{self.airbyte_api_version}"
+        airbyte_base_url = f"http://{airbyte_server_host}:{airbyte_server_port}/api/{airbyte_api_version}"
 
         session = requests.Session()
         self.check_health_status(session, airbyte_base_url)
