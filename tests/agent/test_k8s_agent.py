@@ -1,8 +1,11 @@
 import json
 from unittest.mock import MagicMock
-
+from dataclasses import dataclass
+import datetime
 import pendulum
+import logging
 import pytest
+import re
 
 pytest.importorskip("kubernetes")
 
@@ -14,7 +17,7 @@ from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.run_configs import KubernetesRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import ClientError
+from prefect.exceptions import ClientError
 from prefect.utilities.graphql import GraphQLResult
 
 
@@ -236,7 +239,7 @@ def test_k8s_agent_replace_yaml_uses_user_env_vars(monkeypatch, cloud_api):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
@@ -306,7 +309,7 @@ def test_k8s_agent_replace_yaml_respects_multiple_image_secrets(monkeypatch, clo
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         agent = KubernetesAgent(env_vars=dict(AUTH_THING="foo", PKG_SETTING="bar"))
         job = agent.generate_job_spec_from_environment(flow_run, image="test/name:tag")
@@ -344,7 +347,7 @@ def test_k8s_agent_replace_yaml(monkeypatch, cloud_api):
     )
 
     with set_temporary_config(
-        {"cloud.agent.auth_token": "token", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "token", "cloud.send_flow_run_logs": True}
     ):
         volume_mounts = [{"name": "my-vol", "mountPath": "/mnt/my-mount"}]
         volumes = [{"name": "my-vol", "hostPath": "/host/folder"}]
@@ -515,7 +518,8 @@ def test_k8s_agent_includes_agent_labels_in_job(monkeypatch, cloud_api):
     assert env[5]["value"] == "['foo', 'bar']"
 
 
-def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
+@pytest.mark.parametrize("use_token", [True, False])
+def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api, use_token):
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
         "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
@@ -524,7 +528,9 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        token="test_token" if use_token else None,
+        key="test-key" if not use_token else None,
+        tenant_id="test-tenant" if not use_token else None,
         api="test_api",
         namespace="test_namespace",
         backend="backend-test",
@@ -534,10 +540,18 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[0]["value"] == "test_token"
+    assert agent_env[0]["value"] == ("test_token" if use_token else "")
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
     assert agent_env[11]["value"] == "backend-test"
+    assert agent_env[13] == {
+        "name": "PREFECT__CLOUD__API_KEY",
+        "value": "test-key" if not use_token else "",
+    }
+    assert agent_env[14] == {
+        "name": "PREFECT__CLOUD__TENANT_ID",
+        "value": "test-tenant" if not use_token else "",
+    }
 
 
 def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
@@ -555,8 +569,25 @@ def test_k8s_agent_generate_deployment_yaml_env_vars(monkeypatch, cloud_api):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[13]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
-    assert agent_env[13]["value"] == json.dumps(env_vars)
+    assert agent_env[-1]["name"] == "PREFECT__CLOUD__AGENT__ENV_VARS"
+    assert agent_env[-1]["value"] == json.dumps(env_vars)
+
+
+@pytest.mark.parametrize("agent_config_id", [None, "foobar"])
+def test_k8s_agent_generate_deployment_yaml_agent_config_id(
+    monkeypatch, cloud_api, agent_config_id
+):
+    agent = KubernetesAgent()
+    deployment = yaml.safe_load(
+        agent.generate_deployment_yaml(agent_config_id=agent_config_id)
+    )
+
+    cmd_args = deployment["spec"]["template"]["spec"]["containers"][0]["args"]
+
+    if agent_config_id:
+        assert cmd_args == ["prefect agent kubernetes start --agent-config-id foobar"]
+    else:
+        assert cmd_args == ["prefect agent kubernetes start"]
 
 
 def test_k8s_agent_generate_deployment_yaml_backend_default(monkeypatch, server_api):
@@ -762,98 +793,6 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, cloud_api):
             assert document["metadata"]["name"] == "prefect-agent-rbac"
 
 
-def test_k8s_agent_start_max_polls(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=1)
-    agent.start()
-
-    assert agent_process.called
-    assert heartbeat.called
-
-
-def test_k8s_gent_start_max_polls_count(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=2)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 2
-    assert heartbeat.call_count == 1
-
-
-def test_k8s_agent_start_max_polls_zero(monkeypatch, runner_token, cloud_api):
-    get_jobs = MagicMock(return_value=[])
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
-        get_jobs,
-    )
-
-    on_shutdown = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.on_shutdown", on_shutdown
-    )
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr(
-        "prefect.agent.kubernetes.agent.KubernetesAgent.heartbeat", heartbeat
-    )
-
-    agent = KubernetesAgent(max_polls=0)
-    agent.start()
-
-    assert on_shutdown.call_count == 1
-    assert agent_process.call_count == 0
-    assert heartbeat.call_count == 1
-
-
 def test_k8s_agent_manage_jobs_pass(monkeypatch, cloud_api):
     job_mock = MagicMock()
     job_mock.metadata.labels = {
@@ -919,6 +858,43 @@ def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
     agent.manage_jobs()
 
     assert batch_client.delete_namespaced_job.called
+
+
+def test_k8s_agent_manage_jobs_does_not_delete_if_disabled(monkeypatch, cloud_api):
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+    job_mock.status.failed = True
+    job_mock.status.succeeded = True
+    batch_client = MagicMock()
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+    batch_client.list_namespaced_job.return_value = list_job
+    batch_client.delete_namespaced_job.return_value = None
+    monkeypatch.setattr(
+        "kubernetes.client.BatchV1Api", MagicMock(return_value=batch_client)
+    )
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+    pod.status.phase = "Success"
+
+    core_client = MagicMock()
+    list_pods = MagicMock()
+    list_pods.items = [pod]
+    core_client.list_namespaced_pod.return_value = list_pods
+    monkeypatch.setattr(
+        "kubernetes.client.CoreV1Api", MagicMock(return_value=core_client)
+    )
+
+    agent = KubernetesAgent(delete_finished_jobs=False)
+    agent.manage_jobs()
+
+    assert not batch_client.delete_namespaced_job.called
 
 
 def test_k8s_agent_manage_jobs_reports_failed_pods(monkeypatch, cloud_api):
@@ -1176,6 +1152,63 @@ def test_k8s_agent_manage_pending_pods(monkeypatch, cloud_api):
     assert agent.job_pod_event_timestamps["my_job"]["pod_name"] == dt
 
 
+def test_k8s_agent_manage_jobs_event_logging_handles_bad_timestamps(
+    monkeypatch, cloud_api, caplog
+):
+
+    agent = KubernetesAgent()
+
+    agent.client = MagicMock()
+
+    agent.batch_client = MagicMock()
+    # Only run once
+    agent.batch_client.list_namespaced_job().metadata._continue = 0
+    # List a job
+    job = MagicMock()
+    # Only incomplete job logs are displayed
+    job.status.failed = job.status.succeeded = False
+    agent.batch_client.list_namespaced_job().items = [job]
+
+    agent.core_client = MagicMock()
+    # List a pod
+    pod = MagicMock()
+    pod.status.phase = "Pending"  # Logs are displayed for 'Pending' pods
+    agent.core_client.list_namespaced_pod().items = [pod, MagicMock()]
+
+    @dataclass
+    class Event:
+        last_timestamp: datetime.datetime = None
+        reason: str = "reason"
+        message: str = "message"
+
+    event_without_timestamp = Event(message="no timestamp attr")
+    event_without_timestamp.__dict__.pop("last_timestamp")
+
+    agent.core_client.list_namespaced_event.return_value.items = [
+        Event(last_timestamp=pendulum.now(), message="working log"),
+        Event(message="null timestamp"),
+        event_without_timestamp,
+    ]
+
+    agent.logger = MagicMock()
+
+    agent.manage_jobs()
+
+    # One event log was streamed
+    agent.client.write_run_logs.assert_called_once()
+    assert "working log" in agent.client.write_run_logs.call_args[0][0][0]["message"]
+
+    debug_logs = [call[0][0] for call in agent.logger.debug.call_args_list]
+    assert any(
+        re.match("Encountered K8s event .* with no timestamp: .*null timestamp", l)
+        for l in debug_logs
+    )
+    assert any(
+        re.match("Encountered K8s event .* with no timestamp: .*no timestamp attr", l)
+        for l in debug_logs
+    )
+
+
 class TestK8sAgentRunConfig:
     def setup(self):
         self.agent = KubernetesAgent(
@@ -1206,7 +1239,7 @@ class TestK8sAgentRunConfig:
         )
 
     @pytest.mark.parametrize("run_config", [None, UniversalRun()])
-    def test_generate_job_spec_null_or_univeral_run_config(self, run_config):
+    def test_generate_job_spec_null_or_universal_run_config(self, run_config):
         self.agent.generate_job_spec_from_run_config = MagicMock(
             wraps=self.agent.generate_job_spec_from_run_config
         )
@@ -1225,6 +1258,7 @@ class TestK8sAgentRunConfig:
         template = self.read_default_template()
         labels = template.setdefault("metadata", {}).setdefault("labels", {})
         labels["TEST"] = "VALUE"
+
         flow_run = self.build_flow_run(KubernetesRun(job_template=template))
         job = self.agent.generate_job_spec(flow_run)
         assert job["metadata"]["labels"]["TEST"] == "VALUE"
@@ -1374,19 +1408,134 @@ class TestK8sAgentRunConfig:
             "PREFECT__BACKEND": backend,
             "PREFECT__CLOUD__AGENT__LABELS": "[]",
             "PREFECT__CLOUD__API": prefect.config.cloud.api,
-            "PREFECT__CLOUD__AUTH_TOKEN": prefect.config.cloud.agent.auth_token,
+            "PREFECT__CLOUD__AUTH_TOKEN": "",
+            "PREFECT__CLOUD__API_KEY": "",
+            "PREFECT__CLOUD__TENANT_ID": "",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
             "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
             "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
             "PREFECT__CONTEXT__IMAGE": "test-image",
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.agent.log_to_cloud).lower(),
+            # Backwards compatibility variable for containers on Prefect <0.15.0
             "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.agent.log_to_cloud).lower(),
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
+            "PREFECT__LOGGING__LEVEL": prefect.config.logging.level,
             "CUSTOM1": "VALUE1",
             "CUSTOM2": "OVERRIDE2",  # Agent env-vars override those in template
             "CUSTOM3": "OVERRIDE3",  # RunConfig env-vars override those on agent and template
             "CUSTOM4": "VALUE4",
         }
+
+    def test_environment_has_agent_token_from_config(self):
+        """Check that the API token is passed through from the config via environ"""
+        flow_run = self.build_flow_run(KubernetesRun())
+
+        with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+            job = KubernetesAgent(
+                namespace="testing",
+            ).generate_job_spec(flow_run)
+
+        env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+
+    @pytest.mark.parametrize("tenant_id", ["ID", None])
+    def test_environment_has_api_key_from_config(self, tenant_id):
+        """Check that the API key is passed through from the config via environ"""
+        flow_run = self.build_flow_run(KubernetesRun())
+
+        with set_temporary_config(
+            {
+                "cloud.api_key": "TEST_KEY",
+                "cloud.tenant_id": tenant_id,
+                "cloud.agent.auth_token": None,
+            }
+        ):
+            agent = KubernetesAgent(
+                namespace="testing",
+            )
+            agent.client._get_auth_tenant = MagicMock(return_value="ID")
+            job = agent.generate_job_spec(flow_run)
+
+        env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+
+    @pytest.mark.parametrize("tenant_id", ["ID", None])
+    def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
+        """Check that the API key is passed through from the on disk cache"""
+        monkeypatch.setattr(
+            "prefect.Client.load_auth_from_disk",
+            MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
+        )
+
+        flow_run = self.build_flow_run(KubernetesRun())
+        agent = KubernetesAgent(
+            namespace="testing",
+        )
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        job = agent.generate_job_spec(flow_run)
+
+        env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+        env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+
+    @pytest.mark.parametrize(
+        "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+        [
+            ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {},
+                "TEST2",
+            ),
+            (
+                {"logging.level": "DEBUG"},
+                {"PREFECT__LOGGING__LEVEL": "TEST2"},
+                {"PREFECT__LOGGING__LEVEL": "TEST"},
+                "TEST",
+            ),
+        ],
+    )
+    def test_generate_job_spec_prefect_logging_level_environment_variable(
+        self,
+        config,
+        agent_env_vars,
+        run_config_env_vars,
+        expected_logging_level,
+        tmpdir,
+        backend,
+    ):
+        """
+        Check that PREFECT__LOGGING__LEVEL is set in precedence order
+        """
+        with set_temporary_config(config):
+            template_path = str(tmpdir.join("job.yaml"))
+            template = self.read_default_template()
+            template_env = template["spec"]["template"]["spec"]["containers"][
+                0
+            ].setdefault("env", [])
+            with open(template_path, "w") as f:
+                yaml.safe_dump(template, f)
+            self.agent.job_template_path = template_path
+
+            self.agent.env_vars = agent_env_vars
+            run_config = KubernetesRun(image="test-image", env=run_config_env_vars)
+
+            flow_run = self.build_flow_run(run_config)
+            job = self.agent.generate_job_spec(flow_run)
+            env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+            env = {item["name"]: item["value"] for item in env_list}
+            assert env["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
     def test_generate_job_spec_resources(self):
         flow_run = self.build_flow_run(
@@ -1511,3 +1660,18 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
+
+    @pytest.mark.parametrize("image_pull_policy", ["Always", "Never", "IfNotPresent"])
+    def test_generate_job_spec_sets_image_pull_policy_from_run_config(
+        self, image_pull_policy
+    ):
+        template = self.read_default_template()
+        config = KubernetesRun(
+            job_template=template, image_pull_policy=image_pull_policy
+        )
+        flow_run = self.build_flow_run(config)
+        job = self.agent.generate_job_spec(flow_run)
+        assert (
+            job["spec"]["template"]["spec"]["containers"][0]["imagePullPolicy"]
+            == image_pull_policy
+        )

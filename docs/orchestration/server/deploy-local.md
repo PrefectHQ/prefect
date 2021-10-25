@@ -1,16 +1,40 @@
 # Deploying to a single node
 
-Prefect Server can be deployed on a single node using a
-[docker-compose](https://docs.docker.com/compose/) setup. One way to accomplish this is to use the
-builtin command in the Prefect CLI. Note that this requires both `docker-compose` and `docker` to be installed.
+Prefect Server can be deployed on a single node using [docker-compose](https://docs.docker.com/compose/). 
+
+The easiest way accomplish this is to use the built-in command in the Prefect CLI.
+Note that this requires both `docker-compose >= 1.18.0` and `docker` to be installed.
 
 ```bash
 prefect server start
 ```
 
+
+::: warning Changes in Prefect 0.15.5
+To start Prefect Server on a remote compute instance (such as AWS, GCP, ...), make sure to add the `--expose` flag, which ensures that the Server and UI listen to all interfaces. Under the hood, this flag changes the host IP to "0.0.0.0" instead of using the default localhost.
+
+```bash
+prefect server start --expose
+```
+
+
+This flag was introduced in [0.15.5](https://github.com/PrefectHQ/prefect/pull/4821) - if you use an older version of Prefect, you should skip it. 
+:::
+
+
 Note that this command may take a bit to complete, as the various docker images are pulled. Once running,
 you should see some "Prefect Server" ASCII art along with the logs output from each service, and the UI should be available at
 [http://localhost:8080](http://localhost:8080).
+
+
+::: tip Installing Docker
+We recommend installing [Docker Desktop](https://www.docker.com/products/docker-desktop) following their instructions then installing docker-compose with `pip install docker-compose`.
+:::
+
+
+::: tip Just show me the config
+`prefect server start` templates a basic docker-compose file to conform to the options you pass. Sometimes, you just want to generate this file then manage running it yourself (or make further customizations). We provide a `prefect server config` command that takes all the same settings as `prefect server start` and prints the file to stdout. Try piping it to a file `prefect server config > docker-compose.yaml`.
+:::
 
 ## UI configuration
 
@@ -38,8 +62,8 @@ Because the UI is code that runs in your browser, you can reuse Prefect Cloud's 
 
 To achieve this:
 
-- [sign up for a free Developer account](https://cloud.prefect.io/)
-- login; if you click the Prefect Cloud logo at the bottom of the left menu bar, the UI will switch the endpoint that it talks to
+- [sign up for a free account](https://cloud.prefect.io/)
+- login; if you click the status indicator to the right of the nav-bar, the UI will switch the endpoint that it talks to
 - you can further configure the location of this endpoint on the Home page
   :::
 
@@ -55,6 +79,30 @@ options you can set to automatically use of a volume for Postgres:
 Every time you run the `prefect server start` command [a set of alembic migrations](https://github.com/PrefectHQ/server/tree/master/services/postgres/alembic/versions) are automatically
 applied against the database to ensure the schema is consistent. To run the migrations directly please
 see the documentation on [prefect server migrations](https://github.com/PrefectHQ/server#running-the-system).
+
+### External Postgres instance
+
+You can also configure Prefect Server to use an external Postgres instance.
+
+The simplest way to specify an external Postgres instance is passing in a command line argument:
+
+```bash
+prefect server start --postgres-url postgres://<username>:<password>@hostname:<port>/<dbname>
+```
+
+You can also configure the database url in `~/.prefect/config.toml` on whatever machine you're running Prefect Server:
+
+```
+[server.database]
+connection_url = "postgres://<username>:<password>@hostname:<port>/<dbname>"
+```
+
+And then run `prefect server start --external-postgres`. 
+
+Using either method, the connection url will be passed directly to Hasura. For more information and troubleshooting, see the [docs](https://hasura.io/docs/latest/graphql/core/deployment/deployment-guides/docker.html#database-url).
+
+Please note [a set of alembic migrations](https://github.com/PrefectHQ/server/tree/master/services/postgres/alembic/versions) are automatically applied against
+the external database on start.
 
 ## How to upgrade your server instance
 

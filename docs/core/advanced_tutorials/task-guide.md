@@ -450,7 +450,7 @@ Suppose we have a Task that accepts many keyword arguments and we want to only m
 
 ```python
 from prefect import task, Flow
-from prefect.utilities.tasks import unmapped
+from prefect import unmapped
 
 @task
 def add_one(x, y):

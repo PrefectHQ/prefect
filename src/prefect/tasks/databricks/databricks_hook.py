@@ -9,7 +9,7 @@ from requests.auth import AuthBase
 
 import prefect
 
-from prefect.utilities.exceptions import PrefectError
+from prefect.exceptions import PrefectException
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 
@@ -43,7 +43,7 @@ class RunState:
     def is_terminal(self) -> bool:
         """True if the current state is a terminal state."""
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise PrefectError(
+            raise PrefectException(
                 (
                     "Unexpected life cycle state: {}: If the state has "
                     "been introduced recently, please check the Databricks user "
@@ -141,7 +141,7 @@ class DatabricksHook:
 
             dict: If the api call returns a OK status code,
                 this function returns the response in JSON. Otherwise,
-                we throw an PrefectError.
+                we throw an PrefectException.
         """
         method, endpoint = endpoint_info
 
@@ -165,7 +165,7 @@ class DatabricksHook:
         elif method == "PATCH":
             request_func = requests.patch
         else:
-            raise PrefectError("Unexpected HTTP Method: " + method)
+            raise PrefectException("Unexpected HTTP Method: " + method)
 
         attempt_num = 1
         while True:
@@ -183,7 +183,7 @@ class DatabricksHook:
                 if not _retryable_error(e):
                     # In this case, the user probably made a mistake.
                     # Don't retry.
-                    raise PrefectError(
+                    raise PrefectException(
                         "Response: {0}, Status Code: {1}".format(
                             e.response.content, e.response.status_code
                         )
@@ -192,7 +192,7 @@ class DatabricksHook:
                 self._log_request_error(attempt_num, e)
 
             if attempt_num == self.retry_limit:
-                raise PrefectError(
+                raise PrefectException(
                     (
                         "API requests to Databricks failed {} times. " + "Giving up."
                     ).format(self.retry_limit)

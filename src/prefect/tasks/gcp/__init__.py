@@ -11,6 +11,7 @@ All GCP related tasks can be authenticated using the `GCP_CREDENTIALS` Prefect S
 """
 try:
     from prefect.tasks.gcp.storage import GCSDownload, GCSUpload, GCSCopy, GCSBlobExists
+    from prefect.tasks.gcp.secretmanager import GCPSecret
     from prefect.tasks.gcp.bigquery import (
         BigQueryTask,
         BigQueryLoadGoogleCloudStorage,

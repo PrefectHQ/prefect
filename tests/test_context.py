@@ -153,27 +153,27 @@ def test_context_contextmanager_prioritizes_new_keys_even_on_context_exit(monkey
 
     with context(my_key="buzz"):
         assert context.my_key == "buzz"
-        with context({"config": {"logging": {"log_to_cloud": "FOO"}}}):
-            assert context.config.logging.log_to_cloud == "FOO"
+        with context({"config": {"cloud": {"send_flow_run_logs": "FOO"}}}):
+            assert context.config.cloud.send_flow_run_logs == "FOO"
             assert context.my_key == "buzz"
         assert context.my_key == "buzz"
     assert context.my_key == "fizz"
 
 
 def test_context_contextmanager_prioritizes_new_config_keys():
-    with prefect.context({"config": {"logging": {"log_to_cloud": "FOO"}}}):
-        assert prefect.context.config.logging.log_to_cloud == "FOO"
+    with prefect.context({"config": {"cloud": {"send_flow_run_logs": "FOO"}}}):
+        assert prefect.context.config.cloud.send_flow_run_logs == "FOO"
 
 
 def test_context_init_prioritizes_new_config_keys():
-    ctx = Context(config=dict(logging=dict(log_to_cloud="FOO")))
-    assert ctx.config.logging.log_to_cloud == "FOO"
+    ctx = Context(config=dict(cloud=dict(send_flow_run_logs="FOO")))
+    assert ctx.config.cloud.send_flow_run_logs == "FOO"
 
 
 def test_context_init_prioritizes_new_config_keys_when_passed_a_dict():
-    old = dict(config=dict(logging=dict(log_to_cloud="FOO")))
+    old = dict(config=dict(cloud=dict(send_flow_run_logs="FOO")))
     ctx = Context(old)
-    assert ctx.config.logging.log_to_cloud == "FOO"
+    assert ctx.config.cloud.send_flow_run_logs == "FOO"
 
 
 def test_contexts_are_thread_safe():

@@ -9,7 +9,7 @@ used, then cleaned up. Examples might include:
 - ...
 
 To simplify this pattern, Prefect provides a
-[`ResourceManager`](/core/task_library/resource_manager.html) object for
+[`ResourceManager`](/api/latest/tasks/resources.html) object for
 encapsulating the setup and cleanup tasks for resources. The most common way
 to define a `ResourceManager` is using the `resource_manager` decorator. This
 decorator wraps a class with the following methods:
@@ -71,7 +71,7 @@ Here we provide a full example for using a `ResourceManager` to setup and
 cleanup a temporary [Dask](https://dask.org) cluster.
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import Flow, task, resource_manager, Parameter
 import dask
@@ -127,7 +127,7 @@ with Flow("dask-example") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Flow, Task, resource_manager, Parameter
 import dask

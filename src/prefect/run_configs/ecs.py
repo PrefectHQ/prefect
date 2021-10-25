@@ -119,7 +119,7 @@ ecs.html#ECS.Client.run_task
         run_task_kwargs: dict = None,
         labels: Iterable[str] = None,
     ) -> None:
-        super().__init__(labels=labels)
+        super().__init__(env=env, labels=labels)
 
         if (
             sum(
@@ -157,7 +157,6 @@ ecs.html#ECS.Client.run_task
         self.task_definition_path = task_definition_path
         self.task_definition_arn = task_definition_arn
         self.image = image
-        self.env = env
         self.cpu = cpu
         self.memory = memory
         self.task_role_arn = task_role_arn

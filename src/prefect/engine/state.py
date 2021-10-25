@@ -14,6 +14,7 @@ import datetime
 from typing import Any, Dict, List, Optional, Type, Mapping
 
 import pendulum
+import cloudpickle
 
 import prefect
 from prefect.engine.result import Result, NoResult
@@ -81,6 +82,33 @@ class State:
 
     def __hash__(self) -> int:
         return id(self)
+
+    def __getstate__(self) -> dict:
+        data = self.__dict__
+
+        # For 'Exception' results, we will check if it can be pickled successfully and
+        # on failure convert the exception to a string instead. This allows the engine
+        # to handle tasks with unpickable exceptions successfully. We must explicitly
+        # ignore state signals here or we will get stuck in a recursive loop because
+        # signals are exceptions that contain a state with `_result` set to the signal
+        if isinstance(self.result, Exception) and not isinstance(
+            self.result, prefect.engine.signals.PrefectStateSignal
+        ):
+
+            # Check for an exception during pickling of the 'Exception' type result
+            try:
+                cloudpickle.dumps(self.result)
+            except Exception as exc:
+                # Update the result in the dict without modifying the local object
+                data = data.copy()
+                new_result = data["_result"].copy()
+                new_result.value = (
+                    f"The following exception could not be pickled due to {exc!r}: "
+                    f"{self.result!r}"
+                )
+                data["_result"] = new_result
+
+        return data
 
     @property
     def result(self) -> Any:

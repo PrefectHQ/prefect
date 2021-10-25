@@ -26,6 +26,9 @@ with Flow("example") as flow:
 flow.run_config = KubernetesRun()
 ```
 
+`RunConfig` objects and their properties can also be overridden for
+individual flow runs in the Prefect UI.
+
 ## Labels
 
 [Like Agents](../agents/overview.md#labels), `RunConfig` objects can be
@@ -69,7 +72,7 @@ documentation](/api/latest/run_configs.md) for more information.
 [UniversalRun](/api/latest/run_configs.md#universalrun) configures
 flow runs that can be deployed on any agent. This is the default `RunConfig`
 used if flow-labels are specified. It can be useful if agent-side configuration
-is sufficient. Only configuring the flow's labels is exposed - to configure
+is sufficient. Only configuring environment variables and the flow's labels is exposed - to configure
 backend specific fields use one of the other `RunConfig` types.
 
 #### Examples
@@ -82,10 +85,10 @@ from prefect.run_configs import UniversalRun
 flow.run_config = UniversalRun()
 ```
 
-Configure labels for this flow:
+Configure environment variables and labels for this flow:
 
 ```python
-flow.run_config = UniversalRun(labels=["label-1", "label-2"])
+flow.run_config = UniversalRun(env={"SOME_VAR": "value"}, ["label-1", "label-2"])
 ```
 
 ### LocalRun
@@ -186,6 +189,14 @@ Use a custom Kubernetes Job spec for this flow, stored in S3:
 flow.run_config = KubernetesRun(job_template_path="s3://bucket/path/to/spec.yaml")
 ```
 
+Specify an [imagePullPolicy](https://kubernetes.io/docs/concepts/configuration/overview/#container-images) 
+for the Kubernetes job:
+
+
+```python
+flow.run_config = KubernetesRun(image_pull_policy="Always")
+````
+
 ### ECSRun
 
 [ECSRun](/api/latest/run_configs.md#ecsrun) configures flow runs
@@ -226,3 +237,71 @@ for this flow, stored in S3:
 ```python
 flow.run_config = ECSRun(task_definition_path="s3://bucket/path/to/definition.yaml")
 ```
+
+### VertexRun
+
+[VertexRun](/api/latest/run_configs.md#vertexrun) configures flow runs
+deployed as Vertex CustomJobs with a VertexAgent.
+
+#### Examples
+
+Use the defaults set on the agent:
+
+```python
+from prefect.run_configs import VertexRun
+
+flow.run_config = VertexRun()
+```
+
+Set an environment variable in the flow run container:
+
+```python
+flow.run_config = VertexRun(env={"SOME_VAR": "value"})
+```
+
+Specify an [image](./docker.md) to use, if not using `Docker` storage. If you're using `Docker` storage, then
+that image will be used. If you do not use docker storage or provide an image in the run config, then the run
+will use the default `prefect` image.
+
+```python
+flow.run_config = VertexRun(image="example/image-name:with-tag")
+```
+
+Specify the machine type for this flow
+
+```python
+flow.run_config = VertexRun(machine_type='e2-highmem-16')
+```
+
+Set a specific service account or network ID for this flow run
+```python
+flow.run_config = VertexRun(service_account='my-account@my-project.iam.gserviceaccount.com', network="my-network")
+```
+
+Use the [scheduling](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/CustomJobSpec#Scheduling) option to set a timeout for the CustomJob
+```python
+flow.run_config = VertexRun(scheduling={'timeout': '3600s'})
+```
+
+
+Customize the full [worker pool specs](https://cloud.google.com/vertex-ai/docs/reference/rest/v1/CustomJobSpec#workerpoolspec),
+which can be used for more advanced setups:
+
+```python
+worker_pool_specs = [
+    {"machine_spec": {"machine_type": "e2-standard-4"}, "replica_count": 1},
+    {
+        "machine_spec": {"machine_type": "e2-highmem-16"},
+        "replica_count": 3,
+        "container_spec": {"image": "my-image"},
+    },
+]
+
+flow.run_config = VertexRun(worker_pool_specs=worker_pool_specs)
+```
+
+::: warning Container Spec 
+Prefect will always control the container spec on the 0th entry in the worker pool spec,
+which is the pool that is reserved to run the flow. You will need to provide a container
+spec for any other worker pool specs.
+:::

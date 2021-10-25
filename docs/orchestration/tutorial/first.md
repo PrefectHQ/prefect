@@ -55,7 +55,7 @@ When a flow is registered, the following steps happen:
 - The flow is validated to catch common errors
 - The flow's source is serialized and stored in the flow's
   [Storage](/orchestration/flow_config/storage.md) on your infrastructure.
-  What this entails depends on the type of Storage used. Examples include building a 
+  What this entails depends on the type of Storage used. Examples include building a
   [docker image](/orchestration/flow_config/storage.md#docker), saving the code
   to an [S3 bucket](/orchestration/flow_config/storage.md#aws-s3), or
   referencing a [GitHub](/orchestration/flow_config/storage.md#github)
@@ -63,7 +63,7 @@ When a flow is registered, the following steps happen:
 - The flow's metadata is packaged up and sent to the Prefect Backend.
 
 Note that the the Prefect Backend only receives the flow metadata (name,
-structure, etc...) *and not* the actual source for the flow. Your flow code
+structure, etc...) _and not_ the actual source for the flow. Your flow code
 itself remains safe and secure on your infrastructure.
 
 For more information on flow registration, see the [registration
@@ -111,10 +111,9 @@ runs. If you need to shutdown the agent at any point, you can stop it with a
 `Ctrl-C`. For now, you'll want to leave it running for the rest of the
 tutorial.
 
-::: tip Runner Token <Badge text="Cloud"/>
-If you're using Prefect Cloud, the Local Agent will need access to the _RUNNER_
-token [you created
-earlier](/orchestration/tutorial/overview.html#create-a-runner-token).
+::: tip Service Account API Key <Badge text="Cloud"/>
+If you're using Prefect Cloud, the Local Agent will need access to the service account's API key [you created
+earlier](/orchestration/tutorial/overview.html#create-a-service-account-key).
 :::
 
 ## Execute a Flow Run

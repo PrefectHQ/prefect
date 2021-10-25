@@ -173,7 +173,11 @@ class TaskMetaclass(type):
         computed to avoid circular import issues.
         """
         if not hasattr(Task, "_cached_reserved_attributes"):
-            Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
+            # Create a base task instance to determine which attributes are reserved
+            # we need to disable the unused_task_tracker for this duration or it will
+            # track this task
+            with prefect.context(_unused_task_tracker=set()):
+                Task._cached_reserved_attributes = tuple(sorted(Task().__dict__))  # type: ignore
         return Task._cached_reserved_attributes  # type: ignore
 
 
@@ -236,9 +240,9 @@ class Task(metaclass=TaskMetaclass):
         - tags ([str], optional): A list of tags for this task
         - max_retries (int, optional): The maximum amount of times this task can be retried
         - retry_delay (timedelta, optional): The amount of time to wait until task is retried
-        - timeout (int, optional): The amount of time (in seconds) to wait while
+        - timeout (Union[int, timedelta], optional): The amount of time (in seconds) to wait while
             running this task before a timeout occurs; note that sub-second
-            resolution is not supported
+            resolution is not supported, even when passing in a timedelta.
         - trigger (callable, optional): a function that determines whether the
             task should run, based on the states of any upstream tasks.
         - skip_on_upstream_skip (bool, optional): if `True`, if any immediately
@@ -311,7 +315,7 @@ class Task(metaclass=TaskMetaclass):
         tags: Iterable[str] = None,
         max_retries: int = None,
         retry_delay: timedelta = None,
-        timeout: int = None,
+        timeout: Union[int, timedelta] = None,
         trigger: "Callable[[Dict[Edge, State]], bool]" = None,
         skip_on_upstream_skip: bool = True,
         cache_for: timedelta = None,
@@ -353,7 +357,7 @@ class Task(metaclass=TaskMetaclass):
         )
         retry_delay = (
             retry_delay
-            if retry_delay is not None
+            if retry_delay is not None or not max_retries
             else prefect.config.tasks.defaults.retry_delay
         )
         timeout = (
@@ -370,6 +374,15 @@ class Task(metaclass=TaskMetaclass):
                 "A `max_retries` argument greater than 0 must be provided if specifying "
                 "a retry delay."
             )
+        # Make sure timeout is an integer in seconds
+        if isinstance(timeout, timedelta):
+            if timeout.microseconds > 0:
+                warnings.warn(
+                    "Task timeouts do not support a sub-second resolution; "
+                    "smaller units will be ignored!",
+                    stacklevel=2,
+                )
+            timeout = int(timeout.total_seconds())
         if timeout is not None and not isinstance(timeout, int):
             raise TypeError(
                 "Only integer timeouts (representing seconds) are supported."
@@ -548,8 +561,7 @@ class Task(metaclass=TaskMetaclass):
         # as it has been "interacted" with and don't want spurious
         # warnings
         if "_unused_task_tracker" in prefect.context:
-            if self in prefect.context._unused_task_tracker:
-                prefect.context._unused_task_tracker.remove(self)
+            prefect.context._unused_task_tracker.discard(self)
             if not isinstance(new, prefect.tasks.core.constants.Constant):
                 prefect.context._unused_task_tracker.add(new)
 
@@ -671,7 +683,19 @@ class Task(metaclass=TaskMetaclass):
 
         flow = flow or prefect.context.get("flow", None)
         if not flow:
-            raise ValueError("Could not infer an active Flow context.")
+            # Determine the task name to display which is either the function task name
+            # or the initialized class where we can't know the name of the variable
+            task_name = (
+                self.name
+                if isinstance(self, prefect.tasks.core.function.FunctionTask)
+                else f"{type(self).__name__}(...)"
+            )
+            raise ValueError(
+                f"Could not infer an active Flow context while creating edge to {self}."
+                " This often means you called a task outside a `with Flow(...)` block. "
+                "If you're trying to run this task outside of a Flow context, you "
+                f"need to call `{task_name}.run(...)`"
+            )
 
         self.set_dependencies(
             flow=flow,

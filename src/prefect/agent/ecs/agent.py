@@ -141,7 +141,7 @@ class ECSAgent(Agent):
         env_vars: dict = None,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
+        no_cloud_logs: bool = None,
         task_definition_path: str = None,
         run_task_kwargs_path: str = None,
         aws_access_key_id: str = None,
@@ -180,7 +180,7 @@ class ECSAgent(Agent):
         # See https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html
         # for more info.
         boto_config = Config(**botocore_config or {})
-        if not boto_config.retries:
+        if not boto_config.retries and not os.environ.get("AWS_RETRY_MODE"):
             boto_config.retries = {"mode": "standard"}
 
         self.boto_kwargs = dict(
@@ -283,8 +283,6 @@ class ECSAgent(Agent):
         Returns:
             - str: Information about the deployment
         """
-        self.logger.info("Deploying flow run %r", flow_run.id)
-
         run_config = self._get_run_config(flow_run, ECSRun)
         assert isinstance(run_config, ECSRun)  # mypy
 
@@ -362,7 +360,7 @@ class ECSAgent(Agent):
             taskdef = deepcopy(self.task_definition)
 
         slug = slugify.slugify(
-            flow_run.flow.name,
+            f"{flow_run.flow.name}-{flow_run.id}",
             max_length=255 - len("prefect-"),
             word_boundary=True,
             save_order=True,
@@ -405,6 +403,20 @@ class ECSAgent(Agent):
         if "memory" in taskdef:
             taskdef["memory"] = str(taskdef["memory"])
 
+        # Set executionRoleArn if configured
+        # Note that we set this in both the task definition and the
+        # run_task_kwargs since ECS requires this in the definition for FARGATE
+        # tasks, but we also want to still configure it for users that provide
+        # their own `task_definition_arn`.
+        if run_config.execution_role_arn:
+            taskdef["executionRoleArn"] = run_config.execution_role_arn
+        elif self.execution_role_arn:
+            taskdef["executionRoleArn"] = self.execution_role_arn
+
+        # Set requiresCompatibilities if not already set
+        if "requiresCompatibilities" not in taskdef:
+            taskdef["requiresCompatibilities"] = [self.launch_type]
+
         return taskdef
 
     def get_run_task_kwargs(
@@ -421,8 +433,7 @@ class ECSAgent(Agent):
         """
         # Set agent defaults
         out = deepcopy(self.run_task_kwargs)
-        if self.launch_type:
-            out["launchType"] = self.launch_type
+        out["launchType"] = self.launch_type
         if self.cluster:
             out["cluster"] = self.cluster
 
@@ -466,12 +477,15 @@ class ECSAgent(Agent):
         # Set flow run command
         container["command"] = ["/bin/sh", "-c", get_flow_run_command(flow_run)]
 
+        # Add `PREFECT__LOGGING__LEVEL` environment variable
+        env = {"PREFECT__LOGGING__LEVEL": config.logging.level}
+
         # Populate environment variables from the following sources,
         # with precedence:
         # - Values required for flow execution, hardcoded below
         # - Values set on the ECSRun object
         # - Values set using the `--env` CLI flag on the agent
-        env = self.env_vars.copy()
+        env.update(self.env_vars)
         if run_config.env:
             env.update(run_config.env)
         env.update(
@@ -483,9 +497,24 @@ class ECSAgent(Agent):
                 "PREFECT__CLOUD__API": config.cloud.api,
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
-                "PREFECT__CLOUD__AUTH_TOKEN": config.cloud.agent.auth_token,
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    config.cloud.agent.get("auth_token")
+                    or self.flow_run_api_key
+                    or ""
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else ""
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
+                # Backwards compatibility variable for containers on Prefect <0.15.0
+                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]

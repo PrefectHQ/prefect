@@ -109,7 +109,9 @@ class TestSetupComposeEnv:
         assert env["PREFECT_SERVER_DB_CMD"] == "FOO"
 
     def test_fills_env_with_values_from_config_and_args(self, monkeypatch):
-        monkeypatch.delenv("PREFECT_SERVER_DB_CMD")  # Ensure this is not set
+        monkeypatch.delenv(
+            "PREFECT_SERVER_DB_CMD", raising=False
+        )  # Ensure this is not set
         with set_temporary_config(
             {
                 "server.database.connection_url": "localhost/foo",
@@ -158,18 +160,85 @@ class TestSetupComposeEnv:
         for key, expected_value in expected.items():
             assert env[key] == expected_value
 
+    @pytest.mark.parametrize(
+        "external_postgres, postgres_url, expected_postgres_url",
+        [
+            (True, None, "localhost/foo"),
+            (False, "localhost/bar", "localhost/bar"),
+            (True, "localhost/bar", "localhost/bar"),
+        ],
+    )
+    def test_setup_env_for_external_postgres(
+        self, monkeypatch, external_postgres, postgres_url, expected_postgres_url
+    ):
+        monkeypatch.delenv(
+            "PREFECT_SERVER_DB_CMD", raising=False
+        )  # Ensure this is not set
+        with set_temporary_config(
+            {
+                "server.database.connection_url": "localhost/foo",
+                "server.graphql.path": "/G",
+                "server.telemetry.enabled": False,
+            }
+        ):
+            env = setup_compose_env(
+                version="A",
+                ui_version="B",
+                no_upgrade=False,
+                external_postgres=external_postgres,
+                postgres_url=postgres_url,
+                hasura_port=2,
+                graphql_port=3,
+                ui_port=4,
+                server_port=5,
+                volume_path="C",
+            )
+
+        expected = {
+            "APOLLO_HOST_PORT": "5",
+            "APOLLO_URL": "http://localhost:4200/graphql",
+            "DB_CONNECTION_URL": expected_postgres_url,
+            "GRAPHQL_HOST_PORT": "3",
+            "HASURA_API_URL": "http://hasura:2/v1alpha1/graphql",
+            "HASURA_HOST_PORT": "2",
+            "HASURA_WS_URL": "ws://hasura:2/v1alpha1/graphql",
+            "PREFECT_API_HEALTH_URL": "http://graphql:3/health",
+            "PREFECT_API_URL": f"http://graphql:3/G",
+            "PREFECT_CORE_VERSION": prefect.__version__,
+            "PREFECT_SERVER_DB_CMD": "prefect-server database upgrade -y",
+            "PREFECT_SERVER_TAG": "A",
+            "PREFECT_UI_TAG": "B",
+            "UI_HOST_PORT": "4",
+            "PREFECT_SERVER__TELEMETRY__ENABLED": "false",
+        }
+
+        for key, expected_value in expected.items():
+            assert env[key] == expected_value
+
+        # when using external postgres, we should not set these env vars
+        not_expected = (
+            "POSTGRES_DATA_PATH",
+            "POSTGRES_DB",
+            "POSTGRES_HOST_PORT",
+            "POSTGRES_PASSWORD",
+            "POSTGRES_USER",
+        )
+        assert all([key not in env for key in not_expected])
+
 
 class TestSetupComposeFile:
     @pytest.mark.parametrize(
         "service", ["postgres", "hasura", "graphql", "ui", "server"]
     )
-    def test_disable_port_mapping(self, service):
-        compose_file = setup_compose_file(**{f"no_{service}_port": True})
+    def test_disable_port_mapping(self, service, tmpdir):
+        compose_file = setup_compose_file(
+            **{f"no_{service}_port": True}, temp_dir=str(tmpdir)
+        )
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
@@ -183,15 +252,13 @@ class TestSetupComposeFile:
         default_compose_yml["services"][service].pop("ports")
         assert compose_yml == default_compose_yml
 
-    def test_disable_ui_service(
-        self,
-    ):
-        compose_file = setup_compose_file(no_ui=True)
+    def test_disable_ui_service(self, tmpdir):
+        compose_file = setup_compose_file(no_ui=True, temp_dir=str(tmpdir))
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
@@ -202,15 +269,33 @@ class TestSetupComposeFile:
         default_compose_yml["services"].pop("ui")
         assert compose_yml == default_compose_yml
 
-    def test_disable_postgres_volumes(
-        self,
-    ):
-        compose_file = setup_compose_file(use_volume=False)
+    def test_external_postgres(self, tmpdir):
+        compose_file = setup_compose_file(external_postgres=True, temp_dir=str(tmpdir))
 
         with open(compose_file) as file:
             compose_yml = yaml.safe_load(file)
 
-        default_compose_file = setup_compose_file()
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
+        with open(default_compose_file) as file:
+            default_compose_yml = yaml.safe_load(file)
+
+        # Ensure postgres is not set
+        assert "postgres" not in compose_yml["services"]
+        # Ensure hasura does not depend on postgres
+        assert "postgres" not in compose_yml["services"]["hasura"].get("depends_on", [])
+
+        # Ensure nothing else has changed
+        default_compose_yml["services"].pop("postgres")
+        default_compose_yml["services"]["hasura"]["depends_on"].remove("postgres")
+        assert compose_yml == default_compose_yml
+
+    def test_disable_postgres_volumes(self, tmpdir):
+        compose_file = setup_compose_file(use_volume=False, temp_dir=str(tmpdir))
+
+        with open(compose_file) as file:
+            compose_yml = yaml.safe_load(file)
+
+        default_compose_file = setup_compose_file(temp_dir=str(tmpdir))
         with open(default_compose_file) as file:
             default_compose_yml = yaml.safe_load(file)
 
@@ -433,6 +518,7 @@ class TestPrefectServerConfig:
         cmd = ["config"]
         if with_flags:
             cmd += [
+                "--external-postgres",
                 "--no-postgres-port",
                 "--no-hasura-port",
                 "--no-graphql-port",
@@ -445,6 +531,7 @@ class TestPrefectServerConfig:
 
         mock.assert_called_once_with(
             no_ui=with_flags,
+            external_postgres=with_flags,
             no_postgres_port=with_flags,
             no_hasura_port=with_flags,
             no_graphql_port=with_flags,

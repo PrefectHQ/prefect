@@ -32,10 +32,16 @@ orchestration_extras = {
     "aws": ["boto3 >= 1.9, < 2.0"],
     "azure": ["azure-storage-blob >= 12.1.0, < 13.0"],
     "bitbucket": ["atlassian-python-api >= 2.0.1"],
-    "gcp": ["google-cloud-storage >= 1.13, < 2.0"],
+    "gcp": [
+        "google-cloud-secret-manager >= 2.4.0",
+        "google-cloud-storage >= 1.13, < 2.0",
+        "google-cloud-aiplatform >= 1.4.0, < 2.0",
+        "google-auth >= 2.0, < 3.0",
+    ],
+    "git": ["dulwich >= 0.19.7"],
     "github": ["PyGithub >= 1.51, < 2.0"],
     "gitlab": ["python-gitlab >= 2.5.0, < 3.0"],
-    "kubernetes": ["kubernetes >= 9.0.0a1, <= 11.0.0b2"],
+    "kubernetes": ["kubernetes >= 9.0.0a1, <= 13.0"],
 }
 
 extras = {
@@ -55,6 +61,7 @@ extras = {
         "google-cloud-bigquery >= 1.6.0, < 2.0",
     ]
     + orchestration_extras["gcp"],
+    "git": orchestration_extras["git"],
     "github": orchestration_extras["github"],
     "gitlab": orchestration_extras["gitlab"],
     "google": [
@@ -64,9 +71,11 @@ extras = {
     "gsheets": ["gspread >= 3.6.0"],
     "jira": ["jira >= 2.0.0"],
     "jupyter": ["papermill >= 2.2.0", "nbconvert >= 6.0.7"],
+    "kafka": ["confluent-kafka >= 1.7.0"],
     "kubernetes": ["dask-kubernetes >= 0.8.0"] + orchestration_extras["kubernetes"],
     "pandas": ["pandas >= 1.0.1"],
     "postgres": ["psycopg2-binary >= 2.8.2"],
+    "prometheus": ["prometheus-client >= 0.9.0"],
     "mysql": ["pymysql >= 0.9.3"],
     "sql_server": ["pyodbc >= 4.0.30"],
     "pushbullet": ["pushbullet.py >= 0.11.0"],
@@ -74,12 +83,15 @@ extras = {
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.5"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
-    "templates": ["jinja2 >= 2.0, < 3.0"],
+    "templates": ["jinja2 >= 2.0, < 4.0"],
     "test": test_requires,
+    "vault": ["hvac >= 0.10"],
     "viz": ["graphviz >= 0.8.3"],
     "twitter": ["tweepy >= 3.5, < 4.0"],
-    "dremio": ["pyarrow>=0.15.1"],
+    "dremio": ["pyarrow >= 5.0.0"],
     "exasol": ["pyexasol >= 0.16.1"],
+    "sodasql": ["soda-sql >= 2.0.0b25"],
+    "sendgrid": ["sendgrid >= 6.7.0"],
 }
 
 

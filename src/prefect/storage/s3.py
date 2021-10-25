@@ -38,6 +38,8 @@ class S3(Storage):
             used. If neither are set then script will not be uploaded and users should manually place the
             script file in the desired `key` location in an S3 bucket.
         - client_options (dict, optional): Additional options for the `boto3` client.
+        - upload_options (dict, optional): Additional options s3 client upload_file()
+            and upload_fileobj() functions 'ExtraArgs' argument.
         - **kwargs (Any, optional): any additional `Storage` initialization options
     """
 
@@ -48,10 +50,12 @@ class S3(Storage):
         stored_as_script: bool = False,
         local_script_path: str = None,
         client_options: dict = None,
+        upload_options: dict = None,
         **kwargs: Any,
     ) -> None:
         self.bucket = bucket
         self.key = key
+        self.upload_options = upload_options
         self.local_script_path = local_script_path or prefect.context.get(
             "local_script_path", None
         )
@@ -163,7 +167,10 @@ class S3(Storage):
 
                     try:
                         self._boto3_client.upload_file(
-                            self.local_script_path, self.bucket, self.flows[flow_name]
+                            self.local_script_path,
+                            self.bucket,
+                            self.flows[flow_name],
+                            ExtraArgs=self.upload_options,
                         )
                     except ClientError as err:
                         self.logger.error(
@@ -194,7 +201,10 @@ class S3(Storage):
 
             try:
                 self._boto3_client.upload_fileobj(
-                    stream, Bucket=self.bucket, Key=self.flows[flow_name]
+                    stream,
+                    Bucket=self.bucket,
+                    Key=self.flows[flow_name],
+                    ExtraArgs=self.upload_options,
                 )
             except ClientError as err:
                 self.logger.error(

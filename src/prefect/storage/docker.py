@@ -189,7 +189,7 @@ class Docker(Storage):
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)
                 self.installation_commands.append(
-                    "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*"
+                    "apt update && apt install -y gcc git make && rm -rf /var/lib/apt/lists/*"
                 )
         elif base_image and dockerfile:
             raise ValueError(
@@ -361,7 +361,6 @@ class Docker(Storage):
                 path="." if self.dockerfile else tempdir,
                 dockerfile=dockerfile_path,
                 tag="{}:{}".format(full_name, self.image_tag),
-                forcerm=True,
                 **self.build_kwargs,
             )
             self._parse_generator_output(output)

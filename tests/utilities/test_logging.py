@@ -9,7 +9,12 @@ import pytest
 
 import prefect
 from prefect import context, utilities
-from prefect.utilities.logging import CloudHandler, LogManager
+from prefect.utilities.logging import (
+    CloudHandler,
+    LogManager,
+    temporary_logger_config,
+    get_logger,
+)
 
 
 @pytest.fixture
@@ -32,11 +37,13 @@ def logger(log_manager):
         {
             "logging.level": "INFO",
             "cloud.logging_heartbeat": 0.25,
-            "logging.log_to_cloud": True,
+            "cloud.send_flow_run_logs": True,
         }
     ):
         logger = utilities.logging.configure_logging(testing=True)
-        yield logger
+        # Enable logs to the backend by pretending this is during a run
+        with prefect.context(running_with_backend=True):
+            yield logger
         logger.handlers.clear()
 
 
@@ -71,6 +78,18 @@ def test_diagnostic_logger_has_no_cloud_handler():
 
 
 def test_cloud_handler_emit_noop_if_cloud_logging_disabled(logger, log_manager):
+    with utilities.configuration.set_temporary_config(
+        {"cloud.send_flow_run_logs": False}
+    ):
+        logger.info("testing")
+    assert not log_manager.enqueue.called
+    assert log_manager.client is None
+    assert log_manager.thread is None
+
+
+def test_cloud_handler_emit_noop_if_cloud_logging_disabled_deprecated(
+    logger, log_manager
+):
     with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
         logger.info("testing")
     assert not log_manager.enqueue.called
@@ -173,27 +192,34 @@ def test_cloud_handler_emit_json_spec_exception(
 
 
 def test_log_manager_startup_and_shutdown(logger, log_manager):
-    # On creation, neither thread or client are initialized
-    assert log_manager.client is None
-    assert log_manager.thread is None
+    heartbeat = 5
+    with utilities.configuration.set_temporary_config(
+        {"cloud.logging_heartbeat": heartbeat}
+    ):
+        # On creation, neither thread or client are initialized
+        assert log_manager.client is None
+        assert log_manager.thread is None
 
-    # After enqueue, thread and client are started
-    logger.info("testing")
-    assert log_manager.client is not None
-    assert log_manager.thread is not None
+        # After enqueue, thread and client are started
+        logger.info("testing")
+        assert log_manager.client is not None
+        assert log_manager.thread is not None
 
-    client = log_manager.client
+        client = log_manager.client
 
-    # Calling `_on_shutdown` (which calls stop) will flush the queue and
-    # cleanup resources
-    log_manager._on_shutdown()
-    assert log_manager.queue.empty()
-    assert client.write_run_logs.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
+        # Calling `_on_shutdown` (which calls stop) will flush the queue and
+        # cleanup resources
+        start = time.time()
+        log_manager._on_shutdown()
+        assert log_manager.queue.empty()
+        assert client.write_run_logs.called
+        assert log_manager.client is None
+        assert log_manager.thread is None
+        end = time.time()
+        assert end - start < heartbeat
 
-    # Calling `stop` is idempotent
-    log_manager.stop()
+        # Calling `stop` is idempotent
+        log_manager.stop()
 
 
 def test_log_manager_batches_logs(logger, log_manager, monkeypatch):
@@ -407,3 +433,59 @@ def test_redirect_to_log_is_textwriter(caplog):
     assert logs == ["There is color on this line\n", "Standard\n"]
 
     log_stdout.flush()
+
+
+def test_temporary_config_sets_and_resets(caplog):
+    with temporary_logger_config(
+        level=logging.CRITICAL,
+        stream_fmt="%(message)s",
+        stream_datefmt="%H:%M:%S",
+    ):
+        logger = get_logger()
+        assert logger.level == logging.CRITICAL
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                assert handler.formatter._fmt == "%(message)s"
+                assert handler.formatter.datefmt == "%H:%M:%S"
+        logger.info("Info log not shown")
+        logger.critical("Critical log shown")
+
+    logger.info("Info log shown")
+    for handler in logger.handlers:
+        handler.flush()
+
+    output = caplog.text
+    assert "Info log not shown" not in output
+    assert "Critical log shown" in output
+    assert "Info log shown" in output
+
+    assert logger.level == logging.DEBUG
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            assert handler.formatter._fmt != "%(message)s"
+            assert handler.formatter.datefmt != "%H:%M:%S"
+
+
+@pytest.mark.parametrize("level", [logging.CRITICAL, None])
+@pytest.mark.parametrize("stream_fmt", ["%(message)s", None])
+@pytest.mark.parametrize("stream_datefmt", ["%H:%M:%S", None])
+def test_temporary_config_does_not_require_all_args(
+    caplog, level, stream_fmt, stream_datefmt
+):
+    with temporary_logger_config(
+        level=level,
+        stream_fmt=stream_fmt,
+        stream_datefmt=stream_datefmt,
+    ):
+        pass
+
+
+def test_temporary_config_resets_on_exception(caplog):
+    with pytest.raises(ValueError):
+        with temporary_logger_config(
+            level=logging.CRITICAL,
+        ):
+            raise ValueError()
+
+    logger = get_logger()
+    assert logger.level == logging.DEBUG

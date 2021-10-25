@@ -14,6 +14,7 @@ K8S_CLIENTS = {
     "pod": client.CoreV1Api,
     "service": client.CoreV1Api,
     "deployment": client.AppsV1Api,
+    "secret": client.CoreV1Api,
 }
 
 

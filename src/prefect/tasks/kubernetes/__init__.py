@@ -33,6 +33,7 @@ try:
         ReplaceNamespacedPod,
         ReadNamespacedPodLogs,
     )
+    from prefect.tasks.kubernetes.secrets import KubernetesSecret
     from prefect.tasks.kubernetes.service import (
         CreateNamespacedService,
         DeleteNamespacedService,

@@ -1,9 +1,9 @@
 import os
 import socket
 import sys
+import warnings
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
-import warnings
 
 from prefect import config
 from prefect.agent import Agent
@@ -56,8 +56,6 @@ class LocalAgent(Agent):
         - hostname_label (boolean, optional): a boolean specifying whether this agent should
             auto-label itself with the hostname of the machine it is running on.  Useful for
             flows which are stored on the local filesystem.
-        - storage_labels (boolean, optional, DEPRECATED): a boolean specifying whether this agent should
-            auto-label itself with all of the storage options labels.
     """
 
     def __init__(
@@ -71,8 +69,7 @@ class LocalAgent(Agent):
         hostname_label: bool = True,
         max_polls: int = None,
         agent_address: str = None,
-        no_cloud_logs: bool = False,
-        storage_labels: bool = None,
+        no_cloud_logs: bool = None,
     ) -> None:
         self.processes = set()
         self.import_paths = import_paths or []
@@ -96,13 +93,6 @@ class LocalAgent(Agent):
             assert isinstance(self.labels, list)
             self.labels.append(hostname)
 
-        if storage_labels is not None:
-            warnings.warn(
-                "Use of `storage_labels` kwarg is deprecated and the local agent no longer has "
-                "default labels.",
-                stacklevel=2,
-            )
-
         self.logger.debug(f"Import paths: {self.import_paths}")
         self.logger.debug(f"Show flow logs: {self.show_flow_logs}")
 
@@ -112,7 +102,8 @@ class LocalAgent(Agent):
                 self.processes.remove(process)
                 if process.returncode:
                     self.logger.info(
-                        "Process PID {} returned non-zero exit code".format(process.pid)
+                        f"Process PID {process.pid} returned non-zero exit code "
+                        f"{process.returncode}!"
                     )
         super().heartbeat()
 
@@ -129,8 +120,6 @@ class LocalAgent(Agent):
         Raises:
             - ValueError: if deployment attempted on unsupported Storage type
         """
-        self.logger.info("Deploying flow run {}".format(flow_run.id))  # type: ignore
-
         storage = StorageSchema().load(flow_run.flow.storage)
         if isinstance(storage, Docker):
             self.logger.error(
@@ -218,12 +207,24 @@ class LocalAgent(Agent):
             {
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": self.client._api_token,
+                "PREFECT__CLOUD__AUTH_TOKEN": (
+                    # Pull an auth token if it exists but fall back to an API key so
+                    # flows in pre-0.15.0 containers still authenticate correctly
+                    self.client._api_token
+                    or self.flow_run_api_key
+                ),
+                "PREFECT__CLOUD__API_KEY": self.flow_run_api_key,
+                "PREFECT__CLOUD__TENANT_ID": (
+                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    self.client.tenant_id
+                    if self.flow_run_api_key
+                    else None
+                ),
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CONTEXT__FLOW_RUN_ID": flow_run.id,  # type: ignore
                 "PREFECT__CONTEXT__FLOW_ID": flow_run.flow.id,  # type: ignore
                 "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-                "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": str(self.log_to_cloud).lower(),
                 "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
             }
@@ -239,12 +240,16 @@ class LocalAgent(Agent):
         env_vars: dict = None,
         import_paths: List[str] = None,
         show_flow_logs: bool = False,
+        key: str = None,
+        tenant_id: str = None,
+        agent_config_id: str = None,
     ) -> str:
         """
         Generate and output an installable supervisorctl configuration file for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent
+            - token (str, optional): A `RUNNER` token to give the agent. DEPRECATED. Use
+                `key` instead.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): a dictionary of environment variables and values that
@@ -254,16 +259,27 @@ class LocalAgent(Agent):
                 scripts or packages
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should
                 re-route Flow run logs to stdout; defaults to `False`
+            - key (str, optional): An API key for the agent to use for authentication
+                with Prefect Cloud
+            - tenant_id (str, optional): A tenant ID for the agent to connect to. If not
+                set, the default tenant associated with the API key will be used.
+            - agent_config_id (str, optional): An agent config id to link to for health
+                check automations
 
         Returns:
             - str: A string representation of the generated configuration file
         """
 
         # Use defaults if not provided
-        token = token or ""
         labels = labels or []
         env_vars = env_vars or {}
         import_paths = import_paths or []
+
+        if token and key:
+            raise ValueError(
+                "Given both a API token and API key. Only one authentication method "
+                "may be provided."
+            )
 
         with open(
             os.path.join(os.path.dirname(__file__), "supervisord.conf"), "r"
@@ -271,13 +287,25 @@ class LocalAgent(Agent):
             conf = conf_file.read()
 
         add_opts = ""
-        add_opts += "-t {token} ".format(token=token) if token else ""
         add_opts += "-f " if show_flow_logs else ""
         add_opts += " ".join("-l {label} ".format(label=label) for label in labels)
         add_opts += " ".join(
             "-e {k}={v} ".format(k=k, v=v) for k, v in env_vars.items()
         )
         add_opts += " ".join("-p {path}".format(path=path) for path in import_paths)
+
+        if key:
+            add_opts += f"-k {key} "
+        if tenant_id:
+            add_opts += f"--tenant-id {tenant_id} "
+        if agent_config_id:
+            add_opts += f"--agent-config-id {agent_config_id}"
+
+        # Tokens are deprecated
+        if token:
+            warnings.warn("API tokens are deprecated. Please switch to using API keys.")
+            add_opts += f"-t {token} "
+
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf
 

@@ -15,7 +15,8 @@ import threading
 import time
 import warnings
 from queue import Empty, Queue
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Generator, Union
+from contextlib import contextmanager
 
 import pendulum
 
@@ -33,7 +34,7 @@ PREFECT_LOG_RECORD_ATTRIBUTES = (
 )
 
 MAX_LOG_LENGTH = 1_000_000  # 1 MB - max length of a single log message
-MAX_BATCH_LOG_LENGTH = 20_000_000  # 20 MB - max total batch size for log messages
+MAX_BATCH_LOG_LENGTH = 4_000_000  # 4 MB - max total batch size for log messages
 
 
 class LogManager:
@@ -45,7 +46,7 @@ class LogManager:
         self.thread = None  # type: Optional[threading.Thread]
         self.client = None  # type: Optional[prefect.Client]
         self.pending_length = 0
-        self._stopped = False
+        self._stopped = threading.Event()
 
     def ensure_started(self) -> None:
         """Ensure the log manager is started"""
@@ -77,7 +78,7 @@ class LogManager:
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
         if self.thread is not None:
-            self._stopped = True
+            self._stopped.set()
             self.thread.join()
             self._write_logs()
             self.thread = None
@@ -85,18 +86,11 @@ class LogManager:
 
     def _write_logs_loop(self) -> None:
         """Runs in a background thread, uploads logs periodically in a loop"""
-        while not self._stopped:
-            cont = True
-            while cont:
-                cont = self._write_logs()
-            time.sleep(self.logging_period)
+        while not self._stopped.wait(self.logging_period):
+            self._write_logs()
 
-    def _write_logs(self) -> bool:
-        """Upload a single batch of logs.
-
-        Returns:
-            - bool: Whether `_write_logs` should be called again this round.
-        """
+    def _write_logs(self) -> None:
+        """Upload logs in batches until the queue is empty"""
         assert self.client is not None  # mypy
 
         # Read all logs from the queue into the `pending_logs` list. This
@@ -110,25 +104,30 @@ class LogManager:
         # the queue is empty or an error occurs on upload (usually only one
         # iteration is sufficient)
         cont = True
-        try:
-            while self.pending_length < MAX_BATCH_LOG_LENGTH:
-                log = self.queue.get_nowait()
-                self.pending_length += len(log.get("message", ""))
-                self.pending_logs.append(log)
-        except Empty:
-            cont = False
-
-        if self.pending_logs:
+        while cont:
             try:
-                self.client.write_run_logs(self.pending_logs)
-                self.pending_logs = []
-                self.pending_length = 0
-            except Exception as exc:
-                # An error occurred on upload, warn and exit the loop (will
-                # retry later)
-                warnings.warn(f"Failed to write logs with error: {exc!r}")
+                while self.pending_length < MAX_BATCH_LOG_LENGTH:
+                    log = self.queue.get_nowait()
+                    self.pending_length += len(log.get("message", ""))
+                    self.pending_logs.append(log)
+            except Empty:
                 cont = False
-        return cont
+
+            if self.pending_logs:
+                try:
+                    self.client.write_run_logs(self.pending_logs)
+                    self.pending_logs = []
+                    self.pending_length = 0
+                except Exception as exc:
+                    # An error occurred on upload, warn and exit the loop (will
+                    # retry later)
+                    warnings.warn(
+                        f"Failed to write logs with error: {exc!r}, "
+                        f"Pending log length: {self.pending_length:,}, "
+                        f"Max batch log length: {MAX_BATCH_LOG_LENGTH:,}, "
+                        f"Queue size: {self.queue.qsize():,}"
+                    )
+                    cont = False
 
     def enqueue(self, message: dict) -> None:
         """Enqueue a new log message to be uploaded.
@@ -146,7 +145,16 @@ class CloudHandler(logging.Handler):
     def emit(self, record: logging.LogRecord) -> None:  # type: ignore
         """Emit a new log"""
         # if we shouldn't log to cloud, don't emit
-        if not context.config.logging.log_to_cloud:
+        if not context.config.cloud.send_flow_run_logs:
+            return
+
+        # backwards compatibility for `PREFECT__LOGGING__LOG_TO_CLOUD` which is
+        # a deprecated config variable as of 0.14.20
+        if not context.config.logging.get("log_to_cloud", True):
+            return
+
+        # if its not during a backend flow run, don't emit
+        if not context.get("running_with_backend"):
             return
 
         # ensures emitted logs respect configured logging level
@@ -216,14 +224,19 @@ def _create_logger(name: str) -> logging.Logger:
     logging.setLogRecordFactory(_log_record_context_injector)
 
     logger = logging.getLogger(name)
-    handler = logging.StreamHandler(sys.stdout)
+
+    # Set the format from the config for stdout
     formatter = logging.Formatter(
         context.config.logging.format, context.config.logging.datefmt
     )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+    # Set the level
     logger.setLevel(context.config.logging.level)
     logger.addHandler(CloudHandler())
+
     return logger
 
 
@@ -241,6 +254,7 @@ def configure_logging(testing: bool = False) -> logging.Logger:
         - logging.Logger: a configured logging object
     """
     name = "prefect-test-logger" if testing else "prefect"
+
     return _create_logger(name)
 
 
@@ -287,6 +301,53 @@ def get_logger(name: str = None) -> logging.Logger:
         return prefect_logger
     else:
         return prefect_logger.getChild(name)
+
+
+@contextmanager
+def temporary_logger_config(
+    level: Union[int, str] = None,
+    stream_fmt: str = None,
+    stream_datefmt: str = None,
+) -> Generator[logging.Logger, None, None]:
+    """
+    Set a temporary config for the `prefect` logger. The formatting can be updated
+    for `StreamHandlers` but will not update the CloudHandler (or any others)
+
+    This function is only intended to be used internally.
+
+    Args:
+        - level (optional): The log level to use
+        - stream_fmt (optional): The log message format to set for stream handlers
+        - stream_datefmt (optional): The log date format to set for stream handlers
+
+    Yields:
+        The configured logger; also affects any `prefect` loggers in use
+    """
+    logger = get_logger()
+
+    # This is the only key that seems likely to be adjusted after the config has been
+    # loaded
+    previous_log_level = logger.level
+
+    overrides = {
+        "logging.level": level if level else None,
+        "logging.format": stream_fmt,
+        "logging.datefmt": stream_datefmt,
+    }
+    # Drop empty values to retain existing settings
+    overrides = {key: value for key, value in overrides.items() if value}
+
+    try:
+        with prefect.utilities.configuration.set_temporary_config(overrides):
+            logger.handlers.clear()
+            logger = configure_logging()
+            yield logger
+    finally:
+        # Restore the old logger
+        logger = get_logger()
+        logger.handlers.clear()
+        logger = configure_logging()
+        logger.setLevel(previous_log_level)
 
 
 LOG_MANAGER = LogManager()

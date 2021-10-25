@@ -34,7 +34,7 @@ from prefect.engine.state import (
     TriggerFailed,
 )
 from prefect.utilities.configuration import set_temporary_config
-from prefect.utilities.exceptions import VersionLockError
+from prefect.exceptions import VersionLockMismatchSignal
 
 
 @pytest.fixture(autouse=True)
@@ -79,7 +79,7 @@ def vclient(monkeypatch):
         set_flow_run_state=MagicMock(),
         get_task_run_info=MagicMock(return_value=MagicMock(state=None)),
         set_task_run_state=MagicMock(
-            side_effect=VersionLockError(),
+            side_effect=VersionLockMismatchSignal(),
             return_value=Running()
             # side_effect=lambda task_run_id, version, state, cache_for: state
         ),
@@ -605,7 +605,10 @@ def test_state_handler_failures_are_handled_appropriately(client, caplog):
 
     error_logs = [r.message for r in caplog.records if r.levelname == "ERROR"]
     assert len(error_logs) >= 2
-    assert any("This task failed somehow" in elog for elog in error_logs)
+    assert any(
+        "Exception encountered during task execution" in elog for elog in error_logs
+    )
+    assert "Traceback" in caplog.text
     assert "SyntaxError" in error_logs[-1]
     assert "unique" in error_logs[-1]
     assert "state handler" in error_logs[-1]
@@ -854,45 +857,6 @@ def test_cloud_task_runner_handles_retries_with_queued_states_from_cloud(client)
     ]
 
 
-def test_cloud_task_runner_sends_heartbeat_on_queued_retries(client):
-    calls = []
-    tr_ids = []
-
-    def queued_mock(*args, **kwargs):
-        calls.append(kwargs)
-        # first retry attempt will get queued
-        if len(calls) == 4:
-            return Queued()  # immediate start time
-        else:
-            return kwargs.get("state")
-
-    def mock_heartbeat(**kwargs):
-        tr_ids.append(kwargs.get("task_run_id"))
-
-    client.set_task_run_state = queued_mock
-    client.update_task_run_heartbeat = mock_heartbeat
-
-    @prefect.task(
-        max_retries=2, retry_delay=datetime.timedelta(seconds=0), result=PrefectResult()
-    )
-    def tagged_task(x):
-        if prefect.context.get("task_run_count", 1) == 1:
-            raise ValueError("gimme a sec")
-        return x
-
-    upstream_result = PrefectResult(value=42, location="42")
-    CloudTaskRunner(task=tagged_task).run(
-        context={"task_run_version": 1, "task_run_id": "id"},
-        state=None,
-        upstream_states={
-            Edge(Task(), tagged_task, key="x"): Success(result=upstream_result)
-        },
-    )
-
-    assert len(calls) == 6
-    assert tr_ids == ["id", "id"]
-
-
 class TestLoadResults:
     def test_load_results_from_upstream_reads_results(self, cloud_api):
         result = PrefectResult(location="1")
@@ -1001,7 +965,7 @@ def test_task_runner_handles_version_lock_error(monkeypatch):
     monkeypatch.setattr(
         "prefect.engine.cloud.task_runner.Client", MagicMock(return_value=client)
     )
-    client.set_task_run_state.side_effect = VersionLockError()
+    client.set_task_run_state.side_effect = VersionLockMismatchSignal()
 
     task = Task(name="test")
     runner = CloudTaskRunner(task=task)
@@ -1035,11 +999,15 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     runner = CloudTaskRunner(task=task)
     runner.task_run_id = "id"
 
-    runner.set_task_run_name(task_inputs={})
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
 
-    assert client.set_task_run_name.called
-    assert client.set_task_run_name.call_args[1]["name"] == "asdf"
-    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        runner.set_task_run_name(task_inputs={})
+
+        assert client.set_task_run_name.called
+        assert client.set_task_run_name.call_args[1]["name"] == "asdf"
+        assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        assert prefect.context.get("task_run_name") == "asdf"
 
     task = Task(name="test", task_run_name="{map_index}")
     runner = CloudTaskRunner(task=task)
@@ -1048,21 +1016,29 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     class Temp:
         value = 100
 
-    runner.set_task_run_name(task_inputs={"map_index": Temp()})
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
 
-    assert client.set_task_run_name.called
-    assert client.set_task_run_name.call_args[1]["name"] == "100"
-    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        runner.set_task_run_name(task_inputs={"map_index": Temp()})
+
+        assert client.set_task_run_name.called
+        assert client.set_task_run_name.call_args[1]["name"] == "100"
+        assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        assert prefect.context.get("task_run_name") == "100"
 
     task = Task(name="test", task_run_name=lambda **kwargs: "name")
     runner = CloudTaskRunner(task=task)
     runner.task_run_id = "id"
 
-    runner.set_task_run_name(task_inputs={})
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
 
-    assert client.set_task_run_name.called
-    assert client.set_task_run_name.call_args[1]["name"] == "name"
-    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        runner.set_task_run_name(task_inputs={})
+
+        assert client.set_task_run_name.called
+        assert client.set_task_run_name.call_args[1]["name"] == "name"
+        assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        assert prefect.context.get("task_run_name") == "name"
 
 
 def test_task_runner_set_task_name_same_as_prefect_context(client):

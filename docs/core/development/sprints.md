@@ -11,13 +11,13 @@ Join Prefect at one of our upcoming digital events where core contributors will 
 If you're already at a sprint and want to get started quickly, jump down to [Getting Started at Sprints](#getting-started-at-sprints).
 :::
 
-Prefect is indebted to the open source community. We'd love to meet you and work with you "in person" at one of our upcoming events. If you haven't already, you can let us know you want to get involved by talking to us on Prefect's public [Slack](https://prefect-slackin.herokuapp.com/), or tell us you're coming through [our sign up form](https://forms.gle/mMtATfmhbYKSwqWc9), so we can get you ready for success! **For the most recent list of digital sprints Prefect is participating in or hosting**, checkout our [Meetup page](https://www.meetup.com/Prefect-Community/).
+Prefect is indebted to the open source community. We'd love to meet you and work with you "in person" at one of our upcoming events. If you haven't already, you can let us know you want to get involved by talking to us on Prefect's public [Slack](https://www.prefect.io/slack), or tell us you're coming through [our sign up form](https://forms.gle/mMtATfmhbYKSwqWc9), so we can get you ready for success! **For the most recent list of digital sprints Prefect is participating in or hosting**, checkout our [Meetup page](https://www.meetup.com/Prefect-Community/).
 
 We prioritize an inclusive community and rigorously uphold our [Code of Conduct](../code_of_conduct.html). In addition, we are happy to support new Pythonistas as well as long-developing Python gurus and have issues for any level of Python experience.
 
 ## Getting Started at Sprints
 
-If you're at a sprint, hopefully you've already been introduced to the core contributors who are running the show. If not, please @ mention or DM one of us -- **we want to meet you**! You can also let us know you're on your way or looking to join in by finding us on our [Prefect Community Slack](https://prefect-slackin.herokuapp.com/) -- be sure to join the #prefect-contributors channel!
+If you're at a sprint, hopefully you've already been introduced to the core contributors who are running the show. If not, please @ mention or DM one of us -- **we want to meet you**! You can also let us know you're on your way or looking to join in by finding us on our [Prefect Community Slack](https://www.prefect.io/slack) -- be sure to join the #prefect-contributors channel!
 
 ### Finding something to do
 

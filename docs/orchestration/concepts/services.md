@@ -35,7 +35,7 @@ Where necessary, flow runs without submitted or running task runs will be resche
 
 ## Zombie Killer
 
-The `Zombie Killer` service is responsible for handling zombies, which Prefect defines as tasks that claim to be running but haven't updated their heartbeat in the past 2 minutes.
+The `Zombie Killer` service is responsible for handling zombies, which Prefect defines as tasks that claim to be running but haven't updated their heartbeat in the past 2 minutes (Prefect Cloud) or 10 minutes (Prefect Server).
 
 ### How is it useful?
 
@@ -44,6 +44,22 @@ Zombies are tasks that started running but -- for some reason -- are no longer i
 ### How does it work?
 
 Periodically, the Zombie Killer queries for tasks that are in a `Running` state but have no recent heartbeat. These tasks are placed into a `Failed` state with the message `Marked "Failed" by a Zombie Killer process`. If the flow is in a `Running` state, the [Lazarus](#lazarus) process will ensure it resumes execution.
+
+### Heartbeat configuration
+
+It's possible for the system kernel to terminate the heartbeat process prematurely and trigger the `Zombie Killer`. To circumvent this, try configuring `Prefect` to run the heartbeat in a thread.
+
+The heartbeat can be configured by adding a line to `config.toml` in the `[cloud]` section
+```
+[cloud]
+heartbeat_mode = "thread" # ['process', 'thread', 'off']
+```
+
+Additionally, this can be set using the `run_config`
+```python
+from prefect.run_configs import UniversalRun
+flow.run_config = UniversalRun(env={"PREFECT__CLOUD__HEARTBEAT_MODE": "thread"})
+```
 
 ## Towel
 

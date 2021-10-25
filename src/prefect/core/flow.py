@@ -39,6 +39,7 @@ from prefect.core.parameter import Parameter
 from prefect.core.task import Task
 from prefect.executors import Executor
 from prefect.engine.result import Result
+from prefect.engine.state import State
 from prefect.environments import Environment
 from prefect.storage import Storage, get_default_storage_class
 from prefect.run_configs import RunConfig, UniversalRun
@@ -143,6 +144,13 @@ class Flow:
             the flow (e.g., presence of cycles and illegal keys) after adding the edges passed
             in the `edges` argument. Defaults to the value of `eager_edge_validation` in
             your prefect configuration file.
+        -  terminal_state_handler (Callable, optional): A state handler that can be used to
+            inspect or modify the final state of the flow run. Expects a callable with signature
+            `handler(flow: Flow, state: State, reference_task_states: Set[State]) -> Optional[State]`,
+            where `flow` is the current Flow, `state` is the current state of the Flow run, and
+            `reference_task_states` is set of states for all reference tasks in the flow. It should
+            return either a new state for the flow run, or `None` (in which case the existing
+            state will be used).
     """
 
     def __init__(
@@ -160,6 +168,9 @@ class Flow:
         on_failure: Callable = None,
         validate: bool = None,
         result: Optional[Result] = None,
+        terminal_state_handler: Optional[
+            Callable[["Flow", State, Set[State]], Optional[State]]
+        ] = None,
     ):
         self._cache = {}  # type: dict
 
@@ -174,6 +185,7 @@ class Flow:
         self.run_config = run_config
         self.storage = storage
         self.result = result
+        self.terminal_state_handler = terminal_state_handler
 
         self.tasks = set()  # type: Set[Task]
         self.edges = set()  # type: Set[Edge]
@@ -235,6 +247,7 @@ class Flow:
         new.constants = self.constants.copy()
         new.tasks = self.tasks.copy()
         new.edges = self.edges.copy()
+        new.slugs = self.slugs.copy()
         new.set_reference_tasks(self._reference_tasks)
         return new
 
@@ -674,7 +687,11 @@ class Flow:
         return edges
 
     def update(
-        self, flow: "Flow", merge_parameters: bool = False, validate: bool = None
+        self,
+        flow: "Flow",
+        merge_parameters: bool = False,
+        validate: bool = None,
+        merge_reference_tasks: bool = False,
     ) -> None:
         """
         Take all tasks and edges in another flow and add it to this flow.
@@ -683,10 +700,12 @@ class Flow:
 
         Args:
             - flow (Flow): A flow which is used to update this flow.
-            - merge_parameters (bool, False): If `True`, duplicate paramaeters are replaced
+            - merge_parameters (bool, False): If `True`, duplicate parameters are replaced
                 with parameters from the provided flow. Defaults to `False`.
                 If `True`, validate will also be set to `True`.
             - validate (bool, optional): Whether or not to check the validity of the flow.
+            - merge_reference_tasks(bool, False): If `True`, add reference tasks from the provided
+                flow to the current flow reference tasks set.
 
         Returns:
             - None
@@ -712,6 +731,11 @@ class Flow:
                     flattened=edge.flattened,
                     validate=validate,
                 )
+
+        if merge_reference_tasks:
+            self.set_reference_tasks(
+                self.reference_tasks().union(flow.reference_tasks())
+            )
 
         self.constants.update(flow.constants or {})
 
@@ -859,15 +883,26 @@ class Flow:
         # begin by getting all tasks under consideration (root tasks and all
         # downstream tasks)
         if root_tasks:
+            # double check all root tasks exist in the flow
+            for task in root_tasks:
+                if task not in self.tasks:
+                    raise ValueError(
+                        "Task {t} was not found in Flow {f}".format(t=task, f=self)
+                    )
+
             tasks = set(root_tasks)
             seen = set()  # type: Set[Task]
+
+            # compute the downstream edges dict once, this method uses
+            # @cached but validation is expensive for large flows
+            downstream_edges = self.all_downstream_edges()
 
             # while the set of tasks is different from the seen tasks...
             while tasks.difference(seen):
                 # iterate over the new tasks...
                 for t in list(tasks.difference(seen)):
                     # add its downstream tasks to the task list
-                    tasks.update(self.downstream_tasks(t))
+                    tasks.update({e.downstream_task for e in downstream_edges[t]})
                     # mark it as seen
                     seen.add(t)
         else:
@@ -876,6 +911,11 @@ class Flow:
         # build the list of sorted tasks
         remaining_tasks = list(tasks)
         sorted_tasks = []
+
+        # compute the upstream edges dict once, this method uses
+        # @cached but validation is expensive for large flows
+        upstream_edges = self.all_upstream_edges()
+
         while remaining_tasks:
             # mark the flow as cyclic unless we prove otherwise
             cyclic = True
@@ -883,7 +923,8 @@ class Flow:
             # iterate over each remaining task
             for task in remaining_tasks.copy():
                 # check all the upstream tasks of that task
-                for upstream_task in self.upstream_tasks(task):
+                upstream_tasks = {e.upstream_task for e in upstream_edges[task]}
+                for upstream_task in upstream_tasks:
                     # if the upstream task is also remaining, it means it
                     # hasn't been sorted, so we can't sort this task either
                     if upstream_task in remaining_tasks:
@@ -1547,7 +1588,11 @@ class Flow:
         return str(fpath)
 
     def run_agent(
-        self, token: str = None, show_flow_logs: bool = False, log_to_cloud: bool = True
+        self,
+        token: str = None,
+        show_flow_logs: bool = False,
+        log_to_cloud: bool = None,
+        api_key: str = None,
     ) -> None:
         """
         Runs a Cloud agent for this Flow in-process.
@@ -1555,14 +1600,22 @@ class Flow:
         Args:
             - token (str, optional): A Prefect Cloud API token with a RUNNER scope;
                 will default to the token found in `config.cloud.agent.auth_token`
+                DEPRECATED.
             - show_flow_logs (bool, optional): a boolean specifying whether the agent should
                 re-route Flow run logs to stdout; defaults to `False`
             - log_to_cloud (bool, optional): a boolean specifying whether Flow run logs should
-                be sent to Prefect Cloud; defaults to `True`
+                be sent to Prefect Cloud; defaults to `None` which uses the config value
+            - api_key (str, optional): A Prefect Cloud API key to authenticate with.
+                If not set, the default will be pulled from the `Client`
         """
         temp_config = {
             "cloud.agent.auth_token": token or prefect.config.cloud.agent.auth_token,
-            "logging.log_to_cloud": log_to_cloud,
+            "cloud.api_key": api_key or prefect.config.cloud.get("api_key"),
+            "cloud.send_flow_run_logs": (
+                log_to_cloud
+                if log_to_cloud is not None
+                else prefect.config.cloud.send_flow_run_logs
+            ),
         }
         with set_temporary_config(temp_config):
             if self.run_config is not None:

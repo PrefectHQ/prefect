@@ -24,6 +24,13 @@ The CLI command supports several additional options, see the
 [docs](/api/latest/cli/register.md#register) for more information.
 
 
+::: tip Get started quickly
+Prefect provides a classic Hello World flow to get you started. Just register the flow included in the Prefect Python package.
+```bash
+$ prefect register --project "my project" --module "prefect.hello_world"
+```
+:::
+
 ### Core Client
 
 To register a flow from Prefect Core, use its `register()` method:
@@ -53,7 +60,7 @@ flow.register(
 :::
 
 
-Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](../tutorial/configure.html#log-in-to-prefect-cloud). For more information on Flow registration see [here](../tutorial/first.html#register-flow-with-prefect-cloud).
+Note that this assumes that if you are using Prefect Cloud that you have already [authenticated](/orchestration/getting-started/set-up.html#authenticate-with-prefect-cloud). For more information on Flow registration see [here](/orchestration/getting-started/registering-and-running-a-flow.html#register-a-flow).
 
 ### GraphQL <Badge text="GQL"/>
 
@@ -187,44 +194,3 @@ mutation {
   }
 }
 ```
-
-## Scheduling
-
-If a flow has a `schedule` attached, then the Prefect API can [automatically](services.html#scheduler) create new flow runs according to that schedule. In addition, if any of the schedule's clocks have `parameter_defaults` set they will be passed to each flow run generated from that clock (see the corresponding [Schedule documentation here](../../core/concepts/schedules.html#varying-parameter-values)).
-
-Scheduling in this manner is nothing more than a convenient way to generate new runs; users can still create ad-hoc runs alongside the auto-scheduled ones (even if they have the same start time).
-
-You can turn auto-scheduling on or off at any time: <Badge text="GQL"/>
-
-```graphql
-mutation {
-  set_schedule_active(input: {
-    schedule_id: "<schedule_id>"
-  }) {
-    success
-  }
-}
-
-mutation {
-  set_schedule_inactive(input: {
-    schedule_id: "<schedule_id>"
-  }) {
-    success
-  }
-}
-
-```
-
-::: warning Scheduling with parameters
-Prefect cannot auto-schedule flows that have required parameters, because the scheduler won't know what value to use. You will get an error if you try to turn on scheduling for such a flow.
-
-To resolve this, provide a default value for your parameters in Core:
-
-```python
-from prefect import Parameter
-
-x = Parameter('x', default=1)
-```
-
-Note that it is possible to [schedule changing parameter values](../../core/concepts/schedules.html#varying-parameter-values).
-:::

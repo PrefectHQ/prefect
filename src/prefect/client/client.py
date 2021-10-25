@@ -1,13 +1,24 @@
 import datetime
 import json
 import os
+import random
 import re
 import time
 import uuid
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Union
-from urllib.parse import urljoin
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    NamedTuple,
+    Optional,
+    Union,
+    cast,
+    Mapping,
+)
+from urllib.parse import urljoin, urlparse
 
 # if simplejson is installed, `requests` defaults to using it instead of json
 # this allows the client to gracefully handle either json or simplejson
@@ -22,10 +33,10 @@ from slugify import slugify
 
 import prefect
 from prefect.run_configs import RunConfig
-from prefect.utilities.exceptions import (
+from prefect.exceptions import (
     AuthorizationError,
     ClientError,
-    VersionLockError,
+    VersionLockMismatchSignal,
 )
 from prefect.utilities.graphql import (
     EnumValue,
@@ -46,6 +57,7 @@ JSONLike = Union[bool, dict, list, str, int, float, None]
 
 
 class TaskRunInfoResult(NamedTuple):
+    # TODO: Deprecate this result in favor of `prefect.backend.TaskRun`
     id: str
     task_id: str
     task_slug: str
@@ -59,6 +71,7 @@ class ProjectInfo(NamedTuple):
 
 
 class FlowRunInfoResult(NamedTuple):
+    # TODO: Deprecate this result in favor of `prefect.backend.FlowRun`
     id: str
     name: str
     flow_id: str
@@ -80,33 +93,258 @@ class Client:
     token will only be present in the current context.
 
     Args:
-        - api_server (str, optional): the URL to send all GraphQL requests
-            to; if not provided, will be pulled from `cloud.graphql` config var
+        - api_server (str, optional): the URL to send all GraphQL requests to; if not
+            provided, will be pulled from the current backend's `api` config
+            variable
+        - api_key (str, optional): a Prefect Cloud API key. If not provided, loaded
+            from `config.cloud.api_key` or from the on disk cache from the
+            `prefect auth` CLI
+        - tenant_id (str, optional): the Prefect tenant to use. If not provided, loaded
+            from `config.cloud.tenant_id` or the on disk cache from the
+            `prefect auth` CLI
         - api_token (str, optional): a Prefect Cloud API token, taken from
             `config.cloud.auth_token` if not provided. If this token is USER-scoped, it may
             be used to log in to any tenant that the user is a member of. In that case,
             ephemeral JWTs will be loaded as necessary. Otherwise, the API token itself
-            will be used as authorization.
+            will be used as authorization. DEPRECATED; use `api_key` instead.
     """
 
-    def __init__(self, api_server: str = None, api_token: str = None):
+    def __init__(
+        self,
+        api_server: str = None,
+        api_key: str = None,
+        tenant_id: str = None,
+        api_token: str = None,
+    ):
         self._access_token = None
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
-        self._active_tenant_id = None
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
-        # store api server
-        self.api_server = api_server or prefect.context.config.cloud.get("graphql")
+        # Hard-code the auth filepath location
+        self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
 
-        self._api_token = api_token or prefect.context.config.cloud.get(
-            "auth_token", None
+        # Note the default is `cloud.api` which is `cloud.endpoint` or `server.endpoint`
+        # depending on the value of the `backend` key
+        # This must be set before `load_auth_from_disk()` can be called but if no API
+        # key is found this will default to a different value for backwards compat
+        self.api_server = api_server or prefect.context.config.cloud.api
+
+        # Load the API key
+        cached_auth = self.load_auth_from_disk()
+        self.api_key: Optional[str] = (
+            api_key
+            or prefect.context.config.cloud.get("api_key")
+            or cached_auth.get("api_key")
         )
 
-        # Initialize the tenant and api token if not yet set
-        if not self._api_token and prefect.config.backend == "cloud":
+        # Load the tenant id
+        self._tenant_id: Optional[str] = (
+            tenant_id
+            or prefect.context.config.cloud.get("tenant_id")
+            or cached_auth.get("tenant_id")
+        )
+
+        # If not set at this point, when `Client.tenant_id` is accessed the default
+        # tenant will be loaded and used for future requests.
+
+        # Backwards compatibility for API tokens ---------------------------------------
+
+        self._api_token = api_token or prefect.context.config.cloud.get("auth_token")
+
+        if (
+            not self.api_key
+            and not api_server
+            and prefect.context.config.backend == "cloud"
+        ):
+            # The default value for the `api_server` changed for API keys but we want
+            # to load API tokens from the correct backwards-compatible location on disk
+            self.api_server = prefect.config.cloud.graphql
+
+        if (
+            not self.api_key
+            and not self._api_token
+            and prefect.config.backend == "cloud"
+        ):
+            # If not using an API key and a token has not been passed or set in the
+            # config, attempt to load an API token from disk
             self._init_tenant()
+
+        if self._api_token and not self.api_key:
+            warnings.warn(
+                "Client was created with an API token configured for authentication. "
+                "API tokens are deprecated, please use API keys instead."
+            )
+
+        # Warn if using both a token and API key, but only if they have different values
+        # because we pass the api key as an api token in some places for backwards
+        # compatibility
+        if self._api_token and self.api_key and self._api_token != self.api_key:
+            warnings.warn(
+                "Found both an API token and an API key. API tokens have been "
+                "deprecated and it will be ignored in favor of the API key."
+                + (
+                    # If they did not pass one explicitly, we can tell them how to fix
+                    # this in the config
+                    " Remove the token from the config at `prefect.config.auth_token`"
+                    if not api_token
+                    else ""
+                )
+            )
+
+    # API key authentication -----------------------------------------------------------
+
+    def _get_auth_tenant(self) -> str:
+        """
+        Get the current tenant associated with the API key being used. If the client has
+        a specific tenant id set, this will verify that the given tenant id is
+        compatible with the API key because the tenant will be attached to the request.
+        """
+        if not prefect.config.backend == "cloud":
+
+            raise ValueError(
+                "Authentication is only supported for Prefect Cloud. "
+                "Your backend is set to {prefect.config.backend!r}"
+            )
+
+        if not self.api_key:
+            raise ValueError("You have not set an API key for authentication.")
+
+        response = self.graphql({"query": {"auth_info": "tenant_id"}})
+        tenant_id = response.get("data", {}).get("auth_info", {}).get("tenant_id", "")
+
+        if tenant_id == "":
+            raise ClientError(
+                "Unexpected response from the API while querying for the default "
+                f"tenant: {response}"
+            )
+
+        elif tenant_id is None:
+            # If the backend returns a `None` value tenant id, it indicates that an API
+            # token was passed in as an API key
+            raise AuthorizationError(
+                "An API token was used as an API key. There is no tenant associated "
+                "with API tokens. Use an API key for authentication."
+            )
+
+        return tenant_id
+
+    def _get_default_server_tenant(self) -> str:
+        if prefect.config.backend == "server":
+            response = self.graphql({"query": {"tenant": {"id"}}})
+            tenants = response.get("data", {}).get("tenant", None)
+            if tenants is None:
+                raise ClientError(
+                    f"Unexpected response from the API while querying for tenants: {response}"
+                )
+
+            if not tenants:  # The user has not created a tenant yet
+                raise ClientError(
+                    "Your Prefect Server instance has no tenants. "
+                    "Create a tenant with `prefect server create-tenant`"
+                )
+
+            return tenants[0].id
+
+        elif prefect.config.backend == "cloud":
+            raise ValueError(
+                "Default tenants are determined by authentication in Prefect Cloud. "
+                "See `_get_auth_tenant` instead."
+            )
+        else:
+            raise ValueError("Unknown backend {prefect.config.backend!r}")
+
+    def load_auth_from_disk(self) -> Dict[str, str]:
+        """
+        Get the stashed `api_key` and `tenant_id` for the current `api_server` from the
+        disk cache if it exists. If it does not, an empty dict is returned.
+
+        WARNING: This will not mutate the `Client`, you must use the returned dict
+                 to set `api_key` and `tenant_id`. This is
+        """
+        if not self._auth_file.exists():
+            return {}
+
+        return toml.loads(self._auth_file.read_text()).get(self._api_server_slug, {})
+
+    def save_auth_to_disk(self) -> None:
+        """
+        Write the current auth information to the disk cache under a header for the
+        current `api_server`
+        """
+        # Load the current contents of the entire file
+        contents = (
+            toml.loads(self._auth_file.read_text()) if self._auth_file.exists() else {}
+        )
+
+        # Update the data for this API server
+        contents[self._api_server_slug] = {
+            "api_key": self.api_key,
+            "tenant_id": self._tenant_id,
+        }
+
+        # Update the file, including a comment blurb
+        self._auth_file.parent.mkdir(parents=True, exist_ok=True)
+        self._auth_file.write_text(
+            "# This file is auto-generated and should not be manually edited\n"
+            "# Update the Prefect config or use the CLI to login instead\n\n"
+            + toml.dumps(contents)
+        )
+
+    @property
+    def _api_server_slug(self) -> str:
+        """
+        A slugified version of the API server's network location, used for loading
+        and saving settings for different API servers.
+
+        This should only be relevant for the 'cloud' backend since the 'server' backend
+        does not save authentication.
+
+        This should remain stable or users will not be able to load credentials
+        """
+        # Parse the server to drop the protocol
+        netloc = urlparse(self.api_server).netloc
+        # Then return the slugified contents, falling back to the full server if it
+        # could not be parsed into a net location
+        return slugify(netloc or self.api_server, regex_pattern=r"[^-\.a-z0-9]+")
+
+    @property
+    def tenant_id(self) -> str:
+        """
+        Retrieve the current tenant id the client is interacting with.
+
+        If it is has not been explicitly set, the default tenant id will be retrieved
+        """
+        if prefect.config.backend == "cloud":
+            if self._api_token and not self.api_key:
+                # Backwards compatibility for API tokens
+                if not self._tenant_id:
+                    self._init_tenant()
+
+                # Should be set by `_init_tenant()` but we will not guarantee it
+                return self._tenant_id  # type: ignore
+
+            if not self._tenant_id:
+                self._tenant_id = self._get_auth_tenant()
+
+        elif prefect.config.backend == "server":
+            if not self._tenant_id:
+                self._tenant_id = self._get_default_server_tenant()
+
+        if not self._tenant_id:
+            raise ClientError(
+                "A tenant could not be determined. Please use `prefect auth status` "
+                "to get information about your authentication and file an issue."
+            )
+
+        return self._tenant_id
+
+    @tenant_id.setter
+    def tenant_id(self, tenant_id: str) -> None:
+        self._tenant_id = tenant_id
+
+    # ----------------------------------------------------------------------------------
 
     def create_tenant(self, name: str, slug: str = None) -> str:
         """
@@ -224,16 +462,6 @@ class Client:
         else:
             return {}
 
-    @property
-    def active_tenant_id(self) -> Optional[str]:
-        """
-        Return the tenant to contact the server.
-        If your tenant has not been set yet it will be initialized.
-        """
-        if self._active_tenant_id is None:
-            self._init_tenant()
-        return self._active_tenant_id
-
     def _init_tenant(self) -> None:
         """
         Init the tenant to contact the server.
@@ -242,6 +470,10 @@ class Client:
 
         For the server backend it will try to retrieve the default tenant. If the server is
         protected with auth like BasicAuth do not forget to `attach_headers` before any call.
+
+        DEPRECATED.
+        - API keys no longer need to log in and out of a tenant
+        - The tenant is now set at __init__ or in the `tenant_id` property
         """
         if prefect.config.backend == "cloud":
             # if no api token was passed, attempt to load state from local storage
@@ -250,26 +482,44 @@ class Client:
             if not self._api_token:
                 self._api_token = settings.get("api_token")
             if self._api_token:
-                self._active_tenant_id = settings.get("active_tenant_id")
+                self._tenant_id = settings.get("active_tenant_id")
 
-            if self._active_tenant_id:
+            # Must refer to private variable since the property calls this function
+            if self._tenant_id:
                 try:
-                    self.login_to_tenant(tenant_id=self._active_tenant_id)
+                    self.login_to_tenant(tenant_id=self._tenant_id)
                 except AuthorizationError:
-                    # if an authorization error is raised, then the token is invalid and should
-                    # be cleared
-                    self.logout_from_tenant()
+                    # Either the token is invalid _or_ it is not USER scoped. Try
+                    # pulling the correct tenant id from the API
+                    try:
+                        result = self.graphql({"query": {"tenant": {"id"}}})
+                        tenants = result["data"]["tenant"]
+                        # TENANT or RUNNER scoped tokens should have a single tenant
+                        if len(tenants) != 1:
+                            raise ValueError(
+                                "Failed to authorize with Prefect Cloud. "
+                                f"Could not log in to tenant {self._tenant_id!r}. "
+                                f"Found available tenants: {tenants}"
+                            )
+                        self._tenant_id = tenants[0].id
+                    except AuthorizationError:
+                        # On failure, we've just been given an invalid token and should
+                        # delete the auth information from disk
+                        self.logout_from_tenant()
+
+        # This code should now be superceded by the `tenant_id` property but will remain
+        # here for backwards compat until API tokens are removed entirely
         else:
             tenant_info = self.graphql({"query": {"tenant": {"id"}}})
             if tenant_info.data.tenant:
-                self._active_tenant_id = tenant_info.data.tenant[0].id
+                self._tenant_id = tenant_info.data.tenant[0].id
 
     def graphql(
         self,
         query: Any,
         raise_on_error: bool = True,
         headers: Dict[str, str] = None,
-        variables: Dict[str, JSONLike] = None,
+        variables: Mapping[str, JSONLike] = None,
         token: str = None,
         retry_on_api_error: bool = True,
     ) -> GraphQLResult:
@@ -315,7 +565,7 @@ class Client:
                 result["errors"][0].get("extensions", {}).get("code")
                 == "VERSION_LOCKING_ERROR"
             ):
-                raise VersionLockError(result["errors"])
+                raise VersionLockMismatchSignal(result["errors"])
             raise ClientError(result["errors"])
         else:
             return GraphQLResult(result)  # type: ignore
@@ -327,6 +577,7 @@ class Client:
         url: str,
         params: Dict[str, JSONLike] = None,
         headers: dict = None,
+        rate_limit_counter: int = 1,
     ) -> "requests.models.Response":
         import requests
 
@@ -368,6 +619,27 @@ class Client:
             self.logger.debug(f"Response: {response.json()}")
             self.logger.debug(
                 f"Request duration: {round(end_time - start_time, 4)} seconds"
+            )
+
+        # custom logic when encountering an API rate limit:
+        # each time we encounter a rate limit, we sleep for
+        # 3 minutes + random amount, where the random amount
+        # is uniformly sampled from (0, 10 * 2 ** rate_limit_counter)
+        # up to (0, 640), at which point an error is raised if the limit
+        # is still being hit
+        rate_limited = response.status_code == 429
+        if rate_limited and rate_limit_counter <= 6:
+            jitter = random.random() * 10 * (2 ** rate_limit_counter)
+            naptime = 3 * 60 + jitter  # 180 second sleep + increasing jitter
+            self.logger.debug(f"Rate limit encountered; sleeping for {naptime}s...")
+            time.sleep(naptime)
+            response = self._send_request(
+                session=session,
+                method=method,
+                url=url,
+                params=params,
+                headers=headers,
+                rate_limit_counter=rate_limit_counter + 1,
             )
 
         # Check if request returned a successful status
@@ -442,6 +714,12 @@ class Client:
         headers = headers or {}
         if token:
             headers["Authorization"] = "Bearer {}".format(token)
+
+        if self.api_key and self._tenant_id:
+            # Attach a tenant id to the headers if using an API key since it can be
+            # used accross tenants. API tokens cannot and do not need this header.
+            headers["X-PREFECT-TENANT-ID"] = self._tenant_id
+
         headers["X-PREFECT-CORE-VERSION"] = str(prefect.__version__)
 
         if self._attached_headers:
@@ -452,22 +730,21 @@ class Client:
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504],
+            status_forcelist=[500, 502, 503, 504],
             method_whitelist=["DELETE", "GET", "POST"],
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
             session=session, method=method, url=url, params=params, headers=headers
         )
-
         # parse the response
         try:
             json_resp = response.json()
         except JSONDecodeError as exc:
             if prefect.config.backend == "cloud" and "Authorization" not in headers:
-                raise ClientError(
+                raise AuthorizationError(
                     "Malformed response received from Cloud - please ensure that you "
-                    "have an API token properly configured."
+                    "are authenticated. See `prefect auth login --help`."
                 ) from exc
             else:
                 raise ClientError("Malformed response received from API.") from exc
@@ -502,14 +779,18 @@ class Client:
         """
         self._attached_headers.update(headers)
 
-    # -------------------------------------------------------------------------
-    # Auth
-    # -------------------------------------------------------------------------
+    # API Token Authentication ---------------------------------------------------------
+    # This is all deprecated and slated for removal in 0.16.0 when API token support is
+    # dropped
 
     @property
-    def _local_settings_path(self) -> Path:
+    def _api_token_settings_path(self) -> Path:
         """
         Returns the local settings directory corresponding to the current API servers
+        when using an API token
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `_auth_file`.
         """
         path = "{home}/client/{server}".format(
             home=prefect.context.config.home_dir,
@@ -517,26 +798,43 @@ class Client:
         )
         return Path(os.path.expanduser(path)) / "settings.toml"
 
+    @property
+    def active_tenant_id(self) -> Optional[str]:
+        """
+        DEPRECATED: This retains an old property used by API tokens. `tenant_id` is the
+                    new implementation.
+        """
+        return self.tenant_id
+
     def _save_local_settings(self, settings: dict) -> None:
         """
         Writes settings to local storage
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `save_auth_to_disk`
         """
-        self._local_settings_path.parent.mkdir(exist_ok=True, parents=True)
-        with self._local_settings_path.open("w+") as f:
+        self._api_token_settings_path.parent.mkdir(exist_ok=True, parents=True)
+        with self._api_token_settings_path.open("w+") as f:
             toml.dump(settings, f)
 
     def _load_local_settings(self) -> dict:
         """
         Loads settings from local storage
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `load_auth_from_disk`
         """
-        if self._local_settings_path.exists():
-            with self._local_settings_path.open("r") as f:
+        if self._api_token_settings_path.exists():
+            with self._api_token_settings_path.open("r") as f:
                 return toml.load(f)  # type: ignore
         return {}
 
     def save_api_token(self) -> None:
         """
         Saves the API token in local storage.
+
+        DEPRECATED: API keys have replaced API tokens. API keys are stored in a new
+                    location. See `save_auth_to_disk`
         """
         settings = self._load_local_settings()
         settings["api_token"] = self._api_token
@@ -545,15 +843,23 @@ class Client:
     def get_auth_token(self) -> str:
         """
         Returns an auth token:
+            - if there's an API key, return that immediately
             - if no explicit access token is stored, returns the api token
             - if there is an access token:
                 - if there's a refresh token and the access token expires in the next 30 seconds,
                   then we refresh the access token and store the result
                 - return the access token
 
+
+        DEPRECATED: API keys have replaced API tokens. We no longer need this refresh
+                    logic for API keys.
+
         Returns:
             - str: the access token
         """
+        if self.api_key:
+            return self.api_key
+
         if not self._access_token:
             return self._api_token  # type: ignore
 
@@ -575,16 +881,21 @@ class Client:
         """
         result = self.graphql(
             {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
-            # use the API token to see all available tenants
-            token=self._api_token,
-        )  # type: ignore
+            # API keys can see all available tenants. If not using an API key, we can't
+            # use the access token which is scoped to a single tenant
+            token=self.api_key or self._api_token,
+        )
         return result.data.tenant  # type: ignore
 
     def login_to_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> bool:
         """
         Log in to a specific tenant
 
-        NOTE: this should only be called by users who have provided a USER-scoped API token.
+        If using an API key, the client tenant will be updated but will not be saved to
+        disk without an explicit call.
+
+        If using an API token, it must be USER-scoped API token. The client tenant will
+        be updated and the new tenant will be saved to disk for future clients.
 
         Args:
             - tenant_slug (str): the tenant's slug
@@ -600,11 +911,14 @@ class Client:
 
         """
 
+        # Validate the given tenant id -------------------------------------------------
+
         if tenant_slug is None and tenant_id is None:
             raise ValueError(
                 "At least one of `tenant_slug` or `tenant_id` must be provided."
             )
         elif tenant_id:
+            # TODO: Consider removing this check. This would be caught by GraphQL
             try:
                 uuid.UUID(tenant_id)
             except ValueError as exc:
@@ -617,15 +931,24 @@ class Client:
                 }
             },
             variables=dict(slug=tenant_slug, id=tenant_id),
-            # use the API token to query the tenant
-            token=self._api_token,
-        )  # type: ignore
-        if not tenant.data.tenant:  # type: ignore
-            raise ValueError("No matching tenants found.")
+            # API keys can see all available tenants. If not using an API key, we can't
+            # use the access token which is scoped to a single tenant
+            token=self.api_key or self._api_token,
+        )
+        if not tenant.data.tenant:
+            raise ValueError("No matching tenant found.")
 
-        tenant_id = tenant.data.tenant[0].id  # type: ignore
+        # We may have been given just the slug so set the id
+        tenant_id = tenant.data.tenant[0].id
 
-        if prefect.config.backend == "cloud":
+        # Update the tenant the client is using ----------------------------------------
+        self._tenant_id = tenant_id
+
+        # Backwards compatibility for API tokens ---------------------------------------
+        # - Get a new access token for the tenant
+        # - Save it to disk
+
+        if not self.api_key and prefect.config.backend == "cloud":
             payload = self.graphql(
                 {
                     "mutation($input: switch_tenant_input!)": {
@@ -639,26 +962,35 @@ class Client:
                 variables=dict(input=dict(tenant_id=tenant_id)),
                 # Use the API token to switch tenants
                 token=self._api_token,
-            )  # type: ignore
-            self._access_token = payload.data.switch_tenant.access_token  # type: ignore
-            self._access_token_expires_at = pendulum.parse(  # type: ignore
-                payload.data.switch_tenant.expires_at  # type: ignore
-            )  # type: ignore
-            self._refresh_token = payload.data.switch_tenant.refresh_token  # type: ignore
+            )
+            self._access_token = payload.data.switch_tenant.access_token
+            self._access_token_expires_at = cast(
+                pendulum.DateTime, pendulum.parse(payload.data.switch_tenant.expires_at)
+            )
+            self._refresh_token = payload.data.switch_tenant.refresh_token
 
-        self._active_tenant_id = tenant_id  # type: ignore
-
-        # save the tenant setting
-        settings = self._load_local_settings()
-        settings["active_tenant_id"] = self._active_tenant_id
-        self._save_local_settings(settings)
+            # Save the tenant setting to disk
+            settings = self._load_local_settings()
+            settings["active_tenant_id"] = self.tenant_id
+            self._save_local_settings(settings)
 
         return True
 
     def logout_from_tenant(self) -> None:
+        """
+        DEPRECATED: API keys have replaced API tokens.
+
+        Logout can be accomplished for API keys with:
+            ```
+            client = Client()
+            client.api_key = ""
+            client._tenant_id = ""
+            client.save_auth_to_disk()
+            ```
+        """
         self._access_token = None
         self._refresh_token = None
-        self._active_tenant_id = None
+        self._tenant_id = None
 
         # remove the tenant setting
         settings = self._load_local_settings()
@@ -670,6 +1002,8 @@ class Client:
         Refresh the client's JWT access token.
 
         NOTE: this should only be called by users who have provided a USER-scoped API token.
+
+        DEPRECATED: API keys have replaced API tokens
 
         Returns:
             - bool: True if the refresh succeeds
@@ -712,7 +1046,7 @@ class Client:
         idempotency_key: str = None,
     ) -> str:
         """
-        Push a new flow to Prefect Cloud
+        Register a new flow with Prefect Cloud.
 
         Args:
             - flow (Flow): a flow to register
@@ -737,7 +1071,7 @@ class Client:
             - str: the ID of the newly-registered flow
 
         Raises:
-            - ClientError: if the register failed
+            - ClientError: if the registration failed
         """
         required_parameters = {p for p in flow.parameters() if p.required}
         if flow.schedule is not None and required_parameters:
@@ -819,13 +1153,18 @@ class Client:
                 )
             ) from exc
 
+        # prepare for batched registration
+        serialized_tasks = serialized_flow.pop("tasks")
+        serialized_edges = serialized_flow.pop("edges")
+
         if compressed:
             serialized_flow = compress(serialized_flow)
 
         inputs = dict(
             project_id=(project[0].id if project else None),
             serialized_flow=serialized_flow,
-            set_schedule_active=set_schedule_active,
+            # we don't want to begin scheduling work until all tasks are registered
+            set_schedule_active=False,
             version_group_id=version_group_id,
         )
         # Add newly added inputs only when set for backwards compatibility
@@ -843,6 +1182,67 @@ class Client:
             if compressed
             else res.data.create_flow.id
         )
+
+        # batch register tasks and edges separately
+        task_mutation = {
+            "mutation($input: register_tasks_input!)": {
+                "register_tasks(input: $input)": {"success"}
+            }
+        }
+        edge_mutation = {
+            "mutation($input: register_edges_input!)": {
+                "register_edges(input: $input)": {"success"}
+            }
+        }
+
+        # tasks in batches of 500
+        start = 0
+        batch_size = 500
+        stop = start + batch_size
+
+        while start <= len(serialized_tasks):
+            task_batch = serialized_tasks[start:stop]
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_tasks=task_batch,
+            )
+            self.graphql(
+                task_mutation,
+                variables=dict(input=inputs),
+            )
+            start = stop
+            stop += batch_size
+
+        # edges in batches of 500
+        start = 0
+        batch_size = 500
+        stop = start + batch_size
+
+        while start <= len(serialized_edges):
+            edge_batch = serialized_edges[start:stop]
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_edges=edge_batch,
+            )
+            self.graphql(
+                edge_mutation,
+                variables=dict(input=inputs),
+            )
+            start = stop
+            stop += batch_size
+
+        # finally, if requested, we turn on the schedule
+        if set_schedule_active:
+            schedule_mutation = {
+                "mutation($input: set_schedule_active_input!)": {
+                    "set_schedule_active(input: $input)": {"success"}
+                }
+            }
+            inputs = dict(flow_id=flow_id)
+            self.graphql(
+                schedule_mutation,
+                variables=dict(input=inputs),
+            )
 
         if not no_url:
             # Query for flow group id
@@ -905,7 +1305,10 @@ class Client:
 
         # Search for matching cloud API because we can't guarantee that the backend config is set
         using_cloud_api = ".prefect.io" in prefect.config.cloud.api
-        tenant_slug = self.get_default_tenant_slug(as_user=as_user and using_cloud_api)
+        # Only use the "old" `as_user` logic if using an api token
+        tenant_slug = self.get_default_tenant_slug(
+            as_user=(as_user and using_cloud_api and self._api_token is not None)
+        )
 
         # For various API versions parse out `api-` for direct UI link
         base_url = (
@@ -920,13 +1323,14 @@ class Client:
 
         return "/".join([base_url.rstrip("/"), tenant_slug, subdirectory, id])
 
-    def get_default_tenant_slug(self, as_user: bool = True) -> str:
+    def get_default_tenant_slug(self, as_user: bool = False) -> str:
         """
         Get the default tenant slug for the currently authenticated user
 
         Args:
-            - as_user (bool, optional): whether this query is being made from a USER scoped token;
-                defaults to `True`. Only used internally for queries made from RUNNERs
+            - as_user (bool, optional):
+                whether this query is being made from a USER scoped token;
+                defaults to `False`. Only relevant when using an API token.
 
         Returns:
             - str: the slug of the current default tenant for this user
@@ -936,7 +1340,7 @@ class Client:
                 "query": {"user": {"default_membership": {"tenant": "slug"}}}
             }  # type: dict
         else:
-            query = {"query": {"tenant": {"slug"}}}
+            query = {"query": {"tenant": {"id", "slug"}}}
 
         res = self.graphql(query)
 
@@ -944,7 +1348,17 @@ class Client:
             user = res.get("data").user[0]
             slug = user.default_membership.tenant.slug
         else:
-            slug = res.get("data").tenant[0].slug
+            tenants = res["data"]["tenant"]
+            for tenant in tenants:
+                # Return the slug if it matches the current tenant id OR if there is no
+                # current tenant id we are using a RUNNER API token so we'll return
+                # the first (and only) tenant
+                if tenant.id == self.tenant_id or self.tenant_id is None:
+                    return tenant.slug
+            raise ValueError(
+                f"Failed to find current tenant {self.tenant_id!r} in result {res}"
+            )
+
         return slug
 
     def create_project(self, project_name: str, project_description: str = None) -> str:
@@ -974,7 +1388,7 @@ class Client:
                     input=dict(
                         name=project_name,
                         description=project_description,
-                        tenant_id=self.active_tenant_id,
+                        tenant_id=self.tenant_id,
                     )
                 ),
             )  # type: Any
@@ -1193,26 +1607,11 @@ class Client:
                 ): {"success"}
             }
         }
-        self.graphql(mutation, raise_on_error=True)
-
-    def update_task_run_heartbeat(self, task_run_id: str) -> None:
-        """
-        Convenience method for heartbeating a task run.
-
-        Does NOT raise an error if the update fails.
-
-        Args:
-            - task_run_id (str): the task run ID to heartbeat
-
-        """
-        mutation = {
-            "mutation": {
-                with_args(
-                    "update_task_run_heartbeat", {"input": {"task_run_id": task_run_id}}
-                ): {"success"}
-            }
-        }
-        self.graphql(mutation, raise_on_error=True)
+        self.graphql(
+            mutation,
+            raise_on_error=True,
+            headers={"X-PREFECT-HEARTBEAT-ID": flow_run_id},
+        )
 
     def set_flow_run_name(self, flow_run_id: str, name: str) -> bool:
         """
@@ -1699,7 +2098,7 @@ class Client:
                     type=agent_type,
                     name=name,
                     labels=labels or [],
-                    tenant_id=self.active_tenant_id,
+                    tenant_id=self.tenant_id,
                     agent_config_id=agent_config_id,
                 )
             ),

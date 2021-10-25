@@ -155,8 +155,29 @@ class FlowRunner(Runner):
         context.update(flow_name=self.flow.name)
         context.setdefault("scheduled_start_time", pendulum.now("utc"))
 
+        # Determine the current time, allowing our formatted dates in the context
+        # to rely on a manually set value
+        now = context.get("date")
+        if isinstance(now, str):
+            # Attempt to parse into a `DateTime` object since it will often be passed
+            # as a serialized string from the UI we'll override the context on a
+            # successful parse so the type is consistent for users
+            try:
+                now = pendulum.parse(now)
+                context["date"] = now
+            except Exception:
+                pass
+        if not isinstance(now, pendulum.DateTime):
+            if now is not None:
+                self.logger.warning(
+                    "`date` was set in the context manually but could not be parsed "
+                    "into a pendulum `DateTime` object. Additional context variables "
+                    "that rely on the current date i.e `today` and `tomorrow` will be "
+                    "based on the current time instead of the `date` context variable."
+                )
+            now = pendulum.now("utc")
+
         # add various formatted dates to context
-        now = pendulum.now("utc")
         dates = {
             "date": now,
             "today": now.strftime("%Y-%m-%d"),
@@ -695,6 +716,13 @@ class FlowRunner(Runner):
         else:
             self.logger.info("Flow run SUCCESS: no reference tasks failed")
             state = Success(message="No reference tasks failed.", result=return_states)
+
+        if getattr(self.flow, "terminal_state_handler", None):
+            assert callable(self.flow.terminal_state_handler)  # mypy assertion
+            # Uses `getattr` for compatibility with old flows without the attr
+            new_state = self.flow.terminal_state_handler(self.flow, state, key_states)
+            if new_state is not None:
+                return new_state
 
         return state
 

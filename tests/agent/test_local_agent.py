@@ -29,11 +29,15 @@ DEFAULT_AGENT_LABELS = [
     socket.gethostname(),
 ]
 
+TEST_FLOW_RUN_DATA = GraphQLResult(
+    {"id": "id", "tenant_id": "tenant-id", "name": "name", "flow": {"id": "foo"}}
+)
+
 
 @pytest.fixture(autouse=True)
 def mock_cloud_config(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "logging.log_to_cloud": True}
+        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": True}
     ):
         yield
 
@@ -90,9 +94,7 @@ def test_populate_env_vars(monkeypatch, backend):
     if not os.environ.get("PYTHONPATH", ""):
         monkeypatch.setenv("PYTHONPATH", "foobar")
 
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     expected = os.environ.copy()
     expected.update(
@@ -105,7 +107,7 @@ def test_populate_env_vars(monkeypatch, backend):
             "PREFECT__CONTEXT__FLOW_RUN_ID": "id",
             "PREFECT__CONTEXT__FLOW_ID": "foo",
             "PREFECT__CLOUD__USE_LOCAL_SECRETS": "false",
-            "PREFECT__LOGGING__LOG_TO_CLOUD": "true",
+            "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "true",
             "PREFECT__LOGGING__LEVEL": "INFO",
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
             "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
@@ -119,18 +121,61 @@ def test_populate_env_vars(monkeypatch, backend):
 def test_populate_env_vars_sets_log_to_cloud(flag):
     agent = LocalAgent(no_cloud_logs=flag)
     assert agent.log_to_cloud is not flag
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+    assert env_vars["PREFECT__CLOUD__SEND_FLOW_RUN_LOGS"] == str(not flag).lower()
+
+
+def test_environment_has_agent_token_from_config():
+    """Check that the API token is passed through from the config via environ"""
+
+    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+        agent = LocalAgent()
+        env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_config(tenant_id):
+    """Check that the API key is passed through from the config via environ"""
+
+    with set_temporary_config(
+        {
+            "cloud.api_key": "TEST_KEY",
+            "cloud.tenant_id": tenant_id,
+            "cloud.agent.auth_token": None,
+        }
+    ):
+        agent = LocalAgent()
+        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+
+    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+
+
+@pytest.mark.parametrize("tenant_id", ["ID", None])
+def test_environment_has_api_key_from_disk(monkeypatch, tenant_id):
+    """Check that the API key is passed through from the on disk cache"""
+    monkeypatch.setattr(
+        "prefect.Client.load_auth_from_disk",
+        MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
     )
-    assert env_vars["PREFECT__LOGGING__LOG_TO_CLOUD"] == str(not flag).lower()
+    with set_temporary_config({"cloud.agent.auth_token": None}):
+        agent = LocalAgent()
+    agent.client._get_auth_tenant = MagicMock(return_value="ID")
+    env = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
+
+    assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+    assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
 
 
 def test_populate_env_vars_from_agent_config():
     agent = LocalAgent(env_vars=dict(AUTH_THING="foo"))
 
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert env_vars["AUTH_THING"] == "foo"
 
@@ -138,9 +183,7 @@ def test_populate_env_vars_from_agent_config():
 def test_populate_env_vars_removes_none_values():
     agent = LocalAgent(env_vars=dict(MISSING_VAR=None))
 
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     assert "MISSING_VAR" not in env_vars
 
@@ -148,18 +191,14 @@ def test_populate_env_vars_removes_none_values():
 def test_populate_env_vars_includes_agent_labels():
     agent = LocalAgent(labels=["42", "marvin"])
 
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
     expected = str(["42", "marvin"] + DEFAULT_AGENT_LABELS)
     assert env_vars["PREFECT__CLOUD__AGENT__LABELS"] == expected
 
 
 def test_populate_env_vars_import_paths():
     agent = LocalAgent(import_paths=["paths"])
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
     assert "paths" in env_vars["PYTHONPATH"]
 
 
@@ -167,9 +206,7 @@ def test_populate_env_vars_keep_existing_python_path(monkeypatch):
     monkeypatch.setenv("PYTHONPATH", "cool:python:path")
 
     agent = LocalAgent(import_paths=["paths"])
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
 
     python_path = env_vars["PYTHONPATH"]
     assert "cool:python:path" in python_path
@@ -180,9 +217,7 @@ def test_populate_env_vars_no_existing_python_path(monkeypatch):
     monkeypatch.delenv("PYTHONPATH", raising=False)
 
     agent = LocalAgent(import_paths=["paths"])
-    env_vars = agent.populate_env_vars(
-        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"}})
-    )
+    env_vars = agent.populate_env_vars(TEST_FLOW_RUN_DATA)
     assert "paths" in env_vars["PYTHONPATH"]
 
 
@@ -210,6 +245,39 @@ def test_populate_env_vars_from_run_config(tmpdir):
     assert env_vars["KEY2"] == "OVERRIDE"
     assert env_vars["PREFECT__LOGGING__LEVEL"] == "TEST"
     assert working_dir in env_vars["PYTHONPATH"]
+
+
+@pytest.mark.parametrize(
+    "config, agent_env_vars, run_config_env_vars, expected_logging_level",
+    [
+        ({"logging.level": "DEBUG"}, {}, {}, "DEBUG"),
+        ({"logging.level": "DEBUG"}, {"PREFECT__LOGGING__LEVEL": "TEST2"}, {}, "TEST2"),
+        (
+            {"logging.level": "DEBUG"},
+            {"PREFECT__LOGGING__LEVEL": "TEST2"},
+            {"PREFECT__LOGGING__LEVEL": "TEST"},
+            "TEST",
+        ),
+    ],
+)
+def test_prefect_logging_level_override_logic(
+    config, agent_env_vars, run_config_env_vars, expected_logging_level, tmpdir
+):
+    with set_temporary_config(config):
+        agent = LocalAgent(env_vars=agent_env_vars)
+        run = LocalRun(working_dir=str(tmpdir), env=run_config_env_vars)
+        env_vars = agent.populate_env_vars(
+            GraphQLResult(
+                {
+                    "id": "id",
+                    "name": "name",
+                    "flow": {"id": "foo"},
+                    "run_config": run.serialize(),
+                }
+            ),
+            run,
+        )
+        assert env_vars["PREFECT__LOGGING__LEVEL"] == expected_logging_level
 
 
 @pytest.mark.parametrize(
@@ -417,7 +485,8 @@ def test_local_agent_deploy_run_config_missing_working_dir(monkeypatch, tmpdir):
     assert not agent.processes
 
 
-def test_generate_supervisor_conf():
+def test_generate_supervisor_conf_with_token():
+    # Covers deprecated token based auth
     agent = LocalAgent()
 
     conf = agent.generate_supervisor_conf(
@@ -433,6 +502,38 @@ def test_generate_supervisor_conf():
     assert "-e TESTKEY=TESTVAL" in conf
 
 
+def test_generate_supervisor_conf_with_key():
+    agent = LocalAgent()
+
+    conf = agent.generate_supervisor_conf(
+        key="key",
+        tenant_id="tenant",
+        labels=["label"],
+        import_paths=["path"],
+        env_vars={"TESTKEY": "TESTVAL"},
+    )
+
+    assert "-k key" in conf
+    assert "--tenant-id tenant" in conf
+    assert "-l label" in conf
+    assert "-p path" in conf
+    assert "-e TESTKEY=TESTVAL" in conf
+
+
+def test_generate_supervisor_conf_with_token_and_key():
+    # Covers deprecated token based auth colliding with key based auth
+    agent = LocalAgent()
+
+    with pytest.raises(ValueError, match="Given both a API token and API key"):
+        agent.generate_supervisor_conf(
+            token="token",
+            key="key",
+            labels=["label"],
+            import_paths=["path"],
+            env_vars={"TESTKEY": "TESTVAL"},
+        )
+
+
 @pytest.mark.parametrize(
     "returncode,show_flow_logs,logs",
     (
@@ -440,9 +541,13 @@ def test_generate_supervisor_conf():
         (
             1,
             False,
-            (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),),
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code 1!"),),
         ),
-        (1, True, (("agent", "INFO", "Process PID 1234 returned non-zero exit code"),)),
+        (
+            2,
+            True,
+            (("agent", "INFO", "Process PID 1234 returned non-zero exit code 2!"),),
+        ),
     ),
 )
 def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
@@ -501,26 +606,3 @@ def test_local_agent_heartbeat(monkeypatch, returncode, show_flow_logs, logs):
     # the heartbeat should stop tracking upon exit
     compare(process.returncode, returncode)
     assert len(agent.processes) == 0
-
-
-@pytest.mark.parametrize("max_polls", [0, 1, 2])
-def test_local_agent_start_max_polls(max_polls, monkeypatch, runner_token):
-    on_shutdown = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.on_shutdown", on_shutdown)
-
-    agent_process = MagicMock()
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_process", agent_process)
-
-    agent_connect = MagicMock(return_value="id")
-    monkeypatch.setattr("prefect.agent.agent.Agent.agent_connect", agent_connect)
-
-    heartbeat = MagicMock()
-    monkeypatch.setattr("prefect.agent.local.agent.LocalAgent.heartbeat", heartbeat)
-
-    agent = LocalAgent(max_polls=max_polls)
-    agent.start()
-
-    assert agent_connect.call_count == 1
-    assert agent_process.call_count == max_polls
-    assert heartbeat.call_count == 1
-    assert on_shutdown.call_count == 1

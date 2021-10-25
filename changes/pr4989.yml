@@ -1,0 +1,6 @@
+enhancement:
+  - "Add Vertex Agent and RunConfig - [#4989](https://github.com/PrefectHQ/prefect/pull/4989)"
+
+contributor:
+  - "[Bradley Axen](https://github.com/baxen)"
+  - "[Damien Ramunno-Johnson](https://github.com/damienrj)"

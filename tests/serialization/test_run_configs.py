@@ -12,10 +12,13 @@ def test_serialized_run_config_sorts_labels():
     ]
 
 
-@pytest.mark.parametrize("config", [UniversalRun(), UniversalRun(labels=["a", "b"])])
+@pytest.mark.parametrize(
+    "config", [UniversalRun(), UniversalRun(env={"FOO": "BAR"}, labels=["a", "b"])]
+)
 def test_serialize_universal_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
+    assert (config.env) == config2.env
     assert sorted(config.labels) == sorted(config2.labels)
 
 
@@ -34,6 +37,7 @@ def test_serialize_universal_run(config):
             service_account_name="my-account",
             image_pull_secrets=["secret-1", "secret-2"],
             labels=["a", "b"],
+            image_pull_policy="Always",
         ),
         KubernetesRun(
             job_template={
@@ -48,6 +52,7 @@ def test_serialize_kubernetes_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
     assert sorted(config.labels) == sorted(config2.labels)
+
     fields = [
         "job_template",
         "job_template_path",
@@ -59,6 +64,7 @@ def test_serialize_kubernetes_run(config):
         "memory_request",
         "service_account_name",
         "image_pull_secrets",
+        "image_pull_policy",
     ]
     for field in fields:
         assert getattr(config, field) == getattr(config2, field)

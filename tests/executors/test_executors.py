@@ -2,6 +2,7 @@ import logging
 import os
 import random
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -18,6 +19,7 @@ from prefect.executors import (
     LocalDaskExecutor,
     LocalExecutor,
 )
+from prefect.engine.signals import SUCCESS
 
 
 @pytest.mark.parametrize(
@@ -178,15 +180,16 @@ class TestLocalDaskExecutor:
                 "locally. We should debug this later, but squashing it for now"
             )
 
-        # Windows implements `queue.get` using polling,
-        # which means we can set an exception to interrupt the call to `get`.
-        # Python 3 on other platforms requires sending SIGINT to the main thread.
-        if os.name == "nt":
-            from _thread import interrupt_main
-        else:
-            main_thread = threading.get_ident()
+        main_thread = threading.get_ident()
 
-            def interrupt_main():
+        def interrupt():
+
+            if sys.platform == "win32":
+                # pthread_kill is Windows only
+                from _thread import interrupt_main
+
+                interrupt_main()
+            else:
                 import signal
 
                 signal.pthread_kill(main_thread, signal.SIGINT)
@@ -197,18 +200,32 @@ class TestLocalDaskExecutor:
 
         e = LocalDaskExecutor(scheduler)
         try:
-            interrupter = threading.Timer(0.5, interrupt_main)
+            interrupter = threading.Timer(0.5, interrupt)
             interrupter.start()
             start = time.time()
             with e.start():
                 e.wait(e.submit(long_task))
         except KeyboardInterrupt:
-            pass
-        except Exception:
-            assert False, "Failed to interrupt"
+            pass  # Don't exit test on the interrupt
+
         stop = time.time()
-        if stop - start > 4:
-            assert False, "Failed to interrupt"
+
+        # Defining "quickly" here as 4 seconds generally and 6 seconds on
+        # Windows which tends to be a little slower
+        assert (stop - start) < (6 if sys.platform == "win32" else 4)
+
+    def test_captures_prefect_signals(self):
+        e = LocalDaskExecutor()
+
+        @prefect.task(timeout=1)
+        def succeed():
+            raise SUCCESS()
+
+        with prefect.Flow("signal-test", executor=e) as flow:
+            succeed()
+
+        res = flow.run()
+        assert res.is_successful()
 
 
 class TestLocalExecutor:
@@ -269,7 +286,7 @@ class TestDaskExecutor:
 
         def record_times():
             start_time = time.time()
-            time.sleep(0.75)
+            time.sleep(2)
             end_time = time.time()
             return start_time, end_time
 
@@ -284,10 +301,11 @@ class TestDaskExecutor:
         assert a_start < b_end
         assert b_start < a_end
 
-    def test_connect_to_running_cluster(self):
+    def test_connect_to_running_cluster(self, caplog):
         with distributed.Client(processes=False, set_as_default=False) as client:
-            executor = DaskExecutor(address=client.scheduler.address)
-            assert executor.address == client.scheduler.address
+            address = client.scheduler.address
+            executor = DaskExecutor(address=address)
+            assert executor.address == address
             assert executor.cluster_class is None
             assert executor.cluster_kwargs is None
             assert executor.client_kwargs == {"set_as_default": False}
@@ -296,7 +314,10 @@ class TestDaskExecutor:
                 res = executor.wait(executor.submit(lambda x: x + 1, 1))
                 assert res == 2
 
-    def test_start_local_cluster(self):
+        exp = f"Connecting to an existing Dask cluster at {address}"
+        assert any(exp in rec.message for rec in caplog.records)
+
+    def test_start_local_cluster(self, caplog):
         executor = DaskExecutor(cluster_kwargs={"processes": False})
         assert executor.cluster_class == distributed.LocalCluster
         assert executor.cluster_kwargs == {
@@ -307,6 +328,20 @@ class TestDaskExecutor:
         with executor.start():
             res = executor.wait(executor.submit(lambda x: x + 1, 1))
             assert res == 2
+
+        assert any(
+            "Creating a new Dask cluster" in rec.message for rec in caplog.records
+        )
+        try:
+            import bokeh  # noqa
+        except Exception:
+            # If bokeh isn't installed, no dashboard will be started
+            pass
+        else:
+            assert any(
+                "The Dask dashboard is available at" in rec.message
+                for rec in caplog.records
+            )
 
     def test_local_cluster_adapt(self):
         adapt_kwargs = {"minimum": 1, "maximum": 1}
@@ -354,6 +389,27 @@ class TestDaskExecutor:
         executor = DaskExecutor(debug=debug)
         level = logging.WARNING if debug else logging.CRITICAL
         assert executor.cluster_kwargs["silence_logs"] == level
+
+    def test_performance_report(self):
+        # should not error
+        assert DaskExecutor().performance_report == ""
+        assert (
+            DaskExecutor(
+                performance_report_path="not a readable path"
+            ).performance_report
+            == ""
+        )
+
+        with tempfile.TemporaryDirectory() as report_dir:
+            with open(f"{report_dir}/report.html", "w") as fp:
+                fp.write("very advanced report")
+
+            assert (
+                DaskExecutor(
+                    performance_report_path=f"{report_dir}/report.html"
+                ).performance_report
+                == "very advanced report"
+            )
 
     def test_cant_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
@@ -422,6 +478,7 @@ class TestDaskExecutor:
         assert any("Worker %s removed" == rec.msg for rec in caplog.records)
 
     @pytest.mark.parametrize("kind", ["external", "inproc"])
+    @pytest.mark.flaky
     def test_exit_early_with_external_or_inproc_cluster_waits_for_pending_futures(
         self, kind, monkeypatch
     ):

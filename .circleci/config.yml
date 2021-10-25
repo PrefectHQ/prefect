@@ -23,7 +23,6 @@ commands:
             docker tag prefecthq/${IMAGE_NAME}:latest prefecthq/${IMAGE_NAME}:${VERSION}
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/${IMAGE_NAME}:${VERSION}
-
 jobs:
   # ----------------------------------
   # Check formatting
@@ -40,7 +39,7 @@ jobs:
 
       - run:
           name: Install python packages for static analysis
-          command: pip install black mypy mypy_extensions flake8 profimp
+          command: pip install black 'mypy<0.900' mypy_extensions flake8 profimp
 
       - run:
           name: Quick installation of Prefect
@@ -66,10 +65,8 @@ jobs:
           name: Ensure 'import prefect' is under 1 second
           command: |
             apt update && apt install jq bc -y
-
             # generate pycache
             python -c 'import prefect'
-
             if [[ $(echo "$(profimp 'import prefect'  | jq '.duration' | tee .import-time.txt ) < 1000" | bc -l) -ne 1 ]]; then
               echo "Prefect import time is too slow"
               cat .import-time.txt
@@ -78,7 +75,6 @@ jobs:
               echo "Prefect import time (ms):"
               cat .import-time.txt
             fi
-
   check_documentation:
     docker:
       - image: python:3.7
@@ -132,7 +128,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # test a standard install of prefect
   # this ensures we correctly capture all ImportError sitautions
@@ -162,7 +158,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests -vvrfEsx
+          command: pytest tests -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # test task library explicitly
   test_task_library:
@@ -183,6 +179,10 @@ jobs:
           command: apt-get update && apt-get install -y graphviz
 
       - run:
+          name: Install system dependencies
+          command: apt-get update && apt-get install -y graphviz unixodbc-dev
+
+      - run:
           name: Upgrade pip
           command: pip install "pip==20.2.4"
 
@@ -192,10 +192,10 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests/tasks -vvrfEsx
+          command: pytest tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # ----------------------------------
-  # Run unit tests in Python 3.6-3.8
+  # Run unit tests in Python 3.6-3.9
   # ----------------------------------
 
   test_36:
@@ -226,7 +226,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_37:
     docker:
@@ -255,7 +255,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_38:
     docker:
@@ -284,7 +284,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_39:
     docker:
@@ -316,7 +316,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx
+          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   build_docker_image:
     docker:
@@ -390,7 +390,6 @@ jobs:
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:latest
                   docker push prefecthq/prefect:${CIRCLE_TAG}
-
   build_master_docker_image:
     docker:
       - image: docker
@@ -438,7 +437,6 @@ jobs:
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
             docker push prefecthq/prefect:master
-
   build_core_docker_image:
     docker:
       - image: docker
@@ -494,8 +492,6 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:core
-
-
   promote_server_artifacts:
     docker:
       - image: docker
@@ -535,7 +531,6 @@ jobs:
               echo "commit $CIRCLE_SHA1 is not a member of the master branch"
               exit 1
             fi
-
       - run:
           name: Verify Package Version
           command: python setup.py verify_version
@@ -549,29 +544,9 @@ jobs:
           command: |
             python setup.py sdist
             python setup.py bdist_wheel
-
       - run:
           name: Upload Package to PyPI
           command: twine upload dist/*
-
-  run_prefect_cloud_flow:
-    docker:
-      - image: prefecthq/prefect:latest
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
-    parameters:
-      version_group_id:
-        type: string
-    environment:
-      VERSION_GROUP_ID: << parameters.version_group_id >>
-      PREFECT__CLOUD__AUTH_TOKEN: $CLOUD_TENANT_TOKEN
-    steps:
-      - checkout
-
-      - run:
-          name: Run Flow
-          command: prefect run flow --version-group-id $VERSION_GROUP_ID
 
 orbs:
   docker: circleci/docker@1.0.0
@@ -630,6 +605,14 @@ workflows:
               ignore: /.*/
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
+      - build_docker_image:
+          python_version: '3.9'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - release_to_pypi:
           filters:
             branches:
@@ -637,7 +620,7 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_core_docker_image:
-          python_version: '3.8'
+          python_version: '3.9'
           tag_latest: true
           filters:
             branches:
@@ -645,13 +628,6 @@ workflows:
             tags:
               only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - promote_server_artifacts:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
-      - run_prefect_cloud_flow:
-          version_group_id: 'b54fca5c-a89b-4035-9b31-48710aed45df'
           filters:
             branches:
               ignore: /.*/

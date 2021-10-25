@@ -150,9 +150,55 @@ with Flow('reduce') as flow:
 In this example, `sum_numbers` received an automatically-reduced list of results from `mapped_result`. It appropriately computes the sum: 66.
 
 
+## Filter map output
+
+If the output of one mapped task is used as input to another mapped task, any failed or skipped task will make the subsequent task fail/skip by default. However sometimes, we want to exclude skipped/failed tasks' output or outputs that are `None`. Prefect provides this functionality with `FilterTask()`.
+
+```python
+from prefect import task, Flow, context
+from prefect.tasks.control_flow.filter import FilterTask
+from prefect.engine.signals import SKIP
+
+filter_results = FilterTask(
+    filter_func=lambda x: not isinstance(x, (BaseException, SKIP, type(None)))
+)
+
+@task
+def unstable_task(arg):
+    if arg == 1:
+        raise RuntimeError("Fail this task execution")
+    if arg == 2:
+        raise SKIP("Skip this task execution")
+    if arg == 3:
+        return None
+ 
+    return arg
+
+@task
+def add_one(arg):
+    return arg + 1
+
+@task
+def log_args(args):
+    logger = context.get("logger")
+    logger.info(args)
+
+with Flow('filter') as flow:
+    raw_out = unstable_task.map([0, 1, 2, 3, 4])
+    # raw_out is [0, RuntimeError, SKIP, None, 4] at this point
+
+    filtered = filter_results(raw_out)
+    inc_out = add_one.map(filtered)
+
+    log_args(inc_out)
+    # [1, 5]
+```
+
+In the example above, `raw_out` will contain `[0, RuntimeError, SKIP, None, 4]`. Without filtering, the `RuntimeError` would mark downstream tasks as `TriggerFailed` and `SKIP` would cause downstream tasks to get the final state `Skipped` while `None` could make downstream tasks fail due to invalid input. Our `filter_results` task will filter out everything that evaluates to `False` according to the `filter_func`. This way, the flow will log the array `[1, 5]` at the end.
+
 ## Unmapped inputs
 
-When a task is mapped over its inputs, it retains the same call signature and arguments, but iterates over the inputs to generate its children tasks. Sometimes, we don't want to to iterate over one of the inputs -- perhaps it's a constant value, or a list that's required in its entirety. Prefect supplies a convenient `unmapped()` annotation for this case.
+When a task is mapped over its inputs, it retains the same call signature and arguments, but iterates over the inputs to generate its children tasks. Sometimes, we don't want to iterate over one of the inputs -- perhaps it's a constant value, or a list that's required in its entirety. Prefect supplies a convenient `unmapped()` annotation for this case.
 
 ```python
 from prefect import Flow, task, unmapped

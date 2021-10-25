@@ -378,20 +378,6 @@ def test_build_image_passes_and_pushes(monkeypatch):
     assert "reg" in remove.call_args[1]["image"]
 
 
-@pytest.mark.filterwarnings("error")
-def test_build_image_passes_but_raises_warning(monkeypatch):
-    storage = Docker(base_image="python:3.6", image_name="test", image_tag="latest")
-
-    client = MagicMock()
-    client.images.return_value = ["name"]
-    monkeypatch.setattr("docker.APIClient", MagicMock(return_value=client))
-
-    with pytest.raises(UserWarning):
-        image_name, image_tag = storage._build_image()
-        assert image_name == "test"
-        assert image_tag == "latest"
-
-
 def test_create_dockerfile_from_base_image():
     storage = Docker(base_image="python:3.6")
 
@@ -575,7 +561,7 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
             "424be6b5ed8d3be85064de4b95b5c3d7cb665510",
             (
                 "FROM python:3.6-slim",
-                "apt update && apt install -y gcc git && rm -rf /var/lib/apt/lists/*",
+                "apt update && apt install -y gcc git make && rm -rf /var/lib/apt/lists/*",
                 "pip show prefect || pip install git+https://github.com/PrefectHQ/prefect.git@424be6b5ed8d3be85064de4b95b5c3d7cb665510#egg=prefect[all_orchestration_extras]",
             ),
         ),

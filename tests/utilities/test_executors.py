@@ -1,20 +1,22 @@
-import os
+import cloudpickle
 import multiprocessing
+import os
+import pytest
 import sys
 import threading
 import time
-
-import pytest
+from unittest.mock import MagicMock
 
 import prefect
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 from prefect.utilities.executors import (
     run_with_thread_timeout,
     run_with_multiprocess_timeout,
+    multiprocessing_safe_run_and_retrieve,
     tail_recursive,
     RecursiveCall,
+    HeartbeatThread,
 )
-
 
 # We will test the low-level timeout handlers here and `run_task_with_timeout`
 # is covered in `tests.core.test_flow.test_timeout_actually_stops_execution`
@@ -28,7 +30,7 @@ TIMEOUT_HANDLERS = [run_with_thread_timeout, run_with_multiprocess_timeout]
 @pytest.mark.parametrize("timeout_handler", TIMEOUT_HANDLERS)
 def test_timeout_handler_times_out(timeout_handler):
     slow_fn = lambda: time.sleep(2)
-    with pytest.raises(TaskTimeoutError):
+    with pytest.raises(TaskTimeoutSignal):
         timeout_handler(slow_fn, timeout=1)
 
 
@@ -58,7 +60,7 @@ def test_timeout_handler_actually_stops_execution(timeout_handler, tmpdir):
 
     start_time = time.time()
     stop_time = start_time + wait_time + max_overhead
-    with pytest.raises(TaskTimeoutError):
+    with pytest.raises(TaskTimeoutSignal):
         timeout_handler(
             slow_fn, args=(start_path, finish_path, wait_time), timeout=timeout
         )
@@ -194,6 +196,63 @@ def test_run_with_multiprocess_timeout_preserves_logging(capfd):
     assert "Flow run SUCCESS" in stdout
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_multiprocess_timeout_handles_none_return_values():
+    def fn():
+        return None
+
+    result = run_with_multiprocess_timeout(fn, timeout=10)
+
+    assert result is None
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_run_with_multiprocess_timeout_handles_unpicklable_return_values():
+    def fn():
+        import threading
+
+        # An unpickleable type
+        return threading.Lock()
+
+    with pytest.raises(
+        RuntimeError,
+        match="Failed to pickle result of type 'lock'",
+    ) as exc_info:
+        run_with_multiprocess_timeout(fn, timeout=12)
+
+    # We include the original exception
+    assert "TypeError: cannot pickle '_thread.lock' object" in str(
+        exc_info.value
+        # Python 3.6/7 have a different error message
+    ) or "TypeError: can't pickle _thread.lock objects" in str(exc_info.value)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows doesn't support any timeout logic"
+)
+def test_multiprocessing_safe_run_and_retrieve_logs_queue_errors(caplog):
+    # We cannot mock queue.put
+    def fn():
+        pass
+
+    mock_queue = MagicMock(put=MagicMock(side_effect=Exception("Test")))
+
+    request = cloudpickle.dumps({"fn": fn})
+
+    with pytest.raises(
+        Exception,
+        match="Test",
+    ):
+        multiprocessing_safe_run_and_retrieve(mock_queue, request)
+
+    assert "Failed to put result in queue to main process!" in caplog.text
+    assert "Exception: Test" in caplog.text
+
+
 def test_recursion_go_case():
     @tail_recursive
     def my_func(a=0):
@@ -284,3 +343,84 @@ def test_recursion_raises_when_not_decorated():
         assert a_func()
 
     assert call_checkpoints == [("a", 0), ("b", 1), ("a", 3), ("b", 4), ("a", 6)]
+
+
+def test_events_can_stop_the_heartbeat(monkeypatch):
+    Client = MagicMock()
+    monkeypatch.setattr("prefect.utilities.executors.Client", Client)
+    stop_event = threading.Event()
+    heartbeat = HeartbeatThread(stop_event, "no-flow-run-id")
+    heartbeat.start()
+    assert heartbeat.is_alive()
+    stop_event.set()
+    heartbeat.join()
+    assert heartbeat.is_alive() is False
+
+
+def test_multiple_heartbeats_can_be_independently_stopped(monkeypatch):
+    Client = MagicMock()
+    monkeypatch.setattr("prefect.utilities.executors.Client", Client)
+
+    def heartbeat_factory():
+        stop_event = threading.Event()
+        heartbeat = HeartbeatThread(stop_event, "no-flow-run-id")
+        heartbeat.start()
+        return heartbeat, stop_event
+
+    first_heartbeat, first_event = heartbeat_factory()
+    other_heartbeat, other_event = heartbeat_factory()
+    assert first_heartbeat.is_alive()
+    assert other_heartbeat.is_alive()
+    first_event.set()
+    first_heartbeat.join()
+    assert first_heartbeat.is_alive() is False
+    assert other_heartbeat.is_alive() is True
+    other_event.set()
+    other_heartbeat.join()
+    assert other_heartbeat.is_alive() is False
+
+
+def test_heartbeat_is_daemonic_by_default(monkeypatch):
+    Client = MagicMock()
+    monkeypatch.setattr("prefect.utilities.executors.Client", Client)
+    stop_event = threading.Event()
+    heartbeat = HeartbeatThread(stop_event, "no-flow-run-id")
+    assert heartbeat.isDaemon()
+
+
+def test_heartbeat_sends_signals_to_client(monkeypatch):
+    Client = MagicMock()
+    monkeypatch.setattr("prefect.utilities.executors.Client", Client)
+    stop_event = threading.Event()
+    heartbeat = HeartbeatThread(stop_event, "no-flow-run-id")
+    heartbeat.start()
+    assert heartbeat.is_alive()
+    time.sleep(0.1)
+    stop_event.set()
+    heartbeat.join()
+    assert Client().update_flow_run_heartbeat.call_count == 1
+
+
+def test_heartbeat_exceptions_are_logged_to_cloud(monkeypatch):
+    Client = MagicMock()
+    LOG_MANAGER = MagicMock()
+    monkeypatch.setattr("prefect.utilities.executors.Client", Client)
+    monkeypatch.setattr("prefect.utilities.logging.LOG_MANAGER", LOG_MANAGER)
+    Client().update_flow_run_heartbeat.side_effect = ValueError("Foo")
+
+    stop_event = threading.Event()
+    heartbeat = HeartbeatThread(stop_event, "my-special-flow-run-id")
+    heartbeat.start()
+    time.sleep(0.1)
+    stop_event.set()
+    heartbeat.join()
+
+    log = LOG_MANAGER.enqueue.call_args[0][0]
+    assert log["flow_run_id"] == "my-special-flow-run-id"
+    assert log["name"] == "prefect.threaded_heartbeat"
+    assert log["level"] == "ERROR"
+    assert "Traceback" in log["message"]
+    assert (
+        f"Failed to send heartbeat with exception: {ValueError('Foo')!r}"
+        in log["message"]
+    )

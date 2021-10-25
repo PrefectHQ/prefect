@@ -4,6 +4,12 @@
 
 ![](/orchestration/ui/flowrun-overview.png)
 
+## Creation
+
+To create a flow run from the UI, visit the [flow page](/orchestration/ui/flow.html#run) and click "Run Flow".
+
+![](/orchestration/ui/flow-run.png)
+
 ## Schematic
 
 The schematic is an interactive, live-updating look at the progress of each run. As tasks go through different states, their colors and state messages update accordingly.

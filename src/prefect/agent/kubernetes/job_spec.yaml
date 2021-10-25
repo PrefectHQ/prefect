@@ -27,6 +27,9 @@ spec:
               value: PREFECT__CONTEXT__NAMESPACE
             - name: PREFECT__CLOUD__AGENT__LABELS
               value: PREFECT__CLOUD__AGENT__LABELS
+            - name: PREFECT__CLOUD__SEND_FLOW_RUN_LOGS
+              value: PREFECT__CLOUD__SEND_FLOW_RUN_LOGS
+            # Backwards compatibility variable for `SEND_FLOW_RUN_LOGS`
             - name: PREFECT__LOGGING__LOG_TO_CLOUD
               value: PREFECT__LOGGING__LOG_TO_CLOUD
             - name: PREFECT__LOGGING__LEVEL

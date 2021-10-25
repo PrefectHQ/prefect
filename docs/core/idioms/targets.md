@@ -11,7 +11,7 @@ For example: the `LocalResult` below has an optional `dir` kwargs which accepts 
 :::
 
 :::: tabs
-::: tab "Functional API"
+::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.engine.results import LocalResult
@@ -31,7 +31,7 @@ with Flow("using-targets") as flow:
 ```
 :::
 
-::: tab "Imperative API"
+::: tab Imperative API
 ```python
 from prefect import Task, Flow
 from prefect.engine.results import LocalResult

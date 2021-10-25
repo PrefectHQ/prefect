@@ -6,7 +6,7 @@ from slugify import slugify
 import prefect
 from prefect.engine.results import GCSResult
 from prefect.storage import Storage
-from prefect.utilities.exceptions import StorageError
+from prefect.exceptions import FlowStorageError
 from prefect.utilities.storage import (
     extract_flow_from_file,
     flow_from_bytes_pickle,
@@ -83,7 +83,7 @@ class GCS(Storage):
 
         blob = bucket.get_blob(flow_location)
         if not blob:
-            raise StorageError(
+            raise FlowStorageError(
                 "Flow not found in bucket: flow={} bucket={}".format(
                     flow_location, self.bucket
                 )

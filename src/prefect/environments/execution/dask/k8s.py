@@ -50,7 +50,7 @@ class DaskKubernetesEnvironment(Environment):
     - `PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS`
     - `PREFECT__ENGINE__EXECUTOR__DEFAULT_CLASS`
     - `PREFECT__LOGGING__LEVEL`
-    - `PREFECT__LOGGING__LOG_TO_CLOUD`
+    - `PREFECT__CLOUD__SEND_FLOW_RUN_LOGS`
     - `PREFECT__LOGGING__EXTRA_LOGGERS`
 
     Note: the logging attributes are only populated if they are not already provided.
@@ -510,8 +510,8 @@ class DaskKubernetesEnvironment(Environment):
         # Logging env vars
         log_vars = [
             {
-                "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                "value": str(prefect.config.logging.log_to_cloud).lower(),
+                "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
+                "value": str(prefect.config.cloud.send_flow_run_logs).lower(),
             },
             {
                 "name": "PREFECT__LOGGING__LEVEL",
@@ -583,8 +583,8 @@ class DaskKubernetesEnvironment(Environment):
         # Logging env vars
         log_vars = [
             {
-                "name": "PREFECT__LOGGING__LOG_TO_CLOUD",
-                "value": str(prefect.config.logging.log_to_cloud).lower(),
+                "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
+                "value": str(prefect.config.cloud.send_flow_run_logs).lower(),
             },
             {
                 "name": "PREFECT__LOGGING__LEVEL",

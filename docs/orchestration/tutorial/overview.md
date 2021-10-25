@@ -40,68 +40,41 @@ the CLI:
 
 :::: tabs
 ::: tab Cloud
+
 ```bash
 $ prefect backend cloud
 ```
+
 :::
 
 ::: tab Server
+
 ```bash
 $ prefect backend server
 ```
+
 :::
 ::::
 
-Note that you can change backends at any time by rerunning the `prefect backend
-...` command.
+Note that you can change backends at any time by rerunning the `prefect backend ...` command.
 
 ## Authenticating with Prefect Cloud <Badge text="Cloud"/>
 
 If you're using Prefect Cloud, you'll also need to authenticate with the
 backend before you can proceed further.
 
-### Create a Personal Access Token
+### Create an API key and login
 
-To authenticate, you'll need to create a [Personal Access
-Token](/orchestration/concepts/tokens.html#user) and configure it with the
-[Prefect Command Line Interface](/orchestration/concepts/cli.html#cli).
+To authenticate, you'll need to create an [API key](/orchestration/concepts/api_keys.md) and save it. 
 
 - Login to [https://cloud.prefect.io](https://cloud.prefect.io)
-- Navigate to the [Personal Access Tokens page](https://cloud.prefect.io/user/tokens). In the User menu in the top right corner go to **Account Settings** -> **Personal Access Tokens** -> **Create A Token**.
-- Copy the created token
-- Configure the CLI to use the access token by running
+- Navigate to the [API Keys page](https://cloud.prefect.io/user/keys). In the User menu in the top right corner go to **Account Settings** -> **API Keys** -> **Create An API Key**.
+- Copy the created key
+- Login with the Prefect CLI `prefect auth login --key <YOUR-KEY>`
 
-```bash
-prefect auth login -t <COPIED_TOKEN>
-```
 
-### Create a Runner Token
+::: tip Authentication for agents
 
-Running deployed Flows with an [Agent](/orchestration/agents/overview.html)
-also requires a `RUNNER`-scoped API token for the Agent. You can create one
-using the CLI:
+When running deployed Flows with an [Agent](/orchestration/agents/overview.html) we recommend creating an API key associated with a service account instead of your user. See the [API keys documentation](/orchestration/concepts/api_keys.md) for details.
 
-```bash
-prefect auth create-token -n my-runner-token -s RUNNER
-```
-
-You'll need this token later in the tutorial. You can save it locally either in
-your `~/.prefect/config.toml` config file, or as an environment variable:
-
-:::: tabs
-::: tab config.toml
-
-```toml
-# ~/.prefect/config.toml
-[cloud.agent]
-auth_token = <COPIED_RUNNER_TOKEN>
-```
 :::
-::: tab "Environment Variable"
-
-```bash
-export PREFECT__CLOUD__AGENT__AUTH_TOKEN=<COPIED_RUNNER_TOKEN>
-```
-:::
-
-::::

@@ -1,8 +1,8 @@
 import heapq
 import itertools
 import operator
-import warnings
 from datetime import datetime, timedelta
+from dateutil import rrule
 from typing import Callable, Iterable, List, Optional, cast
 
 import prefect.schedules.adjustments
@@ -276,31 +276,24 @@ def CronSchedule(
     )
 
 
-def OneTimeSchedule(start_date: datetime) -> Schedule:
+def RRuleSchedule(
+    rrule_obj: rrule.rrulebase, start_date: datetime = None, end_date: datetime = None
+) -> Schedule:
     """
-    A schedule corresponding to a single date
+    A schedule formed from a iCal style recurrence rule (RRule).
 
-    NOTE: this function is deprecated and maintained only for backwards-compatibility.
+    See below links for helpful info:
+        - https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
+        - https://dateutil.readthedocs.io/en/stable/rrule.html
+
+    Args:
+        - rrule_obj (rrulebase): an rrule or rruleset object
+        - start_date (datetime, optional): an optional start date for the clock
+        - end_date (datetime, optional): an optional end date for the clock
+
+    Raises:
+        - TypeError: if provided rrule_obj is not an rrule object
     """
-    warnings.warn(
-        "The OneTimeSchedule is deprecated and will be removed from "
-        "Prefect. Use a Schedule with a single-date DatesClock instead.",
-        UserWarning,
-        stacklevel=2,
+    return Schedule(
+        clocks=[prefect.schedules.clocks.RRuleClock(rrule_obj, start_date, end_date)]
     )
-    return Schedule(clocks=[prefect.schedules.clocks.DatesClock(dates=[start_date])])
-
-
-def UnionSchedule(schedules: List[Schedule]) -> Schedule:
-    """
-    A schedule formed by combining other schedules.
-
-    NOTE: this function is deprecated and maintained only for backwards-compatibility.
-    """
-    warnings.warn(
-        "The UnionSchedule is deprecated and will be removed from "
-        "Prefect. Use a Schedule with multiple clocks instead.",
-        UserWarning,
-        stacklevel=2,
-    )
-    return Schedule(clocks=[c for s in schedules for c in s.clocks])

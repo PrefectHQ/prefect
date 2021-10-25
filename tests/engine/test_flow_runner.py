@@ -1,5 +1,6 @@
 import collections
 import datetime
+import logging
 import queue
 import random
 import time
@@ -36,7 +37,7 @@ from prefect.engine.state import (
 from prefect.tasks.secrets import PrefectSecret
 from prefect.triggers import manual_only
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 
 
 class SuccessTask(Task):
@@ -832,7 +833,9 @@ def test_flow_runner_properly_provides_context_to_task_runners(executor):
     assert res.result[tt].result[0] == "test-map"
 
 
-@pytest.mark.parametrize("executor", ["local", "mthread", "sync"], indirect=True)
+@pytest.mark.parametrize(
+    "executor", ["local", "mthread", "sync", "mproc", "threaded_local"], indirect=True
+)
 def test_flow_runner_handles_timeouts(executor):
     sleeper = SlowTask(timeout=1)
 
@@ -843,19 +846,7 @@ def test_flow_runner_handles_timeouts(executor):
     assert state.is_failed()
     assert isinstance(state.result[res], TimedOut)
     assert "timed out" in state.result[res].message
-    assert isinstance(state.result[res].result, TaskTimeoutError)
-
-
-def test_flow_runner_handles_timeout_error_with_mproc(mproc):
-    sleeper = SlowTask(timeout=1)
-
-    with Flow(name="test") as flow:
-        res = sleeper(2)
-
-    state = FlowRunner(flow=flow).run(return_tasks=[res], executor=mproc)
-    assert state.is_failed()
-    assert isinstance(state.result[res], TimedOut)
-    assert isinstance(state.result[res].result, TaskTimeoutError)
+    assert isinstance(state.result[res].result, TaskTimeoutSignal)
 
 
 handler_results = collections.defaultdict(lambda: 0)
@@ -1323,6 +1314,67 @@ class TestContext:
         output = res.result[return_ctx_key].result
         assert isinstance(output, datetime.datetime)
 
+    @pytest.mark.parametrize("as_string", [True, False])
+    def test_context_derives_dates_from_custom_date(self, as_string):
+        @prefect.task
+        def return_ctx():
+            return prefect.context.copy()
+
+        custom_date = pendulum.now().add(months=1)
+
+        f = Flow(name="test", tasks=[return_ctx])
+        with prefect.context(
+            {"date": custom_date.to_datetime_string() if as_string else custom_date}
+        ):
+            res = f.run()
+
+        assert res.is_successful()
+
+        context = res.result[return_ctx].result
+
+        # Ensure the string is converted to a datetime object
+        assert isinstance(context["date"], pendulum.DateTime)
+
+        # Ensure dependent variables use the custom date
+        assert context["yesterday"] == custom_date.add(days=-1).strftime("%Y-%m-%d")
+        assert context["tomorrow"] == custom_date.add(days=1).strftime("%Y-%m-%d")
+        assert context["today_nodash"] == custom_date.strftime("%Y%m%d")
+        assert context["yesterday_nodash"] == custom_date.add(days=-1).strftime(
+            "%Y%m%d"
+        )
+        assert context["tomorrow_nodash"] == custom_date.add(days=1).strftime("%Y%m%d")
+
+    def test_context_warns_on_unparsable_custom_date(self, caplog, monkeypatch):
+
+        now = pendulum.now()
+        monkeypatch.setattr("pendulum.now", MagicMock(return_value=now))
+
+        caplog.set_level(logging.WARNING)
+
+        @prefect.task
+        def return_ctx_key():
+            return prefect.context.get("tomorrow")
+
+        f = Flow(name="test", tasks=[return_ctx_key])
+        with prefect.context({"date": "foobar"}):
+            res = f.run()
+
+        assert res.is_successful()
+
+        found_log = False
+        for record in caplog.records:
+            if (
+                record.levelno == logging.WARNING
+                and "could not be parsed into a pendulum `DateTime` object"
+                in record.message
+            ):
+                found_log = True
+        assert found_log
+
+        # Uses `now` to determine tomorrow
+        output = res.result[return_ctx_key].result
+        assert output == now.add(days=1).strftime("%Y-%m-%d")
+
     @pytest.mark.parametrize(
         "outer_context, inner_context, sol",
         [
@@ -1348,7 +1400,7 @@ class TestContext:
 
 
 @pytest.mark.parametrize(
-    "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    "executor", ["local", "sync", "mproc", "mthread", "threaded_local"], indirect=True
 )
 def test_task_logs_survive_if_timeout_is_used(caplog, executor):
     @prefect.task(timeout=2)

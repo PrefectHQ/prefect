@@ -20,7 +20,7 @@ We've rebuilt data engineering for the data science era.
 
 Prefect is a new workflow management system, designed for modern infrastructure and powered by the open-source Prefect Core workflow engine. Users organize `Tasks` into `Flows`, and Prefect takes care of the rest.
 
-Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://prefect-slackin.herokuapp.com/)!
+Read the [docs](https://docs.prefect.io); get the [code](#installation); ask us [anything](https://www.prefect.io/slack)!
 
 ### Welcome to Workflows
 
@@ -112,7 +112,7 @@ Instructions for contributing to documentation can be found in the [development 
 
 ### Slack Community
 
-Join our [Slack](https://prefect-slackin.herokuapp.com/) to chat about Prefect, ask questions, and share tips.
+Join our [Slack](https://www.prefect.io/slack) to chat about Prefect, ask questions, and share tips.
 
 ### Blog
 

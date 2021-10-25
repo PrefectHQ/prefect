@@ -3,6 +3,7 @@ from datetime import timedelta
 
 import pendulum
 import pytest
+from dateutil import rrule
 
 import prefect
 from prefect import __version__
@@ -10,7 +11,7 @@ from prefect.schedules import adjustments, clocks, filters, schedules
 from prefect.serialization.schedule import ScheduleSchema
 
 
-def serialize_and_deserialize(schedule: schedules.Schedule):
+def serialize_and_deserialize(schedule: schedules.Schedule) -> schedules.Schedule:
     schema = ScheduleSchema()
     return schema.load(json.loads(json.dumps(schema.dump(schedule))))
 
@@ -122,6 +123,117 @@ def test_interval_clocks_with_exactly_one_minute_intervals_can_be_serialized():
     ]
 
 
+def test_serialize_rrule_clocks():
+    start = pendulum.datetime(2020, 1, 1, 0, 0)
+
+    rr = rrule.rrule(rrule.MINUTELY, start)
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 0, 1)]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 0, 1)]
+
+    weekdays = (rrule.MO, rrule.TU, rrule.WE, rrule.TH, rrule.FR)
+    rr = rrule.rrule(rrule.MONTHLY, start, byweekday=weekdays, bysetpos=-1)
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 31, 0, 0)]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 31, 0, 0)]
+
+    # Every weekday (BYDAY) for the next 8 weekdays (COUNT).
+    rr = rrule.rrule(rrule.DAILY, start, byweekday=weekdays, count=8)
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
+    assert len(t.next(10, after=start)) == 7
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 2, 0, 0)]
+    assert len(t2.next(10, after=start)) == 7
+
+    # Every third year (INTERVAL) on the first Tuesday (BYDAY) after a Monday (BYMONTHDAY) in October.
+    month_day = (2, 3, 4, 5, 6, 7, 8)
+    rr = rrule.rrule(
+        rrule.YEARLY,
+        start,
+        interval=3,
+        bymonth=10,
+        byweekday=rrule.TU,
+        bymonthday=month_day,
+    )
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    first = pendulum.datetime(2020, 10, 6, 0, 0)
+    second = pendulum.datetime(2023, 10, 3, 0, 0)
+    assert t.next(2, after=start) == [first, second]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=start) == [first, second]
+
+    # Every three weeks on Sunday until 9/23/2021
+    until = pendulum.datetime(2021, 9, 23)
+    days = [pendulum.datetime(2020, 1, 5), pendulum.datetime(2020, 1, 26)]
+    after_days = [pendulum.datetime(2021, 9, 1), pendulum.datetime(2021, 9, 5)]
+    rr = rrule.rrule(rrule.WEEKLY, start, byweekday=rrule.SU, interval=3, until=until)
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=start) == days
+    assert t.next(3, after=after_days[0]) == [after_days[1]]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=start) == days
+    assert t2.next(3, after=after_days[0]) == [after_days[1]]
+
+    rr = rrule.rrule(rrule.YEARLY, start, byyearday=200)
+    days = [pendulum.datetime(2020, 7, 18), pendulum.datetime(2021, 7, 19)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=start) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=start) == days
+
+    # Three days after easter annually
+    rr = rrule.rrule(rrule.YEARLY, start, byeaster=3)
+    days = [pendulum.datetime(2020, 4, 15), pendulum.datetime(2021, 4, 7)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=start) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=start) == days
+
+    rr = rrule.rrule(rrule.WEEKLY, start, byhour=9, byminute=13, bysecond=54)
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 9, 13, 54)]
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(1, after=start) == [pendulum.datetime(2020, 1, 1, 9, 13, 54)]
+
+    rr = rrule.rrule(rrule.YEARLY, start, byweekno=(7, 16), byweekday=rrule.WE)
+    days = [pendulum.datetime(2020, 2, 12), pendulum.datetime(2020, 4, 15)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=start) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=start) == days
+
+
+def test_serialize_rruleset_clocks():
+    s = (
+        "DTSTART:20120201T023000Z\n"
+        "RRULE:FREQ=MONTHLY;COUNT=5\n"
+        "RDATE:20120701T023000Z,20120702T023000Z\n"
+        "EXRULE:FREQ=MONTHLY;COUNT=2\n"
+        "EXDATE:20120601T023000Z"
+    )
+    rr = rrule.rrulestr(s)
+    days = [pendulum.datetime(2012, 4, 1, 2, 30), pendulum.datetime(2012, 5, 1, 2, 30)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+
+    s = (
+        "DTSTART:20120201T023000Z\n"
+        "RDATE:20120701T023000Z,20120702T023000Z\n"
+        "EXDATE:20120601T023000Z"
+    )
+    rr = rrule.rrulestr(s)
+    days = [pendulum.datetime(2012, 7, 1, 2, 30), pendulum.datetime(2012, 7, 2, 2, 30)]
+    t = schedules.Schedule(clocks=[clocks.RRuleClock(rrule_obj=rr)])
+    assert t.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+    t2 = serialize_and_deserialize(t)
+    assert t2.next(2, after=pendulum.datetime(2012, 1, 1, 0, 0)) == days
+
+
 def test_serialize_multiple_clocks():
 
     dt = pendulum.datetime(2019, 1, 1)
@@ -143,147 +255,3 @@ def test_serialize_multiple_clocks():
         dt.add(days=3, hours=12),
         dt.add(days=4),
     ]
-
-
-class TestBackwardsCompatibility:
-    """
-    Tests that old-style (pre-0.6.1) schedules are properly deserialized as new-style schedules
-    """
-
-    def test_interval_schedule(self):
-        serialized = {
-            "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-            "end_date": None,
-            "interval": 3720000000,
-            "__version__": "0.6.0+87.g44ac9ba5",
-            "type": "IntervalSchedule",
-        }
-        schema = ScheduleSchema()
-        schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2019, 1, 1)) == [
-            pendulum.datetime(2019, 1, 2, 3, 0, 0),
-            pendulum.datetime(2019, 1, 2, 4, 2, 0),
-            pendulum.datetime(2019, 1, 2, 5, 4, 0),
-            pendulum.datetime(2019, 1, 2, 6, 6, 0),
-            pendulum.datetime(2019, 1, 2, 7, 8, 0),
-            pendulum.datetime(2019, 1, 2, 8, 10, 0),
-            pendulum.datetime(2019, 1, 2, 9, 12, 0),
-            pendulum.datetime(2019, 1, 2, 10, 14, 0),
-            pendulum.datetime(2019, 1, 2, 11, 16, 0),
-            pendulum.datetime(2019, 1, 2, 12, 18, 0),
-        ]
-
-    def test_interval_schedule_with_end_date(self):
-        serialized = {
-            "interval": 3720000000,
-            "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-            "end_date": {"dt": "2020-01-01T00:00:00", "tz": "UTC"},
-            "__version__": "0.6.0+87.g44ac9ba5",
-            "type": "IntervalSchedule",
-        }
-        schema = ScheduleSchema()
-        schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2019, 12, 31, 20)) == [
-            pendulum.datetime(2019, 12, 31, 20, 36, 0),
-            pendulum.datetime(2019, 12, 31, 21, 38, 0),
-            pendulum.datetime(2019, 12, 31, 22, 40, 0),
-            pendulum.datetime(2019, 12, 31, 23, 42, 0),
-        ]
-
-    def test_cron_schedule(self):
-        serialized = {
-            "cron": "3 0 * * *",
-            "start_date": None,
-            "end_date": None,
-            "__version__": "0.6.0+87.g44ac9ba5",
-            "type": "CronSchedule",
-        }
-        schema = ScheduleSchema()
-        schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2019, 1, 1)) == [
-            pendulum.datetime(2019, 1, 1, 0, 3, 0),
-            pendulum.datetime(2019, 1, 2, 0, 3, 0),
-            pendulum.datetime(2019, 1, 3, 0, 3, 0),
-            pendulum.datetime(2019, 1, 4, 0, 3, 0),
-            pendulum.datetime(2019, 1, 5, 0, 3, 0),
-            pendulum.datetime(2019, 1, 6, 0, 3, 0),
-            pendulum.datetime(2019, 1, 7, 0, 3, 0),
-            pendulum.datetime(2019, 1, 8, 0, 3, 0),
-            pendulum.datetime(2019, 1, 9, 0, 3, 0),
-            pendulum.datetime(2019, 1, 10, 0, 3, 0),
-        ]
-
-    def test_cron_schedule_with_end_date(self):
-        serialized = {
-            "end_date": {"dt": "2020-01-01T00:00:00", "tz": "UTC"},
-            "cron": "3 0 * * *",
-            "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-            "__version__": "0.6.0+105.gce4aef06",
-            "type": "CronSchedule",
-        }
-        schema = ScheduleSchema()
-        schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2019, 12, 31, 20)) == []
-
-    def test_one_time_schedule(self):
-        serialized = {
-            "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-            "__version__": "0.6.0+105.gce4aef06",
-            "type": "OneTimeSchedule",
-        }
-        schema = ScheduleSchema()
-        with pytest.warns(UserWarning):
-            schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2019, 1, 1)) == [
-            pendulum.datetime(2019, 1, 2, 3, 0, 0)
-        ]
-
-    def test_one_time_schedule_with_after(self):
-        serialized = {
-            "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-            "__version__": "0.6.0+105.gce4aef06",
-            "type": "OneTimeSchedule",
-        }
-        schema = ScheduleSchema()
-        with pytest.warns(UserWarning):
-            schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2020, 1, 1)) == []
-
-    def test_union_schedule(self):
-        serialized = {
-            "end_date": {"dt": "2020-01-01T00:00:00", "tz": "UTC"},
-            "schedules": [
-                {
-                    "end_date": {"dt": "2020-01-01T00:00:00", "tz": "UTC"},
-                    "interval": 3720000000,
-                    "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-                    "__version__": "0.6.0+105.gce4aef06",
-                    "type": "IntervalSchedule",
-                },
-                {
-                    "end_date": {"dt": "2020-01-01T00:00:00", "tz": "UTC"},
-                    "cron": "3 0 * * *",
-                    "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-                    "__version__": "0.6.0+105.gce4aef06",
-                    "type": "CronSchedule",
-                },
-            ],
-            "start_date": {"dt": "2019-01-02T03:00:00", "tz": "UTC"},
-            "__version__": "0.6.0+105.gce4aef06",
-            "type": "UnionSchedule",
-        }
-        schema = ScheduleSchema()
-        with pytest.warns(UserWarning):
-            schedule = schema.load(serialized)
-        assert schedule.next(10, after=pendulum.datetime(2019, 1, 1)) == [
-            pendulum.datetime(2019, 1, 2, 3, 0, 0),
-            pendulum.datetime(2019, 1, 2, 4, 2, 0),
-            pendulum.datetime(2019, 1, 2, 5, 4, 0),
-            pendulum.datetime(2019, 1, 2, 6, 6, 0),
-            pendulum.datetime(2019, 1, 2, 7, 8, 0),
-            pendulum.datetime(2019, 1, 2, 8, 10, 0),
-            pendulum.datetime(2019, 1, 2, 9, 12, 0),
-            pendulum.datetime(2019, 1, 2, 10, 14, 0),
-            pendulum.datetime(2019, 1, 2, 11, 16, 0),
-            pendulum.datetime(2019, 1, 2, 12, 18, 0),
-        ]

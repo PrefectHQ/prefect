@@ -1,5 +1,4 @@
 import uuid
-import warnings
 from typing import Tuple, Union
 import io
 from time import sleep
@@ -7,7 +6,6 @@ from time import sleep
 from google.cloud.exceptions import NotFound
 
 from prefect import context
-from prefect.client import Secret
 from prefect.core import Task
 from prefect.utilities.gcp import get_storage_client
 from prefect.utilities.tasks import defaults_from_attrs
@@ -24,7 +22,6 @@ class GCSBaseTask(Task):
         project: str = None,
         create_bucket: bool = False,
         chunk_size: int = 104857600,  # 1024 * 1024 B * 100 = 100 MB
-        encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs,
     ):
@@ -32,15 +29,7 @@ class GCSBaseTask(Task):
         self.blob = blob
         self.project = project
         self.create_bucket = create_bucket
-        if encryption_key_secret is not None:
-            warnings.warn(
-                "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
-                "to pass the key value at runtime instead.",
-                UserWarning,
-                stacklevel=2,
-            )
         self.chunk_size = chunk_size
-        self.encryption_key_secret = encryption_key_secret
         self.request_timeout = request_timeout
         super().__init__(**kwargs)
 
@@ -62,7 +51,6 @@ class GCSBaseTask(Task):
         blob: str,
         chunk_size: int = None,
         encryption_key: str = None,
-        encryption_key_secret: str = None,
     ):
         "Retrieves blob based on user settings."
         if blob is None:
@@ -70,16 +58,6 @@ class GCSBaseTask(Task):
 
         if chunk_size is None:
             chunk_size = self.chunk_size
-
-        # pull encryption_key if requested
-        if encryption_key_secret is not None:
-            warnings.warn(
-                "The `encryption_key_secret` argument is deprecated. Use a `Secret` task "
-                "to pass the credentials value at runtime instead.",
-                UserWarning,
-                stacklevel=2,
-            )
-            encryption_key = Secret(encryption_key_secret).get()
 
         return bucket.blob(blob, encryption_key=encryption_key, chunk_size=chunk_size)
 
@@ -95,15 +73,13 @@ class GCSDownload(GCSBaseTask):
             If not provided, will be inferred from your Google Cloud credentials
         - chunk_size (int, optional): The size of a chunk of data whenever iterating (in bytes).
             This must be a multiple of 256 KB per the API specification.
-        - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            storing an optional `encryption_key` to be used when downloading the Blob
         - request_timeout (Union[float, Tuple[float, float]], optional): default number of
             seconds the transport should wait for the server response.
             Can also be passed as a tuple (connect_timeout, read_timeout).
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of these
     default settings for custom use (for example, if you want to pull different credentials for
     a given Task, or specify the Blob name at runtime).
     """
@@ -114,7 +90,6 @@ class GCSDownload(GCSBaseTask):
         blob: str = None,
         project: str = None,
         chunk_size: int = None,
-        encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs,
     ):
@@ -123,14 +98,11 @@ class GCSDownload(GCSBaseTask):
             blob=blob,
             project=project,
             chunk_size=chunk_size,
-            encryption_key_secret=encryption_key_secret,
             request_timeout=request_timeout,
             **kwargs,
         )
 
-    @defaults_from_attrs(
-        "blob", "bucket", "project", "encryption_key_secret", "request_timeout"
-    )
+    @defaults_from_attrs("blob", "bucket", "project", "request_timeout")
     def run(
         self,
         bucket: str = None,
@@ -139,7 +111,6 @@ class GCSDownload(GCSBaseTask):
         chunk_size: int = None,
         credentials: dict = None,
         encryption_key: str = None,
-        encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
     ) -> str:
         """
@@ -161,8 +132,6 @@ class GCSDownload(GCSBaseTask):
                 If not provided, Prefect will first check `context` for `GCP_CREDENTIALS` and
                 lastly will use default Google client logic.
             - encryption_key (str, optional): an encryption key
-            - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                storing an optional `encryption_key` to be used when uploading the Blob
             - request_timeout (Union[float, Tuple[float, float]], optional): the number of
                 seconds the transport should wait for the server response.
                 Can also be passed as a tuple (connect_timeout, read_timeout).
@@ -190,7 +159,6 @@ class GCSDownload(GCSBaseTask):
             blob,
             chunk_size=chunk_size,
             encryption_key=encryption_key,
-            encryption_key_secret=encryption_key_secret,
         )
         # Support GCS < 1.31
         return (
@@ -202,7 +170,8 @@ class GCSDownload(GCSBaseTask):
 
 class GCSUpload(GCSBaseTask):
     """
-    Task template for uploading data to Google Cloud Storage.  Data can be a string or bytes.
+    Task template for uploading data to Google Cloud Storage. Data can be a string, bytes or
+    io.BytesIO
 
     Args:
         - bucket (str): default bucket name to upload to
@@ -214,15 +183,13 @@ class GCSUpload(GCSBaseTask):
             This must be a multiple of 256 KB per the API specification.
         - create_bucket (bool, optional): boolean specifying whether to create the bucket if it
             does not exist, otherwise an Exception is raised. Defaults to `False`.
-        - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-            storing an optional `encryption_key` to be used when uploading the Blob
         - request_timeout (Union[float, Tuple[float, float]], optional): default number of
             seconds the transport should wait for the server response.
             Can also be passed as a tuple (connect_timeout, read_timeout).
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of
     these default settings for custom use (for example, if you want to pull different
     credentials for a given Task, or specify the Blob name at runtime).
     """
@@ -234,7 +201,6 @@ class GCSUpload(GCSBaseTask):
         project: str = None,
         chunk_size: int = 104857600,  # 1024 * 1024 B * 100 = 100 MB
         create_bucket: bool = False,
-        encryption_key_secret: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
         **kwargs,
     ):
@@ -244,7 +210,6 @@ class GCSUpload(GCSBaseTask):
             project=project,
             chunk_size=chunk_size,
             create_bucket=create_bucket,
-            encryption_key_secret=encryption_key_secret,
             request_timeout=request_timeout,
             **kwargs,
         )
@@ -254,12 +219,11 @@ class GCSUpload(GCSBaseTask):
         "blob",
         "project",
         "create_bucket",
-        "encryption_key_secret",
         "request_timeout",
     )
     def run(
         self,
-        data: Union[str, bytes],
+        data: Union[str, bytes, io.BytesIO],
         bucket: str = None,
         blob: str = None,
         project: str = None,
@@ -267,7 +231,6 @@ class GCSUpload(GCSBaseTask):
         credentials: dict = None,
         encryption_key: str = None,
         create_bucket: bool = False,
-        encryption_key_secret: str = None,
         content_type: str = None,
         content_encoding: str = None,
         request_timeout: Union[float, Tuple[float, float]] = 60,
@@ -280,7 +243,8 @@ class GCSUpload(GCSBaseTask):
         provided _either_ at initialization _or_ as arguments.
 
         Args:
-            - data (Union[str, bytes]): the data to upload; can be either string or bytes
+            - data (Union[str, bytes, BytesIO]): the data to upload; can be either string, bytes
+                or io.BytesIO
             - bucket (str, optional): the bucket name to upload to
             - blob (str, optional): blob name to upload to
                 a string beginning with `prefect-` and containing the Task Run ID will be used
@@ -294,9 +258,7 @@ class GCSUpload(GCSBaseTask):
                 will use default Google client logic.
             - encryption_key (str, optional): an encryption key
             - create_bucket (bool, optional): boolean specifying whether to create the bucket
-                if it does not exist, otherwise an Exception is raised. Defaults to `False`.
-            - encryption_key_secret (str, optional, DEPRECATED): the name of the Prefect Secret
-                storing an optional `encryption_key` to be used when uploading the Blob.
+                if it does not exist, otherwise an Exception is raised. Defaults to `False`..
             - content_type (str, optional): HTTP ‘Content-Type’ header for this object.
             - content_encoding (str, optional): HTTP ‘Content-Encoding’ header for this object.
             - request_timeout (Union[float, Tuple[float, float]], optional): the number of
@@ -325,23 +287,27 @@ class GCSUpload(GCSBaseTask):
             blob,
             chunk_size=chunk_size,
             encryption_key=encryption_key,
-            encryption_key_secret=encryption_key_secret,
         )
+
+        # Set content type and encoding if supplied.
+        # This is likely only desirable if uploading gzip data:
+        # https://cloud.google.com/storage/docs/metadata#content-encoding
+        if content_type:
+            gcs_blob.content_type = content_type
+        if content_encoding:
+            gcs_blob.content_encoding = content_encoding
 
         # Upload
         if type(data) == str:
             gcs_blob.upload_from_string(data, timeout=request_timeout)
         elif type(data) == bytes:
-            # Set content type and encoding if supplied.
-            # This is likely only desirable if uploading gzip data:
-            # https://cloud.google.com/storage/docs/metadata#content-encoding
-            if content_type:
-                gcs_blob.content_type = content_type
-            if content_encoding:
-                gcs_blob.content_encoding = content_encoding
             gcs_blob.upload_from_file(io.BytesIO(data), timeout=request_timeout)
+        elif type(data) == io.BytesIO:
+            gcs_blob.upload_from_file(data, timeout=request_timeout)
         else:
-            raise TypeError(f"data must be str or bytes: got {type(data)} instead")
+            raise TypeError(
+                f"data must be str, bytes or BytesIO: got {type(data)} instead"
+            )
         return gcs_blob.name
 
 
@@ -367,7 +333,7 @@ class GCSCopy(GCSBaseTask):
             Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of these
     default settings for custom use (for example, if you want to pull different credentials for
     a given Task, or specify the Blob name at runtime).
     """
@@ -481,7 +447,7 @@ class GCSBlobExists(GCSBaseTask):
             Task constructor
 
     Note that the design of this task allows you to initialize a _template_ with default
-    settings.  Each inidividual occurence of the task in a Flow can overwrite any of these
+    settings.  Each inidividual occurrence of the task in a Flow can overwrite any of these
     default settings for custom use (for example, if you want to pull different credentials for
     a given Task, or specify the Blob name at runtime).
     """

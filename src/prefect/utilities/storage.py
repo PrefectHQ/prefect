@@ -4,13 +4,13 @@ import json
 import sys
 import warnings
 from operator import attrgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Any
 from distutils.version import LooseVersion
 
 import cloudpickle
 
 import prefect
-from prefect.utilities.exceptions import StorageError
+from prefect.exceptions import FlowStorageError
 
 if TYPE_CHECKING:
     from prefect.core.flow import Flow  # pylint: disable=W0611
@@ -82,7 +82,9 @@ def extract_flow_from_file(
         raise ValueError("Provide either `file_path` or `file_contents`.")
 
     # Load objects from file into dict
-    exec_vals = {}  # type: ignore
+    # if a file_path has been provided, provide __file__ as a global variable
+    # so it resolves correctly during extraction
+    exec_vals: Dict[str, Any] = {"__file__": file_path} if file_path else {}
     exec(contents, exec_vals)
 
     # Grab flow name from values loaded via exec
@@ -231,7 +233,7 @@ def flow_from_bytes_pickle(data: bytes) -> "Flow":
                 "environment. Please ensure you have all required flow "
                 "dependencies installed."
             )
-        raise StorageError("\n".join(parts)) from exc
+        raise FlowStorageError("\n".join(parts)) from exc
 
     run_prefect = run_versions["prefect"]
     reg_prefect = reg_versions.get("prefect")

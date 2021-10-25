@@ -38,11 +38,10 @@ from prefect.engine.state import (
 )
 from prefect.utilities.executors import (
     RecursiveCall,
-    run_with_heartbeat,
     tail_recursive,
 )
 from prefect.utilities.compatibility import nullcontext
-from prefect.utilities.exceptions import TaskTimeoutError
+from prefect.exceptions import TaskTimeoutSignal
 
 
 TaskRunnerInitializeResult = NamedTuple(
@@ -686,13 +685,30 @@ class TaskRunner(Runner):
 
     def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
         """
-        Sets the name for this task run.
+        Sets the name for this task run and adds to `prefect.context`
 
         Args:
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+
         """
-        pass
+
+        task_run_name = self.task.task_run_name
+
+        if task_run_name:
+            raw_inputs = {k: r.value for k, r in task_inputs.items()}
+            formatting_kwargs = {
+                **prefect.context.get("parameters", {}),
+                **prefect.context,
+                **raw_inputs,
+            }
+
+            if not isinstance(task_run_name, str):
+                task_run_name = task_run_name(**formatting_kwargs)
+            else:
+                task_run_name = task_run_name.format(**formatting_kwargs)
+
+            prefect.context.update({"task_run_name": task_run_name})
 
     @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:
@@ -815,7 +831,6 @@ class TaskRunner(Runner):
         new_state = Running(message="Starting task run.")
         return new_state
 
-    @run_with_heartbeat
     @call_state_handlers
     def get_task_run_state(self, state: State, inputs: Dict[str, Result]) -> State:
         """
@@ -834,12 +849,12 @@ class TaskRunner(Runner):
             - signals.PAUSE: if the task raises PAUSE
             - ENDRUN: if the task is not ready to run
         """
+        task_name = prefect.context.get("task_full_name", self.task.name)
+
         if not state.is_running():
             self.logger.debug(
-                "Task '{name}': Can't run task because it's not in a "
-                "Running state; ending run.".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
+                f"Task {task_name!r}: Can't run task because it's not in a Running "
+                "state; ending run."
             )
 
             raise ENDRUN(state)
@@ -848,11 +863,7 @@ class TaskRunner(Runner):
         raw_inputs = {k: r.value for k, r in inputs.items()}
         new_state = None
         try:
-            self.logger.debug(
-                "Task '{name}': Calling task.run() method...".format(
-                    name=prefect.context.get("task_full_name", self.task.name)
-                )
-            )
+            self.logger.debug(f"Task {task_name!r}: Calling task.run() method...")
 
             # Create a stdout redirect if the task has log_stdout enabled
             log_context = (
@@ -869,20 +880,35 @@ class TaskRunner(Runner):
                     logger=self.logger,
                 )
 
-        # inform user of timeout
-        except TaskTimeoutError as exc:
+        except TaskTimeoutSignal as exc:  # Convert timeouts to a `TimedOut` state
             if prefect.context.get("raise_on_exception"):
                 raise exc
             state = TimedOut("Task timed out during execution.", result=exc)
             return state
 
-        except signals.LOOP as exc:
+        except signals.LOOP as exc:  # Convert loop signals to a `Looped` state
             new_state = exc.state
             assert isinstance(new_state, Looped)
             value = new_state.result
             new_state.message = exc.state.message or "Task is looping ({})".format(
                 new_state.loop_count
             )
+
+        except signals.SUCCESS as exc:
+            # Success signals can be treated like a normal result
+            new_state = exc.state
+            assert isinstance(new_state, Success)
+            value = new_state.result
+
+        except Exception as exc:  # Handle exceptions in the task
+            if prefect.context.get("raise_on_exception"):
+                raise
+            self.logger.error(
+                f"Task {task_name!r}: Exception encountered during task execution!",
+                exc_info=True,
+            )
+            state = Failed(f"Error during execution of task: {exc!r}", result=exc)
+            return state
 
         # checkpoint tasks if a result is present, except for when the user has opted out by
         # disabling checkpointing

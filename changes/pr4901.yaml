@@ -1,0 +1,5 @@
+feature:
+  - "Add support for rich iCal style scheduling via RRules - [#4901](https://github.com/PrefectHQ/prefect/pull/4901)"
+
+contributor:
+  - "[Nitay Joffe](https://github.com/nitay)"

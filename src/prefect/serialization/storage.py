@@ -3,16 +3,17 @@ from typing import Any
 from marshmallow import fields, post_load
 
 from prefect.storage import (
+    GCS,
+    S3,
     Azure,
     Bitbucket,
     CodeCommit,
     Docker,
-    GCS,
+    Git,
     GitHub,
     GitLab,
     Local,
     Module,
-    S3,
     Storage,
     Webhook,
 )
@@ -23,7 +24,7 @@ class BaseStorageSchema(ObjectSchema):
     class Meta:
         object_class = Storage
 
-    flows = fields.Dict(key=fields.Str(), values=fields.Str())
+    flows = fields.Dict(keys=fields.Str(), values=fields.Str())
     secrets = fields.List(fields.Str(), allow_none=True)
 
     @post_load
@@ -39,6 +40,7 @@ class AzureSchema(BaseStorageSchema):
         object_class = Azure
 
     container = fields.String(allow_none=False)
+    connection_string_secret = fields.String(allow_none=True)
     blob_name = fields.String(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
 
@@ -86,7 +88,7 @@ class S3Schema(BaseStorageSchema):
     key = fields.String(allow_none=True)
     stored_as_script = fields.Bool(allow_none=True)
     client_options = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
 
 
@@ -118,10 +120,13 @@ class BitbucketSchema(BaseStorageSchema):
 
     project = fields.String(allow_none=False)
     repo = fields.String(allow_none=False)
+    workspace = fields.String(allow_none=True)
     host = fields.String(allow_none=True)
     path = fields.String(allow_none=True)
     ref = fields.String(allow_none=True)
     access_token_secret = fields.String(allow_none=True)
+    cloud_username_secret = fields.String(allow_none=True)
+    cloud_app_password_secret = fields.String(allow_none=True)
 
 
 class CodeCommitSchema(BaseStorageSchema):
@@ -132,7 +137,7 @@ class CodeCommitSchema(BaseStorageSchema):
     path = fields.String(allow_none=True)
     commit = fields.String(allow_none=True)
     client_options = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
 
 
@@ -140,11 +145,30 @@ class WebhookSchema(BaseStorageSchema):
     class Meta:
         object_class = Webhook
 
-    build_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    build_request_kwargs = fields.Dict(keys=fields.Str, allow_none=False)
     build_request_http_method = fields.String(allow_none=False)
-    get_flow_request_kwargs = fields.Dict(key=fields.Str, allow_none=False)
+    get_flow_request_kwargs = fields.Dict(keys=fields.Str, allow_none=False)
     get_flow_request_http_method = fields.String(allow_none=False)
     stored_as_script = fields.Bool(allow_none=True)
+
+
+class GitSchema(BaseStorageSchema):
+    class Meta:
+        object_class = Git
+
+    flow_path = fields.String(allow_none=False)
+    repo = fields.String(allow_none=False)
+    repo_host = fields.String(allow_none=False)
+    flow_name = fields.String(allow_none=True)
+    git_token_secret_name = fields.String(allow_none=True)
+    git_token_username = fields.String(allow_none=True)
+    git_clone_url_secret_name = fields.String(allow_none=True)
+    branch_name = fields.String(allow_none=True)
+    tag = fields.String(allow_none=True)
+    commit = fields.String(allow_none=True)
+    clone_depth = fields.Integer(allow_none=True)
+    use_ssh = fields.Boolean(allow_none=False)
+    format_access_token = fields.Boolean(allow_none=False)
 
 
 class ModuleSchema(BaseStorageSchema):
@@ -173,4 +197,5 @@ class StorageSchema(OneOfSchema):
         "S3": S3Schema,
         "Storage": BaseStorageSchema,
         "Webhook": WebhookSchema,
+        "Git": GitSchema,
     }
