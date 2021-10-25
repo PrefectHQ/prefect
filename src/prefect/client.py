@@ -86,6 +86,7 @@ class OrionClient:
 
         if host:
             # Connect to an existing instance
+            self.ephemeral = False
             if "app" in httpx_settings:
                 raise ValueError(
                     "Invalid httpx settings: `app` cannot be set with `host`, "
@@ -94,6 +95,7 @@ class OrionClient:
             httpx_settings.setdefault("base_url", host)
         else:
             # Connect to an ephemeral app
+            self.ephemeral = True
             httpx_settings.setdefault("app", orion_app)
             httpx_settings.setdefault("base_url", "http://orion/api")
 
@@ -1023,10 +1025,21 @@ class OrionClient:
         return result
 
     async def __aenter__(self):
+        if self.ephemeral:
+            from prefect.orion.utilities.database import ENGINES
+
+            self._existing_engine_keys = set(ENGINES.keys())
         await self._client.__aenter__()
         return self
 
     async def __aexit__(self, *exc_info):
+        if self.ephemeral:
+            # On exit, ephemeral instances should tear down the engine cache to prevent
+            # too many engines from being created
+            from prefect.orion.utilities.database import clear_engine_cache
+
+            await clear_engine_cache(ignore_keys=self._existing_engine_keys)
+
         return await self._client.__aexit__(*exc_info)
 
     def __enter__(self):
