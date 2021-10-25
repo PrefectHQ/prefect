@@ -26,15 +26,6 @@ from prefect.orion.utilities.database import (
 )
 
 
-class Flow(Base):
-    """SQLAlchemy model of a flow."""
-
-    name = Column(String, nullable=False, unique=True)
-    tags = Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_runs = relationship("FlowRun", back_populates="flow", lazy="raise")
-    deployments = relationship("Deployment", back_populates="flow", lazy="raise")
-
-
 class FlowRunState(Base):
     """SQLAlchemy model of a flow run state."""
 
@@ -503,7 +494,7 @@ class Deployment(Base):
     parameters = Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = Column(Pydantic(data.DataDocument))
 
-    flow = relationship(Flow, back_populates="deployments", lazy="raise")
+    flow = relationship("Flow", back_populates="deployments", lazy="raise")
 
     __table_args__ = (
         sa.Index(
@@ -525,3 +516,25 @@ class SavedSearch(Base):
         default=dict,
         nullable=False,
     )
+
+
+class Flow(object):
+    pass  # TODO - remove
+
+
+@sa.orm.declarative_mixin
+class FlowMixin:
+    """SQLAlchemy model of a flow."""
+
+    name = Column(sa.String, nullable=False, unique=True)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    # flow_runs = sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
+    # deployments = sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
+
+
+# from prefect.orion.models.dependencies import get_database_configuration
+
+
+# async def _get_or_create_flow_model(get_db_config=get_database_configuration):
+#     db_config = await get_db_config()
+#     return db_config.Flow
