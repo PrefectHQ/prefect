@@ -118,6 +118,20 @@ async def get_engine(
     return ENGINES[cache_key]
 
 
+async def clear_engine_cache(ignore_keys: set = None):
+    ignore_keys = ignore_keys or set()
+
+    # Collect all of the engines except the keys to ignore
+    keys = [key for key in ENGINES.keys() if key not in ignore_keys]
+
+    # Clear the engines from the cache
+    engines = [ENGINES.pop(key) for key in keys]
+
+    # Dipose the removed engines
+    for engine in engines:
+        await engine.dispose()
+
+
 async def get_session_factory(
     bind: Union[sa.engine.Engine, sa.engine.Connection] = None,
 ) -> sa.ext.asyncio.scoping.async_scoped_session:
