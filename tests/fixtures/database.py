@@ -17,15 +17,15 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.database import (
     ENGINES,
     Base,
-    get_engine,
-    get_session_factory,
 )
+from prefect.orion.models.dependencies import get_database_configuration
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine():
+async def database_engine(get_db_config=get_database_configuration):
     """Produce a database engine"""
-    engine = await get_engine()
+    db_config = await get_db_config()
+    engine = await db_config.engine()
     try:
         yield engine
     finally:
@@ -42,19 +42,19 @@ def print_query(database_engine):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def setup_db(database_engine):
+async def setup_db(database_engine, get_db_config=get_database_configuration):
     """Create all database objects prior to running tests, and drop them when tests are done."""
+    db_config = await get_db_config()
     try:
         # build the database
         async with database_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
+            await conn.run_sync(db_config.Base.metadata.create_all)
         yield
 
     finally:
         # tear down the databse
         async with database_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(db_config.Base.metadata.drop_all)
 
 
 @pytest.fixture(autouse=True)
@@ -71,8 +71,9 @@ async def clear_db(database_engine):
 
 
 @pytest.fixture
-async def session(database_engine) -> AsyncSession:
-    session_factory = await get_session_factory(bind=database_engine)
+async def session(get_db_config=get_database_configuration) -> AsyncSession:
+    db_config = await get_db_config()
+    session_factory = await db_config.session_factory()
     async with session_factory() as session:
         yield session
 

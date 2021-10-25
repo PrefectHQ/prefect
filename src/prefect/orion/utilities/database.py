@@ -11,7 +11,7 @@ import os
 import re
 import uuid
 from asyncio import current_task, get_event_loop
-from typing import List, Union
+from typing import List, Union, Any
 
 import pendulum
 import pydantic
@@ -34,7 +34,7 @@ from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-ENGINES = {}
+ENGINES = {}  # TODO - put this in the connection abstraction?
 SESSION_FACTORIES = {}
 
 
@@ -57,6 +57,9 @@ def setup_sqlite(conn, named=True):
         # without running into errors, but may result in slow api calls
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
+
+
+from pydantic import BaseModel, Field
 
 
 async def get_engine(
@@ -689,8 +692,115 @@ base_metadata = MetaData(
 )
 
 
-@as_declarative(metadata=base_metadata)
-class Base(object):
+# def create_base_model(db_config=AsyncPostgresConfiguration):
+#     @as_declarative(metadata=base_metadata)
+#     class Base(*db_config().base_model_mixins, object):
+#         """
+#         Base SQLAlchemy model that automatically infers the table name
+#         and provides ID, created, and updated columns
+#         """
+
+#         # required in order to access columns with server defaults
+#         # or SQL expression defaults, subsequent to a flush, without
+#         # triggering an expired load
+#         #
+#         # this allows us to load attributes with a server default after
+#         # an INSERT, for example
+#         #
+#         # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
+#         __mapper_args__ = {"eager_defaults": True}
+
+#         @declared_attr
+#         def __tablename__(cls):
+#             """
+#             By default, turn the model's camel-case class name
+#             into a snake-case table name. Override by providing
+#             an explicit `__tablename__` class property.
+#             """
+#             return camel_to_snake.sub("_", cls.__name__).lower()
+
+#         id = Column(
+#             UUID(),
+#             primary_key=True,
+#             server_default=GenerateUUID(),
+#             default=uuid.uuid4,
+#         )
+#         created = Column(
+#             Timestamp(),
+#             nullable=False,
+#             server_default=now(),
+#             default=lambda: pendulum.now("UTC"),
+#         )
+
+#         # onupdate is only called when statements are actually issued
+#         # against the database. until COMMIT is issued, this column
+#         # will not be updated
+#         updated = Column(
+#             Timestamp(),
+#             nullable=False,
+#             index=True,
+#             server_default=now(),
+#             default=lambda: pendulum.now("UTC"),
+#             onupdate=now(),
+#         )
+
+#     return Base
+
+
+# Base = create_base_model()
+
+
+def get_dialect(
+    session=None,
+    engine=None,
+    connection_url: str = None,
+) -> sa.engine.Dialect:
+    """
+    Get the dialect of a session, engine, or connection url.
+
+    If none of the above is provided, dialect will be retrieved
+    from the Orion API database connection url.
+
+    Primary use case is figuring out whether the Orion API is
+    communicating with SQLite or Postgres.
+
+    Example:
+        ```python
+        from prefect.orion.utilities.database import get_dialect
+
+        dialect = get_dialect()
+        if dialect == "sqlite":
+            print("Using SQLite!")
+        else:
+            print("Using Postgres!")
+        ```
+    """
+    if session is not None:
+        url = session.bind.url
+    elif engine is not None:
+        url = engine.url
+    else:
+        if connection_url is None:
+            connection_url = settings.orion.database.connection_url.get_secret_value()
+        url = sa.engine.url.make_url(connection_url)
+    return url.get_dialect()
+
+
+def dialect_specific_insert(model):
+    """Returns an INSERT statement specific to a dialect"""
+    inserts = {
+        "postgresql": postgresql.insert,
+        "sqlite": sqlite.insert,
+    }
+    return inserts[get_dialect().name](model)
+
+
+# TODO
+# test injecting new cols
+# test injecting the database itself
+
+# @as_declarative(metadata=base_metadata)
+class BaseMixin(object):
     """
     Base SQLAlchemy model that automatically infers the table name
     and provides ID, created, and updated columns
@@ -741,60 +851,283 @@ class Base(object):
     )
 
 
-async def create_db(engine=None):
+@sa.orm.declarative_mixin
+class FlowMixin:
+    """SQLAlchemy model of a flow."""
+
+    name = Column(sa.String, nullable=False, unique=True)
+    tags = Column(JSON, server_default="[]", default=list, nullable=False)
+    # flow_runs = sa.orm.relationship("FlowRun", back_populates="flow", lazy="raise")
+    # deployments = sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
+
+
+class AsyncPostgresConfiguration(BaseModel):
+    connection_url: str = Field(
+        default_factory=settings.orion.database.connection_url.get_secret_value
+    )
+    echo: bool = settings.orion.database.echo
+    timeout: float = None
+
+    base_model_mixins: List = []
+    Base: Any = None
+    Flow: Any = None
+
+    # TODO - validate connection url for postgres and asyncpg driver
+
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+        self.Base = self.create_base_model()
+        self.create_orm_models()
+
+    def create_base_model(self):
+        # TODO - pull in metadata
+        @as_declarative(metadata=base_metadata)
+        class Base(*self.base_model_mixins, BaseMixin):
+            pass
+
+        return Base
+
+    def create_orm_models(self):
+        # from prefect.orion.models.orm import FlowMixin
+
+        class Flow(FlowMixin, self.Base):
+            pass
+
+        self.Flow = Flow
+        return self.Flow
+
+    async def engine(
+        self,
+    ) -> sa.engine.Engine:
+        """Retrieves an async SQLAlchemy engine.
+
+        A new engine is created for each event loop and cached, so that engines are
+        not shared across loops.
+
+        If a sqlite in-memory database OR a non-existant sqlite file-based database
+        is provided, it is automatically populated with database objects.
+
+        Args:
+            connection_url (str, optional): The database connection string.
+                Defaults to the value in Prefect's settings.
+            echo (bool, optional): Whether to echo SQL sent
+                to the database. Defaults to the value in Prefect's settings.
+            timeout (float, optional): The database statement timeout, in seconds
+
+        Returns:
+            sa.engine.Engine: a SQLAlchemy engine
+        """
+
+        loop = get_event_loop()
+        cache_key = (loop, self.connection_url, self.echo, self.timeout)
+        if cache_key not in ENGINES:
+            kwargs = {}
+
+            # apply database timeout
+            if self.timeout is not None:
+                kwargs["connect_args"] = dict(command_timeout=self.timeout)
+
+            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+
+            ENGINES[cache_key] = engine
+        return ENGINES[cache_key]
+
+    async def session_factory(
+        self,
+    ) -> sa.ext.asyncio.scoping.async_scoped_session:
+        """Retrieves a SQLAlchemy session factory for the provided bind.
+        The session factory is cached for each event loop.
+
+        Args:
+            engine (Union[sa.engine.Engine, sa.engine.Connection], optional): An
+                async SQLAlchemy engine or connection. If none is
+                provided, `get_engine()` is called to recover one.
+
+        Returns:
+            sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
+        """
+        bind = await self.engine()
+
+        loop = get_event_loop()
+        cache_key = (loop, bind)
+        if cache_key not in SESSION_FACTORIES:
+            # create session factory
+            session_factory = sessionmaker(
+                bind,
+                future=True,
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+
+            # create session factory with async scoping
+            SESSION_FACTORIES[cache_key] = async_scoped_session(
+                session_factory, scopefunc=current_task
+            )
+
+        return SESSION_FACTORIES[cache_key]
+
+
+class AioSqliteConfiguration(pydantic.BaseModel):
+    connection_url: str = Field(
+        default_factory=settings.orion.database.connection_url.get_secret_value
+    )
+    echo: bool = settings.orion.database.echo
+    timeout: float = None
+
+    base_model_mixins: List = []
+
+    # TODO - validate connection url for sqlite and driver
+
+    async def engine(self) -> sa.engine.Engine:
+        """Retrieves an async SQLAlchemy engine.
+
+        A new engine is created for each event loop and cached, so that engines are
+        not shared across loops.
+
+        If a sqlite in-memory database OR a non-existant sqlite file-based database
+        is provided, it is automatically populated with database objects.
+
+        Args:
+            connection_url (str, optional): The database connection string.
+                Defaults to the value in Prefect's settings.
+            echo (bool, optional): Whether to echo SQL sent
+                to the database. Defaults to the value in Prefect's settings.
+            timeout (float, optional): The database statement timeout, in seconds
+
+        Returns:
+            sa.engine.Engine: a SQLAlchemy engine
+        """
+
+        loop = get_event_loop()
+        cache_key = (loop, self.connection_url, self.echo, self.timeout)
+        if cache_key not in ENGINES:
+            kwargs = {}
+
+            # apply database timeout
+            if self.timeout is not None:
+                kwargs["connect_args"] = dict(timeout=self.timeout)
+
+            # ensure a long-lasting pool is used with in-memory databases
+            # because they disappear when the last connection closes
+            if ":memory:" in self.connection_url:
+                kwargs.update(poolclass=sa.pool.SingletonThreadPool)
+
+            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+            sa.event.listen(engine.sync_engine, "engine_connect", setup_sqlite)
+
+            # if this is a new sqlite database create all database objects
+            if (
+                ":memory:" in engine.url.database
+                or "mode=memory" in engine.url.database
+                or not os.path.exists(engine.url.database)
+            ):
+                await create_db(engine)
+
+            ENGINES[cache_key] = engine
+        return ENGINES[cache_key]
+
+    async def session_factory(
+        self,
+    ) -> sa.ext.asyncio.scoping.async_scoped_session:
+        """Retrieves a SQLAlchemy session factory for the provided bind.
+        The session factory is cached for each event loop.
+
+        Args:
+            engine (Union[sa.engine.Engine, sa.engine.Connection], optional): An
+                async SQLAlchemy engine or connection. If none is
+                provided, `get_engine()` is called to recover one.
+
+        Returns:
+            sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
+        """
+        bind = await self.engine()
+
+        loop = get_event_loop()
+        cache_key = (loop, bind)
+        if cache_key not in SESSION_FACTORIES:
+            # create session factory
+            session_factory = sessionmaker(
+                bind,
+                future=True,
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+
+            # create session factory with async scoping
+            SESSION_FACTORIES[cache_key] = async_scoped_session(
+                session_factory, scopefunc=current_task
+            )
+
+        return SESSION_FACTORIES[cache_key]
+
+
+async def create_db():
     """Create all database tables."""
-    engine = engine or await get_engine()
+    from prefect.orion.models.dependencies import get_database_configuration
+
+    db_config = await get_database_configuration()
+    engine = await db_config.engine()
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(db_config.Base.metadata.create_all)
 
 
-async def drop_db(engine=None):
+async def drop_db():
     """Drop all database tables."""
-    engine = engine or await get_engine()
+    from prefect.orion.models.dependencies import get_database_configuration
+
+    db_config = await get_database_configuration()
+    engine = await db_config.engine()
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(db_config.Base.metadata.drop_all)
 
 
-def get_dialect(
-    session=None,
-    engine=None,
-    connection_url: str = None,
-) -> sa.engine.Dialect:
+@as_declarative(metadata=base_metadata)
+class Base(object):
     """
-    Get the dialect of a session, engine, or connection url.
-
-    If none of the above is provided, dialect will be retrieved
-    from the Orion API database connection url.
-
-    Primary use case is figuring out whether the Orion API is
-    communicating with SQLite or Postgres.
-
-    Example:
-        ```python
-        from prefect.orion.utilities.database import get_dialect
-
-        dialect = get_dialect()
-        if dialect == "sqlite":
-            print("Using SQLite!")
-        else:
-            print("Using Postgres!")
-        ```
+    Base SQLAlchemy model that automatically infers the table name
+    and provides ID, created, and updated columns
     """
-    if session is not None:
-        url = session.bind.url
-    elif engine is not None:
-        url = engine.url
-    else:
-        if connection_url is None:
-            connection_url = settings.orion.database.connection_url.get_secret_value()
-        url = sa.engine.url.make_url(connection_url)
-    return url.get_dialect()
 
+    # required in order to access columns with server defaults
+    # or SQL expression defaults, subsequent to a flush, without
+    # triggering an expired load
+    #
+    # this allows us to load attributes with a server default after
+    # an INSERT, for example
+    #
+    # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
+    __mapper_args__ = {"eager_defaults": True}
 
-def dialect_specific_insert(model: Base):
-    """Returns an INSERT statement specific to a dialect"""
-    inserts = {
-        "postgresql": postgresql.insert,
-        "sqlite": sqlite.insert,
-    }
-    return inserts[get_dialect().name](model)
+    @declared_attr
+    def __tablename__(cls):
+        """
+        By default, turn the model's camel-case class name
+        into a snake-case table name. Override by providing
+        an explicit `__tablename__` class property.
+        """
+        return camel_to_snake.sub("_", cls.__name__).lower()
+
+    id = Column(
+        UUID(),
+        primary_key=True,
+        server_default=GenerateUUID(),
+        default=uuid.uuid4,
+    )
+    created = Column(
+        Timestamp(),
+        nullable=False,
+        server_default=now(),
+        default=lambda: pendulum.now("UTC"),
+    )
+
+    # onupdate is only called when statements are actually issued
+    # against the database. until COMMIT is issued, this column
+    # will not be updated
+    updated = Column(
+        Timestamp(),
+        nullable=False,
+        index=True,
+        server_default=now(),
+        default=lambda: pendulum.now("UTC"),
+        onupdate=now(),
+    )
