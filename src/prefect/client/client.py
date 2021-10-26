@@ -46,12 +46,13 @@ from prefect.utilities.graphql import (
     with_args,
     format_graphql_request_error,
 )
-from prefect.utilities.logging import create_diagnostic_logger
+from prefect.utilities.logging import create_diagnostic_logger, get_logger
 
 if TYPE_CHECKING:
     from prefect.core import Flow
     import requests
 JSONLike = Union[bool, dict, list, str, int, float, None]
+
 
 # type definitions for GraphQL results
 
@@ -120,7 +121,7 @@ class Client:
         self._refresh_token = None
         self._access_token_expires_at = pendulum.now()
         self._attached_headers = {}  # type: Dict[str, str]
-        self.logger = create_diagnostic_logger("Diagnostics")
+        self.logger = get_logger("client")
 
         # Hard-code the auth filepath location
         self._auth_file = Path(prefect.context.config.home_dir).absolute() / "auth.toml"
@@ -1129,6 +1130,10 @@ class Client:
             )
 
         serialized_flow = flow.serialize(build=build)  # type: Any
+        task_slugs = list(sorted(task.slug for task in flow.tasks))
+        self.logger.info(
+            f"Preparing to register ({len(task_slugs)}) task slugs: {task_slugs}"
+        )
 
         # Configure environment.metadata (if using environment-based flows)
         if flow.environment is not None:
@@ -1156,6 +1161,9 @@ class Client:
         # prepare for batched registration
         serialized_tasks = serialized_flow.pop("tasks")
         serialized_edges = serialized_flow.pop("edges")
+
+        task_slugs = list(sorted(task["slug"] for task in serialized_tasks))
+        self.logger.info(f"Found ({len(task_slugs)}) serialized tasks: {task_slugs}")
 
         if compressed:
             serialized_flow = compress(serialized_flow)
@@ -1202,6 +1210,11 @@ class Client:
 
         while start <= len(serialized_tasks):
             task_batch = serialized_tasks[start:stop]
+            task_slugs = list(sorted(task["slug"] for task in task_batch))
+            self.logger.info(
+                f"Registering batch of ({len(task_batch)}) serialized tasks: {task_slugs}"
+            )
+
             inputs = dict(
                 flow_id=flow_id,
                 serialized_tasks=task_batch,
