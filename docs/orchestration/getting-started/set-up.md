@@ -8,7 +8,7 @@ Prefect Cloud and the Prefect Core server provide ready-to-use back end for main
 
 If you want an orchestration layer, you have two options: Prefect Cloud or Prefect Core server. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
 
-We encourage users to try Prefect Cloud first, unless your environment has restricted access to cloud services, you must run in your own environment, or prefer a self-hosted server.
+We encourage users to try Prefect Cloud first, unless your environment has restricted access to the Internet, or you prefer a self-hosted server for which you want to build your own authentication and scaling mechanism.
 
 This guide focusses on setting up Prefect Cloud. More information on Prefect Core server is available in the [Prefect Server documentation](/orchestration/server/overview.html).
 
