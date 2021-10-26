@@ -121,13 +121,19 @@ class BaseExecutor(metaclass=abc.ABCMeta):
     ) -> AsyncIterator[T]:
         """Start the executor, preparing any resources necessary for task submission"""
         try:
-            self.logger.info(f"Starting executor {self}...")
+            self.logger.info(f"Starting executor `{self}`...")
             await self.on_startup()
             self._started = True
             yield self
+        except Exception:
+            self.logger.error("Failed to start executor!", exc_info=True)
+            raise
         finally:
-            self.logger.info(f"Shutting down executor {self}...")
-            await self.on_shutdown()
+            self.logger.info(f"Shutting down executor `{self}`...")
+            try:
+                await self.on_shutdown()
+            except Exception:
+                self.logger.error("Failed to shutdown executor cleanly", exc_info=True)
             self._started = False
 
     async def on_startup(self) -> None:
