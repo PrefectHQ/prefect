@@ -82,7 +82,6 @@ async def get_engine(
     Returns:
         sa.engine.Engine: a SQLAlchemy engine
     """
-
     if connection_url is None:
         connection_url = settings.orion.database.connection_url.get_secret_value()
 
