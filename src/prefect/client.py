@@ -86,7 +86,6 @@ class OrionClient:
 
         if host:
             # Connect to an existing instance
-            self.ephemeral = False
             if "app" in httpx_settings:
                 raise ValueError(
                     "Invalid httpx settings: `app` cannot be set with `host`, "
@@ -95,7 +94,6 @@ class OrionClient:
             httpx_settings.setdefault("base_url", host)
         else:
             # Connect to an ephemeral app
-            self.ephemeral = True
             httpx_settings.setdefault("app", orion_app)
             httpx_settings.setdefault("base_url", "http://orion/api")
 
