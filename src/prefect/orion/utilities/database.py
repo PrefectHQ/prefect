@@ -10,6 +10,7 @@ import json
 import os
 import re
 import uuid
+import weakref
 from asyncio import current_task, get_event_loop
 from typing import List, Union
 
@@ -34,8 +35,8 @@ from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-ENGINES = {}
-SESSION_FACTORIES = {}
+ENGINES = weakref.WeakValueDictionary()
+SESSION_FACTORIES = weakref.WeakKeyDictionary()
 
 
 def setup_sqlite(conn, named=True):
