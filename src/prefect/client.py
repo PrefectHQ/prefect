@@ -1025,22 +1025,24 @@ class OrionClient:
         return result
 
     async def __aenter__(self):
-        if self.ephemeral:
-            from prefect.orion.utilities.database import ENGINES
-
-            self._existing_engine_keys = set(ENGINES.keys())
         await self._client.__aenter__()
+        if self.ephemeral:
+            from prefect.orion.utilities.database import create_ephemeral_engine
+
+            self._engine_ref_key = await create_ephemeral_engine()
         return self
 
     async def __aexit__(self, *exc_info):
-        if self.ephemeral:
-            # On exit, ephemeral instances should tear down the engine cache to prevent
-            # too many engines from being created
-            from prefect.orion.utilities.database import clear_engine_cache
+        httpx_exit = await self._client.__aexit__(*exc_info)
 
-            await clear_engine_cache(ignore_keys=self._existing_engine_keys)
+        if self.ephemeral and self._engine_ref_key is not None:
+            # On exit, ephemeral instances should clean up their engine if they created
+            # one to prevent database connection saturation
+            from prefect.orion.utilities.database import dispose_ephemeral_engine
 
-        return await self._client.__aexit__(*exc_info)
+            await dispose_ephemeral_engine(self._engine_ref_key)
+
+        return httpx_exit
 
     def __enter__(self):
         raise RuntimeError(

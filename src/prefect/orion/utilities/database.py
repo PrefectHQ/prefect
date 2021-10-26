@@ -82,11 +82,13 @@ async def get_engine(
     Returns:
         sa.engine.Engine: a SQLAlchemy engine
     """
+
     if connection_url is None:
         connection_url = settings.orion.database.connection_url.get_secret_value()
 
     loop = get_event_loop()
     cache_key = (loop, connection_url, echo, timeout)
+
     if cache_key not in ENGINES:
         kwargs = {}
 
@@ -115,21 +117,33 @@ async def get_engine(
             await create_db(engine)
 
         ENGINES[cache_key] = engine
+
     return ENGINES[cache_key]
 
 
-async def clear_engine_cache(ignore_keys: set = None):
-    ignore_keys = ignore_keys or set()
+async def create_ephemeral_engine(
+    connection_url: str = None,
+    echo: bool = settings.orion.database.echo,
+    timeout: Optional[float] = None,
+) -> Optional[tuple]:
+    """ """
+    if connection_url is None:
+        connection_url = settings.orion.database.connection_url.get_secret_value()
 
-    # Collect all of the engines except the keys to ignore
-    keys = [key for key in ENGINES.keys() if key not in ignore_keys]
+    loop = get_event_loop()
+    cache_key = (loop, connection_url, echo, timeout)
 
-    # Clear the engines from the cache
-    engines = [ENGINES.pop(key) for key in keys]
+    if cache_key in ENGINES:
+        return None
 
-    # Dipose the removed engines
-    for engine in engines:
-        await engine.dispose()
+    # Otherwise, return an engine then create the cache key
+    await get_engine(connection_url=connection_url, echo=echo, timeout=timeout)
+    return cache_key
+
+
+async def dispose_ephemeral_engine(cache_key: tuple):
+    if cache_key in ENGINES:
+        await ENGINES[cache_key].dispose()
 
 
 async def get_session_factory(
