@@ -103,8 +103,6 @@ async def get_engine(
         # because they disappear when the last connection closes
         if connection_url.startswith("sqlite") and ":memory:" in connection_url:
             kwargs.update(poolclass=sa.pool.SingletonThreadPool)
-        else:
-            kwargs.update(poolclass=sa.pool.NullPool)
 
         engine = create_async_engine(connection_url, echo=echo, **kwargs)
         sa.event.listen(engine.sync_engine, "engine_connect", setup_sqlite)
@@ -118,21 +116,21 @@ async def get_engine(
             await create_db(engine)
 
         # schedule disposal of old engines so we do not keep connection pools open
-        loop.call_soon(dispose_old_engines)
+        await dispose_old_engines()
 
         ENGINES[cache_key] = engine
 
     return ENGINES[cache_key]
 
 
-def dispose_old_engines():
+async def dispose_old_engines():
     """
     Dispose of any engines that were created in an event loop that is now closed
     """
     old_keys = [cache_key for cache_key in ENGINES if cache_key[0].is_closed()]
     for key in old_keys:
         engine = ENGINES.pop(key)
-        engine.sync_engine.dispose()
+        await engine.dispose()
 
 
 async def get_session_factory(
