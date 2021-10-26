@@ -115,7 +115,7 @@ async def get_engine(
         ):
             await create_db(engine)
 
-        # schedule disposal of old engines so we do not keep connection pools open
+        # dispose old engines so we do not keep connection pools open
         await dispose_old_engines()
 
         ENGINES[cache_key] = engine
