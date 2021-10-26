@@ -1,7 +1,7 @@
 import os
 
 import yaml
-from typing import Any, Optional
+from typing import Any
 
 from prefect.core.task import Task
 from prefect.tasks.shell import ShellTask
@@ -203,15 +203,19 @@ class DbtCloudRunJob(Task):
         - additional_args (dict, optional): additional information to pass to the Trigger Job API.
             For a list of the possible information,
             have a look at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
-        - account_id_env_var_name (string, optional): the name of the env var that contains the dbt Cloud account ID.
+        - account_id_env_var_name (string, optional):
+            the name of the env var that contains the dbt Cloud account ID.
             Defaults to ACCOUNT_ID.
             Used only if account_id is None.
-        - job_id_env_var_name (string, optional): the name of the env var that contains the dbt Cloud job ID
+        - job_id_env_var_name (string, optional):
+            the name of the env var that contains the dbt Cloud job ID
             Default to JOB_ID.
             Used only if job_id is None.
-        - wait_for_job_run_completion (boolean, optional): Whether the task should wait for the job run completion or not.
+        - wait_for_job_run_completion (boolean, optional):
+            Whether the task should wait for the job run completion or not.
             Default to False.
-        - wait_interval (int, optional): The number of seconds to wait between calls to dbt Cloud Get Job API.
+        - wait_interval (int, optional): The number of seconds to wait between calls to
+            dbt Cloud Get Job API.
             Default to 10.
             Used only if wait_for_job_run_completion = True.
         - max_attempts (int, optional): The maximum number of call to dbt Cloud Get Job API.
@@ -222,16 +226,19 @@ class DbtCloudRunJob(Task):
     Returns:
         - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
             The trigger run result is the dict under the "data" key.
-            Have a look at the Response section at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
+            Have a look at the Response section at:
+            https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
 
           if wait_for_job_run_completion = True, then returns the get job result.
             The get job result is the dict under the "data" key.
-            Have a look at the Response section at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
+            Have a look at the Response section at:
+            https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
 
     Raises:
         - prefect.engine.signals.FAIL: whether there's a HTTP status code != 200
             and also whether the run job result has a status != 10 AND "finished_at" is not None
-            Have a look at the status codes at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
+            Have a look at the status codes at:
+            https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
     """
 
     def __init__(
