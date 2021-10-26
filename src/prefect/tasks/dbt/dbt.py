@@ -1,9 +1,13 @@
 import os
-import yaml
-from typing import Any
 
+import yaml
+from typing import Any, Optional
+
+from prefect.core.task import Task
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.tasks import defaults_from_attrs
+
+from .dbt_cloud_utils import trigger_job_run, get_job_run
 
 
 class DbtShellTask(ShellTask):
@@ -182,3 +186,123 @@ class DbtShellTask(ShellTask):
         return super(DbtShellTask, self).run(
             command=command, env=env, helper_script=helper_script
         )
+
+
+class DbtCloudRunJob(Task):
+    """
+    Task for running a dbt Cloud job using dbt Cloud APIs v2.
+    For info about dbt Cloud APIs, please refer to https://docs.getdbt.com/dbt-cloud/api-v2
+
+    Args:
+        - cause (string): A string describing the reason for triggering the job run
+        - account_id (int, optional): dbt Cloud account ID.
+            Can also be passed as an env var.
+        - job_id (int, optional): dbt Cloud job ID
+        - token (string, optional): dbt Cloud token.
+            Please note that this token must have access at least to the dbt Trigger Job API.
+        - additional_args (dict, optional): additional information to pass to the Trigger Job API.
+            For a list of the possible information,
+            have a look at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
+        - account_id_env_var_name (string, optional): the name of the env var that contains the dbt Cloud account ID.
+            Defaults to ACCOUNT_ID.
+            Used only if account_id is None.
+        - job_id_env_var_name (string, optional): the name of the env var that contains the dbt Cloud job ID
+            Default to JOB_ID.
+            Used only if job_id is None.
+        - wait_for_job_run_completion (boolean, optional): Whether the task should wait for the job run completion or not.
+            Default to False.
+        - wait_interval (int, optional): The number of seconds to wait between calls to dbt Cloud Get Job API.
+            Default to 10.
+            Used only if wait_for_job_run_completion = True.
+        - max_attempts (int, optional): The maximum number of call to dbt Cloud Get Job API.
+            Default to 10.
+            Used only if wait_for_job_run_completion = True.
+            If set to None, the task will poll the API until it succeed or fail.
+
+    Returns:
+        - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
+            The trigger run result is the dict under the "data" key.
+            Have a look at the Response section at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
+
+          if wait_for_job_run_completion = True, then returns the get job result.
+            The get job result is the dict under the "data" key.
+            Have a look at the Response section at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
+
+    Raises:
+        - prefect.engine.signals.FAIL: whether there's a HTTP status code != 200
+            and also whether the run job result has a status != 10 AND "finished_at" is not None
+            Have a look at the status codes at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
+    """
+
+    def __init__(
+        self,
+        cause: str,
+        account_id: int = None,
+        job_id: int = None,
+        token: str = None,
+        additional_args: dict = None,
+        account_id_env_var_name: str = "DBT_CLOUD_ACCOUNT_ID",
+        job_id_env_var_name: str = "DBT_CLOUD_JOB_ID",
+        token_env_var_name: str = "DBT_CLOUD_TOKEN",
+        wait_for_job_run_completion: bool = False,
+        wait_interval: int = 10,
+        max_attempts: int = None,
+    ):
+        super().__init__()
+        self.token = token if token else os.environ[token_env_var_name]
+        self.account_id = (
+            account_id if account_id else int(os.environ[account_id_env_var_name])
+        )
+        self.job_id = job_id if job_id else int(os.environ[job_id_env_var_name])
+        self.cause = cause
+        self.additional_args = additional_args
+        self.wait_for_job_run_completion = wait_for_job_run_completion
+        self.wait_interval = wait_interval if wait_interval > 0 else 10
+        self.max_attempts = max_attempts
+
+    @defaults_from_attrs(
+        "account_id",
+        "job_id",
+        "token",
+        "cause",
+        "additional_args",
+        "wait_for_job_run_completion",
+        "wait_interval",
+        "max_attempts",
+    )
+    def run(
+        self,
+        cause: str,
+        account_id: int = None,
+        job_id: int = None,
+        token: int = None,
+        additional_args: dict = None,
+        account_id_env_var_name: str = "ACCOUNT_ID",
+        job_id_env_var_name: str = "JOB_ID",
+        token_env_var_name: str = "DBT_CLOUD_TOKEN",
+        wait_for_job_run_completion: bool = False,
+        wait_interval: int = 10,
+        max_attempts: int = None,
+    ) -> dict:
+        """
+        All params available to the run method, can also be passed during initialization.
+        """
+        run = trigger_job_run(
+            account_id=self.account_id,
+            job_id=self.job_id,
+            cause=self.cause,
+            additional_args=self.additional_args,
+            token=self.token,
+        )
+        if self.wait_for_job_run_completion:
+
+            return get_job_run(
+                account_id=self.account_id,
+                run_id=run["id"],
+                token=self.token,
+                max_attempts=self.max_attempts,
+                wait_interval=self.wait_interval,
+            )
+
+        else:
+            return run

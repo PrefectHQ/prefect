@@ -4,7 +4,7 @@ import sys
 import pytest
 
 from prefect import Flow
-from prefect.tasks.dbt import DbtShellTask
+from prefect.tasks.dbt import DbtShellTask, DbtCloudRunJob
 
 
 pytestmark = pytest.mark.skipif(
@@ -156,3 +156,26 @@ def test_task_creates_default_profile_if_none_exists():
     )
     assert out.is_successful()
     assert default_profiles_path
+
+
+def test_dbt_cloud_run_job_create_task():
+    dbt_run_job_task = DbtCloudRunJob(
+        account_id=1234, token="xyz", job_id=1234, cause="foo"
+    )
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause == "foo"
+
+
+def test_dbt_cloud_run_job_create_task_from_default_env_vars(monkeypatch):
+    monkeypatch.setenv("DBT_CLOUD_ACCOUNT_ID", str(1234))
+    monkeypatch.setenv("DBT_CLOUD_JOB_ID", str(1234))
+    monkeypatch.setenv("DBT_CLOUD_TOKEN", "xyz")
+    dbt_run_job_task = DbtCloudRunJob(cause="foo")
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause == "foo"
