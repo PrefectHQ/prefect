@@ -10,7 +10,6 @@ import json
 import os
 import re
 import uuid
-import weakref
 from asyncio import current_task, get_event_loop
 from typing import List, Union
 
@@ -35,8 +34,8 @@ from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
-ENGINES = weakref.WeakValueDictionary()
-SESSION_FACTORIES = weakref.WeakKeyDictionary()
+ENGINES = {}
+SESSION_FACTORIES = {}
 
 
 def setup_sqlite(conn, named=True):
@@ -104,6 +103,8 @@ async def get_engine(
         # because they disappear when the last connection closes
         if connection_url.startswith("sqlite") and ":memory:" in connection_url:
             kwargs.update(poolclass=sa.pool.SingletonThreadPool)
+        else:
+            kwargs.update(poolclass=sa.pool.NullPool)
 
         engine = create_async_engine(connection_url, echo=echo, **kwargs)
         sa.event.listen(engine.sync_engine, "engine_connect", setup_sqlite)
