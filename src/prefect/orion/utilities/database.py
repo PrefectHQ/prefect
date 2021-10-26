@@ -144,6 +144,7 @@ async def create_ephemeral_engine(
 async def dispose_ephemeral_engine(cache_key: tuple):
     if cache_key in ENGINES:
         await ENGINES[cache_key].dispose()
+        ENGINES.pop(cache_key)
 
 
 async def get_session_factory(
