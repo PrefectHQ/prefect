@@ -243,7 +243,7 @@ class TestExecutorParallelism:
 
     # Amount of time to sleep before writing 'foo'
     # A larger value will decrease brittleness but increase test times
-    SLEEP_TIME = 0.25
+    SLEEP_TIME = 0.25 if sys.platform == "darwin" else 1.0
 
     @pytest.fixture
     def tmp_file(self, tmp_path):
