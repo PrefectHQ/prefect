@@ -211,7 +211,7 @@ class DbtCloudRunJob(Task):
             the name of the env var that contains the dbt Cloud job ID
             Default to DBT_CLOUD_JOB_ID.
             Used only if job_id is None.
-        - token_id_env_var_name (string, optional):
+        - token_env_var_name (string, optional):
             the name of the env var that contains the dbt Cloud token
             Default to DBT_CLOUD_TOKEN.
             Used only if token is None.
@@ -316,7 +316,7 @@ class DbtCloudRunJob(Task):
                 the name of the env var that contains the dbt Cloud job ID
                 Default to DBT_CLOUD_JOB_ID.
                 Used only if job_id is None.
-            - token_id_env_var_name (string, optional):
+            - token_env_var_name (string, optional):
                 the name of the env var that contains the dbt Cloud token
                 Default to DBT_CLOUD_TOKEN.
                 Used only if token is None.
