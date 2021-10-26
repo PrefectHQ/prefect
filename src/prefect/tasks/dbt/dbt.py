@@ -205,12 +205,16 @@ class DbtCloudRunJob(Task):
             have a look at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
         - account_id_env_var_name (string, optional):
             the name of the env var that contains the dbt Cloud account ID.
-            Defaults to ACCOUNT_ID.
+            Defaults to DBT_CLOUD_ACCOUNT_ID.
             Used only if account_id is None.
         - job_id_env_var_name (string, optional):
             the name of the env var that contains the dbt Cloud job ID
-            Default to JOB_ID.
+            Default to DBT_CLOUD_JOB_ID.
             Used only if job_id is None.
+        - token_id_env_var_name (string, optional):
+            the name of the env var that contains the dbt Cloud token
+            Default to DBT_CLOUD_TOKEN.
+            Used only if token is None.
         - wait_for_job_run_completion (boolean, optional):
             Whether the task should wait for the job run completion or not.
             Default to False.
@@ -306,12 +310,16 @@ class DbtCloudRunJob(Task):
                 have a look at: https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
             - account_id_env_var_name (string, optional):
                 the name of the env var that contains the dbt Cloud account ID.
-                Defaults to ACCOUNT_ID.
+                Defaults to DBT_CLOUD_ACCOUNT_ID.
                 Used only if account_id is None.
             - job_id_env_var_name (string, optional):
                 the name of the env var that contains the dbt Cloud job ID
-                Default to JOB_ID.
+                Default to DBT_CLOUD_JOB_ID.
                 Used only if job_id is None.
+            - token_id_env_var_name (string, optional):
+                the name of the env var that contains the dbt Cloud token
+                Default to DBT_CLOUD_TOKEN.
+                Used only if token is None.
             - wait_for_job_run_completion (boolean, optional):
                 Whether the task should wait for the job run completion or not.
                 Default to False.
