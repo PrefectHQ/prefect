@@ -116,35 +116,22 @@ async def get_engine(
         ):
             await create_db(engine)
 
+        # schedule disposal of old engines so we do not keep connection pools open
+        loop.call_soon(dispose_old_engines)
+
         ENGINES[cache_key] = engine
 
     return ENGINES[cache_key]
 
 
-async def create_ephemeral_engine(
-    connection_url: str = None,
-    echo: bool = settings.orion.database.echo,
-    timeout: Optional[float] = None,
-) -> Optional[tuple]:
-    """ """
-    if connection_url is None:
-        connection_url = settings.orion.database.connection_url.get_secret_value()
-
-    loop = get_event_loop()
-    cache_key = (loop, connection_url, echo, timeout)
-
-    if cache_key in ENGINES:
-        return None
-
-    # Otherwise, return an engine then create the cache key
-    await get_engine(connection_url=connection_url, echo=echo, timeout=timeout)
-    return cache_key
-
-
-async def dispose_ephemeral_engine(cache_key: tuple):
-    if cache_key in ENGINES:
-        await ENGINES[cache_key].dispose()
-        ENGINES.pop(cache_key)
+def dispose_old_engines():
+    """
+    Dispose of any engines that were created in an event loop that is now closed
+    """
+    old_keys = [cache_key for cache_key in ENGINES if cache_key[0].is_closed()]
+    for key in old_keys:
+        engine = ENGINES.pop(key)
+        engine.sync_engine.dispose()
 
 
 async def get_session_factory(
