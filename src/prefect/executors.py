@@ -341,7 +341,7 @@ class DaskExecutor(BaseExecutor):
         )
 
         # Wait for all futures before tearing down the client / cluster on exit
-        exit_stack.push_async_callback(self.wait_for_all_futures)
+        exit_stack.push_async_callback(self._wait_for_all_futures)
 
         if self._client.dashboard_link:
             self.logger.info(
@@ -363,7 +363,7 @@ class DaskExecutor(BaseExecutor):
 
             yield cluster
 
-    async def wait_for_all_futures(self):
+    async def _wait_for_all_futures(self):
         """
         Waits for all futures to complete without timeout, ignoring any exceptions.
         """
