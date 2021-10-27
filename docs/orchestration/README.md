@@ -40,7 +40,7 @@ Prefect Cloud is a fully hosted, production-ready backend for Prefect Core that 
 
 In the Prefect documentation, the <Badge text="Cloud"/> badge indicates features supported only in Prefect Cloud.
 
-To start monitoring and managing your flows in Prefect cloud, [log in or sign up](https://universal.prefect.io) today.
+To start monitoring and managing your flows in Prefect Cloud, [log in or sign up](https://universal.prefect.io) today.
 
 ### Prefect Core server
 
