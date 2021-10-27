@@ -136,8 +136,9 @@ async def schedule_engine_disposal(cache_key):
         try:
             yield
         except GeneratorExit:
-            engine = ENGINES.pop(cache_key)
-            await engine.dispose()
+            engine = ENGINES.pop(cache_key, None)
+            if engine:
+                await engine.dispose()
 
     # Create the iterator and store it in a global variable so it is not cleaned up
     # when this function scope ends
