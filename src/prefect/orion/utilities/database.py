@@ -125,13 +125,14 @@ async def get_engine(
 
 
 async def schedule_engine_disposal(cache_key):
-    async def dispose_engine(cache_key):
-        """
-        Dispose of an engine once the event loop is closing.
+    """
+    Dispose of an engine once the event loop is closing.
 
-        Requires explicit call of `asyncio.shutdown_asyncgens()` or use of `asyncio.run()`
-        which waits for async generator shutdown by default.
-        """
+    Requires use of `asyncio.run()` which waits for async generator shutdown by default
+    or explicit call of `asyncio.shutdown_asyncgens()`
+    """
+
+    async def dispose_engine(cache_key):
         try:
             yield
         except GeneratorExit:
