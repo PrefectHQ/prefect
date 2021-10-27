@@ -168,7 +168,7 @@ async def schedule_engine_disposal(cache_key):
     are created, but if the loop the engine is attached to is already closed then the
     connections cannot be cleaned up properly and warnings are displayed.
 
-    Engine disposal should only be important when running the application epehemerally.
+    Engine disposal should only be important when running the application ephemerally.
     Notably, this is an issue in our tests where many short-lived event loops and
     engines are created which can consume all of the available database connection
     slots. Users operating at a scale where connection limits are encountered should
@@ -233,7 +233,7 @@ async def get_session_factory(
 class GenerateUUID(FunctionElement):
     """
     Platform-independent UUID default generator.
-    Note the actual functionality for this class is speficied in the
+    Note the actual functionality for this class is specified in the
     `compiles`-decorated functions below
     """
 
