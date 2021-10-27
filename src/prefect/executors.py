@@ -62,6 +62,7 @@ from typing import (
     Union,
 )
 from uuid import UUID
+from contextlib import AsyncExitStack
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
@@ -119,36 +120,30 @@ class BaseExecutor(metaclass=abc.ABCMeta):
     async def start(
         self: T,
     ) -> AsyncIterator[T]:
-        """Start the executor, preparing any resources necessary for task submission"""
-        try:
-            self.logger.info(f"Starting executor `{self}`...")
-            await self.on_startup()
-            self._started = True
-            yield self
-        except Exception:
-            self.logger.error("Failed to start executor!", exc_info=True)
-            raise
-        finally:
-            self.logger.info(f"Shutting down executor `{self}`...")
-            try:
-                await self.on_shutdown()
-            except Exception:
-                self.logger.error("Failed to shutdown executor cleanly", exc_info=True)
-            self._started = False
+        """
+        Start the executor, preparing any resources necessary for task submission.
 
-    async def on_startup(self) -> None:
+        Children should implement `_start` to prepare and clean up resources.
+
+        Yields:
+            The prepared executor
+        """
+        async with AsyncExitStack() as exit_stack:
+            self.logger.info(f"Starting executor `{self}`...")
+            try:
+                await self._start(exit_stack)
+                self._started = True
+                yield self
+            finally:
+                self.logger.info(f"Shutting down executor `{self}`...")
+                self._started = False
+
+    async def _start(self, exit_stack: AsyncExitStack) -> None:
         """
         Create any resources required for this executor to submit work.
-        """
-        pass
 
-    async def on_shutdown(self) -> None:
+        Cleanup of resources should be submitted to the `exit_stack`.
         """
-        Clean up resources associated with the executor.
-
-        Should block until submitted calls are completed.
-        """
-        # TODO: Consider adding a `wait` bool here for fast shutdown
         pass
 
     def __str__(self) -> str:
@@ -328,7 +323,7 @@ class DaskExecutor(BaseExecutor):
         except distributed.TimeoutError:
             return None
 
-    async def on_startup(self):
+    async def _start(self, exit_stack: AsyncExitStack):
         if self.address:
             self.logger.info(
                 f"Connecting to an existing Dask cluster at {self.address}"
@@ -338,41 +333,46 @@ class DaskExecutor(BaseExecutor):
             self.logger.info(
                 f"Creating a new Dask cluster with `{to_qualified_name(self.cluster_class)}`"
             )
-            self._cluster = await self._create_cluster()
+            self._cluster = await exit_stack.enter_async_context(self._create_cluster())
             connect_to = self._cluster
 
-        self._client = await distributed.Client(connect_to, **self.client_kwargs)
+        self._client = await exit_stack.enter_async_context(
+            await distributed.Client(connect_to, **self.client_kwargs)
+        )
+
+        # Wait for all futures before tearing down the client / cluster on exit
+        exit_stack.push_async_callback(self.wait_for_all_futures)
 
         if self._client.dashboard_link:
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
 
+    @asynccontextmanager
     async def _create_cluster(self) -> "distributed.deploy.Cluster":
         """
         Create a new Dask cluster as specified by `cluster_class`, `cluster_kwargs`, and
         `adapt_kwargs`
+
+        Yields:
+            A prepared cluster
         """
-        cluster = self.cluster_class(**self.cluster_kwargs)
-        await cluster._start()
+        async with self.cluster_class(**self.cluster_kwargs) as cluster:
+            if self.adapt_kwargs:
+                cluster.adapt(**self.adapt_kwargs)
 
-        if self.adapt_kwargs:
-            cluster.adapt(**self.adapt_kwargs)
+            yield cluster
 
-        return cluster
-
-    async def on_shutdown(self) -> None:
+    async def wait_for_all_futures(self):
+        """
+        Waits for all futures to complete without timeout, ignoring any exceptions.
+        """
         # Attempt to wait for all futures to complete
         for future in self._dask_futures.values():
             try:
                 await future.result()
             except Exception:
                 pass
-        # Close down the client and cluster
-        if self._client:
-            await self._client.close()
-        if self._cluster:
-            await self._cluster.close()
 
     def __getstate__(self):
         """
