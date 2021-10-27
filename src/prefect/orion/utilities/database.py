@@ -35,6 +35,7 @@ from prefect import settings
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 ENGINES = {}
+ENGINE_DISPOSAL = {}
 SESSION_FACTORIES = {}
 
 
@@ -116,22 +117,33 @@ async def get_engine(
             await create_db(engine)
 
         # Schedule disposal of the engine; this will occur when the event loop closes
-        loop.call_soon(dispose_engine(engine).__aiter__)
+        await schedule_engine_disposal(cache_key)
 
         ENGINES[cache_key] = engine
 
     return ENGINES[cache_key]
 
 
-async def dispose_engine(engine):
-    """
-    Dispose of an engine once the event loop is closing.
+async def schedule_engine_disposal(cache_key):
+    async def dispose_engine(cache_key):
+        """
+        Dispose of an engine once the event loop is closing.
 
-    Requires explicit call of `asyncio.shutdown_asyncgens()` or use of `asyncio.run()`
-    which waits for async generator shutdown by default.
-    """
-    yield
-    await engine.dispose()
+        Requires explicit call of `asyncio.shutdown_asyncgens()` or use of `asyncio.run()`
+        which waits for async generator shutdown by default.
+        """
+        try:
+            yield
+        except GeneratorExit:
+            engine = ENGINES.pop(cache_key)
+            await engine.dispose()
+
+    # Create the iterator and store it in a global variable so it is not cleaned up
+    # when this function scope ends
+    ENGINE_DISPOSAL[cache_key] = dispose_engine(cache_key).__aiter__()
+
+    # Begin iterating so it will be cleaned up as an incomplete generator
+    await ENGINE_DISPOSAL[cache_key].__anext__()
 
 
 async def get_session_factory(
