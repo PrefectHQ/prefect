@@ -11,7 +11,7 @@ import os
 import re
 import uuid
 from asyncio import current_task, get_event_loop
-from typing import List, Union
+from typing import List, Union, AsyncGenerator, Dict
 
 import pendulum
 import pydantic
@@ -35,7 +35,7 @@ from prefect import settings
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 ENGINES = {}
-ENGINE_DISPOSAL = {}
+ENGINE_DISPOSAL: Dict[tuple, AsyncGenerator] = {}
 SESSION_FACTORIES = {}
 
 
@@ -124,12 +124,55 @@ async def get_engine(
     return ENGINES[cache_key]
 
 
+async def dispose_all_engines():
+    """
+    Manually dispose of all engines by calling their scheduled disposal generator.
+
+    This is only required if managing the event loop manually.
+
+    Example:
+
+    ```python
+    import asyncio
+    from prefect import flow
+    from prefect.orion.utilities.database import dispose_all_engines
+
+    @flow
+    async def my_flow():
+        pass
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(my_flow())
+    loop.run_until_complete(dispose_all_engines())
+    loop.close()
+    ```
+    """
+    # Create a copy of `values` because items are removed at each iteration
+    for disposal in list(ENGINE_DISPOSAL.values()):
+        await disposal.aclose()
+
+
 async def schedule_engine_disposal(cache_key):
     """
     Dispose of an engine once the event loop is closing.
 
     Requires use of `asyncio.run()` which waits for async generator shutdown by default
-    or explicit call of `asyncio.shutdown_asyncgens()`
+    or explicit call of `asyncio.shutdown_asyncgens()`. If the application is entered
+    with `asyncio.run_until_complete()` and the user calls `asyncio.close()` without
+    the generator shutdown call, this will not dispose the engine. As an alternative
+    to suggesting users call `shutdown_asyncgens` (which can interfere with other
+    async generators), `dispose_all_engines` is provided as a cleanup method.
+
+    asyncio does not provided _any_ other way to clean up a resource when the event
+    loop is about to close. We attempted to lazily clean up old engines when new engines
+    are created, but if the loop the engine is attached to is already closed then the
+    connections cannot be cleaned up properly and warnings are displayed.
+
+    Engine disposal should only be important when running the application epehemerally.
+    Notably, this is an issue in our tests where many short-lived event loops and
+    engines are created which can consume all of the available database connection
+    slots. Users operating at a scale where connection limits are encountered should
+    be encouraged to use a standalone server.
     """
 
     async def dispose_engine(cache_key):
@@ -139,6 +182,9 @@ async def schedule_engine_disposal(cache_key):
             engine = ENGINES.pop(cache_key, None)
             if engine:
                 await engine.dispose()
+
+            # Drop this iterator from the disposal just to keep things clean
+            ENGINE_DISPOSAL.pop(cache_key)
 
     # Create the iterator and store it in a global variable so it is not cleaned up
     # when this function scope ends
