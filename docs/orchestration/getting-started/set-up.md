@@ -2,7 +2,7 @@
 
 The Prefect orchestration layer lets you move from running single flows as scripts to running, monitoring, and scheduling many flows through a single web UI. 
 
-Prefect Cloud and the Prefect Core server provide ready-to-use back end for maintaining task and flow state and inspecting their progress regardless of where you task and flow code runs.
+Prefect Cloud and the Prefect Core server provide ready-to-use backend for maintaining task and flow state and inspecting their progress regardless of where you task and flow code runs.
 
 ## Prefect Cloud and Core Server
 
