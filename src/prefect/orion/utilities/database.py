@@ -115,22 +115,23 @@ async def get_engine(
         ):
             await create_db(engine)
 
-        # dispose old engines so we do not keep connection pools open
-        await dispose_old_engines()
+        # Schedule disposal of the engine; this will occur when the event loop closes
+        loop.call_soon(dispose_engine(engine).__aiter__)
 
         ENGINES[cache_key] = engine
 
     return ENGINES[cache_key]
 
 
-async def dispose_old_engines():
+async def dispose_engine(engine):
     """
-    Dispose of any engines that were created in an event loop that is now closed
+    Dispose of an engine once the event loop is closing.
+
+    Requires explicit call of `asyncio.shutdown_asyncgens()` or use of `asyncio.run()`
+    which waits for async generator shutdown by default.
     """
-    old_keys = [cache_key for cache_key in ENGINES if cache_key[0].is_closed()]
-    for key in old_keys:
-        engine = ENGINES.pop(key)
-        await engine.dispose()
+    yield
+    await engine.dispose()
 
 
 async def get_session_factory(
