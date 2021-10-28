@@ -215,6 +215,7 @@ class TestCreateDeployment:
         deployment,
         session,
         flow_function,
+        db_config,
     ):
 
         # set active to schedule runs
@@ -256,7 +257,7 @@ class TestCreateDeployment:
         assert n_runs == 101
 
         # check that the maximum run is from the secondly schedule
-        query = sa.select(sa.func.max(models.orm.FlowRun.expected_start_time))
+        query = sa.select(sa.func.max(db_config.FlowRun.expected_start_time))
         result = await session.execute(query)
         assert result.scalar() < pendulum.now().add(seconds=100)
 

@@ -5,11 +5,9 @@ The base class for all Orion loop services.
 import asyncio
 
 import pendulum
-import sqlalchemy as sa
+from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 
-from prefect.orion.utilities.database import (
-    AsyncPostgresConfiguration,
-)
+from prefect.orion.database.dependencies import inject_db_config
 from prefect.utilities.logging import get_logger
 
 
@@ -27,7 +25,7 @@ class LoopService:
     # flag for whether the service should stop running
     should_stop: bool = False
 
-    session_factory: sa.ext.asyncio.scoping.async_scoped_session = None
+    session_factory: async_scoped_session = None
 
     def __init__(self, loop_seconds: float = None):
         if loop_seconds:
@@ -35,13 +33,14 @@ class LoopService:
         self.name = type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
-    async def setup(self, db_config=AsyncPostgresConfiguration) -> None:
+    @inject_db_config
+    async def setup(self, db_config=None) -> None:
         """
         Called prior to running the service
         """
         # prepare a database engine
         # this call is cached and shared across services if possible
-        self.session_factory = await db_config().session_factory()
+        self.session_factory = await db_config.session_factory()
 
     async def shutdown(self) -> None:
         """

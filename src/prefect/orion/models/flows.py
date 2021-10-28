@@ -10,15 +10,14 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import schemas
-from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert
-from prefect.orion.models.dependencies import get_database_configuration
+from prefect.orion.database.dependencies import inject_db_config
 
 
+@inject_db_config
 async def create_flow(
     session: sa.orm.Session,
     flow: schemas.core.Flow,
-    get_db_config=get_database_configuration,
+    db_config=None,
 ):
     """
     Creates a new flow.
@@ -32,10 +31,9 @@ async def create_flow(
     Returns:
         db_config.Flow: the newly-created or existing flow
     """
-    db_config = await get_db_config()
 
     insert_stmt = (
-        dialect_specific_insert(db_config.Flow)
+        (await db_config.dialect_specific_insert(db_config.Flow))
         .values(**flow.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_nothing(
             index_elements=["name"],
@@ -56,11 +54,12 @@ async def create_flow(
     return model
 
 
+@inject_db_config
 async def update_flow(
     session: sa.orm.Session,
     flow_id: UUID,
     flow: schemas.actions.FlowUpdate,
-    get_db_config=get_database_configuration,
+    db_config=None,
 ):
     """
     Updates a flow.
@@ -73,7 +72,6 @@ async def update_flow(
     Returns:
         bool: whether or not matching rows were found to update
     """
-    db_config = await get_db_config()
 
     if not isinstance(flow, schemas.actions.FlowUpdate):
         raise ValueError(
@@ -90,9 +88,8 @@ async def update_flow(
     return result.rowcount > 0
 
 
-async def read_flow(
-    session: sa.orm.Session, flow_id: UUID, get_db_config=get_database_configuration
-):
+@inject_db_config
+async def read_flow(session: sa.orm.Session, flow_id: UUID, db_config=None):
     """
     Reads a flow by id.
 
@@ -103,13 +100,11 @@ async def read_flow(
     Returns:
         db_config.Flow: the flow
     """
-    db_config = await get_db_config()
     return await session.get(db_config.Flow, flow_id)
 
 
-async def read_flow_by_name(
-    session: sa.orm.Session, name: str, get_db_config=get_database_configuration
-):
+@inject_db_config
+async def read_flow_by_name(session: sa.orm.Session, name: str, db_config=None):
     """
     Reads a flow by name.
 
@@ -120,54 +115,54 @@ async def read_flow_by_name(
     Returns:
         db_config.Flow: the flow
     """
-    db_config = await get_db_config()
 
     result = await session.execute(select(db_config.Flow).filter_by(name=name))
     return result.scalar()
 
 
+@inject_db_config
 async def _apply_flow_filters(
     query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    get_db_config=get_database_configuration,
+    db_config=None,
 ):
     """
     Applies filters to a flow query as a combination of EXISTS subqueries.
     """
-    db_config = await get_db_config()
 
     if flow_filter:
-        query = query.where(flow_filter.as_sql_filter())
+        query = query.where((await flow_filter.as_sql_filter()))
 
     if deployment_filter:
-        exists_clause = select(orm.Deployment).where(
-            orm.Deployment.flow_id == db_config.Flow.id,
-            deployment_filter.as_sql_filter(),
+        exists_clause = select(db_config.Deployment).where(
+            db_config.Deployment.flow_id == db_config.Flow.id,
+            (await deployment_filter.as_sql_filter()),
         )
         query = query.where(exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(orm.FlowRun).where(
-            orm.FlowRun.flow_id == db_config.Flow.id
+        exists_clause = select(db_config.FlowRun).where(
+            db_config.FlowRun.flow_id == db_config.Flow.id
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            exists_clause = exists_clause.where((await flow_run_filter.as_sql_filter()))
 
         if task_run_filter:
             exists_clause = exists_clause.join(
-                orm.TaskRun,
-                orm.TaskRun.flow_run_id == orm.FlowRun.id,
-            ).where(task_run_filter.as_sql_filter())
+                db_config.TaskRun,
+                db_config.TaskRun.flow_run_id == db_config.FlowRun.id,
+            ).where((await task_run_filter.as_sql_filter()))
 
         query = query.where(exists_clause.exists())
 
     return query
 
 
+@inject_db_config
 async def read_flows(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -176,7 +171,7 @@ async def read_flows(
     deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
-    get_db_config=get_database_configuration,
+    db_config=None,
 ):
     """
     Read multiple flows.
@@ -193,7 +188,6 @@ async def read_flows(
     Returns:
         List[db_config.Flow]: flows
     """
-    db_config = await get_db_config()
 
     query = select(db_config.Flow).order_by(db_config.Flow.name)
 
@@ -203,6 +197,7 @@ async def read_flows(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     if offset is not None:
@@ -215,13 +210,14 @@ async def read_flows(
     return result.scalars().unique().all()
 
 
+@inject_db_config
 async def count_flows(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    get_db_config=get_database_configuration,
+    db_config=None,
 ) -> int:
     """
     Count flows.
@@ -236,7 +232,6 @@ async def count_flows(
     Returns:
         int: count of flows
     """
-    db_config = await get_db_config()
 
     query = select(sa.func.count(sa.text("*"))).select_from(db_config.Flow)
 
@@ -246,15 +241,15 @@ async def count_flows(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-async def delete_flow(
-    session: sa.orm.Session, flow_id: UUID, get_db_config=get_database_configuration
-) -> bool:
+@inject_db_config
+async def delete_flow(session: sa.orm.Session, flow_id: UUID, db_config=None) -> bool:
     """
     Delete a flow by id.
 
@@ -265,7 +260,6 @@ async def delete_flow(
     Returns:
         bool: whether or not the flow was deleted
     """
-    db_config = await get_db_config()
 
     result = await session.execute(
         delete(db_config.Flow).where(db_config.Flow.id == flow_id)

@@ -21,6 +21,7 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas import states
+from prefect.orion.database.dependencies import inject_db_config
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -58,15 +59,17 @@ class CacheInsertion(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.COMPLETED]
 
+    @inject_db_config
     async def after_transition(
         self,
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
+        db_config=None,
     ) -> None:
         cache_key = validated_state.state_details.cache_key
         if cache_key:
-            new_cache_item = orm.TaskRunStateCache(
+            new_cache_item = db_config.TaskRunStateCache(
                 cache_key=cache_key,
                 cache_expiration=validated_state.state_details.cache_expiration,
                 task_run_state_id=validated_state.id,
@@ -87,32 +90,34 @@ class CacheRetrieval(BaseOrchestrationRule):
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.RUNNING]
 
+    @inject_db_config
     async def before_transition(
         self,
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
+        db_config=None,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
         if cache_key:
             # Check for cached states matching the cache key
             cached_state_id = (
-                select(orm.TaskRunStateCache.task_run_state_id)
+                select(db_config.TaskRunStateCache.task_run_state_id)
                 .where(
                     sa.and_(
-                        orm.TaskRunStateCache.cache_key == cache_key,
+                        db_config.TaskRunStateCache.cache_key == cache_key,
                         sa.or_(
-                            orm.TaskRunStateCache.cache_expiration.is_(None),
-                            orm.TaskRunStateCache.cache_expiration
+                            db_config.TaskRunStateCache.cache_expiration.is_(None),
+                            db_config.TaskRunStateCache.cache_expiration
                             > pendulum.now("utc"),
                         ),
                     ),
                 )
-                .order_by(orm.TaskRunStateCache.created.desc())
+                .order_by(db_config.TaskRunStateCache.created.desc())
                 .limit(1)
             ).scalar_subquery()
-            query = select(orm.TaskRunState).where(
-                orm.TaskRunState.id == cached_state_id
+            query = select(db_config.TaskRunState).where(
+                db_config.TaskRunState.id == cached_state_id
             )
             cached_state = (await context.session.execute(query)).scalar()
             if cached_state:

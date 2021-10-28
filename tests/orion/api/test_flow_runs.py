@@ -57,7 +57,7 @@ class TestCreateFlowRun:
         response = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
         assert response.json()["state"]["type"] == "PENDING"
 
-    async def test_create_multiple_flow_runs(self, flow, client, session):
+    async def test_create_multiple_flow_runs(self, flow, client, session, db_config):
 
         response1 = await client.post(
             "/flow_runs/",
@@ -78,7 +78,7 @@ class TestCreateFlowRun:
         assert response1.json()["id"] != response2.json()["id"]
 
         result = await session.execute(
-            sa.select(models.orm.FlowRun.id).filter_by(flow_id=flow.id)
+            sa.select(db_config.FlowRun.id).filter_by(flow_id=flow.id)
         )
         ids = result.scalars().all()
         assert {response1.json()["id"], response2.json()["id"]} == {str(i) for i in ids}
@@ -97,9 +97,13 @@ class TestCreateFlowRun:
         assert response1.json()["id"] == response2.json()["id"]
 
     async def test_create_flow_run_with_idempotency_key_across_multiple_flows(
-        self, flow, client, session
+        self,
+        flow,
+        client,
+        session,
+        db_config,
     ):
-        flow2 = models.orm.Flow(name="another flow")
+        flow2 = db_config.Flow(name="another flow")
         session.add(flow2)
         await session.commit()
 

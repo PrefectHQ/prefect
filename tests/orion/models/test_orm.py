@@ -8,12 +8,12 @@ from prefect.orion.models import orm
 
 
 @pytest.fixture
-async def many_flow_run_states(flow, session):
+async def many_flow_run_states(flow, session, db_config):
     """Creates 5 flow runs, each with 5 states. The data payload of each state is an integer 0-4"""
 
     # clear all other flow runs
-    await session.execute(sa.delete(orm.FlowRun))
-    await session.execute(sa.delete(orm.FlowRunState))
+    await session.execute(sa.delete(db_config.FlowRun))
+    await session.execute(sa.delete(db_config.FlowRunState))
 
     for _ in range(5):
         flow_run = await models.flow_runs.create_flow_run(
@@ -22,7 +22,7 @@ async def many_flow_run_states(flow, session):
         )
 
         states = [
-            orm.FlowRunState(
+            db_config.FlowRunState(
                 flow_run_id=flow_run.id,
                 **schemas.states.State(
                     type={
@@ -43,12 +43,12 @@ async def many_flow_run_states(flow, session):
 
 
 @pytest.fixture
-async def many_task_run_states(flow_run, session):
+async def many_task_run_states(flow_run, session, db_config):
     """Creates 5 task runs, each with 5 states. The data payload of each state is an integer 0-4"""
 
     # clear all other task runs
-    await session.execute(sa.delete(orm.TaskRun))
-    await session.execute(sa.delete(orm.TaskRunState))
+    await session.execute(sa.delete(db_config.TaskRun))
+    await session.execute(sa.delete(db_config.TaskRunState))
 
     for i in range(5):
         task_run = await models.task_runs.create_task_run(
@@ -61,7 +61,7 @@ async def many_task_run_states(flow_run, session):
         )
 
         states = [
-            orm.TaskRunState(
+            db_config.TaskRunState(
                 task_run_id=task_run.id,
                 **schemas.states.State(
                     type={
@@ -84,29 +84,29 @@ async def many_task_run_states(flow_run, session):
 
 class TestFlowRun:
     async def test_flow_run_state_relationship_retrieves_current_state(
-        self, many_flow_run_states, session
+        self, many_flow_run_states, session, db_config
     ):
 
         # efficient query for most recent state without knowing its ID
         # by getting the state with the most recent timestamp
-        frs_alias = sa.orm.aliased(orm.FlowRunState)
+        frs_alias = sa.orm.aliased(db_config.FlowRunState)
         query = (
             sa.select(
-                orm.FlowRun,
-                orm.FlowRunState.id,
-                orm.FlowRunState.type,
+                db_config.FlowRun,
+                db_config.FlowRunState.id,
+                db_config.FlowRunState.type,
             )
-            .select_from(orm.FlowRun)
+            .select_from(db_config.FlowRun)
             .join(
-                orm.FlowRunState,
-                orm.FlowRun.id == orm.FlowRunState.flow_run_id,
+                db_config.FlowRunState,
+                db_config.FlowRun.id == db_config.FlowRunState.flow_run_id,
                 isouter=True,
             )
             .join(
                 frs_alias,
                 sa.and_(
-                    orm.FlowRunState.flow_run_id == frs_alias.flow_run_id,
-                    orm.FlowRunState.timestamp < frs_alias.timestamp,
+                    db_config.FlowRunState.flow_run_id == frs_alias.flow_run_id,
+                    db_config.FlowRunState.timestamp < frs_alias.timestamp,
                 ),
                 isouter=True,
             )
@@ -127,87 +127,92 @@ class TestFlowRun:
         assert all([o[0].state_id == o[1] for o in objs])
 
     async def test_flow_run_state_relationship_query_matches_current_data(
-        self, many_flow_run_states, session
+        self, many_flow_run_states, session, db_config
     ):
-        query = sa.select(orm.FlowRun).where(
-            orm.FlowRun.state.has(
-                orm.FlowRunState.type == schemas.states.StateType.COMPLETED
+        query = sa.select(db_config.FlowRun).where(
+            db_config.FlowRun.state.has(
+                db_config.FlowRunState.type == schemas.states.StateType.COMPLETED
             )
         )
         result = await session.execute(query)
         assert len(result.all()) == 5
 
     async def test_flow_run_state_relationship_query_doesnt_match_old_data(
-        self, many_flow_run_states, session
+        self,
+        many_flow_run_states,
+        session,
+        db_config,
     ):
-        query = sa.select(orm.FlowRun.id).where(
-            orm.FlowRun.state.has(
-                orm.FlowRunState.type == schemas.states.StateType.RUNNING
+        query = sa.select(db_config.FlowRun.id).where(
+            db_config.FlowRun.state.has(
+                db_config.FlowRunState.type == schemas.states.StateType.RUNNING
             )
         )
         result = await session.execute(query)
         assert len(result.all()) == 0
 
     async def test_flow_run_state_relationship_type_filter_selects_current_state(
-        self, flow, many_flow_run_states, session
+        self, flow, many_flow_run_states, session, db_config
     ):
         # the flow runs are most recently in a Completed state
-        match_query = sa.select(sa.func.count(orm.FlowRun.id)).where(
-            orm.FlowRun.flow_id == flow.id,
-            orm.FlowRun.state.has(
-                orm.FlowRunState.type == schemas.states.StateType.COMPLETED
+        match_query = sa.select(sa.func.count(db_config.FlowRun.id)).where(
+            db_config.FlowRun.flow_id == flow.id,
+            db_config.FlowRun.state.has(
+                db_config.FlowRunState.type == schemas.states.StateType.COMPLETED
             ),
         )
         result = await session.execute(match_query)
         assert result.scalar() == 5
 
         # no flow run is in a running state
-        miss_query = sa.select(sa.func.count(orm.FlowRun.id)).where(
-            orm.FlowRun.flow_id == flow.id,
-            orm.FlowRun.state.has(
-                orm.FlowRunState.type == schemas.states.StateType.RUNNING
+        miss_query = sa.select(sa.func.count(db_config.FlowRun.id)).where(
+            db_config.FlowRun.flow_id == flow.id,
+            db_config.FlowRun.state.has(
+                db_config.FlowRunState.type == schemas.states.StateType.RUNNING
             ),
         )
         result = await session.execute(miss_query)
         assert result.scalar() == 0
 
-    async def test_assign_to_state_inserts_state(self, flow_run, session):
+    async def test_assign_to_state_inserts_state(self, flow_run, session, db_config):
         flow_run_id = flow_run.id
         assert flow_run.state is None
 
         # delete all states
-        await session.execute(sa.delete(orm.FlowRunState))
-        flow_run.set_state(orm.FlowRunState(**schemas.states.Completed().dict()))
+        await session.execute(sa.delete(db_config.FlowRunState))
+        flow_run.set_state(db_config.FlowRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
-        retrieved_flow_run = await session.get(orm.FlowRun, flow_run_id)
+        retrieved_flow_run = await session.get(db_config.FlowRun, flow_run_id)
         assert retrieved_flow_run.state.type.value == "COMPLETED"
 
         result = await session.execute(
-            sa.select(orm.FlowRunState).filter_by(flow_run_id=flow_run_id)
+            sa.select(db_config.FlowRunState).filter_by(flow_run_id=flow_run_id)
         )
         states = result.scalars().all()
         assert len(states) == 1
         assert states[0].type.value == "COMPLETED"
 
-    async def test_assign_multiple_to_state_inserts_states(self, flow_run, session):
+    async def test_assign_multiple_to_state_inserts_states(
+        self, flow_run, session, db_config
+    ):
         flow_run_id = flow_run.id
 
         # delete all states
-        await session.execute(sa.delete(orm.FlowRunState))
+        await session.execute(sa.delete(db_config.FlowRunState))
 
-        flow_run.set_state(orm.FlowRunState(**schemas.states.Pending().dict()))
-        flow_run.set_state(orm.FlowRunState(**schemas.states.Running().dict()))
-        flow_run.set_state(orm.FlowRunState(**schemas.states.Completed().dict()))
+        flow_run.set_state(db_config.FlowRunState(**schemas.states.Pending().dict()))
+        flow_run.set_state(db_config.FlowRunState(**schemas.states.Running().dict()))
+        flow_run.set_state(db_config.FlowRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
-        retrieved_flow_run = await session.get(orm.FlowRun, flow_run_id)
+        retrieved_flow_run = await session.get(db_config.FlowRun, flow_run_id)
         assert retrieved_flow_run.state.type.value == "COMPLETED"
 
         result = await session.execute(
-            sa.select(orm.FlowRunState)
+            sa.select(db_config.FlowRunState)
             .filter_by(flow_run_id=flow_run_id)
-            .order_by(orm.FlowRunState.timestamp.asc())
+            .order_by(db_config.FlowRunState.timestamp.asc())
         )
         states = result.scalars().all()
         assert len(states) == 3
@@ -218,30 +223,30 @@ class TestFlowRun:
 
 class TestTaskRun:
     async def test_task_run_state_relationship_retrieves_current_state(
-        self, many_task_run_states, session
+        self, many_task_run_states, session, db_config
     ):
 
         # efficient query for most recent state without knowing its ID
         # by getting the state with the most recent timestamp
-        frs_alias = sa.orm.aliased(orm.TaskRunState)
+        frs_alias = sa.orm.aliased(db_config.TaskRunState)
         query = (
             sa.select(
-                orm.TaskRun,
-                orm.TaskRunState.id,
-                orm.TaskRunState.data,
-                orm.TaskRunState.type,
+                db_config.TaskRun,
+                db_config.TaskRunState.id,
+                db_config.TaskRunState.data,
+                db_config.TaskRunState.type,
             )
-            .select_from(orm.TaskRun)
+            .select_from(db_config.TaskRun)
             .join(
-                orm.TaskRunState,
-                orm.TaskRun.id == orm.TaskRunState.task_run_id,
+                db_config.TaskRunState,
+                db_config.TaskRun.id == db_config.TaskRunState.task_run_id,
                 isouter=True,
             )
             .join(
                 frs_alias,
                 sa.and_(
-                    orm.TaskRunState.task_run_id == frs_alias.task_run_id,
-                    orm.TaskRunState.timestamp < frs_alias.timestamp,
+                    db_config.TaskRunState.task_run_id == frs_alias.task_run_id,
+                    db_config.TaskRunState.timestamp < frs_alias.timestamp,
                 ),
                 isouter=True,
             )
@@ -262,87 +267,89 @@ class TestTaskRun:
         assert all([o[0].state_id == o[1] for o in objs])
 
     async def test_task_run_state_relationship_query_matches_current_data(
-        self, many_task_run_states, session
+        self, many_task_run_states, session, db_config
     ):
-        query = sa.select(orm.TaskRun).where(
-            orm.TaskRun.state.has(
-                orm.TaskRunState.type == schemas.states.StateType.COMPLETED
+        query = sa.select(db_config.TaskRun).where(
+            db_config.TaskRun.state.has(
+                db_config.TaskRunState.type == schemas.states.StateType.COMPLETED
             )
         )
         result = await session.execute(query)
         assert len(result.all()) == 5
 
     async def test_task_run_state_relationship_query_doesnt_match_old_data(
-        self, many_task_run_states, session
+        self, many_task_run_states, session, db_config
     ):
-        query = sa.select(orm.TaskRun.id).where(
-            orm.TaskRun.state.has(
-                orm.TaskRunState.type == schemas.states.StateType.RUNNING
+        query = sa.select(db_config.TaskRun.id).where(
+            db_config.TaskRun.state.has(
+                db_config.TaskRunState.type == schemas.states.StateType.RUNNING
             )
         )
         result = await session.execute(query)
         assert len(result.all()) == 0
 
     async def test_task_run_state_relationship_type_filter_selects_current_state(
-        self, flow_run, many_task_run_states, session
+        self, flow_run, many_task_run_states, session, db_config
     ):
         # the task runs are most recently in a completed state
-        match_query = sa.select(sa.func.count(orm.TaskRun.id)).where(
-            orm.TaskRun.flow_run_id == flow_run.id,
-            orm.TaskRun.state.has(
-                orm.TaskRunState.type == schemas.states.StateType.COMPLETED
+        match_query = sa.select(sa.func.count(db_config.TaskRun.id)).where(
+            db_config.TaskRun.flow_run_id == flow_run.id,
+            db_config.TaskRun.state.has(
+                db_config.TaskRunState.type == schemas.states.StateType.COMPLETED
             ),
         )
         result = await session.execute(match_query)
         assert result.scalar() == 5
 
         # no task run is in a running state
-        miss_query = sa.select(sa.func.count(orm.TaskRun.id)).where(
-            orm.TaskRun.flow_run_id == flow_run.id,
-            orm.TaskRun.state.has(
-                orm.TaskRunState.type == schemas.states.StateType.RUNNING
+        miss_query = sa.select(sa.func.count(db_config.TaskRun.id)).where(
+            db_config.TaskRun.flow_run_id == flow_run.id,
+            db_config.TaskRun.state.has(
+                db_config.TaskRunState.type == schemas.states.StateType.RUNNING
             ),
         )
         result = await session.execute(miss_query)
         assert result.scalar() == 0
 
-    async def test_assign_to_state_inserts_state(self, task_run, session):
+    async def test_assign_to_state_inserts_state(self, task_run, session, db_config):
         task_run_id = task_run.id
         assert task_run.state is None
 
         # delete all states
-        await session.execute(sa.delete(orm.TaskRunState))
-        task_run.set_state(orm.TaskRunState(**schemas.states.Completed().dict()))
+        await session.execute(sa.delete(db_config.TaskRunState))
+        task_run.set_state(db_config.TaskRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
-        retrieved_flow_run = await session.get(orm.TaskRun, task_run_id)
+        retrieved_flow_run = await session.get(db_config.TaskRun, task_run_id)
         assert retrieved_flow_run.state.type.value == "COMPLETED"
 
         result = await session.execute(
-            sa.select(orm.TaskRunState).filter_by(task_run_id=task_run_id)
+            sa.select(db_config.TaskRunState).filter_by(task_run_id=task_run_id)
         )
         states = result.scalars().all()
         assert len(states) == 1
         assert states[0].type.value == "COMPLETED"
 
-    async def test_assign_multiple_to_state_inserts_states(self, task_run, session):
+    async def test_assign_multiple_to_state_inserts_states(
+        self, task_run, session, db_config
+    ):
         task_run_id = task_run.id
 
         # delete all states
-        await session.execute(sa.delete(orm.TaskRunState))
+        await session.execute(sa.delete(db_config.TaskRunState))
 
-        task_run.set_state(orm.TaskRunState(**schemas.states.Pending().dict()))
-        task_run.set_state(orm.TaskRunState(**schemas.states.Running().dict()))
-        task_run.set_state(orm.TaskRunState(**schemas.states.Completed().dict()))
+        task_run.set_state(db_config.TaskRunState(**schemas.states.Pending().dict()))
+        task_run.set_state(db_config.TaskRunState(**schemas.states.Running().dict()))
+        task_run.set_state(db_config.TaskRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
-        retrieved_flow_run = await session.get(orm.TaskRun, task_run_id)
+        retrieved_flow_run = await session.get(db_config.TaskRun, task_run_id)
         assert retrieved_flow_run.state.type.value == "COMPLETED"
 
         result = await session.execute(
-            sa.select(orm.TaskRunState)
+            sa.select(db_config.TaskRunState)
             .filter_by(task_run_id=task_run_id)
-            .order_by(orm.TaskRunState.timestamp.asc())
+            .order_by(db_config.TaskRunState.timestamp.asc())
         )
         states = result.scalars().all()
         assert len(states) == 3
@@ -353,7 +360,7 @@ class TestTaskRun:
 
 class TestTotalRunTimeEstimate:
     async def test_flow_run_estimated_run_time_matches_total_run_time(
-        self, session, flow
+        self, session, flow, db_config
     ):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
@@ -380,13 +387,13 @@ class TestTotalRunTimeEstimate:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_run_time).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_run_time).filter_by(id=fr.id)
         )
 
         assert result.scalar() == pendulum.duration(seconds=3)
 
     async def test_flow_run_estimated_run_time_includes_current_run(
-        self, session, flow
+        self, session, flow, db_config
     ):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
@@ -413,7 +420,7 @@ class TestTotalRunTimeEstimate:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_run_time).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_run_time).filter_by(id=fr.id)
         )
         assert (
             datetime.timedelta(seconds=59)
@@ -422,7 +429,7 @@ class TestTotalRunTimeEstimate:
         )
 
     async def test_task_run_estimated_run_time_matches_total_run_time(
-        self, session, flow_run
+        self, session, flow_run, db_config
     ):
         dt = pendulum.now().subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
@@ -452,13 +459,13 @@ class TestTotalRunTimeEstimate:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.TaskRun.estimated_run_time).filter_by(id=tr.id)
+            sa.select(db_config.TaskRun.estimated_run_time).filter_by(id=tr.id)
         )
 
         assert result.scalar() == datetime.timedelta(seconds=3)
 
     async def test_task_run_estimated_run_time_includes_current_run(
-        self, session, flow_run
+        self, session, flow_run, db_config
     ):
         dt = pendulum.now().subtract(minutes=1)
         tr = await models.task_runs.create_task_run(
@@ -488,7 +495,7 @@ class TestTotalRunTimeEstimate:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.TaskRun.estimated_run_time).filter_by(id=tr.id)
+            sa.select(db_config.TaskRun.estimated_run_time).filter_by(id=tr.id)
         )
 
         assert (
@@ -497,7 +504,9 @@ class TestTotalRunTimeEstimate:
             < datetime.timedelta(seconds=60)
         )
 
-    async def test_estimated_run_time_in_correlated_subquery(self, session, flow):
+    async def test_estimated_run_time_in_correlated_subquery(
+        self, session, flow, db_config
+    ):
         """
         The estimated_run_time includes a .correlate() statement that ensures it can
         be used as a correlated subquery within other selects or joins.
@@ -524,11 +533,16 @@ class TestTotalRunTimeEstimate:
         await session.commit()
         query = (
             sa.select(
-                orm.FlowRun.id, orm.FlowRun.estimated_run_time, orm.FlowRunState.type
+                db_config.FlowRun.id,
+                db_config.FlowRun.estimated_run_time,
+                db_config.FlowRunState.type,
             )
-            .select_from(orm.FlowRun)
-            .join(orm.FlowRunState, orm.FlowRunState.id == orm.FlowRun.state_id)
-            .where(orm.FlowRun.id == fr.id)
+            .select_from(db_config.FlowRun)
+            .join(
+                db_config.FlowRunState,
+                db_config.FlowRunState.id == db_config.FlowRun.state_id,
+            )
+            .where(db_config.FlowRun.id == fr.id)
         )
 
         # this query has only one FROM clause due to correlation
@@ -547,7 +561,7 @@ class TestTotalRunTimeEstimate:
 
 
 class TestExpectedStartTimeDelta:
-    async def test_flow_run_lateness_when_scheduled(self, session, flow):
+    async def test_flow_run_lateness_when_scheduled(self, session, flow, db_config):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -564,7 +578,7 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert (
             pendulum.duration(seconds=60)
@@ -572,7 +586,7 @@ class TestExpectedStartTimeDelta:
             < pendulum.duration(seconds=61)
         )
 
-    async def test_flow_run_lateness_when_pending(self, session, flow):
+    async def test_flow_run_lateness_when_pending(self, session, flow, db_config):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -596,7 +610,7 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert (
             pendulum.duration(seconds=60)
@@ -604,7 +618,7 @@ class TestExpectedStartTimeDelta:
             < pendulum.duration(seconds=61)
         )
 
-    async def test_flow_run_lateness_when_running(self, session, flow):
+    async def test_flow_run_lateness_when_running(self, session, flow, db_config):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -624,11 +638,11 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=5)
 
-    async def test_flow_run_lateness_when_terminal(self, session, flow):
+    async def test_flow_run_lateness_when_terminal(self, session, flow, db_config):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -648,11 +662,11 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)
 
-    async def test_flow_run_lateness_is_zero_when_early(self, session, flow):
+    async def test_flow_run_lateness_is_zero_when_early(self, session, flow, db_config):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -672,6 +686,6 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(orm.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
+            sa.select(db_config.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)

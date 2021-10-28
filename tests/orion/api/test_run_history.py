@@ -8,7 +8,6 @@ import pytest
 
 from prefect.orion import models
 from prefect.orion.schemas import core, states, responses
-from prefect.orion.utilities.database import AsyncPostgresConfiguration
 from prefect.orion.schemas.states import StateType
 
 dt = pendulum.datetime(2021, 7, 1)
@@ -36,9 +35,9 @@ async def clear_db():
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(db_config=AsyncPostgresConfiguration):
+async def data(db_config):
 
-    session_factory = await db_config().session_factory()
+    session_factory = await db_config.session_factory()
     async with session_factory() as session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)

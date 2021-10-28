@@ -10,14 +10,15 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import schemas
-from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert
+from prefect.orion.database.dependencies import inject_db_config
 
 
+@inject_db_config
 async def create_saved_search(
     session: sa.orm.Session,
     saved_search: schemas.core.SavedSearch,
-) -> orm.SavedSearch:
+    db_config=None,
+):
     """
     Upserts a SavedSearch.
 
@@ -28,12 +29,12 @@ async def create_saved_search(
         saved_search (schemas.core.SavedSearch): a SavedSearch model
 
     Returns:
-        orm.SavedSearch: the newly-created or updated SavedSearch
+        db_config.SavedSearch: the newly-created or updated SavedSearch
 
     """
 
     insert_stmt = (
-        dialect_specific_insert(orm.SavedSearch)
+        (await db_config.dialect_specific_insert(db_config.SavedSearch))
         .values(**saved_search.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
             index_elements=["name"],
@@ -44,9 +45,9 @@ async def create_saved_search(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(orm.SavedSearch)
+        sa.select(db_config.SavedSearch)
         .where(
-            orm.SavedSearch.name == saved_search.name,
+            db_config.SavedSearch.name == saved_search.name,
         )
         .execution_options(populate_existing=True)
     )
@@ -56,9 +57,12 @@ async def create_saved_search(
     return model
 
 
+@inject_db_config
 async def read_saved_search(
-    session: sa.orm.Session, saved_search_id: UUID
-) -> orm.SavedSearch:
+    session: sa.orm.Session,
+    saved_search_id: UUID,
+    db_config=None,
+):
     """
     Reads a SavedSearch by id.
 
@@ -67,16 +71,18 @@ async def read_saved_search(
         saved_search_id (str): a SavedSearch id
 
     Returns:
-        orm.SavedSearch: the SavedSearch
+        db_config.SavedSearch: the SavedSearch
     """
 
-    return await session.get(orm.SavedSearch, saved_search_id)
+    return await session.get(db_config.SavedSearch, saved_search_id)
 
 
+@inject_db_config
 async def read_saved_search_by_name(
     session: sa.orm.Session,
     name: str,
-) -> orm.SavedSearch:
+    db_config=None,
+):
     """
     Reads a SavedSearch by name.
 
@@ -85,19 +91,21 @@ async def read_saved_search_by_name(
         name (str): a SavedSearch name
 
     Returns:
-        orm.SavedSearch: the SavedSearch
+        db_config.SavedSearch: the SavedSearch
     """
     result = await session.execute(
-        select(orm.SavedSearch).where(orm.SavedSearch.name == name).limit(1)
+        select(db_config.SavedSearch).where(db_config.SavedSearch.name == name).limit(1)
     )
     return result.scalar()
 
 
+@inject_db_config
 async def read_saved_searches(
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
-) -> List[orm.SavedSearch]:
+    db_config=None,
+):
     """
     Read SavedSearchs.
 
@@ -107,10 +115,10 @@ async def read_saved_searches(
         limit(int): Query limit
 
     Returns:
-        List[orm.SavedSearch]: SavedSearchs
+        List[db_config.SavedSearch]: SavedSearchs
     """
 
-    query = select(orm.SavedSearch).order_by(orm.SavedSearch.name)
+    query = select(db_config.SavedSearch).order_by(db_config.SavedSearch.name)
 
     if offset is not None:
         query = query.offset(offset)
@@ -121,7 +129,10 @@ async def read_saved_searches(
     return result.scalars().unique().all()
 
 
-async def delete_saved_search(session: sa.orm.Session, saved_search_id: UUID) -> bool:
+@inject_db_config
+async def delete_saved_search(
+    session: sa.orm.Session, saved_search_id: UUID, db_config=None
+) -> bool:
     """
     Delete a SavedSearch by id.
 
@@ -134,6 +145,6 @@ async def delete_saved_search(session: sa.orm.Session, saved_search_id: UUID) ->
     """
 
     result = await session.execute(
-        delete(orm.SavedSearch).where(orm.SavedSearch.id == saved_search_id)
+        delete(db_config.SavedSearch).where(db_config.SavedSearch.id == saved_search_id)
     )
     return result.rowcount > 0

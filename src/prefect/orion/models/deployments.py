@@ -13,14 +13,15 @@ from sqlalchemy import delete, select
 
 import prefect
 from prefect.orion import schemas
-from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert, get_dialect
+from prefect.orion.database.dependencies import inject_db_config
 
 
+@inject_db_config
 async def create_deployment(
     session: sa.orm.Session,
     deployment: schemas.core.Deployment,
-) -> orm.Deployment:
+    db_config=None,
+):
     """Upserts a deployment.
 
     Args:
@@ -28,7 +29,7 @@ async def create_deployment(
         deployment: a deployment model
 
     Returns:
-        orm.Deployment: the newly-created or updated deployment
+        db_config.Deployment: the newly-created or updated deployment
 
     """
 
@@ -38,7 +39,7 @@ async def create_deployment(
     deployment.updated = pendulum.now("UTC")
 
     insert_stmt = (
-        dialect_specific_insert(orm.Deployment)
+        (await db_config.dialect_specific_insert(db_config.Deployment))
         .values(**deployment.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
             index_elements=["flow_id", "name"],
@@ -59,11 +60,11 @@ async def create_deployment(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(orm.Deployment)
+        sa.select(db_config.Deployment)
         .where(
             sa.and_(
-                orm.Deployment.flow_id == deployment.flow_id,
-                orm.Deployment.name == deployment.name,
+                db_config.Deployment.flow_id == deployment.flow_id,
+                db_config.Deployment.name == deployment.name,
             )
         )
         .execution_options(populate_existing=True)
@@ -74,9 +75,12 @@ async def create_deployment(
     return model
 
 
+@inject_db_config
 async def read_deployment(
-    session: sa.orm.Session, deployment_id: UUID
-) -> orm.Deployment:
+    session: sa.orm.Session,
+    deployment_id: UUID,
+    db_config=None,
+):
     """Reads a deployment by id.
 
     Args:
@@ -84,15 +88,19 @@ async def read_deployment(
         deployment_id: a deployment id
 
     Returns:
-        orm.Deployment: the deployment
+        db_config.Deployment: the deployment
     """
 
-    return await session.get(orm.Deployment, deployment_id)
+    return await session.get(db_config.Deployment, deployment_id)
 
 
+@inject_db_config
 async def read_deployment_by_name(
-    session: sa.orm.Session, name: str, flow_name: str
-) -> orm.Deployment:
+    session: sa.orm.Session,
+    name: str,
+    flow_name: str,
+    db_config=None,
+):
     """Reads a deployment by name.
 
     Args:
@@ -101,57 +109,63 @@ async def read_deployment_by_name(
         flow_name: the name of the flow the deployment belongs to
 
     Returns:
-        orm.Deployment: the deployment
+        db_config.Deployment: the deployment
     """
 
     result = await session.execute(
-        select(orm.Deployment)
-        .join(orm.Flow, orm.Deployment.flow_id == orm.Flow.id)
-        .where(sa.and_(orm.Flow.name == flow_name, orm.Deployment.name == name))
+        select(db_config.Deployment)
+        .join(db_config.Flow, db_config.Deployment.flow_id == db_config.Flow.id)
+        .where(
+            sa.and_(db_config.Flow.name == flow_name, db_config.Deployment.name == name)
+        )
         .limit(1)
     )
     return result.scalar()
 
 
-def _apply_deployment_filters(
+@inject_db_config
+async def _apply_deployment_filters(
     query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ):
     """
     Applies filters to a deployment query as a combination of EXISTS subqueries.
     """
 
     if deployment_filter:
-        query = query.where(deployment_filter.as_sql_filter())
+        query = query.where((await deployment_filter.as_sql_filter()))
 
     if flow_filter:
-        exists_clause = select(orm.Deployment.id).where(
-            orm.Deployment.flow_id == orm.Flow.id, flow_filter.as_sql_filter()
+        exists_clause = select(db_config.Deployment.id).where(
+            db_config.Deployment.flow_id == db_config.Flow.id,
+            (await flow_filter.as_sql_filter()),
         )
 
         query = query.where(exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(orm.FlowRun).where(
-            orm.Deployment.id == orm.FlowRun.deployment_id
+        exists_clause = select(db_config.FlowRun).where(
+            db_config.Deployment.id == db_config.FlowRun.deployment_id
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            exists_clause = exists_clause.where((await flow_run_filter.as_sql_filter()))
         if task_run_filter:
             exists_clause = exists_clause.join(
-                orm.TaskRun,
-                orm.TaskRun.flow_run_id == orm.FlowRun.id,
-            ).where(task_run_filter.as_sql_filter())
+                db_config.TaskRun,
+                db_config.TaskRun.flow_run_id == db_config.FlowRun.id,
+            ).where((await task_run_filter.as_sql_filter()))
 
         query = query.where(exists_clause.exists())
 
     return query
 
 
+@inject_db_config
 async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
@@ -160,7 +174,8 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-) -> List[orm.Deployment]:
+    db_config=None,
+):
     """
     Read deployments.
 
@@ -175,17 +190,18 @@ async def read_deployments(
 
 
     Returns:
-        List[orm.Deployment]: deployments
+        List[db_config.Deployment]: deployments
     """
 
-    query = select(orm.Deployment).order_by(orm.Deployment.name)
+    query = select(db_config.Deployment).order_by(db_config.Deployment.name)
 
-    query = _apply_deployment_filters(
+    query = await _apply_deployment_filters(
         query=query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     if offset is not None:
@@ -197,12 +213,14 @@ async def read_deployments(
     return result.scalars().unique().all()
 
 
+@inject_db_config
 async def count_deployments(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ) -> int:
     """
     Count deployments.
@@ -218,21 +236,25 @@ async def count_deployments(
         int: the number of deployments matching filters
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(orm.Deployment)
+    query = select(sa.func.count(sa.text("*"))).select_from(db_config.Deployment)
 
-    query = _apply_deployment_filters(
+    query = await _apply_deployment_filters(
         query=query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> bool:
+@inject_db_config
+async def delete_deployment(
+    session: sa.orm.Session, deployment_id: UUID, db_config=None
+) -> bool:
     """
     Delete a deployment by id.
 
@@ -245,17 +267,19 @@ async def delete_deployment(session: sa.orm.Session, deployment_id: UUID) -> boo
     """
 
     result = await session.execute(
-        delete(orm.Deployment).where(orm.Deployment.id == deployment_id)
+        delete(db_config.Deployment).where(db_config.Deployment.id == deployment_id)
     )
     return result.rowcount > 0
 
 
+@inject_db_config
 async def schedule_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     max_runs: int = None,
+    db_config=None,
 ):
     if max_runs is None:
         max_runs = prefect.settings.orion.services.scheduler_max_runs
@@ -278,12 +302,14 @@ async def schedule_runs(
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
 
+@inject_db_config
 async def _generate_scheduled_flow_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
     max_runs: int,
+    db_config=None,
 ) -> List[schemas.core.FlowRun]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -294,7 +320,7 @@ async def _generate_scheduled_flow_runs(
     runs = []
 
     # retrieve the deployment
-    deployment = await session.get(orm.Deployment, deployment_id)
+    deployment = await session.get(db_config.Deployment, deployment_id)
 
     if not deployment or not deployment.schedule or not deployment.is_schedule_active:
         return []
@@ -324,9 +350,11 @@ async def _generate_scheduled_flow_runs(
     return runs
 
 
+@inject_db_config
 async def _insert_scheduled_flow_runs(
     session: sa.orm.Session,
     runs: List[schemas.core.FlowRun],
+    db_config=None,
 ) -> List[schemas.core.FlowRun]:
     """
     Given a list of flow runs to schedule, as generated by `_generate_scheduled_flow_runs`,
@@ -342,7 +370,7 @@ async def _insert_scheduled_flow_runs(
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
-    insert = dialect_specific_insert(orm.FlowRun)
+    insert = await db_config.dialect_specific_insert(db_config.FlowRun)
     await session.execute(
         insert.on_conflict_do_nothing(index_elements=["flow_id", "idempotency_key"]),
         [r.dict(exclude={"created", "updated"}) for r in runs],
@@ -351,15 +379,15 @@ async def _insert_scheduled_flow_runs(
     # query for the rows that were newly inserted (by checking for any flow runs with
     # no corresponding flow run states)
     inserted_rows = (
-        sa.select(orm.FlowRun.id)
+        sa.select(db_config.FlowRun.id)
         .join(
-            orm.FlowRunState,
-            orm.FlowRun.id == orm.FlowRunState.flow_run_id,
+            db_config.FlowRunState,
+            db_config.FlowRun.id == db_config.FlowRunState.flow_run_id,
             isouter=True,
         )
         .where(
-            orm.FlowRun.id.in_([r.id for r in runs]),
-            orm.FlowRunState.id.is_(None),
+            db_config.FlowRun.id.in_([r.id for r in runs]),
+            db_config.FlowRunState.id.is_(None),
         )
     )
     inserted_flow_run_ids = (await session.execute(inserted_rows)).scalars().all()
@@ -374,43 +402,14 @@ async def _insert_scheduled_flow_runs(
         # this syntax (insert statement, values to insert) is most efficient
         # because it uses a single bind parameter
         await session.execute(
-            orm.FlowRunState.__table__.insert(), insert_flow_run_states
+            db_config.FlowRunState.__table__.insert(), insert_flow_run_states
         )
 
         # set the `state_id` on the newly inserted runs
-        if get_dialect().name == "postgresql":
-            # postgres supports `UPDATE ... FROM` syntax
-            stmt = (
-                sa.update(orm.FlowRun)
-                .where(
-                    orm.FlowRun.id.in_(inserted_flow_run_ids),
-                    orm.FlowRunState.flow_run_id == orm.FlowRun.id,
-                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
-                )
-                .values(state_id=orm.FlowRunState.id)
-                # no need to synchronize as these flow runs are entirely new
-                .execution_options(synchronize_session=False)
-            )
-        else:
-            # sqlite requires a correlated subquery to update from another table
-            subquery = (
-                sa.select(orm.FlowRunState.id)
-                .where(
-                    orm.FlowRunState.flow_run_id == orm.FlowRun.id,
-                    orm.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
-                )
-                .limit(1)
-                .scalar_subquery()
-            )
-            stmt = (
-                sa.update(orm.FlowRun)
-                .where(
-                    orm.FlowRun.id.in_(inserted_flow_run_ids),
-                )
-                .values(state_id=subquery)
-                # no need to synchronize as these flow runs are entirely new
-                .execution_options(synchronize_session=False)
-            )
+        stmt = db_config.set_state_id_on_inserted_flow_runs_statement(
+            inserted_flow_run_ids=inserted_flow_run_ids,
+            insert_flow_run_states=insert_flow_run_states,
+        )
 
         await session.execute(stmt)
 

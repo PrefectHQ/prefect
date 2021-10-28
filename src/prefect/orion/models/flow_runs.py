@@ -19,12 +19,15 @@ from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
 )
-from prefect.orion.utilities.database import dialect_specific_insert
+from prefect.orion.database.dependencies import inject_db_config
 
 
+@inject_db_config
 async def create_flow_run(
-    session: sa.orm.Session, flow_run: schemas.core.FlowRun
-) -> orm.FlowRun:
+    session: sa.orm.Session,
+    flow_run: schemas.core.FlowRun,
+    db_config=None,
+):
     """Creates a new flow run.
 
     If the provided flow run has a state attached, it will also be created.
@@ -34,13 +37,13 @@ async def create_flow_run(
         flow_run: a flow run model
 
     Returns:
-        orm.FlowRun: the newly-created flow run
+        db_config.FlowRun: the newly-created flow run
     """
 
     now = pendulum.now("UTC")
     # if there's no idempotency key, just create the run
     if not flow_run.idempotency_key:
-        model = orm.FlowRun(
+        model = db_config.FlowRun(
             **flow_run.dict(
                 shallow=True,
                 exclude={
@@ -57,21 +60,24 @@ async def create_flow_run(
     # otherwise let the database take care of enforcing idempotency
     else:
         insert_stmt = (
-            dialect_specific_insert(orm.FlowRun)
+            (await db_config.dialect_specific_insert(db_config.FlowRun))
             .values(
                 **flow_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
             )
             .on_conflict_do_nothing(
-                index_elements=[orm.FlowRun.flow_id, orm.FlowRun.idempotency_key],
+                index_elements=[
+                    db_config.FlowRun.flow_id,
+                    db_config.FlowRun.idempotency_key,
+                ],
             )
         )
         await session.execute(insert_stmt)
         query = (
-            sa.select(orm.FlowRun)
+            sa.select(db_config.FlowRun)
             .where(
                 sa.and_(
-                    orm.FlowRun.flow_id == flow_run.flow_id,
-                    orm.FlowRun.idempotency_key == flow_run.idempotency_key,
+                    db_config.FlowRun.flow_id == flow_run.flow_id,
+                    db_config.FlowRun.idempotency_key == flow_run.idempotency_key,
                 )
             )
             .limit(1)
@@ -90,8 +96,12 @@ async def create_flow_run(
     return model
 
 
+@inject_db_config
 async def update_flow_run(
-    session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.actions.FlowRunUpdate
+    session: sa.orm.Session,
+    flow_run_id: UUID,
+    flow_run: schemas.actions.FlowRunUpdate,
+    db_config=None,
 ) -> bool:
     """
     Updates a flow run.
@@ -111,7 +121,7 @@ async def update_flow_run(
         )
 
     update_stmt = (
-        sa.update(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+        sa.update(db_config.FlowRun).where(db_config.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.dict(shallow=True, exclude_unset=True))
@@ -120,7 +130,12 @@ async def update_flow_run(
     return result.rowcount > 0
 
 
-async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
+@inject_db_config
+async def read_flow_run(
+    session: sa.orm.Session,
+    flow_run_id: UUID,
+    db_config=None,
+):
     """
     Reads a flow run by id.
 
@@ -129,53 +144,56 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
         flow_run_id: a flow run id
 
     Returns:
-        orm.FlowRun: the flow run
+        db_config.FlowRun: the flow run
     """
 
-    return await session.get(orm.FlowRun, flow_run_id)
+    return await session.get(db_config.FlowRun, flow_run_id)
 
 
-def _apply_flow_run_filters(
+@inject_db_config
+async def _apply_flow_run_filters(
     query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ):
     """
     Applies filters to a flow run query as a combination of EXISTS subqueries.
     """
 
     if flow_run_filter:
-        query = query.where(flow_run_filter.as_sql_filter())
+        query = query.where((await flow_run_filter.as_sql_filter()))
 
     if deployment_filter:
-        exists_clause = select(orm.Deployment).where(
-            orm.Deployment.id == orm.FlowRun.deployment_id,
-            deployment_filter.as_sql_filter(),
+        exists_clause = select(db_config.Deployment).where(
+            db_config.Deployment.id == db_config.FlowRun.deployment_id,
+            (await deployment_filter.as_sql_filter()),
         )
         query = query.where(exists_clause.exists())
 
     if flow_filter or task_run_filter:
 
         if flow_filter:
-            exists_clause = select(orm.Flow).where(
-                orm.Flow.id == orm.FlowRun.flow_id,
-                flow_filter.as_sql_filter(),
+            exists_clause = select(db_config.Flow).where(
+                db_config.Flow.id == db_config.FlowRun.flow_id,
+                (await flow_filter.as_sql_filter()),
             )
 
         if task_run_filter:
             if not flow_filter:
-                exists_clause = select(orm.TaskRun).where(
-                    orm.TaskRun.flow_run_id == orm.FlowRun.id
+                exists_clause = select(db_config.TaskRun).where(
+                    db_config.TaskRun.flow_run_id == db_config.FlowRun.id
                 )
             else:
                 exists_clause = exists_clause.join(
-                    orm.TaskRun, orm.TaskRun.flow_run_id == orm.FlowRun.id
+                    db_config.TaskRun,
+                    db_config.TaskRun.flow_run_id == db_config.FlowRun.id,
                 )
             exists_clause = exists_clause.where(
-                orm.FlowRun.id == orm.TaskRun.flow_run_id,
-                task_run_filter.as_sql_filter(),
+                db_config.FlowRun.id == db_config.TaskRun.flow_run_id,
+                (await task_run_filter.as_sql_filter()),
             )
 
         query = query.where(exists_clause.exists())
@@ -183,6 +201,7 @@ def _apply_flow_run_filters(
     return query
 
 
+@inject_db_config
 async def read_flow_runs(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -192,7 +211,8 @@ async def read_flow_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
-) -> List[orm.FlowRun]:
+    db_config=None,
+):
     """
     Read flow runs.
 
@@ -207,17 +227,18 @@ async def read_flow_runs(
         sort: Query sort
 
     Returns:
-        List[orm.FlowRun]: flow runs
+        List[db_config.FlowRun]: flow runs
     """
 
-    query = select(orm.FlowRun).order_by(sort.as_sql_sort())
+    query = select(db_config.FlowRun).order_by(await sort.as_sql_sort())
 
-    query = _apply_flow_run_filters(
+    query = await _apply_flow_run_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     if offset is not None:
@@ -230,12 +251,14 @@ async def read_flow_runs(
     return result.scalars().unique().all()
 
 
+@inject_db_config
 async def count_flow_runs(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ) -> int:
     """
     Count flow runs.
@@ -251,21 +274,25 @@ async def count_flow_runs(
         int: count of flow runs
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(orm.FlowRun)
+    query = select(sa.func.count(sa.text("*"))).select_from(db_config.FlowRun)
 
-    query = _apply_flow_run_filters(
+    query = await _apply_flow_run_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
+@inject_db_config
+async def delete_flow_run(
+    session: sa.orm.Session, flow_run_id: UUID, db_config=None
+) -> bool:
     """
     Delete a flow run by flow_run_id.
 
@@ -278,17 +305,19 @@ async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
     """
 
     result = await session.execute(
-        delete(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+        delete(db_config.FlowRun).where(db_config.FlowRun.id == flow_run_id)
     )
     return result.rowcount > 0
 
 
+@inject_db_config
 async def set_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-) -> orm.FlowRunState:
+    db_config=None,
+):
     """
     Creates a new orchestrated flow run state.
 

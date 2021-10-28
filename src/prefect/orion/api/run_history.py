@@ -15,6 +15,7 @@ import pydantic
 from prefect.orion import models, schemas
 from prefect.orion.utilities.database import Timestamp, get_dialect
 from prefect.utilities.logging import get_logger
+from prefect.orion.database.dependencies import inject_db_config
 
 logger = get_logger("orion.api")
 
@@ -87,6 +88,7 @@ def postgres_timestamp_intervals(
     )
 
 
+@inject_db_config
 async def run_history(
     session: sa.orm.Session,
     run_type: Literal["flow_run", "task_run"],
@@ -97,6 +99,7 @@ async def run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
@@ -109,12 +112,12 @@ async def run_history(
 
     # prepare run-specific models
     if run_type == "flow_run":
-        run_model = models.orm.FlowRun
-        state_model = models.orm.FlowRunState
+        run_model = db_config.FlowRun
+        state_model = db_config.FlowRunState
         run_filter_function = models.flow_runs._apply_flow_run_filters
     elif run_type == "task_run":
-        run_model = models.orm.TaskRun
-        state_model = models.orm.TaskRunState
+        run_model = db_config.TaskRun
+        state_model = db_config.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
     # prepare dialect-independent functions
@@ -141,21 +144,23 @@ async def run_history(
     ).cte("intervals")
 
     # apply filters to the flow runs (and related states)
-    runs = run_filter_function(
-        sa.select(
-            run_model.id,
-            run_model.expected_start_time,
-            run_model.estimated_run_time,
-            run_model.estimated_start_time_delta,
-            state_model.type.label("state_type"),
-            state_model.name.label("state_name"),
+    runs = (
+        await run_filter_function(
+            sa.select(
+                run_model.id,
+                run_model.expected_start_time,
+                run_model.estimated_run_time,
+                run_model.estimated_start_time_delta,
+                state_model.type.label("state_type"),
+                state_model.name.label("state_name"),
+            )
+            .select_from(run_model)
+            .join(state_model, run_model.state_id == state_model.id),
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
         )
-        .select_from(run_model)
-        .join(state_model, run_model.state_id == state_model.id),
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
     ).alias("runs")
     # outer join intervals to the filtered runs to create a dataset composed of
     # every interval and the aggregate of all its runs. The runs aggregate is represented

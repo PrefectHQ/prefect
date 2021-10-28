@@ -3,13 +3,13 @@ Routes for admin-level interactions with the Orion API.
 """
 
 import sqlalchemy as sa
+from sqlalchemy import orm
 from fastapi import Depends, status, Response, Body
 
 import prefect
-from prefect.utilities.logging import get_logger
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.database import Base
+from prefect.orion.database.dependencies import get_database_configuration
 
 router = OrionRouter(prefix="/admin", tags=["Admin"])
 
@@ -46,8 +46,9 @@ async def clear_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-
-    for table in reversed(Base.metadata.sorted_tables):
+    # TODO - can probably inject here
+    db_config = await get_database_configuration()
+    for table in reversed(db_config.Base.metadata.sorted_tables):
         await session.execute(table.delete())
 
 
