@@ -235,6 +235,35 @@ class DatabaseConfigurationBaseModel(BaseModel):
         }
         return inserts[(await self.engine()).url.get_dialect().name](model)
 
+    @property
+    def deployment_unique_upsert_columns(self):
+        """Unique columns for upserting a Deployment"""
+        return [self.Deployment.flow_id, self.Deployment.name]
+
+    @property
+    def flow_run_unique_upsert_columns(self):
+        """Unique columns for upserting a FlowRun"""
+        return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
+
+    @property
+    def flow_unique_upsert_columns(self):
+        """Unique columns for upserting a Flow"""
+        return [self.Flow.name]
+
+    @property
+    def saved_search_unique_upsert_columns(self):
+        """Unique columns for upserting a SavedSearch"""
+        return [self.SavedSearch.name]
+
+    @property
+    def task_run_unique_upsert_columns(self):
+        """Unique columns for upserting a TaskRun"""
+        return [
+            self.TaskRun.flow_run_id,
+            self.TaskRun.task_key,
+            self.TaskRun.dynamic_key,
+        ]
+
     def set_state_id_on_inserted_flow_runs_statement(
         self, inserted_flow_run_ids, insert_flow_run_states
     ):

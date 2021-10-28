@@ -47,7 +47,7 @@ async def create_task_run(
         (await db_config.dialect_specific_insert(db_config.TaskRun))
         .values(**task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True))
         .on_conflict_do_nothing(
-            index_elements=["flow_run_id", "task_key", "dynamic_key"],
+            index_elements=db_config.task_run_unique_upsert_columns,
         )
     )
     await session.execute(insert_stmt)
