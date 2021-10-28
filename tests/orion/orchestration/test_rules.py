@@ -21,7 +21,7 @@ from prefect.orion.schemas.responses import (
     StateRejectDetails,
     StateWaitDetails,
 )
-from prefect.orion.database.dependencies import get_database_configuration
+from prefect.orion.database.dependencies import provide_database_configuration
 
 
 async def commit_task_run_state(
@@ -43,7 +43,7 @@ async def commit_task_run_state(
         state_details=state_details,
     )
 
-    db_config = await get_database_configuration()
+    db_config = await provide_database_configuration()
     orm_state = db_config.TaskRunState(
         task_run_id=task_run.id,
         **new_state.dict(shallow=True),
