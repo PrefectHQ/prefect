@@ -147,6 +147,7 @@ class CloudHandler(logging.Handler):
         # if we shouldn't log to cloud, don't emit
         if not context.config.cloud.send_flow_run_logs:
             return
+
         # if its not during a backend flow run, don't emit
         if not context.get("running_with_backend"):
             return
