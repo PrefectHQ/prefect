@@ -130,11 +130,6 @@ module.exports = {
           children: getChildren('docs/api/latest', 'engine')
         },
         {
-          title: 'prefect.environments',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'environments')
-        },
-        {
           title: 'prefect.executors',
           collapsable: true,
           children: ['executors.md']
@@ -242,7 +237,6 @@ module.exports = {
             'agents/kubernetes',
             'agents/vertex',
             'agents/ecs',
-            'agents/fargate'
           ]
         },
         {
@@ -297,20 +291,6 @@ module.exports = {
           collapsable: true,
           children: getChildren('docs/orchestration', 'faq')
         },
-        {
-          title: 'Legacy Environments',
-          collapsable: true,
-          children: [
-            'execution/overview',
-            'execution/storage_options',
-            'execution/local_environment',
-            'execution/dask_cloud_provider_environment',
-            'execution/dask_k8s_environment',
-            'execution/k8s_job_environment',
-            'execution/fargate_task_environment',
-            'execution/custom_environment'
-          ]
-        }
       ],
       '/core/': [
         '/core/',

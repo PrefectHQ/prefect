@@ -3,7 +3,7 @@
 Prefect 0.14.0 included a new Flow configuration system based on
 [RunConfig](./run_configs.md) objects. This replaces the previous system based
 on [Environment](/orchestration/execution/overview.md) objects, with
-`Environment` based configuration being deprecated.
+`Environment` based configuration being deprecated in 0.14.0 and removed in 1.0.0.
 
 If you never configured `flow.environment` explicitly on your flow, your
 upgrade process should be seamless. Your flows will automatically transition to
@@ -12,10 +12,6 @@ use the new `flow.run_config` system.
 If you did set an `Environment` explicitly on a flow, you'll want to transition
 your flows to use an equivalent `RunConfig`. Below we'll outline a few common
 environment setups, and their equivalents using run-configs.
-
-*Note that while `Environment` based configuration is deprecated, support for
-environments will stick around for several versions. Your old flows should
-continue to run fine, giving you time to figure out a good transition plan.*
 
 ## LocalEnvironment
 

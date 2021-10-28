@@ -361,48 +361,6 @@ def install(label, env, **kwargs):
     click.echo(deployment)
 
 
-#################
-# Fargate Agent #
-#################
-
-
-def warn_fargate_deprecated():
-    click.secho(
-        "Warning: The Fargate agent is deprecated, please transition to using the ECS agent instead",
-        fg="yellow",
-        err=True,
-    )
-
-
-@agent.group()
-def fargate():
-    """Manage Prefect Fargate agents (DEPRECATED).
-
-    The Fargate agent is deprecated, please transition to using the ECS agent instead.
-    """
-
-
-@fargate.command(
-    context_settings=dict(ignore_unknown_options=True, allow_extra_args=True)
-)
-@add_options(COMMON_START_OPTIONS)
-@click.pass_context
-def start(ctx, **kwargs):
-    """Start a Fargate agent (DEPRECATED)
-
-    The Fargate agent is deprecated, please transition to using the ECS agent instead.
-    """
-    from prefect.agent.fargate import FargateAgent
-
-    warn_fargate_deprecated()
-
-    for item in ctx.args:
-        k, v = item.replace("--", "").split("=", 1)
-        kwargs[k] = v
-
-    start_agent(FargateAgent, _called_from_cli=True, **kwargs)
-
-
 #############
 # ECS Agent #
 #############

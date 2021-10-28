@@ -60,7 +60,7 @@ classes = ["Secret"]
 [pages.cli.agent]
 title = "agent"
 module = "prefect.cli.agent"
-commands = ["local", "docker", "kubernetes", "ecs", "fargate"]
+commands = ["local", "docker", "kubernetes", "ecs"]
 
 [pages.cli.auth]
 title = "auth"
@@ -253,11 +253,6 @@ classes = ["Serializer", "PickleSerializer", "JSONSerializer", "DateTimeSerializ
 title = "Cloud"
 module = "prefect.engine.cloud"
 classes = ["CloudFlowRunner", "CloudTaskRunner"]
-
-[pages.environments.execution]
-title = "Execution Environments"
-module = "prefect.environments.execution"
-classes = ["DaskKubernetesEnvironment", "DaskCloudProviderEnvironment", "FargateTaskEnvironment", "KubernetesJobEnvironment", "LocalEnvironment"]
 
 [pages.executors]
 title = "Executors"
@@ -626,11 +621,6 @@ classes = {DockerAgent = ["start"]}
 title = "Kubernetes Agent"
 module = "prefect.agent.kubernetes"
 classes = {KubernetesAgent = ["start"]}
-
-[pages.agent.fargate]
-title = "Fargate Agent"
-module = "prefect.agent.fargate"
-classes = {FargateAgent = ["start"]}
 
 [pages.agent.ecs]
 title = "ECS Agent"

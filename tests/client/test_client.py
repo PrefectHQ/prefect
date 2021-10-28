@@ -15,7 +15,6 @@ from prefect.client.client import Client, FlowRunInfoResult, TaskRunInfoResult
 from prefect.utilities.graphql import GraphQLResult
 from prefect.engine.result import Result
 from prefect.engine.state import Pending, Running, State
-from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
@@ -729,7 +728,6 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     flow = prefect.Flow(
         name="test",
         storage=prefect.storage.Docker(image_name="test_image"),
-        environment=LocalEnvironment(),
     )
     flow.result = flow.storage.result
 
@@ -754,68 +752,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
             "input"
         ]["serialized_flow"]
     assert serialized_flow["storage"] is not None
-    assert "test_image" in serialized_flow["environment"]["metadata"]["image"]
-
-
-@pytest.mark.parametrize("compressed", [True, False])
-def test_client_register_default_prefect_image(
-    patch_post, compressed, monkeypatch, tmpdir
-):
-    if compressed:
-        response = {
-            "data": {
-                "project": [{"id": "proj-id"}],
-                "create_flow_from_compressed_string": {"id": "long-id"},
-            }
-        }
-    else:
-        response = {
-            "data": {"project": [{"id": "proj-id"}], "create_flow": {"id": "long-id"}}
-        }
-    post = patch_post(response)
-
-    monkeypatch.setattr(
-        "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
-    )
-    monkeypatch.setattr("prefect.storage.Docker._build_image", MagicMock())
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-    flow = prefect.Flow(
-        name="test",
-        storage=prefect.storage.Local(tmpdir),
-        environment=LocalEnvironment(),
-    )
-    flow.result = flow.storage.result
-
-    client.register(
-        flow,
-        project_name="my-default-project",
-        compressed=compressed,
-        build=True,
-        no_url=True,
-        set_schedule_active=False,
-    )
-
-    # extract POST info
-    if compressed:
-        serialized_flow = decompress(
-            json.loads(post.call_args_list[1][1]["json"]["variables"])["input"][
-                "serialized_flow"
-            ]
-        )
-    else:
-        serialized_flow = json.loads(post.call_args_list[1][1]["json"]["variables"])[
-            "input"
-        ]["serialized_flow"]
-    assert serialized_flow["storage"] is not None
-    assert "prefecthq/prefect" in serialized_flow["environment"]["metadata"]["image"]
+    assert serialized_flow["storage"]["image_name"] == "test_image"
 
 
 @pytest.mark.parametrize("compressed", [True, False])
@@ -986,10 +923,9 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
         )
 
 
-@pytest.mark.parametrize("use_run_config", [True, False])
 @pytest.mark.parametrize("compressed", [True, False])
 def test_client_register_flow_id_output(
-    patch_post, use_run_config, compressed, monkeypatch, capsys, cloud_api, tmpdir
+    patch_post, compressed, monkeypatch, capsys, cloud_api, tmpdir
 ):
     if compressed:
         response = {
@@ -1024,15 +960,9 @@ def test_client_register_flow_id_output(
 
     labels = ["test1", "test2"]
     storage = Local(tmpdir)
-    if use_run_config:
-        flow = prefect.Flow(
-            name="test", storage=storage, run_config=LocalRun(labels=labels)
-        )
-        flow.environment = None
-    else:
-        flow = prefect.Flow(
-            name="test", storage=storage, environment=LocalEnvironment(labels=labels)
-        )
+    flow = prefect.Flow(
+        name="test", storage=storage, run_config=LocalRun(labels=labels)
+    )
     flow.result = flow.storage.result
 
     flow_id = client.register(

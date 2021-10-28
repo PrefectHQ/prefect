@@ -198,14 +198,7 @@ def execute_flow_run(
             flow_run_id=flow_run_id,
             message="Failed to execute flow: {exc}",
         ):
-            if flow_metadata.run_config is not None:
-                runner_cls(flow=flow).run(**run_kwargs)
-
-            # Support for deprecated `flow.environment` use
-            else:
-                environment = flow.environment
-                environment.setup(flow)
-                environment.execute(flow)
+            runner_cls(flow=flow).run(**run_kwargs)
 
     # Get the final state
     flow_run = flow_run.get_latest()

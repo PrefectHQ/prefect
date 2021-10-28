@@ -23,7 +23,6 @@ from prefect.cli.build_register import (
     expand_paths,
 )
 from prefect.engine.results import LocalResult
-from prefect.environments.execution import LocalEnvironment
 from prefect.run_configs import UniversalRun
 from prefect.storage import S3, Local, Module
 from prefect.utilities.graphql import GraphQLResult
@@ -37,20 +36,12 @@ def test_register_flow_help():
 
 
 @pytest.mark.parametrize("labels", [[], ["b", "c"]])
-@pytest.mark.parametrize("kind", ["run_config", "environment", "neither"])
-def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
+@pytest.mark.parametrize("use_runconfig", [True, False])
+def test_register_flow_call(monkeypatch, tmpdir, use_runconfig, labels):
     client = MagicMock()
     monkeypatch.setattr("prefect.Client", MagicMock(return_value=client))
 
-    if kind == "environment":
-        contents = (
-            "from prefect import Flow\n"
-            "from prefect.environments.execution import LocalEnvironment\n"
-            "from prefect.storage import Local\n"
-            "f = Flow('test-flow', environment=LocalEnvironment(labels=['a']),\n"
-            "   storage=Local(add_default_labels=False))"
-        )
-    elif kind == "run_config":
+    if use_runconfig:
         contents = (
             "from prefect import Flow\n"
             "from prefect.run_configs import KubernetesRun\n"
@@ -91,10 +82,8 @@ def test_register_flow_call(monkeypatch, tmpdir, kind, labels):
 
     # Check additional labels are set if specified
     flow = client.register.call_args[1]["flow"]
-    if kind == "run_config":
+    if use_runconfig:
         assert flow.run_config.labels == {"a", *labels}
-    elif kind == "environment":
-        assert flow.environment.labels == {"a", *labels}
     else:
         assert flow.run_config.labels == {*labels}
 
@@ -531,7 +520,7 @@ class TestRegister:
         flow2 = Flow(
             "flow 2",
             storage=MyModule("testing"),
-            environment=LocalEnvironment(labels=["a"]),
+            run_config=UniversalRun(labels=["a"]),
         )
         storage2 = MyModule("testing")
         flow3 = Flow("flow 3", storage=storage2)
@@ -543,9 +532,7 @@ class TestRegister:
             Flow("flow 7", run_config=UniversalRun(labels=["a"])).serialize(build=False)
         )
         flow8 = box.Box(
-            Flow("flow 8", environment=LocalEnvironment(labels=["a"])).serialize(
-                build=False
-            )
+            Flow("flow 8", run_config=UniversalRun(labels=["a"])).serialize(build=False)
         )
         flows = [flow1, flow2, flow3, flow4, flow5, flow6, flow7, flow8]
 
@@ -571,13 +558,13 @@ class TestRegister:
         # Flows are properly configured
         assert flow1.result is storage1.result
         assert flow1.run_config.labels == {"a", "b", "c"}
-        assert flow2.environment.labels == {"a", "b", "c"}
+        assert flow2.run_config.labels == {"a", "b", "c"}
         assert isinstance(flow3.run_config, UniversalRun)
         assert flow3.run_config.labels == {"b", "c"}
         assert isinstance(flow4.run_config, UniversalRun)
         assert flow4.run_config.labels == {"b", "c"}
         assert set(flow7["run_config"]["labels"]) == {"a", "b", "c"}
-        assert set(flow8["environment"]["labels"]) == {"a", "b", "c"}
+        assert set(flow8["run_config"]["labels"]) == {"a", "b", "c"}
 
         # The output contains a traceback, which will vary between machines
         # We only check that the following fixed sections exist in the output

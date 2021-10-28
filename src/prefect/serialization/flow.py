@@ -4,7 +4,6 @@ from marshmallow import fields, post_load, utils, missing
 
 import prefect
 from prefect.serialization.edge import EdgeSchema
-from prefect.serialization.environment import EnvironmentSchema
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.serialization.schedule import ScheduleSchema
 from prefect.serialization.storage import StorageSchema
@@ -91,7 +90,6 @@ class FlowSchema(ObjectSchema):
     reference_tasks = Nested(
         TaskSchema, value_selection_fn=get_reference_tasks, many=True, only=["slug"]
     )
-    environment = fields.Nested(EnvironmentSchema, allow_none=True)
     run_config = fields.Nested(RunConfigSchema, allow_none=True)
     storage = fields.Nested(StorageSchema, allow_none=True)
 
