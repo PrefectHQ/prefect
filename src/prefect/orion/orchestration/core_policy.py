@@ -11,7 +11,7 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy import select
 
-from prefect.orion.models import orm
+
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,

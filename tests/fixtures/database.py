@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect import settings
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
+
 from prefect.orion.schemas import states
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,

@@ -42,7 +42,7 @@ async def create_deployment(
         (await db_config.dialect_specific_insert(db_config.Deployment))
         .values(**deployment.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
-            index_elements=["flow_id", "name"],
+            index_elements=db_config.deployment_unique_upsert_columns,
             set_=deployment.dict(
                 shallow=True,
                 include={
@@ -372,7 +372,9 @@ async def _insert_scheduled_flow_runs(
     # because it uses a single bind parameter
     insert = await db_config.dialect_specific_insert(db_config.FlowRun)
     await session.execute(
-        insert.on_conflict_do_nothing(index_elements=["flow_id", "idempotency_key"]),
+        insert.on_conflict_do_nothing(
+            index_elements=db_config.flow_run_unique_upsert_columns
+        ),
         [r.dict(exclude={"created", "updated"}) for r in runs],
     )
 

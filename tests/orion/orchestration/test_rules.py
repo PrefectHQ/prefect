@@ -6,7 +6,7 @@ from itertools import product
 from unittest.mock import MagicMock
 
 from prefect.orion import schemas
-from prefect.orion.models import orm
+
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,

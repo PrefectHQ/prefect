@@ -4,7 +4,6 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
 
 
 @pytest.fixture

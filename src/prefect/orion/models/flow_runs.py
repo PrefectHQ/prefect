@@ -12,7 +12,6 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.rules import (
@@ -65,10 +64,7 @@ async def create_flow_run(
                 **flow_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
             )
             .on_conflict_do_nothing(
-                index_elements=[
-                    db_config.FlowRun.flow_id,
-                    db_config.FlowRun.idempotency_key,
-                ],
+                index_elements=db_config.flow_run_unique_upsert_columns,
             )
         )
         await session.execute(insert_stmt)
