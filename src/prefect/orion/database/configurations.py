@@ -100,6 +100,7 @@ class DatabaseConfigurationBaseModel(BaseModel):
         super().__init__(**data)
         self.Base = self.create_base_model()
         self.create_orm_models()
+        self.run_migrations()
 
     def create_base_model(self):
         @as_declarative(metadata=self.base_metadata)
@@ -227,6 +228,10 @@ class DatabaseConfigurationBaseModel(BaseModel):
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
 
+    def run_migrations(self):
+        """Run database migrations"""
+        pass  # TODO - implement
+
     async def dialect_specific_insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
         inserts = {
@@ -274,6 +279,39 @@ class DatabaseConfigurationBaseModel(BaseModel):
 
 class AsyncPostgresConfiguration(DatabaseConfigurationBaseModel):
     # TODO - validate connection url for postgres and asyncpg driver
+
+    def run_migrations(self):
+        """Run database migrations"""
+
+        # in order to index or created generated columns from timestamps stored in JSON,
+        # we need a custom IMMUTABLE function for casting to timestamp
+        # (because timestamp is not actually immutable)
+        sa.event.listen(
+            self.Base.metadata,
+            "before_create",
+            sa.DDL(
+                """
+                CREATE OR REPLACE FUNCTION text_to_timestamp_immutable(ts text)
+                RETURNS timestamp with time zone
+                AS
+                $BODY$
+                    select to_timestamp($1, 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+                $BODY$
+                LANGUAGE sql
+                IMMUTABLE;
+                """
+            ),
+        )
+
+        sa.event.listen(
+            self.Base.metadata,
+            "before_drop",
+            sa.DDL(
+                """
+                DROP FUNCTION IF EXISTS text_to_timestamp_immutable;
+                """
+            ),
+        )
 
     async def engine(
         self,
