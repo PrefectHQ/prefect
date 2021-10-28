@@ -103,7 +103,7 @@ module = "prefect.cli.kv_store"
 title = "kv_store"
 
 [pages.cli.run]
-commands = ["run", "run_flow"]
+commands = ["run"]
 module = "prefect.cli.run"
 title = "run"
 
