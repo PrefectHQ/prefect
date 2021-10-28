@@ -32,9 +32,9 @@ SESSION_FACTORIES = {}
 
 async def create_db():  # TODO - should go somewhere else
     """Create all database tables."""
-    from prefect.orion.database.dependencies import get_database_configuration
+    from prefect.orion.database.dependencies import provide_database_configuration
 
-    db_config = await get_database_configuration()
+    db_config = await provide_database_configuration()
     engine = await db_config.engine()
     async with engine.begin() as conn:
         await conn.run_sync(db_config.Base.metadata.create_all)
@@ -42,9 +42,9 @@ async def create_db():  # TODO - should go somewhere else
 
 async def drop_db():
     """Drop all database tables."""
-    from prefect.orion.database.dependencies import get_database_configuration
+    from prefect.orion.database.dependencies import provide_database_configuration
 
-    db_config = await get_database_configuration()
+    db_config = await provide_database_configuration()
     engine = await db_config.engine()
     async with engine.begin() as conn:
         await conn.run_sync(db_config.Base.metadata.drop_all)
@@ -477,7 +477,7 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
                 or "mode=memory" in engine.url.database
                 or not os.path.exists(engine.url.database)
             ):
-                await create_db(engine)
+                await create_db()
 
             ENGINES[cache_key] = engine
         return ENGINES[cache_key]

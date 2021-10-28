@@ -14,13 +14,13 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.database.dependencies import get_database_configuration
+from prefect.orion.database.dependencies import provide_database_configuration
 from prefect.orion.database.configurations import ENGINES
 
 
 @pytest.fixture(scope="session", autouse=True)
 async def db_config():
-    return await get_database_configuration()
+    return await provide_database_configuration()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -6,21 +6,32 @@ from functools import wraps
 
 
 MODELS_DEPENDENCIES = {
-    "database_configuration": lambda: None,
+    "database_configuration": None,
 }
 
-CURRENT = {"config": None}
 
-
-async def get_database_configuration():
-    # provided_config = MODELS_DEPENDENCIES.get("database_configuration")()
-    provided_config = CURRENT.get("config")
+async def provide_database_configuration():
+    provided_config = MODELS_DEPENDENCIES.get("database_configuration")
 
     if provided_config is None:
-        from prefect.orion.database.configurations import AsyncPostgresConfiguration
+        from prefect.orion.database.configurations import (
+            AsyncPostgresConfiguration,
+            AioSqliteConfiguration,
+        )
+        from prefect.orion.utilities.database import get_dialect
 
-        provided_config = AsyncPostgresConfiguration()
-        CURRENT["config"] = provided_config
+        dialect = get_dialect()
+
+        if dialect.name == "postgresql":
+            provided_config = AsyncPostgresConfiguration()
+        elif dialect.name == "sqlite":
+            provided_config = AioSqliteConfiguration()
+        else:
+            raise ValueError(
+                f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"
+            )
+
+        MODELS_DEPENDENCIES["database_configuration"] = provided_config
 
     return provided_config
 
@@ -38,7 +49,7 @@ def inject_db_config(fn):
         if "db_config" in kwargs and kwargs["db_config"] is not None:
             return await fn(*args, **kwargs)
         else:
-            kwargs["db_config"] = await get_database_configuration()
+            kwargs["db_config"] = await provide_database_configuration()
             return await fn(*args, **kwargs)
 
     return wrapper
