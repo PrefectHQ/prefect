@@ -59,7 +59,7 @@ async def create_flow_run(
     # otherwise let the database take care of enforcing idempotency
     else:
         insert_stmt = (
-            (await db_config.dialect_specific_insert(db_config.FlowRun))
+            (await db_config.insert(db_config.FlowRun))
             .values(
                 **flow_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
             )

@@ -1,6 +1,7 @@
 import os
 from typing import Any, List
 import sqlalchemy as sa
+from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.orm import as_declarative, sessionmaker
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import (
@@ -96,8 +97,9 @@ class DatabaseConfigurationBaseModel(BaseModel):
         }
     )
 
-    def __init__(self, **data: Any):
+    def __init__(self, db_config, **data: Any):
         super().__init__(**data)
+        self.db_config = db_config
         self.Base = self.create_base_model()
         self.create_orm_models()
         self.run_migrations()
@@ -232,13 +234,9 @@ class DatabaseConfigurationBaseModel(BaseModel):
         """Run database migrations"""
         pass  # TODO - implement
 
-    async def dialect_specific_insert(self, model):
+    async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        inserts = {
-            "postgresql": postgresql.insert,
-            "sqlite": sqlite.insert,
-        }
-        return inserts[(await self.engine()).url.get_dialect().name](model)
+        return self.db_config.insert(model)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -277,8 +275,34 @@ class DatabaseConfigurationBaseModel(BaseModel):
         raise NotImplementedError()
 
 
-class AsyncPostgresConfiguration(DatabaseConfigurationBaseModel):
+class DatabaseConfigurationBase(ABC):
+    @abstractmethod
+    def run_migrations():
+        ...
+
+    @abstractmethod
+    def engine():
+        ...
+
+    @abstractmethod
+    def session_factory():
+        ...
+
+    @abstractmethod
+    def set_state_id_on_inserted_flow_runs_statement():
+        ...
+
+    @abstractproperty
+    def insert():
+        ...
+
+
+class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for postgres and asyncpg driver
+
+    @property
+    def insert(self):
+        return postgresql.insert
 
     def run_migrations(self):
         """Run database migrations"""
@@ -403,8 +427,12 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBaseModel):
         return stmt
 
 
-class AioSqliteConfiguration(DatabaseConfigurationBaseModel):
+class AioSqliteConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for sqlite and driver
+
+    @property
+    def insert(self):
+        return sqlite.insert
 
     async def engine(self) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
