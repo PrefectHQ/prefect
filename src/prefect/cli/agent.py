@@ -79,12 +79,6 @@ COMMON_START_OPTIONS = [
             "environment."
         ),
     ),
-    click.option(
-        "--token",
-        "-t",
-        required=False,
-        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
-    ),
 ]
 
 
@@ -112,11 +106,6 @@ COMMON_INSTALL_OPTIONS = [
         "-e",
         multiple=True,
         help="Environment variables to set on each submitted flow run.",
-    ),
-    click.option(
-        "--token",
-        "-t",
-        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
     ),
     click.option(
         "--agent-config-id",
