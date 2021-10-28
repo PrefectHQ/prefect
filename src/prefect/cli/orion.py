@@ -6,9 +6,9 @@ import uvicorn
 
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
-from prefect.orion.utilities.database import create_db, drop_db, get_engine
 from prefect.utilities.asyncio import sync_compatible
-from prefect.orion.models.dependencies import get_database_configuration
+from prefect.orion.database.dependencies import get_database_configuration
+from prefect.orion.database.configurations import create_db, drop_db
 
 
 orion_app = typer.Typer(name="orion")
@@ -38,7 +38,6 @@ def start(
 @sync_compatible
 async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
-    # engine = await get_engine()  # TODO
     engine = await (await get_database_configuration()).engine()
     if not yes:
         confirm = typer.confirm(

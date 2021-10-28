@@ -227,7 +227,7 @@ class DatabaseConfigurationBaseModel(BaseModel):
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
 
-    async def dialect_specific_insert(self, model):  # TODO - implement per config
+    async def dialect_specific_insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
         inserts = {
             "postgresql": postgresql.insert,
@@ -267,6 +267,8 @@ class DatabaseConfigurationBaseModel(BaseModel):
     def set_state_id_on_inserted_flow_runs_statement(
         self, inserted_flow_run_ids, insert_flow_run_states
     ):
+        """Given a list of flow run ids and associated states, set the state_id
+        to the appropriate state for all flow runs"""
         raise NotImplementedError()
 
 
@@ -346,6 +348,8 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBaseModel):
     def set_state_id_on_inserted_flow_runs_statement(
         self, inserted_flow_run_ids, insert_flow_run_states
     ):
+        """Given a list of flow run ids and associated states, set the state_id
+        to the appropriate state for all flow runs"""
         # postgres supports `UPDATE ... FROM` syntax
         stmt = (
             sa.update(self.FlowRun)
@@ -468,6 +472,8 @@ class AioSqliteConfiguration(DatabaseConfigurationBaseModel):
     def set_state_id_on_inserted_flow_runs_statement(
         self, inserted_flow_run_ids, insert_flow_run_states
     ):
+        """Given a list of flow run ids and associated states, set the state_id
+        to the appropriate state for all flow runs"""
         # sqlite requires a correlated subquery to update from another table
         subquery = (
             sa.select(self.FlowRunState.id)
