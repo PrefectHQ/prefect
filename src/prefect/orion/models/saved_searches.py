@@ -34,7 +34,7 @@ async def create_saved_search(
     """
 
     insert_stmt = (
-        (await db_config.dialect_specific_insert(db_config.SavedSearch))
+        (await db_config.insert(db_config.SavedSearch))
         .values(**saved_search.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
             index_elements=db_config.saved_search_unique_upsert_columns,

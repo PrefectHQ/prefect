@@ -33,7 +33,7 @@ async def create_flow(
     """
 
     insert_stmt = (
-        (await db_config.dialect_specific_insert(db_config.Flow))
+        (await db_config.insert(db_config.Flow))
         .values(**flow.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_nothing(
             index_elements=db_config.flow_unique_upsert_columns,
