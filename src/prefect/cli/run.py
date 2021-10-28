@@ -12,7 +12,6 @@ from typing import Callable, Dict, List, Union, Any
 
 import click
 from click import ClickException
-from tabulate import tabulate
 
 import prefect
 from prefect.backend.flow import FlowView
@@ -24,7 +23,6 @@ from prefect.cli.build_register import (
     log_exception,
 )
 from prefect.client import Client
-from prefect.utilities.graphql import EnumValue, with_args
 from prefect.utilities.importtools import import_object
 from prefect.utilities.logging import temporary_logger_config
 

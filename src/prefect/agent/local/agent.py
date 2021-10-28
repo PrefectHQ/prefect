@@ -1,7 +1,6 @@
 import os
 import socket
 import sys
-import warnings
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
 

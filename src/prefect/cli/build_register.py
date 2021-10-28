@@ -19,7 +19,6 @@ import box
 from click.exceptions import ClickException
 
 import prefect
-from prefect.utilities.storage import extract_flow_from_file
 from prefect.utilities.filesystems import read_bytes_from_path, parse_path
 from prefect.utilities.graphql import with_args, EnumValue, compress
 from prefect.utilities.importtools import import_object
