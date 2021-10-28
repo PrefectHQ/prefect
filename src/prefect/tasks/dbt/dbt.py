@@ -247,7 +247,7 @@ class DbtCloudRunJob(Task):
 
     def __init__(
         self,
-        cause: str,
+        cause: str = None,
         account_id: int = None,
         job_id: int = None,
         token: str = None,
@@ -260,11 +260,13 @@ class DbtCloudRunJob(Task):
         max_attempts: int = None,
     ):
         super().__init__()
-        self.token = token if token else os.environ[token_env_var_name]
-        self.account_id = (
-            account_id if account_id else int(os.environ[account_id_env_var_name])
-        )
-        self.job_id = job_id if job_id else int(os.environ[job_id_env_var_name])
+        self.token = token if token else os.environ.get(token_env_var_name, None)
+        self.account_id = account_id
+        if account_id is None and account_id_env_var_name in os.environ:
+            self.account_id = int(os.environ[account_id_env_var_name])
+        self.job_id = job_id
+        if job_id is None and job_id_env_var_name in os.environ:
+            self.job_id = int(os.environ[job_id_env_var_name])
         self.cause = cause
         self.additional_args = additional_args
         self.wait_for_job_run_completion = wait_for_job_run_completion
@@ -272,10 +274,10 @@ class DbtCloudRunJob(Task):
         self.max_attempts = max_attempts
 
     @defaults_from_attrs(
+        "cause",
         "account_id",
         "job_id",
         "token",
-        "cause",
         "additional_args",
         "wait_for_job_run_completion",
         "wait_interval",
@@ -283,10 +285,10 @@ class DbtCloudRunJob(Task):
     )
     def run(
         self,
-        cause: str,
+        cause: str = None,
         account_id: int = None,
         job_id: int = None,
-        token: int = None,
+        token: str = None,
         additional_args: dict = None,
         account_id_env_var_name: str = "ACCOUNT_ID",
         job_id_env_var_name: str = "JOB_ID",
@@ -296,7 +298,7 @@ class DbtCloudRunJob(Task):
         max_attempts: int = None,
     ) -> dict:
         """
-        All params available to the run method, can also be passed during initialization.
+        All params available to the run method can also be passed during initialization.
 
         Args:
             - cause (string): A string describing the reason for triggering the job run
@@ -349,21 +351,51 @@ class DbtCloudRunJob(Task):
                 Have a look at the status codes at:
                 https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
         """
+        if cause is None:
+            raise ValueError(
+                """
+                Cause cannot be None. 
+                Please provide a cause to trigger the dbt Cloud job.
+                """
+            )
+        if account_id is None:
+            raise ValueError(
+                """
+                dbt Cloud Account ID cannot be None.
+                Please provide an Account ID or the name of the env var that contains it.
+                """
+            )
+        if job_id is None:
+            raise ValueError(
+                """
+                dbt Cloud Job ID cannot be None.
+                Please provide a Job ID or the name of the env var that contains it.
+                """
+            )
+
+        if token is None:
+            raise ValueError(
+                """
+                dbt Cloud token cannot be None.
+                Please provide a token or the name of the env var that contains it.
+                """
+            )
+
         run = trigger_job_run(
-            account_id=self.account_id,
-            job_id=self.job_id,
-            cause=self.cause,
-            additional_args=self.additional_args,
-            token=self.token,
+            account_id=account_id,
+            job_id=job_id,
+            cause=cause,
+            additional_args=additional_args,
+            token=token,
         )
-        if self.wait_for_job_run_completion:
+        if wait_for_job_run_completion:
 
             return get_job_run(
-                account_id=self.account_id,
+                account_id=account_id,
                 run_id=run["id"],
-                token=self.token,
-                max_attempts=self.max_attempts,
-                wait_interval=self.wait_interval,
+                token=token,
+                max_attempts=max_attempts,
+                wait_interval=wait_interval,
             )
 
         else:
