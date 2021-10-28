@@ -1,12 +1,3 @@
-# Import old exceptions for compatibility
-from prefect.utilities.exceptions import (
-    PrefectError,
-    ClientError as ClientError_,
-    AuthorizationError as AuthorizationError_,
-    StorageError,
-)
-
-
 class PrefectSignal(BaseException):
     """
     Signals inherit from `BaseException` and will not be caught by normal error
@@ -52,7 +43,7 @@ class TaskTimeoutSignal(PrefectSignal):
         super().__init__(message)
 
 
-class PrefectException(PrefectError):
+class PrefectException(Exception):
     """
     The base exception type for all Prefect related exceptions
 
@@ -60,13 +51,11 @@ class PrefectException(PrefectError):
         - message: A message with additional information about the error
     """
 
-    # NOTE: Should be updated to inherit from `Exception` when `PrefectError` is removed
-
     def __init__(self, message: str = "") -> None:
         super().__init__(message)
 
 
-class ClientError(PrefectException, ClientError_):
+class ClientError(PrefectException):
     """
     Raised when there is error in Prefect Client <-> Server communication
 
@@ -78,7 +67,7 @@ class ClientError(PrefectException, ClientError_):
         super().__init__(message)
 
 
-class AuthorizationError(ClientError, AuthorizationError_):
+class AuthorizationError(ClientError):
     """
     Raised when there is an issue authorizing with Prefect Cloud
 
@@ -90,7 +79,7 @@ class AuthorizationError(ClientError, AuthorizationError_):
         super().__init__(message)
 
 
-class FlowStorageError(PrefectException, StorageError):
+class FlowStorageError(PrefectException):
     """
     Raised when there is an error loading a flow from storage
 
