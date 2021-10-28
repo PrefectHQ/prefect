@@ -240,17 +240,6 @@ def docker():
     ),
 )
 @click.option(
-    "--no-docker-interface",
-    default=None,
-    is_flag=True,
-    help=(
-        "Disable the check of a Docker interface on this machine. "
-        "Note: This is mostly relevant for some Docker-in-Docker "
-        "setups that users may be running their agent with. "
-        "DEPRECATED."
-    ),
-)
-@click.option(
     "--docker-client-timeout",
     default=None,
     type=int,
