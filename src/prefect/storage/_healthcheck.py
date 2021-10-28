@@ -6,7 +6,6 @@ deployment issues early on.
 
 import ast
 import binascii
-import importlib
 import json
 import sys
 import warnings
