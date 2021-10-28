@@ -116,27 +116,6 @@ def result_check(flows: list, quiet=False):
         print("Result check: OK")
 
 
-def environment_dependency_check(flows: list):
-    # Test for imports that are required by certain environments
-    for flow in flows:
-        # Load all required dependencies for an environment
-        if not hasattr(flow.environment, "dependencies"):
-            continue
-
-        required_imports = flow.environment.dependencies
-        for dependency in required_imports:
-            try:
-                importlib.import_module(dependency)
-            except ModuleNotFoundError as exc:
-                raise ModuleNotFoundError(
-                    "Using {} requires the `{}` dependency".format(
-                        flow.environment.__class__.__name__, dependency
-                    )
-                ) from exc
-
-    print("Environment dependency check: OK")
-
-
 if __name__ == "__main__":
     flow_file_paths, python_version = sys.argv[1:3]
 
@@ -152,5 +131,4 @@ if __name__ == "__main__":
         flows = cloudpickle_deserialization_check(flow_file_paths)
 
     result_check(flows)
-    environment_dependency_check(flows)
     print("All health checks passed.")
