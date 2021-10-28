@@ -14,7 +14,7 @@ from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
-from prefect.orion.database.dependencies import get_database_configuration
+from prefect.orion.database.dependencies import provide_database_configuration
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -32,7 +32,7 @@ async def create_deployment(
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
 
-    db_config = await get_database_configuration()
+    db_config = await provide_database_configuration()
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
@@ -220,7 +220,7 @@ async def set_schedule_inactive(
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
     state will be deleted.
     """
-    db_config = await get_database_configuration()
+    db_config = await provide_database_configuration()
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
