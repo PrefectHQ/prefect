@@ -283,26 +283,19 @@ def switch_tenants(id, slug, default):
 
     client = Client()
 
-    # Deprecated API token check
     if not client.api_key:
-        check_override_auth_token()
+        raise TerminalError("You are not logged in!")
 
-        if default:
-            raise TerminalError(
-                "The default tenant flag can only be used with API keys."
-            )
-
-    else:  # Using an API key
-        if default:
-            # Clear the set tenant on disk
-            client.tenant_id = None
-            client.save_auth_to_disk()
-            click.secho(
-                "Tenant restored to the default tenant for your API key: "
-                f"{client._get_auth_tenant()}",
-                fg="green",
-            )
-            return
+    if default:
+        # Clear the set tenant on disk
+        client.tenant_id = None
+        client.save_auth_to_disk()
+        click.secho(
+            "Tenant restored to the default tenant for your API key: "
+            f"{client._get_auth_tenant()}",
+            fg="green",
+        )
+        return
 
     login_success = client.login_to_tenant(tenant_slug=slug, tenant_id=id)
     if not login_success:
