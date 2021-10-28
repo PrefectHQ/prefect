@@ -354,7 +354,7 @@ class DbtCloudRunJob(Task):
         if cause is None:
             raise ValueError(
                 """
-                Cause cannot be None. 
+                Cause cannot be None.
                 Please provide a cause to trigger the dbt Cloud job.
                 """
             )
