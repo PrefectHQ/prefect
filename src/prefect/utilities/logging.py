@@ -147,12 +147,6 @@ class CloudHandler(logging.Handler):
         # if we shouldn't log to cloud, don't emit
         if not context.config.cloud.send_flow_run_logs:
             return
-
-        # backwards compatibility for `PREFECT__LOGGING__LOG_TO_CLOUD` which is
-        # a deprecated config variable as of 0.14.20
-        if not context.config.logging.get("log_to_cloud", True):
-            return
-
         # if its not during a backend flow run, don't emit
         if not context.get("running_with_backend"):
             return
