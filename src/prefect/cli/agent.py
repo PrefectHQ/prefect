@@ -114,11 +114,10 @@ COMMON_INSTALL_OPTIONS = [
 ]
 
 
-def start_agent(agent_cls, token, api, label, env, log_level, key, tenant_id, **kwargs):
+def start_agent(agent_cls, api, label, env, log_level, key, tenant_id, **kwargs):
     labels = sorted(set(label))
     env_vars = dict(e.split("=", 1) for e in env)
     tmp_config = {
-        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
         "cloud.api_key": key or config.cloud.api_key,
         "cloud.tenant_id": tenant_id or config.cloud.tenant_id,
         "cloud.agent.level": log_level or config.cloud.agent.level,
@@ -245,16 +244,13 @@ def docker():
     type=int,
     help="The timeout to use for docker API calls, defaults to 60 seconds.",
 )
-def start(volumes, no_docker_interface, **kwargs):
+def start(volumes, **kwargs):
     """Start a docker agent"""
     from prefect.agent.docker import DockerAgent
 
     start_agent(
         DockerAgent,
         volumes=list(volumes),
-        docker_interface=(
-            not no_docker_interface if no_docker_interface is not None else None
-        ),
         **kwargs,
     )
 
