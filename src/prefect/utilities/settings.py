@@ -32,7 +32,8 @@ class SharedSettings(BaseSettings):
 
     home: Path = Field(
         Path("~/.prefect").expanduser(),
-        description="Prefect's home directory. Defaults to `~/.prefect`.",
+        description="""Prefect's home directory. Defaults to `~/.prefect`. This
+        directory may be created automatically when required.""",
     )
 
     debug_mode: bool = Field(
