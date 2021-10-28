@@ -88,7 +88,7 @@ def auth():
     help="A Prefect Cloud API key.",
 )
 @handle_terminal_error
-def login(key, token):
+def login(key):
     """
     Login to Prefect Cloud
 
@@ -105,19 +105,15 @@ def login(key, token):
     individual commands or functions. To remove your key from disk, see
     `prefect auth logout`.
     """
-    if not key and not token:
-        raise TerminalError("You must supply an API key or token!")
-
-    if key and token:
-        raise TerminalError("You cannot supply both an API key and token")
+    if not key:
+        raise TerminalError("You must supply an API key!")
 
     abort_on_config_api_key(
         "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
     )
 
-    # Attempt to treat the input like an API key even if it is passed as a token
     # Ignore any tenant id that has been previously set via login
-    client = Client(api_key=key or token, tenant_id=None)
+    client = Client(api_key=key, tenant_id=None)
 
     try:
         tenant_id = client._get_auth_tenant()
