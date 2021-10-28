@@ -2,7 +2,7 @@
 
 Prefect 0.14.0 included a new Flow configuration system based on
 [RunConfig](./run_configs.md) objects. This replaces the previous system based
-on [Environment](/orchestration/execution/overview.md) objects, with
+on `Environment` objects, with
 `Environment` based configuration being deprecated in 0.14.0 and removed in 1.0.0.
 
 If you never configured `flow.environment` explicitly on your flow, your
@@ -139,8 +139,7 @@ ECS tasks. There are also options for common settings (e.g.  `image`, `cpu`,
 for more information.
 
 Note that use of `ECSRun` requires running an [ECS
-Agent](/orchestration/agents/ecs.md), not the deprecated [Fargate
-Agent](/orchestration/agents/fargate.md).
+Agent](/orchestration/agents/ecs.md), not the removed Fargate Agent.
 
 - If you configured an `Executor` on your `FargateTaskEnvironment`, move that
   setting to the flow itself.
