@@ -194,6 +194,7 @@ class TestGetTaskRunResult:
             ):
                 get_task_run_result.run(flow_run_id="id", task_slug="foo")
 
+    @pytest.mark.flaky
     def test_waits_for_flow_run_to_finish(self, MockFlowRunView, monkeypatch):
         # Create a fake flow run that is 'Running' then 'Finished'
         flow_run = MagicMock()
