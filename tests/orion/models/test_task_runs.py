@@ -73,7 +73,7 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
         assert task_run.state is None
 
-    async def test_create_task_run_with_state(self, flow_run, session):
+    async def test_create_task_run_with_state(self, flow_run, session, db_config):
         state_id = uuid4()
         task_run = await models.task_runs.create_task_run(
             session=session,
@@ -90,13 +90,15 @@ class TestCreateTaskRun:
         assert task_run.state.id == state_id
 
         query = await session.execute(
-            sa.select(models.orm.TaskRunState).filter_by(id=state_id)
+            sa.select(db_config.TaskRunState).filter_by(id=state_id)
         )
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"
 
-    async def test_create_task_run_with_state_and_dynamic_key(self, flow_run, session):
+    async def test_create_task_run_with_state_and_dynamic_key(
+        self, flow_run, session, db_config
+    ):
         scheduled_state_id = uuid4()
         running_state_id = uuid4()
 
@@ -129,7 +131,7 @@ class TestCreateTaskRun:
         assert running_task_run.state.id == scheduled_state_id
 
         query = await session.execute(
-            sa.select(models.orm.TaskRunState).filter_by(id=scheduled_state_id)
+            sa.select(db_config.TaskRunState).filter_by(id=scheduled_state_id)
         )
         result = query.scalar()
         assert result.id == scheduled_state_id

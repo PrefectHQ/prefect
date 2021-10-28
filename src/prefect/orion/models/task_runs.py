@@ -12,19 +12,19 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
 from prefect.orion.orchestration.core_policy import CoreTaskPolicy
 from prefect.orion.orchestration.global_policy import GlobalTaskPolicy
 from prefect.orion.orchestration.rules import (
     OrchestrationResult,
     TaskOrchestrationContext,
 )
-from prefect.orion.utilities.database import dialect_specific_insert
+from prefect.orion.database.dependencies import inject_db_config
 
 
+@inject_db_config
 async def create_task_run(
-    session: sa.orm.Session, task_run: schemas.core.TaskRun
-) -> orm.TaskRun:
+    session: sa.orm.Session, task_run: schemas.core.TaskRun, db_config=None
+):
     """
     Creates a new task run.
 
@@ -37,14 +37,14 @@ async def create_task_run(
         task_run: a task run model
 
     Returns:
-        orm.TaskRun: the newly-created or existing task run
+        db_config.TaskRun: the newly-created or existing task run
     """
 
     now = pendulum.now("UTC")
 
     # if a dynamic key exists, we need to guard against conflicts
     insert_stmt = (
-        dialect_specific_insert(orm.TaskRun)
+        (await db_config.dialect_specific_insert(db_config.TaskRun))
         .values(**task_run.dict(shallow=True, exclude={"state"}, exclude_unset=True))
         .on_conflict_do_nothing(
             index_elements=["flow_run_id", "task_key", "dynamic_key"],
@@ -53,12 +53,12 @@ async def create_task_run(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(orm.TaskRun)
+        sa.select(db_config.TaskRun)
         .where(
             sa.and_(
-                orm.TaskRun.flow_run_id == task_run.flow_run_id,
-                orm.TaskRun.task_key == task_run.task_key,
-                orm.TaskRun.dynamic_key == task_run.dynamic_key,
+                db_config.TaskRun.flow_run_id == task_run.flow_run_id,
+                db_config.TaskRun.task_key == task_run.task_key,
+                db_config.TaskRun.dynamic_key == task_run.dynamic_key,
             )
         )
         .limit(1)
@@ -77,7 +77,8 @@ async def create_task_run(
     return model
 
 
-async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskRun:
+@inject_db_config
+async def read_task_run(session: sa.orm.Session, task_run_id: UUID, db_config=None):
     """
     Read a task run by id.
 
@@ -86,51 +87,55 @@ async def read_task_run(session: sa.orm.Session, task_run_id: UUID) -> orm.TaskR
         task_run_id: the task run id
 
     Returns:
-        orm.TaskRun: the task run
+        db_config.TaskRun: the task run
     """
 
-    model = await session.get(orm.TaskRun, task_run_id)
+    model = await session.get(db_config.TaskRun, task_run_id)
     return model
 
 
-def _apply_task_run_filters(
+@inject_db_config
+async def _apply_task_run_filters(
     query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ):
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
     """
 
     if task_run_filter:
-        query = query.where(task_run_filter.as_sql_filter())
+        query = query.where((await task_run_filter.as_sql_filter()))
 
     if flow_filter or flow_run_filter or deployment_filter:
-        exists_clause = select(orm.FlowRun).where(
-            orm.FlowRun.id == orm.TaskRun.flow_run_id
+        exists_clause = select(db_config.FlowRun).where(
+            db_config.FlowRun.id == db_config.TaskRun.flow_run_id
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
+            exists_clause = exists_clause.where((await flow_run_filter.as_sql_filter()))
 
         if flow_filter:
             exists_clause = exists_clause.join(
-                orm.Flow,
-                orm.Flow.id == orm.FlowRun.flow_id,
-            ).where(flow_filter.as_sql_filter())
+                db_config.Flow,
+                db_config.Flow.id == db_config.FlowRun.flow_id,
+            ).where((await flow_filter.as_sql_filter()))
 
         if deployment_filter:
             exists_clause = exists_clause.join(
-                orm.Deployment, orm.Deployment.id == orm.FlowRun.deployment_id
-            ).where(deployment_filter.as_sql_filter())
+                db_config.Deployment,
+                db_config.Deployment.id == db_config.FlowRun.deployment_id,
+            ).where((await deployment_filter.as_sql_filter()))
 
         query = query.where(exists_clause.exists())
 
     return query
 
 
+@inject_db_config
 async def read_task_runs(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
@@ -140,7 +145,8 @@ async def read_task_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
-) -> List[orm.TaskRun]:
+    db_config=None,
+):
     """
     Read task runs.
 
@@ -155,17 +161,18 @@ async def read_task_runs(
         sort: Query sort
 
     Returns:
-        List[orm.TaskRun]: the task runs
+        List[db_config.TaskRun]: the task runs
     """
 
-    query = select(orm.TaskRun).order_by(sort.as_sql_sort())
+    query = select(db_config.TaskRun).order_by(await sort.as_sql_sort())
 
-    query = _apply_task_run_filters(
+    query = await _apply_task_run_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     if offset is not None:
@@ -178,12 +185,14 @@ async def read_task_runs(
     return result.scalars().unique().all()
 
 
+@inject_db_config
 async def count_task_runs(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
+    db_config=None,
 ) -> int:
     """
     Count task runs.
@@ -198,21 +207,25 @@ async def count_task_runs(
         int: count of task runs
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(orm.TaskRun)
+    query = select(sa.func.count(sa.text("*"))).select_from(db_config.TaskRun)
 
-    query = _apply_task_run_filters(
+    query = await _apply_task_run_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db_config=db_config,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
+@inject_db_config
+async def delete_task_run(
+    session: sa.orm.Session, task_run_id: UUID, db_config=None
+) -> bool:
     """
     Delete a task run by id.
 
@@ -225,17 +238,19 @@ async def delete_task_run(session: sa.orm.Session, task_run_id: UUID) -> bool:
     """
 
     result = await session.execute(
-        delete(orm.TaskRun).where(orm.TaskRun.id == task_run_id)
+        delete(db_config.TaskRun).where(db_config.TaskRun.id == task_run_id)
     )
     return result.rowcount > 0
 
 
+@inject_db_config
 async def set_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-) -> orm.TaskRunState:
+    db_config=None,
+):
     """
     Creates a new orchestrated task run state.
 

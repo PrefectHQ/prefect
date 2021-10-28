@@ -14,7 +14,7 @@ from prefect.orion.schemas import states
 from prefect.orion.services.loop_service import LoopService
 
 from prefect.orion.utilities.database import now, date_add
-from prefect.orion.models.orm import FlowRun, FlowRunState
+from prefect.orion.database.dependencies import inject_db_config
 
 settings = prefect.settings.orion.services
 
@@ -37,7 +37,8 @@ class MarkLateRuns(LoopService):
 
     batch_size: int = 100
 
-    async def run_once(self):
+    @inject_db_config
+    async def run_once(self, db_config=None):
         """
         Mark flow runs as late by:
 
@@ -51,25 +52,28 @@ class MarkLateRuns(LoopService):
 
                     query = (
                         sa.select(
-                            FlowRun.id,
-                            FlowRun.next_scheduled_start_time,
+                            db_config.FlowRun.id,
+                            db_config.FlowRun.next_scheduled_start_time,
                         )
-                        .select_from(FlowRun)
-                        .join(FlowRunState, FlowRun.state_id == FlowRunState.id)
+                        .select_from(db_config.FlowRun)
+                        .join(
+                            db_config.FlowRunState,
+                            db_config.FlowRun.state_id == db_config.FlowRunState.id,
+                        )
                         .where(
                             # the next scheduled start time is in the past
-                            FlowRun.next_scheduled_start_time
+                            db_config.FlowRun.next_scheduled_start_time
                             < date_add(now(), self.mark_late_after),
-                            FlowRunState.type == states.StateType.SCHEDULED,
-                            FlowRunState.name == "Scheduled",
+                            db_config.FlowRunState.type == states.StateType.SCHEDULED,
+                            db_config.FlowRunState.name == "Scheduled",
                         )
-                        .order_by(FlowRun.id)
+                        .order_by(db_config.FlowRun.id)
                         .limit(self.batch_size)
                     )
 
                     # use cursor based pagination
                     if last_id:
-                        query = query.where(FlowRun.id > last_id)
+                        query = query.where(db_config.FlowRun.id > last_id)
 
                     result = await session.execute(query)
                     runs = result.all()

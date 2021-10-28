@@ -3,7 +3,6 @@ from datetime import timedelta
 import pydantic
 import json
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.database import Base, get_session_factory
 import pendulum
 import pytest
 
@@ -24,9 +23,9 @@ d_3_1_id = uuid4()
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(database_engine, flow_function):
+async def data(database_engine, flow_function, db_config):
 
-    session_factory = await get_session_factory(bind=database_engine)
+    session_factory = await db_config.session_factory()
     async with session_factory() as session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
@@ -252,7 +251,7 @@ async def data(database_engine, flow_function):
     # ----------------- clear data
 
     async with database_engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
+        for table in reversed(db_config.Base.metadata.sorted_tables):
             await conn.execute(table.delete())
 
 
