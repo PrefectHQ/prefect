@@ -1,5 +1,5 @@
 import os
-from typing import Any, List
+from typing import List
 import sqlalchemy as sa
 from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.orm import as_declarative, sessionmaker
@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import (
     async_scoped_session,
     create_async_engine,
 )
-from pydantic import BaseModel, Field
 from asyncio import current_task, get_event_loop
 
 
@@ -32,9 +31,9 @@ SESSION_FACTORIES = {}
 
 async def create_db():  # TODO - should go somewhere else
     """Create all database tables."""
-    from prefect.orion.database.dependencies import provide_database_configuration
+    from prefect.orion.database.dependencies import provide_database_interface
 
-    db_config = await provide_database_configuration()
+    db_config = await provide_database_interface()
     engine = await db_config.engine()
     async with engine.begin() as conn:
         await conn.run_sync(db_config.Base.metadata.create_all)
@@ -42,9 +41,9 @@ async def create_db():  # TODO - should go somewhere else
 
 async def drop_db():
     """Drop all database tables."""
-    from prefect.orion.database.dependencies import provide_database_configuration
+    from prefect.orion.database.dependencies import provide_database_interface
 
-    db_config = await provide_database_configuration()
+    db_config = await provide_database_interface()
     engine = await db_config.engine()
     async with engine.begin() as conn:
         await conn.run_sync(db_config.Base.metadata.drop_all)
@@ -221,11 +220,11 @@ class OrionDBInterface:
 
     def run_migrations(self):
         """Run database migrations"""
-        self.db_config.run_migrations()
+        await self.db_config.run_migrations()
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        return self.db_config.insert(model)
+        return await self.db_config.insert(model)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -261,15 +260,15 @@ class OrionDBInterface:
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        self.db_config.set_state_id_on_inserted_flow_runs_statement(
+        return await self.db_config.set_state_id_on_inserted_flow_runs_statement(
             inserted_flow_run_ids, insert_flow_run_states
         )
 
     def engine(self):
-        return self.db_config.engine()
+        return await self.db_config.engine(self.connection_url(), self.echo, self.timeout)
 
     def session_factory(self):
-        return self.db_config.session_factory()
+        return await self.db_config.session_factory()
 
 
 class DatabaseConfigurationBase(ABC):
@@ -336,6 +335,9 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
     async def engine(
         self,
+        connection_url,
+        echo,
+        timeout,
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
@@ -357,15 +359,15 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         """
 
         loop = get_event_loop()
-        cache_key = (loop, self.connection_url, self.echo, self.timeout)
+        cache_key = (loop, connection_url, echo, timeout)
         if cache_key not in ENGINES:
             kwargs = {}
 
             # apply database timeout
-            if self.timeout is not None:
-                kwargs["connect_args"] = dict(command_timeout=self.timeout)
+            if timeout is not None:
+                kwargs["connect_args"] = dict(command_timeout=timeout)
 
-            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+            engine = create_async_engine(connection_url, echo=echo, **kwargs)
 
             ENGINES[cache_key] = engine
         return ENGINES[cache_key]
@@ -434,7 +436,7 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
     def insert(self):
         return sqlite.insert
 
-    async def engine(self) -> sa.engine.Engine:
+    async def engine(self, connection_url, echo, timeout) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
         A new engine is created for each event loop and cached, so that engines are
@@ -455,20 +457,20 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         """
 
         loop = get_event_loop()
-        cache_key = (loop, self.connection_url, self.echo, self.timeout)
+        cache_key = (loop, connection_url, echo, timeout)
         if cache_key not in ENGINES:
             kwargs = {}
 
             # apply database timeout
-            if self.timeout is not None:
-                kwargs["connect_args"] = dict(timeout=self.timeout)
+            if timeout is not None:
+                kwargs["connect_args"] = dict(timeout=timeout)
 
             # ensure a long-lasting pool is used with in-memory databases
             # because they disappear when the last connection closes
-            if ":memory:" in self.connection_url:
+            if ":memory:" in connection_url:
                 kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
-            engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
+            engine = create_async_engine(connection_url, echo=echo, **kwargs)
             sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
 
             # if this is a new sqlite database create all database objects
