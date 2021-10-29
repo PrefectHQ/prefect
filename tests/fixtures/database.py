@@ -14,19 +14,19 @@ from prefect.orion.orchestration.rules import (
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.database.dependencies import provide_database_configuration
+from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.configurations import ENGINES
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def db_config():
-    return await provide_database_configuration()
+async def db_interface():
+    return await provide_database_interface()
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine(db_config):
+async def database_engine(db_interface):
     """Produce a database engine"""
-    engine = await db_config.engine()
+    engine = await db_interface.engine()
     try:
         yield engine
     finally:
@@ -43,22 +43,22 @@ def print_query(database_engine):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def setup_db(database_engine, db_config):
+async def setup_db(database_engine, db_interface):
     """Create all database objects prior to running tests, and drop them when tests are done."""
     try:
         # build the database
         async with database_engine.begin() as conn:
-            await conn.run_sync(db_config.Base.metadata.create_all)
+            await conn.run_sync(db_interface.Base.metadata.create_all)
         yield
 
     finally:
         # tear down the databse
         async with database_engine.begin() as conn:
-            await conn.run_sync(db_config.Base.metadata.drop_all)
+            await conn.run_sync(db_interface.Base.metadata.drop_all)
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine, db_config):
+async def clear_db(database_engine, db_interface):
     """Clear the database by
 
     Args:
@@ -66,13 +66,13 @@ async def clear_db(database_engine, db_config):
     """
     yield
     async with database_engine.begin() as conn:
-        for table in reversed(db_config.Base.metadata.sorted_tables):
+        for table in reversed(db_interface.Base.metadata.sorted_tables):
             await conn.execute(table.delete())
 
 
 @pytest.fixture
-async def session(db_config) -> AsyncSession:
-    session_factory = await db_config.session_factory()
+async def session(db_interface) -> AsyncSession:
+    session_factory = await db_interface.session_factory()
     async with session_factory() as session:
         yield session
 
@@ -97,8 +97,8 @@ async def flow_run(session, flow):
 
 
 @pytest.fixture
-async def flow_run_state(session, flow_run, db_config):
-    flow_run.set_state(db_config.FlowRunState(**schemas.states.Pending().dict()))
+async def flow_run_state(session, flow_run, db_interface):
+    flow_run.set_state(db_interface.FlowRunState(**schemas.states.Pending().dict()))
     await session.commit()
     return flow_run.state
 
@@ -116,8 +116,8 @@ async def task_run(session, flow_run):
 
 
 @pytest.fixture
-async def task_run_state(session, task_run, db_config):
-    task_run.set_state(db_config.TaskRunState(**schemas.states.Pending().dict()))
+async def task_run_state(session, task_run, db_interface):
+    task_run.set_state(db_interface.TaskRunState(**schemas.states.Pending().dict()))
     await session.commit()
     return task_run.state
 

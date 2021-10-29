@@ -10,7 +10,9 @@ MODELS_DEPENDENCIES = {
 }
 
 
-async def provide_database_configuration():
+async def provide_database_interface():
+    from prefect.orion.database.configurations import OrionDBInterface
+
     provided_config = MODELS_DEPENDENCIES.get("database_configuration")
 
     if provided_config is None:
@@ -33,10 +35,10 @@ async def provide_database_configuration():
 
         MODELS_DEPENDENCIES["database_configuration"] = provided_config
 
-    return provided_config
+    return OrionDBInterface(db_config=provided_config)
 
 
-def inject_db_config(fn):
+def inject_db_interface(fn):
     """
     Simple helper to provide a database configuration to a asynchronous function.
 
@@ -46,10 +48,10 @@ def inject_db_config(fn):
 
     @wraps(fn)
     async def wrapper(*args, **kwargs):
-        if "db_config" in kwargs and kwargs["db_config"] is not None:
+        if "db_interface" in kwargs and kwargs["db_interface"] is not None:
             return await fn(*args, **kwargs)
         else:
-            kwargs["db_config"] = await provide_database_configuration()
+            kwargs["db_interface"] = await provide_database_interface()
             return await fn(*args, **kwargs)
 
     return wrapper

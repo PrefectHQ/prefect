@@ -15,7 +15,7 @@ import pydantic
 from prefect.orion import models, schemas
 from prefect.orion.utilities.database import Timestamp, get_dialect
 from prefect.utilities.logging import get_logger
-from prefect.orion.database.dependencies import inject_db_config
+from prefect.orion.database.dependencies import inject_db_interface
 
 logger = get_logger("orion.api")
 
@@ -88,7 +88,7 @@ def postgres_timestamp_intervals(
     )
 
 
-@inject_db_config
+@inject_db_interface
 async def run_history(
     session: sa.orm.Session,
     run_type: Literal["flow_run", "task_run"],
@@ -99,7 +99,7 @@ async def run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db_config=None,
+    db_interface=None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
@@ -112,12 +112,12 @@ async def run_history(
 
     # prepare run-specific models
     if run_type == "flow_run":
-        run_model = db_config.FlowRun
-        state_model = db_config.FlowRunState
+        run_model = db_interface.FlowRun
+        state_model = db_interface.FlowRunState
         run_filter_function = models.flow_runs._apply_flow_run_filters
     elif run_type == "task_run":
-        run_model = db_config.TaskRun
-        state_model = db_config.TaskRunState
+        run_model = db_interface.TaskRun
+        state_model = db_interface.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
     # prepare dialect-independent functions

@@ -36,7 +36,7 @@ from prefect.orion.schemas.responses import (
     StateWaitDetails,
 )
 from prefect.orion.utilities.schemas import PrefectBaseModel
-from prefect.orion.database.dependencies import inject_db_config
+from prefect.orion.database.dependencies import inject_db_interface
 
 # all valid state types in the context of a task- or flow- run transition
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
@@ -218,11 +218,11 @@ class FlowOrchestrationContext(OrchestrationContext):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    # run: db_config.FlowRun = ...
+    # run: db_interface.FlowRun = ...
     run: Any = ...
 
-    @inject_db_config
-    async def validate_proposed_state(self, db_config=None):
+    @inject_db_interface
+    async def validate_proposed_state(self, db_interface=None):
         """
         Validates a proposed state by committing it to the database.
 
@@ -237,7 +237,7 @@ class FlowOrchestrationContext(OrchestrationContext):
         """
 
         if self.proposed_state is not None:
-            validated_orm_state = db_config.FlowRunState(
+            validated_orm_state = db_interface.FlowRunState(
                 flow_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )
@@ -320,11 +320,11 @@ class TaskOrchestrationContext(OrchestrationContext):
         proposed_state: the proposed state a run is transitioning into
     """
 
-    # run: db_config.TaskRun = ...
+    # run: db_interface.TaskRun = ...
     run: Any = ...
 
-    @inject_db_config
-    async def validate_proposed_state(self, db_config=None):
+    @inject_db_interface
+    async def validate_proposed_state(self, db_interface=None):
         """
         Validates a proposed state by committing it to the database.
 
@@ -339,7 +339,7 @@ class TaskOrchestrationContext(OrchestrationContext):
         """
 
         if self.proposed_state is not None:
-            validated_orm_state = db_config.TaskRunState(
+            validated_orm_state = db_interface.TaskRunState(
                 task_run_id=self.run.id,
                 **self.proposed_state.dict(shallow=True),
             )

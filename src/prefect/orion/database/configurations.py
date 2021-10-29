@@ -50,27 +50,7 @@ async def drop_db():
         await conn.run_sync(db_config.Base.metadata.drop_all)
 
 
-class DatabaseConfigurationBaseModel(BaseModel):
-    class Config:
-        arbitrary_types_allowed = True
-
-    connection_url: str = Field(
-        default_factory=settings.orion.database.connection_url.get_secret_value
-    )
-    echo: bool = settings.orion.database.echo
-    timeout: float = None
-
-    # TODO - typing
-    base_model_mixins: List = []
-    Base: Any = None
-    Flow: Any = None
-    FlowRun: Any = None
-    FlowRunState: Any = None
-    TaskRun: Any = None
-    TaskRunState: Any = None
-    TaskRunStateCache: Any = None
-    Deployment: Any = None
-    SavedSearch: Any = None
+class OrionDBInterface:
 
     # define naming conventions for our Base class to use
     # sqlalchemy will use the following templated strings
@@ -87,19 +67,28 @@ class DatabaseConfigurationBaseModel(BaseModel):
     # this also allows us to avoid having to specify names explicitly
     # when using sa.ForeignKey.use_alter = True
     # https://docs.sqlalchemy.org/en/14/core/constraints.html
-    base_metadata = sa.schema.MetaData(
-        naming_convention={
-            "ix": "ix_%(table_name)s__%(column_0_N_name)s",
-            "uq": "uq_%(table_name)s__%(column_0_N_name)s",
-            "ck": "ck_%(table_name)s__%(constraint_name)s",
-            "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
-            "pk": "pk_%(table_name)s",
-        }
-    )
 
-    def __init__(self, db_config, **data: Any):
-        super().__init__(**data)
+    def __init__(
+        self,
+        db_config=None,
+        base_model_mixins: List = [],
+    ):
+        self.connection_url = settings.orion.database.connection_url.get_secret_value
+        self.echo = settings.orion.database.echo
+        self.timeout = None
+
+        self.base_metadata = sa.schema.MetaData(
+            naming_convention={
+                "ix": "ix_%(table_name)s__%(column_0_N_name)s",
+                "uq": "uq_%(table_name)s__%(column_0_N_name)s",
+                "ck": "ck_%(table_name)s__%(constraint_name)s",
+                "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
+                "pk": "pk_%(table_name)s",
+            }
+        )
+
         self.db_config = db_config
+        self.base_model_mixins = base_model_mixins
         self.Base = self.create_base_model()
         self.create_orm_models()
         self.run_migrations()
@@ -232,7 +221,7 @@ class DatabaseConfigurationBaseModel(BaseModel):
 
     def run_migrations(self):
         """Run database migrations"""
-        pass  # TODO - implement
+        self.db_config.run_migrations()
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
@@ -272,7 +261,15 @@ class DatabaseConfigurationBaseModel(BaseModel):
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        raise NotImplementedError()
+        self.db_config.set_state_id_on_inserted_flow_runs_statement(
+            inserted_flow_run_ids, insert_flow_run_states
+        )
+
+    def engine(self):
+        return self.db_config.engine()
+
+    def session_factory(self):
+        return self.db_config.session_factory()
 
 
 class DatabaseConfigurationBase(ABC):
@@ -304,7 +301,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     def insert(self):
         return postgresql.insert
 
-    def run_migrations(self):
+    async def run_migrations(self):
         """Run database migrations"""
 
         # in order to index or created generated columns from timestamps stored in JSON,
@@ -429,6 +426,9 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
 class AioSqliteConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for sqlite and driver
+
+    async def run_migrations(self):
+        ...
 
     @property
     def insert(self):
