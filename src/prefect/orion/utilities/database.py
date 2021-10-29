@@ -184,7 +184,9 @@ async def schedule_engine_disposal(cache_key):
                 await engine.dispose()
 
             # Drop this iterator from the disposal just to keep things clean
-            ENGINE_DISPOSAL.pop(cache_key)
+            # Set a default return value since during bad-application exits the cache
+            # can be broken and throwing additional exceptions here is not helpful
+            ENGINE_DISPOSAL.pop(cache_key, None)
 
     # Create the iterator and store it in a global variable so it is not cleaned up
     # when this function scope ends
