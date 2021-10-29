@@ -73,6 +73,7 @@ nav:
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
         - Orchestration Rules: concepts/orchestration.md
+        - Executors: concepts/executors.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
