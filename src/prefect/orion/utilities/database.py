@@ -117,7 +117,7 @@ async def get_engine(
             if sqlite3.sqlite_version_info < MIN_SQLITE_VERSION:
                 required = ".".join(str(v) for v in MIN_SQLITE_VERSION)
                 raise RuntimeError(
-                    f"Orion requires sqlite >= {required} but we found version"
+                    f"Orion requires sqlite >= {required} but we found version "
                     f"{sqlite3.sqlite_version}"
                 )
 
