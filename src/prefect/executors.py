@@ -270,9 +270,17 @@ class DaskExecutor(BaseExecutor):
         # Update kwargs defaults
         client_kwargs.setdefault("set_as_default", False)
 
-        # Ensure we're working with async client/cluster objects
-        client_kwargs["asynchronous"] = True
-        cluster_kwargs["asynchronous"] = True
+        # The user cannot specify async/sync themselves
+        if "asynchronous" in client_kwargs:
+            raise ValueError(
+                "`client_kwargs` cannot set `asynchronous`. "
+                "This option is managed by Prefect."
+            )
+        if "asynchronous" in cluster_kwargs:
+            raise ValueError(
+                "`cluster_kwargs` cannot set `asynchronous`. "
+                "This option is managed by Prefect."
+            )
 
         # Store settings
         self.address = address
@@ -324,6 +332,13 @@ class DaskExecutor(BaseExecutor):
             return None
 
     async def _start(self, exit_stack: AsyncExitStack):
+        """
+        Start the executor and prep for context exit
+
+        - Creates a cluster if an external address is not set
+        - Creates a client to connect to the cluster
+        - Pushes a call to wait for all running futures to complete on exit
+        """
         if self.address:
             self.logger.info(
                 f"Connecting to an existing Dask cluster at {self.address}"
@@ -333,11 +348,14 @@ class DaskExecutor(BaseExecutor):
             self.logger.info(
                 f"Creating a new Dask cluster with `{to_qualified_name(self.cluster_class)}`"
             )
-            self._cluster = await exit_stack.enter_async_context(self._create_cluster())
-            connect_to = self._cluster
+            connect_to = self._cluster = await exit_stack.enter_async_context(
+                self.cluster_class(asynchronous=True, **self.cluster_kwargs)
+            )
+            if self.adapt_kwargs:
+                self._cluster.adapt(**self.adapt_kwargs)
 
         self._client = await exit_stack.enter_async_context(
-            await distributed.Client(connect_to, **self.client_kwargs)
+            distributed.Client(connect_to, asynchronous=True, **self.client_kwargs)
         )
 
         # Wait for all futures before tearing down the client / cluster on exit
@@ -347,21 +365,6 @@ class DaskExecutor(BaseExecutor):
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
-
-    @asynccontextmanager
-    async def _create_cluster(self) -> "distributed.deploy.Cluster":
-        """
-        Create a new Dask cluster as specified by `cluster_class`, `cluster_kwargs`, and
-        `adapt_kwargs`
-
-        Yields:
-            A prepared cluster
-        """
-        async with self.cluster_class(**self.cluster_kwargs) as cluster:
-            if self.adapt_kwargs:
-                cluster.adapt(**self.adapt_kwargs)
-
-            yield cluster
 
     async def _wait_for_all_futures(self):
         """
