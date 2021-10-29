@@ -10,6 +10,7 @@ import json
 import os
 import re
 import uuid
+import sqlite3
 from asyncio import current_task, get_event_loop
 from typing import List, Union, AsyncGenerator, Dict
 
@@ -34,6 +35,8 @@ from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
+MIN_SQLITE_VERSION = (3, 24, 0)
+
 ENGINES = {}
 ENGINE_DISPOSAL: Dict[tuple, AsyncGenerator] = {}
 SESSION_FACTORIES = {}
@@ -43,6 +46,7 @@ def setup_sqlite(conn, named=True):
     """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
     duration of the connection. See https://www.sqlite.org/pragma.html for more info."""
     if get_dialect(engine=conn.engine).name == "sqlite":
+
         # enable foreign keys
         conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
 
@@ -107,6 +111,15 @@ async def get_engine(
 
         engine = create_async_engine(connection_url, echo=echo, **kwargs)
         sa.event.listen(engine.sync_engine, "engine_connect", setup_sqlite)
+
+        if engine.dialect.name == "sqlite":
+            # check for a supported sqlite3 version
+            if sqlite3.sqlite_version_info < MIN_SQLITE_VERSION:
+                required = ".".join(str(v) for v in MIN_SQLITE_VERSION)
+                raise RuntimeError(
+                    f"Orion requires sqlite >= {required} but we found version"
+                    f"{sqlite3.sqlite_version}"
+                )
 
         # if this is a new sqlite database create all database objects
         if engine.dialect.name == "sqlite" and (
