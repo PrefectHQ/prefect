@@ -1,0 +1,60 @@
+name: Build and Publish to TestPyPI
+# largely based on the information in
+# https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
+
+on:
+  create:
+    tags:
+      - "2.0a[0-9]+"
+
+jobs:
+  build-and-publish:
+    name: 
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          # Versioneer only generates correct versions with a full fetch
+          # Versioneer is not setup for this repo yet
+          # fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.8
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ env.pythonLocation }}
+          # Load installed python packages from the cache
+          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
+          
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade --upgrade-strategy eager -e .[dev]
+
+      - name: Install pypa/build
+        run: |
+          python -m pip install build --user
+
+      - name: Build UI
+        with:
+          node-version: 16.5.0
+        run: |
+          cd orion-ui/ && npm install
+          prefect dev build-ui 
+
+    - name: Build a binary wheel and a source tarball
+      run: |
+        python setup.py sdist
+        python setup.py bdist_wheel
+
+    - name: Publish distribution 📦 to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/
