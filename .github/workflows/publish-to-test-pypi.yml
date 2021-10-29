@@ -25,6 +25,11 @@ jobs:
         with:
           python-version: 3.8
 
+      - name: Set up Node 16.x
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16.x
+
       - uses: actions/cache@v2
         with:
           path: ${{ env.pythonLocation }}
@@ -37,8 +42,6 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Build UI
-        with:
-          node-version: 16.x
         run: |
           prefect dev build-ui 
 
