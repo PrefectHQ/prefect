@@ -5,9 +5,7 @@ Injected models dependencies
 from functools import wraps
 
 
-MODELS_DEPENDENCIES = {
-    "database_configuration": None,
-}
+MODELS_DEPENDENCIES = {"database_configuration": None, "database_interface": None}
 
 
 async def provide_database_interface():
@@ -33,9 +31,13 @@ async def provide_database_interface():
                 f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"
             )
 
+        # TODO - clean this up
         MODELS_DEPENDENCIES["database_configuration"] = provided_config
+        MODELS_DEPENDENCIES["database_interface"] = OrionDBInterface(
+            db_config=provided_config
+        )
 
-    return OrionDBInterface(db_config=provided_config)
+    return MODELS_DEPENDENCIES["database_interface"]
 
 
 def inject_db_interface(fn):

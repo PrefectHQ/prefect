@@ -23,9 +23,9 @@ d_3_1_id = uuid4()
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(database_engine, flow_function, db_config):
+async def data(database_engine, flow_function, db_interface):
 
-    session_factory = await db_config.session_factory()
+    session_factory = await db_interface.session_factory()
     async with session_factory() as session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
@@ -251,7 +251,7 @@ async def data(database_engine, flow_function, db_config):
     # ----------------- clear data
 
     async with database_engine.begin() as conn:
-        for table in reversed(db_config.Base.metadata.sorted_tables):
+        for table in reversed(db_interface.Base.metadata.sorted_tables):
             await conn.execute(table.delete())
 
 

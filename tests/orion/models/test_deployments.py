@@ -437,16 +437,16 @@ class TestDeleteDeployment:
 
 class TestScheduledRuns:
     async def test_schedule_runs_inserts_in_db(
-        self, flow, deployment, session, db_config
+        self, flow, deployment, session, db_interface
     ):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
         assert len(scheduled_runs) == 100
         query_result = await session.execute(
-            sa.select(db_config.FlowRun).where(
-                db_config.FlowRun.state.has(
-                    db_config.FlowRunState.type == StateType.SCHEDULED
+            sa.select(db_interface.FlowRun).where(
+                db_interface.FlowRun.state.has(
+                    db_interface.FlowRunState.type == StateType.SCHEDULED
                 )
             )
         )
@@ -462,7 +462,7 @@ class TestScheduledRuns:
         } == expected_times
 
     async def test_schedule_runs_is_idempotent(
-        self, flow, deployment, session, db_config
+        self, flow, deployment, session, db_interface
     ):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
@@ -477,10 +477,10 @@ class TestScheduledRuns:
 
         # only 100 runs were inserted
         query_result = await session.execute(
-            sa.select(db_config.FlowRun).where(
-                db_config.FlowRun.flow_id == flow.id,
-                db_config.FlowRun.state.has(
-                    db_config.FlowRunState.type == StateType.SCHEDULED
+            sa.select(db_interface.FlowRun).where(
+                db_interface.FlowRun.flow_id == flow.id,
+                db_interface.FlowRun.state.has(
+                    db_interface.FlowRunState.type == StateType.SCHEDULED
                 ),
             )
         )
@@ -629,7 +629,7 @@ class TestScheduledRuns:
             assert r.expected_start_time == r.next_scheduled_start_time
 
     async def test_scheduling_multiple_batches_correctly_updates_runs(
-        self, session, deployment, flow_function, flow, db_config
+        self, session, deployment, flow_function, flow, db_interface
     ):
         # ensures that updating flow run states works correctly and doesnt set
         # any to None inadvertently
@@ -646,7 +646,7 @@ class TestScheduledRuns:
         )
 
         # delete all runs
-        await session.execute(sa.delete(db_config.FlowRun))
+        await session.execute(sa.delete(db_interface.FlowRun))
 
         # schedule runs
         await models.deployments.schedule_runs(
@@ -654,8 +654,8 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(db_config.FlowRun.id)).where(
-                db_config.FlowRun.state_id.is_(None)
+            sa.select(sa.func.count(db_interface.FlowRun.id)).where(
+                db_interface.FlowRun.state_id.is_(None)
             )
         )
         # no runs with missing states
@@ -667,8 +667,8 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(db_config.FlowRun.id)).where(
-                db_config.FlowRun.state_id.is_(None)
+            sa.select(sa.func.count(db_interface.FlowRun.id)).where(
+                db_interface.FlowRun.state_id.is_(None)
             )
         )
         # no runs with missing states
