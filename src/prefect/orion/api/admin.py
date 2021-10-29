@@ -9,7 +9,7 @@ from fastapi import Depends, status, Response, Body
 import prefect
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.api import dependencies
-from prefect.orion.database.dependencies import provide_database_configuration
+from prefect.orion.database.dependencies import provide_database_interface
 
 router = OrionRouter(prefix="/admin", tags=["Admin"])
 
@@ -47,8 +47,8 @@ async def clear_database(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
     # TODO - can probably inject here
-    db_config = await provide_database_configuration()
-    for table in reversed(db_config.Base.metadata.sorted_tables):
+    db_interface = await provide_database_interface()
+    for table in reversed(db_interface.Base.metadata.sorted_tables):
         await session.execute(table.delete())
 
 

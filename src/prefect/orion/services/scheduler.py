@@ -12,7 +12,7 @@ import prefect
 from prefect.orion import models
 from prefect.orion.services.loop_service import LoopService
 from prefect.utilities.collections import batched_iterable
-from prefect.orion.database.dependencies import inject_db_config
+from prefect.orion.database.dependencies import inject_db_interface
 
 settings = prefect.settings.orion.services
 
@@ -27,8 +27,8 @@ class Scheduler(LoopService):
     max_runs: int = settings.scheduler_max_runs
     max_scheduled_time: datetime.timedelta = settings.scheduler_max_scheduled_time
 
-    @inject_db_config
-    async def run_once(self, db_config=None):
+    @inject_db_interface
+    async def run_once(self, db_interface=None):
         """
         Schedule flow runs by:
 
@@ -46,18 +46,18 @@ class Scheduler(LoopService):
                 last_id = None
                 while True:
                     query = (
-                        sa.select(db_config.Deployment)
+                        sa.select(db_interface.Deployment)
                         .where(
-                            db_config.Deployment.is_schedule_active.is_(True),
-                            db_config.Deployment.schedule.is_not(None),
+                            db_interface.Deployment.is_schedule_active.is_(True),
+                            db_interface.Deployment.schedule.is_not(None),
                         )
-                        .order_by(db_config.Deployment.id)
+                        .order_by(db_interface.Deployment.id)
                         .limit(self.deployment_batch_size)
                     )
 
                     # use cursor based pagination
                     if last_id:
-                        query = query.where(db_config.Deployment.id > last_id)
+                        query = query.where(db_interface.Deployment.id > last_id)
 
                     result = await session.execute(query)
                     deployments = result.scalars().unique().all()
