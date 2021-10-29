@@ -220,11 +220,11 @@ class OrionDBInterface:
 
     def run_migrations(self):
         """Run database migrations"""
-        await self.db_config.run_migrations()
+        self.db_config.run_migrations(self.Base)
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        return await self.db_config.insert(model)
+        return (await self.db_config.insert)(model)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -260,15 +260,17 @@ class OrionDBInterface:
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        return await self.db_config.set_state_id_on_inserted_flow_runs_statement(
+        return self.db_config.set_state_id_on_inserted_flow_runs_statement(
             inserted_flow_run_ids, insert_flow_run_states
         )
 
-    def engine(self):
-        return await self.db_config.engine(self.connection_url(), self.echo, self.timeout)
+    async def engine(self):
+        return await self.db_config.engine(
+            self.connection_url(), self.echo, self.timeout
+        )
 
-    def session_factory(self):
-        return await self.db_config.session_factory()
+    async def session_factory(self):
+        return await self.db_config.session_factory((await self.engine()))
 
 
 class DatabaseConfigurationBase(ABC):
@@ -277,11 +279,11 @@ class DatabaseConfigurationBase(ABC):
         ...
 
     @abstractmethod
-    def engine():
+    async def engine():
         ...
 
     @abstractmethod
-    def session_factory():
+    async def session_factory():
         ...
 
     @abstractmethod
@@ -289,7 +291,7 @@ class DatabaseConfigurationBase(ABC):
         ...
 
     @abstractproperty
-    def insert():
+    async def insert():
         ...
 
 
@@ -297,17 +299,17 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for postgres and asyncpg driver
 
     @property
-    def insert(self):
+    async def insert(self):
         return postgresql.insert
 
-    async def run_migrations(self):
+    def run_migrations(self, base_model):
         """Run database migrations"""
 
         # in order to index or created generated columns from timestamps stored in JSON,
         # we need a custom IMMUTABLE function for casting to timestamp
         # (because timestamp is not actually immutable)
         sa.event.listen(
-            self.Base.metadata,
+            base_model.metadata,
             "before_create",
             sa.DDL(
                 """
@@ -324,7 +326,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         )
 
         sa.event.listen(
-            self.Base.metadata,
+            base_model.metadata,
             "before_drop",
             sa.DDL(
                 """
@@ -374,6 +376,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
     async def session_factory(
         self,
+        bind,
     ) -> async_scoped_session:
         """Retrieves a SQLAlchemy session factory for the provided bind.
         The session factory is cached for each event loop.
@@ -386,7 +389,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         Returns:
             sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
         """
-        bind = await self.engine()
 
         loop = get_event_loop()
         cache_key = (loop, bind)
@@ -429,11 +431,11 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 class AioSqliteConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for sqlite and driver
 
-    async def run_migrations(self):
+    def run_migrations(self):
         ...
 
     @property
-    def insert(self):
+    async def insert(self):
         return sqlite.insert
 
     async def engine(self, connection_url, echo, timeout) -> sa.engine.Engine:

@@ -368,7 +368,7 @@ class FlowRunMixin(RunMixin):
         # still works because the ORM model's __init__ depends on it.
         return self.set_state(value)
 
-    def set_state(self, state: Optional["FlowRunState"]):
+    def set_state(self, state):
         """
         If a state is assigned to this run, populate its run id.
 
@@ -477,7 +477,7 @@ class TaskRunMixin(RunMixin):
         # still works because the ORM model's __init__ depends on it.
         return self.set_state(value)
 
-    def set_state(self, state: Optional["TaskRunState"]):
+    def set_state(self, state):
         """
         If a state is assigned to this run, populate its run id.
 
