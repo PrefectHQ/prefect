@@ -42,7 +42,7 @@ In the Prefect documentation, the <Badge text="Cloud"/> badge indicates features
 
 To start monitoring and managing your flows in Prefect Cloud, [log in or sign up](https://universal.prefect.io) today.
 
-### Prefect Core server
+### Prefect Server
 
 Prefect Core ships with an open-source backend and UI that automatically extends the Prefect Core engine with a subset of the features provided by Prefect Cloud, including:
 
