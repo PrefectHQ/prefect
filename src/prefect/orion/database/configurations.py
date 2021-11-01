@@ -274,7 +274,10 @@ class OrionDBInterface(metaclass=Singleton):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
         return self.db_config.set_state_id_on_inserted_flow_runs_statement(
-            inserted_flow_run_ids, insert_flow_run_states
+            self.FlowRun,
+            self.FlowRunState,
+            inserted_flow_run_ids,
+            insert_flow_run_states,
         )
 
     async def engine(self):
@@ -422,19 +425,19 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         return SESSION_FACTORIES[cache_key]
 
     def set_state_id_on_inserted_flow_runs_statement(
-        self, inserted_flow_run_ids, insert_flow_run_states
+        self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
         # postgres supports `UPDATE ... FROM` syntax
         stmt = (
-            sa.update(self.FlowRun)
+            sa.update(fr_model)
             .where(
-                self.FlowRun.id.in_(inserted_flow_run_ids),
-                self.FlowRunState.flow_run_id == self.FlowRun.id,
-                self.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
+                fr_model.id.in_(inserted_flow_run_ids),
+                frs_model.flow_run_id == fr_model.id,
+                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
             )
-            .values(state_id=self.FlowRunState.id)
+            .values(state_id=frs_model.id)
             # no need to synchronize as these flow runs are entirely new
             .execution_options(synchronize_session=False)
         )
@@ -553,24 +556,24 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         conn.commit()
 
     def set_state_id_on_inserted_flow_runs_statement(
-        self, inserted_flow_run_ids, insert_flow_run_states
+        self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
         # sqlite requires a correlated subquery to update from another table
         subquery = (
-            sa.select(self.FlowRunState.id)
+            sa.select(frs_model.id)
             .where(
-                self.FlowRunState.flow_run_id == self.FlowRun.id,
-                self.FlowRunState.id.in_([r["id"] for r in insert_flow_run_states]),
+                frs_model.flow_run_id == fr_model.id,
+                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
             )
             .limit(1)
             .scalar_subquery()
         )
         stmt = (
-            sa.update(self.FlowRun)
+            sa.update(fr_model)
             .where(
-                self.FlowRun.id.in_(inserted_flow_run_ids),
+                fr_model.id.in_(inserted_flow_run_ids),
             )
             .values(state_id=subquery)
             # no need to synchronize as these flow runs are entirely new
