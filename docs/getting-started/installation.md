@@ -50,3 +50,11 @@ $ prefect version
 </div>
 
 Running this command should print a familiar looking version string to your console.
+
+
+## External requirements
+
+### SQLite
+
+SQLite cannot be packaged with the installation, but is the default backing database.
+Most systems will have SQLite installed already. We require a minimum version of 3.24.0.
