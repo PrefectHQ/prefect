@@ -15,8 +15,9 @@ $ python -m asyncio
 ```
 </div>
 """
+import os
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
 from uuid import UUID
 
 import anyio
@@ -93,6 +94,11 @@ class OrionClient:
                 )
             httpx_settings.setdefault("base_url", host)
         else:
+            # Ensure that the prefect home directory exists since it may be used by
+            # the database connection
+            if not os.path.exists(settings.home):
+                os.makedirs(settings.home, exist_ok=True)
+
             # Connect to an ephemeral app
             httpx_settings.setdefault("app", orion_app)
             httpx_settings.setdefault("base_url", "http://orion/api")
