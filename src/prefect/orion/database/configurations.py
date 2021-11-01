@@ -29,22 +29,26 @@ ENGINES = {}  # TODO - put this in the connection abstraction?
 SESSION_FACTORIES = {}
 
 
-async def create_db():  # TODO - should go somewhere else
+async def create_db(engine=None):  # TODO - should go somewhere else
     """Create all database tables."""
     from prefect.orion.database.dependencies import provide_database_interface
 
     db_config = await provide_database_interface()
-    engine = await db_config.engine()
+    if engine is None:
+        engine = await db_config.engine()
+
     async with engine.begin() as conn:
         await conn.run_sync(db_config.Base.metadata.create_all)
 
 
-async def drop_db():
+async def drop_db(engine=None):
     """Drop all database tables."""
+
     from prefect.orion.database.dependencies import provide_database_interface
 
     db_config = await provide_database_interface()
-    engine = await db_config.engine()
+    if engine is None:
+        engine = await db_config.engine()
     async with engine.begin() as conn:
         await conn.run_sync(db_config.Base.metadata.drop_all)
 
@@ -431,7 +435,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 class AioSqliteConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for sqlite and driver
 
-    def run_migrations(self):
+    def run_migrations(self, base_model):
         ...
 
     @property
@@ -481,13 +485,14 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
                 or "mode=memory" in engine.url.database
                 or not os.path.exists(engine.url.database)
             ):
-                await create_db()
+                await create_db(engine=engine)
 
             ENGINES[cache_key] = engine
         return ENGINES[cache_key]
 
     async def session_factory(
         self,
+        bind,
     ) -> async_scoped_session:
         """Retrieves a SQLAlchemy session factory for the provided bind.
         The session factory is cached for each event loop.
@@ -500,7 +505,6 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         Returns:
             sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
         """
-        bind = await self.engine()
 
         loop = get_event_loop()
         cache_key = (loop, bind)
