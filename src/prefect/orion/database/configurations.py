@@ -100,14 +100,13 @@ class OrionDBInterface(metaclass=Singleton):
         )
 
         self.db_config = db_config
-        self.base_model_mixins = base_model_mixins
         self.Base = self.create_base_model()
         self.create_orm_models()
         self.run_migrations()
 
     def create_base_model(self):
         @as_declarative(metadata=self.base_metadata)
-        class Base(*self.base_model_mixins, BaseMixin):
+        class Base(*self.db_config.base_model_mixins, BaseMixin):
             pass
 
         return Base
@@ -237,7 +236,7 @@ class OrionDBInterface(metaclass=Singleton):
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        return (await self.db_config.insert)(model)
+        return (self.db_config.insert)(model)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -307,12 +306,20 @@ class DatabaseConfigurationBase(ABC):
         ...
 
     @abstractproperty
-    async def insert():
+    def insert():
+        ...
+
+    @abstractproperty
+    def base_model_mixins():
         ...
 
 
 class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for postgres and asyncpg driver
+
+    @property
+    def base_model_mixins(self):
+        return []
 
     @property
     async def insert(self):
@@ -451,7 +458,11 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         ...
 
     @property
-    async def insert(self):
+    def base_model_mixins(self):
+        return []
+
+    @property
+    def insert(self):
         return sqlite.insert
 
     async def engine(self, connection_url, echo, timeout) -> sa.engine.Engine:
