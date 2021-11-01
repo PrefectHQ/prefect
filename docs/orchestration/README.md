@@ -11,7 +11,7 @@ sidebarDepth: 0
 
 When you want to run and monitor many flows, maintaining their state and inspecting their progress can be difficult without some extra tooling.
 
-Prefect Cloud and the Prefect Core server and are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine with a rich GraphQL API to make orchestration of your flows easy.
+Prefect Cloud and the Prefect Server are two ready-to-use state database and UI backends that automatically extend the Prefect Core engine with a rich GraphQL API to make orchestration of your flows easy.
 
 Prefect Core's server is an open source, lightweight version of our highly-available, production-ready product Prefect Cloud.
 
