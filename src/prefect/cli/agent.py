@@ -79,12 +79,6 @@ COMMON_START_OPTIONS = [
             "environment."
         ),
     ),
-    click.option(
-        "--token",
-        "-t",
-        required=False,
-        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
-    ),
 ]
 
 
@@ -114,22 +108,16 @@ COMMON_INSTALL_OPTIONS = [
         help="Environment variables to set on each submitted flow run.",
     ),
     click.option(
-        "--token",
-        "-t",
-        help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
-    ),
-    click.option(
         "--agent-config-id",
         help="An agent ID to link this agent instance with",
     ),
 ]
 
 
-def start_agent(agent_cls, token, api, label, env, log_level, key, tenant_id, **kwargs):
+def start_agent(agent_cls, api, label, env, log_level, key, tenant_id, **kwargs):
     labels = sorted(set(label))
     env_vars = dict(e.split("=", 1) for e in env)
     tmp_config = {
-        "cloud.agent.auth_token": token or config.cloud.agent.auth_token,
         "cloud.api_key": key or config.cloud.api_key,
         "cloud.tenant_id": tenant_id or config.cloud.tenant_id,
         "cloud.agent.level": log_level or config.cloud.agent.level,
@@ -251,32 +239,18 @@ def docker():
     ),
 )
 @click.option(
-    "--no-docker-interface",
-    default=None,
-    is_flag=True,
-    help=(
-        "Disable the check of a Docker interface on this machine. "
-        "Note: This is mostly relevant for some Docker-in-Docker "
-        "setups that users may be running their agent with. "
-        "DEPRECATED."
-    ),
-)
-@click.option(
     "--docker-client-timeout",
     default=None,
     type=int,
     help="The timeout to use for docker API calls, defaults to 60 seconds.",
 )
-def start(volumes, no_docker_interface, **kwargs):
+def start(volumes, **kwargs):
     """Start a docker agent"""
     from prefect.agent.docker import DockerAgent
 
     start_agent(
         DockerAgent,
         volumes=list(volumes),
-        docker_interface=(
-            not no_docker_interface if no_docker_interface is not None else None
-        ),
         **kwargs,
     )
 

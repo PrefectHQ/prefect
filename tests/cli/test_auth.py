@@ -28,59 +28,16 @@ def test_auth_help():
     assert "Handle Prefect Cloud authorization." in result.output
 
 
-def test_auth_login_with_token(patch_post, monkeypatch, cloud_api):
-    patch_post(
-        dict(
-            data=dict(
-                tenant="id",
-                user=[dict(default_membership=dict(tenant_id=str(uuid.uuid4())))],
-            )
-        )
-    )
-
-    Client = MagicMock()
-
-    # Raise an error during treating token as a key to get to token compat code
-    Client()._get_auth_tenant = MagicMock(side_effect=AuthorizationError)
-    Client().api_key = None
-
-    Client().login_to_tenant = MagicMock(return_value=True)
-    monkeypatch.setattr("prefect.cli.auth.Client", Client)
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["login", "--token", "test"])
-    assert result.exit_code == 0
-    assert "Login successful" in result.output
-
-
-def test_auth_login_with_token_key_is_not_allowed(patch_post, monkeypatch, cloud_api):
-    Client = MagicMock()
-
-    # Raise an error during treating token as a key to get to token compat code
-    Client()._get_auth_tenant = MagicMock(side_effect=AuthorizationError)
-    Client().api_key = "foo"
-    monkeypatch.setattr("prefect.cli.auth.Client", Client)
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["login", "--token", "test"])
-    assert result.exit_code == 1
-    assert (
-        "You have already logged in with an API key and cannot use a token"
-        in result.output
-    )
-
-
 def test_auth_login_client_error(patch_post, cloud_api):
     patch_post(dict(errors=[dict(error={})]))
 
     runner = CliRunner()
-    result = runner.invoke(auth, ["login", "--token", "test"])
+    result = runner.invoke(auth, ["login", "--key", "test"])
     assert result.exit_code == 1
     assert "Error attempting to communicate with Prefect Cloud" in result.output
 
 
-@pytest.mark.parametrize("as_token", [True, False])
-def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api, as_token):
+def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api):
     Client = MagicMock()
     Client()._get_auth_tenant = MagicMock(return_value="tenant-id")
     TenantView = MagicMock()
@@ -91,9 +48,7 @@ def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api, as_token):
     monkeypatch.setattr("prefect.cli.auth.Client", Client)
 
     runner = CliRunner()
-    # All `--token` args are treated as keys first for easier transition
-    arg = "--token" if as_token else "--key"
-    result = runner.invoke(auth, ["login", arg, "test"])
+    result = runner.invoke(auth, ["login", "--key", "test"])
 
     assert result.exit_code == 0
     assert "Logged in to Prefect Cloud tenant 'Name' (tenant-slug)" in result.output
@@ -136,15 +91,17 @@ def test_auth_logout_after_login(patch_post, monkeypatch, cloud_api):
     )
 
     Client = MagicMock()
-    # Raise an error during treating token as a key to get to token compat code
-    Client()._get_auth_tenant = MagicMock(side_effect=AuthorizationError)
-    Client().api_key = None
-    Client().login_to_tenant = MagicMock(return_value=True)
+    Client()._get_auth_tenant = MagicMock(return_value="tenant-id")
+    TenantView = MagicMock()
+    TenantView.from_tenant_id.return_value = prefect.backend.TenantView(
+        tenant_id="id", name="Name", slug="tenant-slug"
+    )
+    monkeypatch.setattr("prefect.cli.auth.TenantView", TenantView)
     monkeypatch.setattr("prefect.cli.auth.Client", Client)
 
     runner = CliRunner()
 
-    result = runner.invoke(auth, ["login", "--token", "test"])
+    result = runner.invoke(auth, ["login", "--key", "test"])
     assert result.exit_code == 0
 
     result = runner.invoke(auth, ["logout"], input="Y")
@@ -279,74 +236,6 @@ def test_switch_tenants_failed(monkeypatch, cloud_api):
     result = runner.invoke(auth, ["switch-tenants", "--slug", "slug"])
     assert result.exit_code == 1
     assert "Unable to switch tenant" in result.output
-
-
-def test_create_token(patch_post, cloud_api):
-    patch_post(dict(data=dict(create_api_token={"token": "token"})))
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["create-token", "-n", "name", "-s", "scope"])
-    assert result.exit_code == 0
-    assert "token" in result.output
-
-
-def test_create_token_fails(patch_post, cloud_api):
-    patch_post(dict())
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["create-token", "-n", "name", "-s", "scope"])
-    assert result.exit_code == 0
-    assert "Issue creating API token" in result.output
-
-
-def test_list_tokens(patch_post, cloud_api):
-    patch_post(dict(data=dict(api_token=[{"id": "id", "name": "name"}])))
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["list-tokens"])
-    assert result.exit_code == 0
-    assert "id" in result.output
-    assert "name" in result.output
-
-
-def test_list_tokens_fails(patch_post, cloud_api):
-    patch_post(dict())
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["list-tokens"])
-    assert result.exit_code == 0
-    assert "Unable to list API tokens" in result.output
-
-
-def test_revoke_token(patch_post, cloud_api):
-    patch_post(dict(data=dict(delete_api_token={"success": True})))
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["revoke-token", "--id", "id"])
-    assert result.exit_code == 0
-    assert "Token successfully revoked" in result.output
-
-
-def test_revoke_token_fails(patch_post, cloud_api):
-    patch_post(dict())
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["revoke-token", "--id", "id"])
-    assert result.exit_code == 0
-    assert "Unable to revoke token with ID id" in result.output
-
-
-def test_check_override_function():
-    with set_temporary_config({"cloud.auth_token": "TOKEN"}):
-        with pytest.raises(click.exceptions.Abort):
-            prefect.cli.auth.check_override_auth_token()
-
-
-def test_override_functions_on_commands(cloud_api):
-    with set_temporary_config({"cloud.auth_token": "TOKEN"}):
-        runner = CliRunner()
-        result = runner.invoke(auth, ["revoke-token", "--id", "id"])
-        assert result.exit_code == 1
 
 
 @pytest.mark.parametrize(

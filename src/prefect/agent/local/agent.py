@@ -1,7 +1,6 @@
 import os
 import socket
 import sys
-import warnings
 from subprocess import STDOUT, Popen, DEVNULL
 from typing import Iterable, List
 
@@ -248,8 +247,6 @@ class LocalAgent(Agent):
         Generate and output an installable supervisorctl configuration file for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent. DEPRECATED. Use
-                `key` instead.
             - labels (List[str], optional): a list of labels, which are arbitrary string
                 identifiers used by Prefect Agents when polling for work
             - env_vars (dict, optional): a dictionary of environment variables and values that
@@ -300,11 +297,6 @@ class LocalAgent(Agent):
             add_opts += f"--tenant-id {tenant_id} "
         if agent_config_id:
             add_opts += f"--agent-config-id {agent_config_id}"
-
-        # Tokens are deprecated
-        if token:
-            warnings.warn("API tokens are deprecated. Please switch to using API keys.")
-            add_opts += f"-t {token} "
 
         conf = conf.replace("{{OPTS}}", add_opts)
         return conf

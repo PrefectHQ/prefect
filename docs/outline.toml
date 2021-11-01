@@ -65,7 +65,7 @@ commands = ["local", "docker", "kubernetes", "ecs"]
 [pages.cli.auth]
 title = "auth"
 module = "prefect.cli.auth"
-commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status", "create_token", "list_tokens", "revoke_token"]
+commands = ["login", "logout", "list_tenants", "switch_tenants", "create_key", "list_keys", "revoke_key", "status"]
 
 [pages.cli.create]
 title = "create"
@@ -105,7 +105,7 @@ commands = ["set_command", "get_command", "delete_command", "list_command"]
 [pages.cli.run]
 title = "run"
 module = "prefect.cli.run"
-commands = ["run", "run_flow"]
+commands = ["run"]
 
 [pages.cli.server]
 title = "server"

@@ -485,23 +485,6 @@ def test_local_agent_deploy_run_config_missing_working_dir(monkeypatch, tmpdir):
     assert not agent.processes
 
 
-def test_generate_supervisor_conf_with_token():
-    # Covers deprecated token based auth
-    agent = LocalAgent()
-
-    conf = agent.generate_supervisor_conf(
-        token="token",
-        labels=["label"],
-        import_paths=["path"],
-        env_vars={"TESTKEY": "TESTVAL"},
-    )
-
-    assert "-t token" in conf
-    assert "-l label" in conf
-    assert "-p path" in conf
-    assert "-e TESTKEY=TESTVAL" in conf
-
-
 def test_generate_supervisor_conf_with_key():
     agent = LocalAgent()
 
@@ -518,20 +501,6 @@ def test_generate_supervisor_conf_with_key():
     assert "-l label" in conf
     assert "-p path" in conf
     assert "-e TESTKEY=TESTVAL" in conf
-
-
-def test_generate_supervisor_conf_with_token_and_key():
-    # Covers deprecated token based auth colliding with key based auth
-    agent = LocalAgent()
-
-    with pytest.raises(ValueError, match="Given both a API token and API key"):
-        agent.generate_supervisor_conf(
-            token="token",
-            key="key",
-            labels=["label"],
-            import_paths=["path"],
-            env_vars={"TESTKEY": "TESTVAL"},
-        )
 
 
 @pytest.mark.parametrize(

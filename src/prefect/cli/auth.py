@@ -55,9 +55,6 @@ def auth():
         create-key      Create an API key
         list-keys       List details of existing API keys
         revoke-key      Delete an API key from the backend
-        create-token    Create an API token (DEPRECATED)
-        list-tokens     List the names and ids of existing API tokens (DEPRECATED)
-        revoke-token    Delete an API token from the backend (DEPRECATED)
 
     \bExamples:
 
@@ -90,13 +87,8 @@ def auth():
     "-k",
     help="A Prefect Cloud API key.",
 )
-@click.option(
-    "--token",
-    "-t",
-    help="A Prefect Cloud API token. DEPRECATED.",
-)
 @handle_terminal_error
-def login(key, token):
+def login(key):
     """
     Login to Prefect Cloud
 
@@ -112,38 +104,24 @@ def login(key, token):
     this key for all interaction with the API but frequently overrides can be passed to
     individual commands or functions. To remove your key from disk, see
     `prefect auth logout`.
-
-    This command has backwards compatibility support for API tokens, which are a
-    deprecated form of authentication with Prefect Cloud
     """
-    if not key and not token:
-        raise TerminalError("You must supply an API key or token!")
-
-    if key and token:
-        raise TerminalError("You cannot supply both an API key and token")
+    if not key:
+        raise TerminalError("You must supply an API key!")
 
     abort_on_config_api_key(
         "To log in with the CLI, remove the config key `prefect.cloud.api_key`"
     )
 
-    # Attempt to treat the input like an API key even if it is passed as a token
     # Ignore any tenant id that has been previously set via login
-    client = Client(api_key=key or token, tenant_id=None)
+    client = Client(api_key=key, tenant_id=None)
 
     try:
         tenant_id = client._get_auth_tenant()
     except AuthorizationError:
-        if key:  # We'll catch an error again later if using a token
-            raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
+        raise TerminalError("Unauthorized. Invalid Prefect Cloud API key.")
     except ClientError:
         raise TerminalError("Error attempting to communicate with Prefect Cloud.")
     else:
-        if token:
-            click.secho(
-                "WARNING: You logged in with an API key using the `--token` flag "
-                "which is deprecated. Please use `--key` instead.",
-                fg="yellow",
-            )
         client.tenant_id = tenant_id
         client.save_auth_to_disk()
         tenant = TenantView.from_tenant_id(tenant_id)
@@ -152,62 +130,6 @@ def login(key, token):
             fg="green",
         )
         return
-
-        # If there's not a tenant id, we've been given an actual token, fallthrough to
-        # the backwards compatibility token auth
-
-    # Backwards compatibility for tokens
-    if token:
-        check_override_auth_token()
-        client = Client(api_token=token)
-
-        # Verify they're not also using an API key
-        if client.api_key:
-            raise TerminalError(
-                "You have already logged in with an API key and cannot use a token."
-            )
-
-        click.secho(
-            "WARNING: API tokens are deprecated. Please create an API key and use "
-            "`prefect auth login --key <KEY>` to login instead.",
-            fg="yellow",
-        )
-
-        # Verify login obtained a valid api token
-        try:
-            output = client.graphql(
-                query={"query": {"user": {"default_membership": "tenant_id"}}}
-            )
-
-            # Log into default membership
-            success_login = client.login_to_tenant(
-                tenant_id=output.data.user[0].default_membership.tenant_id
-            )
-
-            if not success_login:
-                raise AuthorizationError
-
-        except AuthorizationError:
-            click.secho(
-                "Error attempting to use the given API token. "
-                "Please check that you are providing a USER scoped Personal Access Token "
-                "and consider switching API key.",
-                fg="red",
-            )
-            return
-        except ClientError:
-            click.secho(
-                "Error attempting to communicate with Prefect Cloud. "
-                "Please check that you are providing a USER scoped Personal Access Token "
-                "and consider switching API key.",
-                fg="red",
-            )
-            return
-
-        # save token
-        client.save_api_token()
-
-        click.secho("Login successful!", fg="green")
 
 
 @auth.command(hidden=True)
@@ -357,26 +279,19 @@ def switch_tenants(id, slug, default):
 
     client = Client()
 
-    # Deprecated API token check
     if not client.api_key:
-        check_override_auth_token()
+        raise TerminalError("You are not logged in!")
 
-        if default:
-            raise TerminalError(
-                "The default tenant flag can only be used with API keys."
-            )
-
-    else:  # Using an API key
-        if default:
-            # Clear the set tenant on disk
-            client.tenant_id = None
-            client.save_auth_to_disk()
-            click.secho(
-                "Tenant restored to the default tenant for your API key: "
-                f"{client._get_auth_tenant()}",
-                fg="green",
-            )
-            return
+    if default:
+        # Clear the set tenant on disk
+        client.tenant_id = None
+        client.save_auth_to_disk()
+        click.secho(
+            "Tenant restored to the default tenant for your API key: "
+            f"{client._get_auth_tenant()}",
+            fg="green",
+        )
+        return
 
     login_success = client.login_to_tenant(tenant_slug=slug, tenant_id=id)
     if not login_success:
@@ -388,115 +303,6 @@ def switch_tenants(id, slug, default):
         client.save_auth_to_disk()
 
     click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
-
-
-@auth.command(hidden=True)
-@click.option("--name", "-n", required=True, help="A token name.", hidden=True)
-@click.option("--scope", "-s", required=True, help="A token scopre.", hidden=True)
-def create_token(name, scope):
-    """
-    DEPRECATED. Please use API keys instead.
-
-    Create a Prefect Cloud API token.
-
-    For more info on API tokens visit https://docs.prefect.io/orchestration/concepts/api.html
-
-    \b
-    Options:
-        --name, -n      TEXT    A name to give the generated token
-        --scope, -s     TEXT    A scope for the token
-    """
-    click.secho(
-        "WARNING: API tokens are deprecated. Please use `prefect auth create-key` to "
-        "create an API key instead.",
-        fg="yellow",
-        err=True,  # Write to stderr in case the user is piping
-    )
-
-    client = Client()
-
-    output = client.graphql(
-        query={
-            "mutation($input: create_api_token_input!)": {
-                "create_api_token(input: $input)": {"token"}
-            }
-        },
-        variables=dict(input=dict(name=name, scope=scope)),
-    )
-
-    if not output.get("data", None):
-        click.secho("Issue creating API token", fg="red")
-        return
-
-    click.echo(output.data.create_api_token.token)
-
-
-@auth.command(hidden=True)
-def list_tokens():
-    """
-    DEPRECATED. Please use API keys instead.
-
-    List your available Prefect Cloud API tokens.
-    """
-    click.secho(
-        "WARNING: API tokens are deprecated. Please consider removing your remaining "
-        "tokens and using API keys instead.",
-        fg="yellow",
-        err=True,  # Write to stderr in case the user is piping
-    )
-
-    client = Client()
-    output = client.graphql(query={"query": {"api_token": {"id", "name"}}})
-
-    if not output.get("data", None):
-        click.secho("Unable to list API tokens", fg="red")
-        return
-
-    tokens = []
-    for item in output.data.api_token:
-        tokens.append([item.name, item.id])
-
-    click.echo(
-        tabulate(
-            tokens,
-            headers=["NAME", "ID"],
-            tablefmt="plain",
-            numalign="left",
-            stralign="left",
-        )
-    )
-
-
-@auth.command(hidden=True)
-@click.option("--id", "-i", required=True, help="A token ID.", hidden=True)
-def revoke_token(id):
-    """
-    DEPRECATED. Please use API keys instead.
-
-    Revote a Prefect Cloud API token
-
-    \b
-    Options:
-        --id, -i    TEXT    The id of a token to revoke
-    """
-    check_override_auth_token()
-
-    client = Client()
-
-    output = client.graphql(
-        query={
-            "mutation($input: delete_api_token_input!)": {
-                "delete_api_token(input: $input)": {"success"}
-            }
-        },
-        variables=dict(input=dict(token_id=id)),
-    )
-
-    if not output.get("data", None) or not output.data.delete_api_token.success:
-        click.secho("Unable to revoke token with ID {}".format(id), fg="red")
-        return
-
-    click.secho("Token successfully revoked", fg="green")
 
 
 @auth.command(hidden=True)

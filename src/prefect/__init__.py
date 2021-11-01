@@ -9,7 +9,6 @@ import prefect.schedules
 import prefect.triggers
 import prefect.storage
 import prefect.executors
-import prefect.engine.executors  # deprecated
 import prefect.artifacts
 
 from prefect.core import Task, Flow, Parameter

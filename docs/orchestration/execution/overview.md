@@ -1,7 +1,7 @@
 # Execution Overview
 
 ::: warning
-Flows configured with environments are being deprecated - we recommend users
+Flows configured with environments are being no longer supported - we recommend users
 transition to using "Run Configs" instead. See [flow
 configuration](/orchestration/flow_config/overview.md) and [upgrading
 tips](/orchestration/flow_config/upgrade.md) for more information.
