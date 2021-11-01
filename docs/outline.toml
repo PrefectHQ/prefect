@@ -475,6 +475,14 @@ title = "Jupyter Tasks"
 module = "prefect.tasks.jupyter"
 classes = ["ExecuteNotebook"]
 
+[pages.tasks.kafka]
+title = "Kafka Tasks"
+module = "prefect.tasks.kafka"
+classes = [
+        "KafkaBatchConsume",
+        "KafkaBatchProduce"
+]
+
 [pages.tasks.monday]
 title = "Monday Tasks"
 module = "prefect.tasks.monday"

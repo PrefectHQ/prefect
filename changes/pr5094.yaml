@@ -1,0 +1,5 @@
+enhancement:
+  - "Added Kafka Tasks entry to website docs - (https://github.com/PrefectHQ/prefect/pull/5094)"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
