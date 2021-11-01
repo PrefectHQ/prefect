@@ -416,7 +416,7 @@ class DaskExecutor(Executor):
 
         # _scatter == True will send the futures to Dask workers ahead of time to
         # avoid resubmission and save memory. `client.submit()` handles autoscaling
-        # while `client.scatter() does not`
+        # while `client.scatter()` does not
         _scatter = kwargs.pop("_scatter", False)
 
         if _scatter:
