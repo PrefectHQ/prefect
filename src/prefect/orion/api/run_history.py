@@ -49,14 +49,8 @@ async def run_history(
         state_model = db_interface.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
-    make_timestamp_intervals = db_interface.make_timestamp_intervals
-    json_arr_agg = db_interface.json_arr_agg
-    json_build_object = db_interface.json_build_object
-    json_cast = db_interface.json_cast
-    greatest = db_interface.greatest
-
     # create a CTE for timestamp intervals
-    intervals = make_timestamp_intervals(
+    intervals = db_interface.make_timestamp_intervals(
         history_start,
         history_end,
         history_interval,
@@ -91,7 +85,7 @@ async def run_history(
             # build a JSON object, ignoring the case where the count of runs is 0
             sa.case(
                 (sa.func.count(runs.c.id) == 0, None),
-                else_=json_build_object(
+                else_=db_interface.build_json_object(
                     "state_type",
                     runs.c.state_type,
                     "state_name",
@@ -101,12 +95,14 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
+                        db_interface.max(
+                            0, sa.extract("epoch", runs.c.estimated_run_time)
+                        )
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
-                        greatest(
+                        db_interface.max(
                             0, sa.extract("epoch", runs.c.estimated_start_time_delta)
                         )
                     ),
@@ -137,9 +133,9 @@ async def run_history(
             counts.c.interval_start,
             counts.c.interval_end,
             sa.func.coalesce(
-                json_arr_agg(json_cast(counts.c.state_agg)).filter(
-                    counts.c.state_agg.is_not(None)
-                ),
+                db_interface.json_arr_agg(
+                    db_interface.cast_to_json(counts.c.state_agg)
+                ).filter(counts.c.state_agg.is_not(None)),
                 sa.text("'[]'"),
             ).label("states"),
         )
