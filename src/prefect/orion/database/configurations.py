@@ -1,6 +1,8 @@
+import datetime
 import os
-from typing import List
+import pendulum
 import sqlalchemy as sa
+from typing import List
 from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.orm import as_declarative, sessionmaker
 from sqlalchemy.dialects import postgresql, sqlite
@@ -287,6 +289,30 @@ class OrionDBInterface(metaclass=Singleton):
     async def session_factory(self):
         return await self.db_config.session_factory((await self.engine()))
 
+    @property
+    def make_timestamp_intervals(self):
+        return self.db_config.make_timestamp_intervals
+
+    @property
+    def json_arr_agg(self):
+        return self.db_config.json_arr_agg
+
+    @property
+    def json_build_object(self):
+        return self.db_config.json_build_object
+
+    @property
+    def json_cast(self):
+        return self.db_config.json_cast
+
+    @property
+    def greatest(self):
+        return self.db_config.greatest
+
+    @property
+    def uses_json_strings(self):
+        return self.db_config.uses_json_strings
+
 
 class DatabaseConfigurationBase(ABC):
     @abstractmethod
@@ -311,6 +337,30 @@ class DatabaseConfigurationBase(ABC):
 
     @abstractproperty
     def base_model_mixins():
+        ...
+
+    @abstractproperty
+    def make_timestamp_intervals():
+        ...
+
+    @abstractproperty
+    def json_arr_agg():
+        ...
+
+    @abstractproperty
+    def json_build_object():
+        ...
+
+    @abstractproperty
+    def json_cast():
+        ...
+
+    @abstractproperty
+    def greatest():
+        ...
+
+    @abstractproperty
+    def uses_json_strings():
         ...
 
 
@@ -449,6 +499,53 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+    @property
+    def make_timestamp_intervals(self):
+
+        def postgres_timestamp_intervals(
+            start_time: datetime.datetime,
+            end_time: datetime.datetime,
+            interval: datetime.timedelta,
+        ):
+            # validate inputs
+            start_time = pendulum.instance(start_time)
+            end_time = pendulum.instance(end_time)
+            assert isinstance(interval, datetime.timedelta)
+            return (
+                sa.select(
+                    sa.literal_column("dt").label("interval_start"),
+                    (sa.literal_column("dt") + interval).label("interval_end"),
+                )
+                .select_from(
+                    sa.func.generate_series(start_time, end_time, interval).alias("dt")
+                )
+                .where(sa.literal_column("dt") < end_time)
+                # grab at most 500 intervals
+                .limit(500)
+            )
+
+        return postgres_timestamp_intervals
+
+    @property
+    def json_arr_agg(self):
+        return sa.func.jsonb_agg
+
+    @property
+    def json_build_object(self):
+        return sa.func.jsonb_build_object
+
+    @property
+    def json_cast(self):
+        return lambda x: x
+
+    @property
+    def greatest(self):
+        return sa.func.greatest
+
+    @property
+    def uses_json_strings(self):
+        return False
 
 
 class AioSqliteConfiguration(DatabaseConfigurationBase):
@@ -591,3 +688,73 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+    @property
+    def make_timestamp_intervals(self):
+        from prefect.orion.utilities.database import Timestamp
+
+        def sqlite_timestamp_intervals(
+            start_time: datetime.datetime,
+            end_time: datetime.datetime,
+            interval: datetime.timedelta,
+        ):
+            # validate inputs
+            start_time = pendulum.instance(start_time)
+            end_time = pendulum.instance(end_time)
+            assert isinstance(interval, datetime.timedelta)
+
+            return (
+                sa.text(
+                    r"""
+                    -- recursive CTE to mimic the behavior of `generate_series`,
+                    -- which is only available as a compiled extension
+                    WITH RECURSIVE intervals(interval_start, interval_end, counter) AS (
+                        VALUES(
+                            strftime('%Y-%m-%d %H:%M:%f000', :start_time),
+                            strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval),
+                            1
+                            )
+
+                        UNION ALL
+
+                        SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval), counter + 1
+                        FROM intervals
+                        -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
+                        WHERE
+                            interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
+                            -- don't compute more than 500 intervals
+                            AND counter < 500
+                    )
+                    SELECT * FROM intervals
+                    """
+                )
+                .bindparams(
+                    start_time=str(start_time),
+                    end_time=str(end_time),
+                    interval=f"+{interval.total_seconds()} seconds",
+                    negative_interval=f"-{interval.total_seconds()} seconds",
+                )
+                .columns(interval_start=Timestamp(), interval_end=Timestamp())
+            )
+
+        return sqlite_timestamp_intervals
+
+    @property
+    def json_arr_agg(self):
+        return sa.func.json_group_array
+
+    @property
+    def json_build_object(self):
+        return sa.func.json_object
+
+    @property
+    def json_cast(self):
+        return sa.func.json
+
+    @property
+    def greatest(self):
+        return sa.func.max
+
+    @property
+    def uses_json_strings(self):
+        return True

@@ -7,85 +7,14 @@ import json
 from typing import List
 from typing_extensions import Literal
 
-import pendulum
 import sqlalchemy as sa
-
 
 import pydantic
 from prefect.orion import models, schemas
-from prefect.orion.utilities.database import Timestamp, get_dialect
 from prefect.utilities.logging import get_logger
 from prefect.orion.database.dependencies import inject_db_interface
 
 logger = get_logger("orion.api")
-
-
-def sqlite_timestamp_intervals(
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
-    interval: datetime.timedelta,
-):
-    # validate inputs
-    start_time = pendulum.instance(start_time)
-    end_time = pendulum.instance(end_time)
-    assert isinstance(interval, datetime.timedelta)
-
-    return (
-        sa.text(
-            r"""
-            -- recursive CTE to mimic the behavior of `generate_series`, 
-            -- which is only available as a compiled extension 
-            WITH RECURSIVE intervals(interval_start, interval_end, counter) AS (
-                VALUES(
-                    strftime('%Y-%m-%d %H:%M:%f000', :start_time), 
-                    strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval),
-                    1
-                    )
-                
-                UNION ALL
-                
-                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval), counter + 1
-                FROM intervals
-                -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
-                WHERE 
-                    interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
-                    -- don't compute more than 500 intervals
-                    AND counter < 500
-            )
-            SELECT * FROM intervals
-            """
-        )
-        .bindparams(
-            start_time=str(start_time),
-            end_time=str(end_time),
-            interval=f"+{interval.total_seconds()} seconds",
-            negative_interval=f"-{interval.total_seconds()} seconds",
-        )
-        .columns(interval_start=Timestamp(), interval_end=Timestamp())
-    )
-
-
-def postgres_timestamp_intervals(
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
-    interval: datetime.timedelta,
-):
-    # validate inputs
-    start_time = pendulum.instance(start_time)
-    end_time = pendulum.instance(end_time)
-    assert isinstance(interval, datetime.timedelta)
-    return (
-        sa.select(
-            sa.literal_column("dt").label("interval_start"),
-            (sa.literal_column("dt") + interval).label("interval_end"),
-        )
-        .select_from(
-            sa.func.generate_series(start_time, end_time, interval).alias("dt")
-        )
-        .where(sa.literal_column("dt") < end_time)
-        # grab at most 500 intervals
-        .limit(500)
-    )
 
 
 @inject_db_interface
@@ -120,21 +49,11 @@ async def run_history(
         state_model = db_interface.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
-    # prepare dialect-independent functions
-    if get_dialect(session=session).name == "postgresql":
-        make_timestamp_intervals = postgres_timestamp_intervals
-        json_arr_agg = sa.func.jsonb_agg
-        json_build_object = sa.func.jsonb_build_object
-        # unecessary for postgres
-        json_cast = lambda x: x
-        greatest = sa.func.greatest
-
-    elif get_dialect(session=session).name == "sqlite":
-        make_timestamp_intervals = sqlite_timestamp_intervals
-        json_arr_agg = sa.func.json_group_array
-        json_build_object = sa.func.json_object
-        json_cast = sa.func.json
-        greatest = sa.func.max
+    make_timestamp_intervals = db_interface.make_timestamp_intervals
+    json_arr_agg = db_interface.json_arr_agg
+    json_build_object = db_interface.json_build_object
+    json_cast = db_interface.json_cast
+    greatest = db_interface.greatest
 
     # create a CTE for timestamp intervals
     intervals = make_timestamp_intervals(
@@ -234,9 +153,8 @@ async def run_history(
     result = await session.execute(query)
     records = result.all()
 
-    # sqlite returns JSON as strings so we have to load
-    # and parse the record
-    if get_dialect(session=session).name == "sqlite":
+    # load and parse the record if the database returns JSON as strings
+    if db_interface.uses_json_strings:
         records = [dict(r) for r in records]
         for r in records:
             r["states"] = json.loads(r["states"])
