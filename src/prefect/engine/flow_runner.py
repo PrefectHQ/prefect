@@ -576,6 +576,20 @@ class FlowRunner(Runner):
 
                     submitted_states = []
 
+                    # the next loop submits tasks by repeatedly using executor.submit()
+                    # this causes a lot of duplication unless we use futures to send
+                    # repeatedly used data to the workers ahead of time.
+                    def _no_op(x):
+                        return x
+
+                    # TO-DO: context needs to be submitted too but it is more intertwined
+                    task_fut = executor.submit(_no_op, task, _scatter=True,)
+                    # context_fut = executor.submit(lambda *args: context)
+                    flow_result_fut = executor.submit(_no_op, self.flow.result, _scatter=True)
+                    task_runner_class_fut = executor.submit(_no_op, self.task_runner_cls, _scatter=True)
+                    task_runner_state_handlers_fut = executor.submit(_no_op, task_runner_state_handlers, _scatter=True)
+                    upstream_mapped_states_fut = executor.submit(_no_op, upstream_mapped_states, _scatter=True)
+
                     for idx, states in enumerate(list_of_upstream_states):
                         # if we are on a future rerun of a partially complete flow run,
                         # there might be mapped children in a retrying state; this check
@@ -596,7 +610,7 @@ class FlowRunner(Runner):
                         submitted_states.append(
                             executor.submit(
                                 run_task,
-                                task=task,
+                                task=task_fut,
                                 state=current_state,
                                 upstream_states=states,
                                 context=dict(
@@ -604,10 +618,10 @@ class FlowRunner(Runner):
                                     **task_contexts.get(task, {}),
                                     map_index=idx,
                                 ),
-                                flow_result=self.flow.result,
-                                task_runner_cls=self.task_runner_cls,
-                                task_runner_state_handlers=task_runner_state_handlers,
-                                upstream_mapped_states=upstream_mapped_states,
+                                flow_result=flow_result_fut,
+                                task_runner_cls=task_runner_class_fut,
+                                task_runner_state_handlers=task_runner_state_handlers_fut,
+                                upstream_mapped_states=upstream_mapped_states_fut,
                                 extra_context=extra_context(task, task_index=idx),
                             )
                         )

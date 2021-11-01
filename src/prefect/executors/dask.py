@@ -414,6 +414,15 @@ class DaskExecutor(Executor):
         if self.client is None:
             raise ValueError("This executor has not been started.")
 
+        # _scatter == True will send the futures to Dask workers ahead of time to
+        # avoid resubmission and save memory. `client.submit()` handles autoscaling
+        # while `client.scatter() does not`
+        _scatter = kwargs.pop("_scatter", False)
+
+        if _scatter:
+            fut = self.client.submit(fn, *args, **kwargs)
+            return fut
+
         kwargs.update(self._prep_dask_kwargs(extra_context))
         if self._should_run_event is None:
             fut = self.client.submit(fn, *args, **kwargs)
@@ -618,6 +627,9 @@ class LocalDaskExecutor(Executor):
         """
         # import dask here to reduce prefect import times
         import dask
+
+        # _scatter is a reserved keyword. it just passes through for LocalDaskExecutor
+        kwargs.pop("_scatter", None)
 
         extra_kwargs = {}
         key = _make_task_key(**(extra_context or {}))
