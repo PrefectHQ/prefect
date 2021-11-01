@@ -7,7 +7,6 @@ allow Orion to seamlessly switch between the two.
 
 import datetime
 import json
-import os
 import re
 import uuid
 from typing import List
@@ -23,14 +22,13 @@ from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
 
 from prefect import settings
 
-
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
 
 
 class GenerateUUID(FunctionElement):
     """
     Platform-independent UUID default generator.
-    Note the actual functionality for this class is speficied in the
+    Note the actual functionality for this class is specified in the
     `compiles`-decorated functions below
     """
 

@@ -38,7 +38,8 @@ def start(
 @sync_compatible
 async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
-    engine = await (await provide_database_interface()).engine()
+    db_interface = await provide_database_interface()
+    engine = await db_interface.engine()
     if not yes:
         confirm = typer.confirm(
             f'Are you sure you want to reset the Orion database located at "{engine.url}"? This will drop and recreate all tables.'

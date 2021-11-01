@@ -8,7 +8,10 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
 
-from prefect import settings
+from prefect.orion.database.configurations import (
+    OrionDBInterface,
+    AioSqliteConfiguration,
+)
 from prefect.orion.utilities.database import (
     JSON,
     Pydantic,
@@ -393,3 +396,14 @@ class TestDateFunctions:
             sa.select(interval_add(i_1, i_2)).select_from(SQLTimestampModel)
         )
         assert result.scalar() == datetime.timedelta(days=3, minutes=48)
+
+
+async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
+    monkeypatch.setattr("sqlite3.sqlite_version_info", (3, 23, 9))
+    monkeypatch.setattr("sqlite3.sqlite_version", "3.23.9")
+    with pytest.raises(
+        RuntimeError,
+        match="Orion requires sqlite >= 3.24.0 but we found version 3.23.9",
+    ):
+        db_interface = OrionDBInterface(db_config=AioSqliteConfiguration())
+        await db_interface.engine(connection_url="sqlite+aiosqlite:///file::memory")
