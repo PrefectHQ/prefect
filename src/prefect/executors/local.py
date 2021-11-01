@@ -25,6 +25,8 @@ class LocalExecutor(Executor):
         Returns:
             - Any: the result of `fn(*args, **kwargs)`
         """
+        # _scatter is a reserved keyword. it just passes through for LocalExecutor
+        kwargs.pop("_scatter", None)
         return fn(*args, **kwargs)
 
     def wait(self, futures: Any) -> Any:
