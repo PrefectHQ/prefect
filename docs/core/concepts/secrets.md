@@ -68,7 +68,7 @@ For Cloud users, if the secret is not found in local context and `config.cloud.u
 
 ## Default Secrets
 
-A few common secrets, such as authentication keys for GCP or AWS, have a standard naming convention as Prefect secrets for use by the Prefect pipeline or tasks in Prefect's task library. If you follow this naming convention when storing your secrets, all supported Prefect interactions with those services will be automatically configured.
+A few common secrets, such as authentication keys for GCP or AWS, have a standard naming convention as Prefect secrets for use by the Prefect pipeline or tasks in Prefect's task library. If you follow this naming convention when storing your secrets in Local Context or Environment Variables, all supported Prefect interactions with those services will be automatically configured.
 
 The following is a list of the default names and contents of Prefect Secrets that, if set and declared, can be used to automatically authenticate your flow with the listed service:
 
