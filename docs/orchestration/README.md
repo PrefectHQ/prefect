@@ -50,7 +50,7 @@ Prefect Core ships with an open-source backend and UI that automatically extends
 - A full GraphQL API
 - Automatic and asynchronous scheduling and alerting
 
-We recommend Prefect Core server for local testing and environments with restricted access to cloud services.
+We recommend Prefect Server for local testing and environments with restricted access to cloud services.
 
 Get started by running `prefect server start` and navigate to `http://localhost:8080`.
 
