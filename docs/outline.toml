@@ -384,7 +384,10 @@ classes = [
 [pages.tasks.dbt]
 title = "DBT Tasks"
 module = "prefect.tasks.dbt"
-classes = ["DbtShellTask"]
+classes = [
+        "DbtShellTask",
+        "DbtCloudRunJob"
+        ]
 
 [pages.tasks.asana]
 title = "Asana Tasks"
