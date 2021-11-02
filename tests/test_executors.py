@@ -1,15 +1,8 @@
 import sys
+import time
 from contextlib import contextmanager
 from unittest.mock import MagicMock
 from uuid import uuid4
-
-if sys.version_info < (3, 8):
-    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-    from mock import AsyncMock
-else:
-    from unittest.mock import AsyncMock
-
-import time
 
 import anyio
 import cloudpickle
@@ -18,7 +11,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.executors import DaskExecutor, SequentialExecutor, BaseExecutor
+from prefect.executors import BaseExecutor, DaskExecutor, SequentialExecutor
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
@@ -39,6 +32,23 @@ def dask_executor_with_existing_cluster():
 @contextmanager
 def dask_executor_with_process_pool():
     yield DaskExecutor(cluster_kwargs={"processes": True})
+
+
+@pytest.fixture
+def distributed_client_init(monkeypatch):
+    mock = MagicMock()
+
+    class DistributedClient(distributed.Client):
+        """
+        A patched `distributed.Client` so we can inspect calls to `__init__`
+        """
+
+        def __init__(self, *args, **kwargs):
+            mock(*args, **kwargs)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr("distributed.Client", DistributedClient)
+    return mock
 
 
 @pytest.fixture
@@ -472,36 +482,29 @@ async def test_submit_and_wait(executor):
 
 
 class TestDaskExecutor:
-    async def test_connect_to_running_cluster(self, monkeypatch):
+    async def test_connect_to_running_cluster(self, distributed_client_init):
         with distributed.Client(processes=False, set_as_default=False) as client:
             address = client.scheduler.address
             executor = DaskExecutor(address=address)
             assert executor.address == address
 
-            monkeypatch.setattr("distributed.Client", AsyncMock())
-
             async with executor.start():
                 pass
 
-            distributed.Client.assert_called_once_with(
-                address, **executor.client_kwargs
+            distributed_client_init.assert_called_with(
+                address, asynchronous=True, **executor.client_kwargs
             )
 
-    async def test_start_local_cluster(self, monkeypatch):
+    async def test_start_local_cluster(self, distributed_client_init):
         executor = DaskExecutor(cluster_kwargs={"processes": False})
         assert executor.cluster_class == distributed.LocalCluster
-        assert executor.cluster_kwargs == {
-            "processes": False,
-            "asynchronous": True,
-        }
-
-        monkeypatch.setattr("distributed.Client", AsyncMock())
+        assert executor.cluster_kwargs == {"processes": False}
 
         async with executor.start():
             pass
 
-        distributed.Client.assert_called_once_with(
-            executor._cluster, **executor.client_kwargs
+        distributed_client_init.assert_called_with(
+            executor._cluster, asynchronous=True, **executor.client_kwargs
         )
 
     async def test_adapt_kwargs(self, monkeypatch):
@@ -519,23 +522,20 @@ class TestDaskExecutor:
 
         distributed.LocalCluster.adapt.assert_called_once_with(**adapt_kwargs)
 
-    async def test_client_kwargs(self, monkeypatch):
+    async def test_client_kwargs(self, distributed_client_init):
         executor = DaskExecutor(
-            client_kwargs={"set_as_default": True, "foo": "bar"},
+            client_kwargs={"set_as_default": True, "connection_limit": 100},
         )
         assert executor.client_kwargs == {
             "set_as_default": True,
-            "asynchronous": True,
-            "foo": "bar",
+            "connection_limit": 100,
         }
-
-        monkeypatch.setattr("distributed.Client", AsyncMock())
 
         async with executor.start():
             pass
 
-        distributed.Client.assert_called_once_with(
-            executor._cluster, **executor.client_kwargs
+        distributed_client_init.assert_called_with(
+            executor._cluster, asynchronous=True, **executor.client_kwargs
         )
 
     async def test_cluster_class_string_is_imported(self):
@@ -568,12 +568,19 @@ class TestDaskExecutor:
         _, kwargs = init_method.call_args
         assert kwargs == {"some_kwarg": "some_val", "asynchronous": True}
 
-    def test_cant_specify_both_address_and_cluster_class(self):
+    def test_cannot_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
             DaskExecutor(
                 address="localhost:8787",
                 cluster_class=distributed.LocalCluster,
             )
+
+    def test_cannot_specify_asynchronous(self):
+        with pytest.raises(ValueError, match="`client_kwargs`"):
+            DaskExecutor(client_kwargs={"asynchronous": True})
+
+        with pytest.raises(ValueError, match="`cluster_kwargs`"):
+            DaskExecutor(cluster_kwargs={"asynchronous": True})
 
     def test_nested_dask_executors_warn_on_port_collision_but_succeeds(self):
         @task
