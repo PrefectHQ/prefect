@@ -48,18 +48,18 @@ def trigger_job_run(
     return trigger_request.json()["data"]
 
 
-def get_job_run(
-    account_id: int, token: str, run_id: int, max_attempts: int, wait_interval: int
+def wait_for_job_run(
+    account_id: int, token: str, run_id: int, max_wait_time: int = None
 ) -> dict:
     """
-    Get a dbt Cloud job run
+    Get a dbt Cloud job run.
+    Please note that this function will fail if any call to dbt Cloud APIs fail.
 
     Args:
         - account_id (int): dbt Cloud account ID
         - token (string): dbt Cloud token
         - run_id (int): dbt Cloud job run ID
-        - max_attempts: the maximum number of calls to make to the Get Job Run API
-        - wait_interval: the number of seconds to wait between API calls
+        - max_wait_time: the number od seconds to wait for the job to complete
 
     Returns:
         - The job run result, namely the "data" key in the API response
@@ -67,8 +67,9 @@ def get_job_run(
     Raises:
         - prefect.engine.signals.FAIL: if "finished_at" is not None and the result status != 10
     """
-    attempts = 1
-    while not max_attempts or attempts <= max_attempts:
+    wait_time_between_api_calls = 10
+    elapsed_wait_time = 0
+    while not max_wait_time or elapsed_wait_time <= max_wait_time:
         get_run_request = requests.get(
             url=__DBT_CLOUD_GET_RUN_API_ENDPOINT_V2.format(
                 accountId=account_id, runId=run_id
@@ -87,8 +88,8 @@ def get_job_run(
                 raise FAIL(message=f"Job run with ID: {run_id} failed.")
             elif result["status"] == 30:
                 raise FAIL(message=f"Job run with ID: {run_id} cancelled.")
-        sleep(wait_interval)
-        attempts += 1
+        sleep(wait_time_between_api_calls)
+        elapsed_wait_time += wait_time_between_api_calls
 
     raise FAIL(
         message=f"Max attempts reached while checking status of job run with ID: {run_id}"

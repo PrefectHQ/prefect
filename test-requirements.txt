@@ -3,4 +3,4 @@ testfixtures >= 6.10.3
 pytest-env >= 0.6.0
 pytest-xdist >= 2.0
 flaky >= 3.0
-requests-mock >= 1.9.3
+responses >= 0.14.0

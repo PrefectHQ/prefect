@@ -7,7 +7,7 @@ from prefect.core.task import Task
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.tasks import defaults_from_attrs
 
-from .dbt_cloud_utils import trigger_job_run, get_job_run
+from .dbt_cloud_utils import trigger_job_run, wait_for_job_run
 
 
 class DbtShellTask(ShellTask):
@@ -192,6 +192,7 @@ class DbtCloudRunJob(Task):
     """
     Task for running a dbt Cloud job using dbt Cloud APIs v2.
     For info about dbt Cloud APIs, please refer to https://docs.getdbt.com/dbt-cloud/api-v2
+    Please not that this task will fail if any call to dbt Cloud APIs fails.
 
     Args:
         - cause (string): A string describing the reason for triggering the job run
@@ -218,14 +219,9 @@ class DbtCloudRunJob(Task):
         - wait_for_job_run_completion (boolean, optional):
             Whether the task should wait for the job run completion or not.
             Default to False.
-        - wait_interval (int, optional): The number of seconds to wait between calls to
-            dbt Cloud Get Job API.
-            Default to 10.
+        - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
+            job to finish.
             Used only if wait_for_job_run_completion = True.
-        - max_attempts (int, optional): The maximum number of call to dbt Cloud Get Job API.
-            Default to 10.
-            Used only if wait_for_job_run_completion = True.
-            If set to None, the task will poll the API until it succeed or fail.
 
     Returns:
         - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
@@ -256,8 +252,7 @@ class DbtCloudRunJob(Task):
         job_id_env_var_name: str = "DBT_CLOUD_JOB_ID",
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
-        wait_interval: int = 10,
-        max_attempts: int = None,
+        max_wait_time: int = None
     ):
         super().__init__()
         self.token = token if token else os.environ.get(token_env_var_name, None)
@@ -270,8 +265,7 @@ class DbtCloudRunJob(Task):
         self.cause = cause
         self.additional_args = additional_args
         self.wait_for_job_run_completion = wait_for_job_run_completion
-        self.wait_interval = wait_interval if wait_interval > 0 else 10
-        self.max_attempts = max_attempts
+        self.max_wait_time = max_wait_time
 
     @defaults_from_attrs(
         "cause",
@@ -280,8 +274,7 @@ class DbtCloudRunJob(Task):
         "token",
         "additional_args",
         "wait_for_job_run_completion",
-        "wait_interval",
-        "max_attempts",
+        "max_wait_time"
     )
     def run(
         self,
@@ -294,8 +287,7 @@ class DbtCloudRunJob(Task):
         job_id_env_var_name: str = "JOB_ID",
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
-        wait_interval: int = 10,
-        max_attempts: int = None,
+        max_wait_time: int = None
     ) -> dict:
         """
         All params available to the run method can also be passed during initialization.
@@ -325,14 +317,9 @@ class DbtCloudRunJob(Task):
             - wait_for_job_run_completion (boolean, optional):
                 Whether the task should wait for the job run completion or not.
                 Default to False.
-            - wait_interval (int, optional): The number of seconds to wait between calls to
-                dbt Cloud Get Job API.
-                Default to 10.
+            - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
+                job to finish.
                 Used only if wait_for_job_run_completion = True.
-            - max_attempts (int, optional): The maximum number of call to dbt Cloud Get Job API.
-                Default to 10.
-                Used only if wait_for_job_run_completion = True.
-                If set to None, the task will poll the API until it succeed or fail.
 
         Returns:
             - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
@@ -390,12 +377,11 @@ class DbtCloudRunJob(Task):
         )
         if wait_for_job_run_completion:
 
-            return get_job_run(
+            return wait_for_job_run(
                 account_id=account_id,
                 run_id=run["id"],
                 token=token,
-                max_attempts=max_attempts,
-                wait_interval=wait_interval,
+                max_wait_time=max_wait_time
             )
 
         else:

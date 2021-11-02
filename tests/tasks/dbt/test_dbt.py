@@ -1,7 +1,7 @@
 import os
 import sys
 
-from requests_mock import Mocker
+import responses
 import pytest
 
 from prefect import Flow
@@ -235,36 +235,39 @@ def test_dbt_cloud_run_job_raises_value_error_with_missing_token():
     assert "token cannot be None." in str(exc)
 
 
+@responses.activate
 def test_dbt_cloud_run_job_raises_failure():
     account_id = 1234
     job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=123,
+    )
+
     run_job = DbtCloudRunJob(
         cause="foo", account_id=account_id, job_id=job_id, token="foo"
     )
-    with Mocker() as m:
-        m.register_uri(
-            "POST",
-            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-            status_code=123,
-            reason="foo",
-        )
-        with pytest.raises(FAIL) as exc:
-            run_job.run()
-    assert "foo" in str(exc)
+    with pytest.raises(FAIL):
+        run_job.run()
 
 
+@responses.activate
 def test_dbt_cloud_run_job_trigger_job():
     account_id = 1234
     job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=200,
+        json={"data": {"foo": "bar"}}
+    )
+
     run_job = DbtCloudRunJob(
         cause="foo", account_id=account_id, job_id=job_id, token="foo"
     )
-    with Mocker() as m:
-        m.register_uri(
-            "POST",
-            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
-            status_code=200,
-            json={"data": {"foo": "bar"}},
-        )
-        r = run_job.run()
+    r = run_job.run()
+
     assert r == {"foo": "bar"}
