@@ -233,6 +233,7 @@ def test_generate_flow_run_environ():
     }
 
 
+@pytest.mark.flaky
 class TestWaitForFlowRunStartTime:
     @pytest.fixture()
     def timing_mocks(self, monkeypatch):
@@ -316,7 +317,6 @@ class TestWaitForFlowRunStartTime:
         # Did not sleep
         timing_mocks.sleep.assert_not_called()
 
-    @pytest.mark.flaky
     def test_task_run_is_scheduled_in_the_past(self, timing_mocks):
         timing_mocks.get_flow_run_scheduled_start_time.return_value = None
         timing_mocks.get_next_task_run_start_time.return_value = (
