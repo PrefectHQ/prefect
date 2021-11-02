@@ -447,7 +447,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         return []
 
     @property
-    async def insert(self):
+    def insert(self):
         return postgresql.insert
 
     def run_migrations(self, base_model):
