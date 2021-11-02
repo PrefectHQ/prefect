@@ -5,7 +5,7 @@ import sqlalchemy as sa
 import sqlite3
 
 from abc import ABC, abstractmethod, abstractproperty
-from asyncio import current_task, get_event_loop, get_running_loop
+from asyncio import current_task, get_event_loop
 from sqlalchemy.orm import as_declarative, sessionmaker
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import (
