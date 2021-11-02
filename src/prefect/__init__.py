@@ -1,6 +1,7 @@
 # Internal constants
 from . import _version
 import pathlib as _pathlib
+import os as _os
 
 __version__ = _version.get_versions()["version"]
 # The absolute path to this module
@@ -16,6 +17,9 @@ del _pathlib
 # Prepare settings and logging first
 from prefect.utilities.settings import settings
 from prefect.utilities.logging import setup_logging
+
+if not _os.path.exists(settings.home):
+    _os.makedirs(settings.home, exist_ok=True)
 
 setup_logging(settings)
 
