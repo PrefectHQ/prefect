@@ -102,14 +102,14 @@ class OrionDBInterface(metaclass=Singleton):
             }
         )
 
-        self.db_config = db_config
+        self.config = db_config
         self.Base = self.create_base_model()
         self.create_orm_models()
         self.run_migrations()
 
     def create_base_model(self):
         @as_declarative(metadata=self.base_metadata)
-        class Base(*self.db_config.base_model_mixins, BaseMixin):
+        class Base(*self.config.base_model_mixins, BaseMixin):
             pass
 
         return Base
@@ -235,11 +235,11 @@ class OrionDBInterface(metaclass=Singleton):
 
     def run_migrations(self):
         """Run database migrations"""
-        self.db_config.run_migrations(self.Base)
+        self.config.run_migrations(self.Base)
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        return (self.db_config.insert)(model)
+        return (self.config.insert)(model)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -275,7 +275,7 @@ class OrionDBInterface(metaclass=Singleton):
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        return self.db_config.set_state_id_on_inserted_flow_runs_statement(
+        return self.config.set_state_id_on_inserted_flow_runs_statement(
             self.FlowRun,
             self.FlowRunState,
             inserted_flow_run_ids,
@@ -289,7 +289,7 @@ class OrionDBInterface(metaclass=Singleton):
         cache_key = (loop, connection_url, self.echo, self.timeout)
         if cache_key not in self.ENGINES:
 
-            engine = await self.db_config.engine(
+            engine = await self.config.engine(
                 connection_url,
                 self.echo,
                 self.timeout,
@@ -368,23 +368,23 @@ class OrionDBInterface(metaclass=Singleton):
         end_time: datetime.datetime,
         interval: datetime.timedelta,
     ):
-        return self.db_config.make_timestamp_intervals(start_time, end_time, interval)
+        return self.config.make_timestamp_intervals(start_time, end_time, interval)
 
     @property
     def uses_json_strings(self):
-        return self.db_config.uses_json_strings
+        return self.config.uses_json_strings
 
     def max(self, *values):
-        return self.db_config.max(*values)
+        return self.config.max(*values)
 
     def cast_to_json(self, json_obj):
-        return self.db_config.cast_to_json(json_obj)
+        return self.config.cast_to_json(json_obj)
 
     def build_json_object(self, *args):
-        return self.db_config.build_json_object(*args)
+        return self.config.build_json_object(*args)
 
     def json_arr_agg(self, json_array):
-        return self.db_config.json_arr_agg(json_array)
+        return self.config.json_arr_agg(json_array)
 
 
 class DatabaseConfigurationBase(ABC):
