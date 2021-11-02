@@ -252,7 +252,7 @@ class DbtCloudRunJob(Task):
         job_id_env_var_name: str = "DBT_CLOUD_JOB_ID",
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
-        max_wait_time: int = None
+        max_wait_time: int = None,
     ):
         super().__init__()
         self.token = token if token else os.environ.get(token_env_var_name, None)
@@ -274,7 +274,7 @@ class DbtCloudRunJob(Task):
         "token",
         "additional_args",
         "wait_for_job_run_completion",
-        "max_wait_time"
+        "max_wait_time",
     )
     def run(
         self,
@@ -287,7 +287,7 @@ class DbtCloudRunJob(Task):
         job_id_env_var_name: str = "JOB_ID",
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
-        max_wait_time: int = None
+        max_wait_time: int = None,
     ) -> dict:
         """
         All params available to the run method can also be passed during initialization.
@@ -381,7 +381,7 @@ class DbtCloudRunJob(Task):
                 account_id=account_id,
                 run_id=run["id"],
                 token=token,
-                max_wait_time=max_wait_time
+                max_wait_time=max_wait_time,
             )
 
         else:

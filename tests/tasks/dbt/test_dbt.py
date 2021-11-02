@@ -262,7 +262,7 @@ def test_dbt_cloud_run_job_trigger_job():
         responses.POST,
         f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
         status=200,
-        json={"data": {"foo": "bar"}}
+        json={"data": {"foo": "bar"}},
     )
 
     run_job = DbtCloudRunJob(
