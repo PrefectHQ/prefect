@@ -3,8 +3,9 @@ import os
 import pendulum
 import sqlalchemy as sa
 import sqlite3
-from typing import List, Dict, AsyncGenerator
+
 from abc import ABC, abstractmethod, abstractproperty
+from asyncio import current_task, get_event_loop, get_running_loop
 from sqlalchemy.orm import as_declarative, sessionmaker
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.ext.asyncio import (
@@ -12,9 +13,7 @@ from sqlalchemy.ext.asyncio import (
     async_scoped_session,
     create_async_engine,
 )
-from asyncio import current_task, get_event_loop
-
-
+from typing import List, Dict, AsyncGenerator
 from prefect import settings
 from prefect.orion.database.mixins import (
     BaseMixin,
@@ -27,52 +26,6 @@ from prefect.orion.database.mixins import (
     DeploymentMixin,
     SavedSearchMixin,
 )
-
-ENGINES = {}  # TODO - put this in the connection abstraction?
-ENGINE_DISPOSAL: Dict[tuple, AsyncGenerator] = {}
-SESSION_FACTORIES = {}
-
-
-async def schedule_engine_disposal(cache_key):
-    """
-    Dispose of an engine once the event loop is closing.
-
-    Requires use of `asyncio.run()` which waits for async generator shutdown by default
-    or explicit call of `asyncio.shutdown_asyncgens()`. If the application is entered
-    with `asyncio.run_until_complete()` and the user calls `asyncio.close()` without
-    the generator shutdown call, this will not dispose the engine. As an alternative
-    to suggesting users call `shutdown_asyncgens` (which can interfere with other
-    async generators), `dispose_all_engines` is provided as a cleanup method.
-
-    asyncio does not provided _any_ other way to clean up a resource when the event
-    loop is about to close. We attempted to lazily clean up old engines when new engines
-    are created, but if the loop the engine is attached to is already closed then the
-    connections cannot be cleaned up properly and warnings are displayed.
-
-    Engine disposal should only be important when running the application ephemerally.
-    Notably, this is an issue in our tests where many short-lived event loops and
-    engines are created which can consume all of the available database connection
-    slots. Users operating at a scale where connection limits are encountered should
-    be encouraged to use a standalone server.
-    """
-
-    async def dispose_engine(cache_key):
-        try:
-            yield
-        except GeneratorExit:
-            engine = ENGINES.pop(cache_key, None)
-            if engine:
-                await engine.dispose()
-
-            # Drop this iterator from the disposal just to keep things clean
-            ENGINE_DISPOSAL.pop(cache_key)
-
-    # Create the iterator and store it in a global variable so it is not cleaned up
-    # when this function scope ends
-    ENGINE_DISPOSAL[cache_key] = dispose_engine(cache_key).__aiter__()
-
-    # Begin iterating so it will be cleaned up as an incomplete generator
-    await ENGINE_DISPOSAL[cache_key].__anext__()
 
 
 async def create_db(engine=None):  # TODO - should go somewhere else
@@ -125,6 +78,10 @@ class OrionDBInterface(metaclass=Singleton):
     # this also allows us to avoid having to specify names explicitly
     # when using sa.ForeignKey.use_alter = True
     # https://docs.sqlalchemy.org/en/14/core/constraints.html
+
+    ENGINES = dict()
+    SESSION_FACTORIES = dict()
+    ENGINE_DISPOSAL_QUEUE: Dict[tuple, AsyncGenerator] = dict()
 
     def __init__(
         self,
@@ -326,13 +283,84 @@ class OrionDBInterface(metaclass=Singleton):
         )
 
     async def engine(self, connection_url=None):
+        loop = get_event_loop()
         connection_url = connection_url or self.connection_url()
-        return await self.db_config.engine(
-            connection_url, self.echo, self.timeout
-        )
+
+        cache_key = (loop, connection_url, self.echo, self.timeout)
+        if cache_key not in self.ENGINES:
+
+            engine = await self.db_config.engine(
+                connection_url,
+                self.echo,
+                self.timeout,
+            )
+
+            self.ENGINES[cache_key] = engine
+
+        await self.schedule_engine_disposal(cache_key)
+        return self.ENGINES[cache_key]
+
+    async def schedule_engine_disposal(self, cache_key):
+        """
+        Dispose of an engine once the event loop is closing.
+
+        Requires use of `asyncio.run()` which waits for async generator shutdown by default
+        or explicit call of `asyncio.shutdown_asyncgens()`. If the application is entered
+        with `asyncio.run_until_complete()` and the user calls `asyncio.close()` without
+        the generator shutdown call, this will not dispose the engine. As an alternative
+        to suggesting users call `shutdown_asyncgens` (which can interfere with other
+        async generators), `dispose_all_engines` is provided as a cleanup method.
+
+        asyncio does not provided _any_ other way to clean up a resource when the event
+        loop is about to close. We attempted to lazily clean up old engines when new engines
+        are created, but if the loop the engine is attached to is already closed then the
+        connections cannot be cleaned up properly and warnings are displayed.
+
+        Engine disposal should only be important when running the application ephemerally.
+        Notably, this is an issue in our tests where many short-lived event loops and
+        engines are created which can consume all of the available database connection
+        slots. Users operating at a scale where connection limits are encountered should
+        be encouraged to use a standalone server.
+        """
+
+        async def dispose_engine(cache_key):
+            try:
+                yield
+            except GeneratorExit:
+                engine = self.ENGINES.pop(cache_key, None)
+                if engine:
+                    await engine.dispose()
+
+                # Drop this iterator from the disposal just to keep things clean
+                self.ENGINE_DISPOSAL_QUEUE.pop(cache_key)
+
+        # Create the iterator and store it in a global variable so it is not cleaned up
+        # when this function scope ends
+        self.ENGINE_DISPOSAL_QUEUE[cache_key] = dispose_engine(cache_key).__aiter__()
+
+        # Begin iterating so it will be cleaned up as an incomplete generator
+        await self.ENGINE_DISPOSAL_QUEUE[cache_key].__anext__()
+
+    async def clear_engine_cache(self):
+        self.ENGINES.clear()
 
     async def session_factory(self):
-        return await self.db_config.session_factory((await self.engine()))
+        loop = get_event_loop()
+        bind = await self.engine()
+        cache_key = (loop, bind)
+        if cache_key not in self.SESSION_FACTORIES:
+
+            session_factory = sessionmaker(
+                bind,
+                future=True,
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+
+            session = async_scoped_session(session_factory, scopefunc=current_task)
+            self.SESSION_FACTORIES[cache_key] = session
+
+        return self.SESSION_FACTORIES[cache_key]
 
     def make_timestamp_intervals(
         self,
@@ -366,10 +394,6 @@ class DatabaseConfigurationBase(ABC):
 
     @abstractmethod
     async def engine():
-        ...
-
-    @abstractmethod
-    async def session_factory():
         ...
 
     @abstractmethod
@@ -482,54 +506,13 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         Returns:
             sa.engine.Engine: a SQLAlchemy engine
         """
+        kwargs = dict()
 
-        loop = get_event_loop()
-        cache_key = (loop, connection_url, echo, timeout)
-        if cache_key not in ENGINES:
-            kwargs = {}
+        # apply database timeout
+        if timeout is not None:
+            kwargs["connect_args"] = dict(command_timeout=timeout)
 
-            # apply database timeout
-            if timeout is not None:
-                kwargs["connect_args"] = dict(command_timeout=timeout)
-
-            engine = create_async_engine(connection_url, echo=echo, **kwargs)
-
-            ENGINES[cache_key] = engine
-        return ENGINES[cache_key]
-
-    async def session_factory(
-        self,
-        bind,
-    ) -> async_scoped_session:
-        """Retrieves a SQLAlchemy session factory for the provided bind.
-        The session factory is cached for each event loop.
-
-        Args:
-            engine (Union[sa.engine.Engine, sa.engine.Connection], optional): An
-                async SQLAlchemy engine or connection. If none is
-                provided, `get_engine()` is called to recover one.
-
-        Returns:
-            sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
-        """
-
-        loop = get_event_loop()
-        cache_key = (loop, bind)
-        if cache_key not in SESSION_FACTORIES:
-            # create session factory
-            session_factory = sessionmaker(
-                bind,
-                future=True,
-                expire_on_commit=False,
-                class_=AsyncSession,
-            )
-
-            # create session factory with async scoping
-            SESSION_FACTORIES[cache_key] = async_scoped_session(
-                session_factory, scopefunc=current_task
-            )
-
-        return SESSION_FACTORIES[cache_key]
+        return create_async_engine(connection_url, echo=echo, **kwargs)
 
     def set_state_id_on_inserted_flow_runs_statement(
         self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
@@ -624,77 +607,36 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         Returns:
             sa.engine.Engine: a SQLAlchemy engine
         """
+        kwargs = {}
 
-        loop = get_event_loop()
-        cache_key = (loop, connection_url, echo, timeout)
-        if cache_key not in ENGINES:
-            kwargs = {}
+        # apply database timeout
+        if timeout is not None:
+            kwargs["connect_args"] = dict(timeout=timeout)
 
-            # apply database timeout
-            if timeout is not None:
-                kwargs["connect_args"] = dict(timeout=timeout)
+        # ensure a long-lasting pool is used with in-memory databases
+        # because they disappear when the last connection closes
+        if ":memory:" in connection_url:
+            kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
-            # ensure a long-lasting pool is used with in-memory databases
-            # because they disappear when the last connection closes
-            if ":memory:" in connection_url:
-                kwargs.update(poolclass=sa.pool.SingletonThreadPool)
+        engine = create_async_engine(connection_url, echo=echo, **kwargs)
+        sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
 
-            engine = create_async_engine(connection_url, echo=echo, **kwargs)
-            sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
-
-            if sqlite3.sqlite_version_info < self.MIN_SQLITE_VERSION:
-                required = ".".join(str(v) for v in self.MIN_SQLITE_VERSION)
-                raise RuntimeError(
-                    f"Orion requires sqlite >= {required} but we found version "
-                    f"{sqlite3.sqlite_version}"
-                )
-
-            # if this is a new sqlite database create all database objects
-            if (
-                ":memory:" in engine.url.database
-                or "mode=memory" in engine.url.database
-                or not os.path.exists(engine.url.database)
-            ):
-                await create_db(engine=engine)
-
-            await schedule_engine_disposal(cache_key)
-
-            ENGINES[cache_key] = engine
-        return ENGINES[cache_key]
-
-    async def session_factory(
-        self,
-        bind,
-    ) -> async_scoped_session:
-        """Retrieves a SQLAlchemy session factory for the provided bind.
-        The session factory is cached for each event loop.
-
-        Args:
-            engine (Union[sa.engine.Engine, sa.engine.Connection], optional): An
-                async SQLAlchemy engine or connection. If none is
-                provided, `get_engine()` is called to recover one.
-
-        Returns:
-            sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
-        """
-
-        loop = get_event_loop()
-        cache_key = (loop, bind)
-        if cache_key not in SESSION_FACTORIES:
-            # create session factory
-            session_factory = sessionmaker(
-                bind,
-                future=True,
-                expire_on_commit=False,
-                class_=AsyncSession,
+        if sqlite3.sqlite_version_info < self.MIN_SQLITE_VERSION:
+            required = ".".join(str(v) for v in self.MIN_SQLITE_VERSION)
+            raise RuntimeError(
+                f"Orion requires sqlite >= {required} but we found version "
+                f"{sqlite3.sqlite_version}"
             )
 
-            # create session factory with async scoping
-            SESSION_FACTORIES[cache_key] = async_scoped_session(
-                session_factory, scopefunc=current_task
-            )
+        # if this is a new sqlite database create all database objects
+        if (
+            ":memory:" in engine.url.database
+            or "mode=memory" in engine.url.database
+            or not os.path.exists(engine.url.database)
+        ):
+            await create_db(engine=engine)
 
-        return SESSION_FACTORIES[cache_key]
+        return engine
 
     def setup_sqlite(self, conn, named=True):
         """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the

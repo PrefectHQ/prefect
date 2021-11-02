@@ -1,11 +1,9 @@
 import datetime
-from typing import List
 
 import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect import settings
 from prefect.orion import models, schemas
 
 from prefect.orion.schemas import states
@@ -15,7 +13,6 @@ from prefect.orion.orchestration.rules import (
 )
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.configurations import ENGINES
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -31,7 +28,7 @@ async def database_engine(db_interface):
         yield engine
     finally:
         await engine.dispose()
-        ENGINES.clear()
+        await db_interface.clear_engine_cache()
 
 
 @pytest.fixture
