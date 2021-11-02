@@ -1,24 +1,24 @@
 # PagerDuty + Prefect
 
-Using the PagerDuty integration with Prefect, you can receive PagerDuty alerts based on events raised by your Flow runs and agents.
+Using the PagerDuty integration with Prefect, you can receive PagerDuty alerts based on events raised by your Flow runs and Agents.
 
 ## Integration benefits
 
 * Notify on-call responders based on Prefect automation rules.
-* Send event data from Prefect with links to the flow run and agents that triggered the event.
+* Send event data from Prefect with links to the flow run and Agent that triggered the event.
 * Create high- and low-urgency incidents based on the severity of the event from the Prefect event payload.
-* Create multiple integrations in a PagerDuty service for corresponding Prefect flows and agents. 
+* Create multiple integrations in a PagerDuty service for corresponding Prefect flows and Agents. 
 * Use a single integration key to create multiple actions that can be used by many automation rules in Prefect.
 
 ## How it works
 
-You can define [automations](/orchestration/concepts/automations.html) for flow runs and agents, then be alerted in PagerDuty. Automations can be set up to notify about flow run state changes, SLAs on scheduled flow runs, and the health of agents. 
+You can define [automations](/orchestration/concepts/automations.html) for flow runs and Agents, then be alerted in PagerDuty. Automations can be set up to notify about flow run state changes, SLAs on scheduled flow runs, and the health of Agents. 
 
 With the PagerDuty + Prefect integration you can set up actions for one or more PagerDuty integration keys, then assign those actions to the automations. If a Prefect automation is triggered, Prefect sends an alert to the incident queue in PagerDuty. 
 
 ## Requirements
 
-The PagerDuty integration requires Prefect automation, which are supported in the [Prefect Cloud Standard or Enterprise plans](https://www.prefect.io/pricing/).
+The PagerDuty integration requires Prefect automations, which are supported in the [Prefect Cloud Standard or Enterprise plans](https://www.prefect.io/pricing/).
 
 Teams using [Role Based Access Controls (RBAC)](/orchestration/rbac/overview.html) need to set appropriate User level permissions to create, update, and delete automations.
 
@@ -39,7 +39,7 @@ First, make sure you have a configured PagerDuty service to connect with Prefect
 There are two ways to add an integration to a PagerDuty service:
 
 * **If you are adding your integration to an existing service**: Click the **name** of the service you want to add the integration to. Then, select the **Integrations** tab and click the **New Integration** button.
-* **If you are creating a new service for your integration**: Please read the PagerDuty documentation [Configuring Services and Integrations](https://support.pagerduty.com/docs/services-and-integrations#section-configuring-services-and-integrations) and follow the steps outlined in [Create a New Service](https://support.pagerduty.com/docs/services-and-integrations#section-create-a-new-service) section, selecting **PREFECT** as the **Integration Type** in step 4. Continue with the [In Prefect](#in-prefect) section below once you have finished these steps.
+* **If you are creating a new service for your integration**: Please read the PagerDuty documentation [Configuring Services and Integrations](https://support.pagerduty.com/docs/services-and-integrations#section-configuring-services-and-integrations) and follow the steps outlined in the [Create a New Service](https://support.pagerduty.com/docs/services-and-integrations#section-create-a-new-service) section, selecting **PREFECT** as the **Integration Type** in step 4. Continue with the [In Prefect](#in-prefect) section below once you have finished these steps.
 
 Enter an **Integration Name** in the format `monitoring-tool-service-name` (for example, "PREFECT-FLOW-AUTOMATION-EXAMPLE") and select **PREFECT** from the **Integration Type** menu.
 
