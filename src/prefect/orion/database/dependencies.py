@@ -2,6 +2,7 @@
 Injected models dependencies
 """
 
+from contextlib import asynccontextmanager
 from functools import wraps
 
 
@@ -52,3 +53,13 @@ def inject_db_interface(fn):
             return await fn(*args, **kwargs)
 
     return wrapper
+
+
+@asynccontextmanager
+def temporary_db_config(tmp_config):
+    starting_config = MODELS_DEPENDENCIES["database_configuration"]
+    try:
+        MODELS_DEPENDENCIES["database_configuration"] = tmp_config
+        yield
+    finally:
+        MODELS_DEPENDENCIES["database_configuration"] = starting_config
