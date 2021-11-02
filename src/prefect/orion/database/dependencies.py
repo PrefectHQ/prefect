@@ -9,12 +9,12 @@ MODELS_DEPENDENCIES = {"database_configuration": None}
 
 
 async def provide_database_interface():
-    from prefect.orion.database.configurations import OrionDBInterface
+    from prefect.orion.database.interface import OrionDBInterface
 
     provided_config = MODELS_DEPENDENCIES.get("database_configuration")
 
     if provided_config is None:
-        from prefect.orion.database.configurations import (
+        from prefect.orion.database.interface import (
             AsyncPostgresConfiguration,
             AioSqliteConfiguration,
         )

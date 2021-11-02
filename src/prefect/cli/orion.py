@@ -9,7 +9,7 @@ from prefect.cli.base import app, console, exit_with_error, exit_with_success
 
 from prefect.utilities.asyncio import sync_compatible, run_async_in_new_loop
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.configurations import create_db, drop_db
+from prefect.orion.database.interface import create_db, drop_db
 
 
 orion_app = typer.Typer(name="orion")

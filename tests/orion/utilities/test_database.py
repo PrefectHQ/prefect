@@ -8,7 +8,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
 
-from prefect.orion.database.configurations import (
+from prefect.orion.database.interface import (
     OrionDBInterface,
     AioSqliteConfiguration,
 )
