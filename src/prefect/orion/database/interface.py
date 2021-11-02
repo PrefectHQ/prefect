@@ -333,7 +333,7 @@ class OrionDBInterface(metaclass=Singleton):
                     await engine.dispose()
 
                 # Drop this iterator from the disposal just to keep things clean
-                self.ENGINE_DISPOSAL_QUEUE.pop(cache_key)
+                self.ENGINE_DISPOSAL_QUEUE.pop(cache_key, None)
 
         # Create the iterator and store it in a global variable so it is not cleaned up
         # when this function scope ends
