@@ -188,7 +188,7 @@ async def schedule_engine_disposal(cache_key):
     be encouraged to use a standalone server.
     """
 
-    async def dispose_engine(cache_key):
+    async def engine_disposal_gen(cache_key):
         try:
             yield
         except GeneratorExit:
@@ -197,11 +197,13 @@ async def schedule_engine_disposal(cache_key):
                 await engine.dispose()
 
             # Drop this iterator from the disposal just to keep things clean
-            ENGINE_DISPOSAL.pop(cache_key)
+            # Set a default return value since during bad-application exits the cache
+            # can be broken and throwing additional exceptions here is not helpful
+            ENGINE_DISPOSAL.pop(cache_key, None)
 
     # Create the iterator and store it in a global variable so it is not cleaned up
     # when this function scope ends
-    ENGINE_DISPOSAL[cache_key] = dispose_engine(cache_key).__aiter__()
+    ENGINE_DISPOSAL[cache_key] = engine_disposal_gen(cache_key).__aiter__()
 
     # Begin iterating so it will be cleaned up as an incomplete generator
     await ENGINE_DISPOSAL[cache_key].__anext__()
