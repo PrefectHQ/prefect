@@ -8,10 +8,8 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
 
-from prefect.orion.database.interface import (
-    OrionDBInterface,
-    AioSqliteConfiguration,
-)
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.database.configurations import AioSqliteConfiguration
 from prefect.orion.utilities.database import (
     JSON,
     Pydantic,
