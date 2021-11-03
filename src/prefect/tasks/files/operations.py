@@ -205,7 +205,7 @@ class Glob(Task):
         Args:
             - path (Union[str, Path], optional): directory path
             - pattern (str, optional): glob pattern, defaults to *.
-            For more details on pattern options,refer to the
+            For more details on pattern options, refer to the
             [pathlib documentation](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob)
 
         Returns:
