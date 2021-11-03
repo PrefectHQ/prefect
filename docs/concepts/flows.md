@@ -187,4 +187,4 @@ Subflows differ from parent flows in the following ways:
 
 Subflows manage their own [executors](/concepts/executors/) and will block until completion of all of their tasks. Subflows return a `State` upon completion.
 
-Default subflow behavior may block parallel subflows in a synchronous flow, but you can perform asynchronous subflows concurrently by using a task group or the Python [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6) coroutine.
+Default subflow behavior may block parallel subflows in a synchronous flow, but you can perform asynchronous subflows concurrently by using an [anyio task group](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
