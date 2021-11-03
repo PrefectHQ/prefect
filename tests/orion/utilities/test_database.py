@@ -403,5 +403,5 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
         RuntimeError,
         match="Orion requires sqlite >= 3.24.0 but we found version 3.23.9",
     ):
-        db_interface = OrionDBInterface(db_config=AioSqliteConfiguration())
-        await db_interface.engine(connection_url="sqlite+aiosqlite:///file::memory")
+        db = OrionDBInterface(db_config=AioSqliteConfiguration())
+        await db.engine(connection_url="sqlite+aiosqlite:///file::memory")

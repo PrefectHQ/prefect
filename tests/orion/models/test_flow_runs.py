@@ -27,7 +27,7 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == flow.id
         assert flow_run.state is None
 
-    async def test_create_flow_run_with_state(self, flow, session, db_interface):
+    async def test_create_flow_run_with_state(self, flow, session, db):
         state_id = uuid4()
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
@@ -42,14 +42,14 @@ class TestCreateFlowRun:
         assert flow_run.state.id == state_id
 
         query = await session.execute(
-            sa.select(db_interface.FlowRunState).filter_by(id=state_id)
+            sa.select(db.FlowRunState).filter_by(id=state_id)
         )
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"
 
     async def test_create_flow_run_with_state_and_idempotency_key(
-        self, flow, session, db_interface
+        self, flow, session, db
     ):
         scheduled_state_id = uuid4()
         running_state_id = uuid4()
@@ -81,7 +81,7 @@ class TestCreateFlowRun:
         assert running_flow_run.state.id == scheduled_state_id
 
         query = await session.execute(
-            sa.select(db_interface.FlowRunState).filter_by(id=scheduled_state_id)
+            sa.select(db.FlowRunState).filter_by(id=scheduled_state_id)
         )
         result = query.scalar()
         assert result.id == scheduled_state_id
@@ -139,9 +139,9 @@ class TestCreateFlowRun:
         assert flow_run.id == anotha_flow_run.id
 
     async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
-        self, flow, session, db_interface
+        self, flow, session, db
     ):
-        flow2 = db_interface.Flow(name="another flow")
+        flow2 = db.Flow(name="another flow")
         session.add(flow2)
         await session.flush()
 
@@ -265,8 +265,8 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, session, db_interface):
-        await session.execute(sa.delete(db_interface.FlowRun))
+    async def flow_runs(self, flow, session, db):
+        await session.execute(sa.delete(db.FlowRun))
 
         flow_2 = await models.flows.create_flow(
             session=session,

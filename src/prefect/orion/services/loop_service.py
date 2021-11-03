@@ -7,7 +7,7 @@ import asyncio
 import pendulum
 from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 
-from prefect.orion.database.dependencies import inject_db_interface
+from prefect.orion.database.dependencies import inject_db
 from prefect.utilities.logging import get_logger
 
 
@@ -33,14 +33,14 @@ class LoopService:
         self.name = type(self).__name__
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
-    @inject_db_interface
-    async def setup(self, db_interface=None) -> None:
+    @inject_db
+    async def setup(self, db=None) -> None:
         """
         Called prior to running the service
         """
         # prepare a database engine
         # this call is cached and shared across services if possible
-        self.session_factory = await db_interface.session_factory()
+        self.session_factory = await db.session_factory()
 
     async def shutdown(self) -> None:
         """

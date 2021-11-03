@@ -13,14 +13,14 @@ from sqlalchemy import delete, select
 
 import prefect
 from prefect.orion import schemas
-from prefect.orion.database.dependencies import inject_db_interface
+from prefect.orion.database.dependencies import inject_db
 
 
-@inject_db_interface
+@inject_db
 async def create_deployment(
     session: sa.orm.Session,
     deployment: schemas.core.Deployment,
-    db_interface=None,
+    db=None,
 ):
     """Upserts a deployment.
 
@@ -29,7 +29,7 @@ async def create_deployment(
         deployment: a deployment model
 
     Returns:
-        db_interface.Deployment: the newly-created or updated deployment
+        db.Deployment: the newly-created or updated deployment
 
     """
 
@@ -39,10 +39,10 @@ async def create_deployment(
     deployment.updated = pendulum.now("UTC")
 
     insert_stmt = (
-        (await db_interface.insert(db_interface.Deployment))
+        (await db.insert(db.Deployment))
         .values(**deployment.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_update(
-            index_elements=db_interface.deployment_unique_upsert_columns,
+            index_elements=db.deployment_unique_upsert_columns,
             set_=deployment.dict(
                 shallow=True,
                 include={
@@ -60,11 +60,11 @@ async def create_deployment(
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(db_interface.Deployment)
+        sa.select(db.Deployment)
         .where(
             sa.and_(
-                db_interface.Deployment.flow_id == deployment.flow_id,
-                db_interface.Deployment.name == deployment.name,
+                db.Deployment.flow_id == deployment.flow_id,
+                db.Deployment.name == deployment.name,
             )
         )
         .execution_options(populate_existing=True)
@@ -75,11 +75,11 @@ async def create_deployment(
     return model
 
 
-@inject_db_interface
+@inject_db
 async def read_deployment(
     session: sa.orm.Session,
     deployment_id: UUID,
-    db_interface=None,
+    db=None,
 ):
     """Reads a deployment by id.
 
@@ -88,18 +88,18 @@ async def read_deployment(
         deployment_id: a deployment id
 
     Returns:
-        db_interface.Deployment: the deployment
+        db.Deployment: the deployment
     """
 
-    return await session.get(db_interface.Deployment, deployment_id)
+    return await session.get(db.Deployment, deployment_id)
 
 
-@inject_db_interface
+@inject_db
 async def read_deployment_by_name(
     session: sa.orm.Session,
     name: str,
     flow_name: str,
-    db_interface=None,
+    db=None,
 ):
     """Reads a deployment by name.
 
@@ -109,18 +109,18 @@ async def read_deployment_by_name(
         flow_name: the name of the flow the deployment belongs to
 
     Returns:
-        db_interface.Deployment: the deployment
+        db.Deployment: the deployment
     """
 
     result = await session.execute(
-        select(db_interface.Deployment)
+        select(db.Deployment)
         .join(
-            db_interface.Flow, db_interface.Deployment.flow_id == db_interface.Flow.id
+            db.Flow, db.Deployment.flow_id == db.Flow.id
         )
         .where(
             sa.and_(
-                db_interface.Flow.name == flow_name,
-                db_interface.Deployment.name == name,
+                db.Flow.name == flow_name,
+                db.Deployment.name == name,
             )
         )
         .limit(1)
@@ -128,14 +128,14 @@ async def read_deployment_by_name(
     return result.scalar()
 
 
-@inject_db_interface
+@inject_db
 async def _apply_deployment_filters(
     query,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db_interface=None,
+    db=None,
 ):
     """
     Applies filters to a deployment query as a combination of EXISTS subqueries.
@@ -145,24 +145,24 @@ async def _apply_deployment_filters(
         query = query.where((await deployment_filter.as_sql_filter()))
 
     if flow_filter:
-        exists_clause = select(db_interface.Deployment.id).where(
-            db_interface.Deployment.flow_id == db_interface.Flow.id,
+        exists_clause = select(db.Deployment.id).where(
+            db.Deployment.flow_id == db.Flow.id,
             (await flow_filter.as_sql_filter()),
         )
 
         query = query.where(exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(db_interface.FlowRun).where(
-            db_interface.Deployment.id == db_interface.FlowRun.deployment_id
+        exists_clause = select(db.FlowRun).where(
+            db.Deployment.id == db.FlowRun.deployment_id
         )
 
         if flow_run_filter:
             exists_clause = exists_clause.where((await flow_run_filter.as_sql_filter()))
         if task_run_filter:
             exists_clause = exists_clause.join(
-                db_interface.TaskRun,
-                db_interface.TaskRun.flow_run_id == db_interface.FlowRun.id,
+                db.TaskRun,
+                db.TaskRun.flow_run_id == db.FlowRun.id,
             ).where((await task_run_filter.as_sql_filter()))
 
         query = query.where(exists_clause.exists())
@@ -170,7 +170,7 @@ async def _apply_deployment_filters(
     return query
 
 
-@inject_db_interface
+@inject_db
 async def read_deployments(
     session: sa.orm.Session,
     offset: int = None,
@@ -179,7 +179,7 @@ async def read_deployments(
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db_interface=None,
+    db=None,
 ):
     """
     Read deployments.
@@ -195,10 +195,10 @@ async def read_deployments(
 
 
     Returns:
-        List[db_interface.Deployment]: deployments
+        List[db.Deployment]: deployments
     """
 
-    query = select(db_interface.Deployment).order_by(db_interface.Deployment.name)
+    query = select(db.Deployment).order_by(db.Deployment.name)
 
     query = await _apply_deployment_filters(
         query=query,
@@ -206,7 +206,7 @@ async def read_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
-        db_interface=db_interface,
+        db=db,
     )
 
     if offset is not None:
@@ -218,14 +218,14 @@ async def read_deployments(
     return result.scalars().unique().all()
 
 
-@inject_db_interface
+@inject_db
 async def count_deployments(
     session: sa.orm.Session,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db_interface=None,
+    db=None,
 ) -> int:
     """
     Count deployments.
@@ -241,7 +241,7 @@ async def count_deployments(
         int: the number of deployments matching filters
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(db_interface.Deployment)
+    query = select(sa.func.count(sa.text("*"))).select_from(db.Deployment)
 
     query = await _apply_deployment_filters(
         query=query,
@@ -249,16 +249,16 @@ async def count_deployments(
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
-        db_interface=db_interface,
+        db=db,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-@inject_db_interface
+@inject_db
 async def delete_deployment(
-    session: sa.orm.Session, deployment_id: UUID, db_interface=None
+    session: sa.orm.Session, deployment_id: UUID, db=None
 ) -> bool:
     """
     Delete a deployment by id.
@@ -272,21 +272,21 @@ async def delete_deployment(
     """
 
     result = await session.execute(
-        delete(db_interface.Deployment).where(
-            db_interface.Deployment.id == deployment_id
+        delete(db.Deployment).where(
+            db.Deployment.id == deployment_id
         )
     )
     return result.rowcount > 0
 
 
-@inject_db_interface
+@inject_db
 async def schedule_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     start_time: datetime.datetime = None,
     end_time: datetime.datetime = None,
     max_runs: int = None,
-    db_interface=None,
+    db=None,
 ):
     if max_runs is None:
         max_runs = prefect.settings.orion.services.scheduler_max_runs
@@ -309,14 +309,14 @@ async def schedule_runs(
     return await _insert_scheduled_flow_runs(session=session, runs=runs)
 
 
-@inject_db_interface
+@inject_db
 async def _generate_scheduled_flow_runs(
     session: sa.orm.Session,
     deployment_id: UUID,
     start_time: datetime.datetime,
     end_time: datetime.datetime,
     max_runs: int,
-    db_interface=None,
+    db=None,
 ) -> List[schemas.core.FlowRun]:
     """
     Given a `deployment_id` and schedule, generates a list of flow run objects and
@@ -327,7 +327,7 @@ async def _generate_scheduled_flow_runs(
     runs = []
 
     # retrieve the deployment
-    deployment = await session.get(db_interface.Deployment, deployment_id)
+    deployment = await session.get(db.Deployment, deployment_id)
 
     if not deployment or not deployment.schedule or not deployment.is_schedule_active:
         return []
@@ -357,11 +357,11 @@ async def _generate_scheduled_flow_runs(
     return runs
 
 
-@inject_db_interface
+@inject_db
 async def _insert_scheduled_flow_runs(
     session: sa.orm.Session,
     runs: List[schemas.core.FlowRun],
-    db_interface=None,
+    db=None,
 ) -> List[schemas.core.FlowRun]:
     """
     Given a list of flow runs to schedule, as generated by `_generate_scheduled_flow_runs`,
@@ -377,10 +377,10 @@ async def _insert_scheduled_flow_runs(
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
-    insert = await db_interface.insert(db_interface.FlowRun)
+    insert = await db.insert(db.FlowRun)
     await session.execute(
         insert.on_conflict_do_nothing(
-            index_elements=db_interface.flow_run_unique_upsert_columns
+            index_elements=db.flow_run_unique_upsert_columns
         ),
         [r.dict(exclude={"created", "updated"}) for r in runs],
     )
@@ -388,15 +388,15 @@ async def _insert_scheduled_flow_runs(
     # query for the rows that were newly inserted (by checking for any flow runs with
     # no corresponding flow run states)
     inserted_rows = (
-        sa.select(db_interface.FlowRun.id)
+        sa.select(db.FlowRun.id)
         .join(
-            db_interface.FlowRunState,
-            db_interface.FlowRun.id == db_interface.FlowRunState.flow_run_id,
+            db.FlowRunState,
+            db.FlowRun.id == db.FlowRunState.flow_run_id,
             isouter=True,
         )
         .where(
-            db_interface.FlowRun.id.in_([r.id for r in runs]),
-            db_interface.FlowRunState.id.is_(None),
+            db.FlowRun.id.in_([r.id for r in runs]),
+            db.FlowRunState.id.is_(None),
         )
     )
     inserted_flow_run_ids = (await session.execute(inserted_rows)).scalars().all()
@@ -411,11 +411,11 @@ async def _insert_scheduled_flow_runs(
         # this syntax (insert statement, values to insert) is most efficient
         # because it uses a single bind parameter
         await session.execute(
-            db_interface.FlowRunState.__table__.insert(), insert_flow_run_states
+            db.FlowRunState.__table__.insert(), insert_flow_run_states
         )
 
         # set the `state_id` on the newly inserted runs
-        stmt = db_interface.set_state_id_on_inserted_flow_runs_statement(
+        stmt = db.set_state_id_on_inserted_flow_runs_statement(
             inserted_flow_run_ids=inserted_flow_run_ids,
             insert_flow_run_states=insert_flow_run_states,
         )

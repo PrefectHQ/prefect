@@ -32,7 +32,7 @@ async def create_deployment(
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
 
-    db_interface = await provide_database_interface()
+    db = await provide_database_interface()
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
@@ -48,10 +48,10 @@ async def create_deployment(
     # this deployment might have already scheduled runs (if it's being upserted)
     # so we delete them all here; if the upserted deployment has an active schedule
     # then its runs will be rescheduled.
-    delete_query = sa.delete(db_interface.FlowRun).where(
-        db_interface.FlowRun.deployment_id == model.id,
-        db_interface.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db_interface.FlowRun.auto_scheduled.is_(True),
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == model.id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
 
@@ -220,7 +220,7 @@ async def set_schedule_inactive(
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
     state will be deleted.
     """
-    db_interface = await provide_database_interface()
+    db = await provide_database_interface()
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
@@ -232,10 +232,10 @@ async def set_schedule_inactive(
     await session.flush()
 
     # delete any future scheduled runs that were auto-scheduled
-    delete_query = sa.delete(db_interface.FlowRun).where(
-        db_interface.FlowRun.deployment_id == deployment_id,
-        db_interface.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        db_interface.FlowRun.auto_scheduled.is_(True),
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
 

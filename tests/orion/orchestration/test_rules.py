@@ -43,8 +43,8 @@ async def commit_task_run_state(
         state_details=state_details,
     )
 
-    db_interface = await provide_database_interface()
-    orm_state = db_interface.TaskRunState(
+    db = await provide_database_interface()
+    orm_state = db.TaskRunState(
         task_run_id=task_run.id,
         **new_state.dict(shallow=True),
     )

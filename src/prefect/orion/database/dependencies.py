@@ -64,7 +64,7 @@ async def provide_database_interface():
     )
 
 
-def inject_db_interface(fn):
+def inject_db(fn):
     """
     Simple helper to provide a database configuration to a asynchronous function.
 
@@ -74,10 +74,10 @@ def inject_db_interface(fn):
 
     @wraps(fn)
     async def wrapper(*args, **kwargs):
-        if "db_interface" in kwargs and kwargs["db_interface"] is not None:
+        if "db" in kwargs and kwargs["db"] is not None:
             return await fn(*args, **kwargs)
         else:
-            kwargs["db_interface"] = await provide_database_interface()
+            kwargs["db"] = await provide_database_interface()
             return await fn(*args, **kwargs)
 
     return wrapper
