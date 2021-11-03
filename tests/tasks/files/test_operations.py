@@ -170,7 +170,7 @@ class TestGlob:
         assert res[0] == Path(str(source))
         assert isinstance(res[0], Path)
 
-    def test_list_dir_recrusive(self, tmpdir):
+    def test_list_dir_recursive(self, tmpdir):
         source = tmpdir.mkdir("source").mkdir("dir1").join("testfile")
         source.write_binary(b"test")
 
