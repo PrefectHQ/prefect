@@ -19,7 +19,7 @@ async def provide_database_interface():
     query_components = MODELS_DEPENDENCIES.get("query_components")
 
     if provided_config is None:
-        from prefect.orion.database.interface import (
+        from prefect.orion.database.configurations import (
             AsyncPostgresConfiguration,
             AioSqliteConfiguration,
         )
@@ -39,7 +39,7 @@ async def provide_database_interface():
         MODELS_DEPENDENCIES["database_configuration"] = provided_config
 
     if query_components is None:
-        from prefect.orion.database.interface import (
+        from prefect.orion.database.query_components import (
             AsyncPostgresQueryComponents,
             AioSqliteQueryComponents,
         )
