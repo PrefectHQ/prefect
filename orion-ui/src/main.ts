@@ -6,17 +6,17 @@ import store from './store'
 import api from './plugins/api'
 
 // Global components
-import ButtonCard from '@/components/Global/Button--Card/Button--Card.vue'
-import ButtonRounded from '@/components/Global/Button--Rounded/Button--Rounded.vue'
+import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
+import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import BreadCrumbs from '@/components/Global/BreadCrumb/BreadCrumb.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
-import ListItemDeployment from '@/components/Global/List/ListItem--Deployment/ListItem--Deployment.vue'
-import ListItemFlow from '@/components/Global/List/ListItem--Flow/ListItem--Flow.vue'
-import ListItemFlowRun from '@/components/Global/List/ListItem--FlowRun/ListItem--FlowRun.vue'
-import ListItemTaskRun from '@/components/Global/List/ListItem--TaskRun/ListItem--TaskRun.vue'
-import ResultsList from '@/components/Global/ResultsLists/ResultsList.vue'
+import ListItemDeployment from '@/components/Global/List/ListItemDeployment/ListItemDeployment.vue'
+import ListItemFlow from '@/components/Global/List/ListItemFlow/ListItemFlow.vue'
+import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFlowRun.vue'
+import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue'
+import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
 import Row from '@/components/Global/Row/Row.vue'
 
 import '@prefecthq/miter-design/dist/style.css'
@@ -32,17 +32,17 @@ document.body.classList.add(colorMode)
 
 const app = createApp(App).use(MiterDesign).use(store).use(router).use(api)
 
-app.component('button-card', ButtonCard)
-app.component('bread-crumbs', BreadCrumbs)
-app.component('rounded-button', ButtonRounded)
-app.component('drawer', Drawer)
-app.component('list', List)
-app.component('list-item', ListItem)
-app.component('deployment-list-item', ListItemDeployment)
-app.component('flow-list-item', ListItemFlow)
-app.component('flow-run-list-item', ListItemFlowRun)
-app.component('task-run-list-item', ListItemTaskRun)
-app.component('results-list', ResultsList)
-app.component('row', Row)
+app.component('ButtonCard', ButtonCard)
+app.component('BreadCrumbs', BreadCrumbs)
+app.component('RoundedButton', ButtonRounded)
+app.component('Drawer', Drawer)
+app.component('List', List)
+app.component('ListItem', ListItem)
+app.component('ListItemDeployment', ListItemDeployment)
+app.component('ListItemFlow', ListItemFlow)
+app.component('ListItemFlowRun', ListItemFlowRun)
+app.component('ListItemTaskRun', ListItemTaskRun)
+app.component('ResultsList', ResultsList)
+app.component('Row', Row)
 
 app.mount('#app')

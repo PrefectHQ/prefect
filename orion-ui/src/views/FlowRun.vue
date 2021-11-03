@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="d-flex align-center justify-space-between mb-2">
-      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
+      <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
       <div class="text-truncate">
         <span>
           Flow Version:
