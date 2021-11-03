@@ -15,6 +15,7 @@ from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.database.interface import OrionDBInterface
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -24,6 +25,7 @@ async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
     same name and flow_id already exists, the deployment is updated.
@@ -31,8 +33,6 @@ async def create_deployment(
     If the deployment has an active schedule, flow runs will be scheduled.
     When upserting, any scheduled runs from the existing deployment will be deleted.
     """
-
-    db = await provide_database_interface()
 
     # hydrate the input model into a full model
     deployment = schemas.core.Deployment(**deployment.dict())
@@ -215,12 +215,12 @@ async def set_schedule_active(
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
     state will be deleted.
     """
-    db = await provide_database_interface()
     deployment = await models.deployments.read_deployment(
         session=session, deployment_id=deployment_id
     )
