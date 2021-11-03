@@ -47,8 +47,8 @@ async def clear_database(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
     # TODO - can probably inject here
-    db_interface = await provide_database_interface()
-    for table in reversed(db_interface.Base.metadata.sorted_tables):
+    db = await provide_database_interface()
+    for table in reversed(db.Base.metadata.sorted_tables):
         await session.execute(table.delete())
 
 
@@ -67,8 +67,8 @@ async def drop_database(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
 
-    db_interface = await provide_database_interface()
-    await db_interface.drop_db()
+    db = await provide_database_interface()
+    await db.drop_db()
 
 
 @router.post("/database/create", status_code=status.HTTP_204_NO_CONTENT)
@@ -86,5 +86,5 @@ async def create_database(
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
 
-    db_interface = await provide_database_interface()
-    await db_interface.create_db()
+    db = await provide_database_interface()
+    await db.create_db()

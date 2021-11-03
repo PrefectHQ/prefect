@@ -26,8 +26,8 @@ def start(
     # Delay this import so we don't instantiate the API uncessarily
     from prefect.orion.api.server import app as orion_fastapi_app
 
-    db_interface = await provide_database_interface()
-    run_async_in_new_loop(db_interface.engine)
+    db = await provide_database_interface()
+    run_async_in_new_loop(db.engine)
 
     console.print("Starting Orion API...")
     # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
@@ -41,8 +41,8 @@ def start(
 @sync_compatible
 async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
-    db_interface = await provide_database_interface()
-    engine = await db_interface.engine()
+    db = await provide_database_interface()
+    engine = await db.engine()
     if not yes:
         confirm = typer.confirm(
             f'Are you sure you want to reset the Orion database located at "{engine.url}"? This will drop and recreate all tables.'
@@ -51,7 +51,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
             exit_with_error("Database reset aborted")
     console.print("Resetting Orion database...")
     console.print("Dropping tables...")
-    await db_interface.drop_db()
+    await db.drop_db()
     console.print("Creating tables...")
-    await db_interface.create_db()
+    await db.create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')

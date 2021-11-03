@@ -12,12 +12,12 @@ import sqlalchemy as sa
 import pydantic
 from prefect.orion import models, schemas
 from prefect.utilities.logging import get_logger
-from prefect.orion.database.dependencies import inject_db_interface
+from prefect.orion.database.dependencies import inject_db
 
 logger = get_logger("orion.api")
 
 
-@inject_db_interface
+@inject_db
 async def run_history(
     session: sa.orm.Session,
     run_type: Literal["flow_run", "task_run"],
@@ -28,7 +28,7 @@ async def run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db_interface=None,
+    db=None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state
@@ -41,16 +41,16 @@ async def run_history(
 
     # prepare run-specific models
     if run_type == "flow_run":
-        run_model = db_interface.FlowRun
-        state_model = db_interface.FlowRunState
+        run_model = db.FlowRun
+        state_model = db.FlowRunState
         run_filter_function = models.flow_runs._apply_flow_run_filters
     elif run_type == "task_run":
-        run_model = db_interface.TaskRun
-        state_model = db_interface.TaskRunState
+        run_model = db.TaskRun
+        state_model = db.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
     # create a CTE for timestamp intervals
-    intervals = db_interface.make_timestamp_intervals(
+    intervals = db.make_timestamp_intervals(
         history_start,
         history_end,
         history_interval,
@@ -85,7 +85,7 @@ async def run_history(
             # build a JSON object, ignoring the case where the count of runs is 0
             sa.case(
                 (sa.func.count(runs.c.id) == 0, None),
-                else_=db_interface.build_json_object(
+                else_=db.build_json_object(
                     "state_type",
                     runs.c.state_type,
                     "state_name",
@@ -95,14 +95,14 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        db_interface.max(
+                        db.max(
                             0, sa.extract("epoch", runs.c.estimated_run_time)
                         )
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
-                        db_interface.max(
+                        db.max(
                             0, sa.extract("epoch", runs.c.estimated_start_time_delta)
                         )
                     ),
@@ -133,8 +133,8 @@ async def run_history(
             counts.c.interval_start,
             counts.c.interval_end,
             sa.func.coalesce(
-                db_interface.json_arr_agg(
-                    db_interface.cast_to_json(counts.c.state_agg)
+                db.json_arr_agg(
+                    db.cast_to_json(counts.c.state_agg)
                 ).filter(counts.c.state_agg.is_not(None)),
                 sa.text("'[]'"),
             ).label("states"),
@@ -150,7 +150,7 @@ async def run_history(
     records = result.all()
 
     # load and parse the record if the database returns JSON as strings
-    if db_interface.uses_json_strings:
+    if db.uses_json_strings:
         records = [dict(r) for r in records]
         for r in records:
             r["states"] = json.loads(r["states"])

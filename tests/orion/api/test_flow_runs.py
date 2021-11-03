@@ -57,7 +57,7 @@ class TestCreateFlowRun:
         response = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
         assert response.json()["state"]["type"] == "PENDING"
 
-    async def test_create_multiple_flow_runs(self, flow, client, session, db_interface):
+    async def test_create_multiple_flow_runs(self, flow, client, session, db):
 
         response1 = await client.post(
             "/flow_runs/",
@@ -78,7 +78,7 @@ class TestCreateFlowRun:
         assert response1.json()["id"] != response2.json()["id"]
 
         result = await session.execute(
-            sa.select(db_interface.FlowRun.id).filter_by(flow_id=flow.id)
+            sa.select(db.FlowRun.id).filter_by(flow_id=flow.id)
         )
         ids = result.scalars().all()
         assert {response1.json()["id"], response2.json()["id"]} == {str(i) for i in ids}
@@ -101,9 +101,9 @@ class TestCreateFlowRun:
         flow,
         client,
         session,
-        db_interface,
+        db,
     ):
-        flow2 = db_interface.Flow(name="another flow")
+        flow2 = db.Flow(name="another flow")
         session.add(flow2)
         await session.commit()
 
