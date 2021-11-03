@@ -203,7 +203,7 @@ class Glob(Task):
         Task run method.
 
         Args:
-            - path (Union[str, Path], optional): directory path
+            - path (Union[str, Path], optional): directory path to search, defaults to "" which targets the current directory
             - pattern (str, optional): glob pattern, defaults to *.
             For more details on pattern options, refer to the
             [pathlib documentation](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob)
