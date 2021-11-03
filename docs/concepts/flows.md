@@ -2,7 +2,7 @@
 
 Flows are the most basic Prefect object. They are containers for workflow logic and allow users to interact with and reason about the state of their workflows. They are the only abstraction that can be interacted with, displayed, and run without needing to reference any other aspect of the Prefect engine.
 
-For must use cases, we recommend using the `@flow` decorator to designate a flow:
+For most use cases, we recommend using the `@flow` decorator to designate a flow:
 
 ```python hl_lines="3"
 from prefect import flow
