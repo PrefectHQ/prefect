@@ -22,30 +22,6 @@ from prefect.orion.database.mixins import (
 )
 
 
-async def create_db(engine=None):  # TODO - should go somewhere else
-    """Create all database tables."""
-    from prefect.orion.database.dependencies import provide_database_interface
-
-    db_config = await provide_database_interface()
-    if engine is None:
-        engine = await db_config.engine()
-
-    async with engine.begin() as conn:
-        await conn.run_sync(db_config.Base.metadata.create_all)
-
-
-async def drop_db(engine=None):
-    """Drop all database tables."""
-
-    from prefect.orion.database.dependencies import provide_database_interface
-
-    db_config = await provide_database_interface()
-    if engine is None:
-        engine = await db_config.engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(db_config.Base.metadata.drop_all)
-
-
 class Singleton(type):
     _instances = {}
 
@@ -228,6 +204,18 @@ class OrionDBInterface(metaclass=Singleton):
         self.TaskRun = TaskRun
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
+
+    async def create_db(self):
+        engine = await self.engine()
+
+        async with engine.begin() as conn:
+            await conn.run_sync(self.Base.metadata.create_all)
+
+    async def drop_db(self):
+        engine = await self.engine()
+
+        async with engine.begin() as conn:
+            await conn.run_sync(self.Base.metadata.drop_all)
 
     def run_migrations(self):
         """Run database migrations"""

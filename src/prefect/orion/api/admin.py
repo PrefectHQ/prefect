@@ -66,7 +66,9 @@ async def drop_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    await prefect.orion.utilities.database.drop_db(session.bind)
+
+    db_interface = await provide_database_interface()
+    await db_interface.drop_db()
 
 
 @router.post("/database/create", status_code=status.HTTP_204_NO_CONTENT)
@@ -83,4 +85,6 @@ async def create_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    await prefect.orion.utilities.database.create_db(session.bind)
+
+    db_interface = await provide_database_interface()
+    await db_interface.create_db()

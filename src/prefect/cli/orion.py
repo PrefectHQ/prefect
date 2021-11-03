@@ -9,7 +9,6 @@ from prefect.cli.base import app, console, exit_with_error, exit_with_success
 
 from prefect.utilities.asyncio import sync_compatible, run_async_in_new_loop
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.interface import create_db, drop_db
 
 
 orion_app = typer.Typer(name="orion")
@@ -52,7 +51,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
             exit_with_error("Database reset aborted")
     console.print("Resetting Orion database...")
     console.print("Dropping tables...")
-    await drop_db(engine=engine)
+    await db_interface.drop_db()
     console.print("Creating tables...")
-    await create_db(engine=engine)
+    await db_interface.create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')
