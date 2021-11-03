@@ -1,7 +1,7 @@
 import Row from '@/components/Global/Row/Row.vue'
-import ButtonCard from '@/components/Global/Button--Card/Button--Card.vue'
+import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
-import RoundedButton from '@/components/Global/Rounded--Button/Rounded--Button.vue'
+import RoundedButton from '@/components/Global/RoundedButton/RoundedButton.vue'
 import Drawer from '@/components/Global/Drawer/Drawer.vue'
 import List from '@/components/Global/List/List.vue'
 import ListItem from '@/components/Global/ListItem/ListItem.vue'
@@ -13,18 +13,18 @@ import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
 
 declare module 'vue' {
   export interface GlobalComponents {
-    row: typeof Row
-    'button-card': typeof ButtonCard
-    'bread-crumbs': typeof BreadCrumbs
-    'rounded-button': typeof RoundedButton
-    drawer: typeof Drawer
-    list: typeof List
-    'list-item': typeof ListItem
-    'deployment-list-item': typeof DeploymentListItem
-    'flow-list-item': typeof FlowListItem
-    'flow-run-list-item': typeof FlowRunListItem
-    'task-run-list-item': typeof TaskRunListItem
-    'results-list': typeof ResultsList
+    Row: typeof Row
+    ButtonCard: typeof ButtonCard
+    BreadCrumbs: typeof BreadCrumbs
+    RoundedButton: typeof RoundedButton
+    Drawer: typeof Drawer
+    List: typeof List
+    ListItem: typeof ListItem
+    DeploymentListItem: typeof DeploymentListItem
+    FlowListItem: typeof FlowListItem
+    FlowRunListItem: typeof FlowRunListItem
+    TaskRunListItem: typeof TaskRunListItem
+    ResultsList: typeof ResultsList
   }
 }
 
