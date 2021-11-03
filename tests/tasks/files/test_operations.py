@@ -162,7 +162,7 @@ class TestGlob:
             ld.run()
 
     def test_list_dir(self, tmp_path: pathlib.Path):
-        dir = (tmp_path / "source")
+        dir = tmp_path / "source"
         dir.mkdir(exist_ok=True)
         file = dir / "testfile"
         file.write_text("test")
@@ -174,7 +174,7 @@ class TestGlob:
         assert isinstance(res[0], Path)
 
     def test_list_dir_recursive(self, tmp_path: pathlib.Path):
-        parent_dir = tmp_path /"source"
+        parent_dir = tmp_path / "source"
 
         child_dir1 = parent_dir / "dir1"
         child_dir1.mkdir(parents=True, exist_ok=True)
