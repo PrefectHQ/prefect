@@ -86,6 +86,7 @@ class OrionDBInterface(metaclass=Singleton):
     def __init__(
         self,
         db_config=None,
+        query_components=None,
         base_model_mixins: List = [],
     ):
         self.connection_url = settings.orion.database.connection_url.get_secret_value
@@ -103,6 +104,7 @@ class OrionDBInterface(metaclass=Singleton):
         )
 
         self.config = db_config
+        self.queries = query_components
         self.Base = self.create_base_model()
         self.create_orm_models()
         self.run_migrations()
@@ -239,7 +241,7 @@ class OrionDBInterface(metaclass=Singleton):
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        return (self.config.insert)(model)
+        return (self.queries.insert)(model)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -275,7 +277,7 @@ class OrionDBInterface(metaclass=Singleton):
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        return self.config.set_state_id_on_inserted_flow_runs_statement(
+        return self.queries.set_state_id_on_inserted_flow_runs_statement(
             self.FlowRun,
             self.FlowRunState,
             inserted_flow_run_ids,
@@ -369,23 +371,23 @@ class OrionDBInterface(metaclass=Singleton):
         end_time: datetime.datetime,
         interval: datetime.timedelta,
     ):
-        return self.config.make_timestamp_intervals(start_time, end_time, interval)
+        return self.queries.make_timestamp_intervals(start_time, end_time, interval)
 
     @property
     def uses_json_strings(self):
-        return self.config.uses_json_strings
+        return self.queries.uses_json_strings
 
     def max(self, *values):
-        return self.config.max(*values)
+        return self.queries.max(*values)
 
     def cast_to_json(self, json_obj):
-        return self.config.cast_to_json(json_obj)
+        return self.queries.cast_to_json(json_obj)
 
     def build_json_object(self, *args):
-        return self.config.build_json_object(*args)
+        return self.queries.build_json_object(*args)
 
     def json_arr_agg(self, json_array):
-        return self.config.json_arr_agg(json_array)
+        return self.queries.json_arr_agg(json_array)
 
 
 class DatabaseConfigurationBase(ABC):
@@ -397,45 +399,8 @@ class DatabaseConfigurationBase(ABC):
     async def engine():
         ...
 
-    @abstractmethod
-    def set_state_id_on_inserted_flow_runs_statement():
-        ...
-
-    @abstractproperty
-    def insert():
-        ...
-
     @abstractproperty
     def base_model_mixins():
-        ...
-
-    @abstractmethod
-    def make_timestamp_intervals(
-        self,
-        start_time: datetime.datetime,
-        end_time: datetime.datetime,
-        interval: datetime.timedelta,
-    ):
-        ...
-
-    @abstractproperty
-    def uses_json_strings():
-        ...
-
-    @abstractmethod
-    def max(self, *values):
-        ...
-
-    @abstractmethod
-    def cast_to_json(self, json_obj):
-        ...
-
-    @abstractmethod
-    def build_json_object():
-        ...
-
-    @abstractmethod
-    def json_arr_agg():
         ...
 
 
@@ -445,10 +410,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     @property
     def base_model_mixins(self):
         return []
-
-    @property
-    def insert(self):
-        return postgresql.insert
 
     def run_migrations(self, base_model):
         """Run database migrations"""
@@ -515,64 +476,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
         return create_async_engine(connection_url, echo=echo, **kwargs)
 
-    def set_state_id_on_inserted_flow_runs_statement(
-        self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
-    ):
-        """Given a list of flow run ids and associated states, set the state_id
-        to the appropriate state for all flow runs"""
-        # postgres supports `UPDATE ... FROM` syntax
-        stmt = (
-            sa.update(fr_model)
-            .where(
-                fr_model.id.in_(inserted_flow_run_ids),
-                frs_model.flow_run_id == fr_model.id,
-                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
-            )
-            .values(state_id=frs_model.id)
-            # no need to synchronize as these flow runs are entirely new
-            .execution_options(synchronize_session=False)
-        )
-        return stmt
-
-    def make_timestamp_intervals(
-        self,
-        start_time: datetime.datetime,
-        end_time: datetime.datetime,
-        interval: datetime.timedelta,
-    ):
-        # validate inputs
-        start_time = pendulum.instance(start_time)
-        end_time = pendulum.instance(end_time)
-        assert isinstance(interval, datetime.timedelta)
-        return (
-            sa.select(
-                sa.literal_column("dt").label("interval_start"),
-                (sa.literal_column("dt") + interval).label("interval_end"),
-            )
-            .select_from(
-                sa.func.generate_series(start_time, end_time, interval).alias("dt")
-            )
-            .where(sa.literal_column("dt") < end_time)
-            # grab at most 500 intervals
-            .limit(500)
-        )
-
-    @property
-    def uses_json_strings(self):
-        return False
-
-    def max(self, *values):
-        return sa.func.greatest
-
-    def cast_to_json(self, json_obj):
-        return json_obj
-
-    def build_json_object(self, *args):
-        return sa.func.jsonb_build_object(*args)
-
-    def json_arr_agg(self, json_array):
-        return sa.func.jsonb_agg(json_array)
-
 
 class AioSqliteConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for sqlite and driver
@@ -584,10 +487,6 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
     @property
     def base_model_mixins(self):
         return []
-
-    @property
-    def insert(self):
-        return sqlite.insert
 
     async def engine(self, connection_url, echo, timeout) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
@@ -657,6 +556,115 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         # without running into errors, but may result in slow api calls
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
+
+
+class QueryComponentsBase(ABC):
+    @abstractmethod
+    def set_state_id_on_inserted_flow_runs_statement():
+        ...
+
+    @abstractproperty
+    def insert():
+        ...
+
+    @abstractmethod
+    def make_timestamp_intervals(
+        self,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
+        interval: datetime.timedelta,
+    ):
+        ...
+
+    @abstractproperty
+    def uses_json_strings():
+        ...
+
+    @abstractmethod
+    def max(self, *values):
+        ...
+
+    @abstractmethod
+    def cast_to_json(self, json_obj):
+        ...
+
+    @abstractmethod
+    def build_json_object():
+        ...
+
+    @abstractmethod
+    def json_arr_agg():
+        ...
+
+
+class AsyncPostgresQueryComponents(QueryComponentsBase):
+    @property
+    def insert(self):
+        return postgresql.insert
+
+    def set_state_id_on_inserted_flow_runs_statement(
+        self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
+    ):
+        """Given a list of flow run ids and associated states, set the state_id
+        to the appropriate state for all flow runs"""
+        # postgres supports `UPDATE ... FROM` syntax
+        stmt = (
+            sa.update(fr_model)
+            .where(
+                fr_model.id.in_(inserted_flow_run_ids),
+                frs_model.flow_run_id == fr_model.id,
+                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
+            )
+            .values(state_id=frs_model.id)
+            # no need to synchronize as these flow runs are entirely new
+            .execution_options(synchronize_session=False)
+        )
+        return stmt
+
+    def make_timestamp_intervals(
+        self,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
+        interval: datetime.timedelta,
+    ):
+        # validate inputs
+        start_time = pendulum.instance(start_time)
+        end_time = pendulum.instance(end_time)
+        assert isinstance(interval, datetime.timedelta)
+        return (
+            sa.select(
+                sa.literal_column("dt").label("interval_start"),
+                (sa.literal_column("dt") + interval).label("interval_end"),
+            )
+            .select_from(
+                sa.func.generate_series(start_time, end_time, interval).alias("dt")
+            )
+            .where(sa.literal_column("dt") < end_time)
+            # grab at most 500 intervals
+            .limit(500)
+        )
+
+    @property
+    def uses_json_strings(self):
+        return False
+
+    def max(self, *values):
+        return sa.func.greatest
+
+    def cast_to_json(self, json_obj):
+        return json_obj
+
+    def build_json_object(self, *args):
+        return sa.func.jsonb_build_object(*args)
+
+    def json_arr_agg(self, json_array):
+        return sa.func.jsonb_agg(json_array)
+
+
+class AioSqliteQueryComponents(QueryComponentsBase):
+    @property
+    def insert(self):
+        return sqlite.insert
 
     def set_state_id_on_inserted_flow_runs_statement(
         self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
