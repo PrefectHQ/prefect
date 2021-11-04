@@ -12,7 +12,7 @@ nodes.
 ## Modes
 
 Prefect's `DaskExecutor` has 3 operating modes:
-- Using a temporary local cluster
+- Using a local cluster
 - Using a temporary cluster
 - Connecting to an existing cluster
 
