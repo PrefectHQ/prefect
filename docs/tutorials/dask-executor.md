@@ -1,7 +1,7 @@
 
 # Using the Dask executor
 
-The [DaskExecutor](../api-ref/executors.md#daskexecutor) runs Prefect
+The [DaskExecutor](/api-ref/executors.md#daskexecutor) runs Prefect
 tasks using [Dask's Distributed
 Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
 a single machine (much like the `LocalDaskExecutor` above), but is most useful
