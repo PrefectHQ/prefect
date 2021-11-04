@@ -3172,11 +3172,8 @@ def test_timeout_actually_stops_execution(executor, tmpdir):
     ) == in_daemon_process
 
 
-@pytest.mark.skip("Result handlers not yet deprecated")
-def test_result_handler_option_shows_deprecation():
-    with pytest.warns(
-        UserWarning, match="the result_handler Flow option will be deprecated*"
-    ):
+def test_result_handler_option_not_allowed():
+    with pytest.raises(TypeError, match="unexpected keyword argument"):
         Flow("dummy", result_handler=object())
 
 
