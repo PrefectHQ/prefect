@@ -22,7 +22,7 @@ def my_flow():
 
 ## Parameters
 
-Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value and stored in Orion. When creating flow runs from the Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
+Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored in Orion on the flow run object. When creating flow runs from the Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
 You saw an example of the `name` parameter earlier: `@flow(name="My Flow")`.
 
