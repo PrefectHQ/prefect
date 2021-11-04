@@ -517,6 +517,11 @@ watch(
 
     if (curr.length > 0 && prev.length == 0) {
       radial.value.center([width.value / 2, height.value / 2])
+
+      d3.select('.schematic-svg')
+        .transition()
+        .duration(250)
+        .call(zoom.value.transform, d3.zoomIdentity)
     }
 
     if (curr.length !== prev.length) {
