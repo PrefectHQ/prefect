@@ -47,7 +47,7 @@ def hello_local():
 def hello_dask():
     print("Hello from Dask!")
 
-@flow(executor=SequentialExecutor()))
+@flow(executor=SequentialExecutor())
 def my_flow():
     hello_local()
     my_subflow()
