@@ -1,6 +1,6 @@
 # Orion Release Notes
 
-## 2.0.0a4
+## 2.0a4
 
 We're excited to announce the fourth alpha release of Prefect's second generation workflow manager.
 
