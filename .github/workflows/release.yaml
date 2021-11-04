@@ -85,8 +85,7 @@ jobs:
           name: built-package
           path: './dist'
 
-      - name: Publish distribution 📦 to Test PyPI
+      - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          repository_url: https://test.pypi.org/legacy/
+          password: ${{ secrets.PYPI_API_TOKEN }}
