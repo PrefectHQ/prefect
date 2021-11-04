@@ -19,6 +19,7 @@ from prefect.orion.utilities.database import (
     json_contains,
     json_has_all_keys,
     json_has_any_key,
+    get_engine,
 )
 
 DBBase = declarative_base()
@@ -393,3 +394,13 @@ class TestDateFunctions:
             sa.select(interval_add(i_1, i_2)).select_from(SQLTimestampModel)
         )
         assert result.scalar() == datetime.timedelta(days=3, minutes=48)
+
+
+async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
+    monkeypatch.setattr("sqlite3.sqlite_version_info", (3, 23, 9))
+    monkeypatch.setattr("sqlite3.sqlite_version", "3.23.9")
+    with pytest.raises(
+        RuntimeError,
+        match="Orion requires sqlite >= 3.24.0 but we found version 3.23.9",
+    ):
+        await get_engine(connection_url="sqlite+aiosqlite:///file::memory")
