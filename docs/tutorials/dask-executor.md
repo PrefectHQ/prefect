@@ -1,6 +1,7 @@
 
-# Using the Dask executor
+# Dask integration
 
+Prefect integrates with `Dask` with an [executor](/concepts/executors/). 
 The [DaskExecutor](/api-ref/prefect/executors.md#daskexecutor) runs Prefect
 tasks using [Dask's Distributed
 Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
