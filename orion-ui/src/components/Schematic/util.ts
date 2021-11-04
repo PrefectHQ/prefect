@@ -21,7 +21,7 @@ import {
 
 function getAvailablePositions(positions: Positions): [number, Position][] {
   return Array.from(positions).filter(
-    ([key, position]) => position.nodes.size == 0
+    ([, position]) => position.nodes.size == 0
   )
 }
 
@@ -35,9 +35,10 @@ export class RadialSchematic {
   private _dependencies: string = 'upstream_ids'
 
   nodes: SchematicNodes = new Map()
+  positions: Positions = new Map()
   links: Links = []
 
-  baseRadius: number = 300
+  baseRadius: number = 415
   maxRecomputations: number = 6
 
   /* Extent */
@@ -46,7 +47,9 @@ export class RadialSchematic {
   x1: number = 1
   y1: number = 1
 
+  // width: number = 34 // node width
   width: number = 275 // node width
+  // height: number = 34 // node height
   height: number = 60 // node height
 
   /* Padding */
@@ -152,6 +155,7 @@ export class RadialSchematic {
         data: item,
         downstreamNodes: new Map(),
         upstreamNodes: new Map(),
+        siblingNodes: new Map(),
         ring: 0,
         position: 0
       })
@@ -179,54 +183,100 @@ export class RadialSchematic {
         this.links.push(link)
       }
     }
+
+    for (const [, node] of this.nodes) {
+      for (const [, node_] of node.downstreamNodes) {
+        node_.siblingNodes = new Map(node.downstreamNodes)
+      }
+    }
+  }
+
+  distance(node: SchematicNode, direction: 'up' | 'down'): number {
+    const key: keyof SchematicNode | undefined =
+      direction == 'up'
+        ? 'upstreamNodes'
+        : direction == 'down'
+        ? 'downstreamNodes'
+        : undefined
+
+    if (key == undefined)
+      throw new Error(
+        "Direction wasn't provided; accepted values: 'up' or 'down'."
+      )
+
+    const dfs = (node: SchematicNode, depth = 0) => {
+      if (node[key].size > 0) {
+        const distances: number[] = []
+        depth = depth + 1
+        for (const [, node_] of node[key]) {
+          const distance = dfs(node_, depth)
+          distances.push(distance)
+        }
+
+        return Math.max(...distances)
+      }
+
+      return depth
+    }
+
+    return dfs(node)
   }
 
   private computeRings() {
     const rings: [number, Ring][] = []
 
-    // Populate ring nodes
-    for (const [key, node] of this.nodes) {
-      const ringId: number =
-        node.upstreamNodes.size > 0
-          ? Array.from(node.upstreamNodes).reduce<number>(
-              (acc: number, [key, _node]: [string, SchematicNode]) =>
-                _node.ring >= acc && _node.ring > 0 ? _node.ring + 1 : acc,
-              1
-            )
-          : 0
+    const setNodeRings = () => {
+      // Populate ring nodes
+      for (const [key, node] of this.nodes) {
+        const ringId = this.distance(node, 'up')
 
-      node.ring = ringId
-      this.nodes.set(key, node)
+        node.ring = ringId
+        this.nodes.set(key, node)
 
-      if (rings[ringId]) {
-        rings[ringId][1].nodes.set(key, node)
-      } else {
-        rings[ringId] = [
-          ringId,
-          {
-            radius: 0,
-            nodes: new Map([[key, node]]),
-            positions: new Map()
-          }
-        ]
+        if (rings[ringId]) {
+          rings[ringId][1].nodes.set(key, node)
+        } else {
+          rings[ringId] = [
+            ringId,
+            {
+              radius: 0,
+              nodes: new Map([[key, node]]),
+              positions: new Map(),
+              links: []
+            }
+          ]
+        }
       }
     }
+
+    setNodeRings()
 
     // Compute ring radius and positions
     for (let i = 0; i < rings.length; i++) {
       const n = rings[0][1].nodes.size
       const radius = n === 1 ? i * this.baseRadius : (i + 1) * this.baseRadius
+      const positions = this.computeRingPositions(radius)
 
       rings[i][1].radius = radius
-      rings[i][1].positions = this.computeRingPositions(radius)
-      // rings[i][1].nodes = new Map(
-      //   [...rings[i][1].nodes].sort(
-      //     ([aKey, aNode], [bKey, bNode]) => aNode.position - bNode.position
-      //   )
-      // )
+      rings[i][1].positions = positions
+
+      for (let j = 0; j < positions.size; j++) {
+        const position = positions.get(j)
+        if (!position) continue
+        this.positions.set(`${i}-${position.id}`, positions.get(j))
+      }
     }
 
     this.rings = new Map(rings)
+
+    this.links.forEach((link: Link) => {
+      const ring = this.rings.get(link.source.ring)
+
+      if (ring) {
+        ring.links.push(link)
+        this.rings.set(link.source.ring, ring)
+      }
+    })
   }
 
   private computeInitialPositions() {
@@ -235,8 +285,10 @@ export class RadialSchematic {
     let _r: Ring | undefined = undefined
 
     for (const [key, ring] of this.rings) {
+      let i = 0
+
       for (const [_key, node] of ring.nodes) {
-        const position = this.getNodePosition(node, key, _r)
+        const position = this.getNodePosition(node, key, _r, i)
 
         node.cx = this.cx + ring.radius * Math.cos(position.radian)
         node.cy = this.cy + ring.radius * Math.sin(position.radian)
@@ -248,13 +300,14 @@ export class RadialSchematic {
         ring.positions.set(position.id, position)
         this.rings.set(key, ring)
         this.nodes.set(_key, node)
+        ++i
       }
 
       _r = ring
     }
 
     this.nodes = new Map(
-      [...this.nodes].sort(([aKey, aNode], [bKey, bNode]) =>
+      [...this.nodes].sort(([, aNode], [, bNode]) =>
         aNode.ring == bNode.ring
           ? aNode.position - bNode.position
           : aNode.ring - bNode.ring
@@ -263,15 +316,49 @@ export class RadialSchematic {
   }
 
   private computeRingPositions(radius: number): Positions {
-    const nPositions =
-      Math.floor((2 * Math.PI * radius) / (this.width * 1.5)) + 1
-    const increment = 360 / nPositions
     const positions: Positions = new Map()
 
-    for (let i = 0; i < nPositions; i++) {
-      const radian = (increment * i * Math.PI) / 180
-      positions.set(i, { id: i, radian: radian, nodes: new Map() })
+    const pow2 = (n: number) => {
+      return Math.pow(n, 2)
     }
+
+    if (radius <= 0) {
+      positions.set(0, { id: 0, radian: 0, nodes: new Map() })
+      return positions
+    }
+
+    let total = 0
+    let _delta = 0
+
+    const positionalArray = [0]
+    const limit = Math.PI / 2 - (this.width * 0.8) / 2 / radius
+    while (total < limit) {
+      const lambda = 1.25 - 0.3 * Math.sin(total)
+      const arcLength = Math.sqrt(
+        pow2(this.height) * pow2(Math.cos(_delta)) +
+          pow2(this.width) * pow2(Math.sin(_delta))
+      )
+      const delta = (lambda * arcLength) / radius
+
+      _delta += delta
+      total += delta
+
+      // Quadrant mirroring
+      if (total < limit) {
+        positionalArray.push(total % (2 * Math.PI))
+        positionalArray.push((Math.PI + total) % (2 * Math.PI))
+        positionalArray.push((2 * Math.PI - total) % (2 * Math.PI))
+        positionalArray.push((3 * Math.PI - total) % (2 * Math.PI))
+      }
+    }
+
+    positionalArray.push(Math.PI)
+
+    positionalArray
+      .sort()
+      .forEach((p: number, i: number) =>
+        positions.set(i, { id: i, radian: p, nodes: new Map() })
+      )
 
     return positions
   }
@@ -279,7 +366,8 @@ export class RadialSchematic {
   private getNodePosition(
     node: SchematicNode,
     rid: number,
-    _r: Ring | undefined
+    _r: Ring | undefined,
+    node_index: number = 0
   ): Position {
     const r = this.rings.get(rid)!
     const p = r.positions
@@ -288,11 +376,16 @@ export class RadialSchematic {
     // If the node has no upstream dependencies, we place
     // it in the first available position on the ring
     // Note: this will only happen with nodes on the innermost ring
-    if (node.upstreamNodes.size === 0) {
+    if (node.upstreamNodes.size === 0 || rid == 0 || rid == 1) {
       // sort first by shared downstream nodes
       // then try to place nodes with more downstream nodes as far from each other as possible
       const available = getAvailablePositions(p)
-      position = p.get(available[Math.floor(available.length / 2)]?.[0])
+
+      if (node_index === 0 || node_index % 2 === 0) {
+        position = p.get(available[0]?.[0])
+      } else {
+        position = p.get(available[Math.floor(available.length / 2)]?.[0])
+      }
     } else {
       const upstream = node.upstreamNodes.entries()
 

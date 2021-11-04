@@ -5,29 +5,27 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Endpoints } from '@/plugins/api'
-import { onBeforeMount, ref } from 'vue'
+import { Api, Endpoints, Query } from '@/plugins/api'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import Schematic from '@/components/Schematic/Schematic.vue'
 
 const route = useRoute()
-const items = ref([])
 
-onBeforeMount(async () => {
-  const query = Api.query({
+const queries: { [key: string]: Query } = {
+  schematic: Api.query({
     endpoint: Endpoints.schematic,
     body: {
       id: route?.params.id as string
     },
     options: {
-      paused: true
+      pollInterval: 5000
     }
   })
+}
 
-  const res = await query.fetch()
-
-  console.log(res)
-  items.value = res.response.value
+const items = computed<[]>(() => {
+  return queries.schematic.response?.value || []
 })
 </script>
 

@@ -6,18 +6,32 @@
       <g id="ring-container" />
     </svg>
 
+    <!-- {{ positions }} -->
+
     <div class="node-container">
+      <!-- <div v-for="[key, position] of radial?.positions" :key="key">
+      {{
+        position
+      }}
+      </div> -->
+
       <Node
         v-for="[key, node] of visibleNodes"
         :id="`node-${key}`"
         :key="key"
         :node="node"
+        class="position-absolute"
         :collapsed="collapsedTrees.get(key)"
         :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
         tabindex="0"
         @toggle-tree="toggleTree"
-        @focus.self="panToNode(node)"
+        @focus.self.stop="panToNode(node)"
+        @click.self.stop="highlightNode(node)"
+        @blur.self="highlightNode(node)"
       />
+
+      <!-- <OverflowNode /> -->
+      <!--  -->
     </div>
 
     <div class="mini-map position-absolute mr-2 mb-2" :style="miniMapStyle">
@@ -34,7 +48,7 @@
 import { ref, defineProps, computed, onMounted, onUnmounted, watch } from 'vue'
 import * as d3 from 'd3'
 import { RadialSchematic } from './util'
-import { curveMetro } from './curveMetro'
+import { pow, sqrt } from './math'
 
 import Node from './Node.vue'
 
@@ -45,7 +59,9 @@ import {
   SchematicNode,
   Rings,
   Ring,
-  Links
+  Links,
+  Position,
+  Positions
 } from '@/typings/schematic'
 
 const props = defineProps<{ items: Item[] }>()
@@ -67,20 +83,30 @@ const nodeContainer = ref<Selection>()
 /**
  * Computed
  */
-const scaleExtentLower = computed<number>(() => {
-  return (
-    (1 / (radial.value.rings.size * baseRadius * 3)) *
-    Math.max(height.value, width.value)
-  )
-})
-
 const visibleNodes = computed<SchematicNodes>(() => {
   const collapsed = [...collapsedTrees.value.entries()]
   return new Map(
-    [...radial.value.nodes.entries()].filter(([, node]) =>
-      collapsed.every(([, tree]) => !tree.get(node.id))
-    )
+    [...radial.value.nodes.entries()]
+      .filter(([, node]) => collapsed.every(([, tree]) => !tree.get(node.id)))
+      .filter(([, node]) => {
+        // This is currently filtering out nodes that share a single position (showing only the first one that got the spot)
+        const ring: Ring | undefined = radial.value.rings.get(node.ring)!
+        const positions = ring.positions.get(node.position)!
+        const positionalArr = [...positions.nodes.values()]
+        return positionalArr?.[0]?.id == node.id
+      })
   )
+})
+
+const positions = computed<Positions>(() => {
+  return radial.value?.positions
+  // if (!radial.value?.rings) return []
+  // const rings: [number, Ring][] = [...radial.value.rings.entries()]
+  // return rings.reduce((acc: Positions, [, ring]: [number, Ring]) => {
+  //   acc.push.apply(acc, [...ring.positions.values()])
+  //   // ring.positions.forEach((position: Position) => acc.push(position))
+  //   return acc
+  // }, [])
 })
 
 const visibleRings = computed<Rings>(() => {
@@ -94,9 +120,17 @@ const visibleRings = computed<Rings>(() => {
 
 const visibleLinks = computed<Links>(() => {
   const collapsed = [...collapsedTrees.value.entries()]
-  return radial.value.links.filter((link: Link) =>
-    collapsed.every(([, tree]) => !tree.get(link.target.id))
-  )
+  return radial.value.links
+    .filter((link: Link) =>
+      collapsed.every(([, tree]) => !tree.get(link.target.id))
+    )
+    .filter((link: Link) => {
+      // This is currently filtering out links that share a single position (showing only the first one that got the spot)
+      return (
+        visibleNodes.value.get(link.source.id) &&
+        visibleNodes.value.get(link.target.id)
+      )
+    })
 })
 
 const viewportOffset = computed<number>(() => {
@@ -171,7 +205,7 @@ const toggleTree = (node: SchematicNode) => {
   }
 }
 
-const updateCanvas = (): void => {
+const updateRings = (): void => {
   ringContainer.value
     ?.selectAll('.ring')
     .data(visibleRings.value)
@@ -188,8 +222,8 @@ const updateCanvas = (): void => {
           .attr('r', ([, d]: [number, Ring]) => d.radius)
           .style('opacity', 1)
           .attr('fill', 'transparent')
-          .attr('stroke', 'rgba(0, 0, 0, 0.05)')
-          .attr('stroke-width', '2px')
+          .attr('stroke', 'rgba(0, 0, 0, 0.1)')
+          .attr('stroke-width', 5)
         return g
       },
       // update
@@ -205,6 +239,9 @@ const updateCanvas = (): void => {
       // exit
       (selection: any) => selection.remove()
     )
+}
+
+const updateLinks = () => {
   // TODO: Edges that traverse rings should be _much_ fainter
   // than edges with dependencies on the previous ring
   const calcGradientCoord = (d: Link) => {
@@ -290,6 +327,112 @@ const updateCanvas = (): void => {
       )
   }
 
+  const lineGenerator = (
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    d: number
+  ): [number, number] => {
+    const distance = sqrt(pow(x1 - x0, 2) + pow(y1 - y0, 2))
+    const t = d / distance
+    const ex = (1 - t) * x0 + t * x1
+    const ey = (1 - t) * y0 + t * y1
+    return [ex, ey]
+  }
+
+  const pathGenerator = (d: Link, i: number) => {
+    const path = d3.path()
+
+    const sourceRing = radial.value.rings.get(d.source.ring)!
+    const targetRing = radial.value.rings.get(d.target.ring)!
+    const sourceLinks = sourceRing.links
+    const sourceLinksIndex = sourceLinks.findIndex(
+      (sl) => sl.source.id == d.source.id && sl.target.id == d.target.id
+    )
+    const cx = width.value / 2
+    const cy = height.value / 2
+
+    const distance = targetRing.radius - radial.value.baseRadius
+    const distanceOffset =
+      sourceLinksIndex *
+      ((targetRing.radius - sourceRing.radius - 275) / sourceLinks.length)
+
+    const tcx = d.target.cx
+    const tcy = d.target.cy
+    const targetAngle = d.target.radian
+    const scx = d.source.cx
+    const scy = d.source.cy
+    const sourceAngle = d.source.radian
+
+    let ex0, ey0
+    if (sourceRing.radius == 0) {
+      const [x, y] = lineGenerator(cx, cy, tcx, tcy, distance)
+      ex0 = x
+      ey0 = y
+    } else {
+      const [x, y] = lineGenerator(cx, cy, scx, scy, distance)
+      ex0 = x
+      ey0 = y
+    }
+
+    path.moveTo(scx, scy)
+    path.lineTo(ex0, ey0)
+
+    const [ex1, ey1] = lineGenerator(cx, cy, tcx, tcy, distance)
+
+    if (tcx !== scx && tcy !== scy && sourceRing.radius !== 0) {
+      path.arc(
+        cx,
+        cy,
+        sourceRing.radius + 275 - distanceOffset,
+        sourceAngle,
+        targetAngle,
+        sourceAngle > targetAngle
+      )
+    } else {
+      path.moveTo(ex1, ey1)
+    }
+
+    path.lineTo(tcx, tcy)
+    return path.toString()
+  }
+
+  const strokeWidthGenerator = (d: Link) => {
+    const sourceRing = radial.value.rings.get(d.source.ring)!
+    const targetRing = radial.value.rings.get(d.target.ring)!
+    const sourceLinks = sourceRing.links
+
+    const maxWidth =
+      (targetRing.radius - sourceRing.radius) / sourceLinks.length
+
+    return Math.min(5, maxWidth)
+  }
+
+  const opacityGenerator = (d: Link) => {
+    if (!highlightedNode.value) return 1
+    return d.source.id == highlightedNode.value.id ||
+      d.target.id == highlightedNode.value.id
+      ? 1
+      : 0.2
+  }
+
+  const idGenerator = (d: Link) => d.source.id + '---' + d.target.id
+
+  const strokeGenerator = (d: Link, i: number) => {
+    return useLinearGradient ? `url("#${d.source.data.name + i}")` : null
+  }
+
+  const classGenerator = (d: Link) => {
+    const opaqueStrokeClass = `${d.source.data.state.type.toLowerCase()}-stroke`
+    const transparentStrokeClass = 'transparent'
+    if (!highlightedNode.value) return opaqueStrokeClass
+    return d.source.id == highlightedNode.value.id ||
+      d.target.id == highlightedNode.value.id
+      ? `${opaqueStrokeClass} highlighted`
+      : transparentStrokeClass
+  }
+
   edgeContainer.value
     ?.selectAll('path')
     .data(visibleLinks.value)
@@ -298,64 +441,55 @@ const updateCanvas = (): void => {
       (selection: any) =>
         selection
           .append('path')
-          .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-          .attr(
-            'class',
-            (d: Link) => `${d.source.data.state.type.toLowerCase()}-stroke`
-          )
-          .style('stroke', (d: Link, i: number) =>
-            useLinearGradient ? `url("#${d.source.data.name + i}")` : null
-          )
-          .style('stroke-width', (d: Link) =>
-            d.source.data.state == 'pending' ? 5 : 20
-          )
-          .attr('d', (d: Link) =>
-            line([
-              [d.source.cx, d.source.cy],
-              [d.target.cx, d.target.cy]
-            ])
-          )
-          .style('opacity', 1),
+          .attr('id', idGenerator)
+          .attr('class', classGenerator)
+          .style('stroke', strokeGenerator)
+          .style('stroke-width', strokeWidthGenerator)
+          .attr('d', pathGenerator)
+          .style('opacity', opacityGenerator),
       // update
       (selection: any) =>
         selection
-          .attr('id', (d: Link) => d.source.id + '-' + d.target.id)
-          .attr(
-            'class',
-            (d: Link) => `${d.source.data.state.type.toLowerCase()}-stroke`
-          )
-          .style('stroke', (d: Link, i: number) =>
-            useLinearGradient ? `url("#${d.source.data.name + i}")` : null
-          )
-          .style('stroke-width', (d: Link) =>
-            d.source.data.state == 'pending' ? 5 : 20
-          )
-          .attr('d', (d: Link) =>
-            line([
-              [d.source.cx, d.source.cy],
-              [d.target.cx, d.target.cy]
-            ])
-          )
-          .style('opacity', 1),
+          .attr('id', idGenerator)
+          .attr('class', classGenerator)
+          .style('stroke', strokeGenerator)
+          .style('stroke-width', strokeWidthGenerator)
+          .attr('d', pathGenerator)
+          .style('opacity', opacityGenerator),
       // exit
       (selection: any) => selection.remove()
     )
 }
 
-const panToNode = (item: Item | SchematicNode): void => {
-  const node = visibleNodes.value.get(item.id)
-  if (!node) return
-  ;(document.querySelector(`#node-${item.id}`) as HTMLElement)?.focus()
+const updateAll = () => {
+  updateRings()
+  updateLinks()
+}
 
-  const zoomIdentity = d3.zoomIdentity
-    .translate(width.value / 2, height.value / 2)
-    .scale(1)
-    .translate(-node.cx, -node.cy)
+const highlightNode = (item: SchematicNode): void => {
+  if (highlightedNode.value?.id == item.id) highlightedNode.value = undefined
+  else highlightedNode.value = item
+  requestAnimationFrame(() => updateLinks())
+}
 
-  d3.select('.schematic-svg')
-    .transition()
-    .duration(250)
-    .call(zoom.value.transform, zoomIdentity)
+const panToNode = (item: SchematicNode): void => {
+  highlightNode(item)
+
+  requestAnimationFrame(() => {
+    const node = visibleNodes.value.get(item.id)
+    if (!node) return
+    ;(document.querySelector(`#node-${item.id}`) as HTMLElement)?.focus()
+
+    const zoomIdentity = d3.zoomIdentity
+      .translate(width.value / 2, height.value / 2)
+      // .scale(1)
+      .translate(-node.cx, -node.cy)
+
+    d3.select('.schematic-svg')
+      .transition()
+      .duration(250)
+      .call(zoom.value.transform, zoomIdentity)
+  })
 }
 
 /**
@@ -365,33 +499,44 @@ const useLinearGradient: boolean = false
 const height = ref<number>(0)
 const width = ref<number>(0)
 const baseRadius: number = 300
+const highlightedNode = ref<SchematicNode>()
 
 const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
-const line = d3.line().curve(curveMetro)
 
 const zoom = ref<d3.ZoomBehavior<any, any>>(d3.zoom())
 
 /**
  * Watchers
  */
-watch(props, () => {
-  items.value = props.items
-  radial.value.center([width.value / 2, height.value / 2]).items(items.value)
-  requestAnimationFrame(() => updateCanvas())
-})
+watch(
+  () => props.items,
+  (curr, prev) => {
+    items.value = props.items
+    radial.value.items(items.value)
+
+    if (curr.length > 0 && prev.length == 0) {
+      radial.value.center([width.value / 2, height.value / 2])
+    }
+
+    if (curr.length !== prev.length) {
+      requestAnimationFrame(() => updateAll())
+    } else {
+      requestAnimationFrame(() => updateLinks())
+    }
+  }
+)
 
 watch(visibleRings, () => {
-  zoom.value.scaleExtent([1, 1]).translateExtent(viewportExtent.value)
-
-  d3.select('.schematic-svg')
-    .transition()
-    .duration(250)
-    .call(zoom.value.transform, d3.zoomIdentity)
+  zoom.value.translateExtent(viewportExtent.value)
+  // d3.select('.schematic-svg')
+  //   .transition()
+  //   .duration(250)
+  //   .call(zoom.value.transform, d3.zoomIdentity)
 })
 
 watch(visibleLinks, () => {
-  requestAnimationFrame(() => updateCanvas())
+  requestAnimationFrame(() => updateAll())
 })
 
 /**
@@ -419,15 +564,15 @@ const createChart = (): void => {
       [width.value, height.value]
     ])
     .translateExtent(viewportExtent.value)
-    .scaleExtent([1, 1])
-    .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
+    .scaleExtent([0.1, 1])
+    // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
   svg.value
     ?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
     .call(zoom.value)
 
-  updateCanvas()
+  updateAll()
 }
 
 // This is used to prevent scrolling of the container when
@@ -449,6 +594,8 @@ onMounted(() => {
     .dependencies('upstream_dependencies')
     .center([width.value / 2, height.value / 2])
     .items(items.value)
+
+  console.log(radial.value)
 
   createChart()
 })
@@ -515,29 +662,26 @@ onUnmounted(() => {
 .schematic-container {
   svg {
     path {
+      // display: none;
       fill: none;
-      opacity: 0.8;
+      opacity: 1;
       stroke-width: 20;
-      stroke-opacity: 0.4;
+      stroke-opacity: 0.9;
       stroke-linejoin: round;
 
-      &.success {
-        color: var(--completed) !important;
-        stroke: currentColor;
+      &.transparent {
+        stroke: #ccc;
       }
 
-      &.failed {
-        color: var(--failed) !important;
-        stroke: currentColor;
-      }
-
-      &.pending {
-        color: var(--pending);
-        stroke: currentColor;
-        stroke-width: 5;
-        stroke-dasharray: 4;
+      &.highlighted {
+        // filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.06))
+        //   drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.1));
       }
     }
+  }
+
+  .ring {
+    pointer-events: none;
   }
 
   linearGradient {
