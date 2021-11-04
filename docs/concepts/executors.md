@@ -2,11 +2,11 @@
 
 Executors are responsible for running Prefect tasks. Each flow has an executor associated with it. The executor is started at the beginning of a flow run and shutdown at the end.
 
-Depending on the executor you use, the tasks within your flow can run in parallel or seqentially. The default executor is the `SequentialExecutor`, which does not run your tasks in parallel. To run tasks in parallel, you can use a more powerful executor such as the `DaskExecutor`.
+Depending on the executor you use, the tasks within your flow can run in parallel or seqentially. The default executor is the `SequentialExecutor`, which does not run your tasks in parallel. To run tasks in parallel, you can use an executor such as the `DaskExecutor`, which enables Dask-based parallel execution.
 
 ## Using an executor
 
-Executors can be imported from `prefect.executors` and assigned when the flow is defined.
+Import executors from `prefect.executors` and assign them when the flow is defined.
 
 ```python
 from prefect import flow
@@ -31,9 +31,9 @@ def my_flow():
 
 ## Using multiple executors
 
-Each flow can only have a single executor, but sometimes you may want a subset of your tasks to run elsewhere. Subflows can be leveraged to temporarily use a different executor.
+Each flow can only have a single executor, but sometimes you may want a subset of your tasks to run elsewhere. In this case, you can create [subflows](/concepts/flows/#subflows) to temporarily use a different executor.
 
-For example, we can have a flow (`my_flow`) that runs its tasks locally but uses a subflow (`my_subflow`) to run some tasks in a dask cluster.
+For example, you can have a flow (`my_flow`) that runs its tasks locally, but uses a subflow (`my_subflow`) to run some tasks in a Dask cluster.
 
 ```python
 from prefect import flow, task
@@ -88,4 +88,4 @@ Hello!
 
 See the [`prefect.executors` API reference](/api-ref/prefect/executors/) for descriptions of each executor type.
 
-Check out our [Dask executor tutorial](/tutorials/dask-executor/) for some common Dask use-cases.
+Check out the [Dask executor tutorial](/tutorials/dask-executor/) for some common Dask use cases.
