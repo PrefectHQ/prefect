@@ -101,8 +101,7 @@ configure flows to connect to it during execution. This has a few downsides
 when compared to using a temporary cluster (as described above):
 
 - All workers in the cluster must have dependencies installed for all flows you
-  intend to run. When using a temporary cluster, each workers to run the flow
-  it's associated with.
+  intend to run.
 
 - Multiple flow runs may compete for resources. Dask tries to do a good job
   sharing resources between tasks, but you may still run into issues.
