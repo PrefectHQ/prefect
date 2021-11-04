@@ -24,8 +24,6 @@ def my_flow():
 
 Flows can be called with both positional and keyword arguments. These arguments are resolved at runtime into a dictionary of **parameters** mapping name to value. These parameters are stored in Orion on the flow run object. When creating flow runs from the Orion API, parameter names must be specified when overriding defaults &mdash; they cannot be positional.
 
-You saw an example of the `name` parameter earlier: `@flow(name="My Flow")`.
-
 Since flow parameters are stored in Orion, not all data types can be natively supported. See the [prefect.flows](/api-ref/prefect/flows/#prefect.flows.flow) API documentation for details on supported types.
 
 Type hints provide an easy way to enforce typing on your flow parameters via [pydantic](https://pydantic-docs.helpmanual.io/).  This means _any_ pydantic model used as a type hint within a flow will be coerced automatically into the relevant object type:
