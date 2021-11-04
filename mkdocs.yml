@@ -65,6 +65,7 @@ nav:
             - tutorials/flow-configuration.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
+            - tutorials/dask-executor.md
             - tutorials/orion.md
             - tutorials/deployments.md
     - Concepts:
