@@ -39,6 +39,10 @@ Check out our [multiple executor documentation](https://orion-docs.prefect.io/co
 While we're excited to talk about these new features, we're always hard at work fixing bugs and improving performance. This release also comes with
 
 - Updates to database engine disposal to support large, ephemeral server flow runs
-- Improvements to the `flow-run` and `deployment` command-line interfaces
+- Improvements and additions to the `flow-run` and `deployment` command-line interfaces
+    - `prefect deployment ls`
+    - `prefect deployment inspect <name>`
+    - `prefect flow-run inspect <id>`
+    - `prefect flow-run ls`
 - Clarification of existing documentation and additional new documentation
 - Fixes for database creation and startup issues
