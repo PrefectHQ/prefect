@@ -87,3 +87,5 @@ Hello!
 ## Executor types
 
 See the [`prefect.executors` API reference](../api-ref/prefect/executors.md) for descriptions of each executor type.
+
+Check out our [Dask executor tutorial](../tutorials/dask-executor.md) for some common Dask use-cases.
