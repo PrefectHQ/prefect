@@ -133,7 +133,7 @@ def test_upload_flow_to_azure_blob_name(monkeypatch):
     assert service.get_blob_client.call_args[1]["blob"] == "name"
 
 
-@pytest.mark.parameterize("overwrite", [True, False])
+@pytest.mark.parametrize("overwrite", [True, False])
 def test_upload_flow_to_azure_blob_overwrite(monkeypatch, overwrite):
     client = MagicMock(upload_blob=MagicMock())
     service = MagicMock(get_blob_client=MagicMock(return_value=client))
