@@ -176,7 +176,7 @@ The following examples illustrate each of these cases:
 
 A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "subflow."
 
-Subflow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. Tasks within the subflow are submitted to the subflow's executor. 
+Subflow runs behave like normal flow runs. There is a full representation of the flow run in the backend as if it had been called separately. When a subflow starts, it will create a new executor and tasks within the subflow are submitted to it. When the subflow completes, the executor is shutdown.
 
 Unlike tasks, subflows will block until completion with all executors. However, asynchronous subflows can be run in parallel by using [AnyIO task groups](https://anyio.readthedocs.io/en/stable/tasks.html) or [asyncio.gather](https://docs.python.org/3/library/asyncio-task.html#id6).
 
