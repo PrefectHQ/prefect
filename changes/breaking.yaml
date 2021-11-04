@@ -1,0 +1,13 @@
+
+breaking:
+  - "The AWS Fargate agent has been removed; use the ECS agent instead. - [#3812](https://github.com/PrefectHQ/prefect/pull/3812)"
+  - "Flow 'environments' have been removed; use `RunConfig`s instead. - [#5072](https://github.com/PrefectHQ/prefect/pull/5072), [docs](https://docs.prefect.io/orchestration/flow_config/upgrade.html)"
+  - "Executors can no longer be imported from `prefect.engine.executors`; use `prefect.executors` instead. - [#3798](https://github.com/PrefectHQ/prefect/pull/3798)"
+  - "`DockerAgent(docker_interface=...)` will now raise an exception if passed. - [#4446](https://github.com/PrefectHQ/prefect/pull/4446)"
+  - "PAT CLI commands `create-token`, `revoke-token`, `list-tokens` have been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
+  - "Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)"
+  - "The `prefect register flow` command has been removed; use `prefect register` instead. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)"
+  - "The `prefect run flow` command has been removed; use `prefect run` instead. - [#4463](https://github.com/PrefectHQ/prefect/pull/4463)"
+  - "`Parameter` is not importable from `prefect.core.tasks` anymore; use `prefect.Parameter` instead."
+  - "`Exceptions are no longer importable from `prefect.utilities.exceptions`; use `prefect.exceptions` instead. - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)"
+  - "The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)"
