@@ -145,7 +145,7 @@ def test_upload_flow_to_azure_blob_overwrite(monkeypatch, overwrite):
     assert storage.add_flow(f)
     assert storage.build()
 
-    client.upload.assert_called_once_with(flow_to_bytes_pickle(f), overwite=overwrite)
+    client.upload_blob.assert_called_once_with(flow_to_bytes_pickle(f), overwite=overwrite)
 
 
 def test_upload_multiple_flows_to_azure_blob_name(monkeypatch):
