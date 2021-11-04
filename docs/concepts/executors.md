@@ -8,7 +8,7 @@ Depending on the executor you use, the tasks within your flow can run in paralle
 
 Import executors from `prefect.executors` and assign them when the flow is defined.
 
-```python
+```python hl_lines="4"
 from prefect import flow
 from prefect.executors import DaskExecutor
 
@@ -20,7 +20,7 @@ def my_flow():
 If an executor type is passed, an executor instance will be created with the default settings. Executor instances can be passed for additional configuration:
 
 
-```python
+```python hl_lines="4"
 from prefect import flow
 from prefect.executors import DaskExecutor
 
@@ -60,9 +60,9 @@ def my_subflow():
 my_flow()
 ```
 
-This script outputs the following logs:
+This script outputs the following logs demonstrating the temporary dask executor:
 
-```
+```text hl_lines="7"
 13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'my-flow'...
 13:46:58.866 | Starting executor `SequentialExecutor`...
 13:46:58.934 | Submitting task run 'hello_local-a087a829-0' to executor...
