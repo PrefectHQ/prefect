@@ -7,9 +7,15 @@ Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
 a single machine, but is most useful when scaling out distributed across multiple
 nodes.
 
-Prefect's `DaskExecutor` has 3 operating modes:
 
-## Using a local cluster
+## Modes
+
+Prefect's `DaskExecutor` has 3 operating modes:
+- Using a temporary local cluster
+- Using a temporary cluster
+- Connecting to an existing cluster
+
+### Using a local cluster
 
 By default, when you use a `DaskExecutor` it creates a temporary local Dask
 cluster.
@@ -35,7 +41,7 @@ DaskExecutor(
 )
 ```
 
-## Using a temporary cluster
+### Using a temporary cluster
 
 The `DaskExecutor` is capable of creating a temporary cluster using any of
 [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html).
@@ -60,7 +66,7 @@ DaskExecutor(
 )
 ```
 
-### Adaptive scaling
+#### Adaptive scaling
 
 One nice feature of using a `DaskExecutor` is the ability to scale adaptively
 to the workload. Instead of specifying `n_workers` as a fixed number, this lets
@@ -85,7 +91,7 @@ DaskExecutor(
 )
 ```
 
-## Connecting to an existing cluster
+### Connecting to an existing cluster
 
 Multiple Prefect flow runs can all use the same existing Dask cluster. You
 might manage a single long-running Dask cluster (maybe using the [Helm
@@ -108,4 +114,56 @@ argument:
 ```python
 # Connect to an existing cluster running at a specified address
 DaskExecutor(address="tcp://...")
+```
+
+## Annotations
+
+Dask annotations can be used to further control the behavior of tasks.
+
+For example, we can set the [priority](http://distributed.dask.org/en/stable/priority.html) of tasks in the Dask scheduler:
+
+```python
+import dask
+from prefect import flow, task
+from prefect.executors import DaskExecutor
+
+@task
+def show(x):
+    print(x)
+
+
+@flow(executor=DaskExecutor())
+def my_flow():
+    with dask.annotate(priority=-10):
+        future = show(1)  # low priority task
+
+    with dask.annotate(priority=10):
+        future = show(2)  # high priority task
+```
+
+Another common use-case is [resource](http://distributed.dask.org/en/stable/resources.html) annotations:
+
+```python
+import dask
+from prefect import flow, task
+from prefect.executors import DaskExecutor
+
+@task
+def my_task():
+    pass
+
+# Create a `LocalCluster` with some resource annotations
+# Annotations are abstract in dask and not inferred from your system, here we claim
+# that our system has 1 GPU and 1 process available
+@flow(executor=DaskExecutor(cluster_kwargs={"resources": {"GPU": 1, "process": 1}}))
+def my_flow():
+    with dask.annotate(resources={'GPU': 1}):
+        future = my_task()  # this task requires 1 GPU resource on a worker
+
+    with dask.annotate(resources={'process': 1}):
+        # These tasks each require 1 process on a worker
+        # Because we've specified that our cluster has 1 process, these will run sequentially
+        future = my_task()
+        future = my_task()
+        future = my_task()
 ```
