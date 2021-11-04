@@ -4,12 +4,12 @@
 The [DaskExecutor](/api-ref/executors.md#daskexecutor) runs Prefect
 tasks using [Dask's Distributed
 Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
-a single machine (much like the `LocalDaskExecutor` above), but is most useful
-when scaling out distributed across multiple nodes.
+a single machine, but is most useful when scaling out distributed across multiple
+nodes.
 
 Prefect's `DaskExecutor` has 3 operating modes:
 
-## Using a Local Cluster
+## Using a local cluster
 
 By default, when you use a `DaskExecutor` it creates a temporary local Dask
 cluster.
@@ -35,7 +35,7 @@ DaskExecutor(
 )
 ```
 
-## Using a Temporary Cluster
+## Using a temporary cluster
 
 The `DaskExecutor` is capable of creating a temporary cluster using any of
 [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html).
@@ -60,7 +60,7 @@ DaskExecutor(
 )
 ```
 
-## Adaptive Scaling
+### Adaptive scaling
 
 One nice feature of using a `DaskExecutor` is the ability to scale adaptively
 to the workload. Instead of specifying `n_workers` as a fixed number, this lets
@@ -85,7 +85,7 @@ DaskExecutor(
 )
 ```
 
-## Connecting to an Existing Cluster
+## Connecting to an existing cluster
 
 Multiple Prefect flow runs can all use the same existing Dask cluster. You
 might manage a single long-running Dask cluster (maybe using the [Helm
