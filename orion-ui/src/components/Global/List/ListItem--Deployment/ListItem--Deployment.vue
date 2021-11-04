@@ -202,7 +202,6 @@ export default class ListItemDeployment extends Vue.with(Props) {
   }
 
   get parameters(): { [key: string]: any }[] {
-    console.log(this.item.parameters)
     return Object.entries(this.item.parameters).reduce(
       (arr: { [key: string]: any }[], [key, value]) => [
         ...arr,

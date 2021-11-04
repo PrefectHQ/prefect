@@ -11,6 +11,7 @@ export declare interface SchematicNode {
   data: any
   downstreamNodes: Map<string, SchematicNode>
   upstreamNodes: Map<string, SchematicNode>
+  siblingNodes: Map<string, SchematicNode>
   ring: number
   position: number
 }
@@ -22,7 +23,7 @@ export declare interface Item {
 }
 
 export declare interface Position {
-  id: number
+  id: number | string
   radian: number
   nodes: SchematicNodes
 }
@@ -31,6 +32,7 @@ export declare interface Ring {
   nodes: SchematicNodes
   radius: number
   positions: Positions
+  links: Link[]
 }
 
 export declare type Positions = Map<number, Position>

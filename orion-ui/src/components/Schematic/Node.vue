@@ -1,5 +1,6 @@
 <template>
   <div
+    v-if="true"
     ref="observe"
     class="node d-flex position-relative"
     :class="{
@@ -21,17 +22,15 @@
       class="d-flex align-stretch flex-column justify-center px-1 flex-grow-1"
       style="min-width: 0"
     >
-      <div
-        v-skeleton="!taskRun.name"
-        v-tooltip.top="taskRun.name"
-        class="text-truncate"
-      >
+      <!-- v-tooltip.top="node.toString()" -->
+      <div v-skeleton="!taskRun.name" class="text-truncate">
+        <!-- Ring: {{ node.ring }}, Position: {{ node.position }} -->
         {{ taskRun.name }}
       </div>
 
       <div class="d-flex align-center justify-space-between">
         <div
-          v-skeleton="!taskRun.estimated_run_time"
+          v-skeleton="!taskRun.name"
           class="
             text-truncate
             font--secondary
@@ -40,6 +39,7 @@
           "
         >
           {{ duration }}
+          <!-- {{ taskRun && taskRun.id && taskRun.id.slice(0, 8) }} -->
         </div>
 
         <a
@@ -59,6 +59,11 @@
       </div>
     </transition>
   </div>
+  <div
+    v-else
+    class="circle-node cursor-pointer"
+    :class="state.type.toLowerCase() + '-bg'"
+  />
 </template>
 
 <script lang="ts" setup>
@@ -91,8 +96,7 @@ const queries: { [key: string]: Query } = {
       id: props.node.id
     },
     options: {
-      pollInterval: 5000,
-      paused: true
+      pollInterval: 5000
     }
   })
 }
@@ -110,11 +114,11 @@ const collapsed = computed(() => {
 })
 
 const state = computed<State>(() => {
-  return props.node.data.state
+  return taskRun.value?.state || props.node.data.state
 })
 
 const duration = computed<string>(() => {
-  return taskRun.value
+  return taskRun.value?.estimated_run_time
     ? secondsToApproximateString(taskRun.value.estimated_run_time)
     : '--'
 })
@@ -185,7 +189,6 @@ onBeforeUnmount(() => {
   content-visibility: hidden;
   overflow: visible;
   cursor: pointer;
-  position: absolute;
   height: 53px;
   pointer-events: all;
   transition: top 150ms, left 150ms, transform 150ms, box-shadow 50ms;
@@ -232,6 +235,15 @@ onBeforeUnmount(() => {
     right: -2%;
     top: -7.5px;
   }
+}
+
+.circle-node {
+  border-radius: 50%;
+  height: 34px;
+  width: 34px;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  cursor: pointer;
 }
 
 .scale-enter-active,
