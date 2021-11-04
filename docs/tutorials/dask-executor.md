@@ -106,10 +106,9 @@ when compared to using a temporary cluster (as described above):
 - Multiple flow runs may compete for resources. Dask tries to do a good job
   sharing resources between tasks, but you may still run into issues.
 
-That said, you may find managing a single long running cluster simpler (the
-choice here is largely preferential). To configure a `DaskExecutor` to connect
-to an existing cluster, pass in the address of the scheduler to the `address`
-argument:
+That said, you may prefer managing a single long running cluster. To configure
+a `DaskExecutor` to connect to an existing cluster, pass in the address of the
+scheduler to the `address` argument:
 
 ```python
 # Connect to an existing cluster running at a specified address
