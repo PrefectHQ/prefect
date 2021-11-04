@@ -18,7 +18,7 @@ With the PagerDuty + Prefect integration you can set up actions for one or more 
 
 ## Requirements
 
-The PagerDuty integration requires Prefect automations, which are supported in the [Prefect Cloud Standard or Enterprise plans](https://www.prefect.io/pricing/).
+The PagerDuty integration requires Prefect automations, which are supported in [Prefect Cloud plans](https://www.prefect.io/pricing/).
 
 Teams using [Role Based Access Controls (RBAC)](/orchestration/rbac/overview.html) need to set appropriate User level permissions to create, update, and delete automations.
 
