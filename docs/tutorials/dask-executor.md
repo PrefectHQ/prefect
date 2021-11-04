@@ -149,21 +149,21 @@ from prefect import flow, task
 from prefect.executors import DaskExecutor
 
 @task
-def my_task():
-    pass
+def show(x):
+    print(x)
 
 # Create a `LocalCluster` with some resource annotations
 # Annotations are abstract in dask and not inferred from your system, here we claim
-# that our system has 1 GPU and 1 process available
-@flow(executor=DaskExecutor(cluster_kwargs={"resources": {"GPU": 1, "process": 1}}))
+# that our system has 1 GPU and 1 process available per worker
+@flow(executor=DaskExecutor(cluster_kwargs={"n_workers": 1, "resources": {"GPU": 1, "process": 1}}))
 def my_flow():
     with dask.annotate(resources={'GPU': 1}):
-        future = my_task()  # this task requires 1 GPU resource on a worker
+        future = show(0)  # this task requires 1 GPU resource on a worker
 
     with dask.annotate(resources={'process': 1}):
-        # These tasks each require 1 process on a worker
-        # Because we've specified that our cluster has 1 process, these will run sequentially
-        future = my_task()
-        future = my_task()
-        future = my_task()
+        # These tasks each require 1 process on a worker; because we've specified that
+        # our cluster has 1 process per worker and 1 worker these will run sequentially
+        future = show(1)
+        future = show(2)
+        future = show(3)
 ```
