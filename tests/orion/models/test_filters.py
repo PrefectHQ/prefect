@@ -7,6 +7,7 @@ from prefect.orion.utilities.database import Base, get_session_factory
 import pendulum
 import pytest
 
+from prefect.client import OrionClient
 from prefect.orion import models
 from prefect.orion.schemas import core, filters, states, schedules
 
@@ -325,6 +326,12 @@ class TestCountFlowsModels:
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_python_client_filter(self, kwargs, expected):
+        async with OrionClient() as client:
+            flows = await client.read_flows(**kwargs)
+            assert len(flows) == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
     async def test_models_count(self, session, kwargs, expected):
         count = await models.flows.count_flows(session=session, **kwargs)
         assert count == expected
@@ -349,7 +356,7 @@ class TestCountFlowsModels:
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
-            "/flows/count/",
+            "/flows/count",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,
@@ -501,6 +508,12 @@ class TestCountFlowRunModels:
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_python_client_filter(self, kwargs, expected):
+        async with OrionClient() as client:
+            flow_runs = await client.read_flow_runs(**kwargs)
+            assert len(flow_runs) == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
     async def test_models_count(self, session, kwargs, expected):
         count = await models.flow_runs.count_flow_runs(session=session, **kwargs)
         assert count == expected
@@ -525,7 +538,7 @@ class TestCountFlowRunModels:
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
-            "/flow_runs/count/",
+            "/flow_runs/count",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -653,6 +666,12 @@ class TestCountTaskRunsModels:
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_python_client_filter(self, kwargs, expected):
+        async with OrionClient() as client:
+            task_runs = await client.read_task_runs(**kwargs)
+            assert len(task_runs) == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
     async def test_models_count(self, session, kwargs, expected):
         count = await models.task_runs.count_task_runs(session=session, **kwargs)
         assert count == expected
@@ -676,7 +695,7 @@ class TestCountTaskRunsModels:
                 k = "deployments"
             adjusted_kwargs[k] = v
         repsonse = await client.post(
-            "/task_runs/count/",
+            "/task_runs/count",
             json=json.loads(
                 json.dumps(adjusted_kwargs, default=pydantic.json.pydantic_encoder)
             ),
@@ -786,6 +805,12 @@ class TestCountDeploymentModels:
     ]
 
     @pytest.mark.parametrize("kwargs,expected", params)
+    async def test_python_client_filter(self, kwargs, expected):
+        async with OrionClient() as client:
+            deployments = await client.read_deployments(**kwargs)
+            assert len(deployments) == expected
+
+    @pytest.mark.parametrize("kwargs,expected", params)
     async def test_models_count(self, session, kwargs, expected):
         count = await models.deployments.count_deployments(session=session, **kwargs)
         assert count == expected
@@ -810,7 +835,7 @@ class TestCountDeploymentModels:
             adjusted_kwargs[k] = v
 
         repsonse = await client.post(
-            "/deployments/count/",
+            "/deployments/count",
             json=json.loads(
                 json.dumps(
                     adjusted_kwargs,

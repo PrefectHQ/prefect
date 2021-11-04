@@ -7,7 +7,7 @@ import uvicorn
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.utilities.database import create_db, drop_db, get_engine
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncio import sync_compatible, run_async_in_new_loop
 
 
 orion_app = typer.Typer(name="orion")
@@ -24,6 +24,11 @@ def start(
     """Start an Orion server"""
     # Delay this import so we don't instantiate the API uncessarily
     from prefect.orion.api.server import app as orion_fastapi_app
+
+    # TODO - move this into the db_config abstractions
+    # for sqlite-backed servers, `get_engine` will create a database if it
+    # does not already exist
+    run_async_in_new_loop(get_engine)
 
     console.print("Starting Orion API...")
     # Toggle `run_in_app` (settings are frozen and so it requires a forced update)

@@ -13,14 +13,17 @@ from typing import (
     TypeVar,
     Generic,
     Callable,
+    cast,
+    Awaitable,
 )
+from typing_extensions import Literal
 
 
 import prefect
 from prefect.client import OrionClient, inject_client
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.states import State
-from prefect.utilities.asyncio import sync_compatible
+from prefect.utilities.asyncio import sync, A, Async, Sync, sync_compatible
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
@@ -30,7 +33,7 @@ if TYPE_CHECKING:
 R = TypeVar("R")
 
 
-class PrefectFuture(Generic[R]):
+class PrefectFuture(Generic[R, A]):
     """
     Represents the result of a computation happening in an executor.
 
@@ -49,7 +52,7 @@ class PrefectFuture(Generic[R]):
 
         >>> @flow
         >>> def my_flow():
-        >>>     future = my_task()  # PrefectFuture[str] includes result type
+        >>>     future = my_task()  # PrefectFuture[str, Sync] includes result type
         >>>     future.run_id  # UUID for the task run
 
         Wait for the task to complete
@@ -80,29 +83,60 @@ class PrefectFuture(Generic[R]):
         self,
         task_run: TaskRun,
         executor: "BaseExecutor",
+        asynchronous: A = True,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
         self.task_run = task_run
         self.run_id = task_run.id
+        self.asynchronous = asynchronous
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
         self._executor = executor
 
     @overload
-    async def wait(self, timeout: float) -> Optional[State[R]]:
+    def wait(
+        self: "PrefectFuture[R, Async]", timeout: None = None
+    ) -> Awaitable[State[R]]:
         ...
 
     @overload
-    async def wait(self, timeout: None = None) -> State[R]:
+    def wait(self: "PrefectFuture[R, Sync]", timeout: None = None) -> State[R]:
         ...
 
-    @sync_compatible
-    async def wait(self, timeout=None):
+    @overload
+    def wait(
+        self: "PrefectFuture[R, Async]", timeout: float
+    ) -> Awaitable[Optional[State[R]]]:
+        ...
+
+    @overload
+    def wait(self: "PrefectFuture[R, Sync]", timeout: float) -> Optional[State[R]]:
+        ...
+
+    def wait(self, timeout=None):
         """
         Wait for the run to finish and return the final state
 
         If the timeout is reached before the run reaches a final state,
         `None` is returned.
+        """
+        if self.asynchronous:
+            return self._wait(timeout=timeout)
+        else:
+            # type checking cannot handle the overloaded timeout passing
+            return sync(self._wait, timeout=timeout)  # type: ignore
+
+    @overload
+    async def _wait(self, timeout: None = None) -> State[R]:
+        ...
+
+    @overload
+    async def _wait(self, timeout: float) -> Optional[State[R]]:
+        ...
+
+    async def _wait(self, timeout=None):
+        """
+        Async implementation for `wait`
         """
         if self._final_state:
             return self._final_state
@@ -110,9 +144,34 @@ class PrefectFuture(Generic[R]):
         self._final_state = await self._executor.wait(self, timeout)
         return self._final_state
 
-    @sync_compatible
+    @overload
+    def get_state(
+        self: "PrefectFuture[R, Async]", client: OrionClient = None
+    ) -> Awaitable[State[R]]:
+        ...
+
+    @overload
+    def get_state(
+        self: "PrefectFuture[R, Sync]", client: OrionClient = None
+    ) -> State[R]:
+        ...
+
+    def get_state(self, client: OrionClient = None):
+        """
+        Wait for the run to finish and return the final state
+
+        If the timeout is reached before the run reaches a final state,
+        `None` is returned.
+        """
+        if self.asynchronous:
+            return cast(Awaitable[State[R]], self._get_state(client=client))
+        else:
+            return cast(State[R], sync(self._get_state, client=client))
+
     @inject_client
-    async def get_state(self, client: OrionClient) -> State[R]:
+    async def _get_state(self, client: OrionClient = None) -> State[R]:
+        assert client is not None  # always injected
+
         task_run = await client.read_task_run(self.run_id)
 
         if not task_run:
@@ -129,7 +188,9 @@ class PrefectFuture(Generic[R]):
         return f"PrefectFuture({self.task_run.name!r})"
 
 
-async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R, Any]:
+async def resolve_futures_to_data(
+    expr: Union[PrefectFuture[R, Any], Any]
+) -> Union[R, Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved to their results.
@@ -140,8 +201,8 @@ async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R
     """
 
     async def visit_fn(expr):
-        if isinstance(expr, prefect.futures.PrefectFuture):
-            return (await expr.wait()).result(raise_on_failure=False)
+        if isinstance(expr, PrefectFuture):
+            return (await expr._wait()).result(raise_on_failure=False)
         else:
             return expr
 
@@ -149,8 +210,8 @@ async def resolve_futures_to_data(expr: Union[PrefectFuture[R], Any]) -> Union[R
 
 
 async def resolve_futures_to_states(
-    expr: Union[PrefectFuture[R], Any]
-) -> Union[State, Any]:
+    expr: Union[PrefectFuture[R, Any], Any]
+) -> Union[State[R], Any]:
     """
     Given a Python built-in collection, recursively find `PrefectFutures` and build a
     new collection with the same structure with futures resolved to their final states.
@@ -160,8 +221,8 @@ async def resolve_futures_to_states(
     """
 
     async def visit_fn(expr):
-        if isinstance(expr, prefect.futures.PrefectFuture):
-            return await expr.wait()
+        if isinstance(expr, PrefectFuture):
+            return await expr._wait()
         else:
             return expr
 
