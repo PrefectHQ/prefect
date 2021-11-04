@@ -12,7 +12,7 @@ Import executors from `prefect.executors` and assign them when the flow is defin
 from prefect import flow
 from prefect.executors import DaskExecutor
 
-@flow(executor=DaskExecutor)
+@flow(executor=DaskExecutor())
 def my_flow():
     pass
 ```
@@ -47,13 +47,13 @@ def hello_local():
 def hello_dask():
     print("Hello from Dask!")
 
-@flow(executor=SequentialExecutor)
+@flow(executor=SequentialExecutor()))
 def my_flow():
     hello_local()
     my_subflow()
     hello_local()
 
-@flow(executor=DaskExecutor)
+@flow(executor=DaskExecutor())
 def my_subflow():
     hello_dask()
 
