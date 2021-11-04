@@ -8,6 +8,7 @@ import json
 from typing import Any, Dict, List, Set, TypeVar
 from uuid import UUID, uuid4
 
+import pendulum
 from pydantic import BaseModel, Field
 
 
@@ -222,6 +223,21 @@ class PrefectBaseModel(BaseModel):
             for field in self._reset_fields():
                 update.setdefault(field, self.__fields__[field].get_default())
         return super().copy(update=update, **kwargs)
+
+    def __rich_repr__(self):
+        # Display all of the fields in the model if they differ from the default value
+        for name, field in self.__fields__.items():
+            value = getattr(self, name)
+
+            # Simplify the display of some common fields
+            if field.type_ == UUID and value:
+                value = str(value)
+            elif field.type_ == datetime.datetime and name == "timestamp" and value:
+                value = pendulum.instance(value).isoformat()
+            elif field.type_ == datetime.datetime and value:
+                value = pendulum.instance(value).diff_for_humans()
+
+            yield name, value, field.get_default()
 
 
 class IDBaseModel(PrefectBaseModel):
