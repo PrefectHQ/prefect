@@ -83,7 +83,7 @@ jobs:
           git push --set-upstream origin HEAD
           gh pr create \
             --title "Publish docs from release on ($(date +%y.%m.%d))" \
-            --body '_automatically created with `gh` cli on merge to `master`_'
+            --body '_automatically created with `gh` cli on merge to `main`_'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
