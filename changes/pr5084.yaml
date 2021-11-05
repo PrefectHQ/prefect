@@ -1,5 +1,5 @@
-fix:
-  - "Allow developers on more recent versions of google-cloud-bigquery to also use the prefect GCP extra. - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)"
+enhancement:
+  - "Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)"
 
 contributor:
   - "[Josh Wang](https;//github.com/wangjoshuah)"
