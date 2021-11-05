@@ -6,6 +6,8 @@ export const min = Math.min
 export const sin = Math.sin
 export const sqrt = Math.sqrt
 export const pow = Math.pow
+export const floor = Math.floor
+export const ceil = Math.ceil
 
 export const epsilon = 1e-12
 export const pi = Math.PI
