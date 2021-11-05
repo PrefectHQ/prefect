@@ -9,6 +9,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 class QueryComponentsBase(ABC):
     # --- dialect-specific SqlAlchemy bindings
 
+    @abstractmethod
     def insert(self, obj):
         """dialect-specific insert statement"""
 
@@ -132,9 +133,8 @@ class AsyncPostgresQueryComponents(QueryComponentsBase):
 class AioSqliteQueryComponents(QueryComponentsBase):
     # --- Sqlite-specific SqlAlchemy bindings
 
-    @property
-    def insert(self):
-        return sqlite.insert
+    def insert(self, obj):
+        return sqlite.insert(obj)
 
     def max(self, *values):
         return sa.func.max(*values)
