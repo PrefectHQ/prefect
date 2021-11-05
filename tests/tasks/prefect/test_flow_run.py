@@ -289,9 +289,7 @@ def client(monkeypatch):
     monkeypatch.setattr(
         "prefect.tasks.prefect.flow_run.Client", MagicMock(return_value=cloud_client)
     )
-    monkeypatch.setattr(
-        "prefect.artifacts.Client", MagicMock(return_value=cloud_client)
-    )
+    monkeypatch.setattr("prefect.Client", MagicMock(return_value=cloud_client))
     yield cloud_client
 
 

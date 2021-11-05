@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 
 import prefect
 from prefect import Client, Task, task
-from prefect.artifacts import create_link
+from prefect.backend.artifacts import create_link_artifact
 from prefect.backend.flow_run import FlowRunView, FlowView, watch_flow_run
 from prefect.client import Client
 from prefect.engine.signals import signal_from_state
@@ -429,7 +429,7 @@ class StartFlowRun(Task):
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
         run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
-        create_link(urlparse(run_link).path)
+        create_link_artifact(urlparse(run_link).path)
         self.logger.info(f"Flow Run: {run_link}")
 
         if not self.wait:
