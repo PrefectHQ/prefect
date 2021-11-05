@@ -126,6 +126,7 @@ class KubernetesAgent(Agent):
             os.getenv("DELETE_FINISHED_JOBS", "True") == "True"
         )
 
+        from prefect.utilities.kubernetes import get_kubernetes_client
         from kubernetes import client, config
 
         try:
@@ -138,8 +139,8 @@ class KubernetesAgent(Agent):
             self.logger.debug("Loading out of cluster configuration")
             config.load_kube_config()
 
-        self.batch_client = client.BatchV1Api()
-        self.core_client = client.CoreV1Api()
+        self.batch_client = get_kubernetes_client("job")
+        self.core_client = get_kubernetes_client("service")
         self.k8s_client = client
 
         min_datetime = datetime.min.replace(tzinfo=pytz.UTC)
