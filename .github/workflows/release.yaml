@@ -1,7 +1,7 @@
 name: Release
 
 on:
-  create:
+  push:
     tags:
       - "2.0a[0-9]+"
 
