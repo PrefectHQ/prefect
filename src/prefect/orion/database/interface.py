@@ -87,6 +87,93 @@ class OrionDBInterface(metaclass=Singleton):
         self.create_orm_models()
         self.run_migrations()
 
+    async def create_db(self):
+        engine = await self.engine()
+
+        async with engine.begin() as conn:
+            await conn.run_sync(self.Base.metadata.create_all)
+
+    async def drop_db(self):
+        engine = await self.engine()
+
+        async with engine.begin() as conn:
+            await conn.run_sync(self.Base.metadata.drop_all)
+
+    def run_migrations(self):
+        """Run database migrations"""
+        self.config.run_migrations(self.Base)
+
+    async def engine(self, connection_url=None):
+        """
+        Provides a SqlAlchemy engine against a specific database.
+
+        A new engine is created for each event loop and cached, so that engines are
+        not shared across loops.
+        """
+
+        loop = get_event_loop()
+        connection_url = connection_url or self.connection_url()
+
+        cache_key = (loop, connection_url, self.echo, self.timeout)
+        if cache_key not in self.ENGINES:
+
+            engine = await self.config.engine(
+                connection_url,
+                self.echo,
+                self.timeout,
+                self.Base.metadata,
+            )
+
+            self.ENGINES[cache_key] = engine
+
+        await self.schedule_engine_disposal(cache_key)
+        return self.ENGINES[cache_key]
+
+    async def schedule_engine_disposal(self, cache_key):
+        """
+        Dispose of an engine once the event loop is closing.
+
+        Requires use of `asyncio.run()` which waits for async generator shutdown by
+        default or explicit call of `asyncio.shutdown_asyncgens()`. If the application
+        is entered with `asyncio.run_until_complete()` and the user calls
+        `asyncio.close()` without the generator shutdown call, this will not dispose the
+        engine. As an alternative to suggesting users call `shutdown_asyncgens`
+        (which can interfere with other async generators), `dispose_all_engines` is
+        provided as a cleanup method.
+
+        asyncio does not provided _any_ other way to clean up a resource when the event
+        loop is about to close. We attempted to lazily clean up old engines when new
+        engines are created, but if the loop the engine is attached to is already closed
+        then the connections cannot be cleaned up properly and warnings are displayed.
+
+        Engine disposal should only be important when running the application
+        ephemerally. Notably, this is an issue in our tests where many short-lived event
+        loops and engines are created which can consume all of the available database
+        connection slots. Users operating at a scale where connection limits are
+        encountered should be encouraged to use a standalone server.
+        """
+
+        async def dispose_engine(cache_key):
+            try:
+                yield
+            except GeneratorExit:
+                engine = self.ENGINES.pop(cache_key, None)
+                if engine:
+                    await engine.dispose()
+
+                # Drop this iterator from the disposal just to keep things clean
+                self.ENGINE_DISPOSAL_QUEUE.pop(cache_key, None)
+
+        # Create the iterator and store it in a global variable so it is not cleaned up
+        # when this function scope ends
+        self.ENGINE_DISPOSAL_QUEUE[cache_key] = dispose_engine(cache_key).__aiter__()
+
+        # Begin iterating so it will be cleaned up as an incomplete generator
+        await self.ENGINE_DISPOSAL_QUEUE[cache_key].__anext__()
+
+    async def clear_engine_cache(self):
+        self.ENGINES.clear()
+
     def create_base_model(self):
         @as_declarative(metadata=self.base_metadata)
         class Base(*self.config.base_model_mixins, ORMBase):
@@ -241,92 +328,6 @@ class OrionDBInterface(metaclass=Singleton):
             self.TaskRun.task_key,
             self.TaskRun.dynamic_key,
         ]
-    async def create_db(self):
-        engine = await self.engine()
-
-        async with engine.begin() as conn:
-            await conn.run_sync(self.Base.metadata.create_all)
-
-    async def drop_db(self):
-        engine = await self.engine()
-
-        async with engine.begin() as conn:
-            await conn.run_sync(self.Base.metadata.drop_all)
-
-    def run_migrations(self):
-        """Run database migrations"""
-        self.config.run_migrations(self.Base)
-
-    async def engine(self, connection_url=None):
-        """
-        Provides a SqlAlchemy engine against a specific database.
-
-        A new engine is created for each event loop and cached, so that engines are
-        not shared across loops.
-        """
-
-        loop = get_event_loop()
-        connection_url = connection_url or self.connection_url()
-
-        cache_key = (loop, connection_url, self.echo, self.timeout)
-        if cache_key not in self.ENGINES:
-
-            engine = await self.config.engine(
-                connection_url,
-                self.echo,
-                self.timeout,
-                self.Base.metadata,
-            )
-
-            self.ENGINES[cache_key] = engine
-
-        await self.schedule_engine_disposal(cache_key)
-        return self.ENGINES[cache_key]
-
-    async def schedule_engine_disposal(self, cache_key):
-        """
-        Dispose of an engine once the event loop is closing.
-
-        Requires use of `asyncio.run()` which waits for async generator shutdown by
-        default or explicit call of `asyncio.shutdown_asyncgens()`. If the application
-        is entered with `asyncio.run_until_complete()` and the user calls
-        `asyncio.close()` without the generator shutdown call, this will not dispose the
-        engine. As an alternative to suggesting users call `shutdown_asyncgens`
-        (which can interfere with other async generators), `dispose_all_engines` is
-        provided as a cleanup method.
-
-        asyncio does not provided _any_ other way to clean up a resource when the event
-        loop is about to close. We attempted to lazily clean up old engines when new
-        engines are created, but if the loop the engine is attached to is already closed
-        then the connections cannot be cleaned up properly and warnings are displayed.
-
-        Engine disposal should only be important when running the application
-        ephemerally. Notably, this is an issue in our tests where many short-lived event
-        loops and engines are created which can consume all of the available database
-        connection slots. Users operating at a scale where connection limits are
-        encountered should be encouraged to use a standalone server.
-        """
-
-        async def dispose_engine(cache_key):
-            try:
-                yield
-            except GeneratorExit:
-                engine = self.ENGINES.pop(cache_key, None)
-                if engine:
-                    await engine.dispose()
-
-                # Drop this iterator from the disposal just to keep things clean
-                self.ENGINE_DISPOSAL_QUEUE.pop(cache_key, None)
-
-        # Create the iterator and store it in a global variable so it is not cleaned up
-        # when this function scope ends
-        self.ENGINE_DISPOSAL_QUEUE[cache_key] = dispose_engine(cache_key).__aiter__()
-
-        # Begin iterating so it will be cleaned up as an incomplete generator
-        await self.ENGINE_DISPOSAL_QUEUE[cache_key].__anext__()
-
-    async def clear_engine_cache(self):
-        self.ENGINES.clear()
 
     async def insert(self, model):
         """INSERTs a model into the database"""
