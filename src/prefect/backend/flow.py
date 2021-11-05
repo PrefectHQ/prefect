@@ -27,8 +27,6 @@ class FlowView:
 
     Args:
         - flow_id: The uuid of the flow
-        - flow: A deserialized copy of the flow. This is not loaded from storage, so
-             tasks will not be runnable but the DAG can be explored.
         - settings: A dict of flow settings
         - run_config: A dict representation of the flow's run configuration
         - serialized_flow: A serialized copy of the flow
