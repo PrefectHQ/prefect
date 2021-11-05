@@ -9,16 +9,16 @@ from sqlalchemy.ext.asyncio import (
 )
 from typing import List, Dict, AsyncGenerator
 from prefect import settings
-from prefect.orion.database.mixins import (
-    BaseMixin,
-    FlowMixin,
-    FlowRunMixin,
-    FlowRunStateMixin,
-    TaskRunMixin,
-    TaskRunStateMixin,
-    TaskRunStateCacheMixin,
-    DeploymentMixin,
-    SavedSearchMixin,
+from prefect.orion.database.orm_models import (
+    ORMBase,
+    ORMFlow,
+    ORMFlowRun,
+    ORMFlowRunState,
+    ORMTaskRun,
+    ORMTaskRunState,
+    ORMTaskRunStateCache,
+    ORMDeployment,
+    ORMSavedSearch,
 )
 
 
@@ -81,34 +81,34 @@ class OrionDBInterface(metaclass=Singleton):
 
     def create_base_model(self):
         @as_declarative(metadata=self.base_metadata)
-        class Base(*self.config.base_model_mixins, BaseMixin):
+        class Base(*self.config.base_model_mixins, ORMBase):
             pass
 
         return Base
 
     def create_orm_models(self):
-        class Flow(FlowMixin, self.Base):
+        class Flow(ORMFlow, self.Base):
             pass
 
-        class FlowRunState(FlowRunStateMixin, self.Base):
+        class FlowRunState(ORMFlowRunState, self.Base):
             pass
 
-        class TaskRunState(TaskRunStateMixin, self.Base):
+        class TaskRunState(ORMTaskRunState, self.Base):
             pass
 
-        class TaskRunStateCache(TaskRunStateCacheMixin, self.Base):
+        class TaskRunStateCache(ORMTaskRunStateCache, self.Base):
             pass
 
-        class FlowRun(FlowRunMixin, self.Base):
+        class FlowRun(ORMFlowRun, self.Base):
             pass
 
-        class TaskRun(TaskRunMixin, self.Base):
+        class TaskRun(ORMTaskRun, self.Base):
             pass
 
-        class Deployment(DeploymentMixin, self.Base):
+        class Deployment(ORMDeployment, self.Base):
             pass
 
-        class SavedSearch(SavedSearchMixin, self.Base):
+        class SavedSearch(ORMSavedSearch, self.Base):
             pass
 
         # TODO - move these to proper migrations

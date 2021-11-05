@@ -7,7 +7,6 @@ import pendulum
 import sqlalchemy as sa
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, declarative_mixin
-from typing import Optional
 from prefect.orion.schemas import core, data, schedules, states
 from prefect.orion.utilities.database import (
     UUID,
@@ -22,7 +21,7 @@ from prefect.orion.utilities.database import (
 )
 
 
-class BaseMixin(object):
+class ORMBase(object):
     """
     Base SQLAlchemy model that automatically infers the table name
     and provides ID, created, and updated columns
@@ -74,7 +73,7 @@ class BaseMixin(object):
 
 
 @declarative_mixin
-class FlowMixin:
+class ORMFlow:
     """SQLAlchemy mixin of a flow."""
 
     name = sa.Column(sa.String, nullable=False, unique=True)
@@ -90,7 +89,7 @@ class FlowMixin:
 
 
 @declarative_mixin
-class FlowRunStateMixin:
+class ORMFlowRunState:
     """SQLAlchemy mixin of a flow run state."""
 
     # this column isn't explicitly indexed because it is included in
@@ -133,7 +132,7 @@ class FlowRunStateMixin:
 
 
 @declarative_mixin
-class TaskRunStateMixin:
+class ORMTaskRunState:
     """SQLAlchemy model of a task run state."""
 
     # this column isn't explicitly indexed because it is included in
@@ -175,7 +174,7 @@ class TaskRunStateMixin:
         return states.State.from_orm(self)
 
 
-class TaskRunStateCacheMixin:
+class ORMTaskRunStateCache:
     """SQLAlchemy model of a task run state cache. Used to manage caching logic for task runs."""
 
     cache_key = sa.Column(sa.String, nullable=False)
@@ -187,7 +186,7 @@ class TaskRunStateCacheMixin:
 
 
 @declarative_mixin
-class RunMixin:
+class ORMRun:
     """
     Common columns and logic for FlowRun and TaskRun models
     """
@@ -285,7 +284,7 @@ class RunMixin:
 
 
 @declarative_mixin
-class FlowRunMixin(RunMixin):
+class ORMFlowRun(ORMRun):
     """SQLAlchemy model of a flow run."""
 
     @declared_attr
@@ -405,7 +404,7 @@ class FlowRunMixin(RunMixin):
 
 
 @declarative_mixin
-class TaskRunMixin(RunMixin):
+class ORMTaskRun(ORMRun):
     """SQLAlchemy model of a task run."""
 
     @declared_attr
@@ -511,7 +510,7 @@ class TaskRunMixin(RunMixin):
 
 
 @declarative_mixin
-class DeploymentMixin:
+class ORMDeployment:
     """SQLAlchemy model of a deployment."""
 
     name = sa.Column(sa.String, nullable=False)
@@ -534,7 +533,7 @@ class DeploymentMixin:
 
 
 @declarative_mixin
-class SavedSearchMixin:
+class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
     name = sa.Column(sa.String, nullable=False, unique=True)
