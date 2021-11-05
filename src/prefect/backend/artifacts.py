@@ -11,7 +11,7 @@ def _running_with_backend() -> bool:
     using the `CloudTaskRunner`.
 
     Returns:
-        - bool: if `_running_with_backend` is set in context
+        - bool: if `running_with_backend` is set in context
     """
     return bool(prefect.context.get("running_with_backend"))
 
