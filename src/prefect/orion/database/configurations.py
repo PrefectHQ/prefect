@@ -7,17 +7,27 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 
 class DatabaseConfigurationBase(ABC):
-    @abstractmethod
-    def run_migrations():
-        ...
-
-    @abstractmethod
-    async def engine():
-        ...
+    """
+    Abstract base class used to inject database-specific configuration into Orion.
+    """
 
     @abstractproperty
-    def base_model_mixins():
-        ...
+    def base_model_mixins(self) -> list:
+        """A list of ORM mixins used to extend core Orion models"""
+
+    @abstractmethod
+    def run_migrations(self):
+        """Database-specific migration configuration"""
+
+    @abstractmethod
+    async def engine(
+        self,
+        connection_url,
+        echo,
+        timeout,
+        orm_metadata,
+    ) -> sa.engine.Engine:
+        """Returns a SqlAlchemy engine"""
 
 
 class AsyncPostgresConfiguration(DatabaseConfigurationBase):
@@ -69,9 +79,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
-        A new engine is created for each event loop and cached, so that engines are
-        not shared across loops.
-
         If a sqlite in-memory database OR a non-existant sqlite file-based database
         is provided, it is automatically populated with database objects.
 
@@ -96,6 +103,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
 class AioSqliteConfiguration(DatabaseConfigurationBase):
     # TODO - validate connection url for sqlite and driver
+
     MIN_SQLITE_VERSION = (3, 24, 0)
 
     def run_migrations(self, base_model):
