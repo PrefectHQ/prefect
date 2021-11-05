@@ -32,6 +32,18 @@ class Singleton(type):
 
 
 class OrionDBInterface(metaclass=Singleton):
+    """
+    An interface for backend-specific SqlAlchemy actions and ORM models.
+
+    Orion can be configured to run against different databases in order maintain
+    performance at different scales. This interface integrates database- and dialect-
+    specific configuration into a unified interface that the orchestration engine runs
+    against.
+    """
+
+    ENGINES = dict()
+    SESSION_FACTORIES = dict()
+    ENGINE_DISPOSAL_QUEUE: Dict[tuple, AsyncGenerator] = dict()
 
     # define naming conventions for our Base class to use
     # sqlalchemy will use the following templated strings
@@ -48,10 +60,6 @@ class OrionDBInterface(metaclass=Singleton):
     # this also allows us to avoid having to specify names explicitly
     # when using sa.ForeignKey.use_alter = True
     # https://docs.sqlalchemy.org/en/14/core/constraints.html
-
-    ENGINES = dict()
-    SESSION_FACTORIES = dict()
-    ENGINE_DISPOSAL_QUEUE: Dict[tuple, AsyncGenerator] = dict()
 
     def __init__(
         self,
@@ -205,26 +213,6 @@ class OrionDBInterface(metaclass=Singleton):
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
 
-    async def create_db(self):
-        engine = await self.engine()
-
-        async with engine.begin() as conn:
-            await conn.run_sync(self.Base.metadata.create_all)
-
-    async def drop_db(self):
-        engine = await self.engine()
-
-        async with engine.begin() as conn:
-            await conn.run_sync(self.Base.metadata.drop_all)
-
-    def run_migrations(self):
-        """Run database migrations"""
-        self.config.run_migrations(self.Base)
-
-    async def insert(self, model):
-        """Returns an INSERT statement specific to a dialect"""
-        return self.queries.insert(model)
-
     @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
@@ -253,20 +241,30 @@ class OrionDBInterface(metaclass=Singleton):
             self.TaskRun.task_key,
             self.TaskRun.dynamic_key,
         ]
+    async def create_db(self):
+        engine = await self.engine()
 
-    def set_state_id_on_inserted_flow_runs_statement(
-        self, inserted_flow_run_ids, insert_flow_run_states
-    ):
-        """Given a list of flow run ids and associated states, set the state_id
-        to the appropriate state for all flow runs"""
-        return self.queries.set_state_id_on_inserted_flow_runs_statement(
-            self.FlowRun,
-            self.FlowRunState,
-            inserted_flow_run_ids,
-            insert_flow_run_states,
-        )
+        async with engine.begin() as conn:
+            await conn.run_sync(self.Base.metadata.create_all)
+
+    async def drop_db(self):
+        engine = await self.engine()
+
+        async with engine.begin() as conn:
+            await conn.run_sync(self.Base.metadata.drop_all)
+
+    def run_migrations(self):
+        """Run database migrations"""
+        self.config.run_migrations(self.Base)
 
     async def engine(self, connection_url=None):
+        """
+        Provides a SqlAlchemy engine against a specific database.
+
+        A new engine is created for each event loop and cached, so that engines are
+        not shared across loops.
+        """
+
         loop = get_event_loop()
         connection_url = connection_url or self.connection_url()
 
@@ -330,6 +328,13 @@ class OrionDBInterface(metaclass=Singleton):
     async def clear_engine_cache(self):
         self.ENGINES.clear()
 
+    async def insert(self, model):
+        """INSERTs a model into the database"""
+        return self.queries.insert(model)
+
+    def max(self, *values):
+        return self.queries.max(*values)
+
     async def session_factory(self):
         loop = get_event_loop()
         bind = await self.engine()
@@ -356,12 +361,21 @@ class OrionDBInterface(metaclass=Singleton):
     ):
         return self.queries.make_timestamp_intervals(start_time, end_time, interval)
 
+    def set_state_id_on_inserted_flow_runs_statement(
+        self, inserted_flow_run_ids, insert_flow_run_states
+    ):
+        """Given a list of flow run ids and associated states, set the state_id
+        to the appropriate state for all flow runs"""
+        return self.queries.set_state_id_on_inserted_flow_runs_statement(
+            self.FlowRun,
+            self.FlowRunState,
+            inserted_flow_run_ids,
+            insert_flow_run_states,
+        )
+
     @property
     def uses_json_strings(self):
         return self.queries.uses_json_strings
-
-    def max(self, *values):
-        return self.queries.max(*values)
 
     def cast_to_json(self, json_obj):
         return self.queries.cast_to_json(json_obj)
