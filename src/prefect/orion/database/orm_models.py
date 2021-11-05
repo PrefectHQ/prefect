@@ -175,7 +175,9 @@ class ORMTaskRunState:
 
 
 class ORMTaskRunStateCache:
-    """SQLAlchemy model of a task run state cache. Used to manage caching logic for task runs."""
+    """
+    SQLAlchemy model of a task run state cache.
+    """
 
     cache_key = sa.Column(sa.String, nullable=False)
     cache_expiration = sa.Column(
