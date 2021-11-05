@@ -1,40 +1,13 @@
-import time
+import warnings
 from typing import Optional
 
-from prefect import context, Client
-from prefect.exceptions import ClientError
-
-
-def _running_with_backend() -> bool:
-    """
-    Determine if running in context of a backend. This is always true when running
-    using the `CloudTaskRunner`.
-
-    Returns:
-        - bool: if `_running_with_backend` is set in context
-    """
-    return bool(context.get("running_with_backend"))
-
-
-def _create_task_run_artifact(kind: str, data: dict) -> str:
-    client = Client()
-    task_run_id = context.get("task_run_id")
-    # XXX: there's a race condition in the cloud backend for mapped tasks where
-    # the task run lookup might fail temporarily. This should last a few
-    # seconds max, for now we retry a few times.
-    retries = 5
-    while True:
-        try:
-            return client.create_task_run_artifact(
-                task_run_id=task_run_id, kind=kind, data=data
-            )
-        except ClientError as exc:
-            # If it's a not found error and we still have retries left, retry
-            if "not found" in str(exc).lower() and retries:
-                time.sleep(1)
-                retries -= 1
-                continue
-            raise
+from prefect.backend import (
+    create_link_artifact,
+    create_markdown_artifact,
+    delete_artifact as delete_artifact_new,
+    update_link_artifact,
+    update_markdown_artifact,
+)
 
 
 def create_link(link: str) -> Optional[str]:
@@ -47,9 +20,11 @@ def create_link(link: str) -> Optional[str]:
     Returns:
         - str: the task run artifact ID
     """
-    if not _running_with_backend():
-        return None
-    return _create_task_run_artifact("link", {"link": link})
+    warnings.warn(
+        "`prefect.artifacts.create_link` has been moved to `prefect.backend.create_link_artifact`. "
+        "Please update your imports. The old function will be removed in 1.0.0."
+    )
+    return create_link_artifact(link)
 
 
 def update_link(task_run_artifact_id: str, link: str) -> None:
@@ -61,13 +36,11 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - link (str): the new link to update the artifact with
     """
-    if not _running_with_backend():
-        return
-
-    client = Client()
-    client.update_task_run_artifact(
-        task_run_artifact_id=task_run_artifact_id, data={"link": link}
+    warnings.warn(
+        "`prefect.artifacts.update_link` has been moved to `prefect.backend.update_link_artifact`. "
+        "Please update your imports. The old function will be removed in 1.0.0."
     )
+    return update_link_artifact(task_run_artifact_id, link)
 
 
 def create_markdown(markdown: str) -> Optional[str]:
@@ -80,9 +53,11 @@ def create_markdown(markdown: str) -> Optional[str]:
     Returns:
         - str: the task run artifact ID
     """
-    if not _running_with_backend():
-        return None
-    return _create_task_run_artifact("markdown", {"markdown": markdown})
+    warnings.warn(
+        "`prefect.artifacts.create_markdown` has been moved to `prefect.backend.create_markdown_artifact`. "
+        "Please update your imports. The old function will be removed in 1.0.0."
+    )
+    return create_markdown_artifact(markdown)
 
 
 def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
@@ -94,13 +69,11 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
         - task_run_artifact_id (str): the ID of an existing task run artifact
         - markdown (str): the new markdown to update the artifact with
     """
-    if not _running_with_backend():
-        return
-
-    client = Client()
-    client.update_task_run_artifact(
-        task_run_artifact_id=task_run_artifact_id, data={"markdown": markdown}
+    warnings.warn(
+        "`prefect.artifacts.update_markdown` has been moved to `prefect.backend.update_markdown_artifact`. "
+        "Please update your imports. The old function will be removed in 1.0.0."
     )
+    return update_markdown_artifact(task_run_artifact_id, markdown)
 
 
 def delete_artifact(task_run_artifact_id: str) -> None:
@@ -110,8 +83,8 @@ def delete_artifact(task_run_artifact_id: str) -> None:
     Args:
         - task_run_artifact_id (str): the ID of an existing task run artifact
     """
-    if not _running_with_backend():
-        return
-
-    client = Client()
-    client.delete_task_run_artifact(task_run_artifact_id=task_run_artifact_id)
+    warnings.warn(
+        "`prefect.artifacts.delete_artifact` has been moved to `prefect.backend.delete_artifact`. "
+        "Please update your imports. The old function will be removed in 1.0.0."
+    )
+    return delete_artifact_new(task_run_artifact_id)
