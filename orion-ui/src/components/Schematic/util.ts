@@ -18,6 +18,7 @@ import {
   Position,
   Items
 } from '@/typings/schematic'
+import { max, cos, sin, sqrt, pi, floor } from './math'
 
 function getAvailablePositions(positions: Positions): [number, Position][] {
   return Array.from(positions).filter(
@@ -65,6 +66,18 @@ export class RadialSchematic {
     this.cx = x
     this.cy = y
 
+    return this
+  }
+
+  expandRing(ringId: number): RadialSchematic {
+    const ring = this.rings.get(ringId)
+    if (!ring) {
+      throw new Error('Invalid RingId when expanding ring.')
+    }
+
+    this.rings.set(ringId, { ...ring, expanded: true })
+    this.computeRings()
+    this.computeInitialPositions()
     return this
   }
 
@@ -138,6 +151,7 @@ export class RadialSchematic {
 
     this.computeNodes(items)
     this.computeLinks()
+    this.computeNodeRings()
     this.computeRings()
     this.computeInitialPositions()
     // this.computeIdealPositions()
@@ -156,10 +170,38 @@ export class RadialSchematic {
         downstreamNodes: new Map(),
         upstreamNodes: new Map(),
         siblingNodes: new Map(),
-        ring: 0,
-        position: 0
+        ring: 0
       })
     }
+  }
+
+  private computeNodeRings() {
+    const rings: [number, Ring][] = [...this.rings.entries()]
+
+    // Populate ring nodes
+    for (const [key, node] of this.nodes) {
+      const ringId = this.distance(node, 'up')
+
+      node.ring = ringId
+      this.nodes.set(key, node)
+
+      if (rings[ringId]) {
+        rings[ringId][1].nodes.set(key, node)
+      } else {
+        rings[ringId] = [
+          ringId,
+          {
+            radius: 0,
+            nodes: new Map([[key, node]]),
+            positions: new Map(),
+            links: [],
+            expanded: true
+          }
+        ]
+      }
+    }
+
+    this.rings = new Map(rings)
   }
 
   private computeLinks() {
@@ -222,41 +264,32 @@ export class RadialSchematic {
     return dfs(node)
   }
 
-  private computeRings() {
-    const rings: [number, Ring][] = []
-
-    const setNodeRings = () => {
-      // Populate ring nodes
-      for (const [key, node] of this.nodes) {
-        const ringId = this.distance(node, 'up')
-
-        node.ring = ringId
-        this.nodes.set(key, node)
-
-        if (rings[ringId]) {
-          rings[ringId][1].nodes.set(key, node)
-        } else {
-          rings[ringId] = [
-            ringId,
-            {
-              radius: 0,
-              nodes: new Map([[key, node]]),
-              positions: new Map(),
-              links: []
-            }
-          ]
-        }
-      }
-    }
-
-    setNodeRings()
-
+  private computeRings(start: number = 0) {
+    const rings: [number, Ring][] = [...this.rings.entries()]
     // Compute ring radius and positions
-    for (let i = 0; i < rings.length; i++) {
+    for (let i = start; i < rings.length; i++) {
       const n = rings[0][1].nodes.size
-      const radius = n === 1 ? i * this.baseRadius : (i + 1) * this.baseRadius
-      const positions = this.computeRingPositions(radius)
+      const size = rings[i][1].nodes.size
+      const prevRing = rings[i - 1]?.[1]
 
+      let radius
+
+      if (prevRing) {
+        radius = prevRing.radius + this.baseRadius
+      } else {
+        radius = n === 1 ? i * this.baseRadius : (i + 1) * this.baseRadius
+      }
+
+      if (rings[i][1].expanded && size > 1) {
+        radius = max(
+          floor((size * ((this.height + this.width) / 2)) / (pi * 2)),
+          radius
+        )
+      }
+
+      console.log(radius, this.rings)
+
+      const positions = this.computeRingPositions(radius)
       rings[i][1].radius = radius
       rings[i][1].positions = positions
 
@@ -294,7 +327,7 @@ export class RadialSchematic {
         node.cy = this.cy + ring.radius * Math.sin(position.radian)
 
         node.radian = position.radian
-        node.position = position.id
+        node.position = position
 
         position.nodes.set(node.id, node)
         ring.positions.set(position.id, position)
@@ -309,7 +342,7 @@ export class RadialSchematic {
     this.nodes = new Map(
       [...this.nodes].sort(([, aNode], [, bNode]) =>
         aNode.ring == bNode.ring
-          ? aNode.position - bNode.position
+          ? aNode.position.id - bNode.position.id
           : aNode.ring - bNode.ring
       )
     )

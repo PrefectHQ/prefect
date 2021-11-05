@@ -7,6 +7,7 @@
       observed: observed,
       [state.type.toLowerCase() + '-border']: true
     }"
+    @click="handleClick"
   >
     <div
       class="d-flex align-center justify-center border px-1"
@@ -38,8 +39,8 @@
             flex-grow-1 flex-shrink-0
           "
         >
-          {{ duration }}
-          <!-- {{ taskRun && taskRun.id && taskRun.id.slice(0, 8) }} -->
+          <!-- {{ duration }} -->
+          {{ taskRun && taskRun.id && taskRun.id.slice(0, 8) }}
         </div>
 
         <a
@@ -126,6 +127,10 @@ const duration = computed<string>(() => {
 const taskRun = computed<TaskRun>(() => {
   return queries.task_run.response.value || {}
 })
+
+const handleClick = () => {
+  console.log(props.node)
+}
 
 /**
  * Intersection Observer

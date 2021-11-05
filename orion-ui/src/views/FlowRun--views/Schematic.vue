@@ -19,7 +19,7 @@ const queries: { [key: string]: Query } = {
       id: route?.params.id as string
     },
     options: {
-      pollInterval: 5000
+      // pollInterval: 5000
     }
   })
 }

@@ -9,29 +9,33 @@
     <!-- {{ positions }} -->
 
     <div class="node-container">
-      <!-- <div v-for="[key, position] of radial?.positions" :key="key">
-      {{
-        position
-      }}
-      </div> -->
-
-      <Node
+      <template
         v-for="[key, node] of visibleNodes"
         :id="`node-${key}`"
         :key="key"
-        :node="node"
-        class="position-absolute"
-        :collapsed="collapsedTrees.get(key)"
-        :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
-        tabindex="0"
-        @toggle-tree="toggleTree"
-        @focus.self.stop="panToNode(node)"
-        @click.self.stop="highlightNode(node)"
-        @blur.self="highlightNode(node)"
-      />
+      >
+        <!-- v-if="" -->
+        <Node
+          v-if="node.position?.nodes.size == 1"
+          :node="node"
+          class="position-absolute"
+          :collapsed="collapsedTrees.get(key)"
+          :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
+          tabindex="0"
+          @toggle-tree="toggleTree"
+          @focus.self.stop="panToNode(node)"
+          @click.self.stop="highlightNode(node)"
+        />
+        <!-- @blur.self="highlightNode(node)" -->
 
-      <!-- <OverflowNode /> -->
-      <!--  -->
+        <OverflowNode
+          v-else
+          class="position-absolute"
+          :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
+          tabindex="0"
+          @click.self="expandRing(node)"
+        />
+      </template>
     </div>
 
     <div class="mini-map position-absolute mr-2 mb-2" :style="miniMapStyle">
@@ -51,6 +55,7 @@ import { RadialSchematic } from './util'
 import { pow, sqrt } from './math'
 
 import Node from './Node.vue'
+import OverflowNode from './OverflowNode.vue'
 
 import {
   Item,
@@ -59,9 +64,7 @@ import {
   SchematicNode,
   Rings,
   Ring,
-  Links,
-  Position,
-  Positions
+  Links
 } from '@/typings/schematic'
 
 const props = defineProps<{ items: Item[] }>()
@@ -90,23 +93,14 @@ const visibleNodes = computed<SchematicNodes>(() => {
       .filter(([, node]) => collapsed.every(([, tree]) => !tree.get(node.id)))
       .filter(([, node]) => {
         // This is currently filtering out nodes that share a single position (showing only the first one that got the spot)
-        const ring: Ring | undefined = radial.value.rings.get(node.ring)!
-        const positions = ring.positions.get(node.position)!
-        const positionalArr = [...positions.nodes.values()]
+        const ring: Ring | undefined = radial.value.rings.get(node.ring)
+        if (!ring) return
+        const position = node.position
+        if (!position) return
+        const positionalArr = [...position.nodes.values()]
         return positionalArr?.[0]?.id == node.id
       })
   )
-})
-
-const positions = computed<Positions>(() => {
-  return radial.value?.positions
-  // if (!radial.value?.rings) return []
-  // const rings: [number, Ring][] = [...radial.value.rings.entries()]
-  // return rings.reduce((acc: Positions, [, ring]: [number, Ring]) => {
-  //   acc.push.apply(acc, [...ring.positions.values()])
-  //   // ring.positions.forEach((position: Position) => acc.push(position))
-  //   return acc
-  // }, [])
 })
 
 const visibleRings = computed<Rings>(() => {
@@ -194,6 +188,10 @@ const zoomed = ({
       1 / transform.k
     })`
   }
+}
+
+const expandRing = (node: SchematicNode) => {
+  radial.value.expandRing(node.ring)
 }
 
 const toggleTree = (node: SchematicNode) => {
@@ -353,10 +351,9 @@ const updateLinks = () => {
     const cx = width.value / 2
     const cy = height.value / 2
 
-    const distance = targetRing.radius - radial.value.baseRadius
-    const distanceOffset =
-      sourceLinksIndex *
-      ((targetRing.radius - sourceRing.radius - 275) / sourceLinks.length)
+    const distance = (targetRing.radius - sourceRing.radius) / 2
+    const distanceArea = distance / sourceLinks.length
+    const distanceOffset = sourceLinksIndex * distanceArea
 
     const tcx = d.target.cx
     const tcy = d.target.cy
@@ -371,7 +368,7 @@ const updateLinks = () => {
       ex0 = x
       ey0 = y
     } else {
-      const [x, y] = lineGenerator(cx, cy, scx, scy, distance)
+      const [x, y] = lineGenerator(cx, cy, scx, scy, distanceOffset)
       ex0 = x
       ey0 = y
     }
@@ -385,7 +382,7 @@ const updateLinks = () => {
       path.arc(
         cx,
         cy,
-        sourceRing.radius + 275 - distanceOffset,
+        sourceRing.radius + sourceRing.radius / 2.5 + distanceOffset,
         sourceAngle,
         targetAngle,
         sourceAngle > targetAngle
@@ -446,7 +443,10 @@ const updateLinks = () => {
           .style('stroke', strokeGenerator)
           .style('stroke-width', strokeWidthGenerator)
           .attr('d', pathGenerator)
-          .style('opacity', opacityGenerator),
+          .style('opacity', opacityGenerator)
+          .on('click', (d) => {
+            console.log(d)
+          }),
       // update
       (selection: any) =>
         selection
@@ -533,7 +533,7 @@ watch(
 )
 
 watch(visibleRings, () => {
-  zoom.value.translateExtent(viewportExtent.value)
+  // zoom.value.translateExtent(viewportExtent.value)
   // d3.select('.schematic-svg')
   //   .transition()
   //   .duration(250)
@@ -568,8 +568,8 @@ const createChart = (): void => {
       [0, 0],
       [width.value, height.value]
     ])
-    .translateExtent(viewportExtent.value)
-    .scaleExtent([0.1, 1])
+    // .translateExtent(viewportExtent.value)
+    // .scaleExtent([0.1, 1])
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
