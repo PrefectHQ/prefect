@@ -29,7 +29,6 @@ TEST_FLOW_VIEW = FlowView(
     name="flow-name",
     settings={"key": "value"},
     run_config=UniversalRun(env={"ENV": "VAL"}),
-    flow=Flow("flow"),
     serialized_flow=Flow("flow").serialize(),
     archived=False,
     project_name="project",
