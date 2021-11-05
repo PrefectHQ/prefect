@@ -17,6 +17,17 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.artifacts]
+title = "Artifacts"
+module = "prefect.backend.artifacts"
+functions = [
+    "create_link_artifact",
+    "update_link_artifact",
+    "create_markdown_artifact",
+    "update_markdown_artifact",
+    "delete_artifact"
+]
+
 [pages.backend.flow]
 title = "Flow"
 module = "prefect.backend.flow"
@@ -654,18 +665,6 @@ classes = {ECSAgent = ["start"]}
 title = "Vertex Agent"
 module = "prefect.agent.vertex"
 classes = {VertexAgent = ["start"]}
-
-[pages.artifacts.artifacts]
-title = "Artifacts"
-module = "prefect.artifacts"
-functions = [
-    "create_link",
-    "update_link",
-    "create_markdown",
-    "update_markdown",
-    "delete_artifact"
-]
-experimental = true
 
 [pages.utilities.collections]
 title = "Collections"
