@@ -1,6 +1,7 @@
 """
 The functions here have been moved to `prefect.backend.artifacts`
 """
+# flake8: noqa
 import warnings
 from typing import Optional
 
