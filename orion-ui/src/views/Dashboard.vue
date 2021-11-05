@@ -125,7 +125,7 @@
           v-else-if="resultsTab == 'flows'"
           key="flows"
           :filter="filter"
-          component="flow-list-item"
+          component="ListItemFlow"
           endpoint="flows"
         />
 
@@ -133,7 +133,7 @@
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
           :filter="filter"
-          component="deployment-list-item"
+          component="ListItemDeployment"
           endpoint="deployments"
         />
 
@@ -141,7 +141,7 @@
           v-else-if="resultsTab == 'flow_runs'"
           key="flow_runs"
           :filter="filter"
-          component="flow-run-list-item"
+          component="ListItemFlowRun"
           endpoint="flow_runs"
         />
 
@@ -149,7 +149,7 @@
           v-else-if="resultsTab == 'task_runs'"
           key="task_runs"
           :filter="filter"
-          component="task-run-list-item"
+          component="ListItemTaskRun"
           endpoint="task_runs"
         />
       </transition>

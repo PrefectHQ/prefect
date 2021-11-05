@@ -34,7 +34,7 @@ const app = createApp(App).use(MiterDesign).use(store).use(router).use(api)
 
 app.component('ButtonCard', ButtonCard)
 app.component('BreadCrumbs', BreadCrumbs)
-app.component('RoundedButton', ButtonRounded)
+app.component('ButtonRounded', ButtonRounded)
 app.component('Drawer', Drawer)
 app.component('List', List)
 app.component('ListItem', ListItem)
