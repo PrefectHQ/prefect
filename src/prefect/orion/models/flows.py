@@ -144,9 +144,7 @@ async def _apply_flow_filters(
         query = query.where(exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(db.FlowRun).where(
-            db.FlowRun.flow_id == db.Flow.id
-        )
+        exists_clause = select(db.FlowRun).where(db.FlowRun.flow_id == db.Flow.id)
 
         if flow_run_filter:
             exists_clause = exists_clause.where((await flow_run_filter.as_sql_filter()))
@@ -249,9 +247,7 @@ async def count_flows(
 
 
 @inject_db
-async def delete_flow(
-    session: sa.orm.Session, flow_id: UUID, db=None
-) -> bool:
+async def delete_flow(session: sa.orm.Session, flow_id: UUID, db=None) -> bool:
     """
     Delete a flow by id.
 
@@ -263,7 +259,5 @@ async def delete_flow(
         bool: whether or not the flow was deleted
     """
 
-    result = await session.execute(
-        delete(db.Flow).where(db.Flow.id == flow_id)
-    )
+    result = await session.execute(delete(db.Flow).where(db.Flow.id == flow_id))
     return result.rowcount > 0

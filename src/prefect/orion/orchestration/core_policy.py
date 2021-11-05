@@ -108,17 +108,14 @@ class CacheRetrieval(BaseOrchestrationRule):
                         db.TaskRunStateCache.cache_key == cache_key,
                         sa.or_(
                             db.TaskRunStateCache.cache_expiration.is_(None),
-                            db.TaskRunStateCache.cache_expiration
-                            > pendulum.now("utc"),
+                            db.TaskRunStateCache.cache_expiration > pendulum.now("utc"),
                         ),
                     ),
                 )
                 .order_by(db.TaskRunStateCache.created.desc())
                 .limit(1)
             ).scalar_subquery()
-            query = select(db.TaskRunState).where(
-                db.TaskRunState.id == cached_state_id
-            )
+            query = select(db.TaskRunState).where(db.TaskRunState.id == cached_state_id)
             cached_state = (await context.session.execute(query)).scalar()
             if cached_state:
                 new_state = cached_state.as_state().copy(reset_fields=True)

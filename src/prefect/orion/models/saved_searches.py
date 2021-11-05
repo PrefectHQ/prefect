@@ -94,9 +94,7 @@ async def read_saved_search_by_name(
         db.SavedSearch: the SavedSearch
     """
     result = await session.execute(
-        select(db.SavedSearch)
-        .where(db.SavedSearch.name == name)
-        .limit(1)
+        select(db.SavedSearch).where(db.SavedSearch.name == name).limit(1)
     )
     return result.scalar()
 
@@ -147,8 +145,6 @@ async def delete_saved_search(
     """
 
     result = await session.execute(
-        delete(db.SavedSearch).where(
-            db.SavedSearch.id == saved_search_id
-        )
+        delete(db.SavedSearch).where(db.SavedSearch.id == saved_search_id)
     )
     return result.rowcount > 0

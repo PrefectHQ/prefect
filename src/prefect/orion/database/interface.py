@@ -223,7 +223,7 @@ class OrionDBInterface(metaclass=Singleton):
 
     async def insert(self, model):
         """Returns an INSERT statement specific to a dialect"""
-        return (self.queries.insert)(model)
+        return self.queries.insert(model)
 
     @property
     def deployment_unique_upsert_columns(self):

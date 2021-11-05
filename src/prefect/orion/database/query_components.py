@@ -7,13 +7,34 @@ from sqlalchemy.dialects import postgresql, sqlite
 
 
 class QueryComponentsBase(ABC):
+    # --- dialect-specific SqlAlchemy bindings
+
+    def insert(self, obj):
+        """dialect-specific insert statement"""
+
     @abstractmethod
-    def set_state_id_on_inserted_flow_runs_statement():
-        ...
+    def max(self, *values):
+        """dialect-specific SqlAlchemy binding"""
+
+    # --- dialect-specific JSON handling
 
     @abstractproperty
-    def insert():
-        ...
+    def uses_json_strings(self) -> bool:
+        """specifies whether the configured dialect returns JSON as strings"""
+
+    @abstractmethod
+    def cast_to_json(self, json_obj):
+        """casts to JSON object if necessary"""
+
+    @abstractmethod
+    def build_json_object(self, *args):
+        """builds a JSON object from sequential key-value pairs"""
+
+    @abstractmethod
+    def json_arr_agg(self, json_array):
+        """aggregates a JSON array"""
+
+    # --- dialect-optimized subqueries
 
     @abstractmethod
     def make_timestamp_intervals(
@@ -24,50 +45,42 @@ class QueryComponentsBase(ABC):
     ):
         ...
 
-    @abstractproperty
-    def uses_json_strings():
-        ...
-
     @abstractmethod
-    def max(self, *values):
-        ...
-
-    @abstractmethod
-    def cast_to_json(self, json_obj):
-        ...
-
-    @abstractmethod
-    def build_json_object():
-        ...
-
-    @abstractmethod
-    def json_arr_agg():
+    def set_state_id_on_inserted_flow_runs_statement(
+        self,
+        fr_model,
+        frs_model,
+        inserted_flow_run_ids,
+        insert_flow_run_states,
+    ):
         ...
 
 
 class AsyncPostgresQueryComponents(QueryComponentsBase):
-    @property
-    def insert(self):
-        return postgresql.insert
+    # --- Postgres-specific SqlAlchemy bindings
 
-    def set_state_id_on_inserted_flow_runs_statement(
-        self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
-    ):
-        """Given a list of flow run ids and associated states, set the state_id
-        to the appropriate state for all flow runs"""
-        # postgres supports `UPDATE ... FROM` syntax
-        stmt = (
-            sa.update(fr_model)
-            .where(
-                fr_model.id.in_(inserted_flow_run_ids),
-                frs_model.flow_run_id == fr_model.id,
-                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
-            )
-            .values(state_id=frs_model.id)
-            # no need to synchronize as these flow runs are entirely new
-            .execution_options(synchronize_session=False)
-        )
-        return stmt
+    def insert(self, obj):
+        return postgresql.insert(obj)
+
+    def max(self, *values):
+        return sa.func.greatest
+
+    # --- Postgres-specific JSON handling
+
+    @property
+    def uses_json_strings(self):
+        return False
+
+    def cast_to_json(self, json_obj):
+        return json_obj
+
+    def build_json_object(self, *args):
+        return sa.func.jsonb_build_object(*args)
+
+    def json_arr_agg(self, json_array):
+        return sa.func.jsonb_agg(json_array)
+
+    # --- Postgres-optimized subqueries
 
     def make_timestamp_intervals(
         self,
@@ -92,53 +105,56 @@ class AsyncPostgresQueryComponents(QueryComponentsBase):
             .limit(500)
         )
 
-    @property
-    def uses_json_strings(self):
-        return False
-
-    def max(self, *values):
-        return sa.func.greatest
-
-    def cast_to_json(self, json_obj):
-        return json_obj
-
-    def build_json_object(self, *args):
-        return sa.func.jsonb_build_object(*args)
-
-    def json_arr_agg(self, json_array):
-        return sa.func.jsonb_agg(json_array)
-
-
-class AioSqliteQueryComponents(QueryComponentsBase):
-    @property
-    def insert(self):
-        return sqlite.insert
-
     def set_state_id_on_inserted_flow_runs_statement(
-        self, fr_model, frs_model, inserted_flow_run_ids, insert_flow_run_states
+        self,
+        fr_model,
+        frs_model,
+        inserted_flow_run_ids,
+        insert_flow_run_states,
     ):
         """Given a list of flow run ids and associated states, set the state_id
         to the appropriate state for all flow runs"""
-        # sqlite requires a correlated subquery to update from another table
-        subquery = (
-            sa.select(frs_model.id)
-            .where(
-                frs_model.flow_run_id == fr_model.id,
-                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
-            )
-            .limit(1)
-            .scalar_subquery()
-        )
+        # postgres supports `UPDATE ... FROM` syntax
         stmt = (
             sa.update(fr_model)
             .where(
                 fr_model.id.in_(inserted_flow_run_ids),
+                frs_model.flow_run_id == fr_model.id,
+                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
             )
-            .values(state_id=subquery)
+            .values(state_id=frs_model.id)
             # no need to synchronize as these flow runs are entirely new
             .execution_options(synchronize_session=False)
         )
         return stmt
+
+
+class AioSqliteQueryComponents(QueryComponentsBase):
+    # --- Sqlite-specific SqlAlchemy bindings
+
+    @property
+    def insert(self):
+        return sqlite.insert
+
+    def max(self, *values):
+        return sa.func.max(*values)
+
+    # --- Sqlite-specific JSON handling
+
+    @property
+    def uses_json_strings(self):
+        return True
+
+    def cast_to_json(self, json_obj):
+        return sa.func.json(json_obj)
+
+    def build_json_object(self, *args):
+        return sa.func.json_object(*args)
+
+    def json_arr_agg(self, json_array):
+        return sa.func.json_group_array(json_array)
+
+    # --- Sqlite-optimized subqueries
 
     def make_timestamp_intervals(
         self,
@@ -187,18 +203,32 @@ class AioSqliteQueryComponents(QueryComponentsBase):
             .columns(interval_start=Timestamp(), interval_end=Timestamp())
         )
 
-    @property
-    def uses_json_strings(self):
-        return True
-
-    def max(self, *values):
-        return sa.func.max(*values)
-
-    def cast_to_json(self, json_obj):
-        return sa.func.json(json_obj)
-
-    def build_json_object(self, *args):
-        return sa.func.json_object(*args)
-
-    def json_arr_agg(self, json_array):
-        return sa.func.json_group_array(json_array)
+    def set_state_id_on_inserted_flow_runs_statement(
+        self,
+        fr_model,
+        frs_model,
+        inserted_flow_run_ids,
+        insert_flow_run_states,
+    ):
+        """Given a list of flow run ids and associated states, set the state_id
+        to the appropriate state for all flow runs"""
+        # sqlite requires a correlated subquery to update from another table
+        subquery = (
+            sa.select(frs_model.id)
+            .where(
+                frs_model.flow_run_id == fr_model.id,
+                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
+        stmt = (
+            sa.update(fr_model)
+            .where(
+                fr_model.id.in_(inserted_flow_run_ids),
+            )
+            .values(state_id=subquery)
+            # no need to synchronize as these flow runs are entirely new
+            .execution_options(synchronize_session=False)
+        )
+        return stmt

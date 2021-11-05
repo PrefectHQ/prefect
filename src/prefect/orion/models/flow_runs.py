@@ -285,9 +285,7 @@ async def count_flow_runs(
 
 
 @inject_db
-async def delete_flow_run(
-    session: sa.orm.Session, flow_run_id: UUID, db=None
-) -> bool:
+async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID, db=None) -> bool:
     """
     Delete a flow run by flow_run_id.
 

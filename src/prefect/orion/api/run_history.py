@@ -95,9 +95,7 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        db.max(
-                            0, sa.extract("epoch", runs.c.estimated_run_time)
-                        )
+                        db.max(0, sa.extract("epoch", runs.c.estimated_run_time))
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
@@ -133,9 +131,9 @@ async def run_history(
             counts.c.interval_start,
             counts.c.interval_end,
             sa.func.coalesce(
-                db.json_arr_agg(
-                    db.cast_to_json(counts.c.state_agg)
-                ).filter(counts.c.state_agg.is_not(None)),
+                db.json_arr_agg(db.cast_to_json(counts.c.state_agg)).filter(
+                    counts.c.state_agg.is_not(None)
+                ),
                 sa.text("'[]'"),
             ).label("states"),
         )

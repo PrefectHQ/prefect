@@ -223,9 +223,7 @@ async def count_task_runs(
 
 
 @inject_db
-async def delete_task_run(
-    session: sa.orm.Session, task_run_id: UUID, db=None
-) -> bool:
+async def delete_task_run(session: sa.orm.Session, task_run_id: UUID, db=None) -> bool:
     """
     Delete a task run by id.
 

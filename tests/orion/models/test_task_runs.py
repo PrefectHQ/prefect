@@ -89,9 +89,7 @@ class TestCreateTaskRun:
         assert task_run.flow_run_id == flow_run.id
         assert task_run.state.id == state_id
 
-        query = await session.execute(
-            sa.select(db.TaskRunState).filter_by(id=state_id)
-        )
+        query = await session.execute(sa.select(db.TaskRunState).filter_by(id=state_id))
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"

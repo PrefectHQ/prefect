@@ -31,9 +31,7 @@ async def read_flow_run_state(
 
 
 @inject_db
-async def read_flow_run_states(
-    session: sa.orm.Session, flow_run_id: UUID, db=None
-):
+async def read_flow_run_states(session: sa.orm.Session, flow_run_id: UUID, db=None):
     """
     Reads flow runs states for a flow run.
 
@@ -72,8 +70,6 @@ async def delete_flow_run_state(
     """
 
     result = await session.execute(
-        delete(db.FlowRunState).where(
-            db.FlowRunState.id == flow_run_state_id
-        )
+        delete(db.FlowRunState).where(db.FlowRunState.id == flow_run_state_id)
     )
     return result.rowcount > 0

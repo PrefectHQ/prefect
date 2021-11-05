@@ -79,11 +79,7 @@ class FlowFilterTags(PrefectFilterBaseModel):
         if self.all_ is not None:
             filters.append(json_has_all_keys(db.Flow.tags, self.all_))
         if self.is_null_ is not None:
-            filters.append(
-                db.Flow.tags == []
-                if self.is_null_
-                else db.Flow.tags != []
-            )
+            filters.append(db.Flow.tags == [] if self.is_null_ else db.Flow.tags != [])
         return filters
 
 
@@ -168,9 +164,7 @@ class FlowRunFilterTags(PrefectFilterBaseModel):
             filters.append(json_has_all_keys(db.FlowRun.tags, self.all_))
         if self.is_null_ is not None:
             filters.append(
-                db.FlowRun.tags == []
-                if self.is_null_
-                else db.FlowRun.tags != []
+                db.FlowRun.tags == [] if self.is_null_ else db.FlowRun.tags != []
             )
         return filters
 
@@ -223,11 +217,7 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
     async def _get_filter_list(self, db=None) -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(
-                db.FlowRun.state.has(
-                    db.FlowRunState.name.in_(self.any_)
-                )
-            )
+            filters.append(db.FlowRun.state.has(db.FlowRunState.name.in_(self.any_)))
         return filters
 
 
@@ -327,13 +317,9 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     async def _get_filter_list(self, db=None) -> List:
         filters = []
         if self.before_ is not None:
-            filters.append(
-                db.FlowRun.next_scheduled_start_time <= self.before_
-            )
+            filters.append(db.FlowRun.next_scheduled_start_time <= self.before_)
         if self.after_ is not None:
-            filters.append(
-                db.FlowRun.next_scheduled_start_time >= self.after_
-            )
+            filters.append(db.FlowRun.next_scheduled_start_time >= self.after_)
         return filters
 
 
@@ -474,9 +460,7 @@ class TaskRunFilterTags(PrefectFilterBaseModel):
             filters.append(json_has_all_keys(db.TaskRun.tags, self.all_))
         if self.is_null_ is not None:
             filters.append(
-                db.TaskRun.tags == []
-                if self.is_null_
-                else db.TaskRun.tags != []
+                db.TaskRun.tags == [] if self.is_null_ else db.TaskRun.tags != []
             )
         return filters
 
@@ -505,11 +489,7 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
     async def _get_filter_list(self, db=None) -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(
-                db.TaskRun.state.has(
-                    db.TaskRunState.name.in_(self.any_)
-                )
-            )
+            filters.append(db.TaskRun.state.has(db.TaskRunState.name.in_(self.any_)))
         return filters
 
 
@@ -683,9 +663,7 @@ class DeploymentFilterTags(PrefectFilterBaseModel):
             filters.append(json_has_all_keys(db.Deployment.tags, self.all_))
         if self.is_null_ is not None:
             filters.append(
-                db.Deployment.tags == []
-                if self.is_null_
-                else db.Deployment.tags != []
+                db.Deployment.tags == [] if self.is_null_ else db.Deployment.tags != []
             )
         return filters
 

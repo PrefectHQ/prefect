@@ -436,18 +436,14 @@ class TestDeleteDeployment:
 
 
 class TestScheduledRuns:
-    async def test_schedule_runs_inserts_in_db(
-        self, flow, deployment, session, db
-    ):
+    async def test_schedule_runs_inserts_in_db(self, flow, deployment, session, db):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
         assert len(scheduled_runs) == 100
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
-                db.FlowRun.state.has(
-                    db.FlowRunState.type == StateType.SCHEDULED
-                )
+                db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
             )
         )
 
@@ -461,9 +457,7 @@ class TestScheduledRuns:
             r.state.state_details.scheduled_time for r in db_scheduled_runs
         } == expected_times
 
-    async def test_schedule_runs_is_idempotent(
-        self, flow, deployment, session, db
-    ):
+    async def test_schedule_runs_is_idempotent(self, flow, deployment, session, db):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
@@ -479,9 +473,7 @@ class TestScheduledRuns:
         query_result = await session.execute(
             sa.select(db.FlowRun).where(
                 db.FlowRun.flow_id == flow.id,
-                db.FlowRun.state.has(
-                    db.FlowRunState.type == StateType.SCHEDULED
-                ),
+                db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED),
             )
         )
 
@@ -654,9 +646,7 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(db.FlowRun.id)).where(
-                db.FlowRun.state_id.is_(None)
-            )
+            sa.select(sa.func.count(db.FlowRun.id)).where(db.FlowRun.state_id.is_(None))
         )
         # no runs with missing states
         assert result.scalar() == 0
@@ -667,9 +657,7 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(db.FlowRun.id)).where(
-                db.FlowRun.state_id.is_(None)
-            )
+            sa.select(sa.func.count(db.FlowRun.id)).where(db.FlowRun.state_id.is_(None))
         )
         # no runs with missing states
         assert result.scalar() == 0
