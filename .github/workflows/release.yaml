@@ -54,6 +54,39 @@ jobs:
           name: built-package
           path: './dist'
 
+  publish-docs:
+    name: Open PR to docs branch
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Checkout dev
+        run: git checkout docs
+
+      - name: Create a temporary branch
+        run: git checkout -b "docs-for-release-$(date +%y.%m.%d)"
+
+      - name: Merge with main
+        run: git merge main -m "Merge branch 'main' into temporary docs branch"
+
+      - name: Push and open PR
+        run: |
+          git push --set-upstream origin HEAD
+          gh pr create \
+            --title "Publish docs from release on ($(date +%y.%m.%d))" \
+            --body '_automatically created with `gh` cli on merge to `master`_'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish-test-release:
     name: Publish Release to Test PyPI
     needs: [build-release]
