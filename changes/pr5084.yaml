@@ -1,0 +1,5 @@
+enhancement:
+  - "Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)"
+
+contributor:
+  - "[Josh Wang](https;//github.com/wangjoshuah)"

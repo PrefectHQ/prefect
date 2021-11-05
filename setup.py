@@ -58,14 +58,14 @@ extras = {
     "dropbox": ["dropbox ~= 9.0"],
     "ge": ["great_expectations >= 0.11.1"],
     "gcp": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "git": orchestration_extras["git"],
     "github": orchestration_extras["github"],
     "gitlab": orchestration_extras["gitlab"],
     "google": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
