@@ -7,6 +7,10 @@ from sqlalchemy.dialects import postgresql, sqlite
 
 
 class QueryComponentsBase(ABC):
+    """
+    Abstract base class used to inject dialect-specific SQL operations into Orion.
+    """
+
     # --- dialect-specific SqlAlchemy bindings
 
     @abstractmethod
