@@ -73,7 +73,8 @@ jobs:
         run: git checkout docs --
 
       - name: Create a temporary branch
-        run: git checkout -b "docs-for-release-$(date +%y.%m.%d)"
+        # the release tag is parsed from the ref
+        run: git checkout -b "docs-for-release-${GITHUB_REF#refs/*/}"
 
       - name: Merge with main
         run: git merge main -m "Merge branch 'main' into temporary docs branch"
