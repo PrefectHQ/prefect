@@ -1,20 +1,13 @@
 """
 Command line interface for working with Orion
 """
-import json
-import shutil
-import subprocess
-import os
-
 import typer
 import uvicorn
 
-import prefect
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.utilities.database import create_db, drop_db, get_engine
-from prefect.utilities.asyncio import sync_compatible
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.asyncio import sync_compatible, run_async_in_new_loop
 
 
 orion_app = typer.Typer(name="orion")
@@ -31,6 +24,11 @@ def start(
     """Start an Orion server"""
     # Delay this import so we don't instantiate the API uncessarily
     from prefect.orion.api.server import app as orion_fastapi_app
+
+    # TODO - move this into the db_config abstractions
+    # for sqlite-backed servers, `get_engine` will create a database if it
+    # does not already exist
+    run_async_in_new_loop(get_engine)
 
     console.print("Starting Orion API...")
     # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
@@ -57,47 +55,3 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     console.print("Creating tables...")
     await create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')
-
-
-@orion_app.command()
-def build_docs(
-    schema_path: str = None,
-):
-    """
-    Builds REST API reference documentation for static display.
-
-    Note that this command only functions properly with an editable install.
-    """
-    # Delay this import so we don't instantiate the API uncessarily
-    from prefect.orion.api.server import app as orion_fastapi_app
-
-    schema = orion_fastapi_app.openapi()
-
-    if not schema_path:
-        schema_path = (
-            prefect.__root_path__.parents[1] / "docs" / "api-ref" / "schema.json"
-        ).absolute()
-    # overwrite info for display purposes
-    schema["info"] = {}
-    with open(schema_path, "w") as f:
-        json.dump(schema, f)
-    console.print(f"OpenAPI schema written to {schema_path}")
-
-
-@orion_app.command()
-def build_ui():
-    with tmpchdir(prefect.__root_path__):
-        console.print("Building with npm...")
-        with tmpchdir(prefect.__root_path__ / "orion-ui"):
-            env = os.environ.copy()
-            env["ORION_UI_SERVE_BASE"] = "/ui/"
-            subprocess.check_output(["npm", "run", "build"], env=env)
-
-        if os.path.exists(prefect.__ui_static_path__):
-            console.print("Removing existing build files...")
-            shutil.rmtree(prefect.__ui_static_path__)
-
-        console.print("Copying build into src...")
-        shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
-
-    console.print("Complete!")

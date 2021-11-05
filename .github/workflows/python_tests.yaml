@@ -44,7 +44,6 @@ jobs:
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
       - name: Run tests
-        if: ${{ matrix.os == 'ubuntu-latest'}}
         env: 
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
         run: |
