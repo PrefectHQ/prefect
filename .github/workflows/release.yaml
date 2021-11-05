@@ -70,7 +70,7 @@ jobs:
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Checkout dev
-        run: git checkout docs
+        run: git checkout docs --
 
       - name: Create a temporary branch
         run: git checkout -b "docs-for-release-$(date +%y.%m.%d)"
