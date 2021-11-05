@@ -33,9 +33,7 @@ async def read_task_run_state(
 
 
 @inject_db
-async def read_task_run_states(
-    session: sa.orm.Session, task_run_id: UUID, db=None
-):
+async def read_task_run_states(session: sa.orm.Session, task_run_id: UUID, db=None):
     """
     Reads task runs states for a task run.
 
@@ -74,8 +72,6 @@ async def delete_task_run_state(
     """
 
     result = await session.execute(
-        delete(db.TaskRunState).where(
-            db.TaskRunState.id == task_run_state_id
-        )
+        delete(db.TaskRunState).where(db.TaskRunState.id == task_run_state_id)
     )
     return result.rowcount > 0

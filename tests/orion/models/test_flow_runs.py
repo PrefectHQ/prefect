@@ -41,9 +41,7 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == flow.id
         assert flow_run.state.id == state_id
 
-        query = await session.execute(
-            sa.select(db.FlowRunState).filter_by(id=state_id)
-        )
+        query = await session.execute(sa.select(db.FlowRunState).filter_by(id=state_id))
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"

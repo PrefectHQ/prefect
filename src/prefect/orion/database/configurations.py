@@ -108,7 +108,8 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
     async def engine(
         self,
         connection_url,
-        echo, timeout,
+        echo,
+        timeout,
         orm_metadata,
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.

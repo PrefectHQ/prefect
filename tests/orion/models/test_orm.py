@@ -179,9 +179,7 @@ class TestFlowRun:
 
         # delete all states
         await session.execute(sa.delete(db.FlowRunState))
-        flow_run.set_state(
-            db.FlowRunState(**schemas.states.Completed().dict())
-        )
+        flow_run.set_state(db.FlowRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.FlowRun, flow_run_id)
@@ -194,9 +192,7 @@ class TestFlowRun:
         assert len(states) == 1
         assert states[0].type.value == "COMPLETED"
 
-    async def test_assign_multiple_to_state_inserts_states(
-        self, flow_run, session, db
-    ):
+    async def test_assign_multiple_to_state_inserts_states(self, flow_run, session, db):
         flow_run_id = flow_run.id
 
         # delete all states
@@ -204,9 +200,7 @@ class TestFlowRun:
 
         flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
         flow_run.set_state(db.FlowRunState(**schemas.states.Running().dict()))
-        flow_run.set_state(
-            db.FlowRunState(**schemas.states.Completed().dict())
-        )
+        flow_run.set_state(db.FlowRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.FlowRun, flow_run_id)
@@ -320,9 +314,7 @@ class TestTaskRun:
 
         # delete all states
         await session.execute(sa.delete(db.TaskRunState))
-        task_run.set_state(
-            db.TaskRunState(**schemas.states.Completed().dict())
-        )
+        task_run.set_state(db.TaskRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.TaskRun, task_run_id)
@@ -335,9 +327,7 @@ class TestTaskRun:
         assert len(states) == 1
         assert states[0].type.value == "COMPLETED"
 
-    async def test_assign_multiple_to_state_inserts_states(
-        self, task_run, session, db
-    ):
+    async def test_assign_multiple_to_state_inserts_states(self, task_run, session, db):
         task_run_id = task_run.id
 
         # delete all states
@@ -345,9 +335,7 @@ class TestTaskRun:
 
         task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
         task_run.set_state(db.TaskRunState(**schemas.states.Running().dict()))
-        task_run.set_state(
-            db.TaskRunState(**schemas.states.Completed().dict())
-        )
+        task_run.set_state(db.TaskRunState(**schemas.states.Completed().dict()))
         await session.commit()
         session.expire_all()
         retrieved_flow_run = await session.get(db.TaskRun, task_run_id)
@@ -511,9 +499,7 @@ class TestTotalRunTimeEstimate:
             < datetime.timedelta(seconds=60)
         )
 
-    async def test_estimated_run_time_in_correlated_subquery(
-        self, session, flow, db
-    ):
+    async def test_estimated_run_time_in_correlated_subquery(self, session, flow, db):
         """
         The estimated_run_time includes a .correlate() statement that ensures it can
         be used as a correlated subquery within other selects or joins.
@@ -585,9 +571,7 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(
-                id=fr.id
-            )
+            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert (
             pendulum.duration(seconds=60)
@@ -619,9 +603,7 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(
-                id=fr.id
-            )
+            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert (
             pendulum.duration(seconds=60)
@@ -649,9 +631,7 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(
-                id=fr.id
-            )
+            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=5)
 
@@ -675,15 +655,11 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(
-                id=fr.id
-            )
+            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)
 
-    async def test_flow_run_lateness_is_zero_when_early(
-        self, session, flow, db
-    ):
+    async def test_flow_run_lateness_is_zero_when_early(self, session, flow, db):
         dt = pendulum.now().subtract(minutes=1)
         fr = await models.flow_runs.create_flow_run(
             session=session,
@@ -703,8 +679,6 @@ class TestExpectedStartTimeDelta:
         # check SQL logic
         await session.commit()
         result = await session.execute(
-            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(
-                id=fr.id
-            )
+            sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)

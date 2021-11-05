@@ -114,9 +114,7 @@ async def read_deployment_by_name(
 
     result = await session.execute(
         select(db.Deployment)
-        .join(
-            db.Flow, db.Deployment.flow_id == db.Flow.id
-        )
+        .join(db.Flow, db.Deployment.flow_id == db.Flow.id)
         .where(
             sa.and_(
                 db.Flow.name == flow_name,
@@ -272,9 +270,7 @@ async def delete_deployment(
     """
 
     result = await session.execute(
-        delete(db.Deployment).where(
-            db.Deployment.id == deployment_id
-        )
+        delete(db.Deployment).where(db.Deployment.id == deployment_id)
     )
     return result.rowcount > 0
 
@@ -379,9 +375,7 @@ async def _insert_scheduled_flow_runs(
     # because it uses a single bind parameter
     insert = await db.insert(db.FlowRun)
     await session.execute(
-        insert.on_conflict_do_nothing(
-            index_elements=db.flow_run_unique_upsert_columns
-        ),
+        insert.on_conflict_do_nothing(index_elements=db.flow_run_unique_upsert_columns),
         [r.dict(exclude={"created", "updated"}) for r in runs],
     )
 
