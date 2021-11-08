@@ -6,15 +6,12 @@
       <g id="ring-container" />
     </svg>
 
-    <!-- {{ positions }} -->
-
     <div class="node-container">
       <template
         v-for="[key, node] of visibleNodes"
         :id="`node-${key}`"
         :key="key"
       >
-        <!-- v-if="" -->
         <Node
           v-if="node.position?.nodes.size == 1"
           :node="node"
@@ -31,6 +28,7 @@
         <OverflowNode
           v-else
           class="position-absolute"
+          :nodes="node.position?.nodes"
           :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
           tabindex="0"
           @click="expandRing(node)"
@@ -456,10 +454,7 @@ const updateLinks = () => {
           .style('stroke', strokeGenerator)
           .style('stroke-width', strokeWidthGenerator)
           .attr('d', pathGenerator)
-          .style('opacity', opacityGenerator)
-          .on('click', (d) => {
-            console.log(d)
-          }),
+          .style('opacity', opacityGenerator),
       // update
       (selection: any) =>
         selection
