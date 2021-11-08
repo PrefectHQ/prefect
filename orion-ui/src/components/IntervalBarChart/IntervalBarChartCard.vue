@@ -1,7 +1,12 @@
 <template>
-  <Card shadow="sm">
+  <Card shadow="sm" class="interval-bar-chart-card">
     <template v-slot:header>
-      <div class="subheader py-1 px-2">{{ props.title }}</div>
+      <div class="interval-bar-chard-card__header">
+        <div class="subheader">{{ props.title }}</div>
+        <template v-if="items.length">
+          <div>{{ secondsToApproximateString(totalSeconds) }}</div>
+        </template>
+      </div>
     </template>
 
     <div class="px-2 pb-2" :style="{ height: height }">
@@ -22,6 +27,7 @@ import BarChart from './IntervalBarChart--Chart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
 import { defineProps, computed } from 'vue'
 import { Bucket, StateBucket } from '@/typings/run_history'
+import { secondsToApproximateString } from '@/util/util'
 
 const props = defineProps<{
   endpoint: string
@@ -57,7 +63,13 @@ const intervalSeconds = computed(() => {
   return props.filter.history_interval_seconds
 })
 
-const items = computed(() => {
+type IntervalChartItem = {
+  interval_start: string
+  interval_end: string
+  value: number
+}
+
+const items = computed<IntervalChartItem[]>(() => {
   return (queries.query.response.value || []).map((item: Bucket) => {
     return {
       interval_start: item.interval_start,
@@ -70,8 +82,18 @@ const items = computed(() => {
     }
   })
 })
+
+const totalSeconds = computed<number>(() => {
+  return items.value.reduce((total, item) => {
+    return (total += item.value)
+  }, 0)
+})
 </script>
 
-<style lang="scss" scoped>
-@use '@/styles/components/interval-bar-chart--card.scss';
+<style lang="scss">
+.interval-bar-chard-card__header {
+  padding: var(--p-1) var(--p-2);
+  display: flex;
+  justify-content: space-between;
+}
 </style>

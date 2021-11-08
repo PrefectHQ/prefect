@@ -23,7 +23,7 @@
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
       <IntervalBarChartCard
-        title="Duration"
+        title="Total Duration"
         endpoint="flow_runs_history"
         state-bucket-key="sum_estimated_run_time"
         height="77px"
@@ -32,7 +32,7 @@
       />
 
       <IntervalBarChartCard
-        title="Lateness"
+        title="Total Lateness"
         endpoint="flow_runs_history"
         state-bucket-key="sum_estimated_lateness"
         height="77px"
@@ -161,7 +161,7 @@
 <script lang="ts" setup>
 import { computed, ref, Ref, onBeforeMount, ComputedRef, watch } from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
-import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
+import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChartCard.vue'
 import {
   Api,
   Endpoints,
