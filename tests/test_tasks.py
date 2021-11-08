@@ -10,7 +10,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.utilities.collections import quote
 from prefect.exceptions import ReservedArgumentError
 
 
@@ -764,11 +763,10 @@ class TestTaskInputs:
         @flow
         def parent():
             child_state = child(1)
-            return quote(child_state), foo(child_state)
+            return child_state, foo(child_state)
 
         parent_state = parent()
         child_state, task_state = parent_state.result()
-        child_state = child_state.unquote()
 
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
@@ -793,11 +791,10 @@ class TestTaskWaitFor:
         def test_flow():
             f = fails()
             b = bar(2, wait_for=[f])
-
-            return quote(b)
+            return b
 
         flow_state = test_flow()
-        task_state = flow_state.result().unquote()
+        task_state = flow_state.result(raise_on_failure=False)
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
 
@@ -814,10 +811,10 @@ class TestTaskWaitFor:
         def test_flow():
             f = foo(1)
             b = bar(2, wait_for=[f])
-            return quote(b)
+            return b
 
         flow_state = test_flow()
-        task_state = flow_state.result().unquote()
+        task_state = flow_state.result()
         assert task_state.result() == 2
 
     async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
@@ -830,10 +827,10 @@ class TestTaskWaitFor:
             a, b = foo(1), foo(2)
             c = foo(3)
             d = foo(c, wait_for=[a, b])
-            return quote((a, b, c, d))
+            return (a, b, c, d)
 
         flow_state = test_flow()
-        a, b, c, d = flow_state.result().unquote()
+        a, b, c, d = flow_state.result()
         d_task_run = await orion_client.read_task_run(d.state_details.task_run_id)
 
         assert d_task_run.task_inputs["x"] == [

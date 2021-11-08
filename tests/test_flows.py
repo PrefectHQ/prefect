@@ -14,7 +14,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.utilities.collections import quote
 
 
 class TestFlow:
@@ -357,12 +356,12 @@ class TestSubflowRuns:
         @flow(version="bar")
         def parent(x, y=2, z=3):
             subflow_state = child(x, y, z)
-            return quote(subflow_state)
+            return subflow_state
 
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
 
-        child_state = parent_state.result().unquote()
+        child_state = parent_state.result()
         assert child_state.result() == 6
 
     def test_subflow_call_with_returned_task(self):
@@ -445,11 +444,11 @@ class TestSubflowRuns:
         @flow()
         def parent():
             subflow_state = child(1, 2)
-            return quote(subflow_state)
+            return subflow_state
 
         parent_state = parent()
         parent_flow_run_id = parent_state.state_details.flow_run_id
-        child_state = parent_state.result().unquote()
+        child_state = parent_state.result()
         child_flow_run_id = child_state.state_details.flow_run_id
 
         child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
@@ -506,14 +505,14 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return quote(my_subflow())
+                return my_subflow()
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = my_flow().result().unquote()
+            subflow_state = my_flow().result()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
