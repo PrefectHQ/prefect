@@ -290,7 +290,6 @@ async def create_and_begin_subflow_run(
         terminal_state = await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
-            task_run_id=flow_run.parent_task_run_id,
         )
 
     # Display the full state (including the result) if debugging
@@ -340,7 +339,6 @@ async def orchestrate_flow_run(
     await client.propose_state(
         Running(),
         flow_run_id=flow_run.id,
-        task_run_id=flow_run.parent_task_run_id,
     )
 
     timeout_context = (
@@ -678,7 +676,6 @@ async def detect_crashes(flow_run: FlowRun):
                         data=DataDocument.encode("cloudpickle", exc),
                     ),
                     flow_run_id=flow_run.id,
-                    task_run_id=flow_run.parent_task_run_id,
                 )
         raise
     except KeyboardInterrupt as exc:
@@ -691,7 +688,6 @@ async def detect_crashes(flow_run: FlowRun):
                     data=DataDocument.encode("cloudpickle", exc),
                 ),
                 flow_run_id=flow_run.id,
-                task_run_id=flow_run.parent_task_run_id,
             )
         raise
 
