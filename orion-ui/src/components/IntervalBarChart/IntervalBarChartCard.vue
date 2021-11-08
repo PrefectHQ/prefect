@@ -4,13 +4,15 @@
       <div class="interval-bar-chard-card__header">
         <div class="subheader">{{ props.title }}</div>
         <template v-if="items.length">
-          <div>{{ secondsToApproximateString(totalSeconds) }}</div>
+          <div class="font--secondary">
+            {{ secondsToApproximateString(totalSeconds) }}
+          </div>
         </template>
       </div>
     </template>
 
     <div class="px-2 pb-2" :style="{ height: height }">
-      <BarChart
+      <IntervalBarChart
         v-if="items && items.length"
         :items="items"
         :interval-seconds="intervalSeconds"
@@ -21,9 +23,8 @@
     </div>
   </Card>
 </template>
-
 <script lang="ts" setup>
-import BarChart from './IntervalBarChart--Chart.vue'
+import IntervalBarChart from './IntervalBarChart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
 import { defineProps, computed } from 'vue'
 import { Bucket, StateBucket } from '@/typings/run_history'
