@@ -1,14 +1,14 @@
 <template>
-  <div ref="container" class="chart-container">
-    <svg :id="id" ref="chart"></svg>
+  <div ref="container" class="interval-bar-chart">
+    <svg class="interval-bar-chart__svg" :id="id" ref="chart"></svg>
 
-    <div class="median" />
+    <div class="interval-bar-chart__median" />
 
-    <div class="bucket-container">
+    <div class="interval-bar-chart__bucket-container">
       <div
         v-for="item in items"
         :key="item.interval_start"
-        class="interval-bucket"
+        class="interval-bar-chart__bucket"
         :style="calculateBucketPosition(item)"
         tabindex="0"
       >
@@ -114,6 +114,52 @@ export default class BarChart extends mixins(D3Base).with(Props) {
 }
 </script>
 
-<style lang="scss" scoped>
-@use '@/styles/components/interval-bar-chart--chart.scss';
+<style lang="scss">
+@use '@/styles/abstracts/variables';
+
+.interval-bar-chart {
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.interval-bar-chart__svg {
+  height: 100%;
+  width: 100%;
+}
+
+.interval-bar-chart__median {
+  height: 1px;
+  background-color: $blue-20;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transition: top 150ms;
+  width: 100%;
+}
+
+.interval-bar-chart__bucket-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+.interval-bar-chart__bucket {
+  $r: 999px;
+  background-color: $grey-40;
+  border-radius: $r;
+  position: absolute;
+  transition: all 150ms;
+  transform-origin: bottom;
+  transform: translateX(50%);
+  z-index: 1;
+
+  &:hover,
+  &:focus {
+    background-color: $primary;
+  }
+}
 </style>
