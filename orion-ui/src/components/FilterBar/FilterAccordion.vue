@@ -3,7 +3,7 @@
     class="d-flex flex-column align-self-stretch container"
     style="width: 100%"
   >
-    <button-card
+    <ButtonCard
       class="expand-button"
       width="100%"
       @click="expanded = !expanded"
@@ -25,7 +25,7 @@
           :class="{ rotate: expanded }"
         />
       </div>
-    </button-card>
+    </ButtonCard>
     <div v-if="expanded" class="content pa-1">
       <slot />
     </div>
