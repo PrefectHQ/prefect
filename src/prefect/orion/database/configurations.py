@@ -16,7 +16,7 @@ class DatabaseConfigurationBase(ABC):
         """A list of ORM mixins used to extend core Orion models"""
 
     @abstractmethod
-    def run_migrations(self):
+    def run_migrations(self, base_model):
         """Database-specific migration configuration"""
 
     @abstractmethod
