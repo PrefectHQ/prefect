@@ -40,13 +40,13 @@ class CombinedTask(Task):
     def __init__(self, first_task: Task, second_task: Task, stitch_function: Callable):
         self.first_task = first_task
         self.second_task = second_task
-		self.stitch_function = stitch_function
+        self.stitch_function = stitch_function
 
     def run(self):
         inputs = self.first_task.run()
-		processed = self.stitch_function(inputs)
+        processed = self.stitch_function(inputs)
         result = self.second_task.run(**processed)
-		return result
+        return result
 ```
 
 along with a functional method on Task objects:
