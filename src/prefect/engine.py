@@ -718,11 +718,9 @@ async def user_return_value_to_state(
     task future.
     """
 
-    # States returned directly are respected without applying a rule allowing users
-    # to return state objects. This only applies if there are not UUIDs in place to avoid
-    # uninentional
     if (
         is_state(result)
+        # Check for manual creation
         and not result.state_details.flow_run_id
         and not result.state_details.task_run_id
     ):
