@@ -50,7 +50,7 @@
 import { ref, defineProps, computed, onMounted, onUnmounted, watch } from 'vue'
 import * as d3 from 'd3'
 import { RadialSchematic } from './util'
-import { pow, sqrt } from './math'
+import { pow, sqrt, pi, cos, sin, tan } from './math'
 
 import Node from './Node.vue'
 import OverflowNode from './OverflowNode.vue'
@@ -202,6 +202,30 @@ const toggleTree = (node: SchematicNode) => {
 }
 
 const updateRings = (): void => {
+  const polarToCartesian = (
+    cx: number,
+    cy: number,
+    radius: number,
+    angle: number
+  ): [number, number] => {
+    const radians = angle * (pi / 180)
+    const x = cx + radius * cos(radians)
+    const y = cy + radius * sin(radians)
+    return [x, y]
+  }
+
+  const calculateArc = ([, d]: [number, Ring]) => {
+    const r = d.radius
+    const channel = 125
+    const theta = (channel * 360) / (2 * pi * r)
+
+    const cx = width.value / 2
+    const cy = height.value / 2
+    const [x0, y0] = polarToCartesian(cx, cy, r, 90 - theta) // ~45
+    const [x1, y1] = polarToCartesian(cx, cy, r, 90 + theta) // ~135
+    return `M ${x0} ${y0} A${d.radius} ${d.radius} 0 1 0 ${x1} ${y1}`
+  }
+
   ringContainer.value
     ?.selectAll('.ring')
     .data(visibleRings.value)
@@ -210,12 +234,13 @@ const updateRings = (): void => {
       (selection: any) => {
         const g = selection.append('g')
         g.attr('id', (d: any) => d.id)
-        const circle = g.attr('class', 'ring').append('circle')
-        circle
-          .attr('cx', width.value / 2)
-          .attr('cy', height.value / 2)
+        const arc = g.attr('class', 'ring').append('path')
+        arc
+          // .attr('cx', width.value / 2)
+          // .attr('cy', height.value / 2)
           .attr('id', ([key]: [number, Ring]) => key)
-          .attr('r', ([, d]: [number, Ring]) => d.radius)
+          // .attr('r', ([, d]: [number, Ring]) => d.radius)
+          .attr('d', calculateArc)
           .style('opacity', 1)
           .attr('fill', 'transparent')
           .attr('stroke', 'rgba(0, 0, 0, 0.1)')
@@ -224,12 +249,13 @@ const updateRings = (): void => {
       },
       // update
       (selection: any) => {
-        const circle = selection.select('circle')
-        circle
-          .attr('cx', width.value / 2)
-          .attr('cy', height.value / 2)
+        const arc = selection.select('path')
+        arc
+          // .attr('cx', width.value / 2)
+          // .attr('cy', height.value / 2)
           .attr('id', ([key]: [number, Ring]) => key)
-          .attr('r', ([, d]: [number, Ring]) => d.radius)
+          .attr('d', calculateArc)
+        // .attr('r', ([, d]: [number, Ring]) => d.radius)
         return selection
       },
       // exit

@@ -4,6 +4,7 @@ export const cos = Math.cos
 export const max = Math.max
 export const min = Math.min
 export const sin = Math.sin
+export const tan = Math.tan
 export const sqrt = Math.sqrt
 export const pow = Math.pow
 export const floor = Math.floor

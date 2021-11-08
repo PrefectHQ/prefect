@@ -23,7 +23,7 @@ export declare interface Item {
 }
 
 export declare interface Position {
-  id: number | string
+  id: number
   radian: number
   nodes: SchematicNodes
 }
