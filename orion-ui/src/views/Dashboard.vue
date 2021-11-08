@@ -1,7 +1,7 @@
 <template>
   <div>
     <row class="filter-row py-1 my-1" hide-scrollbars>
-      <button-card
+      <ButtonCard
         v-for="filter in premadeFilters"
         :key="filter.label"
         class="filter-card-button"
@@ -16,7 +16,7 @@
           </div>
           <i class="pi pi-filter-3-line pi-lg" />
         </div>
-      </button-card>
+      </ButtonCard>
     </row>
 
     <div class="chart-section">
@@ -121,35 +121,35 @@
           </div>
         </div>
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'flows'"
           key="flows"
           :filter="filter"
-          component="flow-list-item"
+          component="ListItemFlow"
           endpoint="flows"
         />
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
           :filter="filter"
-          component="deployment-list-item"
+          component="ListItemDeployment"
           endpoint="deployments"
         />
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'flow_runs'"
           key="flow_runs"
           :filter="filter"
-          component="flow-run-list-item"
+          component="ListItemFlowRun"
           endpoint="flow_runs"
         />
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'task_runs'"
           key="task_runs"
           :filter="filter"
-          component="task-run-list-item"
+          component="ListItemTaskRun"
           endpoint="task_runs"
         />
       </transition>

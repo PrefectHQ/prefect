@@ -1,5 +1,5 @@
 <template>
-  <list-item class="list-item--deployment d-flex align-start justify-start">
+  <ListItem class="list-item--deployment d-flex align-start justify-start">
     <i class="item--icon pi pi-map-pin-line text--grey-40 align-self-start" />
     <div
       class="
@@ -87,9 +87,9 @@
         Quick Run
       </Button>
     </div>
-  </list-item>
+  </ListItem>
 
-  <drawer v-model="parametersDrawerActive" show-overlay>
+  <Drawer v-model="parametersDrawerActive" show-overlay>
     <template #title>{{ item.name }}</template>
     <h3 class="font-weight-bold">Parameters</h3>
     <div>These are the inputs that are passed to runs of this Deployment.</div>
@@ -139,7 +139,7 @@
         />
       </div>
     </div>
-  </drawer>
+  </Drawer>
 </template>
 
 <script lang="ts">
