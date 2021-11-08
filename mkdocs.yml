@@ -65,6 +65,7 @@ nav:
             - tutorials/flow-configuration.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
+            - tutorials/dask-executor.md
             - tutorials/orion.md
             - tutorials/deployments.md
     - Concepts:
@@ -73,6 +74,7 @@ nav:
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
         - Orchestration Rules: concepts/orchestration.md
+        - Executors: concepts/executors.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
@@ -103,6 +105,7 @@ nav:
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
                 - 'prefect.cli.base': api-ref/prefect/cli/base.md
                 - 'prefect.cli.deployment': api-ref/prefect/cli/deployment.md
+                - 'prefect.cli.flow-run': api-ref/prefect/cli/flow-run.md
                 - 'prefect.cli.orion': api-ref/prefect/cli/orion.md
         - Orion Python API:
             - 'API':

@@ -205,18 +205,18 @@ class DaskExecutor(BaseExecutor):
         be displayed.
 
     Args:
-        - address (string, optional): address of a currently running dask
+        address (string, optional): address of a currently running dask
             scheduler; if one is not provided, a temporary cluster will be
             created in `executor.start()`.  Defaults to `None`.
-        - cluster_class (string or callable, optional): the cluster class to use
+        cluster_class (string or callable, optional): the cluster class to use
             when creating a temporary dask cluster. Can be either the full
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
-        - cluster_kwargs (dict, optional): addtional kwargs to pass to the
+        cluster_kwargs (dict, optional): addtional kwargs to pass to the
            `cluster_class` when creating a temporary dask cluster.
-        - adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
+        adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
             when creating a temporary dask cluster. Note that adaptive scaling
             is only enabled if `adapt_kwargs` are provided.
-        - client_kwargs (dict, optional): additional kwargs to use when creating a
+        client_kwargs (dict, optional): additional kwargs to use when creating a
             [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client).
 
     Examples:

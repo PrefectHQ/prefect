@@ -33,7 +33,7 @@
           class="position-absolute"
           :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
           tabindex="0"
-          @click.self="expandRing(node)"
+          @click="expandRing(node)"
         />
       </template>
     </div>
@@ -364,11 +364,24 @@ const updateLinks = () => {
 
     let ex0, ey0
     if (sourceRing.radius == 0) {
-      const [x, y] = lineGenerator(cx, cy, tcx, tcy, distance)
+      const [x, y] = lineGenerator(
+        cx,
+        cy,
+        tcx,
+        tcy,
+        targetRing.radius - sourceRing.radius
+      )
       ex0 = x
       ey0 = y
     } else {
-      const [x, y] = lineGenerator(cx, cy, scx, scy, distanceOffset)
+      console.log(distance, distanceOffset)
+      const [x, y] = lineGenerator(
+        cx,
+        cy,
+        scx,
+        scy,
+        targetRing.radius - sourceRing.radius
+      )
       ex0 = x
       ey0 = y
     }
