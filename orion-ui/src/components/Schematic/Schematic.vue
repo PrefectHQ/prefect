@@ -372,13 +372,12 @@ const updateLinks = () => {
       ex0 = x
       ey0 = y
     } else {
-      console.log(distance, distanceOffset)
       const [x, y] = lineGenerator(
         cx,
         cy,
         scx,
         scy,
-        targetRing.radius - sourceRing.radius
+        sourceRing.radius + distance * 1.25 - distanceOffset
       )
       ex0 = x
       ey0 = y
@@ -387,13 +386,19 @@ const updateLinks = () => {
     path.moveTo(scx, scy)
     path.lineTo(ex0, ey0)
 
-    const [ex1, ey1] = lineGenerator(cx, cy, tcx, tcy, distance)
+    const [ex1, ey1] = lineGenerator(
+      cx,
+      cy,
+      tcx,
+      tcy,
+      targetRing.radius - sourceRing.radius
+    )
 
     if (tcx !== scx && tcy !== scy && sourceRing.radius !== 0) {
       path.arc(
         cx,
         cy,
-        sourceRing.radius + sourceRing.radius / 2.5 + distanceOffset,
+        sourceRing.radius + distance * 1.25 - distanceOffset,
         sourceAngle,
         targetAngle,
         sourceAngle > targetAngle
