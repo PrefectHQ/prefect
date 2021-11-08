@@ -129,7 +129,7 @@ const taskRun = computed<TaskRun>(() => {
 })
 
 const handleClick = () => {
-  console.log(props.node)
+  console.log(taskRun.value)
 }
 
 /**
