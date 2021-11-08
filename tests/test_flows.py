@@ -381,7 +381,7 @@ class TestSubflowRuns:
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_async_flow_with_async_subflow_and_async_task(self):
         @task
@@ -399,7 +399,7 @@ class TestSubflowRuns:
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_async_flow_with_async_subflow_and_sync_task(self):
         @task
@@ -417,7 +417,7 @@ class TestSubflowRuns:
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_async_flow_with_sync_subflow_and_sync_task(self):
         @task
@@ -435,7 +435,7 @@ class TestSubflowRuns:
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_subflow_relationship_tracking(self, orion_client):
         @flow()
@@ -803,4 +803,4 @@ class TestFlowParameterTypes:
         def my_subflow(x):
             return x
 
-        assert my_flow().result() == ParameterTestModel(data=1)
+        assert my_flow().result().result() == ParameterTestModel(data=1)
