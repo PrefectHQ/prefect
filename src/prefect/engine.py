@@ -218,7 +218,6 @@ async def begin_flow_run(
         await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
-            task_run_id=flow_run.parent_task_run_id,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -291,6 +290,7 @@ async def create_and_begin_subflow_run(
         terminal_state = await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
+            task_run_id=flow_run.parent_task_run_id,
         )
 
     # Display the full state (including the result) if debugging
