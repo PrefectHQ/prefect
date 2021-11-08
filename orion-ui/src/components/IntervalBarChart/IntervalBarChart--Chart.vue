@@ -90,10 +90,10 @@ export default class BarChart extends mixins(D3Base).with(Props) {
     const left = this.xScale(new Date(item.interval_start)) + this.padding.left
 
     return {
-      height: height + 'px',
-      left: left + 'px',
-      top: top + 'px',
-      width: this.barWidth + 'px'
+      height: `${height}px`,
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${this.barWidth}px`
     }
   }
 
