@@ -93,7 +93,6 @@ export default class BarChart extends mixins(D3Base).with(Props) {
       height: height + 'px',
       left: left + 'px',
       top: top + 'px',
-      transform: `translate(${this.barWidth / 2}px)`,
       width: this.barWidth + 'px'
     }
   }

@@ -35,6 +35,7 @@
       position: absolute;
       transition: all 150ms;
       transform-origin: bottom;
+      transform: translateX(50%);
       z-index: 1;
 
       &:hover,
