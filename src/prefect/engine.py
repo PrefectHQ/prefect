@@ -700,8 +700,9 @@ async def user_return_value_to_state(
     be placed in.
 
     - If data is returned, we create a 'COMPLETED' state with the data
-    - If a single state is returned and is not wrapped in a future, we use that state
-    - If an iterable of states are returned, we apply the aggregate rule
+    - If a single state is returned that does not have an id attached to it, we use
+        that state as given
+    - If a new state or iterable of upstream states is returned, we apply the aggregate rule
     - If a future or iterable of futures is returned, we resolve it into states then
         apply the aggregate rule
 
@@ -717,8 +718,14 @@ async def user_return_value_to_state(
     task future.
     """
 
-    # States returned directly are respected without applying a rule
-    if is_state(result):
+    # States returned directly are respected without applying a rule allowing users
+    # to return state objects. This only applies if there are not UUIDs in place to avoid
+    # uninentional
+    if (
+        is_state(result)
+        and not result.state_details.flow_run_id
+        and not result.state_details.task_run_id
+    ):
         return result
 
     # Ensure any futures are resolved
