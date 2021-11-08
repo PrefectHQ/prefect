@@ -1,0 +1,2 @@
+fix:
+  - "Clarifying documentation, especially the ambiguities in setting IAM roles on the ECSRun" - [#5110](https://github.com/PrefectHQ/prefect/issues/5110)"
