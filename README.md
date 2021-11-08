@@ -75,6 +75,9 @@ prefect server start
 
 Once all components are running, you can view the UI by visiting [http://localhost:8080](http://localhost:8080).
 
+**Psst:** If you run into trouble starting the server, check our [troubleshooting guide](https://docs.prefect.io/orchestration/server/deploy-local.html#troubleshooting)!
+
+
 Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent local start`.
 
 Finally, to register any flow with the server, call `flow.register()`. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
