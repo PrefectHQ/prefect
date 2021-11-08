@@ -1,0 +1,2 @@
+fix:
+  - "Update the `FlowView` to be more robust to serialized flow changes in the backend"
