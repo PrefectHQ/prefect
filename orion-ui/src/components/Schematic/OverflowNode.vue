@@ -1,14 +1,20 @@
 <template>
-  <div class="overflow-node">I'm an overflow node</div>
+  <div class="overflow-node text--secondary d-flex align-center justify-center">
+    <i class="pi pi-more-fill pi-lg" />
+  </div>
 </template>
 
-<script lang="ts" setup></script>
+<script lang="ts" setup>
+import { defineProps } from 'vue'
+
+const props = defineProps({})
+</script>
 
 <style lang="scss">
 .overflow-node {
   //   visibility: hidden;
   background-color: white;
-  border-radius: 10px;
+  border-radius: 50%;
   box-shadow: 0px 0px 6px rgb(8, 29, 65, 0.06);
   box-sizing: content-box;
   // These don't work in firefox yet but are being prototyped (https://github.com/mozilla/standards-positions/issues/135)
@@ -20,7 +26,7 @@
   pointer-events: all;
   transition: top 150ms, left 150ms, transform 150ms, box-shadow 50ms;
   transform: translate(-50%, -50%);
-  width: 275px;
+  width: 53px;
 
   &.observed {
     visibility: visible;

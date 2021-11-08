@@ -1,5 +1,5 @@
 <template>
-  <list-item class="list-item--task-run d-flex align-start justify-start">
+  <ListItem class="list-item--task-run d-flex align-start justify-start">
     <!-- For a later date... maybe -->
     <!-- :class="state + '-border'" -->
 
@@ -17,7 +17,7 @@
         align-self-start
       "
     >
-      <bread-crumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
+      <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span
@@ -43,7 +43,7 @@
     <div class="font--secondary item--duration ml-auto">
       {{ duration }}
     </div>
-  </list-item>
+  </ListItem>
 </template>
 
 <script lang="ts" setup>

@@ -1,15 +1,13 @@
 name: Release
-# largely based on the information in
-# https://packaging.python.org/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
 
 on:
-  create:
+  push:
     tags:
       - "2.0a[0-9]+"
 
 jobs:
-  build-and-publish:
-    name: Build and publish to test PyPI
+  build-release:
+    name: Build Release
 
     runs-on: ubuntu-latest
 
@@ -50,9 +48,44 @@ jobs:
           python setup.py sdist
           python setup.py bdist_wheel
 
+      - name: Publish build artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: built-package
+          path: './dist'
+
+  publish-test-release:
+    name: Publish Release to Test PyPI
+    needs: [build-release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: built-package
+          path: './dist'
+
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
 
+  publish-release:
+    name: Publish Release to PyPI
+    environment: 'prod'
+    needs: [build-release, publish-test-release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: built-package
+          path: './dist'
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

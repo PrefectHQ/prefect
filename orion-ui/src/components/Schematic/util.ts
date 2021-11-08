@@ -39,7 +39,7 @@ export class RadialSchematic {
   positions: Positions = new Map()
   links: Links = []
 
-  baseRadius: number = 415
+  baseRadius: number = 500
   maxRecomputations: number = 6
 
   /* Extent */
@@ -194,8 +194,7 @@ export class RadialSchematic {
             radius: 0,
             nodes: new Map([[key, node]]),
             positions: new Map(),
-            links: [],
-            expanded: true
+            links: []
           }
         ]
       }
