@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_scoped_session,
 )
-from typing import List, Dict, AsyncGenerator
+from typing import Dict, AsyncGenerator
 from prefect import settings
+from prefect.orion.database.configurations import DatabaseConfigurationBase
+from prefect.orion.database.query_components import QueryComponentsBase
 from prefect.orion.database.orm_models import (
     ORMBase,
     ORMFlow,
@@ -66,8 +68,8 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def __init__(
         self,
-        db_config=None,
-        query_components=None,
+        db_config: DatabaseConfigurationBase = None,
+        query_components: QueryComponentsBase = None,
     ):
         self.connection_url = settings.orion.database.connection_url.get_secret_value
         self.echo = settings.orion.database.echo
