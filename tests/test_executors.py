@@ -107,6 +107,13 @@ parameterize_with_sequential_executors = pytest.mark.parametrize(
 )
 
 
+async def test_executor_cannot_be_started_while_running():
+    async with SequentialExecutor().start() as executor:
+        with pytest.raises(RuntimeError, match="already started"):
+            async with executor.start():
+                pass
+
+
 @parameterize_with_all_executors
 def test_flow_run_by_executor(executor):
     @task
