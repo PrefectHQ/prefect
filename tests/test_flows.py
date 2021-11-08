@@ -460,6 +460,10 @@ class TestSubflowRuns:
         )
 
         assert (
+            parent_flow_run_id != child_flow_run_id
+        ), "The subflow run and parent flow run are distinct"
+
+        assert (
             child_state.state_details.task_run_id == parent_flow_run_task.id
         ), "The client subflow run state links to the parent task"
 
