@@ -21,26 +21,22 @@ functions = [
 title = "Flow"
 module = "prefect.backend.flow"
 classes = ["FlowView"]
-experimental = true
 
 [pages.backend.flow_run]
 title = "Flow Run"
 module = "prefect.backend.flow_run"
 classes = ["FlowRunView"]
 functions = ["watch_flow_run"]
-experimental = true
 
 [pages.backend.task_run]
 title = "Task Run"
 module = "prefect.backend.task_run"
 classes = ["TaskRunView"]
-experimental = true
 
 [pages.backend.tenant]
 title = "Tenant"
 module = "prefect.backend.tenant"
 classes = ["TenantView"]
-experimental = true
 
 [pages.backend.kv_store]
 title = "KV Store"
@@ -642,7 +638,6 @@ functions = [
     "update_markdown",
     "delete_artifact"
 ]
-experimental = true
 
 [pages.utilities.collections]
 title = "Collections"
