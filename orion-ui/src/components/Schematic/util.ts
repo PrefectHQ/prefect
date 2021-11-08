@@ -40,6 +40,7 @@ export class RadialSchematic {
   links: Links = []
 
   baseRadius: number = 500
+  channelWidth: number = 250
   maxRecomputations: number = 6
 
   /* Extent */
@@ -286,8 +287,6 @@ export class RadialSchematic {
         )
       }
 
-      console.log(radius, this.rings)
-
       const positions = this.computeRingPositions(radius)
       rings[i][1].radius = radius
       rings[i][1].positions = positions
@@ -295,7 +294,7 @@ export class RadialSchematic {
       for (let j = 0; j < positions.size; j++) {
         const position = positions.get(j)
         if (!position) continue
-        this.positions.set(`${i}-${position.id}`, positions.get(j))
+        this.positions.set(position.id, positions.get(j))
       }
     }
 
@@ -364,6 +363,7 @@ export class RadialSchematic {
 
     const positionalArray = [0]
     const limit = Math.PI / 2 - (this.width * 0.8) / 2 / radius
+
     while (total < limit) {
       const lambda = 1.25 - 0.3 * Math.sin(total)
       const arcLength = Math.sqrt(
@@ -377,10 +377,14 @@ export class RadialSchematic {
 
       // Quadrant mirroring
       if (total < limit) {
-        positionalArray.push(total % (2 * Math.PI))
-        positionalArray.push((Math.PI + total) % (2 * Math.PI))
-        positionalArray.push((2 * Math.PI - total) % (2 * Math.PI))
-        positionalArray.push((3 * Math.PI - total) % (2 * Math.PI))
+        if (total < radius / (this.channelWidth + this.width / 2)) {
+          positionalArray.push(total % (2 * Math.PI)) // Lower right quad
+          positionalArray.push((3 * Math.PI - total) % (2 * Math.PI)) // Lower left quad
+        } else {
+          console.log(total, radius)
+        }
+        positionalArray.push((Math.PI + total) % (2 * Math.PI)) // Upper left quad
+        positionalArray.push((2 * Math.PI - total) % (2 * Math.PI)) // Upper right quad
       }
     }
 
