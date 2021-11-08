@@ -27,5 +27,3 @@ declare module 'vue' {
     ResultsList: typeof ResultsList
   }
 }
-
-export {}
