@@ -218,6 +218,7 @@ async def begin_flow_run(
         await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
+            task_run_id=flow_run.parent_task_run_id,
         )
 
     # If debugging, use the more complete `repr` than the usual `str` description
@@ -336,7 +337,11 @@ async def orchestrate_flow_run(
         )
 
     # TODO: Implement state orchestation logic using return values from the API
-    await client.propose_state(Running(), flow_run_id=flow_run.id)
+    await client.propose_state(
+        Running(),
+        flow_run_id=flow_run.id,
+        task_run_id=flow_run.parent_task_run_id,
+    )
 
     timeout_context = (
         anyio.fail_after(flow.timeout_seconds)
@@ -673,6 +678,7 @@ async def detect_crashes(flow_run: FlowRun):
                         data=DataDocument.encode("cloudpickle", exc),
                     ),
                     flow_run_id=flow_run.id,
+                    task_run_id=flow_run.parent_task_run_id,
                 )
         raise
     except KeyboardInterrupt as exc:
@@ -685,6 +691,7 @@ async def detect_crashes(flow_run: FlowRun):
                     data=DataDocument.encode("cloudpickle", exc),
                 ),
                 flow_run_id=flow_run.id,
+                task_run_id=flow_run.parent_task_run_id,
             )
         raise
 
