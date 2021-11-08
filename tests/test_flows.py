@@ -347,6 +347,8 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test 2"):
             second.result()
 
+
+class TestSubflowRuns:
     async def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
@@ -355,25 +357,13 @@ class TestFlowCall:
         @flow(version="bar")
         def parent(x, y=2, z=3):
             subflow_state = child(x, y, z)
-            return subflow_state.state_details.flow_run_id, subflow_state
+            return quote(subflow_state)
 
         parent_state = parent(1, 2)
-        parent_flow_run_id = parent_state.state_details.flow_run_id
         assert isinstance(parent_state, State)
 
-        subflow_id, child_state = parent_state.result()
+        child_state = parent_state.result().unquote()
         assert child_state.result() == 6
-
-        async with OrionClient() as client:
-            child_flow_run = await client.read_flow_run(subflow_id)
-            virtual_task = await client.read_task_run(child_flow_run.parent_task_run_id)
-
-        assert virtual_task.state.state_details.child_flow_run_id == subflow_id
-        assert virtual_task.state.state_details.flow_run_id == parent_flow_run_id
-        assert child_flow_run.parent_task_run_id == virtual_task.id
-        assert child_flow_run.id == subflow_id
-        assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
-        assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
         @task
@@ -446,6 +436,54 @@ class TestFlowCall:
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
         assert child_state.result() == 6
+
+    async def test_subflow_relationship_tracking(self, orion_client):
+        @flow()
+        def child(x, y):
+            return x + y
+
+        @flow()
+        def parent():
+            subflow_state = child(1, 2)
+            return quote(subflow_state)
+
+        parent_state = parent()
+        parent_flow_run_id = parent_state.state_details.flow_run_id
+        child_state = parent_state.result().unquote()
+        child_flow_run_id = child_state.state_details.flow_run_id
+
+        child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+
+        # This task represents the child flow run in the parent
+        parent_flow_run_task = await orion_client.read_task_run(
+            child_flow_run.parent_task_run_id
+        )
+
+        assert (
+            child_state.state_details.task_run_id == parent_flow_run_task.id
+        ), "The client subflow run state links to the parent task"
+
+        assert all(
+            state.state_details.task_run_id == parent_flow_run_task.id
+            for state in await orion_client.read_flow_run_states(child_flow_run_id)
+        ), "All server subflow run states link to the parent task"
+
+        assert (
+            parent_flow_run_task.state.state_details.child_flow_run_id
+            == child_flow_run_id
+        ), "The parent task links to the subflow run id"
+
+        assert (
+            parent_flow_run_task.state.state_details.flow_run_id == parent_flow_run_id
+        ), "The parent task belongs to the parent flow"
+
+        assert (
+            child_flow_run.parent_task_run_id == parent_flow_run_task.id
+        ), "The server subflow run links to the parent task"
+
+        assert (
+            child_flow_run.id == child_flow_run_id
+        ), "The server subflow run id matches the client"
 
 
 class TestFlowRunTags:
