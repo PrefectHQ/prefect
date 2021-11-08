@@ -757,17 +757,22 @@ class TestTaskInputs:
         def foo(x):
             return x
 
-        @flow()
+        @flow
         def child(x):
             return x
 
-        @flow()
+        @flow
         def parent():
             child_state = child(1)
             return child_state, foo(child_state)
 
         parent_state = parent()
         child_state, task_state = parent_state.result()
+
+        assert (
+            parent_state.state_details.flow_run_id
+            != child_state.state_details.flow_run_id
+        ), "What???"
 
         task_run = await orion_client.read_task_run(
             task_state.state_details.task_run_id
