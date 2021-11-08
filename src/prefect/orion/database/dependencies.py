@@ -84,7 +84,7 @@ def inject_db(fn):
 
 
 @asynccontextmanager
-def temporary_db_config(tmp_config):
+async def temporary_db_config(tmp_config):
     starting_config = MODELS_DEPENDENCIES["database_configuration"]
     try:
         MODELS_DEPENDENCIES["database_configuration"] = tmp_config
@@ -94,7 +94,7 @@ def temporary_db_config(tmp_config):
 
 
 @asynccontextmanager
-def temporary_query_components(tmp_queries):
+async def temporary_query_components(tmp_queries):
     starting_queries = MODELS_DEPENDENCIES["query_components"]
     try:
         MODELS_DEPENDENCIES["query_components"] = tmp_queries

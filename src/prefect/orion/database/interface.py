@@ -22,16 +22,19 @@ from prefect.orion.database.orm_models import (
 )
 
 
-class Singleton(type):
-    _instances = {}
+class DBSingleton(type):
+    """Ensures that only one OrionDBInterface is created per unique key"""
+
+    _instances = dict()
 
     def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
+        unique_key = kwargs["db_config"]
+        if unique_key not in cls._instances:
+            cls._instances[unique_key] = super(DBSingleton, cls).__call__(*args, **kwargs)
+        return cls._instances[unique_key]
 
 
-class OrionDBInterface(metaclass=Singleton):
+class OrionDBInterface(metaclass=DBSingleton):
     """
     An interface for backend-specific SqlAlchemy actions and ORM models.
 
@@ -65,7 +68,6 @@ class OrionDBInterface(metaclass=Singleton):
         self,
         db_config=None,
         query_components=None,
-        base_model_mixins: List = [],
     ):
         self.connection_url = settings.orion.database.connection_url.get_secret_value
         self.echo = settings.orion.database.echo
