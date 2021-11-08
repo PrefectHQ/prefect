@@ -109,7 +109,7 @@ class LocalAgent(Agent):
 
     def deploy_flow(self, flow_run: GraphQLResult) -> str:
         """
-        Deploy flow runs on your local machine as Docker containers
+        Deploy flow runs on your local machine as subprocesses
 
         Args:
             - flow_run (GraphQLResult): A GraphQLResult flow run object

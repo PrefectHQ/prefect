@@ -292,7 +292,7 @@ In Prefect Cloud, we have elevated versioned workflows to a first-class concept.
 - versioning automatically occurs when you deploy a flow to a Project that already contains a flow of the same name
 - when a flow is versioned, it gets an incremented version number and any prior versions are automatically archived (which turns off automatic scheduling)
 
-Both of these settings can be customized if you have more complicated versioning requirements. For example, you could specify that any flow is a version of any other flow, regardless of name or project. You could override the automatic version promotion to unarchive and enable old versions (for example, for A/B testing). Or you could use versioning to maintain a history of your workflow without polluting your UI.
+Both of these settings can be customized if you have more complicated versioning requirements. For more information, visit the [Versioning documentation](/orchestration/concepts/flows.html#versioning).
 
 ## Local Testing
 
