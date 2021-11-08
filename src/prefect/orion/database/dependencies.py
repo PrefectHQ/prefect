@@ -66,10 +66,10 @@ async def provide_database_interface():
 
 def inject_db(fn):
     """
-    Simple helper to provide a database configuration to a asynchronous function.
+    Simple helper to provide a database configuration to an asynchronous function.
 
-    The decorated function _must_ take a `db_config` kwarg and if a config is passed when
-    called it will be used instead of creating a new one.
+    The decorated function _must_ take a `db_config` kwarg and if a config is passed
+    when called it will be used instead of creating a new one.
     """
 
     @wraps(fn)
