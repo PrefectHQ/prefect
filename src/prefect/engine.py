@@ -700,9 +700,9 @@ async def user_return_value_to_state(
     be placed in.
 
     - If data is returned, we create a 'COMPLETED' state with the data
-    - If a single state is returned that does not have an id attached to it, we use
-        that state as given
-    - If a new state or iterable of upstream states is returned, we apply the aggregate rule
+    - If a single, manually created state is returned, we use that state as given
+        (manual creation is determined by the lack of ids)
+    - If an upstream state or iterable of upstream states is returned, we apply the aggregate rule
     - If a future or iterable of futures is returned, we resolve it into states then
         apply the aggregate rule
 
