@@ -752,6 +752,31 @@ class TestTaskInputs:
             },
         )
 
+    async def test_task_with_subflow_upstream(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow()
+        def child(x):
+            return x
+
+        @flow()
+        def parent():
+            child_state = child(1)
+            return child_state, foo(child_state)
+
+        parent_state = parent()
+        child_state, task_state = parent_state.result()
+
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=child_state.state_details.task_run_id)],
+        )
+
 
 class TestTaskWaitFor:
     def test_downstream_does_not_run_if_upstream_fails(self):
