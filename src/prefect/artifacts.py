@@ -26,7 +26,7 @@ def create_link(link: str) -> Optional[str]:
     """
     warnings.warn(
         "`prefect.artifacts.create_link` has been moved to `prefect.backend.create_link_artifact`. "
-        "Please update your imports. The old function will be removed in 1.0.0."
+        "Please update your imports. This import path will be removed in 1.0.0."
     )
     return create_link_artifact(link)
 
