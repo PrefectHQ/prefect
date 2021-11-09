@@ -21,8 +21,10 @@
           tabindex="0"
           @toggle-tree="toggleTree"
           @focus.self.stop="panToNode(node)"
-          @click.self.stop="highlightNode(node)"
+          @mouseover="highlightNode(node)"
+          @mouseout="highlightNode(node)"
         />
+        <!-- @click.self.stop="highlightNode(node)" -->
         <!-- @blur.self="highlightNode(node)" -->
 
         <OverflowNode
@@ -243,8 +245,8 @@ const updateRings = (): void => {
           .attr('d', calculateArc)
           .style('opacity', 1)
           .attr('fill', 'transparent')
-          .attr('stroke', 'rgba(0, 0, 0, 0.1)')
-          .attr('stroke-width', 5)
+          .attr('stroke', 'rgba(0, 0, 0, 0.03)')
+          .attr('stroke-width', 80)
         return g
       },
       // update
@@ -779,20 +781,12 @@ onUnmounted(() => {
 .schematic-container {
   svg {
     path {
-      // display: none;
       fill: none;
       opacity: 1;
-      stroke-width: 20;
-      stroke-opacity: 0.9;
       stroke-linejoin: round;
 
       &.transparent {
         stroke: #ccc;
-      }
-
-      &.highlighted {
-        // filter: drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.06))
-        //   drop-shadow(0px 1px 3px rgba(0, 0, 0, 0.1));
       }
     }
   }
