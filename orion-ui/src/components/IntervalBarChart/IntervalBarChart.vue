@@ -102,7 +102,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
     )
   }
 
-  get itemsWithValue() {
+  get itemsWithValue(): IntervalBarChartItem[] {
     return this.items.filter((item) => item.value)
   }
 
