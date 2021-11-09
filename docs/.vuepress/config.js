@@ -165,11 +165,6 @@ module.exports = {
           children: getChildren('docs/api/latest', 'agent')
         },
         {
-          title: 'prefect.artifacts',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'artifacts')
-        },
-        {
           title: 'prefect.utilities',
           collapsable: true,
           children: getChildren('docs/api/latest', 'utilities')

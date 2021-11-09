@@ -12,7 +12,7 @@ from typing import Optional
 
 import prefect
 from prefect import Task
-from prefect.artifacts import create_markdown
+from prefect.backend.artifacts import create_markdown_artifact
 
 from prefect.engine import signals
 from prefect.utilities.tasks import defaults_from_attrs
@@ -282,7 +282,7 @@ class RunGreatExpectationsValidation(Task):
                 )
             )
 
-            create_markdown(markdown_artifact)
+            create_markdown_artifact(markdown_artifact)
 
         if results.success is False:
             raise signals.FAIL(result=results)

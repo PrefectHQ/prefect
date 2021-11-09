@@ -1,0 +1,2 @@
+deprecation:
+  - "Move artifacts functions to `prefect.backend.artifacts` - [#5117](https://github.com/PrefectHQ/prefect/pull/5117)"
