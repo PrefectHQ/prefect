@@ -1,29 +1,45 @@
-# Automations 
+# Automations <Badge text="Cloud"/>
 
-Automations allow you to configure actions (such as cancelling a flow run or sending a notification to certain endpoints) when an event occurs in the Prefect ecosystem.
+Automations allow you to configure actions &mdash; such as cancelling a flow run or sending a notification to certain endpoints &mdash; when an event occurs in the Prefect ecosystem.
 
-For example, you can send a Slack message to your team when a run from a production critical flow has failed, along with the reason for the failure so that you can respond immediately. Or you can cancel a run that has been running (or scheduled) for more than an hour to enforce SLAs.  
+- [Overview](#overview)
+- [Events](#events)
+- [Actions](#actions)
+- [Messages](#messages)
+- [Automations Reference](#automations-reference)
 
-The automations system is composed of events and actions. When an _event_ is paired with an _action_, we call it an _automation_. 
+## Overview
 
-When creating an automation, you:
+Prefect automations enable you to kick off actions in response to events related to flow runs or agents.
+
+For example, you could use automations to: 
+
+- Create a Slack message to your team when a run from a production critical flow has completed so they can use the results of the flow. 
+- Send an alert through email or the [PagerDuty integration](/orchestration/integrations/pagerduty.html) if a flow run returns a Failed status, along with the reason for the failure so that you can respond immediately. 
+- Cancel a run that has been running (or scheduled) for more than a defined period to enforce SLAs.  
+
+The automations system is composed of events and actions. When an _event_ is paired with an _action_, you create an _automation_. 
+
+When creating an automation, you can:
+
 - Choose an event type
 - Place filters or conditions on the event data
 - Select an action to fire when the event occurs and the conditions are met
 
 The following documentation will cover the various types of events and actions you can configure.
 
-We recommend creating and managing your automations in the [UI Automations page](https://cloud.prefect.io/?automations). You can also manage automations via the GraphQL API, but it requires a deeper understanding of the system then this document will cover.
+We recommend creating and managing your automations in the [UI Automations page](https://cloud.prefect.io/?automations). You can also manage automations via the [GraphQL API](orchestration/concepts/api.html#graphql), but it requires a deeper understanding of the system than this document provides.
 
 ## Events
 
 An event is something that occurs in the Prefect backend. 
 
 Currently you can configure automations for the following events:
-- Flow runs from a single, multiple, or all flows enter a given state or states
-- A flow run fails to start after being scheduled for a certain amount of time (**Standard plan and above**)
-- A flow run fails to finish after running for a certain amount of time  (**Standard plan and above**)
-- Some number of agents with the same [`agent_config_id`](orchestration/agents/overview.html#health-checks) become unhealthy  (**Standard plan and above**)
+
+- Flow runs from a single flow, multiple flows, or all flows enter a given state or states.
+- A flow run fails to start after being scheduled for a certain amount of time (**Standard plan and above**).
+- A flow run fails to finish after running for a certain amount of time (**Standard plan and above**).
+- Some number of agents with the same [`agent_config_id`](/orchestration/agents/overview.html#health-checks) become unhealthy (**Standard plan and above**)
 
 ::: tip Hooks
 When you create an automation in the UI, you are actually creating a `Hook` between an `Event` type and an `Action` instance. This name difference will be apparent if you are attempting to work with automations by calling the GraphQL API directly
@@ -31,9 +47,9 @@ When you create an automation in the UI, you are actually creating a `Hook` betw
 
 ## Actions
 
-An _action_ is a response to the event. For each automation you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event) you can cancel the run (the action).  
+An _action_ is a response to the event. For each automation, you can configure an action to happen when certain event conditions are met. For example, if your flow run fails (the event), then you can cancel the run (the action).  
 
-You can configure actions which send notifications using the following services:
+You can configure actions that send notifications using the following services:
 
 - Slack
 - Twilio
@@ -41,8 +57,7 @@ You can configure actions which send notifications using the following services:
 - Microsoft Teams
 - Email
 
-
-If you are on a Standard or Enterprise plan you can also configure Prefect API actions. These allow you to do the following:
+If you are on a Standard or Enterprise plan, you can also configure Prefect API actions. These allow you to do the following:
 
 - Cancel a flow run
 - Pause a flow's schedule
@@ -54,14 +69,13 @@ All events have a message associated with them. These events are templated when 
 
 `Run {flow_run_name} of flow {flow_name} entered state {state} with message {state_message}. See {flow_run_link} for more details.`
 
-
-Actions with a message will generally default to using the event's message but allow you to override the message with a templatable string. For example, you may want to modify the above message to be more specific to your use-case:
+Actions with a message generally default to using the event's message, but allow you to override the message with a templatable string. For example, you may want to modify the message to be more specific to your use case, such as:
 
 `Run for client {flow_run_name} failed: {state_message}. Please investigate at {flow_run_link}.`
 
-See [the reference](#events-reference) for more details on the attributes you can use to template messages.
+See the [Events reference](#events-reference) for more details on the attributes you can use to template messages.
 
-## Reference
+## Automations Reference
 
 ### Events reference
 
@@ -121,7 +135,7 @@ This event fires if a flow is late to start or late to finish. Specifically, you
 
 #### Agent SLA failure
 
-This event fires if a group of agents have not queried the backend after an amount of time. The "agent config" abstraction allows us to link multiple agents to a single key. The UI will create an agent config for you when you create an agent SLA automation.
+This event fires if a group of agents have not queried the backend after an amount of time. The "agent config" abstraction allows linking multiple agents to a single key. The UI creates an agent config for you when you create an agent SLA automation.
 
 If _no_ agents linked to the config are querying the API for flow runs, the SLA failure event will fire. If _any_ of the agents are healthy, the SLA will pass.
 
@@ -140,7 +154,7 @@ If _no_ agents linked to the config are querying the API for flow runs, the SLA 
 
 #### WebhookAction
 
-Sends a payload to the given url when an event fires. 
+Sends a payload to the given URL when an event fires. 
 
 Expects a 200 OK response or the action will be marked as failed.
 
@@ -148,11 +162,11 @@ Expects a 200 OK response or the action will be marked as failed.
 
 - `url`: The URL to send the payload to
 - `payload`: Optional, a JSON payload to send to the URL. If not specified, all event data is dumped. Templatable.
-- `headers`: Optional, JSON headers to include in the request. If not specified, defaults to include the event id: `{"X-PREFECT-EVENT-ID": "{id}"}`.  Templatable.
+- `headers`: Optional, JSON headers to include in the request. If not specified, defaults to include the event ID: `{"X-PREFECT-EVENT-ID": "{id}"}`.  Templatable.
 
 **Templating**
 
-Both the payload and the header JSON can be templated using event attributes. For example, we can include our tenant id in the headers instead of the event id.
+Both the payload and the header JSON can be templated using event attributes. For example, you can include a tenant ID in the headers instead of the event ID.
 
 ```json
 headers = {"X-PREFECT-TENANT-ID": "{tenant_id}"}
@@ -166,8 +180,8 @@ Send a notification using a Slack webhook.
 
 **Configuration**
 
-- `webhook_url_secret`: The name of the Prefect Secret with the Slack webhook URL
-- `message`: Optional, a custom message to send
+- `webhook_url_secret`: The name of the Prefect Secret with the Slack webhook URL.
+- `message`: Optional, a custom message to send.
 
 #### TeamsWebhookNotificationAction
 
@@ -175,7 +189,7 @@ Send a notification using a Microsoft Teams webhook.
 
 **Configuration**
 
-- `webhook_url_secret`: The name of the Prefect Secret with the Teans webhook URL
+- `webhook_url_secret`: The name of the Prefect Secret with the Microsoft Teams webhook URL.
 - `message`: Optional, a custom message to send. Templatable.
 - `title`: Optional, a custom title to use for the message. Templatable.
 
@@ -185,7 +199,7 @@ Send an email notification.
 
 **Configuration**
 
-- `to_emails`: A list of email addresses to send an email to
+- `to_emails`: A list of email addresses to send an email to.
 - `subject`: Optional, a custom email subject. Templatable.
 - `body`: Optional, a custom email body. Templatable.
 
@@ -195,10 +209,10 @@ Send a text message notification with Twilio.
 
 **Configuration**
 
-- `account_sid`: The Twilio account SID
-- `auth_token_secret` The name of the Prefect Secret with the Twilio auth token
-- `messaging_service_sid`: The Twilio messaging service SID
-- `phone_numbers`: A list of phone numbers to message
+- `account_sid`: The Twilio account SID.
+- `auth_token_secret` The name of the Prefect Secret with the Twilio auth token.
+- `messaging_service_sid`: The Twilio messaging service SID.
+- `phone_numbers`: A list of phone numbers to message.
 - `message`: Optional, a custom text message. Templatable.
 
 #### PagerDutyNotificationAction
@@ -207,9 +221,9 @@ Send a notification using PagerDuty.
 
 **Configuration**
 
-- `api_token_secret`: The name of the Prefect Secret with the PagerDuty API token
-- `routing_key`: The PagerDuty routing key
-- `severity`: The PagerDuty severity to send a message on. One of: info, warning, error, critical
+- `api_token_secret`: The name of the Prefect Secret with the PagerDuty API token.
+- `routing_key`: The PagerDuty routing key.
+- `severity`: The PagerDuty severity to send a message on: `info`, `warning`, `error`, or `critical`.
 - `message`: Optional, a custom message. Templatable.
 
 #### CancelFlowRunAction
@@ -226,4 +240,4 @@ Pause scheduling additional flow runs for a flow group.
 
 **Configuration**
 
-- `flow_group_id`: Optional, the UUID of a flow group to pause the schedule of. If not provided, this action _must_ be hooked to an event that provides it.
+- `flow_group_id`: Optional, the UUID of a flow group for which you want to pause the schedule. If not provided, this action _must_ be hooked to an event that provides it.
