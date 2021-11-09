@@ -21,4 +21,4 @@ pytz >= 2018.7
 requests >= 2.20, < 2.26
 tabulate >= 0.8.0
 toml >= 0.9.4
-urllib3 >= 1.24.3
+urllib3 >= 1.26.0
