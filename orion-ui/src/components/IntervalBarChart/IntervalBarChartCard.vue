@@ -29,6 +29,7 @@ import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
 import { defineProps, computed } from 'vue'
 import { Bucket, StateBucket } from '@/typings/run_history'
 import { secondsToApproximateString } from '@/util/util'
+import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
 
 const props = defineProps<{
   endpoint: string
@@ -38,19 +39,19 @@ const props = defineProps<{
   height: string
 }>()
 
-const filter = computed(() => {
-  return props.filter
-})
-
 const queries: { [key: string]: Query } = {
   query: Api.query({
     endpoint: Endpoints[props.endpoint],
-    body: filter,
+    body: props.filter,
     options: {
       pollInterval: 30000
     }
   })
 }
+
+const buckets = computed<Bucket[]>(() => {
+  return queries.query.response.value || []
+})
 
 const intervalStart = computed(() => {
   return new Date(props.filter.history_start)
@@ -64,20 +65,14 @@ const intervalSeconds = computed(() => {
   return props.filter.history_interval_seconds
 })
 
-type IntervalChartItem = {
-  interval_start: string
-  interval_end: string
-  value: number
-}
-
-const items = computed<IntervalChartItem[]>(() => {
-  return (queries.query.response.value || []).map((item: Bucket) => {
+const items = computed<IntervalBarChartItem<Bucket>[]>(() => {
+  return buckets.value.map((item) => {
     return {
+      data: item,
       interval_start: item.interval_start,
       interval_end: item.interval_end,
       value: item.states.reduce(
-        (acc: number, curr: StateBucket) =>
-          acc + (curr[props.stateBucketKey] as number),
+        (acc, curr) => acc + (curr[props.stateBucketKey] as number),
         0
       )
     }
