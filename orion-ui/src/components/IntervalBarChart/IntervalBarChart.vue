@@ -7,51 +7,17 @@
 
       <div class="interval-bar-chart__bucket-container">
         <template v-for="item in itemsWithValue" :key="item.interval_start">
-          <Popover
-            class="interval-bar-chart__popover"
-            position="bottom"
-            :style="calculateBucketPosition(item)"
+          <IntervalBarChartItem
+            :style="calculateItemPosition(item)"
+            v-bind="{ item, title }"
           >
-            <template v-slot:trigger="{ open, close }">
-              <div
-                class="interval-bar-chart__bucket"
-                tabindex="0"
-                @mouseenter="open"
-                @mouseleave="close"
-              />
+            <template v-slot:popover-header="scope">
+              <slot name="popover-header" v-bind="scope" />
             </template>
-            <template v-slot:header>
-              <div class="interval-bar-chart__popover-header">
-                <slot name="popover-header" v-bind="item">
-                  <span>{{ title }}</span>
-                </slot>
-              </div>
+            <template v-slot:popover-content="scope">
+              <slot name="popover-content" v-bind="scope" />
             </template>
-            <template v-slot:default>
-              <div class="interval-bar-chart__popover-content">
-                <slot name="popover-content" v-bind="item">
-                  <table>
-                    <tr>
-                      <td>Start Time:</td>
-                      <td>
-                        {{ formatDateTimeNumeric(item.interval_start) }}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>End Time:</td>
-                      <td>
-                        {{ formatDateTimeNumeric(item.interval_end) }}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Value:</td>
-                      <td>{{ item.value }}</td>
-                    </tr>
-                  </table>
-                </slot>
-              </div>
-            </template>
-          </Popover>
+          </IntervalBarChartItem>
         </template>
       </div>
     </template>
@@ -69,23 +35,24 @@
 import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
-import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
+import { IntervalBarChartItem as BarChartItem } from './Types/IntervalBarChartItem'
 import { CSSProperties } from '@vue/runtime-dom'
-import { formatDateTimeNumeric } from '@/utilities/date'
+import IntervalBarChartItem from './IntervalBarChartItem.vue'
 
 class Props {
   intervalSeconds = prop<number>({ required: true })
   intervalStart = prop<Date>({ required: true })
   intervalEnd = prop<Date>({ required: true })
-  backgroundColor = prop<string>({ required: false, default: null })
-  items = prop<IntervalBarChartItem[]>({ required: true })
+  items = prop<BarChartItem[]>({ required: true })
   title = prop<string>({ default: 'Details' })
 }
 
-@Options({})
-export default class BarChart extends mixins(D3Base).with(Props) {
-  formatDateTimeNumeric = formatDateTimeNumeric
-
+@Options({
+  components: {
+    IntervalBarChartItem
+  }
+})
+export default class IntervalBarChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
@@ -109,7 +76,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
     )
   }
 
-  get itemsWithValue(): IntervalBarChartItem[] {
+  get itemsWithValue(): BarChartItem[] {
     return this.items.filter((item) => item.value)
   }
 
@@ -134,7 +101,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
       .range([0, this.height - this.paddingY])
   }
 
-  calculateBucketPosition(item: IntervalBarChartItem): CSSProperties {
+  calculateItemPosition(item: BarChartItem): CSSProperties {
     const height = this.yScale(item.value)
     const top = this.height - this.padding.bottom - height
     const left = this.xScale(new Date(item.interval_start)) + this.padding.left
@@ -195,34 +162,6 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   overflow: hidden;
   height: 100%;
   width: 100%;
-}
-
-.interval-bar-chart__popover {
-  position: absolute;
-  transform: translateX(50%);
-}
-
-.interval-bar-chart__bucket {
-  background-color: $grey-40;
-  border-radius: 999px;
-  transition: all 150ms;
-  transform-origin: bottom;
-  z-index: 1;
-  width: inherit;
-  height: inherit;
-
-  &:hover,
-  &:focus {
-    background-color: $primary;
-  }
-}
-
-.interval-bar-chart__popover-header {
-  font-size: 18px;
-}
-
-.interval-bar-chart__popover-content {
-  font-size: 14px;
 }
 
 .interval-bar-chart__empty {
