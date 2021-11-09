@@ -294,7 +294,7 @@ export class RadialSchematic {
       for (let j = 0; j < positions.size; j++) {
         const position = positions.get(j)
         if (!position) continue
-        this.positions.set(position.id, positions.get(j))
+        this.positions.set(position.id, position)
       }
     }
 
@@ -338,11 +338,12 @@ export class RadialSchematic {
     }
 
     this.nodes = new Map(
-      [...this.nodes].sort(([, aNode], [, bNode]) =>
-        aNode.ring == bNode.ring
+      [...this.nodes].sort(([, aNode], [, bNode]) => {
+        if (!aNode.position || !bNode.position) return 0
+        return aNode.ring == bNode.ring
           ? aNode.position.id - bNode.position.id
           : aNode.ring - bNode.ring
-      )
+      })
     )
   }
 
