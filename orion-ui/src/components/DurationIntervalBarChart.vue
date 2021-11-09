@@ -65,10 +65,14 @@ const props = defineProps<{
   filter: FlowRunsHistoryFilter
 }>()
 
+const filter = computed(() => {
+  return props.filter
+})
+
 const queries = {
   query: Api.query({
     endpoint: Endpoints.flow_runs_history,
-    body: props.filter,
+    body: filter,
     options: {
       pollInterval: 30000
     }
