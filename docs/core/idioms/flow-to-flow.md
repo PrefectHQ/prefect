@@ -64,9 +64,8 @@ with Flow("parent-flow") as flow:
 ## Scheduling a Flow-of-Flows
 
 Oftentimes different people are responsible for maintaining different flows; in this case it can be useful
-to construct a Flow-of-Flows that specifies stateful dependencies between various Flows.  
-The `wait_for_flow_run` task allows you to specify that the task should wait until the triggered flow run completes, 
-and reflect the flow run state as the task state.
+to construct a Flow-of-Flows that specifies execution order dependencies between various Flows.  
+The `wait_for_flow_run` task allows you to specify that the task should wait until the triggered flow run completes.
 
 The following example creates the following Flow-of-Flows that runs every weekday:
 
