@@ -42,7 +42,7 @@ def update_link(task_run_artifact_id: str, link: str) -> None:
     """
     warnings.warn(
         "`prefect.artifacts.update_link` has been moved to `prefect.backend.update_link_artifact`. "
-        "Please update your imports. The old function will be removed in 1.0.0."
+        "Please update your imports. This import path will be removed in 1.0.0."
     )
     return update_link_artifact(task_run_artifact_id, link)
 
@@ -59,7 +59,7 @@ def create_markdown(markdown: str) -> Optional[str]:
     """
     warnings.warn(
         "`prefect.artifacts.create_markdown` has been moved to `prefect.backend.create_markdown_artifact`. "
-        "Please update your imports. The old function will be removed in 1.0.0."
+        "Please update your imports. This import path will be removed in 1.0.0."
     )
     return create_markdown_artifact(markdown)
 
@@ -75,7 +75,7 @@ def update_markdown(task_run_artifact_id: str, markdown: str) -> None:
     """
     warnings.warn(
         "`prefect.artifacts.update_markdown` has been moved to `prefect.backend.update_markdown_artifact`. "
-        "Please update your imports. The old function will be removed in 1.0.0."
+        "Please update your imports. This import path will be removed in 1.0.0."
     )
     return update_markdown_artifact(task_run_artifact_id, markdown)
 
@@ -89,6 +89,6 @@ def delete_artifact(task_run_artifact_id: str) -> None:
     """
     warnings.warn(
         "`prefect.artifacts.delete_artifact` has been moved to `prefect.backend.delete_artifact`. "
-        "Please update your imports. The old function will be removed in 1.0.0."
+        "Please update your imports. This import path will be removed in 1.0.0."
     )
     return delete_artifact_new(task_run_artifact_id)
