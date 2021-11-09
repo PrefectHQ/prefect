@@ -368,6 +368,7 @@ const updateLinks = () => {
 
     const sourceRing = radial.value.rings.get(d.source.ring)!
     const targetRing = radial.value.rings.get(d.target.ring)!
+    const targetPreviousRing = radial.value.rings.get(d.target.ring - 1)!
     const sourceLinks = sourceRing.links
     const sourceLinksIndex = sourceLinks.findIndex(
       (sl) => sl.source.id == d.source.id && sl.target.id == d.target.id
@@ -409,28 +410,82 @@ const updateLinks = () => {
       ey0 = y
     }
 
+    // Move the pointer to the source node
     path.moveTo(scx, scy)
-    path.lineTo(ex0, ey0)
+    // // Draw a line some distance out from the source node
+    // path.lineTo(ex0, ey0)
 
-    const [ex1, ey1] = lineGenerator(
-      cx,
-      cy,
-      tcx,
-      tcy,
-      targetRing.radius - sourceRing.radius
-    )
+    if (d.target.ring - d.source.ring > 1) {
+      console.log(d.target, d.source)
+      const south = pi / 2
+      const north = (3 * pi) / 2
+      const east = 0
 
-    if (tcx !== scx && tcy !== scy && sourceRing.radius !== 0) {
+      if (sourceRing.radius !== 0) {
+        // Draw a line some distance out from the source node
+        path.lineTo(ex0, ey0)
+
+        path.arc(
+          cx,
+          cy,
+          sourceRing.radius + distance * 1.25 - distanceOffset,
+          sourceAngle,
+          south,
+          sourceAngle < north && sourceAngle > east
+        )
+      }
+
+      const exitY =
+        targetPreviousRing.radius +
+        (targetRing.radius - targetPreviousRing.radius) / 2
+
+      const [x, y] = lineGenerator(
+        cx,
+        cy,
+        cx,
+        exitY,
+        targetPreviousRing.radius +
+          (targetRing.radius - targetPreviousRing.radius) / 2
+      )
+
+      // Draw a line to the appropriate channel exit
+      path.lineTo(x, y)
+
       path.arc(
         cx,
         cy,
-        sourceRing.radius + distance * 1.25 - distanceOffset,
-        sourceAngle,
+        targetPreviousRing.radius +
+          (targetRing.radius - targetPreviousRing.radius) / 2,
+        south,
         targetAngle,
-        sourceAngle > targetAngle
+        targetAngle > north || targetAngle < south
       )
     } else {
-      path.moveTo(ex1, ey1)
+      // Draw a line some distance out from the source node
+      path.lineTo(ex0, ey0)
+
+      const [ex1, ey1] = lineGenerator(
+        cx,
+        cy,
+        tcx,
+        tcy,
+        targetRing.radius - sourceRing.radius
+      )
+
+      if (tcx !== scx && tcy !== scy && sourceRing.radius !== 0) {
+        const c = pi / 2
+        path.arc(
+          cx,
+          cy,
+          sourceRing.radius + distance * 1.25 - distanceOffset,
+          sourceAngle,
+          targetAngle,
+          (sourceAngle > c && targetAngle > c && targetAngle < sourceAngle) ||
+            (sourceAngle < c && (targetAngle > c || targetAngle < sourceAngle))
+        )
+      } else {
+        path.moveTo(ex1, ey1)
+      }
     }
 
     path.lineTo(tcx, tcy)
