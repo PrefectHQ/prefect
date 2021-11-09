@@ -20,17 +20,42 @@
                 @mouseleave="close"
               />
             </template>
-
-            hello world
+            <template v-slot:header>
+              <div class="interval-bar-chart__popover-header">
+                <slot name="popover-header" v-bind="item">
+                  <span>{{ title }}</span>
+                </slot>
+              </div>
+            </template>
+            <template v-slot:default>
+              <div class="interval-bar-chart__popover-content">
+                <slot name="popover-content" v-bind="item">
+                  <table>
+                    <tr>
+                      <td>Start Time:</td>
+                      <td>{{ item.interval_start }}</td>
+                    </tr>
+                    <tr>
+                      <td>End Time:</td>
+                      <td>{{ item.interval_end }}</td>
+                    </tr>
+                    <tr>
+                      <td>Value:</td>
+                      <td>{{ item.value }}</td>
+                    </tr>
+                  </table>
+                </slot>
+              </div>
+            </template>
           </Popover>
         </template>
       </div>
     </template>
     <template v-else>
       <slot name="empty">
-        <div class="font--secondary subheader interval-bar-chart__empty"
-          >--</div
-        >
+        <div class="font--secondary subheader interval-bar-chart__empty">
+          --
+        </div>
       </slot>
     </template>
   </div>
@@ -49,6 +74,7 @@ class Props {
   intervalEnd = prop<Date>({ required: true })
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<IntervalBarChartItem[]>({ required: true })
+  title = prop<string>({ default: 'Details' })
 }
 
 @Options({})
@@ -182,6 +208,14 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   &:focus {
     background-color: $primary;
   }
+}
+
+.interval-bar-chart__popover-header {
+  font-size: 18px;
+}
+
+.interval-bar-chart__popover-content {
+  font-size: 14px;
 }
 
 .interval-bar-chart__empty {
