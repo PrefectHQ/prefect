@@ -33,11 +33,15 @@
                   <table>
                     <tr>
                       <td>Start Time:</td>
-                      <td>{{ item.interval_start }}</td>
+                      <td>
+                        {{ formatDateTimeNumeric(item.interval_start) }}
+                      </td>
                     </tr>
                     <tr>
                       <td>End Time:</td>
-                      <td>{{ item.interval_end }}</td>
+                      <td>
+                        {{ formatDateTimeNumeric(item.interval_end) }}
+                      </td>
                     </tr>
                     <tr>
                       <td>Value:</td>
@@ -67,6 +71,7 @@ import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
 import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
 import { CSSProperties } from '@vue/runtime-dom'
+import { formatDateTimeNumeric } from '@/utilities/date'
 
 class Props {
   intervalSeconds = prop<number>({ required: true })
@@ -79,6 +84,8 @@ class Props {
 
 @Options({})
 export default class BarChart extends mixins(D3Base).with(Props) {
+  formatDateTimeNumeric = formatDateTimeNumeric
+
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
