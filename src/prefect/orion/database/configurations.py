@@ -122,9 +122,6 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
-        A new engine is created for each event loop and cached, so that engines are
-        not shared across loops.
-
         If a sqlite in-memory database OR a non-existant sqlite file-based database
         is provided, it is automatically populated with database objects.
 
