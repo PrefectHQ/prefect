@@ -12,6 +12,7 @@ Released on November 9, 2021.
 ### Enhancements
 
 - Allow `Azure` flow storage to overwrite existing blobs - [#5103](https://github.com/PrefectHQ/prefect/pull/5103)
+- Provide option to specify a dockerignore when using Docker storage - [#4980](https://github.com/PrefectHQ/prefect/pull/4980)
 - Add keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
 
 ### Task Library
