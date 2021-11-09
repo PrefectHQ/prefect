@@ -1,9 +1,9 @@
 <template>
   <Card shadow="sm" class="interval-bar-chart-card">
     <template v-slot:header>
-      <div class="interval-bar-chard-card__header">
+      <div class="interval-bar-chart-card__header">
         <div class="subheader">{{ props.title }}</div>
-        <template v-if="items.length">
+        <template v-if="filteredItems.length">
           <div class="font--secondary">
             {{ secondsToApproximateString(totalSeconds) }}
           </div>
@@ -11,15 +11,11 @@
       </div>
     </template>
 
-    <div class="px-2 pb-2" :style="{ height: height }">
+    <div class="px-2 pb-2" :style="{ height }">
       <IntervalBarChart
-        v-if="items && items.length"
-        :items="items"
-        :interval-seconds="intervalSeconds"
-        :interval-start="intervalStart"
-        :interval-end="intervalEnd"
+        :items="filteredItems"
+        v-bind="{ intervalSeconds, intervalStart, intervalEnd }"
       />
-      <div v-else class="font--secondary subheader no-data"> -- </div>
     </div>
   </Card>
 </template>
@@ -79,6 +75,10 @@ const items = computed<IntervalBarChartItem<Bucket>[]>(() => {
   })
 })
 
+const filteredItems = computed<IntervalBarChartItem<Bucket>[]>(() => {
+  return items.value.filter((item) => item.value)
+})
+
 const totalSeconds = computed<number>(() => {
   return items.value.reduce((total, item) => {
     return (total += item.value)
@@ -87,7 +87,7 @@ const totalSeconds = computed<number>(() => {
 </script>
 
 <style lang="scss">
-.interval-bar-chard-card__header {
+.interval-bar-chart-card__header {
   padding: var(--p-1) var(--p-2);
   display: flex;
   justify-content: space-between;
