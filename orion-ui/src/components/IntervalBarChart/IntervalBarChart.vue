@@ -1,18 +1,38 @@
 <template>
   <div ref="container" class="interval-bar-chart">
-    <svg class="interval-bar-chart__svg" :id="id" ref="chart"></svg>
+    <template v-if="items.length">
+      <svg class="interval-bar-chart__svg" :id="id" ref="chart"></svg>
 
-    <div class="interval-bar-chart__median" />
+      <div class="interval-bar-chart__median" />
 
-    <div class="interval-bar-chart__bucket-container">
-      <template v-for="item in itemsWithValue" :key="item.interval_start">
-        <div
-          class="interval-bar-chart__bucket"
-          :style="calculateBucketPosition(item)"
-          tabindex="0"
-        />
-      </template>
-    </div>
+      <div class="interval-bar-chart__bucket-container">
+        <template v-for="item in itemsWithValue" :key="item.interval_start">
+          <Popover
+            class="interval-bar-chart__popover"
+            position="bottom"
+            :style="calculateBucketPosition(item)"
+          >
+            <template v-slot:trigger="{ open, close }">
+              <div
+                class="interval-bar-chart__bucket"
+                tabindex="0"
+                @mouseenter="open"
+                @mouseleave="close"
+              />
+            </template>
+
+            hello world
+          </Popover>
+        </template>
+      </div>
+    </template>
+    <template v-else>
+      <slot name="empty">
+        <div class="font--secondary subheader interval-bar-chart__empty"
+          >--</div
+        >
+      </slot>
+    </template>
   </div>
 </template>
 
@@ -144,19 +164,30 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   width: 100%;
 }
 
-.interval-bar-chart__bucket {
-  $r: 999px;
-  background-color: $grey-40;
-  border-radius: $r;
+.interval-bar-chart__popover {
   position: absolute;
+  transform: translateX(50%);
+}
+
+.interval-bar-chart__bucket {
+  background-color: $grey-40;
+  border-radius: 999px;
   transition: all 150ms;
   transform-origin: bottom;
-  transform: translateX(50%);
   z-index: 1;
+  width: inherit;
+  height: inherit;
 
   &:hover,
   &:focus {
     background-color: $primary;
   }
+}
+
+.interval-bar-chart__empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 </style>
