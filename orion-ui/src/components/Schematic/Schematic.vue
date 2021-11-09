@@ -366,9 +366,14 @@ const updateLinks = () => {
   const pathGenerator = (d: Link, i: number) => {
     const path = d3.path()
 
+    const south = pi / 2
+    const north = (3 * pi) / 2
+    const east = 0
+
     const sourceRing = radial.value.rings.get(d.source.ring)!
     const targetRing = radial.value.rings.get(d.target.ring)!
     const targetPreviousRing = radial.value.rings.get(d.target.ring - 1)!
+    const sourceNextRing = radial.value.rings.get(d.source.ring + 1)!
     const sourceLinks = sourceRing.links
     const sourceLinksIndex = sourceLinks.findIndex(
       (sl) => sl.source.id == d.source.id && sl.target.id == d.target.id
@@ -398,7 +403,7 @@ const updateLinks = () => {
       )
       ex0 = x
       ey0 = y
-    } else {
+    } else if (d.target.ring - d.source.ring === 1) {
       const [x, y] = lineGenerator(
         cx,
         cy,
@@ -408,27 +413,33 @@ const updateLinks = () => {
       )
       ex0 = x
       ey0 = y
+    } else {
+      console.log('hello')
+      const [x, y] = lineGenerator(
+        cx,
+        cy,
+        scx,
+        scy,
+        sourceRing.radius + (sourceNextRing.radius - sourceRing.radius) / 2
+      )
+      ex0 = x
+      ey0 = y
     }
 
     // Move the pointer to the source node
     path.moveTo(scx, scy)
-    // // Draw a line some distance out from the source node
-    // path.lineTo(ex0, ey0)
 
+    // Start jump-ring edge traveral
     if (d.target.ring - d.source.ring > 1) {
-      console.log(d.target, d.source)
-      const south = pi / 2
-      const north = (3 * pi) / 2
-      const east = 0
-
       if (sourceRing.radius !== 0) {
         // Draw a line some distance out from the source node
         path.lineTo(ex0, ey0)
 
+        // Draw an arc to the south channel
         path.arc(
           cx,
           cy,
-          sourceRing.radius + distance * 1.25 - distanceOffset,
+          sourceRing.radius + (sourceNextRing.radius - sourceRing.radius) / 2,
           sourceAngle,
           south,
           sourceAngle < north && sourceAngle > east
@@ -451,6 +462,7 @@ const updateLinks = () => {
       // Draw a line to the appropriate channel exit
       path.lineTo(x, y)
 
+      // Draw an arc to the target radian
       path.arc(
         cx,
         cy,
@@ -460,7 +472,10 @@ const updateLinks = () => {
         targetAngle,
         targetAngle > north || targetAngle < south
       )
+
+      // End jump-ring edge traveral
     } else {
+      // Start intra-ring edge traveral
       // Draw a line some distance out from the source node
       path.lineTo(ex0, ey0)
 
@@ -486,8 +501,11 @@ const updateLinks = () => {
       } else {
         path.moveTo(ex1, ey1)
       }
+
+      // End intra-ring edge traveral
     }
 
+    // Draw line to target
     path.lineTo(tcx, tcy)
     return path.toString()
   }
