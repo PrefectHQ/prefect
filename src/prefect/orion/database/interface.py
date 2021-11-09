@@ -130,8 +130,7 @@ class OrionDBInterface(metaclass=DBSingleton):
             )
 
             self.ENGINES[cache_key] = engine
-
-        await self.schedule_engine_disposal(cache_key)
+            await self.schedule_engine_disposal(cache_key)
         return self.ENGINES[cache_key]
 
     async def schedule_engine_disposal(self, cache_key):
