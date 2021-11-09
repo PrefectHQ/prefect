@@ -40,7 +40,7 @@ class ECSRun(RunConfig):
             agent.  Supported runtime file schemes include `s3`, `gcs`, and
             `agent` (for paths local to the runtime agent). 
         - task_definition_arn (str, optional): A pre-registered task definition
-            ARN to use (either `family:version`, or a full task
+            ARN to use (either `family:revision`, or a full task
             definition ARN). This task definition must include a container
             named `flow` (which will be used to run the flow). 
         - image (str, optional): The image to use for this task. If not
