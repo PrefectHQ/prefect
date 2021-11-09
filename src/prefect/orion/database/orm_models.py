@@ -21,7 +21,7 @@ from prefect.orion.utilities.database import (
 )
 
 
-class ORMBase(object):
+class ORMBase:
     """
     Base SQLAlchemy model that automatically infers the table name
     and provides ID, created, and updated columns

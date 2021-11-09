@@ -79,9 +79,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
 
-        If a sqlite in-memory database OR a non-existant sqlite file-based database
-        is provided, it is automatically populated with database objects.
-
         Args:
             connection_url (str, optional): The database connection string.
                 Defaults to the value in Prefect's settings.
