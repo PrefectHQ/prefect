@@ -248,6 +248,7 @@ module.exports = {
             'ui/flow',
             'ui/flow-run',
             'ui/task-run',
+            'ui/automations',
             'ui/interactive-api',
             'ui/team-settings'
           ]
