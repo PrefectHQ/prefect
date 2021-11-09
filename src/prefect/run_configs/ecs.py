@@ -86,60 +86,55 @@ class ECSRun(RunConfig):
 
     Examples:
 
-    Use the defaults set on the agent (assuming label "prod"):
+    1) Use the defaults set on the agent (assuming label "prod"):
 
     ```python
     flow.run_config = ECSRun(labels=["prod"])
     ```
 
-    Use a custom task definition uploaded to S3. This task definition contains a container 
-    named "flow", as well as a custom execution role and task role. The flow should be 
-    picked up for execution by agent with label "prod" and should be deployed to a cluster 
+    2) Use a custom task definition uploaded to S3 as a YAML file. This task definition contains 
+    a container named "flow", as well as a custom execution role and task role. The flow should 
+    be picked up for execution by agent with label "prod" and should be deployed to a cluster 
     called "prefectEcsCluster".
 
     ```python
     flow.run_config = ECSRun(
         labels=["prod"],
-        task_definition_path="s3://bucket/task_definition.json",
+        task_definition_path="s3://bucket/flow_task_definition.yaml",
         run_task_kwargs=dict(cluster="prefectEcsCluster"),
     )
     ```
 
-    Example of a task definition file `task_definition.json`:
-    ```json
-    {
-        "family": "prefectFlow",
-        "requiresCompatibilities": ["FARGATE"],
-        "networkMode": "awsvpc",
-        "cpu": "512",
-        "memory": "1024",
-        "taskRoleArn": "arn:aws:iam::XXXX:role/prefectTaskRole",
-        "executionRoleArn": "arn:aws:iam::XXXX:role/prefectECSAgentTaskExecutionRole",
-        "containerDefinitions": [
-            {
-                "name": "flow",
-                "image": "XXXX.dkr.ecr.us-east-1.amazonaws.com/image_name:latest",
-                "essential": true,
-                "environment": [
-                    {"name": "AWS_RETRY_MODE", "value": "adaptive"},
-                    {"name": "AWS_MAX_ATTEMPTS", "value": "10"}
-                ],
-                "logConfiguration": {
-                    "logDriver": "awslogs",
-                    "options": {
-                        "awslogs-group": "/ecs/prefectEcsAgent",
-                        "awslogs-region": "us-east-1",
-                        "awslogs-stream-prefix": "ecs",
-                        "awslogs-create-group": "true"
-                    }
-                }
-            }
-        ]
-    }
+    An example of `flow_task_definition.yaml`:
+    ```yaml
+    family: prefectFlow
+    requiresCompatibilities:
+        - FARGATE
+    networkMode: awsvpc
+    cpu: 1024
+    memory: 2048
+    taskRoleArn: arn:aws:iam::XXX:role/prefectTaskRole
+    executionRoleArn: arn:aws:iam::XXX:role/prefectECSAgentTaskExecutionRole
+    containerDefinitions:
+    - name: flow
+        image: "XXX.dkr.ecr.us-east-1.amazonaws.com/image_name:latest"
+        essential: true
+        environment:
+        - name: AWS_RETRY_MODE
+            value: "adaptive"
+        - name: AWS_MAX_ATTEMPTS
+            value: "10"
+        logConfiguration:
+        logDriver: awslogs
+        options:
+            awslogs-group: "/ecs/prefectEcsAgent"
+            awslogs-region: "us-east-1"
+            awslogs-stream-prefix: "ecs"
+            awslogs-create-group: "true"
     ```
 
-    Use a custom pre-registered task definition, then deploy the flow to a cluster called 
-    "prefectEcsCluster":
+    3) Use a custom pre-registered task definition (referenced by `family:revision` 
+    or by a full ARN), then deploy the flow to a cluster called "prefectEcsCluster":
 
     ```python
     flow.run_config = ECSRun(
@@ -151,7 +146,7 @@ class ECSRun(RunConfig):
     )
     ```
 
-    Let Prefect register a new task definition for a flow with S3 storage and a custom 
+    4) Let Prefect register a new task definition for a flow with S3 storage and a custom 
     ECR image:
 
     ```python
@@ -164,7 +159,7 @@ class ECSRun(RunConfig):
     )
     ```
 
-    Use the default task definition, but override the image and CPU:
+    5) Use the default task definition, but override the image and CPU:
 
     ```python
     flow.run_config = ECSRun(
@@ -174,11 +169,12 @@ class ECSRun(RunConfig):
     )
     ```
 
-    Use an explicit task definition stored in s3, but override the image and CPU:
+    6) Use an explicit task definition stored in S3 as YAML file, 
+    but override the image and CPU:
 
     ```python
     flow.run_config = ECSRun(
-        task_definition="s3://bucket/task_definition.json",
+        task_definition="s3://bucket/flow_task_definition.yaml",
         image="XXXX.dkr.ecr.us-east-1.amazonaws.com/image_name:latest",
         cpu="2 vcpu",
     )
