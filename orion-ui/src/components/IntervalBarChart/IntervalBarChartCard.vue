@@ -15,7 +15,14 @@
       <IntervalBarChart
         :items="filteredItems"
         v-bind="{ intervalSeconds, intervalStart, intervalEnd }"
-      />
+      >
+        <template v-slot:popover-header>
+          <div class="interval-bar-chart-card__popover-header">
+            <i class="pi pi-bar-chart-box-line pi-1 mr-1" />
+            <span>{{ props.title }}</span>
+          </div>
+        </template>
+      </IntervalBarChart>
     </div>
   </Card>
 </template>
@@ -91,5 +98,10 @@ const totalSeconds = computed<number>(() => {
   padding: var(--p-1) var(--p-2);
   display: flex;
   justify-content: space-between;
+}
+
+.interval-bar-chart-card__popover-header {
+  display: flex;
+  align-items: center;
 }
 </style>
