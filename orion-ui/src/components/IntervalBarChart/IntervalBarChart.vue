@@ -5,14 +5,13 @@
     <div class="interval-bar-chart__median" />
 
     <div class="interval-bar-chart__bucket-container">
-      <div
-        v-for="item in items"
-        :key="item.interval_start"
-        class="interval-bar-chart__bucket"
-        :style="calculateBucketPosition(item)"
-        tabindex="0"
-      >
-      </div>
+      <template v-for="item in itemsWithValue" :key="item.interval_start">
+        <div
+          class="interval-bar-chart__bucket"
+          :style="calculateBucketPosition(item)"
+          tabindex="0"
+        />
+      </template>
     </div>
   </div>
 </template>
@@ -21,20 +20,15 @@
 import { Options, prop, mixins } from 'vue-class-component'
 import * as d3 from 'd3'
 import { D3Base } from '@/components/Visualizations/D3Base'
-
-export interface Item {
-  interval_start: string
-  interval_end: string
-  value: number
-}
-export type ItemCollection = Item[]
+import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
+import { CSSProperties } from '@vue/runtime-dom'
 
 class Props {
   intervalSeconds = prop<number>({ required: true })
   intervalStart = prop<Date>({ required: true })
   intervalEnd = prop<Date>({ required: true })
   backgroundColor = prop<string>({ required: false, default: null })
-  items = prop<ItemCollection>({ required: true })
+  items = prop<IntervalBarChartItem[]>({ required: true })
 }
 
 @Options({})
@@ -51,10 +45,19 @@ export default class BarChart extends mixins(D3Base).with(Props) {
   }
 
   get maxValue(): number {
-    return Math.max.apply(
-      null,
-      this.items.map((item: Item) => item.value)
+    const values = this.items.map((item) => item.value)
+
+    return Math.max(...values)
+  }
+
+  get barWidth(): number {
+    return Math.floor(
+      Math.min(10, (this.width - this.paddingX) / this.items.length / 2)
     )
+  }
+
+  get itemsWithValue() {
+    return this.items.filter((item) => item.value)
   }
 
   createChart(): void {
@@ -78,13 +81,7 @@ export default class BarChart extends mixins(D3Base).with(Props) {
       .range([0, this.height - this.paddingY])
   }
 
-  get barWidth(): number {
-    return Math.floor(
-      Math.min(10, (this.width - this.paddingX) / this.items.length / 2)
-    )
-  }
-
-  calculateBucketPosition(item: Item): { [key: string]: string } {
+  calculateBucketPosition(item: IntervalBarChartItem): CSSProperties {
     const height = this.yScale(item.value)
     const top = this.height - this.padding.bottom - height
     const left = this.xScale(new Date(item.interval_start)) + this.padding.left
