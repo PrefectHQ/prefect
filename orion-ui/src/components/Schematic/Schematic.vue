@@ -699,6 +699,12 @@ onUnmounted(() => {
     }
   }
 
+  .edge-container {
+    path {
+      transition: all 100ms ease-in-out 100ms;
+    }
+  }
+
   .ring {
     pointer-events: none;
   }
