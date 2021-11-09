@@ -524,7 +524,6 @@ const panToNode = (item: SchematicNode): void => {
 /**
  * Schematic refs
  */
-const useLinearGradient: boolean = false
 const height = ref<number>(0)
 const width = ref<number>(0)
 const baseRadius: number = 300
