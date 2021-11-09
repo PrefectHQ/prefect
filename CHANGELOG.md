@@ -25,6 +25,10 @@ Released on November 9, 2021.
 
 - Update the `FlowView` to be more robust to serialized flow changes in the backend - [#5116](https://github.com/PrefectHQ/prefect/pull/5116)
 
+### Deprecations
+
+- Move artifacts functions to `prefect.backend.artifacts` - [#5117](https://github.com/PrefectHQ/prefect/pull/5117)
+
 ### Contributors
 
 - [Alessandro Lollo](https://github.com/AlessandroLollo)
