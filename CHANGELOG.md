@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.15.8 <Badge text="beta" type="success" />
+
+Released on November 9, 2021.
+
+### Features
+
+- Add support for rich iCal style scheduling via RRules - [#4901](https://github.com/PrefectHQ/prefect/pull/4901)
+- Add support for triggering dbt Cloud job run
+
+### Enhancements
+
+- Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)
+- Added Kafka Tasks entry to website docs - (https://github.com/PrefectHQ/prefect/pull/5094)
+- Allow `Azure` flow storage to overwrite existing blobs - (https://github.com/PrefectHQ/prefect/pull/5103)
+- Add Vertex Agent and RunConfig - [#4989](https://github.com/PrefectHQ/prefect/pull/4989)
+
+### Task Library
+
+- Adds task `Glob` - [#5077](https://github.com/PrefectHQ/prefect/pull/5077)
+
+### Fixes
+
+- Introduced keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
+- Update the `FlowView` to be more robust to serialized flow changes in the backend
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Bradley Axen](https://github.com/baxen)
+- [Damien Ramunno-Johnson](https://github.com/damienrj)
+- [Jonas Miederer](https://github.com/jonasmiederer)
+- [Josh Wang](https;//github.com/wangjoshuah)
+- [Nitay Joffe](https://github.com/nitay)
+- [Timo S.](https://github.com/sti0)
+
 ## 0.15.7 <Badge text="beta" type="success" />
 
 Released on October 21, 2021.
