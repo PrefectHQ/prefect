@@ -193,7 +193,7 @@ class ECSRun(RunConfig):
     FLOW_NAME = "ecs_demo_ecr"
     ACCOUNT_ID = Secret("AWS_ACCOUNT_ID").get()
     STORAGE = S3(
-        bucket="prefect-datasets",
+        bucket="your_bucket_name",
         key=f"flows/{FLOW_NAME}.py",
         stored_as_script=True,
         local_script_path=f"{FLOW_NAME}.py",
