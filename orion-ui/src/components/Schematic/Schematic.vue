@@ -449,13 +449,14 @@ const updateLinks = () => {
   const idGenerator = (d: Link) => d.source.id + '---' + d.target.id
 
   const classGenerator = (d: Link) => {
+    const transitionClass = visibleLinks.value.length > 100 ? '' : 'transition'
     const opaqueStrokeClass = `${d.source.data.state.type.toLowerCase()}-stroke`
     const transparentStrokeClass = 'transparent'
-    if (!highlightedNode.value) return opaqueStrokeClass
+    if (!highlightedNode.value) return `${opaqueStrokeClass} ${transitionClass}`
     return d.source.id == highlightedNode.value.id ||
       d.target.id == highlightedNode.value.id
-      ? `${opaqueStrokeClass} highlighted`
-      : transparentStrokeClass
+      ? `${opaqueStrokeClass} highlighted ${transitionClass}`
+      : `${transparentStrokeClass} ${transitionClass}`
   }
 
   edgeContainer.value
@@ -700,8 +701,8 @@ onUnmounted(() => {
   }
 
   .edge-container {
-    path {
-      transition: all 100ms ease-in-out 100ms;
+    path.transition {
+      transition: stroke 100ms ease-in-out 100ms;
     }
   }
 
