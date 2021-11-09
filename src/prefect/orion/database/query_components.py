@@ -68,7 +68,7 @@ class AsyncPostgresQueryComponents(QueryComponentsBase):
         return postgresql.insert(obj)
 
     def max(self, *values):
-        return sa.func.greatest
+        return sa.func.greatest(*values)
 
     # --- Postgres-specific JSON handling
 
