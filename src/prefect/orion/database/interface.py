@@ -32,7 +32,9 @@ class DBSingleton(type):
     def __call__(cls, *args, **kwargs):
         unique_key = tuple(kwargs.values())
         if unique_key not in cls._instances:
-            cls._instances[unique_key] = super(DBSingleton, cls).__call__(*args, **kwargs)
+            cls._instances[unique_key] = super(DBSingleton, cls).__call__(
+                *args, **kwargs
+            )
         return cls._instances[unique_key]
 
 

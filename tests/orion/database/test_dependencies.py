@@ -22,7 +22,6 @@ async def test_injecting_an_existing_database_config():
 
 
 async def test_injecting_a_really_dumb_database_config():
-
     class UselessConfiguration(DatabaseConfigurationBase):
         @property
         def base_model_mixins(self) -> list:
@@ -56,7 +55,6 @@ async def test_injecting_existing_query_components():
 
 
 async def test_injecting_really_dumb_query_components():
-
     class ReallyBrokenQueries(QueryComponentsBase):
         # --- dialect-specific SqlAlchemy bindings
 
