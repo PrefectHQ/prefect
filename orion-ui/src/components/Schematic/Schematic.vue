@@ -448,10 +448,6 @@ const updateLinks = () => {
 
   const idGenerator = (d: Link) => d.source.id + '---' + d.target.id
 
-  const strokeGenerator = (d: Link, i: number) => {
-    return useLinearGradient ? `url("#${d.source.data.name + i}")` : null
-  }
-
   const classGenerator = (d: Link) => {
     const opaqueStrokeClass = `${d.source.data.state.type.toLowerCase()}-stroke`
     const transparentStrokeClass = 'transparent'
@@ -472,7 +468,6 @@ const updateLinks = () => {
           .append('path')
           .attr('id', idGenerator)
           .attr('class', classGenerator)
-          .style('stroke', strokeGenerator)
           .style('stroke-width', strokeWidthGenerator)
           .attr('d', pathGenerator)
           .style('opacity', opacityGenerator),
@@ -481,7 +476,6 @@ const updateLinks = () => {
         selection
           .attr('id', idGenerator)
           .attr('class', classGenerator)
-          .style('stroke', strokeGenerator)
           .style('stroke-width', strokeWidthGenerator)
           .attr('d', pathGenerator)
           .style('opacity', opacityGenerator),
