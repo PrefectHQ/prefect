@@ -7,23 +7,23 @@ Released on November 9, 2021.
 ### Features
 
 - Add support for rich iCal style scheduling via RRules - [#4901](https://github.com/PrefectHQ/prefect/pull/4901)
-- Add support for triggering dbt Cloud job run
+- Add Google Cloud Vertex agent and run configuration - [#4989](https://github.com/PrefectHQ/prefect/pull/4989)
 
 ### Enhancements
 
-- Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)
-- Added Kafka Tasks entry to website docs - (https://github.com/PrefectHQ/prefect/pull/5094)
-- Allow `Azure` flow storage to overwrite existing blobs - (https://github.com/PrefectHQ/prefect/pull/5103)
-- Add Vertex Agent and RunConfig - [#4989](https://github.com/PrefectHQ/prefect/pull/4989)
+- Allow `Azure` flow storage to overwrite existing blobs - [#5103](https://github.com/PrefectHQ/prefect/pull/5103)
+- Add keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
 
 ### Task Library
 
-- Adds task `Glob` - [#5077](https://github.com/PrefectHQ/prefect/pull/5077)
+- Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)
+- Add `Glob` task for collecting files in directories - [#5077](https://github.com/PrefectHQ/prefect/pull/5077) 
+- Add `DbtCloudRunJob` task for triggering dbt cloud run jobs - [#5085](https://github.com/PrefectHQ/prefect/pull/5085)
+- Added Kafka Tasks entry to website docs - [#5094](https://github.com/PrefectHQ/prefect/pull/5094)
 
 ### Fixes
 
-- Introduced keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
-- Update the `FlowView` to be more robust to serialized flow changes in the backend
+- Update the `FlowView` to be more robust to serialized flow changes in the backend - [#5116](https://github.com/PrefectHQ/prefect/pull/5116)
 
 ### Contributors
 
