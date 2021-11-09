@@ -16,17 +16,16 @@
           v-if="node.position?.nodes.size == 1"
           :node="node"
           class="position-absolute"
+          :class="nodeClass"
           :collapsed="collapsedTrees.get(key)"
           :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
           tabindex="0"
           @toggle-tree="toggleTree"
           @focus.self.stop="panToNode(node)"
-          @mouseover="highlightNode(node)"
-          @mouseout="highlightNode(node)"
+          @mouseover="highlightNode(node.id)"
+          @mouseout="highlightNode(node.id)"
+          @click.self.stop="selectNode(node.id)"
         />
-        <!-- @click.self.stop="highlightNode(node)" -->
-        <!-- @blur.self="highlightNode(node)" -->
-
         <OverflowNode
           v-else
           class="position-absolute"
@@ -146,6 +145,13 @@ const viewportExtent = computed<[[number, number], [number, number]]>(() => {
   ]
 })
 
+const nodeClass = (id: string): { [key: string]: boolean } => {
+  return {
+    transparent:
+      selectedNodes.value.length > 0 && !selectedNodes.value.includes(id)
+  }
+}
+
 const miniMapStyle = computed<{
   width: string
   height: string
@@ -238,10 +244,7 @@ const updateRings = (): void => {
         g.attr('id', (d: any) => d.id)
         const arc = g.attr('class', 'ring').append('path')
         arc
-          // .attr('cx', width.value / 2)
-          // .attr('cy', height.value / 2)
           .attr('id', ([key]: [number, Ring]) => key)
-          // .attr('r', ([, d]: [number, Ring]) => d.radius)
           .attr('d', calculateArc)
           .style('opacity', 1)
           .attr('fill', 'transparent')
@@ -252,12 +255,7 @@ const updateRings = (): void => {
       // update
       (selection: any) => {
         const arc = selection.select('path')
-        arc
-          // .attr('cx', width.value / 2)
-          // .attr('cy', height.value / 2)
-          .attr('id', ([key]: [number, Ring]) => key)
-          .attr('d', calculateArc)
-        // .attr('r', ([, d]: [number, Ring]) => d.radius)
+        arc.attr('id', ([key]: [number, Ring]) => key).attr('d', calculateArc)
         return selection
       },
       // exit
@@ -438,25 +436,37 @@ const updateLinks = () => {
     return Math.min(5, maxWidth)
   }
 
+  const isEmphasized = (d: Link) => {
+    const isSelected =
+      selectedNodes.value.includes(d.source.id) ||
+      selectedNodes.value.includes(d.target.id)
+    const isHighlighted =
+      highlightedNode.value &&
+      (d.source.id == highlightedNode.value ||
+        d.target.id == highlightedNode.value)
+
+    return (
+      (!highlightedNode.value && selectedNodes.value.length === 0) ||
+      isSelected ||
+      isHighlighted
+    )
+  }
+
   const opacityGenerator = (d: Link) => {
-    if (!highlightedNode.value) return 1
-    return d.source.id == highlightedNode.value.id ||
-      d.target.id == highlightedNode.value.id
-      ? 1
-      : 0.2
+    if (isEmphasized(d)) return 1
+    return 0.2
   }
 
   const idGenerator = (d: Link) => d.source.id + '---' + d.target.id
 
   const classGenerator = (d: Link) => {
-    const transitionClass = visibleLinks.value.length > 100 ? '' : 'transition'
-    const opaqueStrokeClass = `${d.source.data.state.type.toLowerCase()}-stroke`
-    const transparentStrokeClass = 'transparent'
-    if (!highlightedNode.value) return `${opaqueStrokeClass} ${transitionClass}`
-    return d.source.id == highlightedNode.value.id ||
-      d.target.id == highlightedNode.value.id
-      ? `${opaqueStrokeClass} highlighted ${transitionClass}`
-      : `${transparentStrokeClass} ${transitionClass}`
+    const classList = []
+    const emphasized = isEmphasized(d)
+    if (emphasized) {
+      classList.push(`${d.source.data.state.type.toLowerCase()}-stroke`)
+    }
+    if (visibleLinks.value.length < 100) classList.push('transition')
+    return classList.join(' ')
   }
 
   edgeContainer.value
@@ -490,15 +500,23 @@ const updateAll = () => {
   updateLinks()
 }
 
-const highlightNode = (item: SchematicNode): void => {
-  if (highlightedNode.value?.id == item.id) highlightedNode.value = undefined
-  else highlightedNode.value = item
+const highlightNode = (id: string): void => {
+  if (highlightedNode.value == id) highlightedNode.value = undefined
+  else highlightedNode.value = id
+  requestAnimationFrame(() => updateLinks())
+}
+
+const selectNode = (id: string): void => {
+  const index = selectedNodes.value.indexOf(id)
+  if (index > -1) {
+    selectedNodes.value.splice(index, 1)
+    return
+  }
+  selectedNodes.value.push(id)
   requestAnimationFrame(() => updateLinks())
 }
 
 const panToNode = (item: SchematicNode): void => {
-  highlightNode(item)
-
   requestAnimationFrame(() => {
     const node = visibleNodes.value.get(item.id)
     if (!node) return
@@ -522,7 +540,8 @@ const panToNode = (item: SchematicNode): void => {
 const height = ref<number>(0)
 const width = ref<number>(0)
 const baseRadius: number = 300
-const highlightedNode = ref<SchematicNode>()
+const highlightedNode = ref<string>()
+const selectedNodes = ref<string[]>([])
 
 const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
@@ -693,16 +712,16 @@ onUnmounted(() => {
       fill: none;
       opacity: 1;
       stroke-linejoin: round;
-
-      &.transparent {
-        stroke: #ccc;
-      }
     }
   }
 
   .edge-container {
-    path.transition {
-      transition: stroke 100ms ease-in-out 100ms;
+    path {
+      stroke: #ccc;
+
+      &.transition {
+        transition: stroke 100ms ease-in-out 100ms;
+      }
     }
   }
 
