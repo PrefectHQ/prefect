@@ -52,22 +52,6 @@ class OrionDBInterface(metaclass=DBSingleton):
     SESSION_FACTORIES = dict()
     ENGINE_DISPOSAL_QUEUE: Dict[tuple, AsyncGenerator] = dict()
 
-    # define naming conventions for our Base class to use
-    # sqlalchemy will use the following templated strings
-    # to generate the names of indices, constraints, and keys
-    #
-    # we offset the table name with two underscores (__) to
-    # help differentiate, for example, between "flow_run.state_type"
-    # and "flow_run_state.type".
-    #
-    # more information on this templating and available
-    # customization can be found here
-    # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
-    #
-    # this also allows us to avoid having to specify names explicitly
-    # when using sa.ForeignKey.use_alter = True
-    # https://docs.sqlalchemy.org/en/14/core/constraints.html
-
     def __init__(
         self,
         db_config: DatabaseConfigurationBase = None,
@@ -78,6 +62,21 @@ class OrionDBInterface(metaclass=DBSingleton):
         self.timeout = None
 
         self.base_metadata = sa.schema.MetaData(
+            # define naming conventions for our Base class to use
+            # sqlalchemy will use the following templated strings
+            # to generate the names of indices, constraints, and keys
+            #
+            # we offset the table name with two underscores (__) to
+            # help differentiate, for example, between "flow_run.state_type"
+            # and "flow_run_state.type".
+            #
+            # more information on this templating and available
+            # customization can be found here
+            # https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
+            #
+            # this also allows us to avoid having to specify names explicitly
+            # when using sa.ForeignKey.use_alter = True
+            # https://docs.sqlalchemy.org/en/14/core/constraints.html
             naming_convention={
                 "ix": "ix_%(table_name)s__%(column_0_N_name)s",
                 "uq": "uq_%(table_name)s__%(column_0_N_name)s",
