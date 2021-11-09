@@ -8,7 +8,7 @@ import tempfile
 import textwrap
 import uuid
 import warnings
-from pathlib import PurePosixPath
+from pathlib import PurePosixPath, Path
 from typing import TYPE_CHECKING, Any, Iterable, List, Union
 
 import pendulum
@@ -88,6 +88,9 @@ class Docker(Storage):
             use when building
         - files (dict, optional): a dictionary of files or directories to copy into
             the image when building. Takes the format of `{'src': 'dest'}`
+        - dockerignore (str, optional): an optional Path to a `dockerignore` file.
+            when used with the `files` argument, the specified `dockerignore` will be
+            included in the build context
         - prefect_version (str, optional): an optional branch, tag, or commit
             specifying the version of prefect you want installed into the container;
             defaults to the version you are currently using or `"master"` if your
@@ -126,6 +129,7 @@ class Docker(Storage):
         registry_url: str = None,
         base_image: str = None,
         dockerfile: str = None,
+        dockerignore: str = None,
         python_dependencies: List[str] = None,
         image_name: str = None,
         image_tag: str = None,
@@ -199,6 +203,7 @@ class Docker(Storage):
             self.base_image = base_image  # type: ignore
 
         self.dockerfile = dockerfile
+        self.dockerignore = dockerignore
         # we should always try to install prefect, unless it is already installed. We can't
         # determine this until image build time.
         self.installation_commands.append(
@@ -327,7 +332,6 @@ class Docker(Storage):
         with tempfile.TemporaryDirectory(
             dir="." if self.dockerfile else None
         ) as tempdir:
-
             # Build the dockerfile
             if self.base_image and not self.local_image:
                 self.pull_image()
@@ -433,6 +437,12 @@ class Docker(Storage):
         # Copy user specified files into the image
         copy_files = ""
         if self.files:
+            # copy dockerignore if provided
+            if self.dockerignore:
+                shutil.copyfile(
+                    src=Path(self.dockerignore).expanduser().resolve(),
+                    dst=Path(directory) / ".dockerignore",
+                )
             for src, dest in self.files.items():
                 fname = os.path.basename(src)
                 full_fname = os.path.join(directory, fname)
