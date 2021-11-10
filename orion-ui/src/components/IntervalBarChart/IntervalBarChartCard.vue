@@ -18,11 +18,19 @@
         :items="items"
         v-bind="{ intervalSeconds, intervalStart, intervalEnd }"
       >
-        <template v-slot:popover-header="scope">
-          <slot name="popover-header" v-bind="scope" />
+        <template v-slot:popover-header="item">
+          <slot
+            name="popover-header"
+            :flows="countFlowsInStates(item.data.states)"
+            v-bind="{ item, total }"
+          />
         </template>
-        <template v-slot:popover-content="scope">
-          <slot name="popover-content" v-bind="scope" />
+        <template v-slot:popover-content="item">
+          <slot
+            name="popover-content"
+            :flows="countFlowsInStates(item.data.states)"
+            v-bind="{ item, total }"
+          />
         </template>
       </IntervalBarChart>
     </div>
@@ -33,6 +41,7 @@ import { defineProps, computed } from 'vue'
 import IntervalBarChart from './IntervalBarChart.vue'
 import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
 import { FlowRunsHistoryFilter } from '@/plugins/api'
+import { StateBucket } from '@/typings/run_history'
 
 const props = defineProps<{
   filter: FlowRunsHistoryFilter
@@ -58,6 +67,10 @@ const total = computed<number>(() => {
     return (total += item.value)
   }, 0)
 })
+
+const countFlowsInStates = (states: StateBucket[]): number => {
+  return states.reduce((acc, cur) => cur.count_runs, 0)
+}
 </script>
 
 <style lang="scss">
