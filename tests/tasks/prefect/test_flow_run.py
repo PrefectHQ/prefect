@@ -184,6 +184,40 @@ class TestWaitForFlowRun:
         result = wait_for_flow_run.run("flow-run-id")
         assert result == "fake-return-value"
 
+    def test_raises_failed_state(self, mock_watch_flow_run, MockFlowRunView):
+        MockFlowRunView.from_flow_run_id().get_latest().state = state.Failed(
+            message="foo"
+        )
+
+        with prefect.Flow("test") as flow:
+            ref = wait_for_flow_run("flow-run-id", raise_final_state=True)
+
+        flow_state = flow.run()
+        task_state = flow_state.result[ref]
+        assert task_state.is_failed()
+        assert task_state.message == 'flow-run-id finished in state <Failed: "foo">'
+        # The latest view is attached to the result
+        assert task_state.result == MockFlowRunView.from_flow_run_id().get_latest()
+
+        assert flow_state.is_failed()
+
+    def test_raises_success_state(self, mock_watch_flow_run, MockFlowRunView):
+        MockFlowRunView.from_flow_run_id().get_latest().state = state.Success(
+            message="foo"
+        )
+
+        with prefect.Flow("test") as flow:
+            ref = wait_for_flow_run("flow-run-id", raise_final_state=True)
+
+        flow_state = flow.run()
+        task_state = flow_state.result[ref]
+        assert task_state.is_successful()
+        assert task_state.message == 'flow-run-id finished in state <Success: "foo">'
+        # The latest view is attached to the result
+        assert task_state.result == MockFlowRunView.from_flow_run_id().get_latest()
+
+        assert flow_state.is_successful()
+
 
 class TestGetTaskRunResult:
     def test_requires_task_slug(self):
