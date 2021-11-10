@@ -484,7 +484,9 @@ class LocalDaskExecutor(Executor):
     def __init__(self, scheduler: str = "threads", **kwargs: Any):
         self.scheduler = self._normalize_scheduler(scheduler)
         self.dask_config = kwargs
-        self._pool = None  # type: Union[multiprocessing.pool.Pool, concurrent.futures.ThreadPoolExecutor, None]
+        self._pool = (
+            None
+        )  # type: Union[multiprocessing.pool.Pool, concurrent.futures.ThreadPoolExecutor, None]
         super().__init__()
 
     @staticmethod
