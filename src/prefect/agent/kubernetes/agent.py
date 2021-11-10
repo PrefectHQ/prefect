@@ -10,6 +10,11 @@ import json
 import pendulum
 import yaml
 
+try:
+    import kubernetes
+except ImportError:
+    pass
+
 import prefect
 from prefect import config
 from prefect.agent import Agent
@@ -127,21 +132,11 @@ class KubernetesAgent(Agent):
         )
 
         from prefect.utilities.kubernetes import get_kubernetes_client
-        from kubernetes import client, config
 
-        try:
-            self.logger.debug("Loading incluster configuration")
-            config.load_incluster_config()
-        except config.config_exception.ConfigException as exc:
-            self.logger.warning(
-                "{} Using out of cluster configuration option.".format(exc)
-            )
-            self.logger.debug("Loading out of cluster configuration")
-            config.load_kube_config()
-
-        self.batch_client = get_kubernetes_client("job")
-        self.core_client = get_kubernetes_client("service")
-        self.k8s_client = client
+        self.batch_client = get_kubernetes_client("job", kubernetes_api_key_secret=None)
+        self.core_client = get_kubernetes_client(
+            "service", kubernetes_api_key_secret=None
+        )
 
         min_datetime = datetime.min.replace(tzinfo=pytz.UTC)
         self.job_pod_event_timestamps = defaultdict(  # type: ignore
@@ -385,16 +380,16 @@ class KubernetesAgent(Agent):
                             self.batch_client.delete_namespaced_job(
                                 name=job_name,
                                 namespace=self.namespace,
-                                body=self.k8s_client.V1DeleteOptions(
+                                body=kubernetes.client.V1DeleteOptions(
                                     propagation_policy="Foreground"
                                 ),
                             )
-                        except self.k8s_client.rest.ApiException as exc:
+                        except kubernetes.client.rest.ApiException as exc:
                             if exc.status != 404:
                                 self.logger.error(
                                     f"{exc.status} error attempting to delete job {job_name}"
                                 )
-            except self.k8s_client.rest.ApiException as exc:
+            except kubernetes.client.rest.ApiException as exc:
                 if exc.status == 410:
                     self.logger.debug("Refreshing job listing token...")
                     _continue = ""
@@ -435,7 +430,7 @@ class KubernetesAgent(Agent):
                     namespace=self.namespace, body=job_spec
                 )
                 break
-            except self.k8s_client.rest.ApiException as exc:
+            except kubernetes.client.rest.ApiException as exc:
                 if exc.status == 409:
                     # object already exists, previous submission was successful
                     # even though it errored

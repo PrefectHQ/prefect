@@ -9,6 +9,7 @@ from kubernetes.config.config_exception import ConfigException
 
 from prefect import config
 from prefect.client import Secret
+from prefect.utilities.logging import get_logger
 
 
 K8S_CLIENTS = {
@@ -20,6 +21,8 @@ K8S_CLIENTS = {
 }
 
 KubernetesClient = Union[client.BatchV1Api, client.CoreV1Api, client.AppsV1Api]
+
+logger = get_logger("kubernetes")
 
 
 def get_kubernetes_client(
@@ -57,18 +60,19 @@ def get_kubernetes_client(
     """
     k8s_client = K8S_CLIENTS[resource]
 
-    kubernetes_api_key = None
     if kubernetes_api_key_secret:
+        logger.debug("Loading configuration from secret")
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
-
-    if kubernetes_api_key:
         configuration = client.Configuration()
         configuration.api_key["authorization"] = kubernetes_api_key
         k8s_client = k8s_client(client.ApiClient(configuration))
     else:
         try:
+            logger.debug("Loading incluster configuration")
             kube_config.load_incluster_config()
-        except ConfigException:
+        except ConfigException as exc:
+            logger.warning("{} Using out of cluster configuration option.".format(exc))
+            logger.debug("Loading out of cluster configuration")
             kube_config.load_kube_config()
 
         k8s_client = k8s_client()
