@@ -1,5 +1,0 @@
-fix:
-  - "Introduced keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)"
-
-contributor:
-  - "[Jonas Miederer](https://github.com/jonasmiederer)"
