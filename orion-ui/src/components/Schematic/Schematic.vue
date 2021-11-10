@@ -63,9 +63,14 @@
           @click="zoomIn"
         />
         <icon-button
-          class="bg--white"
+          class="bg--white mr-1"
           icon="pi-zoom-out-line"
           @click="zoomOut"
+        />
+        <icon-button
+          class="bg--white"
+          icon="pi-fullscreen-fill"
+          @click="resetViewport"
         />
       </div>
 
@@ -565,6 +570,14 @@ const panToNode = (item: SchematicNode): void => {
 
 const reset = (): void => {
   selectedNodes.length = 0
+}
+
+const resetViewport = (): void => {
+  d3.select('.schematic-svg')
+    .transition()
+    .ease(d3.easeQuadInOut)
+    .duration(250)
+    .call(zoom.value.transform, d3.zoomIdentity)
 }
 
 const zoomIn = (): void => {
