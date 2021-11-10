@@ -57,8 +57,16 @@
           icon="pi-restart-line"
           @click="reset"
         />
-        <icon-button class="bg--white mr-1" icon="pi-zoom-in-line" />
-        <icon-button class="bg--white" icon="pi-zoom-out-line" />
+        <icon-button
+          class="bg--white mr-1"
+          icon="pi-zoom-in-line"
+          @click="zoomIn"
+        />
+        <icon-button
+          class="bg--white"
+          icon="pi-zoom-out-line"
+          @click="zoomOut"
+        />
       </div>
 
       <div class="mini-map position-relative" :style="miniMapStyle">
@@ -550,6 +558,28 @@ const panToNode = (item: SchematicNode): void => {
 
 const reset = (): void => {
   selectedNodes.value = []
+}
+
+const zoomIn = (): void => {
+  zoom.value.scaleBy(
+    d3
+      .select('.schematic-svg')
+      .transition()
+      .ease(d3.easeQuadInOut)
+      .duration(250),
+    1.35
+  )
+}
+
+const zoomOut = (): void => {
+  zoom.value.scaleBy(
+    d3
+      .select('.schematic-svg')
+      .transition()
+      .ease(d3.easeQuadInOut)
+      .duration(250),
+    0.65
+  )
 }
 
 /**
