@@ -687,8 +687,8 @@ const createChart = (): void => {
       [0, 0],
       [width.value, height.value]
     ])
-    // .translateExtent(viewportExtent.value)
-    // .scaleExtent([0.1, 1])
+    .translateExtent(viewportExtent.value)
+    .scaleExtent([0.1, 1])
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
