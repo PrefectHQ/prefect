@@ -41,10 +41,10 @@
 <script lang="ts" setup>
 import { computed, defineProps } from 'vue'
 import { FlowRunsHistoryFilter } from '@/plugins/api'
-import { formatDateTimeNumeric } from '@/utilities/date'
+import { formatDateTimeNumeric } from '@/utilities/dates'
 import { secondsToApproximateString } from '@/util/util'
 import StateBucketIntervalBarChart from './StateBucketIntervalBarChart.vue'
-import { calculatePercent } from '@/utilities/percent'
+import { calculatePercent } from '@/utilities/units'
 
 const props = defineProps<{
   filter: FlowRunsHistoryFilter

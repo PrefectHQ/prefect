@@ -48,7 +48,7 @@
 <script lang="ts" setup>
 import { defineProps } from 'vue'
 import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
-import { formatDateTimeNumeric } from '@/utilities/date'
+import { formatDateTimeNumeric } from '@/utilities/dates'
 
 const props = defineProps<{
   title: string
