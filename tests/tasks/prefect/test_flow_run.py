@@ -106,7 +106,7 @@ class TestCreateFlowRun:
             context=kwargs.get("context"),
             run_config=kwargs.get("run_config"),
             scheduled_start_time=kwargs.get("scheduled_start_time"),
-            idempotency_key=None
+            idempotency_key=None,
         )
 
     def test_generates_run_name_from_parent_and_child(self, MockFlowView, MockClient):
@@ -122,7 +122,7 @@ class TestCreateFlowRun:
             context=None,
             run_config=None,
             scheduled_start_time=None,
-            idempotency_key="parent-task-run"
+            idempotency_key="parent-task-run",
         )
 
     def test_returns_flow_run_idl(self, MockFlowView, MockClient):
