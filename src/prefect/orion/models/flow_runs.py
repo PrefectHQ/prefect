@@ -159,12 +159,12 @@ async def _apply_flow_run_filters(
     """
 
     if flow_run_filter:
-        query = query.where((await flow_run_filter.as_sql_filter()))
+        query = query.where(flow_run_filter.as_sql_filter())
 
     if deployment_filter:
         exists_clause = select(db.Deployment).where(
             db.Deployment.id == db.FlowRun.deployment_id,
-            (await deployment_filter.as_sql_filter()),
+            deployment_filter.as_sql_filter(),
         )
         query = query.where(exists_clause.exists())
 
@@ -173,7 +173,7 @@ async def _apply_flow_run_filters(
         if flow_filter:
             exists_clause = select(db.Flow).where(
                 db.Flow.id == db.FlowRun.flow_id,
-                (await flow_filter.as_sql_filter()),
+                flow_filter.as_sql_filter(),
             )
 
         if task_run_filter:
@@ -188,7 +188,7 @@ async def _apply_flow_run_filters(
                 )
             exists_clause = exists_clause.where(
                 db.FlowRun.id == db.TaskRun.flow_run_id,
-                (await task_run_filter.as_sql_filter()),
+                task_run_filter.as_sql_filter(),
             )
 
         query = query.where(exists_clause.exists())
@@ -225,7 +225,7 @@ async def read_flow_runs(
         List[db.FlowRun]: flow runs
     """
 
-    query = select(db.FlowRun).order_by(await sort.as_sql_sort())
+    query = select(db.FlowRun).order_by(sort.as_sql_sort())
 
     query = await _apply_flow_run_filters(
         query,
