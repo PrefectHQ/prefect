@@ -4,6 +4,7 @@ Injected models dependencies
 
 from contextlib import asynccontextmanager
 from functools import wraps
+import asyncio
 
 
 MODELS_DEPENDENCIES = {
@@ -12,7 +13,7 @@ MODELS_DEPENDENCIES = {
 }
 
 
-async def provide_database_interface():
+def provide_database_interface():
     from prefect.orion.database.interface import OrionDBInterface
 
     provided_config = MODELS_DEPENDENCIES.get("database_configuration")
@@ -66,19 +67,17 @@ async def provide_database_interface():
 
 def inject_db(fn):
     """
-    Simple helper to provide a database configuration to an asynchronous function.
+    Simple helper to provide a database interface to a function.
 
-    The decorated function _must_ take a `db_config` kwarg and if a config is passed
+    The decorated function _must_ take a `db` kwarg and if a db is passed
     when called it will be used instead of creating a new one.
     """
 
     @wraps(fn)
-    async def wrapper(*args, **kwargs):
-        if "db" in kwargs and kwargs["db"] is not None:
-            return await fn(*args, **kwargs)
-        else:
-            kwargs["db"] = await provide_database_interface()
-            return await fn(*args, **kwargs)
+    def wrapper(*args, **kwargs):
+        if "db" not in kwargs or kwargs["db"] is None:
+            kwargs["db"] = provide_database_interface()
+        return fn(*args, **kwargs)
 
     return wrapper
 
