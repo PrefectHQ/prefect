@@ -45,6 +45,7 @@ This release includes a Prefect Server update that updates an upstream dependenc
 - [Josh Wang](https;//github.com/wangjoshuah)
 - [Nitay Joffe](https://github.com/nitay)
 - [Timo S.](https://github.com/sti0)
+- [Brett Naul](https://github.com/bnaul)
 
 ## 0.15.7 <Badge text="beta" type="success" />
 
