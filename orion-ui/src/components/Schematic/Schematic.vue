@@ -705,7 +705,7 @@ const createChart = (): void => {
       [width.value, height.value]
     ])
     .translateExtent(viewportExtent.value)
-    .scaleExtent([0.1, 1])
+    .scaleExtent([0.0001, 1])
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
@@ -774,18 +774,25 @@ onUnmounted(() => {
     overflow: hidden;
     bottom: 0;
     right: 0;
+    z-index: 9999;
 
     .mini-map {
       backdrop-filter: blur(1px);
       background-color: rgba(142, 160, 174, 0.1);
       border-radius: 8px;
+      cursor: pointer;
       overflow: hidden;
 
       .mini-map--viewport {
         background-color: rgba(142, 160, 174, 0.5);
         border-radius: 8px;
+        cursor: grab;
         transform: translate(50%, 50%);
         transform-origin: left top;
+
+        &:active {
+          cursor: grabbing;
+        }
       }
     }
   }
