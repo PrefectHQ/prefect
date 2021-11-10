@@ -55,6 +55,7 @@
         <icon-button
           class="bg--white justify-self-start mr-auto"
           icon="pi-restart-line"
+          @click="reset"
         />
         <icon-button class="bg--white mr-1" icon="pi-zoom-in-line" />
         <icon-button class="bg--white" icon="pi-zoom-out-line" />
@@ -527,7 +528,6 @@ const selectNode = (id: string): void => {
   } else {
     selectedNodes.value.push(id)
   }
-  requestAnimationFrame(() => updateLinks())
 }
 
 const panToNode = (item: SchematicNode): void => {
@@ -546,6 +546,10 @@ const panToNode = (item: SchematicNode): void => {
       .duration(250)
       .call(zoom.value.transform, zoomIdentity)
   })
+}
+
+const reset = (): void => {
+  selectedNodes.value = []
 }
 
 /**
@@ -587,6 +591,8 @@ watch(
     }
   }
 )
+
+watch(selectedNodes, () => requestAnimationFrame(() => updateLinks()))
 
 watch(visibleRings, () => {
   // zoom.value.translateExtent(viewportExtent.value)
