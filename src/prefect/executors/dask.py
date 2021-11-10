@@ -484,7 +484,7 @@ class LocalDaskExecutor(Executor):
     def __init__(self, scheduler: str = "threads", **kwargs: Any):
         self.scheduler = self._normalize_scheduler(scheduler)
         self.dask_config = kwargs
-        self._pool = None  # type: Optional[multiprocessing.pool.Pool]
+        self._pool = None  # type: Union[multiprocessing.pool.Pool, concurrent.futures.ThreadPoolExecutor, None]
         super().__init__()
 
     @staticmethod
@@ -512,11 +512,11 @@ class LocalDaskExecutor(Executor):
         if self._pool is None:
             return
 
-        # Terminate the pool
-        self._pool.terminate()
-
         if self.scheduler == "threads":
-            # `ThreadPool.terminate()` doesn't stop running tasks, only
+            # Shutdown the pool
+            self._pool.shutdown(wait=False)
+
+            # `ThreadPoolExecutor.shutdown()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
             # the next time the task does something with the Python api.
@@ -543,10 +543,13 @@ class LocalDaskExecutor(Executor):
             else:
                 id_type = ctypes.c_long
 
-            for t in self._pool._pool:  # type: ignore
+            for t in self._pool._threads:  # type: ignore
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(
                     id_type(t.ident), ctypes.py_object(KeyboardInterrupt)
                 )
+        else:
+            # Terminate the pool
+            self._pool.terminate()
 
     @contextmanager
     def start(self) -> Iterator:
@@ -574,9 +577,9 @@ class LocalDaskExecutor(Executor):
             else:
                 num_workers = dask.config.get("num_workers", None) or CPU_COUNT
                 if self.scheduler == "threads":
-                    from multiprocessing.pool import ThreadPool
+                    from concurrent.futures import ThreadPoolExecutor
 
-                    self._pool = ThreadPool(num_workers)
+                    self._pool = ThreadPoolExecutor(num_workers)
                 else:
                     from dask.multiprocessing import get_context
 
@@ -594,9 +597,11 @@ class LocalDaskExecutor(Executor):
                 if self._pool is not None:
                     if exiting_early:
                         self._interrupt_pool()
+                    elif self.scheduler == "threads":
+                        self._pool.shutdown(wait=False)
                     else:
                         self._pool.close()
-                    self._pool.join()
+                        self._pool.join()
                     self._pool = None
 
     def submit(

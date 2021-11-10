@@ -158,7 +158,8 @@ class TestLocalDaskExecutor:
         self, scheduler, num_workers
     ):
         from dask.system import CPU_COUNT
-        from multiprocessing.pool import Pool, ThreadPool
+        from multiprocessing.pool import Pool
+        from concurrent.futures import ThreadPoolExecutor
 
         e = LocalDaskExecutor(scheduler, num_workers=num_workers)
         with e.start():
@@ -166,9 +167,13 @@ class TestLocalDaskExecutor:
                 assert e._pool is None
             else:
                 sol = num_workers or CPU_COUNT
-                kind = ThreadPool if scheduler == "threads" else Pool
+                if scheduler == "threads":
+                    kind = ThreadPoolExecutor
+                    assert e._pool._max_workers == sol
+                else:
+                    kind = Pool
+                    assert e._pool._processes == sol
                 assert isinstance(e._pool, kind)
-                assert e._pool._processes == sol
         assert e._pool is None
 
     @pytest.mark.parametrize("scheduler", ["threads", "processes", "synchronous"])
