@@ -187,7 +187,8 @@ const visibleLinks = computed<Links>(() => {
 })
 
 const viewportOffset = computed<number>(() => {
-  return visibleRings.value.size * baseRadius
+  const radii = [...visibleRings.value.entries()].map(([, ring]) => ring.radius)
+  return Math.max(...radii)
 })
 
 const viewportExtent = computed<[[number, number], [number, number]]>(() => {
@@ -393,6 +394,8 @@ const updateRings = (): void => {
     return `mini-arc-segment ${strokeClass}`
   }
 
+  miniSvg.value?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
+
   miniRingContainer.value
     ?.selectAll('.mini-arc-segment-group')
     .data(visibleRings.value)
@@ -416,7 +419,13 @@ const updateRings = (): void => {
           .attr('fill', 'transparent')
           .attr('stroke', 'rgba(0, 0, 0, 0.1)')
           .attr('stroke-width', 80)
-          .attr('d', (d: Arc) => calculateArcSegment(d, 0.05))
+          .attr('d', (d: Arc) => calculateArcSegment(d, 0.05)),
+      (selection: any) =>
+        selection
+          .attr('class', classGenerator)
+          .attr('d', (d: Arc) => calculateArcSegment(d, 0.05)),
+      // exit
+      (selection: any) => selection.remove()
     )
 }
 
