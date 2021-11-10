@@ -475,7 +475,7 @@ const updateLinks = () => {
   }
 
   const opacityGenerator = (d: Link) => {
-    if (!highlightedNode.value && selectedNodes.value.length === 0) return 0.5
+    if (!highlightedNode.value && selectedNodes.value.length === 0) return 1
     if (isEmphasized(d)) return 1
     return 0.2
   }
@@ -485,7 +485,10 @@ const updateLinks = () => {
   const classGenerator = (d: Link) => {
     const classList = []
     const emphasized = isEmphasized(d)
-    if (emphasized) {
+    if (
+      emphasized ||
+      (selectedNodes.value.length == 0 && !highlightedNode.value)
+    ) {
       classList.push(`${d.source.data.state.type.toLowerCase()}-stroke`)
     }
     if (visibleLinks.value.length < 100) classList.push('transition')
@@ -785,7 +788,7 @@ onUnmounted(() => {
 
   .edge-container {
     path {
-      stroke: #ccc;
+      stroke: #ddd;
 
       &.transition {
         transition: opacity 100ms linear 0;
