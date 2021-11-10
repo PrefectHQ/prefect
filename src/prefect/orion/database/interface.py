@@ -50,7 +50,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     ENGINES = dict()
     SESSION_FACTORIES = dict()
-    ENGINE_DISPOSAL_QUEUE: Dict[tuple, AsyncGenerator] = dict()
+    ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
 
     def __init__(
         self,
@@ -166,14 +166,14 @@ class OrionDBInterface(metaclass=DBSingleton):
                     await engine.dispose()
 
                 # Drop this iterator from the disposal just to keep things clean
-                self.ENGINE_DISPOSAL_QUEUE.pop(cache_key, None)
+                self.ENGINE_DISPOSAL_REFS.pop(cache_key, None)
 
         # Create the iterator and store it in a global variable so it is not cleaned up
         # when this function scope ends
-        self.ENGINE_DISPOSAL_QUEUE[cache_key] = dispose_engine(cache_key).__aiter__()
+        self.ENGINE_DISPOSAL_REFS[cache_key] = dispose_engine(cache_key).__aiter__()
 
         # Begin iterating so it will be cleaned up as an incomplete generator
-        await self.ENGINE_DISPOSAL_QUEUE[cache_key].__anext__()
+        await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
 
     async def clear_engine_cache(self):
         self.ENGINES.clear()
