@@ -14,6 +14,8 @@ Released on November 9, 2021.
 - Allow `Azure` flow storage to overwrite existing blobs - [#5103](https://github.com/PrefectHQ/prefect/pull/5103)
 - Provide option to specify a dockerignore when using Docker storage - [#4980](https://github.com/PrefectHQ/prefect/pull/4980)
 - Add keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
+- Add `idempotency_key` to `create_flow_run` task - [#5125](https://github.com/PrefectHQ/prefect/pull/5125)
+- Add `raise_final_state` to `wait_for_flow_run` task to reflect child flow run state - [#5129](https://github.com/PrefectHQ/prefect/pull/5129)
 
 ### Task Library
 
