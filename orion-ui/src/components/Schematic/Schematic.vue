@@ -870,6 +870,7 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 .schematic-container {
   height: 100vh;
   max-height: 100vh;
@@ -894,13 +895,13 @@ onUnmounted(() => {
   }
 
   .mini-map-container {
-    overflow: hidden;
     bottom: 0;
     right: 0;
     z-index: 9999;
 
     .mini-map {
       backdrop-filter: blur(1px);
+      filter: $drop-shadow-sm;
       background-color: rgba(244, 245, 247, 0.9);
       border-radius: 8px;
       cursor: pointer;
