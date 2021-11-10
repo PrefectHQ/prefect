@@ -2,7 +2,7 @@
 
 ## 0.15.8 <Badge text="beta" type="success" />
 
-Released on November 9, 2021.
+Released on November 10, 2021.
 
 ### Features
 
@@ -31,6 +31,10 @@ Released on November 9, 2021.
 ### Deprecations
 
 - Move artifacts functions to `prefect.backend.artifacts` - [#5117](https://github.com/PrefectHQ/prefect/pull/5117)
+
+### Server
+
+This release includes a Prefect Server update that updates an upstream dependency to fix a security vulnerability. See the [release changelog](https://github.com/PrefectHQ/server/blob/master/Changelog.md#november-09-2021-) for more details.
 
 ### Contributors
 
