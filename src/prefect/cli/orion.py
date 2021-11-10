@@ -28,7 +28,7 @@ def start(
 
     # TODO - this logic should be abstracted in the interface
     # create the sqlite database if it doesnt already exist
-    db = sync(provide_database_interface)
+    db = provide_database_interface()
     sync(db.engine)
 
     console.print("Starting Orion API...")
@@ -43,7 +43,7 @@ def start(
 @sync_compatible
 async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
-    db = await provide_database_interface()
+    db = provide_database_interface()
     engine = await db.engine()
     if not yes:
         confirm = typer.confirm(

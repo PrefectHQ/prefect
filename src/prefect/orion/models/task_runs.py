@@ -164,7 +164,7 @@ async def read_task_runs(
         List[db.TaskRun]: the task runs
     """
 
-    query = select(db.TaskRun).order_by(await sort.as_sql_sort())
+    query = select(db.TaskRun).order_by(sort.as_sql_sort())
 
     query = await _apply_task_run_filters(
         query,
