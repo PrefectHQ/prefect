@@ -80,6 +80,10 @@
         @mousemove="dragViewport"
         @mouseleave="dragging = false"
       >
+        <svg ref="mini-svg" class="mini-schematic-svg">
+          <g id="mini-ring-container" />
+        </svg>
+
         <div
           ref="miniViewport"
           class="mini-map--viewport position-absolute"
@@ -130,9 +134,11 @@ type Selection = d3.Selection<SVGGElement, unknown, HTMLElement, any>
 const container = ref<HTMLElement>()
 const miniViewport = ref<HTMLElement>()
 const svg = ref<Selection>()
+const miniSvg = ref<Selection>()
 const defs = ref<Selection>()
 const edgeContainer = ref<Selection>()
 const ringContainer = ref<Selection>()
+const miniRingContainer = ref<Selection>()
 const nodeContainer = ref<Selection>()
 
 /**
@@ -264,18 +270,18 @@ const updateRings = (): void => {
     angle: number
   ): [number, number] => {
     const radians = angle * (pi / 180)
-    const x = cx + radius * cos(radians)
-    const y = cy + radius * sin(radians)
+    const x = cx + radius * cos(radians) || 0
+    const y = cy + radius * sin(radians) || 0
     return [x, y]
   }
 
-  const calculateArc = ([, d]: [number, Ring]) => {
+  const calculateArc = ([, d]: [number, Ring], scale: number = 1) => {
     const r = d.radius
     const channel = 125
     const theta = (channel * 360) / (2 * pi * r)
 
-    const cx = width.value / 2
-    const cy = height.value / 2
+    const cx = (width.value * scale) / 2
+    const cy = (height.value * scale) / 2
     const [x0, y0] = polarToCartesian(cx, cy, r, 90 - theta) // ~45
     const [x1, y1] = polarToCartesian(cx, cy, r, 90 + theta) // ~135
     return `M ${x0} ${y0} A${d.radius} ${d.radius} 0 1 0 ${x1} ${y1}`
@@ -292,7 +298,7 @@ const updateRings = (): void => {
         const arc = g.attr('class', 'ring').append('path')
         arc
           .attr('id', ([key]: [number, Ring]) => key)
-          .attr('d', calculateArc)
+          .attr('d', (d: [number, Ring]) => calculateArc(d, 1))
           .style('opacity', 1)
           .attr('fill', 'transparent')
           .attr('stroke', 'rgba(0, 0, 0, 0.03)')
@@ -302,7 +308,35 @@ const updateRings = (): void => {
       // update
       (selection: any) => {
         const arc = selection.select('path')
-        arc.attr('id', ([key]: [number, Ring]) => key).attr('d', calculateArc)
+        arc
+          .attr('id', ([key]: [number, Ring]) => key)
+          .attr('d', (d: [number, Ring]) => calculateArc(d, 1))
+        return selection
+      },
+      // exit
+      (selection: any) => selection.remove()
+    )
+
+  miniRingContainer.value
+    ?.selectAll('.mini-arc-segment')
+    .data(visibleRings.value)
+    .join(
+      // enter
+      (selection: any) => {
+        const g = selection.append('g')
+        const arc = g.attr('class', 'mini-arc-segment').append('path')
+        arc
+          .attr('d', (d: [number, Ring]) => calculateArc(d, 0.05))
+          .style('opacity', 1)
+          .attr('fill', 'transparent')
+          .attr('stroke', 'rgba(0, 0, 0, 0.03)')
+          .attr('stroke-width', 80)
+        return g
+      },
+      // update
+      (selection: any) => {
+        const arc = selection.select('path')
+        arc.attr('d', (d: [number, Ring]) => calculateArc(d, 0.05))
         return selection
       },
       // exit
@@ -691,10 +725,22 @@ const handleWindowResize = (): void => {
 
 const createChart = (): void => {
   svg.value = d3.select('.schematic-svg')
+  miniSvg.value = d3.select('.mini-schematic-svg')
   defs.value = d3.select('#defs')
   ringContainer.value = svg.value.select('#ring-container')
+  miniRingContainer.value = miniSvg.value.select('#mini-ring-container')
   edgeContainer.value = svg.value.select('#edge-container')
   nodeContainer.value = d3.select('.node-container')
+
+  // Note: we're applying a transform here which is the width of the side nav
+  // and the height of the top nav multiplied by the scale (0.05); I'm not
+  // entirely sure this is correct but it does have the desired outcome.
+  // Ideally we wouldn't need to apply this but the graph itself
+  // actually flows under both of those components which leads to a weird
+  // offset in a true-to-scale representation of the minimap
+  miniRingContainer.value
+    .attr('class', 'mini-ring-container')
+    .style('transform', 'translate(3.1px, 3.1px) scale(0.05)')
   ringContainer.value.attr('class', 'ring-container')
   edgeContainer.value.attr('class', 'edge-container')
 
@@ -704,10 +750,12 @@ const createChart = (): void => {
       [0, 0],
       [width.value, height.value]
     ])
-    .translateExtent(viewportExtent.value)
-    .scaleExtent([0.0001, 1])
+    // .translateExtent(viewportExtent.value)
+    // .scaleExtent([0.0001, 1])
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
+
+  miniSvg.value?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
 
   svg.value
     ?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
@@ -844,22 +892,11 @@ onUnmounted(() => {
     pointer-events: none;
   }
 
-  linearGradient {
-    &.success {
-      color: var(--completed) !important;
+  .mini-schematic-svg {
+    .mini-ring-container {
+      transform-origin: center;
+      position: absolute;
     }
-
-    &.failed {
-      color: var(--failed) !important;
-    }
-
-    &.pending {
-      color: var(--pending);
-    }
-  }
-
-  stop {
-    stop-color: currentColor;
   }
 }
 </style>
