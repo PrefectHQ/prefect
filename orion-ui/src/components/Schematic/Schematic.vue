@@ -34,6 +34,7 @@
           tabindex="0"
           @toggle-tree="toggleTree"
           @click.stop="selectNode(node.id)"
+          @keyup.space.enter="selectNode(node.id)"
           @mouseover="highlightNode(node.id)"
           @mouseout="highlightNode(node.id)"
         />
@@ -49,12 +50,23 @@
       </template>
     </div>
 
-    <div class="mini-map position-absolute mr-2 mb-2" :style="miniMapStyle">
-      <div
-        ref="miniViewport"
-        class="mini-map--viewport position-absolute"
-        :style="miniMapViewportStyle"
-      />
+    <div class="mini-map-container position-absolute mr-2 mb-2">
+      <div class="mb-1 d-flex align-center justify-end">
+        <icon-button
+          class="bg--white justify-self-start mr-auto"
+          icon="pi-restart-line"
+        />
+        <icon-button class="bg--white mr-1" icon="pi-zoom-in-line" />
+        <icon-button class="bg--white" icon="pi-zoom-out-line" />
+      </div>
+
+      <div class="mini-map position-relative" :style="miniMapStyle">
+        <div
+          ref="miniViewport"
+          class="mini-map--viewport position-absolute"
+          :style="miniMapViewportStyle"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -157,14 +169,6 @@ const viewportExtent = computed<[[number, number], [number, number]]>(() => {
   ]
 })
 
-const nodeClass = (id: string): { [key: string]: boolean } => {
-  const selected = selectedNodes.value.includes(id)
-  console.log('hello')
-  return {
-    transparent: selectedNodes.value.length > 0 && !selected
-  }
-}
-
 const miniMapStyle = computed<{
   width: string
   height: string
@@ -172,8 +176,8 @@ const miniMapStyle = computed<{
   const x = viewportExtent.value[1][0] - viewportExtent.value[0][0]
   const y = viewportExtent.value[1][1] - viewportExtent.value[0][1]
   return {
-    height: y + 'px',
-    width: x + 'px'
+    height: y * 0.05 + 'px',
+    width: x * 0.05 + 'px'
   }
 })
 
@@ -182,8 +186,8 @@ const miniMapViewportStyle = computed<{
   height: string
 }>(() => {
   return {
-    height: height.value + 'px',
-    width: width.value + 'px'
+    height: height.value * 0.05 + 'px',
+    width: width.value * 0.05 + 'px'
   }
 })
 
@@ -201,11 +205,12 @@ const zoomed = ({
   nodeContainer.value?.style('transform', ts)
 
   if (miniViewport.value) {
-    const x = 1 - transform.x + viewportOffset.value
-    const y = 1 - transform.y + viewportOffset.value
+    const x = (1 - transform.x / transform.k + viewportOffset.value) * 0.05
+    const y = (1 - transform.y / transform.k + viewportOffset.value) * 0.05
     miniViewport.value.style.transform = `translate(${x}px, ${y}px) scale(${
       1 / transform.k
     })`
+    miniViewport.value.style.borderRadius = `${Math.max(8 * transform.k, 8)}px`
   }
 }
 
@@ -457,14 +462,11 @@ const updateLinks = () => {
       (d.source.id == highlightedNode.value ||
         d.target.id == highlightedNode.value)
 
-    return (
-      (!highlightedNode.value && selectedNodes.value.length === 0) ||
-      isSelected ||
-      isHighlighted
-    )
+    return isSelected || isHighlighted
   }
 
   const opacityGenerator = (d: Link) => {
+    if (!highlightedNode.value && selectedNodes.value.length === 0) return 0.5
     if (isEmphasized(d)) return 1
     return 0.2
   }
@@ -688,20 +690,23 @@ onUnmounted(() => {
     }
   }
 
-  .mini-map {
-    backdrop-filter: blur(1px);
-    background-color: rgba(142, 160, 174, 0.1);
-    border-radius: 40px;
-    bottom: 0;
+  .mini-map-container {
     overflow: hidden;
-    transform: scale(0.05);
+    bottom: 0;
     right: 0;
-    transform-origin: 100% 100%;
-    z-index: 9999;
 
-    .mini-map--viewport {
-      background-color: rgba(142, 160, 174, 0.5);
-      border-radius: 40px;
+    .mini-map {
+      backdrop-filter: blur(1px);
+      background-color: rgba(142, 160, 174, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+
+      .mini-map--viewport {
+        background-color: rgba(142, 160, 174, 0.5);
+        border-radius: 8px;
+        transform: translate(50%, 50%);
+        transform-origin: left top;
+      }
     }
   }
 }
@@ -743,7 +748,7 @@ onUnmounted(() => {
       stroke: #ccc;
 
       &.transition {
-        transition: stroke 100ms ease-in-out 100ms;
+        transition: opacity 100ms linear 0;
       }
     }
   }
