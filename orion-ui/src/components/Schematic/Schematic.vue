@@ -832,7 +832,7 @@ onUnmounted(() => {
       overflow: hidden;
 
       .mini-map--viewport {
-        background-color: rgba(142, 160, 174, 0.5);
+        background-color: rgba(63, 150, 216, 0.1);
         border-radius: 8px;
         cursor: grab;
         transform: translate(50%, 50%);
