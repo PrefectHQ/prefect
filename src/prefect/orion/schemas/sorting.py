@@ -18,7 +18,7 @@ class FlowRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
     @inject_db
-    async def as_sql_sort(self, db=None) -> ColumnElement:
+    def as_sql_sort(self, db=None) -> ColumnElement:
         """Return an expression used to sort flow runs"""
         sort_mapping = {
             "ID_DESC": db.FlowRun.id.desc(),
@@ -40,7 +40,7 @@ class TaskRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
     @inject_db
-    async def as_sql_sort(self, db=None) -> ColumnElement:
+    def as_sql_sort(self, db=None) -> ColumnElement:
         """Return an expression used to sort task runs"""
         sort_mapping = {
             "ID_DESC": db.TaskRun.id.desc(),

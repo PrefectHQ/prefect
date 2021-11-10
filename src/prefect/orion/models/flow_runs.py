@@ -225,7 +225,7 @@ async def read_flow_runs(
         List[db.FlowRun]: flow runs
     """
 
-    query = select(db.FlowRun).order_by(await sort.as_sql_sort())
+    query = select(db.FlowRun).order_by(sort.as_sql_sort())
 
     query = await _apply_flow_run_filters(
         query,

@@ -13,11 +13,11 @@ from prefect.orion.database.query_components import (
 
 async def test_injecting_an_existing_database_config():
     async with dependencies.temporary_db_config(AsyncPostgresConfiguration()):
-        db = await dependencies.provide_database_interface()
+        db = dependencies.provide_database_interface()
         assert type(db.config) == AsyncPostgresConfiguration
 
     async with dependencies.temporary_db_config(AioSqliteConfiguration()):
-        db = await dependencies.provide_database_interface()
+        db = dependencies.provide_database_interface()
         assert type(db.config) == AioSqliteConfiguration
 
 
@@ -40,17 +40,17 @@ async def test_injecting_a_really_dumb_database_config():
             ...
 
     async with dependencies.temporary_db_config(UselessConfiguration()):
-        db = await dependencies.provide_database_interface()
+        db = dependencies.provide_database_interface()
         assert type(db.config) == UselessConfiguration
 
 
 async def test_injecting_existing_query_components():
     async with dependencies.temporary_query_components(AsyncPostgresQueryComponents()):
-        db = await dependencies.provide_database_interface()
+        db = dependencies.provide_database_interface()
         assert type(db.queries) == AsyncPostgresQueryComponents
 
     async with dependencies.temporary_query_components(AioSqliteQueryComponents()):
-        db = await dependencies.provide_database_interface()
+        db = dependencies.provide_database_interface()
         assert type(db.queries) == AioSqliteQueryComponents
 
 
@@ -98,5 +98,5 @@ async def test_injecting_really_dumb_query_components():
             ...
 
     async with dependencies.temporary_query_components(ReallyBrokenQueries()):
-        db = await dependencies.provide_database_interface()
+        db = dependencies.provide_database_interface()
         assert type(db.queries) == ReallyBrokenQueries
