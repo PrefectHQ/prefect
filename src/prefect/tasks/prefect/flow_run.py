@@ -149,8 +149,8 @@ def create_flow_run(
     )
 
     run_url = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
-    create_link_artifact(urlparse(run_url).path)
     logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
+
     return flow_run_id
 
 
