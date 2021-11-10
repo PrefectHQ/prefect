@@ -81,10 +81,18 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineProps, computed, onMounted, onUnmounted, watch } from 'vue'
+import {
+  ref,
+  defineProps,
+  computed,
+  onMounted,
+  onUnmounted,
+  watch,
+  reactive
+} from 'vue'
 import * as d3 from 'd3'
 import { RadialSchematic } from './util'
-import { pow, sqrt, pi, cos, sin, tan } from './math'
+import { pow, sqrt, pi, cos, sin } from './math'
 
 import Node from './Node.vue'
 import OverflowNode from './OverflowNode.vue'
@@ -464,8 +472,7 @@ const updateLinks = () => {
 
   const isEmphasized = (d: Link) => {
     const isSelected =
-      selectedNodes.value.includes(d.source.id) ||
-      selectedNodes.value.includes(d.target.id)
+      selectedNodes.includes(d.source.id) || selectedNodes.includes(d.target.id)
     const isHighlighted =
       highlightedNode.value &&
       (d.source.id == highlightedNode.value ||
@@ -475,7 +482,7 @@ const updateLinks = () => {
   }
 
   const opacityGenerator = (d: Link) => {
-    if (!highlightedNode.value && selectedNodes.value.length === 0) return 1
+    if (!highlightedNode.value && selectedNodes.length === 0) return 1
     if (isEmphasized(d)) return 1
     return 0.2
   }
@@ -485,10 +492,7 @@ const updateLinks = () => {
   const classGenerator = (d: Link) => {
     const classList = []
     const emphasized = isEmphasized(d)
-    if (
-      emphasized ||
-      (selectedNodes.value.length == 0 && !highlightedNode.value)
-    ) {
+    if (emphasized || (selectedNodes.length == 0 && !highlightedNode.value)) {
       classList.push(`${d.source.data.state.type.toLowerCase()}-stroke`)
     }
     if (visibleLinks.value.length < 100) classList.push('transition')
@@ -533,11 +537,11 @@ const highlightNode = (id: string): void => {
 }
 
 const selectNode = (id: string): void => {
-  const index = selectedNodes.value.indexOf(id)
+  const index = selectedNodes.indexOf(id)
   if (index > -1) {
-    selectedNodes.value.splice(index, 1)
+    selectedNodes.splice(index, 1)
   } else {
-    selectedNodes.value.push(id)
+    selectedNodes.push(id)
   }
 }
 
@@ -560,7 +564,7 @@ const panToNode = (item: SchematicNode): void => {
 }
 
 const reset = (): void => {
-  selectedNodes.value = []
+  selectedNodes.length = 0
 }
 
 const zoomIn = (): void => {
@@ -596,7 +600,7 @@ const height = ref<number>(0)
 const width = ref<number>(0)
 const baseRadius: number = 300
 const highlightedNode = ref<string>()
-const selectedNodes = ref<string[]>([])
+const selectedNodes = reactive<string[]>([])
 
 const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
@@ -629,7 +633,10 @@ watch(
   }
 )
 
-watch(selectedNodes, () => requestAnimationFrame(() => updateLinks()))
+watch(selectedNodes, () => {
+  console.log('updating')
+  requestAnimationFrame(() => updateLinks())
+})
 
 watch(visibleRings, () => {
   // zoom.value.translateExtent(viewportExtent.value)
