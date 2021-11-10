@@ -561,25 +561,29 @@ const reset = (): void => {
 }
 
 const zoomIn = (): void => {
-  zoom.value.scaleBy(
-    d3
-      .select('.schematic-svg')
-      .transition()
-      .ease(d3.easeQuadInOut)
-      .duration(250),
-    1.35
-  )
+  requestAnimationFrame(() => {
+    zoom.value.scaleBy(
+      d3
+        .select('.schematic-svg')
+        .transition()
+        .ease(d3.easeQuadInOut)
+        .duration(250),
+      1.35
+    )
+  })
 }
 
 const zoomOut = (): void => {
-  zoom.value.scaleBy(
-    d3
-      .select('.schematic-svg')
-      .transition()
-      .ease(d3.easeQuadInOut)
-      .duration(250),
-    0.65
-  )
+  requestAnimationFrame(() => {
+    zoom.value.scaleBy(
+      d3
+        .select('.schematic-svg')
+        .transition()
+        .ease(d3.easeQuadInOut)
+        .duration(250),
+      0.65
+    )
+  })
 }
 
 /**
