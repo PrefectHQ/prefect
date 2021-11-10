@@ -70,6 +70,7 @@ def create_flow_run(
     run_name: str = None,
     run_config: Optional[RunConfig] = None,
     scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
+    idempotency_key: str = None,
 ) -> str:
     """
     Task to create a flow run in the Prefect backend.
@@ -92,6 +93,10 @@ def create_flow_run(
             existing run config settings
         - scheduled_start_time: An optional time in the future to schedule flow run
             execution for. If not provided, the flow run will be scheduled to start now
+        - idempotency_key: a unique idempotency key for scheduling the
+            flow run. Duplicate flow runs with the same idempotency key will only create
+            a single flow run. This is useful for ensuring that only one run is created
+            if this task is retried. If not provided, defaults to the active `task_run_id`.
 
     Returns:
         str: The UUID of the created flow run
@@ -128,6 +133,9 @@ def create_flow_run(
 
     logger.info(f"Creating flow run {run_name_dsp!r} for flow {flow.name!r}...")
 
+    if idempotency_key is None:
+        idempotency_key = prefect.context.get("task_run_id", None)
+
     client = Client()
     flow_run_id = client.create_flow_run(
         flow_id=flow.flow_id,
@@ -137,9 +145,11 @@ def create_flow_run(
         run_name=run_name,
         run_config=run_config,
         scheduled_start_time=scheduled_start_time,
+        idempotency_key=idempotency_key,
     )
 
     run_url = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+    create_link_artifact(urlparse(run_url).path)
     logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
     return flow_run_id
 
