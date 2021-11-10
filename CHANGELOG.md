@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.9 <Badge text="beta" type="success" />
+
+Released on November 10, 2021.
+
+This hotfix release fixes an issue where the kubernetes agent would attempt to load a secret value and fail if it was not present.
+
+See [the PR](https://github.com/PrefectHQ/prefect/pull/5131) for details.
+
 ## 0.15.8 <Badge text="beta" type="success" />
 
 Released on November 10, 2021.
