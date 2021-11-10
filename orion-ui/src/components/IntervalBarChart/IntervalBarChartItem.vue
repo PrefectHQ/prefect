@@ -1,5 +1,8 @@
 <template>
-  <Popover class="interval-bar-chart-item" position="bottom">
+  <Popover
+    class="interval-bar-chart-item"
+    :placement="['bottom', 'top', 'leftTop', 'rightTop']"
+  >
     <template v-slot:trigger="{ open, close }">
       <div
         class="interval-bar-chart-item__bucket"
