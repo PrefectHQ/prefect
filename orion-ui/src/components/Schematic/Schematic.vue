@@ -120,7 +120,8 @@ import {
   SchematicNode,
   Rings,
   Ring,
-  Links
+  Links,
+  Position
 } from '@/typings/schematic'
 
 const props = defineProps<{ items: Item[] }>()
@@ -287,6 +288,76 @@ const updateRings = (): void => {
     return `M ${x0} ${y0} A${d.radius} ${d.radius} 0 1 0 ${x1} ${y1}`
   }
 
+  type Arc = {
+    start: number
+    end: number
+    radius: number
+    state: string | null
+  }
+
+  const calculateArcSegment = (arc: Arc, scale: number = 1): string => {
+    const r = arc.radius
+    const cx = (width.value * scale) / 2
+    const cy = (height.value * scale) / 2
+
+    const path = d3.path()
+
+    path.arc(cx, cy, r, arc.start, arc.end, false)
+    return path.toString()
+  }
+
+  const generateArcs = ([, d]: [number, Ring]): Arc[] => {
+    const arcs: Arc[] = []
+
+    const r = d.radius
+    const channel = 125
+
+    const channelAngle = (channel * 360) / (2 * pi * r || 10)
+
+    // Convert start/end angles to radians
+    const startTheta = ((90 - channelAngle) * pi) / 180
+    const endTheta = ((90 + channelAngle) * pi) / 180
+
+    let theta = d.positions.get(d.positions.size - 1)?.radian || 0
+
+    for (const [key, position] of d.positions) {
+      const positionalArr = [...position.nodes.values()]
+      const state = positionalArr?.[0]?.data?.state?.type?.toLowerCase()
+
+      if (r == 0) {
+        // This is only for the innermost ring for schematics with a single root node
+        arcs.push({
+          start: (115 * pi) / 180,
+          end: (65 * pi) / 180,
+          radius: baseRadius / 4,
+          state: state || null
+        })
+      } else if (position.radian > startTheta && theta < endTheta) {
+        arcs.push({
+          start: theta,
+          end: startTheta,
+          radius: r,
+          state: null
+        })
+        arcs.push({
+          start: endTheta,
+          end: position.radian,
+          radius: r,
+          state: state || null
+        })
+      } else {
+        arcs.push({
+          start: theta,
+          end: position.radian,
+          radius: r,
+          state: state || null
+        })
+      }
+      theta = position.radian
+    }
+    return arcs
+  }
+
   ringContainer.value
     ?.selectAll('.ring')
     .data(visibleRings.value)
@@ -317,30 +388,35 @@ const updateRings = (): void => {
       (selection: any) => selection.remove()
     )
 
+  const classGenerator = (d: Arc): string => {
+    const strokeClass = d.state ? `${d.state}-stroke` : ''
+    return `mini-arc-segment ${strokeClass}`
+  }
+
   miniRingContainer.value
-    ?.selectAll('.mini-arc-segment')
+    ?.selectAll('.mini-arc-segment-group')
     .data(visibleRings.value)
     .join(
       // enter
-      (selection: any) => {
-        const g = selection.append('g')
-        const arc = g.attr('class', 'mini-arc-segment').append('path')
-        arc
-          .attr('d', (d: [number, Ring]) => calculateArc(d, 0.05))
-          .style('opacity', 1)
-          .attr('fill', 'transparent')
-          .attr('stroke', 'rgba(0, 0, 0, 0.03)')
-          .attr('stroke-width', 80)
-        return g
-      },
+      (selection: any) =>
+        selection.append('g').attr('class', 'mini-arc-segment-group'),
       // update
-      (selection: any) => {
-        const arc = selection.select('path')
-        arc.attr('d', (d: [number, Ring]) => calculateArc(d, 0.05))
-        return selection
-      },
+      (selection: any) => selection,
       // exit
       (selection: any) => selection.remove()
+    )
+    .selectAll('.mini-arc-segment')
+    .data((d: [number, Ring]) => generateArcs(d))
+    .join(
+      // enter
+      (selection: any) =>
+        selection
+          .append('path')
+          .attr('class', classGenerator)
+          .attr('fill', 'transparent')
+          .attr('stroke', 'rgba(0, 0, 0, 0.1)')
+          .attr('stroke-width', 80)
+          .attr('d', (d: Arc) => calculateArcSegment(d, 0.05))
     )
 }
 
@@ -698,7 +774,6 @@ watch(
 )
 
 watch(selectedNodes, () => {
-  console.log('updating')
   requestAnimationFrame(() => updateLinks())
 })
 
@@ -826,13 +901,13 @@ onUnmounted(() => {
 
     .mini-map {
       backdrop-filter: blur(1px);
-      background-color: rgba(142, 160, 174, 0.1);
+      background-color: rgba(244, 245, 247, 0.9);
       border-radius: 8px;
       cursor: pointer;
       overflow: hidden;
 
       .mini-map--viewport {
-        background-color: rgba(63, 150, 216, 0.1);
+        background-color: rgba(63, 150, 216, 0.2);
         border-radius: 8px;
         cursor: grab;
         transform: translate(50%, 50%);

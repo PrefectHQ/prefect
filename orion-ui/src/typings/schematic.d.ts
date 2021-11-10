@@ -26,6 +26,7 @@ export declare interface Position {
   id: number
   radian: number
   nodes: SchematicNodes
+  radius: number
 }
 
 export declare interface Ring {

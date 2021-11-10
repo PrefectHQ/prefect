@@ -355,7 +355,7 @@ export class RadialSchematic {
     }
 
     if (radius <= 0) {
-      positions.set(0, { id: 0, radian: 0, nodes: new Map() })
+      positions.set(0, { id: 0, radian: 0, nodes: new Map(), radius: radius })
       return positions
     }
 
@@ -394,7 +394,7 @@ export class RadialSchematic {
     positionalArray
       .sort()
       .forEach((p: number, i: number) =>
-        positions.set(i, { id: i, radian: p, nodes: new Map() })
+        positions.set(i, { id: i, radian: p, nodes: new Map(), radius: radius })
       )
 
     return positions
