@@ -74,11 +74,18 @@
         />
       </div>
 
-      <div class="mini-map position-relative" :style="miniMapStyle">
+      <div
+        class="mini-map position-relative"
+        :style="miniMapStyle"
+        @mousemove="dragViewport"
+        @mouseleave="dragging = false"
+      >
         <div
           ref="miniViewport"
           class="mini-map--viewport position-absolute"
           :style="miniMapViewportStyle"
+          @mousedown="dragging = true"
+          @mouseup="dragging = false"
         />
       </div>
     </div>
@@ -568,6 +575,15 @@ const panToNode = (item: SchematicNode): void => {
   })
 }
 
+const dragViewport = (e: MouseEvent): void => {
+  if (!dragging.value) return
+  // We multiply the mouse movement by a multiplier equal to the inverse
+  // of the scale applied to the minimap
+  const x = e.movementX * -(1 / 0.05)
+  const y = e.movementY * -(1 / 0.05)
+  zoom.value.translateBy(d3.select('.schematic-svg'), x, y)
+}
+
 const reset = (): void => {
   selectedNodes.length = 0
 }
@@ -614,6 +630,7 @@ const width = ref<number>(0)
 const baseRadius: number = 300
 const highlightedNode = ref<string>()
 const selectedNodes = reactive<string[]>([])
+const dragging = ref<boolean>(false)
 
 const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
