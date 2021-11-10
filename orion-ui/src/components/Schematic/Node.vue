@@ -6,13 +6,13 @@
     :class="{
       observed: observed,
       [state.type.toLowerCase() + '-border']: true,
+      [state.type.toLowerCase() + '-bg']: true,
       selected: props.selected
     }"
     @click="handleClick"
   >
     <div
-      class="d-flex align-center justify-center border px-1"
-      :class="state.type.toLowerCase() + '-bg'"
+      class="d-flex align-self-stretch align-center justify-center border px-1"
     >
       <i
         class="pi text--white pi-lg"
@@ -21,7 +21,15 @@
     </div>
 
     <div
-      class="d-flex align-stretch flex-column justify-center px-1 flex-grow-1"
+      class="
+        d-flex
+        align-stretch
+        flex-column
+        justify-center
+        px-1
+        flex-grow-1
+        content
+      "
       style="min-width: 0"
     >
       <!-- v-tooltip.top="node.toString()" -->
@@ -211,7 +219,6 @@ onBeforeUnmount(() => {
     box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
   }
 
-  &:focus,
   &.selected {
     border-width: 2px;
     border-style: solid;
@@ -220,10 +227,15 @@ onBeforeUnmount(() => {
     outline: none;
   }
 
+  .content {
+    background-color: #fff;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+  }
+
   .border {
     border-top-left-radius: 8px;
     border-bottom-left-radius: 8px;
-    height: 100%;
   }
 
   .collapse-link {
