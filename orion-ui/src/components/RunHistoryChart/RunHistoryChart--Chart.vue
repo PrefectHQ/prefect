@@ -230,7 +230,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     return {
       height: height + 'px',
       top: top + this.padding.top + this.padding.middle / 2 + 'px',
-      transform: 'translate(-50%)',
       width: this.barWidth + 'px'
     }
   }

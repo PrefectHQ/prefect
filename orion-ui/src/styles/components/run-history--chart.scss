@@ -35,6 +35,10 @@
       position: absolute;
       transition: all 150ms;
 
+      .up, .down {
+        transform: translate(-50%)
+      }
+
       .up {
         transform-origin: bottom;
       }
