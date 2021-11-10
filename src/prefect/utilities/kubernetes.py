@@ -58,14 +58,14 @@ def get_kubernetes_client(
     Returns:
         - KubernetesClient: an initialized and authenticated Kubernetes Client
     """
-    k8s_client = K8S_CLIENTS[resource]
+    client_type = K8S_CLIENTS[resource]
 
     if kubernetes_api_key_secret:
         logger.debug("Loading configuration from secret")
         kubernetes_api_key = Secret(kubernetes_api_key_secret).get()
         configuration = client.Configuration()
         configuration.api_key["authorization"] = kubernetes_api_key
-        k8s_client = k8s_client(client.ApiClient(configuration))
+        k8s_client = client_type(client.ApiClient(configuration))
     else:
         try:
             logger.debug("Loading incluster configuration")
@@ -75,7 +75,7 @@ def get_kubernetes_client(
             logger.debug("Loading out of cluster configuration")
             kube_config.load_kube_config()
 
-        k8s_client = k8s_client()
+        k8s_client = client_type()
 
     if config.cloud.agent.kubernetes_keep_alive:
         _keep_alive(client=k8s_client)

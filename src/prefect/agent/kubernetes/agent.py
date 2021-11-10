@@ -133,6 +133,7 @@ class KubernetesAgent(Agent):
 
         from prefect.utilities.kubernetes import get_kubernetes_client
 
+        # Explicitly do not attempt to load the client from a secret
         self.batch_client = get_kubernetes_client("job", kubernetes_api_key_secret=None)
         self.core_client = get_kubernetes_client(
             "service", kubernetes_api_key_secret=None

@@ -26,6 +26,7 @@ from prefect.utilities import kubernetes
 def mocked_k8s_config(monkeypatch):
     k8s_config = MagicMock()
     monkeypatch.setattr("kubernetes.config", k8s_config)
+    monkeypatch.setattr("prefect.utilities.kubernetes.kube_config", k8s_config)
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +36,7 @@ def mocked_k8s_clients(monkeypatch):
         monkeypatch.setitem(kubernetes.K8S_CLIENTS, job_key, client)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def kube_secret():
     with set_temporary_config({"cloud.use_local_secrets": True}):
         with prefect.context(secrets=dict(KUBERNETES_API_KEY="test_key")):
