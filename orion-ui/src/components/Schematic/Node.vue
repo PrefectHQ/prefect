@@ -5,7 +5,8 @@
     class="node d-flex position-relative"
     :class="{
       observed: observed,
-      [state.type.toLowerCase() + '-border']: true
+      [state.type.toLowerCase() + '-border']: true,
+      selected: props.selected
     }"
     @click="handleClick"
   >
@@ -88,6 +89,7 @@ const emit = defineEmits(['toggle-tree'])
 const props = defineProps<{
   node: SchematicNode
   collapsed?: undefined | Map<string, SchematicNode>
+  selected?: boolean
 }>()
 
 const queries: { [key: string]: Query } = {
@@ -209,9 +211,11 @@ onBeforeUnmount(() => {
     box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
   }
 
-  &:focus {
+  &:focus,
+  &.selected {
     border-width: 2px;
     border-style: solid;
+    box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
     transition: border-color 150ms;
     outline: none;
   }

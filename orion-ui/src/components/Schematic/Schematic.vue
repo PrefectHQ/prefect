@@ -15,17 +15,29 @@
         <Node
           v-if="node.position?.nodes.size == 1"
           :node="node"
-          class="position-absolute"
-          :class="nodeClass"
+          :selected="selectedNodes.includes(node.id)"
+          class="node position-absolute"
+          :class="{
+            transparent:
+              selectedNodes.length > 0 &&
+              !selectedNodes.includes(node.id) &&
+              highlightedNode !== node.id,
+            demphasized:
+              selectedNodes.length > 0 &&
+              selectedNodes.some(
+                (id) =>
+                  node.upstreamNodes.get(id) || node.downstreamNodes.get(id)
+              )
+          }"
           :collapsed="collapsedTrees.get(key)"
           :style="{ left: node.cx + 'px', top: node.cy + 'px' }"
           tabindex="0"
           @toggle-tree="toggleTree"
-          @focus.self.stop="panToNode(node)"
+          @click.stop="selectNode(node.id)"
           @mouseover="highlightNode(node.id)"
           @mouseout="highlightNode(node.id)"
-          @click.self.stop="selectNode(node.id)"
         />
+        <!-- @focus.self.stop="panToNode(node)" -->
         <OverflowNode
           v-else
           class="position-absolute"
@@ -146,9 +158,10 @@ const viewportExtent = computed<[[number, number], [number, number]]>(() => {
 })
 
 const nodeClass = (id: string): { [key: string]: boolean } => {
+  const selected = selectedNodes.value.includes(id)
+  console.log('hello')
   return {
-    transparent:
-      selectedNodes.value.length > 0 && !selectedNodes.value.includes(id)
+    transparent: selectedNodes.value.length > 0 && !selected
   }
 }
 
@@ -329,7 +342,6 @@ const updateLinks = () => {
       ex0 = x
       ey0 = y
     } else {
-      console.log('hello')
       const [x, y] = lineGenerator(
         cx,
         cy,
@@ -510,9 +522,9 @@ const selectNode = (id: string): void => {
   const index = selectedNodes.value.indexOf(id)
   if (index > -1) {
     selectedNodes.value.splice(index, 1)
-    return
+  } else {
+    selectedNodes.value.push(id)
   }
-  selectedNodes.value.push(id)
   requestAnimationFrame(() => updateLinks())
 }
 
@@ -702,6 +714,17 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   z-index: 0;
+
+  .node {
+    &.transparent {
+      opacity: 0.65;
+    }
+
+    &.demphasized {
+      opacity: 1;
+      // background-color: red;
+    }
+  }
 }
 </style>
 
