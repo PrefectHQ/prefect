@@ -24,6 +24,7 @@ from prefect.tasks.prefect import (
 @pytest.fixture
 def MockClient(monkeypatch):
     Client = MagicMock()
+    Client().get_cloud_url.return_value = "https://api.prefect.io/flow/run/url"
     monkeypatch.setattr("prefect.tasks.prefect.flow_run.Client", Client)
     return Client
 
@@ -80,6 +81,7 @@ class TestCreateFlowRun:
             context=None,
             run_config=None,
             scheduled_start_time=None,
+            idempotency_key=None,
         )
 
     @pytest.mark.parametrize(
@@ -104,12 +106,13 @@ class TestCreateFlowRun:
             context=kwargs.get("context"),
             run_config=kwargs.get("run_config"),
             scheduled_start_time=kwargs.get("scheduled_start_time"),
+            idempotency_key=None,
         )
 
     def test_generates_run_name_from_parent_and_child(self, MockFlowView, MockClient):
         MockFlowView.from_id.return_value.flow_id = "flow-id"
         MockFlowView.from_id.return_value.name = "child-name"
-        with prefect.context(flow_run_name="parent-run"):
+        with prefect.context(flow_run_name="parent-run", task_run_id="parent-task-run"):
             create_flow_run.run(flow_id="flow-id")
         MockClient().create_flow_run.assert_called_once_with(
             flow_id="flow-id",
@@ -119,6 +122,7 @@ class TestCreateFlowRun:
             context=None,
             run_config=None,
             scheduled_start_time=None,
+            idempotency_key="parent-task-run",
         )
 
     def test_returns_flow_run_idl(self, MockFlowView, MockClient):
@@ -498,7 +502,7 @@ class TestStartFlowRunServer:
 
     def test_flow_run_task_poll_interval_too_short(self):
         with pytest.raises(ValueError):
-            task = StartFlowRun(
+            StartFlowRun(
                 flow_name="Test Flow",
                 project_name="Demo",
                 parameters={"test": "ing"},
