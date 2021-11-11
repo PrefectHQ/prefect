@@ -4,7 +4,6 @@ Injected models dependencies
 
 from contextlib import asynccontextmanager
 from functools import wraps
-import asyncio
 
 
 MODELS_DEPENDENCIES = {

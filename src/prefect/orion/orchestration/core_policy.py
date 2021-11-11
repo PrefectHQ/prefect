@@ -22,6 +22,7 @@ from prefect.orion.orchestration.rules import (
 )
 from prefect.orion.schemas import states
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
 class CoreFlowPolicy(BaseOrchestrationPolicy):
@@ -65,7 +66,7 @@ class CacheInsertion(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db=None,
+        db: OrionDBInterface = None,
     ) -> None:
         cache_key = validated_state.state_details.cache_key
         if cache_key:
@@ -96,7 +97,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db=None,
+        db: OrionDBInterface = None,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
         if cache_key:

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 
 from prefect.orion.database.dependencies import inject_db
 from prefect.utilities.logging import get_logger
+from prefect.orion.database.interface import OrionDBInterface
 
 
 class LoopService:
@@ -34,7 +35,10 @@ class LoopService:
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
     @inject_db
-    async def setup(self, db=None) -> None:
+    async def setup(
+        self,
+        db: OrionDBInterface = None,
+    ) -> None:
         """
         Called prior to running the service
         """

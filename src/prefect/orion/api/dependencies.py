@@ -2,11 +2,10 @@
 Utilities for injecting FastAPI dependencies.
 """
 
-from prefect import settings
 from prefect.orion.database.dependencies import provide_database_interface
 
 
-async def get_session(db=None):
+async def get_session():
     """
     Dependency-injected database session.
     The context manager will automatically handle commits,
@@ -14,7 +13,7 @@ async def get_session(db=None):
     """
     # we cant directly inject into FastAPI dependencies because
     # they are converted to async_generator objects
-    db = db or provide_database_interface()
+    db = provide_database_interface()
 
     # load engine with API timeout setting
     session_factory = await db.session_factory()
