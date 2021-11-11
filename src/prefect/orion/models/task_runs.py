@@ -108,7 +108,7 @@ async def _apply_task_run_filters(
     """
 
     if task_run_filter:
-        query = query.where((await task_run_filter.as_sql_filter()))
+        query = query.where(task_run_filter.as_sql_filter())
 
     if flow_filter or flow_run_filter or deployment_filter:
         exists_clause = select(db.FlowRun).where(
@@ -116,19 +116,19 @@ async def _apply_task_run_filters(
         )
 
         if flow_run_filter:
-            exists_clause = exists_clause.where((await flow_run_filter.as_sql_filter()))
+            exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
 
         if flow_filter:
             exists_clause = exists_clause.join(
                 db.Flow,
                 db.Flow.id == db.FlowRun.flow_id,
-            ).where((await flow_filter.as_sql_filter()))
+            ).where(flow_filter.as_sql_filter())
 
         if deployment_filter:
             exists_clause = exists_clause.join(
                 db.Deployment,
                 db.Deployment.id == db.FlowRun.deployment_id,
-            ).where((await deployment_filter.as_sql_filter()))
+            ).where(deployment_filter.as_sql_filter())
 
         query = query.where(exists_clause.exists())
 
@@ -164,7 +164,7 @@ async def read_task_runs(
         List[db.TaskRun]: the task runs
     """
 
-    query = select(db.TaskRun).order_by(await sort.as_sql_sort())
+    query = select(db.TaskRun).order_by(sort.as_sql_sort())
 
     query = await _apply_task_run_filters(
         query,

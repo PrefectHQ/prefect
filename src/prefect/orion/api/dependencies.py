@@ -14,7 +14,7 @@ async def get_session(db=None):
     """
     # we cant directly inject into FastAPI dependencies because
     # they are converted to async_generator objects
-    db = db or await provide_database_interface()
+    db = db or provide_database_interface()
 
     # load engine with API timeout setting
     session_factory = await db.session_factory()
