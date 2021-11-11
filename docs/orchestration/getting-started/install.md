@@ -2,7 +2,7 @@
 
 ## Basic installation
 
-Prefect requires Python 3.6+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
+Prefect requires Python 3.7+. If you're new to Python, we recommend installing the [Anaconda distribution](https://www.anaconda.com/distribution/).
 
 To install Prefect, run:
 

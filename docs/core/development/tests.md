@@ -76,7 +76,7 @@ The `--sw` flag will exit `pytest` the first time it encounters an error; subseq
 
 CI will run automatically against any PR you open. Please run your tests locally first to avoid "debugging in CI", as this takes up resources that could be used by other contributors.
 
-In CI, Prefect's unit tests are run against Python 3.6, 3.7, and 3.8. A separate "formatting" CI job is also run. Since formatting errors are common in PRs, we have found this to be a useful early-warning during development.
+In CI, Prefect's unit tests are run against Python 3.7, 3.8, and 3.9. A separate "formatting" CI job is also run. Since formatting errors are common in PRs, we have found this to be a useful early-warning during development.
 
 ## Documentation
 

@@ -300,7 +300,7 @@ def whoami():
     return reddit.user.me()
 
 
-storage = Docker(base_image="python:3.6", registry_url="http://my.personal.registry")
+storage = Docker(base_image="python:3.7", registry_url="http://my.personal.registry")
 flow = Flow("reddit-flow", storage=storage, tasks=[whoami])
 ```
 
@@ -347,7 +347,7 @@ Which will result in a very explicit traceback!
 ```
 Traceback (most recent call last):
     flow = cloudpickle.loads(decrypted_pickle)
-  File "/usr/local/lib/python3.6/site-packages/cloudpickle/cloudpickle.py", line 944, in subimport
+  File "/usr/local/lib/python3.7/site-packages/cloudpickle/cloudpickle.py", line 944, in subimport
     __import__(name)
 ModuleNotFoundError: No module named 'praw'
 ```
