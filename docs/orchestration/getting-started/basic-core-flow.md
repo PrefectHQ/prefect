@@ -1,6 +1,6 @@
 # Run a flow
 
-Now that you have Prefect installed,  you're ready to run a flow.
+Now that you have Prefect installed, you're ready to run a flow.
 
 A [flow](/core/concepts/flows.html) is a container for [tasks](/core/concepts/tasks.html) and shows the direction of work and the dependencies between tasks.
 
@@ -34,4 +34,4 @@ You should see the following logs after running `flow.run()` :
 
 If you're running into issues, check that your Python environment is properly set up to run Prefect. Refer to the [Prefect Core Installation](/core/getting_started/install.html) documentation for further details.
 
-Now you're got a basic flow running locally, we can set up an API and UI using Prefect Cloud or Prefect Server and register it. 
+Now you're got a basic flow running locally, we can set up an API and UI using Prefect Cloud and register it. 

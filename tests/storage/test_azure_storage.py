@@ -1,9 +1,11 @@
+import unittest.mock
 from unittest.mock import MagicMock
 
 import pytest
 
 from prefect import Flow, context
 from prefect.storage import Azure
+from prefect.utilities.storage import flow_to_bytes_pickle
 
 pytest.importorskip("azure.storage.blob")
 
@@ -113,7 +115,7 @@ def test_upload_flow_to_azure(monkeypatch):
     assert f.name not in storage
     assert storage.add_flow(f)
     assert storage.build()
-    assert client.upload_blob.called
+    client.upload_blob.assert_called_once_with(flow_to_bytes_pickle(f), overwrite=False)
     assert f.name in storage
 
 
@@ -130,6 +132,21 @@ def test_upload_flow_to_azure_blob_name(monkeypatch):
 
     assert service.get_blob_client.call_args[1]["container"] == "container"
     assert service.get_blob_client.call_args[1]["blob"] == "name"
+
+
+@pytest.mark.parametrize("overwrite", [True, False])
+def test_upload_flow_to_azure_blob_overwrite(monkeypatch, overwrite):
+    client = MagicMock(upload_blob=MagicMock())
+    service = MagicMock(get_blob_client=MagicMock(return_value=client))
+    monkeypatch.setattr("prefect.storage.Azure._azure_block_blob_service", service)
+
+    storage = Azure(container="container", overwrite=overwrite)
+
+    f = Flow("test")
+    assert storage.add_flow(f)
+    assert storage.build()
+
+    client.upload_blob.assert_called_once_with(unittest.mock.ANY, overwrite=overwrite)
 
 
 def test_upload_multiple_flows_to_azure_blob_name(monkeypatch):

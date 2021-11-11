@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, List
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -171,3 +171,52 @@ class Remove(Task):
             path.unlink()
         else:
             path.rmdir()
+
+
+class Glob(Task):
+    """
+    This task returns the content of a given directory matching a given pattern within the file system.
+    Args:
+        - path (Union[str, Path], optional): directory path
+        - pattern (str, optional): glob pattern, defaults to *
+        - **kwargs (dict, optional): additional keyword arguments to pass to the
+            Task constructor
+    """
+
+    def __init__(
+        self,
+        path: Union[str, Path] = "",
+        pattern: str = "*",
+        **kwargs: Any,
+    ):
+        self.path = path
+        self.pattern = pattern
+        super().__init__(**kwargs)
+
+    @defaults_from_attrs("path", "pattern")
+    def run(
+        self,
+        path: Union[str, Path] = "",
+        pattern: str = "*",
+    ) -> List[Path]:
+        """
+        Task run method.
+
+        Args:
+            - path (Union[str, Path], optional): directory path to search, defaults to ""
+            which targets the current directory
+            - pattern (str, optional): glob search pattern, defaults to "*" which lists all files
+            in the path
+            For more details on pattern options, refer to the
+            [pathlib documentation](https://docs.python.org/3/library/pathlib.html#pathlib.Path.glob)
+
+        Returns:
+            - list: content of the given path as Path objects
+        """
+        if not path:
+            raise ValueError("No `path` provided.")
+
+        globpath = Path(path).joinpath(pattern)
+        self.logger.debug(f"Glob path: {globpath}")
+
+        return list(path.glob(pattern))

@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.15.9 <Badge text="beta" type="success" />
+
+Released on November 10, 2021.
+
+This hotfix release fixes an issue where the kubernetes agent would attempt to load a secret value and fail if it was not present.
+
+See [the PR](https://github.com/PrefectHQ/prefect/pull/5131) for details.
+
+## 0.15.8 <Badge text="beta" type="success" />
+
+Released on November 10, 2021.
+
+### Features
+
+- Add support for rich iCal style scheduling via RRules - [#4901](https://github.com/PrefectHQ/prefect/pull/4901)
+- Add Google Cloud Vertex agent and run configuration - [#4989](https://github.com/PrefectHQ/prefect/pull/4989)
+
+### Enhancements
+
+- Allow `Azure` flow storage to overwrite existing blobs - [#5103](https://github.com/PrefectHQ/prefect/pull/5103)
+- Provide option to specify a dockerignore when using Docker storage - [#4980](https://github.com/PrefectHQ/prefect/pull/4980)
+- Add keep-alive connections for kubernetes client API connections - [#5066](https://github.com/PrefectHQ/prefect/pull/5066)
+- Add `idempotency_key` to `create_flow_run` task - [#5125](https://github.com/PrefectHQ/prefect/pull/5125)
+- Add `raise_final_state` to `wait_for_flow_run` task to reflect child flow run state - [#5129](https://github.com/PrefectHQ/prefect/pull/5129)
+
+### Task Library
+
+- Bump maximum `google-cloud-bigquery` version to support 2.x - [#5084](https://github.com/PrefectHQ/prefect/pull/5084)
+- Add `Glob` task for collecting files in directories - [#5077](https://github.com/PrefectHQ/prefect/pull/5077) 
+- Add `DbtCloudRunJob` task for triggering dbt cloud run jobs - [#5085](https://github.com/PrefectHQ/prefect/pull/5085)
+- Added Kafka Tasks entry to website docs - [#5094](https://github.com/PrefectHQ/prefect/pull/5094)
+
+### Fixes
+
+- Update the `FlowView` to be more robust to serialized flow changes in the backend - [#5116](https://github.com/PrefectHQ/prefect/pull/5116)
+
+### Deprecations
+
+- Move artifacts functions to `prefect.backend.artifacts` - [#5117](https://github.com/PrefectHQ/prefect/pull/5117)
+
+### Server
+
+This release includes a Prefect Server update that updates an upstream dependency to fix a security vulnerability. See the [release changelog](https://github.com/PrefectHQ/server/blob/master/Changelog.md#november-09-2021-) for more details.
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Bradley Axen](https://github.com/baxen)
+- [Damien Ramunno-Johnson](https://github.com/damienrj)
+- [Jonas Miederer](https://github.com/jonasmiederer)
+- [Josh Wang](https;//github.com/wangjoshuah)
+- [Nitay Joffe](https://github.com/nitay)
+- [Timo S.](https://github.com/sti0)
+- [Brett Naul](https://github.com/bnaul)
+
 ## 0.15.7 <Badge text="beta" type="success" />
 
 Released on October 21, 2021.
