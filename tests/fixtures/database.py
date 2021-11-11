@@ -16,8 +16,8 @@ from prefect.orion.database.dependencies import provide_database_interface
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def db():
-    return await provide_database_interface()
+def db():
+    return provide_database_interface()
 
 
 @pytest.fixture(scope="session", autouse=True)
