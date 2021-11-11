@@ -1,0 +1,2 @@
+enhancement:
+  - "Adds artifacts to DbtCloudRunJob task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)"

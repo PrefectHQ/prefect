@@ -407,7 +407,7 @@ class DbtCloudRunJob(Task):
                 max_wait_time=max_wait_time,
             )
 
-            job_run_result.artifact_urls = artifact_links
+            job_run_result["artifact_urls"] = artifact_links
 
             return job_run_result
 
