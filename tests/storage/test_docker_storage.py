@@ -105,7 +105,7 @@ def test_empty_docker_storage_on_tagged_commit(
     monkeypatch, platform, url, no_docker_host_var
 ):
     monkeypatch.setattr("prefect.storage.docker.sys.platform", platform)
-    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=7))
     monkeypatch.setattr(prefect, "__version__", "0.9.2")
 
     storage = Docker()
@@ -568,7 +568,7 @@ def test_create_dockerfile_from_dockerfile_uses_tempdir_path():
     ],
 )
 def test_create_dockerfile_from_prefect_version(monkeypatch, prefect_version):
-    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=7))
 
     storage = Docker(prefect_version=prefect_version[0])
 
