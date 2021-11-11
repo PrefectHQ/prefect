@@ -12,6 +12,7 @@ from prefect.orion.orchestration.global_policy import (
     SetRunStateType,
     SetStartTime,
     UpdateSubflowParentTask,
+    UpdateSubflowStateDetails,
 )
 from prefect.orion.schemas import states, core
 from prefect.orion import models
@@ -394,3 +395,55 @@ async def test_update_subflow_parent_task(
     assert parent_task_run.state.type == proposed_state_type
     # the parent task run points to the child subflow run
     assert parent_task_run.state.state_details.child_flow_run_id == ctx.run.id
+
+
+async def test_child_flow_run_states_include_parent_task_run_id(
+    session,
+    initialize_orchestration,
+):
+    initial_state_type = states.StateType.RUNNING
+    proposed_state_type = states.StateType.FAILED
+    intended_transition = (initial_state_type, proposed_state_type)
+    ctx = await initialize_orchestration(
+        session,
+        "flow",
+        *intended_transition,
+    )
+
+    # create parent flow
+    parent_flow = await models.flows.create_flow(
+        session=session, flow=core.Flow(name="subflow-parent")
+    )
+
+    # create run of parent flow
+    parent_flow_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=core.FlowRun(flow_id=parent_flow.id),
+    )
+
+    # create task in parent flow to represent subflow
+    parent_task_run = await models.task_runs.create_task_run(
+        session=session,
+        task_run=core.TaskRun(
+            task_key="dummy-task",
+            flow_run_id=parent_flow_run.id,
+            state=ctx.initial_state.copy(reset_fields=True),
+            dynamic_key="0",
+        ),
+    )
+
+    await session.commit()
+
+    # set the test flow run to be a child of the parent task run
+    ctx.run.parent_task_run_id = parent_task_run.id
+
+    # the parent task run now has the proposed state
+    assert parent_task_run.state.type == initial_state_type
+
+    async with UpdateSubflowStateDetails(ctx) as ctx:
+        await ctx.validate_proposed_state()
+
+    # the child flow run now has the proposed state
+    assert ctx.run.state.type == proposed_state_type
+    # the chld flow run points to the parent task run
+    assert ctx.run.state.state_details.task_run_id == parent_task_run.id
