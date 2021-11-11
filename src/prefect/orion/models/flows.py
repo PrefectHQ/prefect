@@ -3,7 +3,6 @@ Functions for interacting with flow ORM objects.
 Intended for internal use by the Orion API.
 """
 
-from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -11,13 +10,12 @@ from sqlalchemy import delete, select
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
 @inject_db
 async def create_flow(
-    session: sa.orm.Session,
-    flow: schemas.core.Flow,
-    db=None,
+    session: sa.orm.Session, flow: schemas.core.Flow, db: OrionDBInterface
 ):
     """
     Creates a new flow.
@@ -59,7 +57,7 @@ async def update_flow(
     session: sa.orm.Session,
     flow_id: UUID,
     flow: schemas.actions.FlowUpdate,
-    db=None,
+    db: OrionDBInterface,
 ):
     """
     Updates a flow.
@@ -89,7 +87,7 @@ async def update_flow(
 
 
 @inject_db
-async def read_flow(session: sa.orm.Session, flow_id: UUID, db=None):
+async def read_flow(session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface):
     """
     Reads a flow by id.
 
@@ -104,7 +102,7 @@ async def read_flow(session: sa.orm.Session, flow_id: UUID, db=None):
 
 
 @inject_db
-async def read_flow_by_name(session: sa.orm.Session, name: str, db=None):
+async def read_flow_by_name(session: sa.orm.Session, name: str, db: OrionDBInterface):
     """
     Reads a flow by name.
 
@@ -123,11 +121,11 @@ async def read_flow_by_name(session: sa.orm.Session, name: str, db=None):
 @inject_db
 async def _apply_flow_filters(
     query,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db=None,
 ):
     """
     Applies filters to a flow query as a combination of EXISTS subqueries.
@@ -163,13 +161,13 @@ async def _apply_flow_filters(
 @inject_db
 async def read_flows(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
-    db=None,
 ):
     """
     Read multiple flows.
@@ -211,11 +209,11 @@ async def read_flows(
 @inject_db
 async def count_flows(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db=None,
 ) -> int:
     """
     Count flows.
@@ -247,7 +245,9 @@ async def count_flows(
 
 
 @inject_db
-async def delete_flow(session: sa.orm.Session, flow_id: UUID, db=None) -> bool:
+async def delete_flow(
+    session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface
+) -> bool:
     """
     Delete a flow by id.
 

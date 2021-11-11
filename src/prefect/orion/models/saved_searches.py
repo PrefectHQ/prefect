@@ -3,7 +3,6 @@ Functions for interacting with saved search ORM objects.
 Intended for internal use by the Orion API.
 """
 
-from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -11,13 +10,14 @@ from sqlalchemy import delete, select
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
 @inject_db
 async def create_saved_search(
     session: sa.orm.Session,
     saved_search: schemas.core.SavedSearch,
-    db=None,
+    db: OrionDBInterface,
 ):
     """
     Upserts a SavedSearch.
@@ -59,9 +59,7 @@ async def create_saved_search(
 
 @inject_db
 async def read_saved_search(
-    session: sa.orm.Session,
-    saved_search_id: UUID,
-    db=None,
+    session: sa.orm.Session, saved_search_id: UUID, db: OrionDBInterface
 ):
     """
     Reads a SavedSearch by id.
@@ -79,9 +77,7 @@ async def read_saved_search(
 
 @inject_db
 async def read_saved_search_by_name(
-    session: sa.orm.Session,
-    name: str,
-    db=None,
+    session: sa.orm.Session, name: str, db: OrionDBInterface
 ):
     """
     Reads a SavedSearch by name.
@@ -101,10 +97,10 @@ async def read_saved_search_by_name(
 
 @inject_db
 async def read_saved_searches(
+    db: OrionDBInterface,
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
-    db=None,
 ):
     """
     Read SavedSearchs.
@@ -131,7 +127,7 @@ async def read_saved_searches(
 
 @inject_db
 async def delete_saved_search(
-    session: sa.orm.Session, saved_search_id: UUID, db=None
+    session: sa.orm.Session, saved_search_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a SavedSearch by id.
