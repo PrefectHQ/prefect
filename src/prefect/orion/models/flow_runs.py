@@ -25,7 +25,7 @@ from prefect.orion.database.interface import OrionDBInterface
 async def create_flow_run(
     session: sa.orm.Session,
     flow_run: schemas.core.FlowRun,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """Creates a new flow run.
 
@@ -97,7 +97,7 @@ async def update_flow_run(
     session: sa.orm.Session,
     flow_run_id: UUID,
     flow_run: schemas.actions.FlowRunUpdate,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Updates a flow run.
@@ -130,7 +130,7 @@ async def update_flow_run(
 async def read_flow_run(
     session: sa.orm.Session,
     flow_run_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a flow run by id.
@@ -149,11 +149,11 @@ async def read_flow_run(
 @inject_db
 async def _apply_flow_run_filters(
     query,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ):
     """
     Applies filters to a flow run query as a combination of EXISTS subqueries.
@@ -200,6 +200,7 @@ async def _apply_flow_run_filters(
 @inject_db
 async def read_flow_runs(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -207,7 +208,6 @@ async def read_flow_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
-    db: OrionDBInterface = None,
 ):
     """
     Read flow runs.
@@ -250,11 +250,11 @@ async def read_flow_runs(
 @inject_db
 async def count_flow_runs(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ) -> int:
     """
     Count flow runs.
@@ -289,7 +289,7 @@ async def count_flow_runs(
 async def delete_flow_run(
     session: sa.orm.Session,
     flow_run_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Delete a flow run by flow_run_id.
@@ -308,13 +308,11 @@ async def delete_flow_run(
     return result.rowcount > 0
 
 
-@inject_db
 async def set_flow_run_state(
     session: sa.orm.Session,
     flow_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    db: OrionDBInterface = None,
 ):
     """
     Creates a new orchestrated flow run state.

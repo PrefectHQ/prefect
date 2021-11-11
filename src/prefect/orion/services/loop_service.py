@@ -37,7 +37,7 @@ class LoopService:
     @inject_db
     async def setup(
         self,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ) -> None:
         """
         Called prior to running the service

@@ -66,7 +66,7 @@ class CacheInsertion(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ) -> None:
         cache_key = validated_state.state_details.cache_key
         if cache_key:
@@ -97,7 +97,7 @@ class CacheRetrieval(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         proposed_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ) -> None:
         cache_key = proposed_state.state_details.cache_key
         if cache_key:

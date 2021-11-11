@@ -17,7 +17,7 @@ from prefect.orion.database.interface import OrionDBInterface
 async def create_saved_search(
     session: sa.orm.Session,
     saved_search: schemas.core.SavedSearch,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Upserts a SavedSearch.
@@ -61,7 +61,7 @@ async def create_saved_search(
 async def read_saved_search(
     session: sa.orm.Session,
     saved_search_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a SavedSearch by id.
@@ -81,7 +81,7 @@ async def read_saved_search(
 async def read_saved_search_by_name(
     session: sa.orm.Session,
     name: str,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a SavedSearch by name.
@@ -101,10 +101,10 @@ async def read_saved_search_by_name(
 
 @inject_db
 async def read_saved_searches(
+    db: OrionDBInterface,
     session: sa.orm.Session,
     offset: int = None,
     limit: int = None,
-    db: OrionDBInterface = None,
 ):
     """
     Read SavedSearchs.
@@ -133,7 +133,7 @@ async def read_saved_searches(
 async def delete_saved_search(
     session: sa.orm.Session,
     saved_search_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Delete a SavedSearch by id.

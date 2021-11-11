@@ -21,7 +21,7 @@ class FlowRunSort(AutoEnum):
     @inject_db
     def as_sql_sort(
         self,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ) -> ColumnElement:
         """Return an expression used to sort flow runs"""
         sort_mapping = {
@@ -46,7 +46,7 @@ class TaskRunSort(AutoEnum):
     @inject_db
     def as_sql_sort(
         self,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ) -> ColumnElement:
         """Return an expression used to sort task runs"""
         sort_mapping = {

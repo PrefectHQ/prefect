@@ -17,7 +17,7 @@ from prefect.orion.database.interface import OrionDBInterface
 async def create_flow(
     session: sa.orm.Session,
     flow: schemas.core.Flow,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Creates a new flow.
@@ -59,7 +59,7 @@ async def update_flow(
     session: sa.orm.Session,
     flow_id: UUID,
     flow: schemas.actions.FlowUpdate,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Updates a flow.
@@ -92,7 +92,7 @@ async def update_flow(
 async def read_flow(
     session: sa.orm.Session,
     flow_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a flow by id.
@@ -111,7 +111,7 @@ async def read_flow(
 async def read_flow_by_name(
     session: sa.orm.Session,
     name: str,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a flow by name.
@@ -131,11 +131,11 @@ async def read_flow_by_name(
 @inject_db
 async def _apply_flow_filters(
     query,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ):
     """
     Applies filters to a flow query as a combination of EXISTS subqueries.
@@ -171,13 +171,13 @@ async def _apply_flow_filters(
 @inject_db
 async def read_flows(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
-    db: OrionDBInterface = None,
 ):
     """
     Read multiple flows.
@@ -219,11 +219,11 @@ async def read_flows(
 @inject_db
 async def count_flows(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ) -> int:
     """
     Count flows.
@@ -258,7 +258,7 @@ async def count_flows(
 async def delete_flow(
     session: sa.orm.Session,
     flow_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Delete a flow by id.

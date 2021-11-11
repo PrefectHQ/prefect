@@ -31,7 +31,7 @@ class Scheduler(LoopService):
     @inject_db
     async def run_once(
         self,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ):
         """
         Schedule flow runs by:

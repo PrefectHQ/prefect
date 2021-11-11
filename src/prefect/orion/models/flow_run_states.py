@@ -16,7 +16,7 @@ from prefect.orion.database.interface import OrionDBInterface
 async def read_flow_run_state(
     session: sa.orm.Session,
     flow_run_state_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a flow run state by id.
@@ -36,7 +36,7 @@ async def read_flow_run_state(
 async def read_flow_run_states(
     session: sa.orm.Session,
     flow_run_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads flow runs states for a flow run.
@@ -62,7 +62,7 @@ async def read_flow_run_states(
 async def delete_flow_run_state(
     session: sa.orm.Session,
     flow_run_state_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Delete a flow run state by id.

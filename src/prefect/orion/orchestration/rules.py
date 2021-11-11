@@ -225,7 +225,7 @@ class FlowOrchestrationContext(OrchestrationContext):
     @inject_db
     async def validate_proposed_state(
         self,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ):
         """
         Validates a proposed state by committing it to the database.
@@ -330,7 +330,7 @@ class TaskOrchestrationContext(OrchestrationContext):
     @inject_db
     async def validate_proposed_state(
         self,
-        db: OrionDBInterface = None,
+        db: OrionDBInterface,
     ):
         """
         Validates a proposed state by committing it to the database.
