@@ -89,8 +89,7 @@ class Client:
     Client for communication with Prefect Cloud
 
     If the arguments aren't specified the client initialization first checks the prefect
-    configuration and if the server is not set there it checks the current context. The
-    token will only be present in the current context.
+    configuration and if the server is not set there it checks the current context.
 
     Args:
         - api_server (str, optional): the URL to send all GraphQL requests to; if not
@@ -110,9 +109,6 @@ class Client:
         api_key: str = None,
         tenant_id: str = None,
     ):
-        self._access_token = None
-        self._refresh_token = None
-        self._access_token_expires_at = pendulum.now()
         self._attached_headers = {}  # type: Dict[str, str]
         self.logger = create_diagnostic_logger("Diagnostics")
 
@@ -265,13 +261,13 @@ class Client:
 
         If it is has not been explicitly set, the default tenant id will be retrieved
         """
-        if prefect.config.backend == "cloud":
-            if not self._tenant_id:
+        if not self._tenant_id:
+            if prefect.config.backend == "cloud":
                 self._tenant_id = self._get_auth_tenant()
-
-        elif prefect.config.backend == "server":
-            if not self._tenant_id:
+            elif prefect.config.backend == "server":
                 self._tenant_id = self._get_default_server_tenant()
+            else:
+                raise ValueError(f"Unknown backend setting {prefect.config.backend!r}")
 
         if not self._tenant_id:
             raise ClientError(
@@ -283,6 +279,11 @@ class Client:
 
     @tenant_id.setter
     def tenant_id(self, tenant_id: str) -> None:
+        try:
+            uuid.UUID(tenant_id)
+        except:
+            raise ValueError("The `tenant_id` must be a valid UUID. Got {tenant_id!r}.")
+
         self._tenant_id = tenant_id
 
     # ----------------------------------------------------------------------------------
@@ -304,8 +305,10 @@ class Client:
             - ValueError: if run against Prefect Cloud
         """
         if prefect.config.backend != "server":
-            msg = "To create a tenant with Prefect Cloud, please signup at https://cloud.prefect.io/"
-            raise ValueError(msg)
+            raise ValueError(
+                "To create a tenant with Prefect Cloud, please signup at "
+                "https://cloud.prefect.io/"
+            )
 
         if slug is None:
             slug = slugify(name)
@@ -329,11 +332,11 @@ class Client:
         server: str = None,
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
-        token: str = None,
+        api_key: str = None,
         retry_on_api_error: bool = True,
     ) -> dict:
         """
-        Convenience function for calling the Prefect API with token auth and GET request
+        Convenience function for calling the Prefect API with auth and GET request
 
         Args:
             - path (str): the path of the API url. For example, to GET
@@ -342,7 +345,7 @@ class Client:
                 defaults to `self.api_server`
             - headers (dict, optional): Headers to pass with the request
             - params (dict): GET parameters
-            - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - api_key (str): An api key for auth. Defaults to `client.api_key`.
             - retry_on_api_error (bool): whether the operation should be retried if the API returns
                 an API_ERROR code
 
@@ -355,7 +358,7 @@ class Client:
             params=params,
             server=server,
             headers=headers,
-            token=token,
+            api_key=api_key,
             retry_on_api_error=retry_on_api_error,
         )
         if response.text:
@@ -369,11 +372,11 @@ class Client:
         server: str = None,
         headers: dict = None,
         params: Dict[str, JSONLike] = None,
-        token: str = None,
+        api_key: str = None,
         retry_on_api_error: bool = True,
     ) -> dict:
         """
-        Convenience function for calling the Prefect API with token auth and POST request
+        Convenience function for calling the Prefect API with auth and POST request
 
         Args:
             - path (str): the path of the API url. For example, to POST
@@ -382,7 +385,7 @@ class Client:
                 defaults to `self.api_server`
             - headers(dict): headers to pass with the request
             - params (dict): POST parameters
-            - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - api_key (str): An api key for auth. Defaults to `client.api_key`.
             - retry_on_api_error (bool): whether the operation should be retried if the API returns
                 an API_ERROR code
 
@@ -395,7 +398,7 @@ class Client:
             params=params,
             server=server,
             headers=headers,
-            token=token,
+            api_key=api_key,
             retry_on_api_error=retry_on_api_error,
         )
         if response.text:
@@ -409,7 +412,7 @@ class Client:
         raise_on_error: bool = True,
         headers: Dict[str, str] = None,
         variables: Mapping[str, JSONLike] = None,
-        token: str = None,
+        api_key: str = None,
         retry_on_api_error: bool = True,
     ) -> GraphQLResult:
         """
@@ -424,7 +427,7 @@ class Client:
                 request
             - variables (dict): Variables to be filled into a query with the key being
                 equivalent to the variables that are accepted by the query
-            - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - api_key (str): An api key for auth. Defaults to `client.api_key`.
             - retry_on_api_error (bool): whether the operation should be retried if the API returns
                 an API_ERROR code
 
@@ -439,7 +442,7 @@ class Client:
             server=self.api_server,
             headers=headers,
             params=dict(query=parse_graphql(query), variables=json.dumps(variables)),
-            token=token,
+            api_key=api_key,
             retry_on_api_error=retry_on_api_error,
         )
 
@@ -560,7 +563,7 @@ class Client:
         params: Dict[str, JSONLike] = None,
         server: str = None,
         headers: dict = None,
-        token: str = None,
+        api_key: str = None,
         retry_on_api_error: bool = True,
     ) -> "requests.models.Response":
         """
@@ -573,7 +576,7 @@ class Client:
             - server (str, optional): The server to make requests against, base API
                 server is used if not specified
             - headers (dict, optional): Headers to pass with the request
-            - token (str): an auth token. If not supplied, the `client.access_token` is used.
+            - api_key (str): An api key for auth. Defaults to `client.api_key`.
             - retry_on_api_error (bool): whether the operation should be retried if the API returns
                 an API_ERROR code
 
@@ -581,7 +584,7 @@ class Client:
             - requests.models.Response: The response returned from the request
 
         Raises:
-            - ClientError: if the client token is not in the context (due to not being logged in)
+            - ClientError: on bad responses from the API
             - ValueError: if a method is specified outside of the accepted GET, POST, DELETE
             - requests.HTTPError: if a status code is returned that is not `200` or `401`
         """
@@ -589,8 +592,7 @@ class Client:
             server = self.api_server
         assert isinstance(server, str)  # mypy assert
 
-        if token is None:
-            token = self.api_key
+        api_key = api_key or self.api_key
 
         # 'import requests' is expensive time-wise, we should do this just-in-time to keep
         # the 'import prefect' time low
@@ -601,8 +603,8 @@ class Client:
         params = params or {}
 
         headers = headers or {}
-        if token:
-            headers["Authorization"] = "Bearer {}".format(token)
+        if api_key:
+            headers["Authorization"] = "Bearer {}".format(api_key)
 
         if self.api_key and self._tenant_id:
             # Attach a tenant id to the headers if using an API key since it can be
@@ -668,51 +670,46 @@ class Client:
         """
         self._attached_headers.update(headers)
 
-    def switch_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> bool:
+    def switch_tenant(self, tenant_slug: str) -> str:
         """
-        Switch this client to the given tenant.
+        Switch this client to the given tenant by slug.
+
+        If you want to switch by `tenant_id`, just update the client's tenant id
+
+        ```python
+        client.tenant_id = "..."
+        ```
 
         The client tenant will be updated but will not be saved to disk without an
         explicit call.
 
         Args:
             - tenant_slug (str): the tenant's slug
-            - tenant_id (str): the tenant's id
 
         Returns:
-            - bool: `True` if the login was successful
+            - str: The id of the tenant
 
         Raises:
-            - ValueError: if at least one of `tenant_slug` or `tenant_id` isn't provided
             - ValueError: if no matching tenants are found
 
         """
 
         # Validate the given tenant id -------------------------------------------------
 
-        if tenant_slug is None and tenant_id is None:
-            raise ValueError(
-                "At least one of `tenant_slug` or `tenant_id` must be provided."
-            )
-
         tenant = self.graphql(
             {
                 "query($slug: String, $id: uuid)": {
-                    "tenant(where: {slug: { _eq: $slug }, id: { _eq: $id } })": {"id"}
+                    "tenant(where: {slug: { _eq: $slug } })": {"id"}
                 }
             },
-            variables=dict(slug=tenant_slug, id=tenant_id),
+            variables=dict(slug=tenant_slug),
         )
         if not tenant.data.tenant:
-            raise ValueError("No matching tenant found.")
+            raise ValueError(f"No matching tenant found for slug {tenant_slug}.")
 
-        # We may have been given just the slug so set the id
-        tenant_id = tenant.data.tenant[0].id
+        self.tenant_id = tenant.data.tenant[0].id
 
-        # Update the tenant the client is using ----------------------------------------
-        self._tenant_id = tenant_id
-
-        return True
+        return self.tenant_id
 
     # -------------------------------------------------------------------------
     # Actions
