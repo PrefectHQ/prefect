@@ -1,13 +1,18 @@
 import os
+from typing import Any
 
 import yaml
-from typing import Any
 
 from prefect.core.task import Task
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.tasks import defaults_from_attrs
+from prefect.backend.artifacts import create_link_artifact
 
-from .dbt_cloud_utils import trigger_job_run, wait_for_job_run
+from .dbt_cloud_utils import (
+    create_run_artifact_links,
+    trigger_job_run,
+    wait_for_job_run,
+)
 
 
 class DbtShellTask(ShellTask):
@@ -125,7 +130,7 @@ class DbtShellTask(ShellTask):
                 will be executed prior to the `command` in the same process. Can be used to
                 change directories, define helper functions, etc. when re-using this Task
                 for different commands in a Flow
-             - dbt_kwargs(dict, optional): keyword arguments used to populate the profiles.yml file
+            - dbt_kwargs(dict, optional): keyword arguments used to populate the profiles.yml file
 
         Returns:
             - stdout (string): if `return_all` is `False` (the default), only the last line of
@@ -328,7 +333,8 @@ class DbtCloudRunJob(Task):
                 https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
 
               if wait_for_job_run_completion = True, then returns the get job result.
-                The get job result is the dict under the "data" key.
+                The get job result is the dict under the "data" key. Links to the dbt artifacts are
+                also included under the `artifact_urls` key.
                 Have a look at the Response section at:
                 https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
 
@@ -345,6 +351,10 @@ class DbtCloudRunJob(Task):
                 Please provide a cause to trigger the dbt Cloud job.
                 """
             )
+
+        if account_id is None and account_id_env_var_name in os.environ:
+            account_id = int(os.environ[account_id_env_var_name])
+
         if account_id is None:
             raise ValueError(
                 """
@@ -352,6 +362,10 @@ class DbtCloudRunJob(Task):
                 Please provide an Account ID or the name of the env var that contains it.
                 """
             )
+
+        if job_id is None and job_id_env_var_name in os.environ:
+            job_id = int(os.environ[job_id_env_var_name])
+
         if job_id is None:
             raise ValueError(
                 """
@@ -359,6 +373,9 @@ class DbtCloudRunJob(Task):
                 Please provide a Job ID or the name of the env var that contains it.
                 """
             )
+
+        if token is None and token_env_var_name in os.environ:
+            token = os.environ.get(token_env_var_name)
 
         if token is None:
             raise ValueError(
@@ -377,12 +394,22 @@ class DbtCloudRunJob(Task):
         )
         if wait_for_job_run_completion:
 
-            return wait_for_job_run(
+            artifact_links = create_run_artifact_links(
+                account_id=account_id, run_id=run["id"]
+            )
+
+            (create_link_artifact(link=link) for link in artifact_links)
+
+            job_run_result = wait_for_job_run(
                 account_id=account_id,
                 run_id=run["id"],
                 token=token,
                 max_wait_time=max_wait_time,
             )
+
+            job_run_result.artifact_urls = artifact_links
+
+            return job_run_result
 
         else:
             return run

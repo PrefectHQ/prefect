@@ -1,5 +1,6 @@
 import os
 import sys
+from prefect.tasks.dbt.dbt_cloud_utils import TriggerDbtCloudRunFailed
 
 import responses
 import pytest
@@ -249,7 +250,7 @@ def test_dbt_cloud_run_job_raises_failure():
     run_job = DbtCloudRunJob(
         cause="foo", account_id=account_id, job_id=job_id, token="foo"
     )
-    with pytest.raises(FAIL):
+    with pytest.raises(TriggerDbtCloudRunFailed):
         run_job.run()
 
 
