@@ -54,11 +54,3 @@ const filter = computed(() => {
   return props.filter
 })
 </script>
-
-<style lang="scss">
-@use '@/styles/abstracts/variables';
-
-.interval-bar-chart-card__popover-icon {
-  color: $grey-40;
-}
-</style>
