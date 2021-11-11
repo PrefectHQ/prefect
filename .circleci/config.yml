@@ -97,7 +97,7 @@ jobs:
   # to ensure our requirements.txt file is accurate
   test_lower_prefect:
     docker:
-      - image: python:3.6
+      - image: python:3.7
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
