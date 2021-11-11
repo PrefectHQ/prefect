@@ -14,12 +14,8 @@ __DBT_CLOUD_GET_RUN_API_ENDPOINT_V2 = (
     "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/"
 )
 
-# dbt Cloud List Run Artifacts API -> https://docs.getdbt.com/dbt-cloud/api-v2#operation/listArtifactsByRunId
-__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2 = (
-    "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/artifacts/"
-)
-
-# dbt Cloud Get Run Artifact API -> https://docs.getdbt.com/dbt-cloud/api-v2#operation/getArtifactsByRunId
+# dbt Cloud Get Run Artifacts API ->
+#   https://docs.getdbt.com/dbt-cloud/api-v2#operation/getArtifactsByRunId
 __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2 = (
     "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/artifacts/{path}"
 )
@@ -137,9 +133,7 @@ def wait_for_job_run(
             elif result["status"] == 20:
                 raise DbtCloudRunFailed(f"Job run with ID: {run_id} failed.")
             elif result["status"] == 30:
-                raise DbtCloudRunCanceled(
-                    f"Job run with ID: {run_id} cancelled."
-                )
+                raise DbtCloudRunCanceled(f"Job run with ID: {run_id} cancelled.")
         sleep(wait_time_between_api_calls)
         elapsed_wait_time += wait_time_between_api_calls
 
