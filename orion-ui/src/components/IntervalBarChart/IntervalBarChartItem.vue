@@ -7,6 +7,8 @@
       <div
         class="interval-bar-chart-item__bucket"
         tabindex="0"
+        @focusin="open"
+        @focusout="close"
         @mouseenter="open"
         @mouseleave="close"
       />

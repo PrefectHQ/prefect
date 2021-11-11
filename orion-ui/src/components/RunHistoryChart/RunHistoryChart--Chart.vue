@@ -23,6 +23,8 @@
                 :class="calculateBarClass(state)"
                 :style="styles.bar"
                 tabindex="0"
+                @focusin="open"
+                @focusout="close"
                 @mouseenter="open"
                 @mouseleave="close"
               />
