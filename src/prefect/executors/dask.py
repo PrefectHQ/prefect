@@ -15,7 +15,6 @@ from prefect.utilities.importtools import import_object
 if TYPE_CHECKING:
     import dask
     from distributed import Future, Event
-    import multiprocessing.pool
     import concurrent.futures
 
 
@@ -462,7 +461,7 @@ class DaskExecutor(Executor):
 
 
 def _multiprocessing_pool_initializer() -> None:
-    """Initialize a process used in a `multiprocssing.Pool`.
+    """Initialize a process used in a `concurrent.futures.ProcessPoolExecutor`.
 
     Ensures the standard atexit handlers are run."""
     import signal
@@ -484,7 +483,7 @@ class LocalDaskExecutor(Executor):
     def __init__(self, scheduler: str = "threads", **kwargs: Any):
         self.scheduler = self._normalize_scheduler(scheduler)
         self.dask_config = kwargs
-        self._pool = None  # type: Optional[multiprocessing.pool.Pool]
+        self._pool = None  # type: Optional[concurrent.futures.Executor]
         super().__init__()
 
     @staticmethod
@@ -512,11 +511,11 @@ class LocalDaskExecutor(Executor):
         if self._pool is None:
             return
 
-        # Terminate the pool
-        self._pool.terminate()
+        # Shutdown the pool
+        self._pool.shutdown(wait=False)
 
         if self.scheduler == "threads":
-            # `ThreadPool.terminate()` doesn't stop running tasks, only
+            # `ThreadPoolExecutor.shutdown()` doesn't stop running tasks, only
             # prevents new tasks from running. In CPython we can attempt to
             # raise an exception in all threads. This exception will be raised
             # the next time the task does something with the Python api.
@@ -543,7 +542,7 @@ class LocalDaskExecutor(Executor):
             else:
                 id_type = ctypes.c_long
 
-            for t in self._pool._pool:  # type: ignore
+            for t in self._pool._threads:  # type: ignore
                 ctypes.pythonapi.PyThreadState_SetAsyncExc(
                     id_type(t.ident), ctypes.py_object(KeyboardInterrupt)
                 )
@@ -574,14 +573,13 @@ class LocalDaskExecutor(Executor):
             else:
                 num_workers = dask.config.get("num_workers", None) or CPU_COUNT
                 if self.scheduler == "threads":
-                    from multiprocessing.pool import ThreadPool
+                    from concurrent.futures import ThreadPoolExecutor
 
-                    self._pool = ThreadPool(num_workers)
+                    self._pool = ThreadPoolExecutor(num_workers)
                 else:
-                    from dask.multiprocessing import get_context
+                    from concurrent.futures import ProcessPoolExecutor
 
-                    context = get_context()
-                    self._pool = context.Pool(
+                    self._pool = ProcessPoolExecutor(
                         num_workers, initializer=_multiprocessing_pool_initializer
                     )
             try:
@@ -595,8 +593,7 @@ class LocalDaskExecutor(Executor):
                     if exiting_early:
                         self._interrupt_pool()
                     else:
-                        self._pool.close()
-                    self._pool.join()
+                        self._pool.shutdown(wait=False)
                     self._pool = None
 
     def submit(
