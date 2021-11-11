@@ -1,8 +1,10 @@
 import click
 import os
+import shutil
 import pendulum
 from click.exceptions import Abort
 from tabulate import tabulate
+from pathlib import Path
 
 from prefect import Client, config
 from prefect.exceptions import AuthorizationError, ClientError
@@ -171,45 +173,34 @@ def logout(token):
 
         click.secho("Logged out of Prefect Cloud", fg="green")
 
-    elif client._api_token:
-
-        check_override_auth_token()
-        tenant_id = client.active_tenant_id
-
-        if not tenant_id:
-            click.confirm(
-                "Are you sure you want to log out of Prefect Cloud? "
-                "This will remove your API token from this machine.",
-                default=False,
-                abort=True,
-            )
-
-            # Remove the token from local storage by writing blank settings
-            client._save_local_settings({})
-            click.secho("Logged out of Prefect Cloud", fg="green")
-
-        else:
-            # Log out of the current tenant (dropping the access token) while retaining
-            # the API token. This is backwards compatible behavior. Running the logout
-            # command twice will remove the token from storage entirely
-            click.confirm(
-                "Are you sure you want to log out of your current Prefect Cloud tenant?",
-                default=False,
-                abort=True,
-            )
-
-            client.logout_from_tenant()
-
-            click.secho(
-                f"Logged out from tenant {tenant_id}. Run `prefect auth logout` again "
-                "to delete your API token.",
-                fg="green",
-            )
     else:
         raise TerminalError(
             "You are not logged in to Prefect Cloud. "
             "Use `prefect auth login` to log in first."
         )
+
+
+@auth.command()
+def purge_tokens():
+    path = Path(f"{config.home_dir}/client").expanduser()
+
+    if not path.exists():
+        click.secho(
+            f"The deprecated authentication tokens settings path '{path}' has already "
+            "been removed."
+        )
+
+    else:
+        confirm = click.confirm(
+            "Are you sure you want to delete the deprecated authentication token "
+            f"settings folder '{path}'?"
+        )
+        if not confirm:
+            print("Aborted!")
+            return
+
+        shutil.rmtree(path)
+        print("Removed!")
 
 
 @auth.command(hidden=True)
