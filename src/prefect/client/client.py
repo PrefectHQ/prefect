@@ -129,7 +129,7 @@ class Client:
         )
 
         # Load the tenant id
-        self._tenant_id: Optional[str] = (
+        self.tenant_id: Optional[str] = (
             tenant_id
             or prefect.context.config.cloud.get("tenant_id")
             or cached_auth.get("tenant_id")
@@ -278,13 +278,20 @@ class Client:
         return self._tenant_id
 
     @tenant_id.setter
-    def tenant_id(self, tenant_id: str) -> None:
-        try:
-            uuid.UUID(tenant_id)
-        except:
-            raise ValueError("The `tenant_id` must be a valid UUID. Got {tenant_id!r}.")
+    def tenant_id(self, tenant_id: Union[str, uuid.UUID, None]) -> None:
+        if tenant_id is None:
+            self._tenant_id = None
+            return
 
-        self._tenant_id = tenant_id
+        if not isinstance(tenant_id, uuid.UUID):
+            try:
+                tenant_id = uuid.UUID(tenant_id)
+            except:
+                raise ValueError(
+                    f"The `tenant_id` must be a valid UUID. Got {tenant_id!r}."
+                )
+
+        self._tenant_id = str(tenant_id)
 
     # ----------------------------------------------------------------------------------
 
