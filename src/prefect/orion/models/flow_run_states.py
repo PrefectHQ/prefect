@@ -3,18 +3,20 @@ Functions for interacting with flow run state ORM objects.
 Intended for internal use by the Orion API.
 """
 
-from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
 @inject_db
 async def read_flow_run_state(
-    session: sa.orm.Session, flow_run_state_id: UUID, db=None
+    session: sa.orm.Session,
+    flow_run_state_id: UUID,
+    db: OrionDBInterface = None,
 ):
     """
     Reads a flow run state by id.
@@ -31,7 +33,11 @@ async def read_flow_run_state(
 
 
 @inject_db
-async def read_flow_run_states(session: sa.orm.Session, flow_run_id: UUID, db=None):
+async def read_flow_run_states(
+    session: sa.orm.Session,
+    flow_run_id: UUID,
+    db: OrionDBInterface = None,
+):
     """
     Reads flow runs states for a flow run.
 
@@ -56,7 +62,7 @@ async def read_flow_run_states(session: sa.orm.Session, flow_run_id: UUID, db=No
 async def delete_flow_run_state(
     session: sa.orm.Session,
     flow_run_state_id: UUID,
-    db=None,
+    db: OrionDBInterface = None,
 ) -> bool:
     """
     Delete a flow run state by id.

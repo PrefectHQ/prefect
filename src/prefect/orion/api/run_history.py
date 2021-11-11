@@ -13,6 +13,7 @@ import pydantic
 from prefect.orion import models, schemas
 from prefect.utilities.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 logger = get_logger("orion.api")
 
@@ -28,7 +29,7 @@ async def run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db=None,
+    db: OrionDBInterface = None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state

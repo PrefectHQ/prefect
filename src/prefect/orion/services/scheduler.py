@@ -13,6 +13,7 @@ from prefect.orion import models
 from prefect.orion.services.loop_service import LoopService
 from prefect.utilities.collections import batched_iterable
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 settings = prefect.settings.orion.services
 
@@ -28,7 +29,10 @@ class Scheduler(LoopService):
     max_scheduled_time: datetime.timedelta = settings.scheduler_max_scheduled_time
 
     @inject_db
-    async def run_once(self, db=None):
+    async def run_once(
+        self,
+        db: OrionDBInterface = None,
+    ):
         """
         Schedule flow runs by:
 

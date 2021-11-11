@@ -37,6 +37,7 @@ from prefect.orion.schemas.responses import (
 )
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 # all valid state types in the context of a task- or flow- run transition
 ALL_ORCHESTRATION_STATES = {*states.StateType, None}
@@ -222,7 +223,10 @@ class FlowOrchestrationContext(OrchestrationContext):
     run: Any = ...
 
     @inject_db
-    async def validate_proposed_state(self, db=None):
+    async def validate_proposed_state(
+        self,
+        db: OrionDBInterface = None,
+    ):
         """
         Validates a proposed state by committing it to the database.
 
@@ -324,7 +328,10 @@ class TaskOrchestrationContext(OrchestrationContext):
     run: Any = ...
 
     @inject_db
-    async def validate_proposed_state(self, db=None):
+    async def validate_proposed_state(
+        self,
+        db: OrionDBInterface = None,
+    ):
         """
         Validates a proposed state by committing it to the database.
 
