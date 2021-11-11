@@ -74,7 +74,7 @@ def test_add_flow_to_docker_custom_prefect_dir():
 )
 def test_empty_docker_storage(monkeypatch, platform, url, no_docker_host_var):
     monkeypatch.setattr("prefect.storage.docker.sys.platform", platform)
-    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=6))
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=7))
     monkeypatch.setattr(prefect, "__version__", "0.9.2+c2394823")
 
     storage = Docker()
