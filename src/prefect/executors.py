@@ -128,6 +128,9 @@ class BaseExecutor(metaclass=abc.ABCMeta):
         Yields:
             The prepared executor
         """
+        if self._started:
+            raise RuntimeError("The executor is already started!")
+
         async with AsyncExitStack() as exit_stack:
             self.logger.info(f"Starting executor `{self}`...")
             try:

@@ -66,9 +66,9 @@ The final state of the flow is determined by its return value.  The following ru
 
 - If an exception is raised directly in the flow function, the flow run is marked as failed.
 - If the flow does not return a value (or returns `None`), its state is determined by the states of all of the tasks and subflows within it. In particular, if _any_ task run or subflow run failed, then the final flow run state is marked as failed.
-- If a flow returns one or more task run futures, these runs are used as the _reference tasks_ for determining the final state of the run. If _any_ returned task runs fail, the flow run is marked as failed.
+- If a flow returns one or more task run futures or states, these runs are used as the _reference tasks_ for determining the final state of the run. If _any_ of the returned task runs fail, the flow run is marked as failed.
 - If a flow returns a manually created state, it is used as the state of the final flow run. This allows for manual determination of final state.
-- If the flow run returns _any other object_, then it is marked a successfully completed.
+- If the flow run returns _any other object_, then it is marked as successfully completed.
 
 The following examples illustrate each of these cases:
 
@@ -127,9 +127,37 @@ The following examples illustrate each of these cases:
         return y
     ```
 
-=== "Return a state"
+=== "Return multiple states or futures"
 
-    If a flow returns one or more states, the final state is determined based on the return value.
+    If a flow returns a mix of futures and states, the final state is determined by resolving all futures to states then
+    determining if any of the states are not 'COMPLETED'.
+
+    ```python hl_lines="20"
+    from prefect import task, flow
+
+    @task
+    def always_fails_task():
+        raise ValueError("I am bad task")
+
+    @task
+    def always_succeeds_task():
+        return "foo"
+
+    @flow
+    def always_succeeds_flow():
+        return "bar
+
+    @flow
+    def always_fails_flow():
+        x = always_fails_task()
+        y = always_succeeds_task()
+        z = always_succeeds_flow()
+        return x, y, z
+    ```
+
+=== "Return a manual state"
+
+    If a flow returns a manually created state, the final state is determined based on the return value.
 
     ```python hl_lines="16-19"
     from prefect import task, flow
