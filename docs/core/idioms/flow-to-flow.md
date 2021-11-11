@@ -65,7 +65,8 @@ with Flow("parent-flow") as flow:
 
 Oftentimes different people are responsible for maintaining different flows; in this case it can be useful
 to construct a Flow-of-Flows that specifies execution order dependencies between various Flows.  
-The `wait_for_flow_run` task allows you to specify that the task should wait until the triggered flow run completes.
+The `wait_for_flow_run` task allows you to specify that the task should wait until the triggered flow run completes
+and reflect the flow run state as the task state.
 
 The following example creates the following Flow-of-Flows that runs every weekday:
 
@@ -86,16 +87,16 @@ weekday_schedule = CronSchedule(
 
 # assumes you have registered the following flows in a project named "examples"
 flow_a = create_flow_run(flow_name="A", project_name="examples", wait=True)
-wait_for_flow_a = wait_for_flow_run(flow_a) 
+wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True) 
 
 flow_b = create_flow_run(flow_name="B", project_name="examples", wait=True)
-wait_for_flow_b = wait_for_flow_run(flow_b)
+wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
 
 flow_c = create_flow_run(flow_name="C", project_name="examples", wait=True)
-wait_for_flow_c = wait_for_flow_run(flow_c)
+wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
 
 flow_d = create_flow_run(flow_name="D", project_name="examples", wait=True)
-wait_for_flow_d = wait_for_flow_run(flow_d)
+wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
 
 with Flow("parent-flow", schedule=weekday_schedule) as flow:
     b = wait_for_flow_b(upstream_tasks=[wait_for_flow_a])
@@ -118,16 +119,16 @@ weekday_schedule = CronSchedule(
 
 # assumes you have registered the following flows in a project named "examples"
 flow_a = create_flow_run(flow_name="A", project_name="examples", wait=True)
-wait_for_flow_a = wait_for_flow_run(flow_a) 
+wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True) 
 
 flow_b = create_flow_run(flow_name="B", project_name="examples", wait=True)
-wait_for_flow_b = wait_for_flow_run(flow_b)
+wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
 
 flow_c = create_flow_run(flow_name="C", project_name="examples", wait=True)
-wait_for_flow_c = wait_for_flow_run(flow_c)
+wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
 
 flow_d = create_flow_run(flow_name="D", project_name="examples", wait=True)
-wait_for_flow_d = wait_for_flow_run(flow_d)
+wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
 
 with Flow("parent-flow", schedule=weekday_schedule) as flow:
     wait_for_flow_b.set_upstream(wait_for_flow_a)
