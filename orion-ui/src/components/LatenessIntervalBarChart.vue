@@ -9,7 +9,7 @@
     </template>
 
     <template v-slot:popover-content="{ item, total, flows }">
-      <table class="interval-bar-chart-item__table">
+      <table class="table table--data">
         <tr>
           <td>Start Time:</td>
           <td>
