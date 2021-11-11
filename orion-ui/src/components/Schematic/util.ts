@@ -52,7 +52,7 @@ export class RadialSchematic {
   // width: number = 34 // node width
   width: number = 275 // node width
   // height: number = 34 // node height
-  height: number = 60 // node height
+  height: number = 145 // node height
 
   /* Padding */
   py: number = 0
@@ -381,8 +381,6 @@ export class RadialSchematic {
         if (total < radius / (this.channelWidth + this.width / 2)) {
           positionalArray.push(total % (2 * Math.PI)) // Lower right quad
           positionalArray.push((3 * Math.PI - total) % (2 * Math.PI)) // Lower left quad
-        } else {
-          console.log(total, radius)
         }
         positionalArray.push((Math.PI + total) % (2 * Math.PI)) // Upper left quad
         positionalArray.push((2 * Math.PI - total) % (2 * Math.PI)) // Upper right quad

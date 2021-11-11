@@ -12,8 +12,13 @@
         :id="`node-${key}`"
         :key="key"
       >
-        <Node
+        <component
           v-if="node.position?.nodes.size == 1"
+          :is="
+            node.data.state.state_details.child_flow_run_id
+              ? 'schematic-flow-run-node'
+              : 'schematic-node'
+          "
           :node="node"
           :selected="selectedNodes.includes(node.id)"
           class="node position-absolute"
@@ -39,7 +44,7 @@
           @mouseout="highlightNode(node.id)"
         />
         <!-- @focus.self.stop="panToNode(node)" -->
-        <OverflowNode
+        <schematic-overflow-node
           v-else
           class="position-absolute"
           :nodes="node.position?.nodes"
@@ -113,8 +118,9 @@ import * as d3 from 'd3'
 import { RadialSchematic } from './util'
 import { pow, sqrt, pi, cos, sin } from './math'
 
-import Node from './Node.vue'
-import OverflowNode from './OverflowNode.vue'
+// import Node from './Node.vue'
+// import FlowRunNode from './FlowRunNode.vue'
+// import OverflowNode from './OverflowNode.vue'
 
 import {
   Item,
@@ -800,6 +806,7 @@ watch(
   () => props.items,
   (curr, prev) => {
     items.value = props.items
+    selectedNodes.length = 0
     radial.value.items(items.value)
 
     if (curr.length > 0 && prev.length == 0) {
