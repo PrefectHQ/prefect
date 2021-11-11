@@ -31,7 +31,7 @@
             </template>
             <template v-slot:header>
               <div class="interval-bar-chart-card__popover-header">
-                <i class="pi pi-bar-chart-box-line pi-1 mr-1" />
+                <i class="pi pi-flow pi-1 mr-1 text--grey-40" />
                 Flow Activity
               </div>
             </template>
