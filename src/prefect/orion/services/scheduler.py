@@ -29,10 +29,7 @@ class Scheduler(LoopService):
     max_scheduled_time: datetime.timedelta = settings.scheduler_max_scheduled_time
 
     @inject_db
-    async def run_once(
-        self,
-        db: OrionDBInterface,
-    ):
+    async def run_once(self, db: OrionDBInterface):
         """
         Schedule flow runs by:
 

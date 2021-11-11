@@ -15,9 +15,7 @@ from prefect.orion.database.interface import OrionDBInterface
 
 @inject_db
 async def create_flow(
-    session: sa.orm.Session,
-    flow: schemas.core.Flow,
-    db: OrionDBInterface,
+    session: sa.orm.Session, flow: schemas.core.Flow, db: OrionDBInterface
 ):
     """
     Creates a new flow.
@@ -89,11 +87,7 @@ async def update_flow(
 
 
 @inject_db
-async def read_flow(
-    session: sa.orm.Session,
-    flow_id: UUID,
-    db: OrionDBInterface,
-):
+async def read_flow(session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface):
     """
     Reads a flow by id.
 
@@ -108,11 +102,7 @@ async def read_flow(
 
 
 @inject_db
-async def read_flow_by_name(
-    session: sa.orm.Session,
-    name: str,
-    db: OrionDBInterface,
-):
+async def read_flow_by_name(session: sa.orm.Session, name: str, db: OrionDBInterface):
     """
     Reads a flow by name.
 
@@ -256,9 +246,7 @@ async def count_flows(
 
 @inject_db
 async def delete_flow(
-    session: sa.orm.Session,
-    flow_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a flow by id.

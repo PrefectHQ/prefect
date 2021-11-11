@@ -59,9 +59,7 @@ async def create_saved_search(
 
 @inject_db
 async def read_saved_search(
-    session: sa.orm.Session,
-    saved_search_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, saved_search_id: UUID, db: OrionDBInterface
 ):
     """
     Reads a SavedSearch by id.
@@ -79,9 +77,7 @@ async def read_saved_search(
 
 @inject_db
 async def read_saved_search_by_name(
-    session: sa.orm.Session,
-    name: str,
-    db: OrionDBInterface,
+    session: sa.orm.Session, name: str, db: OrionDBInterface
 ):
     """
     Reads a SavedSearch by name.
@@ -131,9 +127,7 @@ async def read_saved_searches(
 
 @inject_db
 async def delete_saved_search(
-    session: sa.orm.Session,
-    saved_search_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, saved_search_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a SavedSearch by id.

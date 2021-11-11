@@ -24,9 +24,7 @@ from prefect.orion.database.interface import OrionDBInterface
 
 @inject_db
 async def create_task_run(
-    session: sa.orm.Session,
-    task_run: schemas.core.TaskRun,
-    db: OrionDBInterface,
+    session: sa.orm.Session, task_run: schemas.core.TaskRun, db: OrionDBInterface
 ):
     """
     Creates a new task run.
@@ -82,9 +80,7 @@ async def create_task_run(
 
 @inject_db
 async def read_task_run(
-    session: sa.orm.Session,
-    task_run_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
 ):
     """
     Read a task run by id.
@@ -231,9 +227,7 @@ async def count_task_runs(
 
 @inject_db
 async def delete_task_run(
-    session: sa.orm.Session,
-    task_run_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a task run by id.

@@ -39,10 +39,7 @@ class MarkLateRuns(LoopService):
     batch_size: int = 100
 
     @inject_db
-    async def run_once(
-        self,
-        db: OrionDBInterface,
-    ):
+    async def run_once(self, db: OrionDBInterface):
         """
         Mark flow runs as late by:
 

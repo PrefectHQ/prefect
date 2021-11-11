@@ -35,10 +35,7 @@ class LoopService:
         self.logger = get_logger(f"orion.services.{self.name.lower()}")
 
     @inject_db
-    async def setup(
-        self,
-        db: OrionDBInterface,
-    ) -> None:
+    async def setup(self, db: OrionDBInterface) -> None:
         """
         Called prior to running the service
         """

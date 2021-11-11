@@ -23,9 +23,7 @@ from prefect.orion.database.interface import OrionDBInterface
 
 @inject_db
 async def create_flow_run(
-    session: sa.orm.Session,
-    flow_run: schemas.core.FlowRun,
-    db: OrionDBInterface,
+    session: sa.orm.Session, flow_run: schemas.core.FlowRun, db: OrionDBInterface
 ):
     """Creates a new flow run.
 
@@ -128,9 +126,7 @@ async def update_flow_run(
 
 @inject_db
 async def read_flow_run(
-    session: sa.orm.Session,
-    flow_run_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, flow_run_id: UUID, db: OrionDBInterface
 ):
     """
     Reads a flow run by id.
@@ -287,9 +283,7 @@ async def count_flow_runs(
 
 @inject_db
 async def delete_flow_run(
-    session: sa.orm.Session,
-    flow_run_id: UUID,
-    db: OrionDBInterface,
+    session: sa.orm.Session, flow_run_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a flow run by flow_run_id.
