@@ -16,7 +16,7 @@ from prefect.orion.database.interface import OrionDBInterface
 async def read_task_run_state(
     session: sa.orm.Session,
     task_run_state_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads a task run state by id.
@@ -36,7 +36,7 @@ async def read_task_run_state(
 async def read_task_run_states(
     session: sa.orm.Session,
     task_run_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Reads task runs states for a task run.
@@ -62,7 +62,7 @@ async def read_task_run_states(
 async def delete_task_run_state(
     session: sa.orm.Session,
     task_run_state_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Delete a task run state by id.

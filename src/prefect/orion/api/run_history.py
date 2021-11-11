@@ -21,6 +21,7 @@ logger = get_logger("orion.api")
 @inject_db
 async def run_history(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     run_type: Literal["flow_run", "task_run"],
     history_start: datetime.datetime,
     history_end: datetime.datetime,
@@ -29,7 +30,6 @@ async def run_history(
     flow_runs: schemas.filters.FlowRunFilter = None,
     task_runs: schemas.filters.TaskRunFilter = None,
     deployments: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Produce a history of runs aggregated by interval and state

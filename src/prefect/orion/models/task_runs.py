@@ -26,7 +26,7 @@ from prefect.orion.database.interface import OrionDBInterface
 async def create_task_run(
     session: sa.orm.Session,
     task_run: schemas.core.TaskRun,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Creates a new task run.
@@ -84,7 +84,7 @@ async def create_task_run(
 async def read_task_run(
     session: sa.orm.Session,
     task_run_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ):
     """
     Read a task run by id.
@@ -104,11 +104,11 @@ async def read_task_run(
 @inject_db
 async def _apply_task_run_filters(
     query,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ):
     """
     Applies filters to a task run query as a combination of EXISTS subqueries.
@@ -145,6 +145,7 @@ async def _apply_task_run_filters(
 @inject_db
 async def read_task_runs(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -152,7 +153,6 @@ async def read_task_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.TaskRunSort = schemas.sorting.TaskRunSort.ID_DESC,
-    db: OrionDBInterface = None,
 ):
     """
     Read task runs.
@@ -195,11 +195,11 @@ async def read_task_runs(
 @inject_db
 async def count_task_runs(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
-    db: OrionDBInterface = None,
 ) -> int:
     """
     Count task runs.
@@ -233,7 +233,7 @@ async def count_task_runs(
 async def delete_task_run(
     session: sa.orm.Session,
     task_run_id: UUID,
-    db: OrionDBInterface = None,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Delete a task run by id.
@@ -252,13 +252,11 @@ async def delete_task_run(
     return result.rowcount > 0
 
 
-@inject_db
 async def set_task_run_state(
     session: sa.orm.Session,
     task_run_id: UUID,
     state: schemas.states.State,
     force: bool = False,
-    db: OrionDBInterface = None,
 ):
     """
     Creates a new orchestrated task run state.
