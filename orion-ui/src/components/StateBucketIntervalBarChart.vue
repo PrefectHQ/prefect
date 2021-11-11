@@ -7,13 +7,7 @@
     </template>
     <template v-slot:popover-header>
       <div class="interval-bar-chart-card__popover-header">
-        <i
-          class="
-            interval-bar-chart-card__popover-icon
-            pi pi-bar-chart-box-line pi-1
-            mr-1
-          "
-        />
+        <i class="pi pi-bar-chart-box-line pi-1 mr-1 text--grey-40" />
         <slot name="popover-header" />
       </div>
     </template>
@@ -69,11 +63,3 @@ const items = computed<IntervalBarChartItem<Bucket>[]>(() => {
   return filteredItems
 })
 </script>
-
-<style lang="scss">
-@use '@/styles/abstracts/variables';
-
-.interval-bar-chart-card__popover-icon {
-  color: $grey-40;
-}
-</style>
