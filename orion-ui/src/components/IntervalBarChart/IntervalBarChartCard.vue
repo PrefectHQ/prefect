@@ -15,8 +15,7 @@
 
     <div class="px-2 pb-2" :style="{ height }">
       <IntervalBarChart
-        :items="items"
-        v-bind="{ intervalSeconds, intervalStart, intervalEnd }"
+        v-bind="{ items, intervalSeconds, intervalStart, intervalEnd }"
       >
         <template v-slot:popover-header="item">
           <slot
