@@ -79,7 +79,11 @@
         @mousemove="dragViewport"
         @mouseleave="dragging = false"
       >
-        <svg ref="mini-svg" class="mini-schematic-svg">
+        <svg
+          ref="mini-svg"
+          class="minimap-schematic-svg"
+          @click="panToLocation"
+        >
           <g id="mini-ring-container" />
         </svg>
 
@@ -240,6 +244,10 @@ const zoomed = ({
   edgeContainer.value?.style('transform', ts)
   nodeContainer.value?.style('transform', ts)
 
+  k = transform.k
+  x = transform.x
+  y = transform.y
+
   if (miniViewport.value) {
     const x =
       (1 - transform.x / transform.k) * scale.value +
@@ -303,7 +311,6 @@ const updateRings = (): void => {
   }
 
   const calculateArcSegment = (arc: Arc, scale: number = 1): string => {
-    console.log(arc)
     const r = arc.radius
     const cx = 100
     const cy = 100
@@ -689,19 +696,34 @@ const selectNode = (id: string): void => {
 }
 
 const panToNode = (item: SchematicNode): void => {
+  const node = visibleNodes.value.get(item.id)
+  if (!node) return
+  ;(document.querySelector(`#node-${item.id}`) as HTMLElement)?.focus()
+
+  const zoomIdentity = d3.zoomIdentity
+    .translate(width.value / 2, height.value / 2)
+    // .scale(1)
+    .translate(-node.cx, -node.cy)
+
   requestAnimationFrame(() => {
-    const node = visibleNodes.value.get(item.id)
-    if (!node) return
-    ;(document.querySelector(`#node-${item.id}`) as HTMLElement)?.focus()
-
-    const zoomIdentity = d3.zoomIdentity
-      .translate(width.value / 2, height.value / 2)
-      // .scale(1)
-      .translate(-node.cx, -node.cy)
-
     d3.select('.schematic-svg')
       .transition()
       .duration(250)
+      .call(zoom.value.transform, zoomIdentity)
+  })
+}
+
+const panToLocation = (e: MouseEvent): void => {
+  const rect = (e.target as Element)?.getBoundingClientRect()
+
+  const x_ = (e.clientX - rect.left - 100) / scale.value
+  const y_ = (e.clientY - rect.top - 100) / scale.value
+  const zoomIdentity = d3.zoomIdentity.scale(k).translate(-x_, -y_)
+
+  requestAnimationFrame(() => {
+    d3.select('.schematic-svg')
+      .transition()
+      .duration(200)
       .call(zoom.value.transform, zoomIdentity)
   })
 }
@@ -762,6 +784,9 @@ const baseRadius: number = 300
 const highlightedNode = ref<string>()
 const selectedNodes = reactive<string[]>([])
 const dragging = ref<boolean>(false)
+let k = 1,
+  x = 0,
+  y = 0
 
 const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
@@ -818,7 +843,7 @@ const handleWindowResize = (): void => {
 
 const createChart = (): void => {
   svg.value = d3.select('.schematic-svg')
-  miniSvg.value = d3.select('.mini-schematic-svg')
+  miniSvg.value = d3.select('.minimap-schematic-svg')
   defs.value = d3.select('#defs')
   ringContainer.value = svg.value.select('#ring-container')
   miniRingContainer.value = miniSvg.value.select('#mini-ring-container')
@@ -917,16 +942,20 @@ onUnmounted(() => {
   .mini-map-container {
     bottom: 0;
     right: 0;
+    z-index: 9999999;
 
     .mini-map {
       backdrop-filter: blur(1px);
       filter: $drop-shadow-sm;
       background-color: rgba(244, 245, 247, 0.9);
       border-radius: 8px;
-      cursor: pointer !important;
       overflow: hidden;
       height: 200px;
       width: 200px;
+
+      .minimap-schematic-svg {
+        cursor: pointer !important;
+      }
 
       .mini-map--viewport {
         background-color: rgba(63, 150, 216, 0.2);
@@ -989,10 +1018,14 @@ onUnmounted(() => {
     pointer-events: none;
   }
 
-  .mini-schematic-svg {
+  .minimap-schematic-svg {
     .mini-ring-container {
       transform-origin: center;
       position: absolute;
+    }
+
+    .mini-arc-segment-group {
+      pointer-events: none;
     }
   }
 }
