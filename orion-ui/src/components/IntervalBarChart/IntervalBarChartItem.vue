@@ -21,7 +21,7 @@
     <template v-slot:default>
       <div class="interval-bar-chart-item__popover-content">
         <slot name="popover-content" v-bind="item">
-          <table class="interval-bar-chart-item__table">
+          <table class="table table--data">
             <tr>
               <td>Start Time:</td>
               <td>
@@ -85,13 +85,5 @@ const props = defineProps<{
 
 .interval-bar-chart-item__popover-content {
   font-size: 14px;
-}
-
-.interval-bar-chart-item__table {
-  td:last-child {
-    padding-left: var(--p-1);
-    font-family: $font--secondary;
-    font-size: 12px;
-  }
 }
 </style>
