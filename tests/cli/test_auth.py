@@ -134,11 +134,6 @@ def test_list_tenants(patch_post, cloud_api):
             data=dict(
                 auth_info={"tenant_id": "id"},
                 tenant=[{"id": "id", "slug": "slug", "name": "name"}],
-                switch_tenant={
-                    "access_token": "access_token",
-                    "expires_in": "expires_in",
-                    "refresh_token": "refresh_token",
-                },
             )
         )
     )
