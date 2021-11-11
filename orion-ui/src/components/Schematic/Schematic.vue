@@ -76,7 +76,6 @@
 
       <div
         class="mini-map position-relative"
-        :style="miniMapStyle"
         @mousemove="dragViewport"
         @mouseleave="dragging = false"
       >
@@ -188,7 +187,7 @@ const visibleLinks = computed<Links>(() => {
 
 const viewportOffset = computed<number>(() => {
   const radii = [...visibleRings.value.entries()].map(([, ring]) => ring.radius)
-  return Math.max(...radii)
+  return Math.max(...radii, baseRadius * 2)
 })
 
 const viewportExtent = computed<[[number, number], [number, number]]>(() => {
@@ -206,16 +205,9 @@ const viewportExtent = computed<[[number, number], [number, number]]>(() => {
   ]
 })
 
-const miniMapStyle = computed<{
-  width: string
-  height: string
-}>(() => {
-  const x = viewportExtent.value[1][0] - viewportExtent.value[0][0]
-  const y = viewportExtent.value[1][1] - viewportExtent.value[0][1]
-  return {
-    height: y * 0.05 + 'px',
-    width: x * 0.05 + 'px'
-  }
+const scale = computed<number>(() => {
+  const scale_ = 200 / (viewportOffset.value * 2.5)
+  return scale_
 })
 
 const miniMapViewportStyle = computed<{
@@ -223,8 +215,15 @@ const miniMapViewportStyle = computed<{
   height: string
 }>(() => {
   return {
-    height: height.value * 0.05 + 'px',
-    width: width.value * 0.05 + 'px'
+    height: miniMapDimensions.value.height + 'px',
+    width: miniMapDimensions.value.width + 'px'
+  }
+})
+
+const miniMapDimensions = computed<{ width: number; height: number }>(() => {
+  return {
+    height: height.value * scale.value,
+    width: width.value * scale.value
   }
 })
 
@@ -242,12 +241,19 @@ const zoomed = ({
   nodeContainer.value?.style('transform', ts)
 
   if (miniViewport.value) {
-    const x = (1 - transform.x / transform.k + viewportOffset.value) * 0.05
-    const y = (1 - transform.y / transform.k + viewportOffset.value) * 0.05
+    const x =
+      (1 - transform.x / transform.k) * scale.value +
+      100 -
+      miniMapDimensions.value.width / 2
+    const y =
+      (1 - transform.y / transform.k) * scale.value +
+      100 -
+      miniMapDimensions.value.height / 2
+
     miniViewport.value.style.transform = `translate(${x}px, ${y}px) scale(${
       1 / transform.k
     })`
-    miniViewport.value.style.borderRadius = `${Math.max(8 * transform.k, 8)}px`
+    miniViewport.value.style.borderRadius = `${Math.max(4 * transform.k, 4)}px`
   }
 }
 
@@ -282,8 +288,8 @@ const updateRings = (): void => {
     const channel = 125
     const theta = (channel * 360) / (2 * pi * r)
 
-    const cx = (width.value * scale) / 2
-    const cy = (height.value * scale) / 2
+    const cx = (width.value / 2) * scale
+    const cy = (height.value / 2) * scale
     const [x0, y0] = polarToCartesian(cx, cy, r, 90 - theta) // ~45
     const [x1, y1] = polarToCartesian(cx, cy, r, 90 + theta) // ~135
     return `M ${x0} ${y0} A${d.radius} ${d.radius} 0 1 0 ${x1} ${y1}`
@@ -297,9 +303,10 @@ const updateRings = (): void => {
   }
 
   const calculateArcSegment = (arc: Arc, scale: number = 1): string => {
+    console.log(arc)
     const r = arc.radius
-    const cx = (width.value * scale) / 2
-    const cy = (height.value * scale) / 2
+    const cx = 100
+    const cy = 100
 
     const path = d3.path()
 
@@ -394,10 +401,15 @@ const updateRings = (): void => {
     return `mini-arc-segment ${strokeClass}`
   }
 
-  miniSvg.value?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
-
   miniRingContainer.value
-    ?.selectAll('.mini-arc-segment-group')
+    // ?.style(
+    //   'transform',
+    //   `translate(${60 * scale.value}px, ${60 * scale.value}px) scale(${
+    //     scale.value
+    //   })`
+    // )
+    ?.style('transform', `scale(${scale.value})`)
+    .selectAll('.mini-arc-segment-group')
     .data(visibleRings.value)
     .join(
       // enter
@@ -419,11 +431,11 @@ const updateRings = (): void => {
           .attr('fill', 'transparent')
           .attr('stroke', 'rgba(0, 0, 0, 0.1)')
           .attr('stroke-width', 80)
-          .attr('d', (d: Arc) => calculateArcSegment(d, 0.05)),
+          .attr('d', (d: Arc) => calculateArcSegment(d, scale.value)),
       (selection: any) =>
         selection
           .attr('class', classGenerator)
-          .attr('d', (d: Arc) => calculateArcSegment(d, 0.05)),
+          .attr('d', (d: Arc) => calculateArcSegment(d, scale.value)),
       // exit
       (selection: any) => selection.remove()
     )
@@ -698,8 +710,8 @@ const dragViewport = (e: MouseEvent): void => {
   if (!dragging.value) return
   // We multiply the mouse movement by a multiplier equal to the inverse
   // of the scale applied to the minimap
-  const x = e.movementX * -(1 / 0.05)
-  const y = e.movementY * -(1 / 0.05)
+  const x = e.movementX * -(1 / scale.value)
+  const y = e.movementY * -(1 / scale.value)
   zoom.value.translateBy(d3.select('.schematic-svg'), x, y)
 }
 
@@ -768,10 +780,7 @@ watch(
     if (curr.length > 0 && prev.length == 0) {
       radial.value.center([width.value / 2, height.value / 2])
 
-      d3.select('.schematic-svg')
-        .transition()
-        .duration(250)
-        .call(zoom.value.transform, d3.zoomIdentity)
+      resetViewport()
     }
 
     if (curr.length !== prev.length) {
@@ -817,14 +826,16 @@ const createChart = (): void => {
   nodeContainer.value = d3.select('.node-container')
 
   // Note: we're applying a transform here which is the width of the side nav
-  // and the height of the top nav multiplied by the scale (0.05); I'm not
+  // and the height of the top nav multiplied by the scale; I'm not
   // entirely sure this is correct but it does have the desired outcome.
   // Ideally we wouldn't need to apply this but the graph itself
   // actually flows under both of those components which leads to a weird
   // offset in a true-to-scale representation of the minimap
+
+  //translate(${60 * scale.value}px, ${60 * scale.value}px)
   miniRingContainer.value
     .attr('class', 'mini-ring-container')
-    .style('transform', 'translate(3.1px, 3.1px) scale(0.05)')
+    .style('transform', `scale(${scale.value})`)
   ringContainer.value.attr('class', 'ring-container')
   edgeContainer.value.attr('class', 'edge-container')
 
@@ -839,7 +850,7 @@ const createChart = (): void => {
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
-  miniSvg.value?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
+  miniSvg.value?.attr('viewbox', '0, 0, 200, 200')
 
   svg.value
     ?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
@@ -906,22 +917,23 @@ onUnmounted(() => {
   .mini-map-container {
     bottom: 0;
     right: 0;
-    z-index: 9999;
 
     .mini-map {
       backdrop-filter: blur(1px);
       filter: $drop-shadow-sm;
       background-color: rgba(244, 245, 247, 0.9);
       border-radius: 8px;
-      cursor: pointer;
+      cursor: pointer !important;
       overflow: hidden;
+      height: 200px;
+      width: 200px;
 
       .mini-map--viewport {
         background-color: rgba(63, 150, 216, 0.2);
         border-radius: 8px;
         cursor: grab;
-        transform: translate(50%, 50%);
-        transform-origin: left top;
+        transform-origin: center;
+        z-index: 1;
 
         &:active {
           cursor: grabbing;
