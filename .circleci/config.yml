@@ -97,7 +97,7 @@ jobs:
   # to ensure our requirements.txt file is accurate
   test_lower_prefect:
     docker:
-      - image: python:3.6
+      - image: python:3.7
         auth:
           username: $DOCKER_HUB_USER
           password: $DOCKER_HUB_PW
@@ -195,38 +195,8 @@ jobs:
           command: pytest tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   # ----------------------------------
-  # Run unit tests in Python 3.6-3.9
+  # Run unit tests in Python 3.7-3.9
   # ----------------------------------
-
-  test_36:
-    docker:
-      - image: python:3.6
-        auth:
-          username: $DOCKER_HUB_USER
-          password: $DOCKER_HUB_PW
-    steps:
-      - *attach_workspace
-      - checkout
-      - setup_remote_docker
-      - run:
-          name: Install zsh for tests
-          command: apt-get update && apt-get install -y zsh
-
-      - run:
-          name: Install graphviz
-          command: apt-get update && apt-get install -y graphviz
-
-      - run:
-          name: Upgrade pip
-          command: pip install "pip==20.2.4"
-
-      - run:
-          name: Install Prefect
-          command: pip install ".[base_library_ci]"
-
-      - run:
-          name: Run tests
-          command: pytest tests --ignore=tests/tasks -vvrfEsx --numprocesses 4 --dist=loadfile
 
   test_37:
     docker:
@@ -556,7 +526,6 @@ workflows:
 
   'Run tests':
     jobs:
-      - test_36
       - test_37
       - test_38
       - test_39
@@ -580,14 +549,6 @@ workflows:
 
   'Build and publish release artifacts':
     jobs:
-      - build_docker_image:
-          python_version: '3.6'
-          extras: 'all_orchestration_extras'
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^[0-9]+\.[0-9]+\.[0-9]+$/
       - build_docker_image:
           python_version: '3.7'
           extras: 'all_orchestration_extras'

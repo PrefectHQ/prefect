@@ -36,7 +36,7 @@ If we attempt a dry-run build of this docker image by calling `storage.build()`,
 Without going into unnecessary detail, this is because the default base image for Prefect Flows is minimal and doesn't include whatever non-Python bindings the `pyodbc` package requires. To add such dependencies, we will need to configure an appropriate base image to use for our Flow.  For both reference and completeness, the following [Dockerfile](https://docs.docker.com/engine/reference/builder/) will build a base image that allows our Flow to connect to Microsoft SQL Server through `pyodbc`:
 
 ```
-FROM prefecthq/prefect:0.7.1-python3.6
+FROM prefecthq/prefect:latest-python3.7
 
 # install some base utilities
 RUN apt update && apt install build-essential -y build-essential unixodbc-dev && rm -rf /var/lib/apt/lists/*
@@ -57,7 +57,7 @@ RUN sed -i 's/TLSv1\.2/TLSv1.0/g' /etc/ssl/openssl.cnf
 RUN sed -i 's/DEFAULT@SECLEVEL=2/DEFAULT@SECLEVEL=1/g' /etc/ssl/openssl.cnf
 ```
 
-Note that we used `python3.6` above, but you should attempt to match the version of Python you used in building your flow.
+Note that we used `python3.7` above, but you should attempt to match the version of Python you used in building your flow.
 ::: tip What types of Docker images are allowed as base images?
 Note that the _only_ universal requirement for your Flow's Docker images are that the Prefect python package can be installed into them (note that Prefect will attempt to install itself at build time if your base image doesn't already have it installed).
 :::

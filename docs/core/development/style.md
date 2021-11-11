@@ -11,8 +11,6 @@ cd prefect
 black .
 ```
 
-Please note that black requires Python 3.6+ (though Prefect does not).
-
 Formatting can be easy to forget when developing, so you may choose to install a pre-push hook for black, as follows:
 
 ```

@@ -684,7 +684,7 @@ class KubernetesAgent(Agent):
 
         version = prefect.__version__.split("+")
         image_version = (
-            "latest" if len(version) > 1 or latest else (version[0] + "-python3.6")
+            "latest" if len(version) > 1 or latest else (version[0] + "-python3.7")
         )
 
         with open(
