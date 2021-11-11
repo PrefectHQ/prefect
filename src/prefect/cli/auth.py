@@ -12,7 +12,12 @@ from prefect.cli.build_register import handle_terminal_error, TerminalError
 from prefect.backend import TenantView
 
 
+# For deleting authentication tokens which have been replaced with API keys
+AUTH_TOKEN_SETTINGS_PATH = Path(f"{config.home_dir}/client").expanduser()
+
+
 def check_override_auth_token():
+    # Exists for purging old tokens only
     if config.cloud.get("auth_token"):
         if os.environ.get("PREFECT__CLOUD__AUTH_TOKEN"):
             click.secho(
@@ -184,24 +189,22 @@ def logout(token):
 def purge_tokens():
     check_override_auth_token()
 
-    path = Path(f"{config.home_dir}/client").expanduser()
-
-    if not path.exists():
+    if not AUTH_TOKEN_SETTINGS_PATH.exists():
         click.secho(
-            f"The deprecated authentication tokens settings path '{path}' has already "
-            "been removed."
+            "The deprecated authentication tokens settings path "
+            f"'{AUTH_TOKEN_SETTINGS_PATH}' has already been removed."
         )
 
     else:
         confirm = click.confirm(
             "Are you sure you want to delete the deprecated authentication token "
-            f"settings folder '{path}'?"
+            f"settings folder '{AUTH_TOKEN_SETTINGS_PATH}'?"
         )
         if not confirm:
             print("Aborted!")
             return
 
-        shutil.rmtree(path)
+        shutil.rmtree(AUTH_TOKEN_SETTINGS_PATH)
         print("Removed!")
 
 
@@ -470,17 +473,32 @@ def status():
         except Exception as exc:
             click.echo(f"Your authentication is not working: {exc}")
 
-    if client._api_token:
+    if AUTH_TOKEN_SETTINGS_PATH.exists():
         click.secho(
-            "You are logged in with an API token. These have been deprecated in favor "
-            "of API keys."
-            + (
-                " Since you have set an API key as well, this will be ignored."
-                if client.api_key
-                else ""
-            ),
+            "The authentication tokens settings path still exists. These have been "
+            "removed in favor of API keys. We recommend purging old tokens with "
+            "`prefect auth purge-tokens`",
             fg="yellow",
         )
 
-    if not client._api_token and not client.api_key:
-        click.secho("You are not logged in!", fg="yellow")
+    if config.cloud.get("auth_token"):
+        if os.environ.get("PREFECT__CLOUD__AUTH_TOKEN"):
+            click.secho(
+                "An authentication token is set via environment variable. "
+                "These have been removed in favor of API keys and the variable will be "
+                "ignored. We recommend unsetting the 'PREFECT__CLOUD__AUTH_TOKEN' key",
+                fg="yellow",
+            )
+        else:
+            click.secho(
+                "An authentication token is set via the prefect config file. "
+                "These have been removed in favor of API keys and the setting will be "
+                "ignored. We recommend removing the 'prefect.cloud.auth_token' key",
+                fg="yellow",
+            )
+
+    if not client.api_key:
+        click.secho(
+            "You are not logged in! Use `prefect auth login` to login with an API key.",
+            fg="yellow",
+        )
