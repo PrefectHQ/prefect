@@ -1586,7 +1586,7 @@ def test_get_default_tenant_slug_as_user(patch_post):
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug(as_user=True)
+        slug = client.get_default_tenant_slug()
 
         assert slug == "tslug"
 
@@ -1612,7 +1612,7 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug(as_user=False)
+        slug = client.get_default_tenant_slug()
 
         assert slug == "tslug"
 
@@ -1639,7 +1639,7 @@ def test_get_default_tenant_slug_not_as_user_with_no_tenant_id(patch_post):
     ):
         client = Client()
         client._tenant_id = None  # Ensure tenant id is not set
-        slug = client.get_default_tenant_slug(as_user=False)
+        slug = client.get_default_tenant_slug()
 
         assert slug == "firstslug"
 
@@ -1660,10 +1660,16 @@ def test_get_cloud_url_as_user(patch_post, cloud_api):
     ):
         client = Client()
 
-        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=True)
+        url = client.get_cloud_url(
+            subdirectory="flow",
+            id="id",
+        )
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=True)
+        url = client.get_cloud_url(
+            subdirectory="flow-run",
+            id="id2",
+        )
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
@@ -1688,10 +1694,16 @@ def test_get_cloud_url_not_as_user(patch_post, cloud_api):
         client = Client()
         client._tenant_id = "tenant-id"
 
-        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=False)
+        url = client.get_cloud_url(
+            subdirectory="flow",
+            id="id",
+        )
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=False)
+        url = client.get_cloud_url(
+            subdirectory="flow-run",
+            id="id2",
+        )
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
