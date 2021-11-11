@@ -38,37 +38,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         return []
 
     def run_migrations(self, base_model):
-        """Run database migrations"""
-
-        # in order to index or created generated columns from timestamps stored in JSON,
-        # we need a custom IMMUTABLE function for casting to timestamp
-        # (because timestamp is not actually immutable)
-        sa.event.listen(
-            base_model.metadata,
-            "before_create",
-            sa.DDL(
-                """
-                CREATE OR REPLACE FUNCTION text_to_timestamp_immutable(ts text)
-                RETURNS timestamp with time zone
-                AS
-                $BODY$
-                    select to_timestamp($1, 'YYYY-MM-DD"T"HH24:MI:SS"Z"');
-                $BODY$
-                LANGUAGE sql
-                IMMUTABLE;
-                """
-            ),
-        )
-
-        sa.event.listen(
-            base_model.metadata,
-            "before_drop",
-            sa.DDL(
-                """
-                DROP FUNCTION IF EXISTS text_to_timestamp_immutable;
-                """
-            ),
-        )
+        ...
 
     async def engine(
         self,
