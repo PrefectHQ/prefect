@@ -289,15 +289,20 @@ def switch_tenants(id, slug, default):
         )
         return
 
-    login_success = client.login_to_tenant(tenant_slug=slug, tenant_id=id)
-    if not login_success:
-        raise TerminalError("Unable to switch tenant!")
+    if slug:
+        tenant_id = client.switch_tenant(tenant_slug=slug)
+        if not tenant_id:
+            raise TerminalError("Unable to switch tenants!")
+    else:
+        client.tenant_id = id
+        try:
+            client._get_auth_tenant()
+        except AuthorizationError:
+            raise TerminalError(
+                "Unauthorized. Are you sure you gave the correct tenant id?."
+            )
 
-    # `login_to_tenant` will write to disk if using an API token, if using an API key
-    # we will write to disk manually here
-    if client.api_key:
-        client.save_auth_to_disk()
-
+    client.save_auth_to_disk()
     click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
 
 

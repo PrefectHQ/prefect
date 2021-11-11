@@ -705,7 +705,7 @@ class Client:
 
         tenant = self.graphql(
             {
-                "query($slug: String, $id: uuid)": {
+                "query($slug: String)": {
                     "tenant(where: {slug: { _eq: $slug } })": {"id"}
                 }
             },
@@ -717,6 +717,20 @@ class Client:
         self.tenant_id = tenant.data.tenant[0].id
 
         return self.tenant_id
+
+    def get_available_tenants(self) -> List[Dict]:
+        """
+        Returns a list of available tenants.
+
+        Returns:
+            - List[Dict]: a list of dictionaries containing the id, slug, and name of
+                available tenants
+        """
+        result = self.graphql(
+            {"query": {"tenant(order_by: {slug: asc})": {"id", "slug", "name"}}},
+            api_key=self.api_key,
+        )
+        return result.data.tenant  # type: ignore
 
     # -------------------------------------------------------------------------
     # Actions
