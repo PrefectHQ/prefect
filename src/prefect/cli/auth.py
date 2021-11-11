@@ -182,6 +182,8 @@ def logout(token):
 
 @auth.command()
 def purge_tokens():
+    check_override_auth_token()
+
     path = Path(f"{config.home_dir}/client").expanduser()
 
     if not path.exists():
