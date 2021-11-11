@@ -48,14 +48,12 @@ async def clear_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    # TODO - can probably inject here
     for table in reversed(db.Base.metadata.sorted_tables):
         await session.execute(table.delete())
 
 
 @router.post("/database/drop", status_code=status.HTTP_204_NO_CONTENT)
 async def drop_database(
-    session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
@@ -74,7 +72,6 @@ async def drop_database(
 
 @router.post("/database/create", status_code=status.HTTP_204_NO_CONTENT)
 async def create_database(
-    session: sa.orm.Session = Depends(dependencies.get_session),
     db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
