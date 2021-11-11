@@ -21,7 +21,9 @@ from prefect.utilities.configuration import set_temporary_config
 from prefect.exceptions import ClientError, AuthorizationError
 from prefect.utilities.graphql import decompress
 
-TEST_TENANT_ID = str(uuid.uuid4())
+# Note: Because we're running tests in parallel this must be a hard-coded instead of
+# dynamically generating a new UUID
+TEST_TENANT_ID = "b6b350a8-cd8f-4f45-a211-b80469497052"
 
 
 class TestClientAuthentication:
