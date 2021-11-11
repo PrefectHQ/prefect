@@ -54,6 +54,7 @@
         :interval-seconds="store.getters.globalFilter.intervalSeconds"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
+        popover-heading="Flow Run Activity"
       />
     </div>
 
