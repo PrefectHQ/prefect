@@ -128,72 +128,6 @@ def test_auth_logout_not_logged_in(patch_post, cloud_api):
     assert "not logged in to Prefect Cloud" in result.output
 
 
-def test_auth_logout_api_token_removes_api_token(patch_post, cloud_api):
-    patch_post(dict(data=dict(tenant="id")))
-
-    client = prefect.Client(api_token="foo")
-    client._save_local_settings({"api_token": client._api_token})
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["logout"], input="Y")
-    assert result.exit_code == 0
-    assert "This will remove your API token" in result.output
-
-    client = prefect.Client()
-    assert "api_token" not in client._load_local_settings()
-
-
-def test_auth_logout_api_token_with_tenant_removes_tenant_id(patch_posts, cloud_api):
-    patch_posts(
-        [
-            # Login to tenant call during setup
-            dict(data=dict(tenant=[dict(id=str(uuid.uuid4()))])),
-            # Access token retrieval call during setup
-            dict(
-                data=dict(
-                    switch_tenant=dict(
-                        access_token="access-token",
-                        expires_at=pendulum.now().isoformat(),
-                        refresh_token="refresh-token",
-                    )
-                )
-            ),
-            # Login to tenant call during logout
-            dict(data=dict(tenant=[dict(id=str(uuid.uuid4()))])),
-            # Access token retrieval call during logout
-            dict(
-                data=dict(
-                    switch_tenant=dict(
-                        access_token="access-token",
-                        expires_at=pendulum.now().isoformat(),
-                        refresh_token="refresh-token",
-                    )
-                )
-            ),
-        ]
-    )
-
-    client = prefect.Client()
-    client._save_local_settings(
-        {"api_token": "token", "active_tenant_id": str(uuid.uuid4())}
-    )
-
-    runner = CliRunner()
-    result = runner.invoke(auth, ["logout"], input="Y")
-
-    assert result.exit_code == 0
-
-    settings = client._load_local_settings()
-
-    # Does not remove the API token
-    assert "This will remove your API token" not in result.output
-    assert "api_token" in settings
-
-    # Removes the tenant id
-    assert "Logged out from tenant" in result.output
-    assert "active_tenant_id" not in settings
-
-
 def test_list_tenants(patch_post, cloud_api):
     patch_post(
         dict(
@@ -223,13 +157,13 @@ def test_switch_tenants_success(monkeypatch, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(auth, ["switch-tenants", "--slug", "slug"])
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert "Tenant switched" in result.output
 
 
 def test_switch_tenants_failed(monkeypatch, cloud_api):
     client = MagicMock()
-    client.return_value.login_to_tenant = MagicMock(return_value=False)
+    client.return_value.switch_tenant = MagicMock(return_value=None)
     monkeypatch.setattr("prefect.cli.auth.Client", client)
 
     runner = CliRunner()
