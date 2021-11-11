@@ -137,13 +137,7 @@ def test_task_with_error_has_helpful_messages(caplog):
     task_runner = TaskRunner(task=ErrorTask())
     state = task_runner.run()
     assert state.is_failed()
-    exc_repr = (
-        # Support py3.6 exception reprs
-        "ValueError('custom-error-message',)"
-        if sys.version_info < (3, 7)
-        else "ValueError('custom-error-message')"
-    )
-    assert state.message == f"Error during execution of task: {exc_repr}"
+    assert state.message == f"Error during execution of task: ValueError('custom-error-message')"
     assert "ValueError: custom-error-message" in caplog.text
     assert "Traceback" in caplog.text  # Traceback should be included
     assert (
