@@ -12,12 +12,20 @@ import Schematic from '@/components/Schematic/Schematic.vue'
 
 const route = useRoute()
 
+const id = computed<string>(() => {
+  return route?.params.id as string
+})
+
+const schematicFilter = computed<string>(() => {
+  return {
+    id: id.value
+  }
+})
+
 const queries: { [key: string]: Query } = {
   schematic: Api.query({
     endpoint: Endpoints.schematic,
-    body: {
-      id: route?.params.id as string
-    },
+    body: schematicFilter,
     options: {
       // pollInterval: 5000
     }
