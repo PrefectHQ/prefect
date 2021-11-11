@@ -88,8 +88,8 @@ class OrionDBInterface(metaclass=DBSingleton):
 
         self.config = db_config
         self.queries = query_components
-        self.Base = self.create_base_model()
-        self.create_orm_models()
+        self._create_base_model()
+        self._create_orm_models()
         self.run_migrations()
 
     async def create_db(self):
@@ -178,14 +178,25 @@ class OrionDBInterface(metaclass=DBSingleton):
     async def clear_engine_cache(self):
         self.ENGINES.clear()
 
-    def create_base_model(self):
+    def _create_base_model(self):
+        """
+        Defines the base ORM model and binds it to `self`. The base model will be
+        extended by mixins specified in the database configuration. This method only
+        runs on instantiation.
+        """
+
         @as_declarative(metadata=self.base_metadata)
         class Base(*self.config.base_model_mixins, ORMBase):
             pass
 
-        return Base
+        self.Base = Base
 
-    def create_orm_models(self):
+    def _create_orm_models(self):
+        """
+        Defines the ORM models used in Orion and binds them to the `self`. This method
+        only runs on instantiation.
+        """
+
         class Flow(ORMFlow, self.Base):
             pass
 
