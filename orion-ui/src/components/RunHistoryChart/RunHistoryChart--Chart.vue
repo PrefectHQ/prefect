@@ -32,7 +32,7 @@
             <template v-slot:header>
               <div class="interval-bar-chart-card__popover-header">
                 <i class="pi pi-flow pi-1 mr-1 text--grey-40" />
-                Flow Activity
+                <span>{{ popoverHeading }}</span>
               </div>
             </template>
             <table class="table table--data">
@@ -139,6 +139,7 @@ class Props {
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
+  popoverHeading = prop<string>({ default: 'Flow Activity' })
   staticMedian = prop<boolean>({
     required: false,
     type: Boolean,
