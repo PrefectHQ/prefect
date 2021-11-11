@@ -6,6 +6,7 @@ from sqlalchemy.sql.expression import ColumnElement
 
 from prefect.orion.utilities.enum import AutoEnum
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
 class FlowRunSort(AutoEnum):
@@ -18,7 +19,10 @@ class FlowRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
     @inject_db
-    def as_sql_sort(self, db=None) -> ColumnElement:
+    def as_sql_sort(
+        self,
+        db: OrionDBInterface,
+    ) -> ColumnElement:
         """Return an expression used to sort flow runs"""
         sort_mapping = {
             "ID_DESC": db.FlowRun.id.desc(),
@@ -40,7 +44,10 @@ class TaskRunSort(AutoEnum):
     END_TIME_DESC = AutoEnum.auto()
 
     @inject_db
-    def as_sql_sort(self, db=None) -> ColumnElement:
+    def as_sql_sort(
+        self,
+        db: OrionDBInterface,
+    ) -> ColumnElement:
         """Return an expression used to sort task runs"""
         sort_mapping = {
             "ID_DESC": db.TaskRun.id.desc(),

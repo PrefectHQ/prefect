@@ -15,6 +15,7 @@ from pydantic import Field
 from prefect.orion import schemas
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
 class PrefectFilterBaseModel(PrefectBaseModel):
@@ -26,7 +27,10 @@ class PrefectFilterBaseModel(PrefectBaseModel):
         return sa.and_(*filters) if filters else sa.and_(True)
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         """Return a list of boolean filter statements based on filter parameters"""
         raise NotImplementedError("_get_filter_list must be implemented")
 
@@ -37,7 +41,10 @@ class FlowFilterId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of flow ids to include")
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Flow.id.in_(self.any_))
@@ -54,7 +61,10 @@ class FlowFilterName(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Flow.name.in_(self.any_))
@@ -72,7 +82,10 @@ class FlowFilterTags(PrefectFilterBaseModel):
     is_null_: bool = Field(None, description="If true, only include flows without tags")
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
@@ -97,7 +110,10 @@ class FlowFilter(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
 
         if self.id is not None:
@@ -117,7 +133,10 @@ class FlowRunFilterId(PrefectFilterBaseModel):
     not_any_: List[UUID] = Field(None, description="A list of flow run ids to exclude")
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.id.in_(self.any_))
@@ -136,7 +155,10 @@ class FlowRunFilterName(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.name.in_(self.any_))
@@ -156,7 +178,10 @@ class FlowRunFilterTags(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
@@ -180,7 +205,10 @@ class FlowRunFilterDeploymentId(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.deployment_id.in_(self.any_))
@@ -201,7 +229,10 @@ class FlowRunFilterStateType(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.state_type.in_(self.any_))
@@ -214,7 +245,10 @@ class FlowRunFilterStateName(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.state.has(db.FlowRunState.name.in_(self.any_)))
@@ -226,7 +260,10 @@ class FlowRunFilterState(PrefectFilterBaseModel):
     name: Optional[FlowRunFilterStateName]
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.type is not None:
             filters.extend(self.type._get_filter_list())
@@ -243,7 +280,10 @@ class FlowRunFilterFlowVersion(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.flow_version.in_(self.any_))
@@ -264,7 +304,10 @@ class FlowRunFilterStartTime(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.before_ is not None:
             filters.append(db.FlowRun.start_time <= self.before_)
@@ -292,7 +335,10 @@ class FlowRunFilterExpectedStartTime(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.before_ is not None:
             filters.append(db.FlowRun.expected_start_time <= self.before_)
@@ -314,7 +360,10 @@ class FlowRunFilterNextScheduledStartTime(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.before_ is not None:
             filters.append(db.FlowRun.next_scheduled_start_time <= self.before_)
@@ -334,7 +383,10 @@ class FlowRunFilterParentTaskRunId(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.FlowRun.parent_task_run_id.in_(self.any_))
@@ -382,7 +434,10 @@ class FlowRunFilter(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
 
         if self.id is not None:
@@ -415,7 +470,10 @@ class TaskRunFilterId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of task run ids to include")
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.TaskRun.id.in_(self.any_))
@@ -432,7 +490,10 @@ class TaskRunFilterName(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.TaskRun.name.in_(self.any_))
@@ -452,7 +513,10 @@ class TaskRunFilterTags(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
@@ -473,7 +537,10 @@ class TaskRunFilterStateType(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.TaskRun.state_type.in_(self.any_))
@@ -486,7 +553,10 @@ class TaskRunFilterStateName(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.TaskRun.state.has(db.TaskRunState.name.in_(self.any_)))
@@ -498,7 +568,10 @@ class TaskRunFilterState(PrefectFilterBaseModel):
     name: Optional[TaskRunFilterStateName]
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.type is not None:
             filters.extend(self.type._get_filter_list())
@@ -516,7 +589,10 @@ class TaskRunFilterSubFlowRuns(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.exists_ is True:
             filters.append(db.TaskRun.subflow_run.has())
@@ -539,7 +615,10 @@ class TaskRunFilterStartTime(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.before_ is not None:
             filters.append(db.TaskRun.start_time <= self.before_)
@@ -577,7 +656,10 @@ class TaskRunFilter(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
 
         if self.id is not None:
@@ -602,7 +684,10 @@ class DeploymentFilterId(PrefectFilterBaseModel):
     any_: List[UUID] = Field(None, description="A list of deployment ids to include")
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Deployment.id.in_(self.any_))
@@ -619,7 +704,10 @@ class DeploymentFilterName(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.any_ is not None:
             filters.append(db.Deployment.name.in_(self.any_))
@@ -635,7 +723,10 @@ class DeploymentFilterIsScheduleActive(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
         if self.eq_ is not None:
             filters.append(db.Deployment.is_schedule_active.is_(self.eq_))
@@ -655,7 +746,10 @@ class DeploymentFilterTags(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         from prefect.orion.utilities.database import json_has_all_keys
 
         filters = []
@@ -685,7 +779,10 @@ class DeploymentFilter(PrefectFilterBaseModel):
     )
 
     @inject_db
-    def _get_filter_list(self, db=None) -> List:
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
         filters = []
 
         if self.id is not None:

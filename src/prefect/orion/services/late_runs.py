@@ -15,6 +15,7 @@ from prefect.orion.services.loop_service import LoopService
 
 from prefect.orion.utilities.database import now, date_add
 from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 settings = prefect.settings.orion.services
 
@@ -38,7 +39,7 @@ class MarkLateRuns(LoopService):
     batch_size: int = 100
 
     @inject_db
-    async def run_once(self, db=None):
+    async def run_once(self, db: OrionDBInterface):
         """
         Mark flow runs as late by:
 
