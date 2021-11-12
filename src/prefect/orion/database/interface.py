@@ -60,8 +60,6 @@ class OrionDBInterface(metaclass=DBSingleton):
         db_config: DatabaseConfigurationBase = None,
         query_components: QueryComponentsBase = None,
     ):
-        self.echo = settings.orion.database.echo
-        self.timeout = None
 
         self.base_metadata = sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -120,12 +118,15 @@ class OrionDBInterface(metaclass=DBSingleton):
 
         loop = get_event_loop()
 
-        cache_key = (loop, self.config.connection_url, self.echo, self.timeout)
+        cache_key = (
+            loop,
+            self.config.connection_url,
+            self.config.echo,
+            self.config.timeout,
+        )
         if cache_key not in self.ENGINES:
 
             engine = await self.config.engine(
-                self.echo,
-                self.timeout,
                 self.Base.metadata,
             )
 

@@ -32,14 +32,13 @@ async def test_injecting_a_really_dumb_database_config():
 
         async def engine(
             self,
-            connection_url,
-            echo,
-            timeout,
             orm_metadata,
         ):
             ...
 
-    async with dependencies.temporary_db_config(UselessConfiguration()):
+    async with dependencies.temporary_db_config(
+        UselessConfiguration(connection_url=None)
+    ):
         db = dependencies.provide_database_interface()
         assert type(db.config) == UselessConfiguration
 
