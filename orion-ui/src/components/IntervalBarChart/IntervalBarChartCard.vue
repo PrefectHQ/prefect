@@ -62,13 +62,11 @@ const intervalSeconds = computed(() => {
 })
 
 const total = computed<number>(() => {
-  return props.items.reduce((total, item) => {
-    return (total += item.value)
-  }, 0)
+  return props.items.reduce((total, item) => total + item.value, 0)
 })
 
 const countFlowsInStates = (states: StateBucket[]): number => {
-  return states.reduce((acc, cur) => cur.count_runs, 0)
+  return states.reduce((total, state) => total + state.count_runs, 0)
 }
 </script>
 
