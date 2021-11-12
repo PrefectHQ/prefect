@@ -243,8 +243,6 @@ const zoomed = ({
   nodeContainer.value?.style('transform', ts)
 
   k = transform.k
-  x = transform.x
-  y = transform.y
 
   if (miniViewport.value) {
     const x =
@@ -407,12 +405,6 @@ const updateRings = (): void => {
   }
 
   miniRingContainer.value
-    // ?.style(
-    //   'transform',
-    //   `translate(${60 * scale.value}px, ${60 * scale.value}px) scale(${
-    //     scale.value
-    //   })`
-    // )
     ?.style('transform', `scale(${scale.value})`)
     .selectAll('.mini-arc-segment-group')
     .data(visibleRings.value)
@@ -700,7 +692,6 @@ const panToNode = (item: RadarNode): void => {
 
   const zoomIdentity = d3.zoomIdentity
     .translate(width.value / 2, height.value / 2)
-    // .scale(1)
     .translate(-node.cx, -node.cy)
 
   requestAnimationFrame(() => {
@@ -774,9 +765,7 @@ const baseRadius: number = 300
 const highlightedNode = ref<string>()
 const selectedNodes = reactive<string[]>([])
 const dragging = ref<boolean>(false)
-let k = 1,
-  x = 0,
-  y = 0
+let k: number = 1 // scale applied to primary view
 
 const collapsedTrees = ref<Map<string, Map<string, RadarNode>>>(new Map())
 const radial = ref<Radar>(new Radar())
