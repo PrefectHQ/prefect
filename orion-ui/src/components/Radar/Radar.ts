@@ -100,6 +100,12 @@ export class Radar {
     return this
   }
 
+  /**
+   *
+   * @param curr RadarNode; the node from which to begin traversal
+   * @param callback (optional); a callback method invoked on every node as the tree is constructed
+   * @returns Map<string, RadarNode>
+   */
   traverse(
     curr: RadarNode,
     callback?: (node: RadarNode) => void
