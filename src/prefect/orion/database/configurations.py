@@ -6,14 +6,22 @@ from typing import Hashable, Tuple
 from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from prefect import settings
+
 
 class DatabaseConfigurationBase(ABC):
     """
     Abstract base class used to inject database-specific configuration into Orion.
     """
 
-    def __init__(self, connection_url=None):
-        self.connection_url = connection_url
+    def __init__(
+        self, connection_url: str = None, echo: bool = None, timeout: float = None
+    ):
+        self.connection_url = (
+            connection_url or settings.orion.database.connection_url.get_secret_value()
+        )
+        self.echo = echo or settings.orion.database.echo
+        self.timeout = timeout
 
     def _unique_key(self) -> Tuple[Hashable]:
         """
@@ -32,8 +40,6 @@ class DatabaseConfigurationBase(ABC):
     @abstractmethod
     async def engine(
         self,
-        echo,
-        timeout,
         orm_metadata,
     ) -> sa.engine.Engine:
         """Returns a SqlAlchemy engine"""
@@ -51,8 +57,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
     async def engine(
         self,
-        echo,
-        timeout,
         orm_metadata,
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
@@ -70,10 +74,10 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         kwargs = dict()
 
         # apply database timeout
-        if timeout is not None:
-            kwargs["connect_args"] = dict(command_timeout=timeout)
+        if self.timeout is not None:
+            kwargs["connect_args"] = dict(command_timeout=self.timeout)
 
-        return create_async_engine(self.connection_url, echo=echo, **kwargs)
+        return create_async_engine(self.connection_url, echo=self.echo, **kwargs)
 
 
 class AioSqliteConfiguration(DatabaseConfigurationBase):
@@ -90,8 +94,6 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
 
     async def engine(
         self,
-        echo,
-        timeout,
         orm_metadata,
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
@@ -112,15 +114,15 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
         kwargs = {}
 
         # apply database timeout
-        if timeout is not None:
-            kwargs["connect_args"] = dict(timeout=timeout)
+        if self.timeout is not None:
+            kwargs["connect_args"] = dict(timeout=self.timeout)
 
         # ensure a long-lasting pool is used with in-memory databases
         # because they disappear when the last connection closes
         if ":memory:" in self.connection_url:
             kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
-        engine = create_async_engine(self.connection_url, echo=echo, **kwargs)
+        engine = create_async_engine(self.connection_url, echo=self.echo, **kwargs)
         sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
 
         if sqlite3.sqlite_version_info < self.MIN_SQLITE_VERSION:
