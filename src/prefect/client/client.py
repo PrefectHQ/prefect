@@ -128,9 +128,13 @@ class Client:
             or cached_auth.get("api_key")
         )
 
+        # mypy struggles with this attribute type if not created here
+        self._tenant_id: Optional[str] = None
+
         # Load the tenant id
+        # This assignment is validated by the `Client.tenant_id` setter
         self.tenant_id: Optional[str] = (
-            tenant_id
+            tenant_id  # type: ignore
             or prefect.context.config.cloud.get("tenant_id")
             or cached_auth.get("tenant_id")
         )
