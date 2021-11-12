@@ -1,12 +1,11 @@
 <template>
-  <div class="radar-container" ref="container" @scroll="preventScroll">
-    <svg ref="svg" class="radar-svg">
-      <defs id="defs" />
-      <g id="edge-container" />
-      <g id="ring-container" />
+  <div ref="container" class="radar" @scroll="preventScroll">
+    <svg class="radar__canvas">
+      <g class="radar__edge-container" />
+      <g class="radar__ring-container" />
     </svg>
 
-    <div class="node-container">
+    <div class="radar__node-container">
       <template
         v-for="[key, node] of visibleNodes"
         :id="`node-${key}`"
@@ -21,13 +20,13 @@
           "
           :node="node"
           :selected="selectedNodes.includes(node.id)"
-          class="node position-absolute"
+          class="radar__node position-absolute"
           :class="{
-            transparent:
+            'radar__node--transparent':
               selectedNodes.length > 0 &&
               !selectedNodes.includes(node.id) &&
               highlightedNode !== node.id,
-            demphasized:
+            'radar__node--deemphasized':
               selectedNodes.length > 0 &&
               selectedNodes.some(
                 (id) =>
@@ -55,7 +54,7 @@
       </template>
     </div>
 
-    <div class="mini-map-container position-absolute mr-2 mb-2">
+    <div class="radar__minimap-container position-absolute mr-2 mb-2">
       <div class="mb-1 d-flex align-center justify-end">
         <icon-button
           class="bg--white justify-self-start mr-auto"
@@ -80,17 +79,17 @@
       </div>
 
       <div
-        class="mini-map position-relative"
+        class="radar__minimap position-relative"
         @mousemove="dragViewport"
         @mouseleave="dragging = false"
       >
-        <svg ref="mini-svg" class="minimap-radar-svg" @click="panToLocation">
-          <g id="mini-ring-container" />
+        <svg class="radar__minimap-canvas" @click="panToLocation">
+          <g class="radar__minimap-ring-container" />
         </svg>
 
         <div
-          ref="miniViewport"
-          class="mini-map--viewport position-absolute"
+          ref="viewport"
+          class="radar__minimap-viewport position-absolute"
           :style="miniMapViewportStyle"
           @mousedown="dragging = true"
           @mouseup="dragging = false"
@@ -134,10 +133,9 @@ const items = ref<Item[]>(props.items)
 type Selection = d3.Selection<SVGGElement, unknown, HTMLElement, any>
 
 const container = ref<HTMLElement>()
-const miniViewport = ref<HTMLElement>()
-const svg = ref<Selection>()
-const miniSvg = ref<Selection>()
-const defs = ref<Selection>()
+const viewport = ref<HTMLElement>()
+const miniCanvas = ref<Selection>()
+const canvas = ref<Selection>()
 const edgeContainer = ref<Selection>()
 const ringContainer = ref<Selection>()
 const miniRingContainer = ref<Selection>()
@@ -244,7 +242,7 @@ const zoomed = ({
 
   k = transform.k
 
-  if (miniViewport.value) {
+  if (viewport.value) {
     const x =
       (1 - transform.x / transform.k) * scale.value +
       100 -
@@ -254,10 +252,10 @@ const zoomed = ({
       100 -
       miniMapDimensions.value.height / 2
 
-    miniViewport.value.style.transform = `translate(${x}px, ${y}px) scale(${
+    viewport.value.style.transform = `translate(${x}px, ${y}px) scale(${
       1 / transform.k
     })`
-    miniViewport.value.style.borderRadius = `${Math.max(4 * transform.k, 4)}px`
+    viewport.value.style.borderRadius = `${Math.max(4 * transform.k, 4)}px`
   }
 }
 
@@ -370,14 +368,14 @@ const updateRings = (): void => {
   }
 
   ringContainer.value
-    ?.selectAll('.ring')
+    ?.selectAll('.radar__ring')
     .data(visibleRings.value)
     .join(
       // enter
       (selection: any) => {
         const g = selection.append('g')
         g.attr('id', (d: any) => d.id)
-        const arc = g.attr('class', 'ring').append('path')
+        const arc = g.attr('class', 'radar__ring').append('path')
         arc
           .attr('id', ([key]: [number, Ring]) => key)
           .attr('d', (d: [number, Ring]) => calculateArc(d, 1))
@@ -401,23 +399,23 @@ const updateRings = (): void => {
 
   const classGenerator = (d: Arc): string => {
     const strokeClass = d.state ? `${d.state}-stroke` : ''
-    return `mini-arc-segment ${strokeClass}`
+    return `radar__arc-segment ${strokeClass}`
   }
 
   miniRingContainer.value
     ?.style('transform', `scale(${scale.value})`)
-    .selectAll('.mini-arc-segment-group')
+    .selectAll('.radar__arc-segment-group')
     .data(visibleRings.value)
     .join(
       // enter
       (selection: any) =>
-        selection.append('g').attr('class', 'mini-arc-segment-group'),
+        selection.append('g').attr('class', 'radar__arc-segment-group'),
       // update
       (selection: any) => selection,
       // exit
       (selection: any) => selection.remove()
     )
-    .selectAll('.mini-arc-segment')
+    .selectAll('.radar__arc-segment')
     .data((d: [number, Ring]) => generateArcs(d))
     .join(
       // enter
@@ -630,17 +628,18 @@ const updateLinks = () => {
   const idGenerator = (d: Link) => d.source.id + '---' + d.target.id
 
   const classGenerator = (d: Link) => {
-    const classList = []
+    const classList = ['radar__edge']
     const emphasized = isEmphasized(d)
     if (emphasized || (selectedNodes.length == 0 && !highlightedNode.value)) {
       classList.push(`${d.source.data.state.type.toLowerCase()}-stroke`)
     }
-    if (visibleLinks.value.length < 100) classList.push('transition')
+    if (visibleLinks.value.length < 100)
+      classList.push('radar__edge--transition')
     return classList.join(' ')
   }
 
   edgeContainer.value
-    ?.selectAll('path')
+    ?.selectAll('.radar__edge')
     .data(visibleLinks.value)
     .join(
       // enter
@@ -695,7 +694,7 @@ const panToNode = (item: RadarNode): void => {
     .translate(-node.cx, -node.cy)
 
   requestAnimationFrame(() => {
-    d3.select('.radar-svg')
+    d3.select('.radar__canvas')
       .transition()
       .duration(250)
       .call(zoom.value.transform, zoomIdentity)
@@ -710,7 +709,7 @@ const panToLocation = (e: MouseEvent): void => {
   const zoomIdentity = d3.zoomIdentity.scale(k).translate(-x_, -y_)
 
   requestAnimationFrame(() => {
-    d3.select('.radar-svg')
+    d3.select('.radar__canvas')
       .transition()
       .duration(200)
       .call(zoom.value.transform, zoomIdentity)
@@ -723,7 +722,7 @@ const dragViewport = (e: MouseEvent): void => {
   // of the scale applied to the minimap
   const x = e.movementX * -(1 / scale.value)
   const y = e.movementY * -(1 / scale.value)
-  zoom.value.translateBy(d3.select('.radar-svg'), x, y)
+  zoom.value.translateBy(d3.select('.radar__canvas'), x, y)
 }
 
 const reset = (): void => {
@@ -731,7 +730,7 @@ const reset = (): void => {
 }
 
 const resetViewport = (): void => {
-  d3.select('.radar-svg')
+  d3.select('.radar__canvas')
     .transition()
     .ease(d3.easeQuadInOut)
     .duration(250)
@@ -741,7 +740,11 @@ const resetViewport = (): void => {
 const zoomIn = (): void => {
   requestAnimationFrame(() => {
     zoom.value.scaleBy(
-      d3.select('.radar-svg').transition().ease(d3.easeQuadInOut).duration(250),
+      d3
+        .select('.radar__canvas')
+        .transition()
+        .ease(d3.easeQuadInOut)
+        .duration(250),
       1.35
     )
   })
@@ -750,7 +753,11 @@ const zoomIn = (): void => {
 const zoomOut = (): void => {
   requestAnimationFrame(() => {
     zoom.value.scaleBy(
-      d3.select('.radar-svg').transition().ease(d3.easeQuadInOut).duration(250),
+      d3
+        .select('.radar__canvas')
+        .transition()
+        .ease(d3.easeQuadInOut)
+        .duration(250),
       0.65
     )
   })
@@ -802,7 +809,7 @@ watch(selectedNodes, () => {
 
 watch(visibleRings, () => {
   // zoom.value.translateExtent(viewportExtent.value)
-  // d3.select('.radar-svg')
+  // d3.select('.radar__canvas')
   //   .transition()
   //   .duration(250)
   //   .call(zoom.value.transform, d3.zoomIdentity)
@@ -822,27 +829,16 @@ const handleWindowResize = (): void => {
 }
 
 const createChart = (): void => {
-  svg.value = d3.select('.radar-svg')
-  miniSvg.value = d3.select('.minimap-radar-svg')
-  defs.value = d3.select('#defs')
-  ringContainer.value = svg.value.select('#ring-container')
-  miniRingContainer.value = miniSvg.value.select('#mini-ring-container')
-  edgeContainer.value = svg.value.select('#edge-container')
-  nodeContainer.value = d3.select('.node-container')
+  canvas.value = d3.select('.radar__canvas')
+  miniCanvas.value = d3.select('.radar__minimap-canvas')
+  ringContainer.value = canvas.value.select('.radar__ring-container')
+  miniRingContainer.value = miniCanvas.value.select(
+    '.radar__minimap-ring-container'
+  )
+  edgeContainer.value = canvas.value.select('.radar__edge-container')
+  nodeContainer.value = d3.select('.radar__node-container')
 
-  // Note: we're applying a transform here which is the width of the side nav
-  // and the height of the top nav multiplied by the scale; I'm not
-  // entirely sure this is correct but it does have the desired outcome.
-  // Ideally we wouldn't need to apply this but the graph itself
-  // actually flows under both of those components which leads to a weird
-  // offset in a true-to-scale representation of the minimap
-
-  //translate(${60 * scale.value}px, ${60 * scale.value}px)
-  miniRingContainer.value
-    .attr('class', 'mini-ring-container')
-    .style('transform', `scale(${scale.value})`)
-  ringContainer.value.attr('class', 'ring-container')
-  edgeContainer.value.attr('class', 'edge-container')
+  miniRingContainer.value.style('transform', `scale(${scale.value})`)
 
   zoom.value = d3
     .zoom()
@@ -855,9 +851,9 @@ const createChart = (): void => {
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
-  miniSvg.value?.attr('viewbox', '0, 0, 200, 200')
+  miniCanvas.value?.attr('viewbox', '0, 0, 200, 200')
 
-  svg.value
+  canvas.value
     ?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
     .call(zoom.value)
 
@@ -896,7 +892,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
-.radar-container {
+.radar {
   height: 100vh;
   max-height: 100vh;
   max-width: 100%;
@@ -904,12 +900,11 @@ onUnmounted(() => {
   position: fixed;
   width: 100%;
 
-  svg,
-  canvas {
+  &__canvas,
+  &__minimap-canvas {
     cursor: grab;
     height: inherit;
     left: 0;
-    position: absolute;
     overflow: hidden;
     top: 0;
     width: inherit;
@@ -919,94 +914,82 @@ onUnmounted(() => {
     }
   }
 
-  .mini-map-container {
+  &__minimap-canvas {
+    cursor: pointer !important;
+  }
+
+  &__minimap-container {
     bottom: 0;
     right: 0;
-    z-index: 9999999;
+    z-index: 1;
+  }
 
-    .mini-map {
-      backdrop-filter: blur(1px);
-      filter: $drop-shadow-sm;
-      background-color: rgba(244, 245, 247, 0.9);
-      border-radius: 8px;
-      overflow: hidden;
-      height: 200px;
-      width: 200px;
+  &__minimap {
+    backdrop-filter: blur(1px);
+    background-color: rgba(244, 245, 247, 0.9);
+    border-radius: 8px;
+    filter: $drop-shadow-sm;
+    height: 200px;
+    overflow: hidden;
+    width: 200px;
+  }
 
-      .minimap-radar-svg {
-        cursor: pointer !important;
-      }
+  &__minimap-viewport {
+    background-color: rgba(63, 150, 216, 0.2);
+    border-radius: 8px;
+    cursor: grab;
+    left: 0;
+    top: 0;
+    transform-origin: center;
+    z-index: 2;
 
-      .mini-map--viewport {
-        background-color: rgba(63, 150, 216, 0.2);
-        border-radius: 8px;
-        cursor: grab;
-        transform-origin: center;
-        z-index: 1;
-
-        &:active {
-          cursor: grabbing;
-        }
-      }
+    &:active {
+      cursor: grabbing;
     }
   }
-}
 
-.node-container {
-  pointer-events: none;
-  position: absolute;
-  user-select: none;
-  transform-origin: 0 0;
-  top: 0;
-  left: 0;
-  z-index: 0;
+  &__node-container {
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform-origin: 0 0;
+    user-select: none;
+    z-index: 0;
+  }
 
-  .node {
-    &.transparent {
+  &__node {
+    &--transparent {
       opacity: 0.65;
     }
 
-    &.demphasized {
+    &--deemphasized {
       opacity: 1;
-      // background-color: red;
     }
   }
 }
 </style>
 
 <style lang="scss">
-.radar-container {
-  svg {
-    path {
-      fill: none;
-      opacity: 1;
-      stroke-linejoin: round;
+.radar {
+  &__edge {
+    fill: none;
+    opacity: 1;
+    stroke: #ddd;
+    stroke-linejoin: round;
+
+    &--transition {
+      transition: opacity 100ms linear 0;
     }
   }
 
-  .edge-container {
-    path {
-      stroke: #ddd;
-
-      &.transition {
-        transition: opacity 100ms linear 0;
-      }
-    }
-  }
-
-  .ring {
+  &__ring,
+  &__arc-segment-group {
     pointer-events: none;
   }
 
-  .minimap-radar-svg {
-    .mini-ring-container {
-      transform-origin: center;
-      position: absolute;
-    }
-
-    .mini-arc-segment-group {
-      pointer-events: none;
-    }
+  &__minimap-ring-container {
+    transform-origin: center;
   }
 }
 </style>
