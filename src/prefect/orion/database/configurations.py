@@ -2,6 +2,7 @@ import os
 import sqlalchemy as sa
 import sqlite3
 
+from typing import Hashable, Tuple
 from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.ext.asyncio import create_async_engine
 
@@ -14,11 +15,11 @@ class DatabaseConfigurationBase(ABC):
     def __init__(self, connection_url=None):
         self.connection_url = connection_url
 
-    def _unique_key(self):
+    def _unique_key(self) -> Tuple[Hashable]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """
-        return str(self.__class__) + "_" + str(self.connection_url)
+        return (self.__class__, self.connection_url)
 
     @abstractproperty
     def base_model_mixins(self) -> list:
