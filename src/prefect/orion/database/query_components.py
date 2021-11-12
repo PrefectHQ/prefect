@@ -11,6 +11,12 @@ class QueryComponentsBase(ABC):
     Abstract base class used to inject dialect-specific SQL operations into Orion.
     """
 
+    def _unique_key(self):
+        """
+        Returns a key used to determine whether to instantiate a new DB interface.
+        """
+        return str(self.__class__)
+
     # --- dialect-specific SqlAlchemy bindings
 
     @abstractmethod

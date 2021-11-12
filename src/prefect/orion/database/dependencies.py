@@ -19,6 +19,7 @@ def provide_database_interface():
     query_components = MODELS_DEPENDENCIES.get("query_components")
 
     if provided_config is None:
+        from prefect import settings
         from prefect.orion.database.configurations import (
             AsyncPostgresConfiguration,
             AioSqliteConfiguration,
@@ -26,11 +27,12 @@ def provide_database_interface():
         from prefect.orion.utilities.database import get_dialect
 
         dialect = get_dialect()
+        connection_url = settings.orion.database.connection_url.get_secret_value()
 
         if dialect.name == "postgresql":
-            provided_config = AsyncPostgresConfiguration()
+            provided_config = AsyncPostgresConfiguration(connection_url=connection_url)
         elif dialect.name == "sqlite":
-            provided_config = AioSqliteConfiguration()
+            provided_config = AioSqliteConfiguration(connection_url=connection_url)
         else:
             raise ValueError(
                 f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"

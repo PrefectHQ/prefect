@@ -30,7 +30,10 @@ class DBSingleton(type):
     _instances = dict()
 
     def __call__(cls, *args, **kwargs):
-        unique_key = tuple(kwargs.values())
+        unique_key = (
+            kwargs["db_config"]._unique_key(),
+            kwargs["query_components"]._unique_key(),
+        )
         if unique_key not in cls._instances:
             cls._instances[unique_key] = super(DBSingleton, cls).__call__(
                 *args, **kwargs
@@ -57,7 +60,6 @@ class OrionDBInterface(metaclass=DBSingleton):
         db_config: DatabaseConfigurationBase = None,
         query_components: QueryComponentsBase = None,
     ):
-        self.connection_url = settings.orion.database.connection_url.get_secret_value
         self.echo = settings.orion.database.echo
         self.timeout = None
 
@@ -108,7 +110,7 @@ class OrionDBInterface(metaclass=DBSingleton):
         """Run database migrations"""
         self.config.run_migrations(self.Base)
 
-    async def engine(self, connection_url=None):
+    async def engine(self):
         """
         Provides a SqlAlchemy engine against a specific database.
 
@@ -117,13 +119,11 @@ class OrionDBInterface(metaclass=DBSingleton):
         """
 
         loop = get_event_loop()
-        connection_url = connection_url or self.connection_url()
 
-        cache_key = (loop, connection_url, self.echo, self.timeout)
+        cache_key = (loop, self.config.connection_url, self.echo, self.timeout)
         if cache_key not in self.ENGINES:
 
             engine = await self.config.engine(
-                connection_url,
                 self.echo,
                 self.timeout,
                 self.Base.metadata,
