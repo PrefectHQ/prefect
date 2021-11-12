@@ -120,7 +120,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
     url: '/flow_runs/{id}',
     interpolate: true
   },
-  schematic: {
+  radar: {
     method: 'GET',
     url: '/flow_runs/{id}/schematic',
     interpolate: true

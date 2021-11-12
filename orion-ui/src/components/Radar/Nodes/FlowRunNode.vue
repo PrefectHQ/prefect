@@ -52,7 +52,7 @@
           {{ duration }}
           <!-- {{ flowRun && flowRun.id && flowRun.id.slice(0, 8) }} -->
         </div>
-        <router-link :to="`/flow-run/${flowRunId}/schematic`">
+        <router-link :to="`/flow-run/${flowRunId}/radar`">
           <ButtonRounded>
             {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
           </ButtonRounded>
