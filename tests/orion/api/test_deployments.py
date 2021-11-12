@@ -669,16 +669,16 @@ class TestScheduleDeployment:
         await client.post(
             f"/deployments/{deployment.id}/schedule",
             json=dict(
-                start_time=str(pendulum.now().subtract(days=20)),
-                end_time=str(pendulum.now()),
+                start_time=str(pendulum.now("UTC").subtract(days=20)),
+                end_time=str(pendulum.now("UTC")),
             ),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
-            start=pendulum.now().subtract(days=20),
-            end=pendulum.now(),
+            start=pendulum.now("UTC").subtract(days=20),
+            end=pendulum.now("UTC"),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
