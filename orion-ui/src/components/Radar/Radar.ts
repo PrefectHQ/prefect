@@ -90,6 +90,11 @@ export class Radar {
     return this
   }
 
+  /**
+   *
+   * @param items Items; defines the items used to calculate nodes and links
+   * @returns instance of Radar
+   */
   items(items: Items): Radar {
     this.update(items)
     return this
