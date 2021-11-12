@@ -88,15 +88,15 @@ import {
   watch
 } from 'vue'
 import { Api, Endpoints, Query } from '@/plugins/api'
-import { SchematicNode } from '@/typings/schematic'
+import { RadarNode } from '@/typings/radar'
 import { State, TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 
 const emit = defineEmits(['toggle-tree'])
 
 const props = defineProps<{
-  node: SchematicNode
-  collapsed?: undefined | Map<string, SchematicNode>
+  node: RadarNode
+  collapsed?: undefined | Map<string, RadarNode>
   selected?: boolean
 }>()
 
@@ -116,7 +116,7 @@ const toggle = () => {
   emit('toggle-tree', props.node)
 }
 
-const node = computed<SchematicNode>(() => {
+const node = computed<RadarNode>(() => {
   return props.node
 })
 

@@ -9,15 +9,15 @@ Ring 1+:
 
 import {
   Link,
-  SchematicNodes,
-  SchematicNode,
+  RadarNodes,
+  RadarNode,
   Rings,
   Ring,
   Links,
   Positions,
   Position,
   Items
-} from '@/typings/schematic'
+} from '@/typings/radar'
 import { max, cos, sin, sqrt, pi, floor } from './math'
 
 function getAvailablePositions(positions: Positions): [number, Position][] {
@@ -35,9 +35,10 @@ export class RadialSchematic {
   private _id: string = 'id'
   private _dependencies: string = 'upstream_ids'
 
-  nodes: SchematicNodes = new Map()
+  nodes: RadarNodes = new Map()
   positions: Positions = new Map()
   links: Links = []
+  rings: Rings = new Map()
 
   baseRadius: number = 500
   channelWidth: number = 250
@@ -60,8 +61,6 @@ export class RadialSchematic {
 
   cx: number = 0
   cy: number = 0
-
-  rings: Rings = new Map()
 
   center([x, y]: number[]): RadialSchematic {
     this.cx = x
@@ -114,15 +113,15 @@ export class RadialSchematic {
   }
 
   traverse(
-    curr: SchematicNode,
-    callback?: (node: SchematicNode) => void
-  ): Map<string, SchematicNode> {
+    curr: RadarNode,
+    callback?: (node: RadarNode) => void
+  ): Map<string, RadarNode> {
     if (!curr)
       throw new Error('No starting node was provided to the traverse method.')
 
-    const queue: [SchematicNode] = [curr]
-    let node: SchematicNode | undefined
-    const tree: Map<string, SchematicNode> = new Map()
+    const queue: [RadarNode] = [curr]
+    let node: RadarNode | undefined
+    const tree: Map<string, RadarNode> = new Map()
 
     while (queue.length > 0) {
       node = queue.shift()! // We know this will always be defined because of the while loop conditional
@@ -146,9 +145,9 @@ export class RadialSchematic {
   }
 
   private update(items: Items) {
-    this.nodes = new Map()
+    // this.nodes = new Map()
+    // this.rings = new Map()
     this.links = []
-    this.rings = new Map()
 
     this.computeNodes(items)
     this.computeLinks()
@@ -162,17 +161,41 @@ export class RadialSchematic {
     const len = items.length
     for (let i = 0; i < len; i++) {
       const item = items[i]
-      this.nodes.set(item[this._id], {
-        id: item[this._id],
-        cx: 0,
-        cy: 0,
-        radian: 0,
-        data: item,
-        downstreamNodes: new Map(),
-        upstreamNodes: new Map(),
-        siblingNodes: new Map(),
-        ring: 0
-      })
+      const node = this.nodes.get(item[this._id])
+
+      if (node) {
+        this.nodes.set(item[this._id], {
+          id: item[this._id],
+          cx: node.cx,
+          cy: node.cy,
+          radian: node.radian,
+          data: item,
+          downstreamNodes: new Map(),
+          upstreamNodes: new Map(),
+          siblingNodes: new Map(),
+          ring: node.ring
+        })
+      } else {
+        this.nodes.set(item[this._id], {
+          id: item[this._id],
+          cx: 0,
+          cy: 0,
+          radian: 0,
+          data: item,
+          downstreamNodes: new Map(),
+          upstreamNodes: new Map(),
+          siblingNodes: new Map(),
+          ring: 0
+        })
+      }
+
+      for (const [key] of this.nodes) {
+        const item = items.find((item) => item.id == key)
+
+        if (!item) {
+          this.nodes.delete(key)
+        }
+      }
     }
   }
 
@@ -233,8 +256,8 @@ export class RadialSchematic {
     }
   }
 
-  distance(node: SchematicNode, direction: 'up' | 'down'): number {
-    const key: keyof SchematicNode | undefined =
+  distance(node: RadarNode, direction: 'up' | 'down'): number {
+    const key: keyof RadarNode | undefined =
       direction == 'up'
         ? 'upstreamNodes'
         : direction == 'down'
@@ -246,7 +269,7 @@ export class RadialSchematic {
         "Direction wasn't provided; accepted values: 'up' or 'down'."
       )
 
-    const dfs = (node: SchematicNode, depth = 0) => {
+    const dfs = (node: RadarNode, depth = 0) => {
       if (node[key].size > 0) {
         const distances: number[] = []
         depth = depth + 1
@@ -399,7 +422,7 @@ export class RadialSchematic {
   }
 
   private getNodePosition(
-    node: SchematicNode,
+    node: RadarNode,
     rid: number,
     _r: Ring | undefined,
     node_index: number = 0

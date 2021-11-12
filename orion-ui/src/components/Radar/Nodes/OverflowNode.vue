@@ -20,10 +20,10 @@
 
 <script lang="ts" setup>
 import { defineProps } from 'vue'
-import { SchematicNodes } from '@/typings/schematic'
+import { RadarNodes } from '@/typings/radar'
 
 const props = defineProps<{
-  nodes?: SchematicNodes
+  nodes?: RadarNodes
 }>()
 </script>
 

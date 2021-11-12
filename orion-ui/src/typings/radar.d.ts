@@ -1,17 +1,17 @@
 export declare interface Link {
-  source: SchematicNode
-  target: SchematicNode
+  source: RadarNode
+  target: RadarNode
 }
 
-export declare interface SchematicNode {
+export declare interface RadarNode {
   id: string
   cx: number
   cy: number
   radian: number
   data: any
-  downstreamNodes: Map<string, SchematicNode>
-  upstreamNodes: Map<string, SchematicNode>
-  siblingNodes: Map<string, SchematicNode>
+  downstreamNodes: Map<string, RadarNode>
+  upstreamNodes: Map<string, RadarNode>
+  siblingNodes: Map<string, RadarNode>
   ring: number
   position?: Position
 }
@@ -25,12 +25,12 @@ export declare interface Item {
 export declare interface Position {
   id: number
   radian: number
-  nodes: SchematicNodes
+  nodes: RadarNodes
   radius: number
 }
 
 export declare interface Ring {
-  nodes: SchematicNodes
+  nodes: RadarNodes
   radius: number
   expanded?: boolean
   positions: Positions
@@ -40,5 +40,5 @@ export declare interface Ring {
 export declare type Positions = Map<number, Position>
 export declare type Rings = Map<number, Ring>
 export declare type Items = Item[]
-export declare type SchematicNodes = Map<string, SchematicNode>
+export declare type RadarNodes = Map<string, RadarNode>
 export declare type Links = Link[]

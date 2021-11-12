@@ -1,6 +1,6 @@
 <template>
-  <div class="schematic z-0">
-    <Schematic :items="items" />
+  <div class="radar z-0">
+    <Radar :items="items" />
   </div>
 </template>
 
@@ -8,7 +8,7 @@
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import Schematic from '@/components/Schematic/Schematic.vue'
+import Radar from '@/components/Radar/Radar.vue'
 
 const route = useRoute()
 
@@ -16,16 +16,16 @@ const id = computed<string>(() => {
   return route?.params.id as string
 })
 
-const schematicFilter = computed<string>(() => {
+const radarFilter = computed(() => {
   return {
     id: id.value
   }
 })
 
 const queries: { [key: string]: Query } = {
-  schematic: Api.query({
+  radar: Api.query({
     endpoint: Endpoints.schematic,
-    body: schematicFilter,
+    body: radarFilter.value,
     options: {
       // pollInterval: 5000
     }
@@ -38,5 +38,5 @@ const items = computed<[]>(() => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/views/flow-run/schematic.scss';
+@use '@/styles/views/flow-run/radar.scss';
 </style>

@@ -16,8 +16,8 @@
           v-if="node.position?.nodes.size == 1"
           :is="
             node.data.state.state_details.child_flow_run_id
-              ? 'schematic-flow-run-node'
-              : 'schematic-node'
+              ? 'radar-flow-run-node'
+              : 'radar-node'
           "
           :node="node"
           :selected="selectedNodes.includes(node.id)"
@@ -44,7 +44,7 @@
           @mouseout="highlightNode(node.id)"
         />
         <!-- @focus.self.stop="panToNode(node)" -->
-        <schematic-overflow-node
+        <radar-overflow-node
           v-else
           class="position-absolute"
           :nodes="node.position?.nodes"
@@ -115,23 +115,19 @@ import {
   reactive
 } from 'vue'
 import * as d3 from 'd3'
-import { RadialSchematic } from './util'
+import { RadialSchematic } from './Radar'
 import { pow, sqrt, pi, cos, sin } from './math'
-
-// import Node from './Node.vue'
-// import FlowRunNode from './FlowRunNode.vue'
-// import OverflowNode from './OverflowNode.vue'
 
 import {
   Item,
   Link,
-  SchematicNodes,
-  SchematicNode,
+  RadarNodes,
+  RadarNode,
   Rings,
   Ring,
   Links,
   Position
-} from '@/typings/schematic'
+} from '@/typings/radar'
 
 const props = defineProps<{ items: Item[] }>()
 const items = ref<Item[]>(props.items)
@@ -154,7 +150,7 @@ const nodeContainer = ref<Selection>()
 /**
  * Computed
  */
-const visibleNodes = computed<SchematicNodes>(() => {
+const visibleNodes = computed<RadarNodes>(() => {
   const collapsed = [...collapsedTrees.value.entries()]
   return new Map(
     [...radial.value.nodes.entries()]
@@ -271,11 +267,11 @@ const zoomed = ({
   }
 }
 
-const expandRing = (node: SchematicNode) => {
+const expandRing = (node: RadarNode) => {
   radial.value.expandRing(node.ring)
 }
 
-const toggleTree = (node: SchematicNode) => {
+const toggleTree = (node: RadarNode) => {
   if (collapsedTrees.value.get(node.id)) {
     collapsedTrees.value.delete(node.id)
   } else {
@@ -701,7 +697,7 @@ const selectNode = (id: string): void => {
   }
 }
 
-const panToNode = (item: SchematicNode): void => {
+const panToNode = (item: RadarNode): void => {
   const node = visibleNodes.value.get(item.id)
   if (!node) return
   ;(document.querySelector(`#node-${item.id}`) as HTMLElement)?.focus()
@@ -794,7 +790,7 @@ let k = 1,
   x = 0,
   y = 0
 
-const collapsedTrees = ref<Map<string, Map<string, SchematicNode>>>(new Map())
+const collapsedTrees = ref<Map<string, Map<string, RadarNode>>>(new Map())
 const radial = ref<RadialSchematic>(new RadialSchematic())
 
 const zoom = ref<d3.ZoomBehavior<any, any>>(d3.zoom())
