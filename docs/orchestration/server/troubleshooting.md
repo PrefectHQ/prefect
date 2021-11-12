@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Read through the tips in this section if you have trouble starting Prefect Server.
+Having trouble with Prefect Server? This page contains solutions to common problems.
 
 ## How to know if there's a problem
 
