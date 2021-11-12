@@ -51,6 +51,11 @@ export class Radar {
   cx: number = 0
   cy: number = 0
 
+  /**
+   *
+   * @param arr [number, number]; the x and y coordinates around which to orient the graph
+   * @returns instance of Radar
+   */
   center([x, y]: number[]): Radar {
     this.cx = x
     this.cy = y
@@ -58,6 +63,11 @@ export class Radar {
     return this
   }
 
+  /**
+   *
+   * @param ringId string; the id of the ring to expand
+   * @returns instance of Radar
+   */
   expandRing(ringId: number): Radar {
     const ring = this.rings.get(ringId)
     if (!ring) {
