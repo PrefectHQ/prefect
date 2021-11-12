@@ -31,7 +31,7 @@ function getAvailablePositionId(positions: Positions): number | undefined {
   return available[0]?.[0]
 }
 
-export class RadialSchematic {
+export class Radar {
   private _id: string = 'id'
   private _dependencies: string = 'upstream_ids'
 
@@ -62,14 +62,14 @@ export class RadialSchematic {
   cx: number = 0
   cy: number = 0
 
-  center([x, y]: number[]): RadialSchematic {
+  center([x, y]: number[]): Radar {
     this.cx = x
     this.cy = y
 
     return this
   }
 
-  expandRing(ringId: number): RadialSchematic {
+  expandRing(ringId: number): Radar {
     const ring = this.rings.get(ringId)
     if (!ring) {
       throw new Error('Invalid RingId when expanding ring.')
@@ -84,9 +84,9 @@ export class RadialSchematic {
   /**
    *
    * @param key string; defines the id key accessor
-   * @returns instance of radial schematic
+   * @returns instance of Radar
    */
-  id(key: string): RadialSchematic {
+  id(key: string): Radar {
     this._id = key
     return this
   }
@@ -94,20 +94,20 @@ export class RadialSchematic {
   /**
    *
    * @param key string; defines the dependencies key accessor
-   * @returns instance of radial schematic
+   * @returns instance of Radar
    */
-  dependencies(key: string): RadialSchematic {
+  dependencies(key: string): Radar {
     this._dependencies = key
     return this
   }
 
-  computations(c: number): RadialSchematic {
+  computations(c: number): Radar {
     this.maxRecomputations = c
 
     return this
   }
 
-  items(items: Items): RadialSchematic {
+  items(items: Items): Radar {
     this.update(items)
     return this
   }

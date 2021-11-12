@@ -10,7 +10,7 @@
         position-relative
         z-1
       "
-      :class="{ blur: route.fullPath.includes('/schematic') }"
+      :class="{ blur: route.fullPath.includes('/radar') }"
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
       <div v-breakpoints="'sm'" class="text-truncate">
@@ -80,12 +80,12 @@ const crumbs = computed(() => {
   ]
 
   const timelinePage = route.fullPath.includes('/timeline')
-  const schematicPage = route.fullPath.includes('/schematic')
-  if (timelinePage || schematicPage) {
+  const radarPage = route.fullPath.includes('/radar')
+  if (timelinePage || radarPage) {
     arr[1].to = `/flow-run/${id}`
 
     if (timelinePage) arr.push({ text: 'Timeline' })
-    if (schematicPage) arr.push({ text: 'Schematic' })
+    if (radarPage) arr.push({ text: 'Radar' })
   }
 
   return arr

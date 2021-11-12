@@ -77,7 +77,7 @@
       </div>
     </Card>
 
-    <Card class="schematic" shadow="sm">
+    <Card class="radar" shadow="sm">
       <div
         style="
           top: 50%;
@@ -87,7 +87,7 @@
         "
         class="text-center"
       >
-        <router-link :to="`/flow-run/${id}/schematic`">
+        <router-link :to="`/flow-run/${id}/radar`">
           <IconButton icon="pi-radar-fill" />
           <div>View Radar </div>
         </router-link>
