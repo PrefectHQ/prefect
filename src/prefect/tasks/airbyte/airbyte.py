@@ -169,7 +169,12 @@ class AirbyteConnectionTask(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-    @defaults_from_attrs("airbyte_server_host","airbyte_server_port","airbyte_api_version","connection_id")
+    @defaults_from_attrs(
+        "airbyte_server_host",
+        "airbyte_server_port",
+        "airbyte_api_version",
+        "connection_id",
+    )
     def run(
         self,
         airbyte_server_host: str,
