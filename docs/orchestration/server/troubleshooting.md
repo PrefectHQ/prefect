@@ -8,7 +8,7 @@ After running `prefect server start`, you should be able to view the Prefect UI 
 
 You'll know there's a problem if the color of the connection menu in the upper-right-corner Prefect UI transitions between yellow and red, and never turns green.
 
-You will see the message `Couldn't connect to Prefect Server at http://localhost:4200/graphql` when you click on the connection menu.
+You'll see the message `Couldn't connect to Prefect Server at http://localhost:4200/graphql` when you click on the connection menu.
 
 ![](/orchestration/server/could-not-connect.png)
 
@@ -25,13 +25,13 @@ t-hasura-1 exited with code 137
 ```
 
 ::: tip Finding this line
-You may need to search with your terminal to find this line of output -- it won't be the last line printed.
+You may need to search with your terminal to find this line of output &mdash; it won't be the last line printed.
 :::
 
-The solution to this problem is giving Docker more memory. The default in Docker Desktop is 2 GB, which may not be enough to run Prefect Server. We recommend giving Docker at least 8 GB of memory.
+The solution to this problem is configuring Docker to use more memory. The default in Docker Desktop is 2GB, which may not be enough to run Prefect Server. We recommend giving Docker at least 8GB of memory.
 
 ::: tip Docker memory is shared
-The memory that you give Docker is shared between all running containers.
+Note that the memory that you configure for Docker is shared between all running containers.
 :::
 
 You can adjust the memory that Docker makes available to containers in the Settings or Preferences menu of Docker Desktop. To find this menu, consult the User Manual for your version of Docker Desktop in the [Docker Desktop documentation](https://docs.docker.com/desktop/).
