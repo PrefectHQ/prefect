@@ -48,10 +48,6 @@ export class Radar {
   // height: number = 34 // node height
   height: number = 145 // node height
 
-  /* Padding */
-  py: number = 0
-  px: number = 0
-
   cx: number = 0
   cy: number = 0
 
