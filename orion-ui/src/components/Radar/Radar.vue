@@ -1,6 +1,6 @@
 <template>
-  <div class="schematic-container" ref="container" @scroll="preventScroll">
-    <svg ref="svg" class="schematic-svg">
+  <div class="radar-container" ref="container" @scroll="preventScroll">
+    <svg ref="svg" class="radar-svg">
       <defs id="defs" />
       <g id="edge-container" />
       <g id="ring-container" />
@@ -84,11 +84,7 @@
         @mousemove="dragViewport"
         @mouseleave="dragging = false"
       >
-        <svg
-          ref="mini-svg"
-          class="minimap-schematic-svg"
-          @click="panToLocation"
-        >
+        <svg ref="mini-svg" class="minimap-radar-svg" @click="panToLocation">
           <g id="mini-ring-container" />
         </svg>
 
@@ -115,7 +111,7 @@ import {
   reactive
 } from 'vue'
 import * as d3 from 'd3'
-import { RadialSchematic } from './Radar'
+import { Radar } from './Radar'
 import { pow, sqrt, pi, cos, sin } from './math'
 
 import {
@@ -342,7 +338,7 @@ const updateRings = (): void => {
       const state = positionalArr?.[0]?.data?.state?.type?.toLowerCase()
 
       if (r == 0) {
-        // This is only for the innermost ring for schematics with a single root node
+        // This is only for the innermost ring for radars with a single root node
         arcs.push({
           start: (115 * pi) / 180,
           end: (65 * pi) / 180,
@@ -708,7 +704,7 @@ const panToNode = (item: RadarNode): void => {
     .translate(-node.cx, -node.cy)
 
   requestAnimationFrame(() => {
-    d3.select('.schematic-svg')
+    d3.select('.radar-svg')
       .transition()
       .duration(250)
       .call(zoom.value.transform, zoomIdentity)
@@ -723,7 +719,7 @@ const panToLocation = (e: MouseEvent): void => {
   const zoomIdentity = d3.zoomIdentity.scale(k).translate(-x_, -y_)
 
   requestAnimationFrame(() => {
-    d3.select('.schematic-svg')
+    d3.select('.radar-svg')
       .transition()
       .duration(200)
       .call(zoom.value.transform, zoomIdentity)
@@ -736,7 +732,7 @@ const dragViewport = (e: MouseEvent): void => {
   // of the scale applied to the minimap
   const x = e.movementX * -(1 / scale.value)
   const y = e.movementY * -(1 / scale.value)
-  zoom.value.translateBy(d3.select('.schematic-svg'), x, y)
+  zoom.value.translateBy(d3.select('.radar-svg'), x, y)
 }
 
 const reset = (): void => {
@@ -744,7 +740,7 @@ const reset = (): void => {
 }
 
 const resetViewport = (): void => {
-  d3.select('.schematic-svg')
+  d3.select('.radar-svg')
     .transition()
     .ease(d3.easeQuadInOut)
     .duration(250)
@@ -754,11 +750,7 @@ const resetViewport = (): void => {
 const zoomIn = (): void => {
   requestAnimationFrame(() => {
     zoom.value.scaleBy(
-      d3
-        .select('.schematic-svg')
-        .transition()
-        .ease(d3.easeQuadInOut)
-        .duration(250),
+      d3.select('.radar-svg').transition().ease(d3.easeQuadInOut).duration(250),
       1.35
     )
   })
@@ -767,18 +759,14 @@ const zoomIn = (): void => {
 const zoomOut = (): void => {
   requestAnimationFrame(() => {
     zoom.value.scaleBy(
-      d3
-        .select('.schematic-svg')
-        .transition()
-        .ease(d3.easeQuadInOut)
-        .duration(250),
+      d3.select('.radar-svg').transition().ease(d3.easeQuadInOut).duration(250),
       0.65
     )
   })
 }
 
 /**
- * Schematic refs
+ * Radar refs
  */
 const height = ref<number>(0)
 const width = ref<number>(0)
@@ -791,7 +779,7 @@ let k = 1,
   y = 0
 
 const collapsedTrees = ref<Map<string, Map<string, RadarNode>>>(new Map())
-const radial = ref<RadialSchematic>(new RadialSchematic())
+const radial = ref<Radar>(new Radar())
 
 const zoom = ref<d3.ZoomBehavior<any, any>>(d3.zoom())
 
@@ -825,7 +813,7 @@ watch(selectedNodes, () => {
 
 watch(visibleRings, () => {
   // zoom.value.translateExtent(viewportExtent.value)
-  // d3.select('.schematic-svg')
+  // d3.select('.radar-svg')
   //   .transition()
   //   .duration(250)
   //   .call(zoom.value.transform, d3.zoomIdentity)
@@ -845,8 +833,8 @@ const handleWindowResize = (): void => {
 }
 
 const createChart = (): void => {
-  svg.value = d3.select('.schematic-svg')
-  miniSvg.value = d3.select('.minimap-schematic-svg')
+  svg.value = d3.select('.radar-svg')
+  miniSvg.value = d3.select('.minimap-radar-svg')
   defs.value = d3.select('#defs')
   ringContainer.value = svg.value.select('#ring-container')
   miniRingContainer.value = miniSvg.value.select('#mini-ring-container')
@@ -919,7 +907,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
-.schematic-container {
+.radar-container {
   height: 100vh;
   max-height: 100vh;
   max-width: 100%;
@@ -956,7 +944,7 @@ onUnmounted(() => {
       height: 200px;
       width: 200px;
 
-      .minimap-schematic-svg {
+      .minimap-radar-svg {
         cursor: pointer !important;
       }
 
@@ -998,7 +986,7 @@ onUnmounted(() => {
 </style>
 
 <style lang="scss">
-.schematic-container {
+.radar-container {
   svg {
     path {
       fill: none;
@@ -1021,7 +1009,7 @@ onUnmounted(() => {
     pointer-events: none;
   }
 
-  .minimap-schematic-svg {
+  .minimap-radar-svg {
     .mini-ring-container {
       transform-origin: center;
       position: absolute;
