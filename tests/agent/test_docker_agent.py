@@ -157,7 +157,7 @@ def test_environment_has_api_key_from_config(api, config_with_api_key):
     assert env_vars["PREFECT__CLOUD__TENANT_ID"] == config_with_api_key.cloud.tenant_id
 
 
-def test_environment_has_tenant_id_from_server(config_with_api_key):
+def test_environment_has_tenant_id_from_server(api, config_with_api_key):
     tenant_id = uuid.uuid4()
 
     with set_temporary_config({"cloud.tenant_id": None}):
