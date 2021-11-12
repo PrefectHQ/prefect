@@ -24,7 +24,7 @@ const radarFilter = computed(() => {
 
 const queries: { [key: string]: Query } = {
   radar: Api.query({
-    endpoint: Endpoints.schematic,
+    endpoint: Endpoints.radar,
     body: radarFilter.value,
     options: {
       // pollInterval: 5000
@@ -33,7 +33,7 @@ const queries: { [key: string]: Query } = {
 }
 
 const items = computed<[]>(() => {
-  return queries.schematic.response?.value || []
+  return queries.radar.response?.value || []
 })
 </script>
 
