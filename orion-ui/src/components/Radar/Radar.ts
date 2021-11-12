@@ -43,12 +43,6 @@ export class Radar {
   baseRadius: number = 500
   channelWidth: number = 250
 
-  /* Extent */
-  x0: number = 0
-  y0: number = 0
-  x1: number = 1
-  y1: number = 1
-
   // width: number = 34 // node width
   width: number = 275 // node width
   // height: number = 34 // node height
