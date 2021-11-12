@@ -1197,7 +1197,7 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
         client.get_flow_run_info(flow_run_id="74-salt")
 
 
-def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
+def test_get_flow_run_state(patch_posts, cloud_api):
     query_resp = {
         "flow_run_by_pk": {
             "serialized_state": {
@@ -1398,7 +1398,7 @@ def test_set_task_run_name(patch_posts, cloud_api):
     assert result is True
 
 
-def test_get_task_run_state(patch_posts, cloud_api, runner_token):
+def test_get_task_run_state(patch_posts, cloud_api):
     query_resp = {
         "get_task_run_info": {
             "serialized_state": {

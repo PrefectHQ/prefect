@@ -128,10 +128,8 @@ class Agent:
         agent_address: str = None,
         no_cloud_logs: bool = None,
     ) -> None:
-        # Load token for backwards compatibility
-        token = config.cloud.agent.get("auth_token")
         # Auth with an API key will be loaded from the config or disk by the Client
-        self.client = Client(api_server=config.cloud.api, api_token=token)
+        self.client = Client(api_server=config.cloud.api)
 
         self.agent_config_id = agent_config_id
         self._agent_config: Optional[dict] = None
@@ -814,28 +812,6 @@ class Agent:
 
     # Backend API connection -----------------------------------------------------------
 
-    def _verify_token(self, token: str) -> None:
-        """
-        Checks whether a token with a `RUNNER` scope was provided
-
-        DEPRECATED: API Keys do not have different scope
-
-        Args:
-            - token (str): The provided agent token to verify
-        Raises:
-            - AuthorizationError: if token is empty or does not have a RUNNER role
-        """
-        if not token:
-            raise AuthorizationError("No agent API token provided.")
-
-        # Check if RUNNER role
-        result = self.client.graphql(query="query { auth_info { api_token_scope } }")
-        if (
-            not result.data  # type: ignore
-            or result.data.auth_info.api_token_scope != "RUNNER"  # type: ignore
-        ):
-            raise AuthorizationError("Provided token does not have a RUNNER scope.")
-
     def _register_agent(self) -> str:
         """
         Register this agent with a backend API and retrieve the ID
@@ -884,25 +860,12 @@ class Agent:
         """
         Sets up the agent's connection to Cloud
 
-        - Verifies token with Cloud
         - Gets an agent_id and attaches it to the headers
         - Runs a test query to check for a good setup
 
         Raises:
             RuntimeError: On failed test query
         """
-
-        # Verify API tokens -- API keys do not need a type-check
-        if config.backend == "cloud" and not self.client.api_key:
-            self.logger.debug("Verifying authentication with Prefect Cloud...")
-            try:
-                self._verify_token(self.client.get_auth_token())
-                self.logger.debug("Authentication successful!")
-            except Exception as exc:
-                self.logger.error("Failed to verify authentication.")
-                raise RuntimeError(
-                    f"Error while contacting API at {config.cloud.api}",
-                ) from exc
 
         # Register agent with backend API
         self.client.attach_headers({"X-PREFECT-AGENT-ID": self._register_agent()})
