@@ -42,7 +42,6 @@ export class Radar {
 
   baseRadius: number = 500
   channelWidth: number = 250
-  maxRecomputations: number = 6
 
   /* Extent */
   x0: number = 0
@@ -98,12 +97,6 @@ export class Radar {
    */
   dependencies(key: string): Radar {
     this._dependencies = key
-    return this
-  }
-
-  computations(c: number): Radar {
-    this.maxRecomputations = c
-
     return this
   }
 
