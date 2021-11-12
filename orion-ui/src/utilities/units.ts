@@ -1,6 +1,6 @@
 export type Percent = `${number}%`
 
-export function toPercent(value: number): Percent {
+export function toPercentString(value: number): Percent {
   return `${value}%`
 }
 
@@ -13,5 +13,5 @@ export function calculatePercent(
   const rounded = percent.toFixed(decimals)
   const value = parseFloat(rounded)
 
-  return toPercent(value)
+  return toPercentString(value)
 }
