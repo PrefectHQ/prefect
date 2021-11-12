@@ -271,7 +271,8 @@ module.exports = {
             'server/overview',
             'server/architecture',
             'server/deploy-local',
-            'server/telemetry'
+            'server/telemetry',
+            'server/troubleshooting',
           ]
         },
         {
