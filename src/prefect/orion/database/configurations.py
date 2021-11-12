@@ -11,6 +11,15 @@ class DatabaseConfigurationBase(ABC):
     Abstract base class used to inject database-specific configuration into Orion.
     """
 
+    def __init__(self, connection_url=None):
+        self.connection_url = connection_url
+
+    def _unique_key(self):
+        """
+        Returns a key used to determine whether to instantiate a new DB interface.
+        """
+        return str(self.__class__) + "_" + str(self.connection_url)
+
     @abstractproperty
     def base_model_mixins(self) -> list:
         """A list of ORM mixins used to extend core Orion models"""
@@ -22,7 +31,6 @@ class DatabaseConfigurationBase(ABC):
     @abstractmethod
     async def engine(
         self,
-        connection_url,
         echo,
         timeout,
         orm_metadata,
@@ -42,7 +50,6 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
 
     async def engine(
         self,
-        connection_url,
         echo,
         timeout,
         orm_metadata,
@@ -65,7 +72,7 @@ class AsyncPostgresConfiguration(DatabaseConfigurationBase):
         if timeout is not None:
             kwargs["connect_args"] = dict(command_timeout=timeout)
 
-        return create_async_engine(connection_url, echo=echo, **kwargs)
+        return create_async_engine(self.connection_url, echo=echo, **kwargs)
 
 
 class AioSqliteConfiguration(DatabaseConfigurationBase):
@@ -82,7 +89,6 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
 
     async def engine(
         self,
-        connection_url,
         echo,
         timeout,
         orm_metadata,
@@ -110,10 +116,10 @@ class AioSqliteConfiguration(DatabaseConfigurationBase):
 
         # ensure a long-lasting pool is used with in-memory databases
         # because they disappear when the last connection closes
-        if ":memory:" in connection_url:
+        if ":memory:" in self.connection_url:
             kwargs.update(poolclass=sa.pool.SingletonThreadPool)
 
-        engine = create_async_engine(connection_url, echo=echo, **kwargs)
+        engine = create_async_engine(self.connection_url, echo=echo, **kwargs)
         sa.event.listen(engine.sync_engine, "engine_connect", self.setup_sqlite)
 
         if sqlite3.sqlite_version_info < self.MIN_SQLITE_VERSION:
