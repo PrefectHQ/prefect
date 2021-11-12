@@ -18,9 +18,9 @@ import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFl
 import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue'
 import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
 import Row from '@/components/Global/Row/Row.vue'
-import SchematicNode from '@/components/Schematic/Node.vue'
-import SchematicFlowRunNode from '@/components/Schematic/FlowRunNode.vue'
-import SchematicOverflowNode from '@/components/Schematic/OverflowNode.vue'
+import RadarNode from '@/components/Radar/Nodes/Node.vue'
+import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
+import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
 
 import '@prefecthq/miter-design/dist/style.css'
 import MiterDesign from '@prefecthq/miter-design'
@@ -47,8 +47,8 @@ app.component('ListItemFlowRun', ListItemFlowRun)
 app.component('ListItemTaskRun', ListItemTaskRun)
 app.component('ResultsList', ResultsList)
 app.component('Row', Row)
-app.component('SchematicNode', SchematicNode)
-app.component('SchematicFlowRunNode', SchematicFlowRunNode)
-app.component('SchematicOverflowNode', SchematicOverflowNode)
+app.component('RadarNode', RadarNode)
+app.component('RadarFlowRunNode', RadarFlowRunNode)
+app.component('RadarOverflowNode', RadarOverflowNode)
 
 app.mount('#app')

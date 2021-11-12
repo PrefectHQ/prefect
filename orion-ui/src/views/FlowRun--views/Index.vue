@@ -88,8 +88,8 @@
         class="text-center"
       >
         <router-link :to="`/flow-run/${id}/schematic`">
-          <IconButton icon="pi-full-screen" />
-          <div>View Schematic </div>
+          <IconButton icon="pi-radar-fill" />
+          <div>View Radar </div>
         </router-link>
       </div>
     </Card>
