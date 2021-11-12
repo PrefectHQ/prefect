@@ -85,23 +85,24 @@ weekday_schedule = CronSchedule(
 )
 
 
-# assumes you have registered the following flows in a project named "examples"
-flow_a = create_flow_run(flow_name="A", project_name="examples", wait=True)
-wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True) 
-
-flow_b = create_flow_run(flow_name="B", project_name="examples", wait=True)
-wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
-
-flow_c = create_flow_run(flow_name="C", project_name="examples", wait=True)
-wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
-
-flow_d = create_flow_run(flow_name="D", project_name="examples", wait=True)
-wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
-
 with Flow("parent-flow", schedule=weekday_schedule) as flow:
+    
+    # assumes you have registered the following flows in a project named "examples"
+    flow_a = create_flow_run(flow_name="A", project_name="examples")
+    wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True)
+    
+    flow_b = create_flow_run(flow_name="B", project_name="examples")
+    wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
+    
+    flow_c = create_flow_run(flow_name="C", project_name="examples")
+    wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
+    
+    flow_d = create_flow_run(flow_name="D", project_name="examples")
+    wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
+    
     b = wait_for_flow_b(upstream_tasks=[wait_for_flow_a])
     c = wait_for_flow_c(upstream_tasks=[wait_for_flow_a])
-    d = flow_d(upstream_tasks=[b, c])
+    d = wait_for_flow_d(upstream_tasks=[b, c])
 ```
 :::
 
@@ -116,21 +117,21 @@ weekday_schedule = CronSchedule(
     "30 9 * * 1-5", start_date=pendulum.now(tz="US/Eastern")
 )
 
-
-# assumes you have registered the following flows in a project named "examples"
-flow_a = create_flow_run(flow_name="A", project_name="examples", wait=True)
-wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True) 
-
-flow_b = create_flow_run(flow_name="B", project_name="examples", wait=True)
-wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
-
-flow_c = create_flow_run(flow_name="C", project_name="examples", wait=True)
-wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
-
-flow_d = create_flow_run(flow_name="D", project_name="examples", wait=True)
-wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
-
 with Flow("parent-flow", schedule=weekday_schedule) as flow:
+    
+    # assumes you have registered the following flows in a project named "examples"
+    flow_a = create_flow_run(flow_name="A", project_name="examples") 
+    wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True)
+    
+    flow_b = create_flow_run(flow_name="B", project_name="examples")
+    wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
+    
+    flow_c = create_flow_run(flow_name="C", project_name="examples")
+    wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
+    
+    flow_d = create_flow_run(flow_name="D", project_name="examples")
+    wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
+    
     wait_for_flow_b.set_upstream(wait_for_flow_a)
     wait_for_flow_c.set_upstream(wait_for_flow_a)
     wait_for_flow_d.set_upstream(wait_for_flow_b)
