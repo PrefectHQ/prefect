@@ -1,6 +1,5 @@
 import datetime
 import json
-import os
 import random
 import re
 import time
@@ -12,11 +11,10 @@ from typing import (
     Any,
     Dict,
     List,
+    Mapping,
     NamedTuple,
     Optional,
     Union,
-    cast,
-    Mapping,
 )
 from urllib.parse import urljoin, urlparse
 
@@ -32,25 +30,27 @@ import toml
 from slugify import slugify
 
 import prefect
-from prefect.run_configs import RunConfig
 from prefect.exceptions import (
     AuthorizationError,
     ClientError,
     VersionLockMismatchSignal,
 )
+from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import (
     EnumValue,
     GraphQLResult,
     compress,
+    format_graphql_request_error,
     parse_graphql,
     with_args,
-    format_graphql_request_error,
 )
 from prefect.utilities.logging import create_diagnostic_logger
 
 if TYPE_CHECKING:
-    from prefect.core import Flow
     import requests
+
+    from prefect.core import Flow
+
 JSONLike = Union[bool, dict, list, str, int, float, None]
 
 # type definitions for GraphQL results
@@ -290,10 +290,10 @@ class Client:
         if not isinstance(tenant_id, uuid.UUID):
             try:
                 tenant_id = uuid.UUID(tenant_id)
-            except:
+            except ValueError as exc:
                 raise ValueError(
                     f"The `tenant_id` must be a valid UUID. Got {tenant_id!r}."
-                )
+                ) from exc
 
         self._tenant_id = str(tenant_id)
 

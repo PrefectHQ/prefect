@@ -23,7 +23,6 @@ from prefect.run_configs import RunConfig, UniversalRun
 from prefect.serialization.state import StateSchema
 from prefect.serialization.run_config import RunConfigSchema
 from prefect.utilities.context import context
-from prefect.exceptions import AuthorizationError
 from prefect.utilities.graphql import GraphQLResult, with_args
 
 ascii_name = r"""
