@@ -174,10 +174,7 @@ class AsyncPostgresConnectionConfiguration(DatabaseConnectionConfigurationBase):
 
 class AioSqliteConnectionConfiguration(DatabaseConnectionConfigurationBase):
 
-    # SQLite 3.34.0 supports recursive CTEs with two or more
-    # recursive terms, which is important for efficient run history
-    # queries
-    MIN_SQLITE_VERSION = (3, 34, 0)
+    MIN_SQLITE_VERSION = (3, 24, 0)
 
     async def engine(
         self,
