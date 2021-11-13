@@ -189,9 +189,9 @@ def test_generate_flow_run_environ():
             "backend": "CONFIG_BACKEND",
             "cloud.api": "CONFIG_API",
             "cloud.tenant_id": CONFIG_TENANT_ID,
-            # Deprecated tokens are included if available but overriden by `run_api_key`
+            # Deprecated tokens are ignored _always_ since 1.0.0
             "cloud.agent.auth_token": "CONFIG_AUTH_TOKEN",
-            "cloud.auth_token": None,
+            "cloud.auth_token": "CONFIG_AUTH_TOKEN",
         }
     ):
         result = generate_flow_run_environ(

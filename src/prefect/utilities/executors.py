@@ -116,7 +116,6 @@ def subprocess_heartbeat(heartbeat_cmd: List[str], logger: Logger) -> Iterator[N
             to_environment_variables(
                 prefect.context.config,
                 include={
-                    "cloud.auth_token",
                     "cloud.api_key",
                     "cloud.tenant_id",
                     "cloud.api",
