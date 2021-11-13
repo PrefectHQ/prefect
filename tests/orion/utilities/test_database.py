@@ -399,11 +399,11 @@ class TestDateFunctions:
 
 
 async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
-    monkeypatch.setattr("sqlite3.sqlite_version_info", (3, 33, 9))
-    monkeypatch.setattr("sqlite3.sqlite_version", "3.33.9")
+    monkeypatch.setattr("sqlite3.sqlite_version_info", (3, 23, 9))
+    monkeypatch.setattr("sqlite3.sqlite_version", "3.23.9")
     with pytest.raises(
         RuntimeError,
-        match="Orion requires sqlite >= 3.34.0 but we found version 3.33.9",
+        match="Orion requires sqlite >= 3.24.0 but we found version 3.23.9",
     ):
 
         db = OrionDBInterface(
