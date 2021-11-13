@@ -7,22 +7,24 @@ from functools import wraps
 
 
 MODELS_DEPENDENCIES = {
-    "database_configuration": None,
+    "connection_configuration": None,
     "query_components": None,
+    "orm": None,
 }
 
 
 def provide_database_interface():
     from prefect.orion.database.interface import OrionDBInterface
 
-    provided_config = MODELS_DEPENDENCIES.get("database_configuration")
+    connection_config = MODELS_DEPENDENCIES.get("connection_configuration")
     query_components = MODELS_DEPENDENCIES.get("query_components")
+    orm = MODELS_DEPENDENCIES.get("orm")
 
-    if provided_config is None:
+    if connection_config is None:
         from prefect import settings
-        from prefect.orion.database.configurations import (
-            AsyncPostgresConfiguration,
-            AioSqliteConfiguration,
+        from prefect.orion.database.connections import (
+            AsyncPostgresConnectionConfiguration,
+            AioSqliteConnectionConfiguration,
         )
         from prefect.orion.utilities.database import get_dialect
 
@@ -30,15 +32,19 @@ def provide_database_interface():
         connection_url = settings.orion.database.connection_url.get_secret_value()
 
         if dialect.name == "postgresql":
-            provided_config = AsyncPostgresConfiguration(connection_url=connection_url)
+            connection_config = AsyncPostgresConnectionConfiguration(
+                connection_url=connection_url
+            )
         elif dialect.name == "sqlite":
-            provided_config = AioSqliteConfiguration(connection_url=connection_url)
+            connection_config = AioSqliteConnectionConfiguration(
+                connection_url=connection_url
+            )
         else:
             raise ValueError(
                 f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"
             )
 
-        MODELS_DEPENDENCIES["database_configuration"] = provided_config
+        MODELS_DEPENDENCIES["connection_configuration"] = connection_config
 
     if query_components is None:
         from prefect.orion.database.query_components import (
@@ -60,9 +66,30 @@ def provide_database_interface():
 
         MODELS_DEPENDENCIES["query_components"] = query_components
 
+    if orm is None:
+        from prefect.orion.database.orm_models import (
+            AsyncPostgresORMConfiguration,
+            AioSqliteORMConfiguration,
+        )
+        from prefect.orion.utilities.database import get_dialect
+
+        dialect = get_dialect()
+
+        if dialect.name == "postgresql":
+            orm = AsyncPostgresORMConfiguration()
+        elif dialect.name == "sqlite":
+            orm = AioSqliteORMConfiguration()
+        else:
+            raise ValueError(
+                f"Unable to infer orm configuration from provided dialect. Got dialect name {dialect.name!r}"
+            )
+
+        MODELS_DEPENDENCIES["orm"] = orm
+
     return OrionDBInterface(
-        db_config=provided_config,
+        connection_config=connection_config,
         query_components=query_components,
+        orm=orm,
     )
 
 
@@ -84,13 +111,13 @@ def inject_db(fn):
 
 
 @asynccontextmanager
-async def temporary_db_config(tmp_config):
-    starting_config = MODELS_DEPENDENCIES["database_configuration"]
+async def temporary_connection_config(tmp_connection_config):
+    starting_config = MODELS_DEPENDENCIES["connection_configuration"]
     try:
-        MODELS_DEPENDENCIES["database_configuration"] = tmp_config
+        MODELS_DEPENDENCIES["connection_configuration"] = tmp_connection_config
         yield
     finally:
-        MODELS_DEPENDENCIES["database_configuration"] = starting_config
+        MODELS_DEPENDENCIES["connection_configuration"] = starting_config
 
 
 @asynccontextmanager
@@ -101,3 +128,13 @@ async def temporary_query_components(tmp_queries):
         yield
     finally:
         MODELS_DEPENDENCIES["query_components"] = starting_queries
+
+
+@asynccontextmanager
+async def temporary_orm_config(tmp_orm_config):
+    starting_orm_config = MODELS_DEPENDENCIES["orm"]
+    try:
+        MODELS_DEPENDENCIES["orm"] = tmp_orm_config
+        yield
+    finally:
+        MODELS_DEPENDENCIES["orm"] = starting_orm_config
