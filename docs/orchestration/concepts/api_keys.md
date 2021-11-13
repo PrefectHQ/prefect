@@ -221,7 +221,7 @@ $ prefect agent local start
 
 If you've used `prefect auth login` with an API token or have set an API token in your config or environment, you will receieve warnings starting with version 0.15.0 that tokens have been deprecated. As of version 1.0.0, support for API tokens has been removed. API keys are more secure and simpler to use, we urge you to switch over. 
 
-If you logged in with `prefect auth login`, you can remove your token with `prefect auth logout --token` or `rm -r ~/.prefect/client`.
+If you logged in with `prefect auth login`, you can remove your token with `prefect auth purge-tokens` or `rm -r ~/.prefect/client`.
 
 If you set your token in the environment, you can unset it with `unset PREFECT__CLOUD__AUTH_TOKEN`.
 
