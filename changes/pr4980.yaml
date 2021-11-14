@@ -1,2 +1,0 @@
-enhancement:
-  - "Provide option to specify a dockerignore when using Docker storage - [#4980](https://github.com/PrefectHQ/prefect/pull/4980)"

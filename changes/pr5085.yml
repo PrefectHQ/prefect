@@ -1,5 +1,0 @@
-feature:
-  - "Add support for triggering dbt Cloud job run"
-
-contributor:
-  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
