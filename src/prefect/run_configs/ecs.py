@@ -77,7 +77,7 @@ class ECSRun(RunConfig):
             explicitly to grant ECR access.
         - run_task_kwargs (dict, optional): Additional keyword arguments to
             pass to `run_task` when starting this task. It should be used only for
-            runtime-specific arguments such as `cpu`, `memory`, `cluster`, `launchType`,
+            runtime-specific arguments such as `cpu`, `memory`, `cluster`, or `launchType`,
             rather than `task_definition`-specific arguments.
             See the [ECS.Client.run_task][3] docs for more information.
         - labels (Iterable[str], optional): An iterable of labels to apply to this
