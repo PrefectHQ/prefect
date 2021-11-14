@@ -66,7 +66,7 @@ class ECSRun(RunConfig):
         - task_role_arn (str, optional): The full ARN of the IAM role
             to use for this task. If you provide a custom `task_definition` that
             already contains the `task_role_arn`, then you can skip this argument.
-            You can also skip it, when your flow doesn't need access to any AWS
+            You can also skip it when your flow doesn't need access to any AWS
             resources such as S3. But if you use S3 storage (or results) and you don't set
             a custom `task_definition`, this role must be set explicitly.
         - execution_role_arn (str, optional): The execution role ARN to use
