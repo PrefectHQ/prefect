@@ -94,7 +94,7 @@ class ECSRun(RunConfig):
 
     2) Use a custom task definition uploaded to S3 as a YAML file. This task definition contains
     a container named "flow", as well as a custom execution role and task role. The flow should
-    be picked up for execution by agent with label "prod" and should be deployed to a cluster
+    be picked up for execution by an agent with label "prod" and should be deployed to a cluster
     called "prefectEcsCluster".
 
     ```python
