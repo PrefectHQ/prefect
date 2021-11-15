@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod, abstractproperty
 from sqlalchemy.dialects import postgresql, sqlite
 
 
-class QueryComponentsBase(ABC):
+class BaseQueryComponents(ABC):
     """
     Abstract base class used to inject dialect-specific SQL operations into Orion.
     """
@@ -68,7 +68,7 @@ class QueryComponentsBase(ABC):
         ...
 
 
-class AsyncPostgresQueryComponents(QueryComponentsBase):
+class AsyncPostgresQueryComponents(BaseQueryComponents):
     # --- Postgres-specific SqlAlchemy bindings
 
     def insert(self, obj):
@@ -141,7 +141,7 @@ class AsyncPostgresQueryComponents(QueryComponentsBase):
         return stmt
 
 
-class AioSqliteQueryComponents(QueryComponentsBase):
+class AioSqliteQueryComponents(BaseQueryComponents):
     # --- Sqlite-specific SqlAlchemy bindings
 
     def insert(self, obj):
