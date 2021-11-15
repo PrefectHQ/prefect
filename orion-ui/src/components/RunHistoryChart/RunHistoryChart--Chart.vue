@@ -140,11 +140,7 @@ class Props {
   items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
   popoverHeading = prop<string>({ default: 'Flow Activity' })
-  staticMedian = prop<boolean>({
-    required: false,
-    type: Boolean,
-    default: false
-  })
+  staticMedian = prop<boolean>({ type: Boolean, default: false })
   padding = prop<{
     top: number
     bottom: number
@@ -193,18 +189,15 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       .call((g) => g.select('.domain').remove())
 
   get series(): SeriesCollection {
-    return (
-      d3
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .stack<any, Bucket, string>()
-        .keys([...positiveStates.slice().reverse(), ...negativeStates])
-        .value(
-          (d: Bucket, key: string) =>
-            (directions.get(key) || 1) *
-            (d.states.find((state) => state.state_type == key)?.count_runs || 0)
-        )
-        .offset(d3.stackOffsetDiverging)(this.items)
-    )
+    return d3
+      .stack<Bucket, string>()
+      .keys([...positiveStates.slice().reverse(), ...negativeStates])
+      .value(
+        (d: Bucket, key: string) =>
+          (directions.get(key) || 1) *
+          (d.states.find((state) => state.state_type == key)?.count_runs || 0)
+      )
+      .offset(d3.stackOffsetDiverging)(this.items)
   }
 
   get seriesMap(): Map<string, BucketSeries> {
