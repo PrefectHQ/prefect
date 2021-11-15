@@ -36,6 +36,18 @@ async def test_injecting_a_really_dumb_database_database_config():
         ):
             ...
 
+        async def session_factory(self):
+            ...
+
+        async def create_db(self, connection, base_metadata):
+            ...
+
+        async def drop_db(self, connection, base_metadata):
+            ...
+
+        def is_inmemory(self, engine):
+            ...
+
     async with dependencies.temporary_database_config(
         UselessConfiguration(connection_url=None)
     ):
