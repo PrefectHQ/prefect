@@ -22,9 +22,9 @@ API_TITLE = "Prefect Orion"
 API_VERSION = prefect.__version__
 
 
-def create_app(connection_config=None) -> FastAPI:
+def create_app(database_config=None) -> FastAPI:
 
-    MODELS_DEPENDENCIES["database_configuration"] = connection_config
+    MODELS_DEPENDENCIES["database_config"] = database_config
 
     app = FastAPI(title=API_TITLE, version=API_VERSION)
     logger = get_logger("orion")

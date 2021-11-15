@@ -407,7 +407,7 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
     ):
 
         db = OrionDBInterface(
-            connection_config=AioSqliteConfiguration(
+            database_config=AioSqliteConfiguration(
                 connection_url="sqlite+aiosqlite:///file::memory",
             ),
             query_components=AioSqliteQueryComponents(),

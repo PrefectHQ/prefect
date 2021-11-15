@@ -1,5 +1,6 @@
 import sqlalchemy as sa
 import sqlite3
+import os
 from asyncio import current_task, get_event_loop
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import (
@@ -73,6 +74,18 @@ class BaseDatabaseConfiguration(ABC):
 
         return self.SESSION_FACTORIES[cache_key]
 
+    @abstractmethod
+    async def create_db(self, connection, base_metadata):
+        """Create the database"""
+
+    @abstractmethod
+    async def drop_db(self, connection, base_metadata):
+        """Drop the database"""
+
+    @abstractmethod
+    def is_inmemory(self, engine):
+        """Returns true if database is run in memory"""
+
 
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
@@ -86,9 +99,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         timeout: float = None,
     ) -> sa.engine.Engine:
         """Retrieves an async SQLAlchemy engine.
-
-        A new engine is created for each event loop and cached, so that engines are
-        not shared across loops.
 
         Args:
             connection_url (str, optional): The database connection string.
@@ -171,6 +181,21 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
     async def clear_engine_cache(self):
         self.ENGINES.clear()
 
+    async def create_db(self, connection, base_metadata):
+        """Create the database"""
+
+        await connection.run_sync(base_metadata.create_all)
+
+    async def drop_db(self, connection, base_metadata):
+        """Drop the database"""
+
+        await connection.run_sync(base_metadata.drop_all)
+
+    def is_inmemory(self, engine):
+        """Returns true if database is run in memory"""
+
+        return False
+
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
@@ -239,3 +264,22 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # without running into errors, but may result in slow api calls
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
+
+    async def create_db(self, connection, base_metadata):
+        """Create the database"""
+
+        await connection.run_sync(base_metadata.create_all)
+
+    async def drop_db(self, connection, base_metadata):
+        """Drop the database"""
+
+        await connection.run_sync(base_metadata.drop_all)
+
+    def is_inmemory(self, engine):
+        """Returns true if database is run in memory"""
+
+        return (
+            ":memory:" in engine.url.database
+            or "mode=memory" in engine.url.database
+            or not os.path.exists(engine.url.database)
+        )
