@@ -37,7 +37,10 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy):
     """
 
     def priority():
-        return COMMON_GLOBAL_TRANSFORMS() + [UpdateSubflowParentTask]
+        return COMMON_GLOBAL_TRANSFORMS() + [
+            UpdateSubflowParentTask,
+            UpdateSubflowStateDetails,
+        ]
 
 
 class GlobalTaskPolicy(BaseOrchestrationPolicy):
@@ -200,6 +203,21 @@ class UpdateSubflowParentTask(BaseUniversalTransform):
                 task_run_id=context.run.parent_task_run_id,
                 state=subflow_parent_task_state,
                 force=True,
+            )
+
+
+class UpdateSubflowStateDetails(BaseUniversalTransform):
+    """
+    Update a child subflow state's references to a corresponding tracking task run id
+    in the parent flow run
+    """
+
+    async def before_transition(self, context: OrchestrationContext) -> None:
+
+        # only applies to flow runs with a parent task run id
+        if context.run.parent_task_run_id is not None:
+            context.proposed_state.state_details.task_run_id = (
+                context.run.parent_task_run_id
             )
 
 
