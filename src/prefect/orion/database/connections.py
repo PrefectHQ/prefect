@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from prefect import settings
 
 
-class DatabaseConnectionConfigurationBase(ABC):
+class BaseDatabaseConnectionConfiguration(ABC):
     """
     Abstract base class used to inject database connection configuration into Orion.
 
@@ -74,7 +74,7 @@ class DatabaseConnectionConfigurationBase(ABC):
         return self.SESSION_FACTORIES[cache_key]
 
 
-class AsyncPostgresConnectionConfiguration(DatabaseConnectionConfigurationBase):
+class AsyncPostgresConnectionConfiguration(BaseDatabaseConnectionConfiguration):
 
     ENGINES = dict()
     ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
@@ -172,7 +172,7 @@ class AsyncPostgresConnectionConfiguration(DatabaseConnectionConfigurationBase):
         self.ENGINES.clear()
 
 
-class AioSqliteConnectionConfiguration(DatabaseConnectionConfigurationBase):
+class AioSqliteConnectionConfiguration(BaseDatabaseConnectionConfiguration):
 
     MIN_SQLITE_VERSION = (3, 24, 0)
 

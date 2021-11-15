@@ -548,7 +548,7 @@ class ORMSavedSearch:
     )
 
 
-class ORMConfigurationBase(ABC):
+class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Orion.
     """
@@ -765,14 +765,14 @@ class ORMConfigurationBase(ABC):
         ]
 
 
-class AsyncPostgresORMConfiguration(ORMConfigurationBase):
+class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     """Postgres specific orm configuration"""
 
     def run_migrations(self):
         ...
 
 
-class AioSqliteORMConfiguration(ORMConfigurationBase):
+class AioSqliteORMConfiguration(BaseORMConfiguration):
     """SQLite specific orm configuration"""
 
     def run_migrations(self):
