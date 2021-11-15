@@ -7,7 +7,7 @@ import { Vue, prop } from 'vue-class-component'
 import { State, StateColors, StateIcons } from '@/types/states'
 import { StyleValue } from '@vue/runtime-dom'
 import { ClassValue } from '@/types/css'
-import { IconSize, getIconSizeClass } from '@/types/icons'
+import { IconSize, getIconSizeClass } from '@/utilities/icons'
 
 class Props {
   state = prop<State>({ required: true })
