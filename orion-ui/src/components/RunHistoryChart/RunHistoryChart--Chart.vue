@@ -140,15 +140,6 @@ class Props {
   })
 }
 
-const keys: State[] = [
-  States.PENDING,
-  States.SCHEDULED,
-  States.RUNNING,
-  States.COMPLETED,
-  States.FAILED,
-  States.CANCELED
-]
-
 @Options({})
 export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
@@ -181,7 +172,14 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   get series(): SeriesCollection {
     return d3
       .stack<Bucket, string>()
-      .keys(keys)
+      .keys([
+        States.PENDING,
+        States.SCHEDULED,
+        States.RUNNING,
+        States.COMPLETED,
+        States.FAILED,
+        States.CANCELED
+      ])
       .value((d: Bucket, key: string) => {
         const value =
           d.states.find((state) => state.state_type == key)?.count_runs || 0
