@@ -2,7 +2,8 @@
   <IntervalBarChartCard height="77px" v-bind="{ title, items, filter }">
     <template v-slot:total="{ total }">
       <div class="font--secondary">
-        {{ secondsToApproximateString(total) }}
+        {{ average(total) }}
+        <span class="caption-small">AVG</span>
       </div>
     </template>
     <template v-slot:popover-header>
@@ -13,7 +14,11 @@
     </template>
 
     <template v-slot:popover-content="scope">
-      <slot name="popover-content" v-bind="scope" />
+      <slot
+        name="popover-content"
+        v-bind="scope"
+        :runs="countRunsInStates(scope.item.data.states)"
+      />
     </template>
   </IntervalBarChartCard>
 </template>
@@ -62,4 +67,15 @@ const items = computed<IntervalBarChartItem<Bucket>[]>(() => {
 
   return filteredItems
 })
+
+const average = (total: number): string => {
+  const runs = items.value.reduce((runs, item) => runs + item.value, 0)
+  const avg = total / runs
+
+  return secondsToApproximateString(avg)
+}
+
+const countRunsInStates = (states: StateBucket[]): number => {
+  return states.reduce((total, state) => total + state.count_runs, 0)
+}
 </script>
