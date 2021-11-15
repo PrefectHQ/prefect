@@ -19,41 +19,29 @@ export class States {
   public static readonly CANCELED = 'CANCELED'
 }
 
-export class StateSigns {
-  public static readonly COMPLETED: StateDirection = 1
-  public static readonly RUNNING: StateDirection = 1
-  public static readonly SCHEDULED: StateDirection = 1
-  public static readonly PENDING: StateDirection = 1
-  public static readonly FAILED: StateDirection = -1
-  public static readonly CANCELED: StateDirection = -1
+export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([
+  [States.COMPLETED, -1],
+  [States.RUNNING, -1],
+  [States.SCHEDULED, -1],
+  [States.PENDING, -1],
+  [States.FAILED, 1],
+  [States.CANCELED, 1]
+])
 
-  public static get(state: State): StateDirection {
-    return this[state]
-  }
-}
+export const StateIcons: ReadonlyMap<State, StateIcon> = new Map([
+  [States.COMPLETED, 'pi-completed'],
+  [States.RUNNING, 'pi-running'],
+  [States.SCHEDULED, 'pi-scheduled'],
+  [States.PENDING, 'pi-pending'],
+  [States.FAILED, 'pi-failed'],
+  [States.CANCELED, 'pi-canceled']
+])
 
-export class StateIcons {
-  public static readonly COMPLETED: StateIcon = 'pi-completed'
-  public static readonly RUNNING: StateIcon = 'pi-running'
-  public static readonly SCHEDULED: StateIcon = 'pi-scheduled'
-  public static readonly PENDING: StateIcon = 'pi-pending'
-  public static readonly FAILED: StateIcon = 'pi-failed'
-  public static readonly CANCELED: StateIcon = 'pi-canceled'
-
-  public static get(state: State): StateIcon {
-    return this[state]
-  }
-}
-
-export class StateColors {
-  public static readonly COMPLETED: StateColor = 'var(--completed)'
-  public static readonly RUNNING: StateColor = 'var(--running)'
-  public static readonly SCHEDULED: StateColor = 'var(--scheduled)'
-  public static readonly PENDING: StateColor = 'var(--pending)'
-  public static readonly FAILED: StateColor = 'var(--failed)'
-  public static readonly CANCELED: StateColor = 'var(--canceled)'
-
-  public static get(state: State): StateColor {
-    return this[state]
-  }
-}
+export const StateColors: ReadonlyMap<State, StateColor> = new Map([
+  [States.COMPLETED, 'var(--completed)'],
+  [States.RUNNING, 'var(--running)'],
+  [States.SCHEDULED, 'var(--scheduled)'],
+  [States.PENDING, 'var(--pending)'],
+  [States.FAILED, 'var(--failed)'],
+  [States.CANCELED, 'var(--canceled)']
+])

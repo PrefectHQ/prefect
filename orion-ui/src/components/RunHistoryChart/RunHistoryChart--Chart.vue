@@ -70,6 +70,7 @@ import { StyleValue } from '@vue/runtime-dom'
 import { ClassValue } from '@/types/css'
 
 import { formatDateTimeNumeric } from '@/utilities/dates'
+import { State, States, StateDirections } from '@/types/states'
 
 type TransitionSelectionType = Transition<
   SVGGElement,
@@ -81,26 +82,6 @@ type GroupSelectionType = Selection<SVGGElement, unknown, HTMLElement, null>
 
 type BucketSeries = Series<Bucket, string>
 type SeriesCollection = BucketSeries[]
-
-const positiveStates: string[] = [
-  'COMPLETED',
-  'RUNNING',
-  'SCHEDULED',
-  'PENDING'
-]
-const mappedPositiveStates: [string, number][] = positiveStates.map(
-  (d: string) => [d, -1]
-)
-
-const negativeStates: string[] = ['FAILED', 'CANCELLED']
-const mappedNegativeStates: [string, number][] = negativeStates.map(
-  (d: string) => [d, +1]
-)
-
-const directions: Map<string, number> = new Map([
-  ...mappedPositiveStates,
-  ...mappedNegativeStates
-])
 
 const formatMillisecond = d3.timeFormat('.%L'),
   formatSecond = d3.timeFormat(':%S'),
@@ -159,6 +140,15 @@ class Props {
   })
 }
 
+const keys: State[] = [
+  States.PENDING,
+  States.SCHEDULED,
+  States.RUNNING,
+  States.COMPLETED,
+  States.FAILED,
+  States.CANCELED
+]
+
 @Options({})
 export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
@@ -191,12 +181,14 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   get series(): SeriesCollection {
     return d3
       .stack<Bucket, string>()
-      .keys([...positiveStates.slice().reverse(), ...negativeStates])
-      .value(
-        (d: Bucket, key: string) =>
-          (directions.get(key) || 1) *
-          (d.states.find((state) => state.state_type == key)?.count_runs || 0)
-      )
+      .keys(keys)
+      .value((d: Bucket, key: string) => {
+        const value =
+          d.states.find((state) => state.state_type == key)?.count_runs || 0
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        return value * StateDirections.get(key as State)!
+      })
       .offset(d3.stackOffsetDiverging)(this.items)
   }
 
@@ -236,9 +228,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     const middle = this.padding.middle / 2
     const middleOffset = this.padding.middle
       ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        directions.get(item.state_type)! > 0
-        ? middle
-        : middle * -1
+        StateDirections.get(item.state_type as State)! * middle
       : 0
 
     const top = this.yScale(seriesSlot[0]) + middleOffset
@@ -251,7 +241,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 
   calculateBarClass(item: StateBucket): ClassValue {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const direction = directions.get(item.state_type)!
+    const direction = StateDirections.get(item.state_type as State)!
 
     return [
       `${item.state_type.toLowerCase()}-bg`,
