@@ -96,12 +96,12 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        db.max(0, sa.extract("epoch", runs.c.estimated_run_time))
+                        db.greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
-                        db.max(
+                        db.greatest(
                             0, sa.extract("epoch", runs.c.estimated_start_time_delta)
                         )
                     ),

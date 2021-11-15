@@ -25,7 +25,7 @@ class BaseQueryComponents(ABC):
         """dialect-specific insert statement"""
 
     @abstractmethod
-    def max(self, *values):
+    def greatest(self, *values):
         """dialect-specific SqlAlchemy binding"""
 
     # --- dialect-specific JSON handling
@@ -74,7 +74,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
     def insert(self, obj):
         return postgresql.insert(obj)
 
-    def max(self, *values):
+    def greatest(self, *values):
         return sa.func.greatest(*values)
 
     # --- Postgres-specific JSON handling
@@ -147,7 +147,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
     def insert(self, obj):
         return sqlite.insert(obj)
 
-    def max(self, *values):
+    def greatest(self, *values):
         return sa.func.max(*values)
 
     # --- Sqlite-specific JSON handling
