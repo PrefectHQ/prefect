@@ -1,7 +1,7 @@
 import datetime
 import os
 
-from prefect.orion.database.connections import BaseDatabaseConnectionConfiguration
+from prefect.orion.database.configurations import BaseDatabaseConfiguration
 from prefect.orion.database.query_components import BaseQueryComponents
 from prefect.orion.database.orm_models import BaseORMConfiguration
 
@@ -36,7 +36,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def __init__(
         self,
-        connection_config: BaseDatabaseConnectionConfiguration = None,
+        connection_config: BaseDatabaseConfiguration = None,
         query_components: BaseQueryComponents = None,
         orm: BaseORMConfiguration = None,
     ):

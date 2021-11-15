@@ -22,9 +22,9 @@ def provide_database_interface():
 
     if connection_config is None:
         from prefect import settings
-        from prefect.orion.database.connections import (
-            AsyncPostgresConnectionConfiguration,
-            AioSqliteConnectionConfiguration,
+        from prefect.orion.database.configurations import (
+            AsyncPostgresConfiguration,
+            AioSqliteConfiguration,
         )
         from prefect.orion.utilities.database import get_dialect
 
@@ -32,11 +32,11 @@ def provide_database_interface():
         connection_url = settings.orion.database.connection_url.get_secret_value()
 
         if dialect.name == "postgresql":
-            connection_config = AsyncPostgresConnectionConfiguration(
+            connection_config = AsyncPostgresConfiguration(
                 connection_url=connection_url
             )
         elif dialect.name == "sqlite":
-            connection_config = AioSqliteConnectionConfiguration(
+            connection_config = AioSqliteConfiguration(
                 connection_url=connection_url
             )
         else:

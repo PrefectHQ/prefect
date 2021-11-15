@@ -2,10 +2,10 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion.database import dependencies
-from prefect.orion.database.connections import (
-    BaseDatabaseConnectionConfiguration,
-    AsyncPostgresConnectionConfiguration,
-    AioSqliteConnectionConfiguration,
+from prefect.orion.database.configurations import (
+    BaseDatabaseConfiguration,
+    AsyncPostgresConfiguration,
+    AioSqliteConfiguration,
 )
 from prefect.orion.database.query_components import (
     BaseQueryComponents,
@@ -21,7 +21,7 @@ from prefect.orion.database.orm_models import (
 
 @pytest.mark.parametrize(
     "ConnectionConfig",
-    (AsyncPostgresConnectionConfiguration, AioSqliteConnectionConfiguration),
+    (AsyncPostgresConfiguration, AioSqliteConfiguration),
 )
 async def test_injecting_an_existing_database_connection_config(ConnectionConfig):
     async with dependencies.temporary_connection_config(ConnectionConfig()):
@@ -30,7 +30,7 @@ async def test_injecting_an_existing_database_connection_config(ConnectionConfig
 
 
 async def test_injecting_a_really_dumb_database_connection_config():
-    class UselessConfiguration(BaseDatabaseConnectionConfiguration):
+    class UselessConfiguration(BaseDatabaseConfiguration):
         async def engine(
             self,
         ):
