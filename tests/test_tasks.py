@@ -10,7 +10,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.tasks import task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.utilities.collections import quote
 from prefect.exceptions import ReservedArgumentError
 
 
@@ -332,8 +331,8 @@ class TestTaskCaching:
         def bar(x):
             return foo(x).wait()
 
-        first_state = bar(1)
-        second_state = bar(2)
+        first_state = bar(1).result()
+        second_state = bar(2).result()
         assert first_state.name == "Completed"
         assert second_state.name == "Cached"
         assert second_state.result() == first_state.result() == 1
@@ -476,9 +475,9 @@ class TestCacheFunctionBuiltins:
         def bar(x):
             return foo(x).wait()
 
-        first_state = bar(1)
-        second_state = bar(2)
-        third_state = bar(1)
+        first_state = bar(1).result()
+        second_state = bar(2).result()
+        third_state = bar(1).result()
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
         assert third_state.name == "Cached"
@@ -752,6 +751,31 @@ class TestTaskInputs:
             },
         )
 
+    async def test_task_with_subflow_upstream(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def child(x):
+            return x
+
+        @flow
+        def parent():
+            child_state = child(1)
+            return child_state, foo(child_state)
+
+        parent_state = parent()
+        child_state, task_state = parent_state.result()
+
+        task_run = await orion_client.read_task_run(
+            task_state.state_details.task_run_id
+        )
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=child_state.state_details.task_run_id)],
+        )
+
 
 class TestTaskWaitFor:
     def test_downstream_does_not_run_if_upstream_fails(self):
@@ -767,11 +791,10 @@ class TestTaskWaitFor:
         def test_flow():
             f = fails()
             b = bar(2, wait_for=[f])
-
-            return quote(b)
+            return b
 
         flow_state = test_flow()
-        task_state = flow_state.result().unquote()
+        task_state = flow_state.result(raise_on_failure=False)
         assert task_state.is_pending()
         assert task_state.name == "NotReady"
 
@@ -788,10 +811,10 @@ class TestTaskWaitFor:
         def test_flow():
             f = foo(1)
             b = bar(2, wait_for=[f])
-            return quote(b)
+            return b
 
         flow_state = test_flow()
-        task_state = flow_state.result().unquote()
+        task_state = flow_state.result()
         assert task_state.result() == 2
 
     async def test_backend_task_inputs_includes_wait_for_tasks(self, orion_client):
@@ -804,10 +827,10 @@ class TestTaskWaitFor:
             a, b = foo(1), foo(2)
             c = foo(3)
             d = foo(c, wait_for=[a, b])
-            return quote((a, b, c, d))
+            return (a, b, c, d)
 
         flow_state = test_flow()
-        a, b, c, d = flow_state.result().unquote()
+        a, b, c, d = flow_state.result()
         d_task_run = await orion_client.read_task_run(d.state_details.task_run_id)
 
         assert d_task_run.task_inputs["x"] == [
