@@ -28,7 +28,6 @@ async def database_engine(db):
         yield engine
     finally:
         await engine.dispose()
-        # await db.clear_engine_cache()
 
 
 @pytest.fixture
