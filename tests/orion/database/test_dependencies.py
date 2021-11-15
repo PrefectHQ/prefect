@@ -3,17 +3,17 @@ import sqlalchemy as sa
 
 from prefect.orion.database import dependencies
 from prefect.orion.database.connections import (
-    DatabaseConnectionConfigurationBase,
+    BaseDatabaseConnectionConfiguration,
     AsyncPostgresConnectionConfiguration,
     AioSqliteConnectionConfiguration,
 )
 from prefect.orion.database.query_components import (
-    QueryComponentsBase,
+    BaseQueryComponents,
     AsyncPostgresQueryComponents,
     AioSqliteQueryComponents,
 )
 from prefect.orion.database.orm_models import (
-    ORMConfigurationBase,
+    BaseORMConfiguration,
     AsyncPostgresORMConfiguration,
     AioSqliteORMConfiguration,
 )
@@ -30,7 +30,7 @@ async def test_injecting_an_existing_database_connection_config(ConnectionConfig
 
 
 async def test_injecting_a_really_dumb_database_connection_config():
-    class UselessConfiguration(DatabaseConnectionConfigurationBase):
+    class UselessConfiguration(BaseDatabaseConnectionConfiguration):
         async def engine(
             self,
         ):
@@ -53,7 +53,7 @@ async def test_injecting_existing_query_components(QueryComponents):
 
 
 async def test_injecting_really_dumb_query_components():
-    class ReallyBrokenQueries(QueryComponentsBase):
+    class ReallyBrokenQueries(BaseQueryComponents):
         # --- dialect-specific SqlAlchemy bindings
 
         def insert(self, obj):
@@ -110,7 +110,7 @@ async def test_injecting_existing_orm_configs(ORMConfig):
 
 
 async def test_injecting_really_dumb_orm_configuration():
-    class UselessORMConfiguration(ORMConfigurationBase):
+    class UselessORMConfiguration(BaseORMConfiguration):
         def run_migrations(self):
             ...
 
