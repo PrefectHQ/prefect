@@ -11,6 +11,7 @@ from sqlalchemy.orm import declarative_base
 from prefect.orion.database.interface import OrionDBInterface
 from prefect.orion.database.configurations import AioSqliteConfiguration
 from prefect.orion.database.query_components import AioSqliteQueryComponents
+from prefect.orion.database.orm_models import AioSqliteORMConfiguration
 from prefect.orion.utilities.database import (
     JSON,
     Pydantic,
@@ -406,9 +407,10 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
     ):
 
         db = OrionDBInterface(
-            db_config=AioSqliteConfiguration(
+            connection_config=AioSqliteConfiguration(
                 connection_url="sqlite+aiosqlite:///file::memory",
             ),
             query_components=AioSqliteQueryComponents(),
+            orm=AioSqliteORMConfiguration(),
         )
         await db.engine()

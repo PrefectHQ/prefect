@@ -1,61 +1,59 @@
+import pytest
+import sqlalchemy as sa
+
 from prefect.orion.database import dependencies
 from prefect.orion.database.configurations import (
-    DatabaseConfigurationBase,
+    BaseDatabaseConfiguration,
     AsyncPostgresConfiguration,
     AioSqliteConfiguration,
 )
 from prefect.orion.database.query_components import (
-    QueryComponentsBase,
+    BaseQueryComponents,
     AsyncPostgresQueryComponents,
     AioSqliteQueryComponents,
 )
+from prefect.orion.database.orm_models import (
+    BaseORMConfiguration,
+    AsyncPostgresORMConfiguration,
+    AioSqliteORMConfiguration,
+)
 
 
-async def test_injecting_an_existing_database_config():
-    async with dependencies.temporary_db_config(AsyncPostgresConfiguration()):
+@pytest.mark.parametrize(
+    "ConnectionConfig",
+    (AsyncPostgresConfiguration, AioSqliteConfiguration),
+)
+async def test_injecting_an_existing_database_connection_config(ConnectionConfig):
+    async with dependencies.temporary_connection_config(ConnectionConfig()):
         db = dependencies.provide_database_interface()
-        assert type(db.config) == AsyncPostgresConfiguration
-
-    async with dependencies.temporary_db_config(AioSqliteConfiguration()):
-        db = dependencies.provide_database_interface()
-        assert type(db.config) == AioSqliteConfiguration
+        assert type(db.connection_config) == ConnectionConfig
 
 
-async def test_injecting_a_really_dumb_database_config():
-    class UselessConfiguration(DatabaseConfigurationBase):
-        @property
-        def base_model_mixins(self) -> list:
-            return []
-
-        def run_migrations(self, base_model):
-            ...
-
+async def test_injecting_a_really_dumb_database_connection_config():
+    class UselessConfiguration(BaseDatabaseConfiguration):
         async def engine(
             self,
-            connection_url,
-            echo,
-            timeout,
-            orm_metadata,
         ):
             ...
 
-    async with dependencies.temporary_db_config(UselessConfiguration()):
+    async with dependencies.temporary_connection_config(
+        UselessConfiguration(connection_url=None)
+    ):
         db = dependencies.provide_database_interface()
-        assert type(db.config) == UselessConfiguration
+        assert type(db.connection_config) == UselessConfiguration
 
 
-async def test_injecting_existing_query_components():
-    async with dependencies.temporary_query_components(AsyncPostgresQueryComponents()):
+@pytest.mark.parametrize(
+    "QueryComponents", (AsyncPostgresQueryComponents, AioSqliteQueryComponents)
+)
+async def test_injecting_existing_query_components(QueryComponents):
+    async with dependencies.temporary_query_components(QueryComponents()):
         db = dependencies.provide_database_interface()
-        assert type(db.queries) == AsyncPostgresQueryComponents
-
-    async with dependencies.temporary_query_components(AioSqliteQueryComponents()):
-        db = dependencies.provide_database_interface()
-        assert type(db.queries) == AioSqliteQueryComponents
+        assert type(db.queries) == QueryComponents
 
 
 async def test_injecting_really_dumb_query_components():
-    class ReallyBrokenQueries(QueryComponentsBase):
+    class ReallyBrokenQueries(BaseQueryComponents):
         # --- dialect-specific SqlAlchemy bindings
 
         def insert(self, obj):
@@ -100,3 +98,42 @@ async def test_injecting_really_dumb_query_components():
     async with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
         assert type(db.queries) == ReallyBrokenQueries
+
+
+@pytest.mark.parametrize(
+    "ORMConfig", (AsyncPostgresORMConfiguration, AioSqliteORMConfiguration)
+)
+async def test_injecting_existing_orm_configs(ORMConfig):
+    async with dependencies.temporary_orm_config(ORMConfig()):
+        db = dependencies.provide_database_interface()
+        assert type(db.orm) == ORMConfig
+
+
+async def test_injecting_really_dumb_orm_configuration():
+    class UselessORMConfiguration(BaseORMConfiguration):
+        def run_migrations(self):
+            ...
+
+    class UselessBaseMixin:
+        my_string_column = sa.Column(
+            sa.String, nullable=False, default="Mostly harmless"
+        )
+
+    async with dependencies.temporary_orm_config(
+        UselessORMConfiguration(
+            base_metadata=sa.schema.MetaData(schema="new_schema"),
+            base_model_mixins=[UselessBaseMixin],
+        )
+    ):
+        db = dependencies.provide_database_interface()
+        assert type(db.orm) == UselessORMConfiguration
+
+        # base mixins should be used to create orm models
+        assert "my_string_column" in db.Flow.__table__.columns.keys()
+        # base metadata should specify a different schema
+        assert db.Base.metadata.schema == "new_schema"
+
+    # orm properties should be unset after we exit context
+    db = dependencies.provide_database_interface()
+    assert "my_string_column" not in db.Flow.__table__.columns.keys()
+    assert db.Base.metadata.schema != "new_schema"
