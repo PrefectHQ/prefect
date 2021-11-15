@@ -36,9 +36,7 @@ def provide_database_interface():
                 connection_url=connection_url
             )
         elif dialect.name == "sqlite":
-            connection_config = AioSqliteConfiguration(
-                connection_url=connection_url
-            )
+            connection_config = AioSqliteConfiguration(connection_url=connection_url)
         else:
             raise ValueError(
                 f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"
