@@ -159,8 +159,8 @@ class OrionDBInterface(metaclass=DBSingleton):
         """INSERTs a model into the database"""
         return self.queries.insert(model)
 
-    def max(self, *values):
-        return self.queries.max(*values)
+    def greatest(self, *values):
+        return self.queries.greatest(*values)
 
     def make_timestamp_intervals(
         self,
