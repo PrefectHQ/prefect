@@ -13,7 +13,7 @@ class DBSingleton(type):
 
     def __call__(cls, *args, **kwargs):
         unique_key = (
-            kwargs["connection_config"]._unique_key(),
+            kwargs["database_config"]._unique_key(),
             kwargs["query_components"]._unique_key(),
             kwargs["orm"]._unique_key(),
         )
@@ -36,12 +36,12 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     def __init__(
         self,
-        connection_config: BaseDatabaseConfiguration = None,
+        database_config: BaseDatabaseConfiguration = None,
         query_components: BaseQueryComponents = None,
         orm: BaseORMConfiguration = None,
     ):
 
-        self.connection_config = connection_config
+        self.database_config = database_config
         self.queries = query_components
         self.orm = orm
 
@@ -50,14 +50,14 @@ class OrionDBInterface(metaclass=DBSingleton):
         engine = await self.engine()
 
         async with engine.begin() as conn:
-            await conn.run_sync(self.Base.metadata.create_all)
+            await self.database_config.create_db(conn, self.Base.metadata)
 
     async def drop_db(self):
         """Drop the database"""
         engine = await self.engine()
 
         async with engine.begin() as conn:
-            await conn.run_sync(self.Base.metadata.drop_all)
+            await self.database_config.drop_db(conn, self.Base.metadata)
 
     def run_migrations(self):
         """Run database migrations"""
@@ -72,23 +72,18 @@ class OrionDBInterface(metaclass=DBSingleton):
         """
         Provides a SqlAlchemy engine against a specific database.
         """
-        engine = await self.connection_config.engine(
+        engine = await self.database_config.engine(
             connection_url=connection_url, echo=echo, timeout=timeout
         )
 
-        # if this is a new sqlite database create all database objects
-        if (
-            ":memory:" in engine.url.database
-            or "mode=memory" in engine.url.database
-            or not os.path.exists(engine.url.database)
-        ):
+        if self.database_config.is_inmemory(engine):
             async with engine.begin() as conn:
-                await conn.run_sync(self.Base.metadata.create_all)
+                await self.database_config.create_db(conn, self.Base.metadata)
 
         return engine
 
     async def session_factory(self):
-        return await self.connection_config.session_factory()
+        return await self.database_config.session_factory()
 
     @property
     def Base(self):

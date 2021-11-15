@@ -23,24 +23,24 @@ from prefect.orion.database.orm_models import (
     "ConnectionConfig",
     (AsyncPostgresConfiguration, AioSqliteConfiguration),
 )
-async def test_injecting_an_existing_database_connection_config(ConnectionConfig):
-    async with dependencies.temporary_connection_config(ConnectionConfig()):
+async def test_injecting_an_existing_database_database_config(ConnectionConfig):
+    async with dependencies.temporary_database_config(ConnectionConfig()):
         db = dependencies.provide_database_interface()
-        assert type(db.connection_config) == ConnectionConfig
+        assert type(db.database_config) == ConnectionConfig
 
 
-async def test_injecting_a_really_dumb_database_connection_config():
+async def test_injecting_a_really_dumb_database_database_config():
     class UselessConfiguration(BaseDatabaseConfiguration):
         async def engine(
             self,
         ):
             ...
 
-    async with dependencies.temporary_connection_config(
+    async with dependencies.temporary_database_config(
         UselessConfiguration(connection_url=None)
     ):
         db = dependencies.provide_database_interface()
-        assert type(db.connection_config) == UselessConfiguration
+        assert type(db.database_config) == UselessConfiguration
 
 
 @pytest.mark.parametrize(

@@ -7,7 +7,7 @@ from functools import wraps
 
 
 MODELS_DEPENDENCIES = {
-    "connection_configuration": None,
+    "database_config": None,
     "query_components": None,
     "orm": None,
 }
@@ -16,11 +16,11 @@ MODELS_DEPENDENCIES = {
 def provide_database_interface():
     from prefect.orion.database.interface import OrionDBInterface
 
-    connection_config = MODELS_DEPENDENCIES.get("connection_configuration")
+    database_config = MODELS_DEPENDENCIES.get("database_config")
     query_components = MODELS_DEPENDENCIES.get("query_components")
     orm = MODELS_DEPENDENCIES.get("orm")
 
-    if connection_config is None:
+    if database_config is None:
         from prefect import settings
         from prefect.orion.database.configurations import (
             AsyncPostgresConfiguration,
@@ -32,17 +32,17 @@ def provide_database_interface():
         connection_url = settings.orion.database.connection_url.get_secret_value()
 
         if dialect.name == "postgresql":
-            connection_config = AsyncPostgresConfiguration(
+            database_config = AsyncPostgresConfiguration(
                 connection_url=connection_url
             )
         elif dialect.name == "sqlite":
-            connection_config = AioSqliteConfiguration(connection_url=connection_url)
+            database_config = AioSqliteConfiguration(connection_url=connection_url)
         else:
             raise ValueError(
                 f"Unable to infer database configuration from provided dialect. Got dialect name {dialect.name!r}"
             )
 
-        MODELS_DEPENDENCIES["connection_configuration"] = connection_config
+        MODELS_DEPENDENCIES["database_config"] = database_config
 
     if query_components is None:
         from prefect.orion.database.query_components import (
@@ -85,7 +85,7 @@ def provide_database_interface():
         MODELS_DEPENDENCIES["orm"] = orm
 
     return OrionDBInterface(
-        connection_config=connection_config,
+        database_config=database_config,
         query_components=query_components,
         orm=orm,
     )
@@ -109,13 +109,13 @@ def inject_db(fn):
 
 
 @asynccontextmanager
-async def temporary_connection_config(tmp_connection_config):
-    starting_config = MODELS_DEPENDENCIES["connection_configuration"]
+async def temporary_database_config(tmp_database_config):
+    starting_config = MODELS_DEPENDENCIES["database_config"]
     try:
-        MODELS_DEPENDENCIES["connection_configuration"] = tmp_connection_config
+        MODELS_DEPENDENCIES["database_config"] = tmp_database_config
         yield
     finally:
-        MODELS_DEPENDENCIES["connection_configuration"] = starting_config
+        MODELS_DEPENDENCIES["database_config"] = starting_config
 
 
 @asynccontextmanager
