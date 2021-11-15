@@ -23,8 +23,6 @@ class BaseDatabaseConfiguration(ABC):
     database connections and sessions.
     """
 
-    SESSION_FACTORIES = dict()
-
     def __init__(
         self,
         connection_url: str = None,
@@ -52,27 +50,12 @@ class BaseDatabaseConfiguration(ABC):
     ) -> sa.engine.Engine:
         """Returns a SqlAlchemy engine"""
 
+    @abstractmethod
     async def session_factory(self):
         """
         Retrieves a SQLAlchemy session factory for self.engine.
         The session factory is cached for each event loop.
         """
-        loop = get_event_loop()
-        bind = await self.engine()
-        cache_key = (loop, bind)
-        if cache_key not in self.SESSION_FACTORIES:
-
-            session_factory = sessionmaker(
-                bind,
-                future=True,
-                expire_on_commit=False,
-                class_=AsyncSession,
-            )
-
-            session = async_scoped_session(session_factory, scopefunc=current_task)
-            self.SESSION_FACTORIES[cache_key] = session
-
-        return self.SESSION_FACTORIES[cache_key]
 
     @abstractmethod
     async def create_db(self, connection, base_metadata):
@@ -91,6 +74,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
     ENGINES = dict()
     ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
+    SESSION_FACTORIES = dict()
 
     async def engine(
         self,
@@ -178,8 +162,27 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         # Begin iterating so it will be cleaned up as an incomplete generator
         await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
 
-    async def clear_engine_cache(self):
-        self.ENGINES.clear()
+    async def session_factory(self):
+        """
+        Retrieves a SQLAlchemy session factory for self.engine.
+        The session factory is cached for each event loop.
+        """
+        loop = get_event_loop()
+        bind = await self.engine()
+        cache_key = (loop, bind)
+        if cache_key not in self.SESSION_FACTORIES:
+
+            session_factory = sessionmaker(
+                bind,
+                future=True,
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+
+            session = async_scoped_session(session_factory, scopefunc=current_task)
+            self.SESSION_FACTORIES[cache_key] = session
+
+        return self.SESSION_FACTORIES[cache_key]
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""
@@ -199,6 +202,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
+    SESSION_FACTORIES = dict()
     MIN_SQLITE_VERSION = (3, 24, 0)
 
     async def engine(
@@ -264,6 +268,28 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         # without running into errors, but may result in slow api calls
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
+
+    async def session_factory(self):
+        """
+        Retrieves a SQLAlchemy session factory for self.engine.
+        The session factory is cached for each event loop.
+        """
+        loop = get_event_loop()
+        bind = await self.engine()
+        cache_key = (loop, bind)
+        if cache_key not in self.SESSION_FACTORIES:
+
+            session_factory = sessionmaker(
+                bind,
+                future=True,
+                expire_on_commit=False,
+                class_=AsyncSession,
+            )
+
+            session = async_scoped_session(session_factory, scopefunc=current_task)
+            self.SESSION_FACTORIES[cache_key] = session
+
+        return self.SESSION_FACTORIES[cache_key]
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""
