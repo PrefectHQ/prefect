@@ -71,7 +71,7 @@ async def test_injecting_really_dumb_query_components():
         def insert(self, obj):
             ...
 
-        def max(self, *values):
+        def greatest(self, *values):
             ...
 
         # --- dialect-specific JSON handling
