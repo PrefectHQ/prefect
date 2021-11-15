@@ -32,9 +32,7 @@ def provide_database_interface():
         connection_url = settings.orion.database.connection_url.get_secret_value()
 
         if dialect.name == "postgresql":
-            database_config = AsyncPostgresConfiguration(
-                connection_url=connection_url
-            )
+            database_config = AsyncPostgresConfiguration(connection_url=connection_url)
         elif dialect.name == "sqlite":
             database_config = AioSqliteConfiguration(connection_url=connection_url)
         else:
