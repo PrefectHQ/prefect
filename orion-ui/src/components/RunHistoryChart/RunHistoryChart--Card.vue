@@ -8,7 +8,6 @@
       <RunHistoryChart
         v-if="buckets && buckets.length"
         :items="buckets"
-        background-color="blue-5"
         :interval-seconds="intervalSeconds"
         :interval-start="intervalStart"
         :interval-end="intervalEnd"

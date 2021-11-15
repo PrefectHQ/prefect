@@ -15,6 +15,7 @@
           <Popover
             :placement="['bottom', 'top', 'leftTop', 'rightTop']"
             :style="calculateBarPosition(state, i)"
+            :disabled="disablePopovers"
             class="run-history-chart__popover"
           >
             <template v-slot:trigger="{ open, close }">
@@ -31,22 +32,22 @@
             </template>
             <template v-slot:header>
               <div class="interval-bar-chart-card__popover-header">
-                <i class="pi pi-flow pi-1 mr-1 text--grey-40" />
-                <span>{{ popoverHeading }}</span>
+                <StateIcon class="mr-1" :state="state.state_type" colored />
+                <span>{{ state.state_name }} flow runs</span>
               </div>
             </template>
             <table class="table table--data">
               <tr>
-                <td>Start Time:</td>
+                <td>Run count:</td>
+                <td>{{ state.count_runs }}</td>
+              </tr>
+              <tr>
+                <td>Started after:</td>
                 <td>{{ formatDateTimeNumeric(item.interval_start) }}</td>
               </tr>
               <tr>
-                <td>End Time:</td>
+                <td>Started before:</td>
                 <td>{{ formatDateTimeNumeric(item.interval_end) }}</td>
-              </tr>
-              <tr>
-                <td>{{ state.state_name }}:</td>
-                <td>{{ state.count_runs }}</td>
               </tr>
             </table>
           </Popover>
@@ -120,7 +121,7 @@ class Props {
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
-  popoverHeading = prop<string>({ default: 'Flow Activity' })
+  disablePopovers = prop<boolean>({ default: false })
   staticMedian = prop<boolean>({ type: Boolean, default: false })
   padding = prop<{
     top: number
