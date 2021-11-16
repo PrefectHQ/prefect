@@ -62,6 +62,9 @@ async def start(
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
 
+    agent_env = os.environ.copy()
+    agent_env["PREFECT_ORION_HOST"] = f"http://{host}:{port}/api/"
+
     async with anyio.create_task_group() as tg:
         console.print("Starting Orion API server...")
         await tg.start(
@@ -83,7 +86,13 @@ async def start(
 
         if agent:
             await anyio.sleep(1)  # The server may not be ready yet
-            tg.start_soon(open_process_and_stream_output, ["prefect", "agent", "start"])
+            tg.start_soon(
+                partial(
+                    open_process_and_stream_output,
+                    ["prefect", "agent", "start"],
+                    env=agent_env,
+                )
+            )
 
     console.print("Orion stopped!")
 
