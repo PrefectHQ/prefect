@@ -180,7 +180,7 @@ jobs:
 
       - run:
           name: Install system dependencies
-          command: apt-get update && apt-get install -y graphviz unixodbc-dev
+          command: apt-get update && apt-get install -y graphviz unixodbc-dev python-dev libsasl2-dev gcc
 
       - run:
           name: Upgrade pip
