@@ -1,6 +1,6 @@
 """
-The agent implementation is consumed by both `orion` and `prefect` so that the agent
-service included in Orion share code with the client-side agent.
+The agent is responsible for checking for flow runs that are ready to run and starting
+their execution.
 """
 from typing import Awaitable, Callable, Coroutine, List, Optional
 from uuid import UUID
