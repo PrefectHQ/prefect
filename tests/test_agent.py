@@ -6,7 +6,7 @@ import pytest
 import sys
 
 from prefect import flow
-from prefect.agents import OrionAgent
+from prefect.agent import OrionAgent
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 
