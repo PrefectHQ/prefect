@@ -19,7 +19,11 @@ async def start():
     """
     Start an agent service to query for and execute scheduled flow runs.
     """
-    console.print("Starting agent...")
+    if settings.orion_host:
+        console.print(f"Starting agent connected to {settings.orion_host}...")
+    else:
+        console.print("Starting agent with ephemeral API...")
+
     running = True
     async with OrionAgent(
         prefetch_seconds=settings.orion.services.agent_prefetch_seconds,
