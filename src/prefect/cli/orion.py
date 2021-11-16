@@ -83,7 +83,6 @@ async def start(
 
         if agent:
             await anyio.sleep(1)  # The server may not be ready yet
-            print("Starting Orion agent...")
             tg.start_soon(open_process_and_stream_output, ["prefect", "agent", "start"])
 
     console.print("Orion stopped!")
