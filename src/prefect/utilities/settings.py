@@ -202,24 +202,6 @@ class ServicesSettings(BaseSettings):
         """,
     )
 
-    # -- Agent
-
-    # check for new runs every X seconds
-    agent_loop_seconds: float = Field(
-        5,
-        description="""The agent loop interval, in seconds. Agents will check
-        for new runs this often. Defaults to `5`.""",
-    )
-    # check for runs that are scheduled to start in the next X seconds
-    agent_prefetch_seconds: int = Field(
-        10,
-        description="""Agents will look for scheduled runs this many seconds in
-        the future and attempt to run them. This accounts for any additional
-        infrastructure spin-up time or latency in preparing a flow run. Note
-        flow runs will not start before their scheduled time, even if they are
-        prefetched. Defaults to `10`.""",
-    )
-
     # -- Late Runs
 
     # check for late runs every 5 seconds
@@ -307,6 +289,24 @@ class LoggingSettings(BaseSettings):
     )
 
 
+class AgentSettings(BaseSettings):
+
+    query_interval: float = Field(
+        5,
+        description="""The agent loop interval, in seconds. Agents will check
+        for new runs this often. Defaults to `5`.""",
+    )
+
+    prefetch_seconds: int = Field(
+        10,
+        description="""Agents will look for scheduled runs this many seconds in
+        the future and attempt to run them. This accounts for any additional
+        infrastructure spin-up time or latency in preparing a flow run. Note
+        flow runs will not start before their scheduled time, even if they are
+        prefetched. Defaults to `10`.""",
+    )
+
+
 class Settings(SharedSettings):
     """Global Prefect settings. To change these settings via environment variable, set
     `PREFECT_{SETTING}=X`.
@@ -324,6 +324,12 @@ class Settings(SharedSettings):
     orion: OrionSettings = Field(
         default_factory=OrionSettings,
         description="Nested [Orion settings][prefect.utilities.settings.OrionSettings].",
+    )
+
+    # agent
+    agent: AgentSettings = Field(
+        default_factory=AgentSettings,
+        description="Nested [Agent settings][prefect.utilities.settings.AgentSettings].",
     )
 
     # the connection url for an orion instance
