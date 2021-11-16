@@ -610,7 +610,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+            for _ in range(20):  # Sleep in intervals to give more chances for interrupt
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
@@ -625,7 +625,7 @@ class TestFlowTimeouts:
         await anyio.sleep(1)
         assert not canary_file.exists()
 
-        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
+        assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
