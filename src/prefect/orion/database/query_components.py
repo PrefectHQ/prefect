@@ -12,7 +12,7 @@ class BaseQueryComponents(ABC):
     Abstract base class used to inject dialect-specific SQL operations into Orion.
     """
 
-    def _unique_key(self) -> Tuple[Hashable]:
+    def _unique_key(self) -> Tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """
