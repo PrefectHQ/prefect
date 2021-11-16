@@ -25,16 +25,14 @@ async def start():
         console.print("Starting agent with ephemeral API...")
 
     running = True
-    async with OrionAgent(
-        prefetch_seconds=settings.orion.services.agent_prefetch_seconds,
-    ) as agent:
+    async with OrionAgent() as agent:
         console.print("Agent started! Checking for flow runs...")
         while running:
             try:
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
-            await anyio.sleep(settings.orion.services.agent_loop_seconds)
+            await anyio.sleep(settings.agent.loop_seconds)
     console.print("Agent stopped!")
 
 

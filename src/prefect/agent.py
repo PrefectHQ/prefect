@@ -10,6 +10,7 @@ import anyio.to_process
 import pendulum
 from anyio.abc import TaskGroup, TaskStatus
 
+from prefect import settings
 from prefect.client import OrionClient
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
@@ -21,7 +22,7 @@ from prefect.utilities.logging import get_logger
 class OrionAgent:
     def __init__(
         self,
-        prefetch_seconds: int,
+        prefetch_seconds: int = settings.agent.prefetch_seconds,
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
