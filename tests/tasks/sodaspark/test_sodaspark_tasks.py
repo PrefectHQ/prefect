@@ -78,6 +78,7 @@ class TestSodaSparkScan:
         soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
         soda_spark_scan_task.run()
 
+    @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_valid_scan_and_df_with_measurements(self):
         scan_def = """
         table_name: demodata
@@ -96,6 +97,7 @@ class TestSodaSparkScan:
 
         assert hasattr(res, "measurements")
 
+    @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_valid_scan_and_df_with_errors(self):
         scan_def = """
         table_name: demodata
