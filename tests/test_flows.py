@@ -655,9 +655,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
         # Wait in case the flow is just sleeping
-        await anyio.sleep(1)
         assert not canary_file.exists()
-
         assert counter < 10, "The engine does not wait for the subflow to finish"
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
