@@ -35,7 +35,7 @@ class BaseDatabaseConfiguration(ABC):
         self.echo = echo or settings.orion.database.echo
         self.timeout = timeout
 
-    def _unique_key(self) -> Tuple[Hashable]:
+    def _unique_key(self) -> Tuple[Hashable, ...]:
         """
         Returns a key used to determine whether to instantiate a new DB interface.
         """

@@ -587,6 +587,12 @@ class BaseORMConfiguration(ABC):
         self._create_base_model()
         self._create_orm_models()
 
+    def _unique_key(self) -> Tuple[Hashable, ...]:
+        """
+        Returns a key used to determine whether to instantiate a new DB interface.
+        """
+        return (self.__class__, self.base_metadata, tuple(self.base_model_mixins))
+
     def _create_base_model(self):
         """
         Defines the base ORM model and binds it to `self`. The base model will be
@@ -723,12 +729,6 @@ class BaseORMConfiguration(ABC):
         self.TaskRun = TaskRun
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
-
-    def _unique_key(self) -> Tuple[Hashable]:
-        """
-        Returns a key used to determine whether to instantiate a new DB interface.
-        """
-        return (self.__class__, self.base_metadata, tuple(self.base_model_mixins))
 
     @abstractmethod
     def run_migrations(self):
