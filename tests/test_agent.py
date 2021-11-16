@@ -20,7 +20,7 @@ else:
 
 
 async def test_agent_start_will_not_run_without_start():
-    agent = OrionAgent(prefetch_seconds=1)
+    agent = OrionAgent()
     mock = AsyncMock()
     with pytest.raises(RuntimeError, match="Agent is not started"):
         agent.client = mock
@@ -30,7 +30,7 @@ async def test_agent_start_will_not_run_without_start():
 
 
 async def test_agent_start_and_shutdown():
-    async with OrionAgent(prefetch_seconds=1) as agent:
+    async with OrionAgent() as agent:
         assert agent.started
         assert agent.task_group is not None
         assert agent.client is not None
