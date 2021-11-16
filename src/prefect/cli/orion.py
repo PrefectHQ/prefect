@@ -85,7 +85,8 @@ async def start(
         )
 
         if agent:
-            await anyio.sleep(1)  # The server may not be ready yet
+            # The server may not be ready yet despite waiting for the process to begin
+            await anyio.sleep(1)
             tg.start_soon(
                 partial(
                     open_process_and_stream_output,
