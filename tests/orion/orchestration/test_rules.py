@@ -6,7 +6,7 @@ from itertools import product
 from unittest.mock import MagicMock
 
 from prefect.orion import schemas
-from prefect.orion.models import orm
+
 from prefect.orion.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
@@ -21,6 +21,7 @@ from prefect.orion.schemas.responses import (
     StateRejectDetails,
     StateWaitDetails,
 )
+from prefect.orion.database.dependencies import provide_database_interface
 
 
 async def commit_task_run_state(
@@ -42,7 +43,8 @@ async def commit_task_run_state(
         state_details=state_details,
     )
 
-    orm_state = orm.TaskRunState(
+    db = provide_database_interface()
+    orm_state = db.TaskRunState(
         task_run_id=task_run.id,
         **new_state.dict(shallow=True),
     )
