@@ -599,6 +599,7 @@ class TestFlowTimeouts:
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
+
         assert not canary_file.exists()
         assert not task_canary_file.exists()
 
@@ -623,8 +624,8 @@ class TestFlowTimeouts:
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(1)
-        assert not canary_file.exists()
 
+        assert not canary_file.exists()
         assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
@@ -682,11 +683,12 @@ class TestFlowTimeouts:
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
-        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
 
-        # Wait in case the flow is just sleeping
-        time.sleep(0.5)
+        # Wait in case the flow is just sleeping and will still create the canary
+        time.sleep(1)
+
         assert not canary_file.exists()
+        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
 
 
 class ParameterTestModel(pydantic.BaseModel):
