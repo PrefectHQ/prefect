@@ -685,7 +685,7 @@ class TestFlowTimeouts:
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
-        assert runtime < 1, f"The engine returns without waiting; took {t1-t0}s"
+        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
