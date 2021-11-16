@@ -14,6 +14,8 @@ from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.database.interface import OrionDBInterface
 
 router = OrionRouter(prefix="/deployments", tags=["Deployments"])
 
@@ -23,6 +25,7 @@ async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.Deployment:
     """Gracefully creates a new deployment from the provided schema. If a deployment with the
     same name and flow_id already exists, the deployment is updated.
@@ -45,10 +48,10 @@ async def create_deployment(
     # this deployment might have already scheduled runs (if it's being upserted)
     # so we delete them all here; if the upserted deployment has an active schedule
     # then its runs will be rescheduled.
-    delete_query = sa.delete(models.orm.FlowRun).where(
-        models.orm.FlowRun.deployment_id == model.id,
-        models.orm.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        models.orm.FlowRun.auto_scheduled.is_(True),
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == model.id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
 
@@ -212,6 +215,7 @@ async def set_schedule_active(
 async def set_schedule_inactive(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
@@ -228,10 +232,10 @@ async def set_schedule_inactive(
     await session.flush()
 
     # delete any future scheduled runs that were auto-scheduled
-    delete_query = sa.delete(models.orm.FlowRun).where(
-        models.orm.FlowRun.deployment_id == deployment_id,
-        models.orm.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
-        models.orm.FlowRun.auto_scheduled.is_(True),
+    delete_query = sa.delete(db.FlowRun).where(
+        db.FlowRun.deployment_id == deployment_id,
+        db.FlowRun.state_type == schemas.states.StateType.SCHEDULED.value,
+        db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
 
