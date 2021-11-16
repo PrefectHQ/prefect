@@ -6,7 +6,7 @@ import anyio
 from prefect.client import OrionClient
 
 from prefect import settings
-from prefect.agents import OrionAgent
+from prefect.agent import OrionAgent
 from prefect.cli.base import app, console
 from prefect.utilities.asyncio import sync_compatible
 
