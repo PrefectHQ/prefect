@@ -1,41 +1,91 @@
 """
 Command line interface for working with Orion
 """
+import os
+import subprocess
+from functools import partial
+from typing import Union, Sequence, Any
+
+import anyio
+import anyio.abc
 import typer
-import uvicorn
+from anyio.streams.text import TextReceiveStream
 
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
-
-from prefect.utilities.asyncio import sync_compatible, sync
 from prefect.orion.database.dependencies import provide_database_interface
-
+from prefect.utilities.asyncio import sync, sync_compatible
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)
 
 
+async def open_process_and_stream_output(
+    command: Union[str, Sequence[str]],
+    task_status: anyio.abc.TaskStatus = None,
+    **kwargs: Any,
+) -> None:
+    """
+    Opens a subprocess and streams standard output and error
+
+    Args:
+        command: The command to open a subprocess with.
+        task_status: Enables this coroutine function to be used with `task_group.start`
+            The task will report itself as started once the process is started.
+        **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
+    """
+    async with await anyio.open_process(
+        command, stderr=subprocess.STDOUT, **kwargs
+    ) as process:
+        if task_status is not None:
+            task_status.started()
+
+        async for text in TextReceiveStream(process.stdout):
+            print(text, end="")  # Output is already new-line terminated
+
+
 @orion_app.command()
-def start(
+@sync_compatible
+async def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
     services: bool = True,
+    agent: bool = True,
 ):
     """Start an Orion server"""
-    # Delay this import so we don't instantiate the API uncessarily
-    from prefect.orion.api.server import app as orion_fastapi_app
-
     # TODO - this logic should be abstracted in the interface
     # create the sqlite database if it doesnt already exist
     db = provide_database_interface()
-    sync(db.engine)
+    await db.engine()
 
-    console.print("Starting Orion API...")
-    # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
-    # See https://github.com/PrefectHQ/orion/issues/281
-    object.__setattr__(settings.orion.services, "run_in_app", services)
-    uvicorn.run(orion_fastapi_app, host=host, port=port, log_level=log_level.lower())
+    server_env = os.environ.copy()
+    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+
+    async with anyio.create_task_group() as tg:
+        console.print("Starting Orion API server...")
+        await tg.start(
+            partial(
+                open_process_and_stream_output,
+                command=[
+                    "uvicorn",
+                    "prefect.orion.api.server:app",
+                    "--host",
+                    str(host),
+                    "--port",
+                    str(port),
+                    "--log-level",
+                    log_level.lower(),
+                ],
+                env=server_env,
+            )
+        )
+
+        if agent:
+            await anyio.sleep(1)  # The server may not be ready yet
+            print("Starting Orion agent...")
+            tg.start_soon(open_process_and_stream_output, ["prefect", "agent", "start"])
+
     console.print("Orion stopped!")
 
 
