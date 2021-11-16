@@ -32,7 +32,7 @@ async def start():
                 await agent.get_and_submit_flow_runs()
             except KeyboardInterrupt:
                 running = False
-            await anyio.sleep(settings.agent.loop_seconds)
+            await anyio.sleep(settings.agent.query_interval)
     console.print("Agent stopped!")
 
 
