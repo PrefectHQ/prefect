@@ -671,6 +671,7 @@ class TestFlowTimeouts:
         def my_subflow():
             time.sleep(0.5)
             timeout_noticing_task()
+            time.sleep(0.5)
             canary_file.touch()  # Should not run
 
         @flow
@@ -684,7 +685,7 @@ class TestFlowTimeouts:
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
-        assert runtime < 0.5, "The engine returns without waiting"
+        assert runtime < 1, f"The engine returns without waiting; took {t1-t0}s"
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
