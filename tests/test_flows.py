@@ -654,7 +654,6 @@ class TestFlowTimeouts:
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
-        # Wait in case the flow is just sleeping
         assert not canary_file.exists()
         assert counter < 10, "The engine does not wait for the subflow to finish"
 
