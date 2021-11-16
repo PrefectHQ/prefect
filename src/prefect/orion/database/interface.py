@@ -47,14 +47,14 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def create_db(self):
         """Create the database"""
-        engine = await self.engine()
+        engine = await self.database_config.engine()
 
         async with engine.begin() as conn:
             await self.database_config.create_db(conn, self.Base.metadata)
 
     async def drop_db(self):
         """Drop the database"""
-        engine = await self.engine()
+        engine = await self.database_config.engine()
 
         async with engine.begin() as conn:
             await self.database_config.drop_db(conn, self.Base.metadata)
