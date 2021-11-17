@@ -33,9 +33,11 @@
           class="d-inline-block selector"
         />
 
-        <Select v-model="fromUnit" class="ml-2 d-inline-block selector">
-          <Option v-for="u in unitOptions" :key="u" :value="u">{{ u }}</Option>
-        </Select>
+        <SimpleSelect
+          v-model="fromUnit"
+          :options="unitOptions"
+          class="ml-2 d-inline-block selector"
+        />
       </div>
 
       <div class="caption-small text-uppercase font-weight-semibold my-1">
@@ -48,9 +50,11 @@
           class="d-inline-block selector"
         />
 
-        <Select v-model="toUnit" class="ml-2 d-inline-block selector">
-          <Option v-for="u in unitOptions" :key="u" :value="u">{{ u }}</Option>
-        </Select>
+        <SimpleSelect
+          v-model="toUnit"
+          :options="unitOptions"
+          class="ml-2 d-inline-block selector"
+        />
       </div>
     </div>
     <div v-else>

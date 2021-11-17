@@ -33,6 +33,9 @@ def print_values(values):
 def parallel_flow():
     print_values(["AAAA"] * 15)
     print_values(["BBBB"] * 10)
+
+if __name__ == "__main__":
+    parallel_flow()
 ```
 
 When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed running in parallel.
@@ -41,6 +44,8 @@ When you run this flow you should see the terminal output randomly switching bet
     When using the `DaskExecutor`, Prefect is submitting each task run to a dask cluster object.  [The dask scheduler then determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
 
     This means that the only way to _force_ dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
+
+Read more about customizing Dask in our [Dask executor tutorial](/tutorials/dask-executor/).
 
 ## Asynchronous Execution
 
@@ -89,4 +94,4 @@ Asynchronous task execution is currently supported with all executors.
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
-    - [Executors](/api-ref/prefect/executors/)
+    - [Executors](/concepts/executors/)

@@ -1,5 +1,5 @@
 <template>
-  <list-item class="list-item--flow-run d-flex align-start justify-start">
+  <ListItem class="list-item--flow-run d-flex align-start justify-start">
     <!-- For a later date... maybe -->
     <!-- :class="state + '-border'" -->
 
@@ -17,7 +17,7 @@
         align-self-start
       "
     >
-      <bread-crumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
+      <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
         <span
@@ -41,9 +41,9 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
-      <rounded-button class="mr-1">
+      <ButtonRounded class="mr-1">
         {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
-      </rounded-button>
+      </ButtonRounded>
     </div>
 
     <div v-breakpoints="'md'" class="chart-container mr-2">
@@ -64,7 +64,7 @@
     <router-link :to="`/flow-run/${item.id}`" class="icon-link">
       <i class="pi pi-arrow-right-s-line" />
     </router-link>
-  </list-item>
+  </ListItem>
 </template>
 
 <script lang="ts" setup>

@@ -10,7 +10,7 @@
     --pink-transparent: rgba(254, 81, 150, 0.3);
     --pink: #fe5196;
     --default-font-size: .7rem;
-    --code-font-size: .7rem;
+    --code-font-size: .8rem;
     --nav-size: .6rem;
     --text-code-font-size:  1em;
     --table-font-size: 1em;
@@ -198,7 +198,7 @@ a.prefect-heading:hover {
 }
 
 .md-typeset code {
-    font-size: var(--default-font-size);
+    font-size: var(--code-font-size);
 }
 
 .doc p, .doc em, .doc li {

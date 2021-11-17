@@ -8,7 +8,6 @@ import pytest
 
 from prefect.orion import models
 from prefect.orion.schemas import core, states, responses
-from prefect.orion.utilities.database import get_session_factory
 from prefect.orion.schemas.states import StateType
 
 dt = pendulum.datetime(2021, 7, 1)
@@ -36,9 +35,9 @@ async def clear_db():
 
 
 @pytest.fixture(autouse=True, scope="module")
-async def data(database_engine):
+async def data(db):
 
-    session_factory = await get_session_factory(bind=database_engine)
+    session_factory = await db.session_factory()
     async with session_factory() as session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
@@ -573,6 +572,7 @@ async def test_flow_run_lateness(client, session):
 
     await session.commit()
 
+    request_time = pendulum.now("UTC")
     response = await client.post(
         "/flow_runs/history",
         json=dict(
@@ -616,11 +616,20 @@ async def test_flow_run_lateness(client, session):
     assert interval.states[2].count_runs == 2
     assert interval.states[2].sum_estimated_run_time == timedelta(0)
 
-    expected_lateness = (pendulum.now("UTC") - dt.subtract(minutes=1)) + (
-        pendulum.now("UTC") - dt.subtract(seconds=25)
+    expected_lateness = (request_time - dt.subtract(minutes=1)) + (
+        request_time - dt.subtract(seconds=25)
     )
+
+    # SQLite does not store microseconds. Hence each of the two
+    # Scheduled runs estimated lateness can be 'off' by up to
+    # a second based on how we estimate the 'current' time used by the api.
     assert (
-        expected_lateness - timedelta(seconds=2)
-        < interval.states[2].sum_estimated_lateness
-        < expected_lateness
+        abs(
+            (
+                expected_lateness
+                - timedelta(seconds=2)
+                - interval.states[2].sum_estimated_lateness
+            ).total_seconds()
+        )
+        < 2.5
     )
