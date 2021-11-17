@@ -1,5 +1,5 @@
 <template>
-  <list-item class="list-item--flow d-flex align-start justify-start">
+  <ListItem class="list-item--flow d-flex align-start justify-start">
     <i class="item--icon pi pi-flow text--grey-40 align-self-start" />
     <div
       class="
@@ -30,17 +30,17 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
-      <rounded-button class="mr-1">
+      <ButtonRounded class="mr-1">
         {{ flowRunCount.toLocaleString() }} flow run{{
           flowRunCount == 1 ? '' : 's'
         }}
-      </rounded-button>
+      </ButtonRounded>
 
-      <rounded-button class="mr-1">
+      <ButtonRounded class="mr-1">
         {{ taskRunCount.toLocaleString() }} task run{{
           taskRunCount == 1 ? '' : 's'
         }}
-      </rounded-button>
+      </ButtonRounded>
     </div>
 
     <div v-breakpoints="'md'" class="chart-container">
@@ -53,7 +53,7 @@
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
       />
     </div>
-  </list-item>
+  </ListItem>
 </template>
 
 <script lang="ts" setup>

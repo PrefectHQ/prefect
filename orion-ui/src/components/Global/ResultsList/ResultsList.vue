@@ -1,5 +1,5 @@
 <template>
-  <list class="results-list">
+  <List class="results-list">
     <component
       v-for="[key, item] in items"
       :key="key"
@@ -9,7 +9,7 @@
     />
 
     <Observer @intersection="fetchMore" />
-  </list>
+  </List>
 </template>
 
 <script lang="ts" setup>

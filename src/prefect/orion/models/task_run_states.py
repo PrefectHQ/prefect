@@ -3,18 +3,19 @@ Functions for interacting with task run state ORM objects.
 Intended for internal use by the Orion API.
 """
 
-from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
-from prefect.orion.models import orm
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
+@inject_db
 async def read_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID
-) -> orm.TaskRunState:
+    session: sa.orm.Session, task_run_state_id: UUID, db: OrionDBInterface
+):
     """
     Reads a task run state by id.
 
@@ -23,15 +24,16 @@ async def read_task_run_state(
         task_run_state_id: a task run state id
 
     Returns:
-        orm.TaskRunState: the task state
+        db.TaskRunState: the task state
     """
 
-    return await session.get(orm.TaskRunState, task_run_state_id)
+    return await session.get(db.TaskRunState, task_run_state_id)
 
 
+@inject_db
 async def read_task_run_states(
-    session: sa.orm.Session, task_run_id: UUID
-) -> List[orm.TaskRunState]:
+    session: sa.orm.Session, task_run_id: UUID, db: OrionDBInterface
+):
     """
     Reads task runs states for a task run.
 
@@ -40,20 +42,21 @@ async def read_task_run_states(
         task_run_id: the task run id
 
     Returns:
-        List[orm.TaskRunState]: the task run states
+        List[db.TaskRunState]: the task run states
     """
 
     query = (
-        select(orm.TaskRunState)
+        select(db.TaskRunState)
         .filter_by(task_run_id=task_run_id)
-        .order_by(orm.TaskRunState.timestamp)
+        .order_by(db.TaskRunState.timestamp)
     )
     result = await session.execute(query)
     return result.scalars().unique().all()
 
 
+@inject_db
 async def delete_task_run_state(
-    session: sa.orm.Session, task_run_state_id: UUID
+    session: sa.orm.Session, task_run_state_id: UUID, db: OrionDBInterface
 ) -> bool:
     """
     Delete a task run state by id.
@@ -67,6 +70,6 @@ async def delete_task_run_state(
     """
 
     result = await session.execute(
-        delete(orm.TaskRunState).where(orm.TaskRunState.id == task_run_state_id)
+        delete(db.TaskRunState).where(db.TaskRunState.id == task_run_state_id)
     )
     return result.rowcount > 0

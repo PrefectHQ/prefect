@@ -4,7 +4,6 @@ Intended for internal use by the Orion API.
 """
 
 import contextlib
-from typing import List
 from uuid import UUID
 
 import pendulum
@@ -12,19 +11,21 @@ import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
+from prefect.orion.orchestration.core_policy import CoreFlowPolicy
 from prefect.orion.orchestration.global_policy import GlobalFlowPolicy
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy, NullPolicy
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
 )
-from prefect.orion.utilities.database import dialect_specific_insert
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
+@inject_db
 async def create_flow_run(
-    session: sa.orm.Session, flow_run: schemas.core.FlowRun
-) -> orm.FlowRun:
+    session: sa.orm.Session, flow_run: schemas.core.FlowRun, db: OrionDBInterface
+):
     """Creates a new flow run.
 
     If the provided flow run has a state attached, it will also be created.
@@ -34,13 +35,13 @@ async def create_flow_run(
         flow_run: a flow run model
 
     Returns:
-        orm.FlowRun: the newly-created flow run
+        db.FlowRun: the newly-created flow run
     """
 
     now = pendulum.now("UTC")
     # if there's no idempotency key, just create the run
     if not flow_run.idempotency_key:
-        model = orm.FlowRun(
+        model = db.FlowRun(
             **flow_run.dict(
                 shallow=True,
                 exclude={
@@ -57,21 +58,21 @@ async def create_flow_run(
     # otherwise let the database take care of enforcing idempotency
     else:
         insert_stmt = (
-            dialect_specific_insert(orm.FlowRun)
+            (await db.insert(db.FlowRun))
             .values(
                 **flow_run.dict(shallow=True, exclude={"state"}, exclude_unset=True)
             )
             .on_conflict_do_nothing(
-                index_elements=[orm.FlowRun.flow_id, orm.FlowRun.idempotency_key],
+                index_elements=db.flow_run_unique_upsert_columns,
             )
         )
         await session.execute(insert_stmt)
         query = (
-            sa.select(orm.FlowRun)
+            sa.select(db.FlowRun)
             .where(
                 sa.and_(
-                    orm.FlowRun.flow_id == flow_run.flow_id,
-                    orm.FlowRun.idempotency_key == flow_run.idempotency_key,
+                    db.FlowRun.flow_id == flow_run.flow_id,
+                    db.FlowRun.idempotency_key == flow_run.idempotency_key,
                 )
             )
             .limit(1)
@@ -90,8 +91,12 @@ async def create_flow_run(
     return model
 
 
+@inject_db
 async def update_flow_run(
-    session: sa.orm.Session, flow_run_id: UUID, flow_run: schemas.actions.FlowRunUpdate
+    session: sa.orm.Session,
+    flow_run_id: UUID,
+    flow_run: schemas.actions.FlowRunUpdate,
+    db: OrionDBInterface,
 ) -> bool:
     """
     Updates a flow run.
@@ -111,7 +116,7 @@ async def update_flow_run(
         )
 
     update_stmt = (
-        sa.update(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+        sa.update(db.FlowRun).where(db.FlowRun.id == flow_run_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow_run.dict(shallow=True, exclude_unset=True))
@@ -120,7 +125,10 @@ async def update_flow_run(
     return result.rowcount > 0
 
 
-async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowRun:
+@inject_db
+async def read_flow_run(
+    session: sa.orm.Session, flow_run_id: UUID, db: OrionDBInterface
+):
     """
     Reads a flow run by id.
 
@@ -129,14 +137,16 @@ async def read_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> orm.FlowR
         flow_run_id: a flow run id
 
     Returns:
-        orm.FlowRun: the flow run
+        db.FlowRun: the flow run
     """
 
-    return await session.get(orm.FlowRun, flow_run_id)
+    return await session.get(db.FlowRun, flow_run_id)
 
 
-def _apply_flow_run_filters(
+@inject_db
+async def _apply_flow_run_filters(
     query,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -150,8 +160,8 @@ def _apply_flow_run_filters(
         query = query.where(flow_run_filter.as_sql_filter())
 
     if deployment_filter:
-        exists_clause = select(orm.Deployment).where(
-            orm.Deployment.id == orm.FlowRun.deployment_id,
+        exists_clause = select(db.Deployment).where(
+            db.Deployment.id == db.FlowRun.deployment_id,
             deployment_filter.as_sql_filter(),
         )
         query = query.where(exists_clause.exists())
@@ -159,22 +169,23 @@ def _apply_flow_run_filters(
     if flow_filter or task_run_filter:
 
         if flow_filter:
-            exists_clause = select(orm.Flow).where(
-                orm.Flow.id == orm.FlowRun.flow_id,
+            exists_clause = select(db.Flow).where(
+                db.Flow.id == db.FlowRun.flow_id,
                 flow_filter.as_sql_filter(),
             )
 
         if task_run_filter:
             if not flow_filter:
-                exists_clause = select(orm.TaskRun).where(
-                    orm.TaskRun.flow_run_id == orm.FlowRun.id
+                exists_clause = select(db.TaskRun).where(
+                    db.TaskRun.flow_run_id == db.FlowRun.id
                 )
             else:
                 exists_clause = exists_clause.join(
-                    orm.TaskRun, orm.TaskRun.flow_run_id == orm.FlowRun.id
+                    db.TaskRun,
+                    db.TaskRun.flow_run_id == db.FlowRun.id,
                 )
             exists_clause = exists_clause.where(
-                orm.FlowRun.id == orm.TaskRun.flow_run_id,
+                db.FlowRun.id == db.TaskRun.flow_run_id,
                 task_run_filter.as_sql_filter(),
             )
 
@@ -183,8 +194,10 @@ def _apply_flow_run_filters(
     return query
 
 
+@inject_db
 async def read_flow_runs(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -192,7 +205,7 @@ async def read_flow_runs(
     offset: int = None,
     limit: int = None,
     sort: schemas.sorting.FlowRunSort = schemas.sorting.FlowRunSort.ID_DESC,
-) -> List[orm.FlowRun]:
+):
     """
     Read flow runs.
 
@@ -207,17 +220,18 @@ async def read_flow_runs(
         sort: Query sort
 
     Returns:
-        List[orm.FlowRun]: flow runs
+        List[db.FlowRun]: flow runs
     """
 
-    query = select(orm.FlowRun).order_by(sort.as_sql_sort())
+    query = select(db.FlowRun).order_by(sort.as_sql_sort())
 
-    query = _apply_flow_run_filters(
+    query = await _apply_flow_run_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db=db,
     )
 
     if offset is not None:
@@ -230,8 +244,10 @@ async def read_flow_runs(
     return result.scalars().unique().all()
 
 
+@inject_db
 async def count_flow_runs(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -251,21 +267,25 @@ async def count_flow_runs(
         int: count of flow runs
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(orm.FlowRun)
+    query = select(sa.func.count(sa.text("*"))).select_from(db.FlowRun)
 
-    query = _apply_flow_run_filters(
+    query = await _apply_flow_run_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db=db,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
+@inject_db
+async def delete_flow_run(
+    session: sa.orm.Session, flow_run_id: UUID, db: OrionDBInterface
+) -> bool:
     """
     Delete a flow run by flow_run_id.
 
@@ -278,7 +298,7 @@ async def delete_flow_run(session: sa.orm.Session, flow_run_id: UUID) -> bool:
     """
 
     result = await session.execute(
-        delete(orm.FlowRun).where(orm.FlowRun.id == flow_run_id)
+        delete(db.FlowRun).where(db.FlowRun.id == flow_run_id)
     )
     return result.rowcount > 0
 
@@ -289,7 +309,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
-) -> orm.FlowRunState:
+):
     """
     Creates a new orchestrated flow run state.
 

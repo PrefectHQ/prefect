@@ -62,6 +62,7 @@ from typing import (
     Union,
 )
 from uuid import UUID
+from contextlib import AsyncExitStack
 
 # TODO: Once executors are split into separate files this should become an optional dependency
 import distributed
@@ -119,30 +120,33 @@ class BaseExecutor(metaclass=abc.ABCMeta):
     async def start(
         self: T,
     ) -> AsyncIterator[T]:
-        """Start the executor, preparing any resources necessary for task submission"""
-        try:
-            self.logger.info(f"Starting executor {self}...")
-            await self.on_startup()
-            self._started = True
-            yield self
-        finally:
-            self.logger.info(f"Shutting down executor {self}...")
-            await self.on_shutdown()
-            self._started = False
+        """
+        Start the executor, preparing any resources necessary for task submission.
 
-    async def on_startup(self) -> None:
+        Children should implement `_start` to prepare and clean up resources.
+
+        Yields:
+            The prepared executor
+        """
+        if self._started:
+            raise RuntimeError("The executor is already started!")
+
+        async with AsyncExitStack() as exit_stack:
+            self.logger.info(f"Starting executor `{self}`...")
+            try:
+                await self._start(exit_stack)
+                self._started = True
+                yield self
+            finally:
+                self.logger.info(f"Shutting down executor `{self}`...")
+                self._started = False
+
+    async def _start(self, exit_stack: AsyncExitStack) -> None:
         """
         Create any resources required for this executor to submit work.
-        """
-        pass
 
-    async def on_shutdown(self) -> None:
+        Cleanup of resources should be submitted to the `exit_stack`.
         """
-        Clean up resources associated with the executor.
-
-        Should block until submitted calls are completed.
-        """
-        # TODO: Consider adding a `wait` bool here for fast shutdown
         pass
 
     def __str__(self) -> str:
@@ -204,18 +208,18 @@ class DaskExecutor(BaseExecutor):
         be displayed.
 
     Args:
-        - address (string, optional): address of a currently running dask
+        address (string, optional): address of a currently running dask
             scheduler; if one is not provided, a temporary cluster will be
             created in `executor.start()`.  Defaults to `None`.
-        - cluster_class (string or callable, optional): the cluster class to use
+        cluster_class (string or callable, optional): the cluster class to use
             when creating a temporary dask cluster. Can be either the full
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
-        - cluster_kwargs (dict, optional): addtional kwargs to pass to the
+        cluster_kwargs (dict, optional): addtional kwargs to pass to the
            `cluster_class` when creating a temporary dask cluster.
-        - adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
+        adapt_kwargs (dict, optional): additional kwargs to pass to `cluster.adapt`
             when creating a temporary dask cluster. Note that adaptive scaling
             is only enabled if `adapt_kwargs` are provided.
-        - client_kwargs (dict, optional): additional kwargs to use when creating a
+        client_kwargs (dict, optional): additional kwargs to use when creating a
             [`dask.distributed.Client`](https://distributed.dask.org/en/latest/api.html#client).
 
     Examples:
@@ -269,9 +273,17 @@ class DaskExecutor(BaseExecutor):
         # Update kwargs defaults
         client_kwargs.setdefault("set_as_default", False)
 
-        # Ensure we're working with async client/cluster objects
-        client_kwargs["asynchronous"] = True
-        cluster_kwargs["asynchronous"] = True
+        # The user cannot specify async/sync themselves
+        if "asynchronous" in client_kwargs:
+            raise ValueError(
+                "`client_kwargs` cannot set `asynchronous`. "
+                "This option is managed by Prefect."
+            )
+        if "asynchronous" in cluster_kwargs:
+            raise ValueError(
+                "`cluster_kwargs` cannot set `asynchronous`. "
+                "This option is managed by Prefect."
+            )
 
         # Store settings
         self.address = address
@@ -322,7 +334,14 @@ class DaskExecutor(BaseExecutor):
         except distributed.TimeoutError:
             return None
 
-    async def on_startup(self):
+    async def _start(self, exit_stack: AsyncExitStack):
+        """
+        Start the executor and prep for context exit
+
+        - Creates a cluster if an external address is not set
+        - Creates a client to connect to the cluster
+        - Pushes a call to wait for all running futures to complete on exit
+        """
         if self.address:
             self.logger.info(
                 f"Connecting to an existing Dask cluster at {self.address}"
@@ -332,41 +351,34 @@ class DaskExecutor(BaseExecutor):
             self.logger.info(
                 f"Creating a new Dask cluster with `{to_qualified_name(self.cluster_class)}`"
             )
-            self._cluster = await self._create_cluster()
-            connect_to = self._cluster
+            connect_to = self._cluster = await exit_stack.enter_async_context(
+                self.cluster_class(asynchronous=True, **self.cluster_kwargs)
+            )
+            if self.adapt_kwargs:
+                self._cluster.adapt(**self.adapt_kwargs)
 
-        self._client = await distributed.Client(connect_to, **self.client_kwargs)
+        self._client = await exit_stack.enter_async_context(
+            distributed.Client(connect_to, asynchronous=True, **self.client_kwargs)
+        )
+
+        # Wait for all futures before tearing down the client / cluster on exit
+        exit_stack.push_async_callback(self._wait_for_all_futures)
 
         if self._client.dashboard_link:
             self.logger.info(
                 f"The Dask dashboard is available at {self._client.dashboard_link}",
             )
 
-    async def _create_cluster(self) -> "distributed.deploy.Cluster":
+    async def _wait_for_all_futures(self):
         """
-        Create a new Dask cluster as specified by `cluster_class`, `cluster_kwargs`, and
-        `adapt_kwargs`
+        Waits for all futures to complete without timeout, ignoring any exceptions.
         """
-        cluster = self.cluster_class(**self.cluster_kwargs)
-        await cluster._start()
-
-        if self.adapt_kwargs:
-            cluster.adapt(**self.adapt_kwargs)
-
-        return cluster
-
-    async def on_shutdown(self) -> None:
         # Attempt to wait for all futures to complete
         for future in self._dask_futures.values():
             try:
                 await future.result()
             except Exception:
                 pass
-        # Close down the client and cluster
-        if self._client:
-            await self._client.close()
-        if self._cluster:
-            await self._cluster.close()
 
     def __getstate__(self):
         """

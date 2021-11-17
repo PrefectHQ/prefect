@@ -1,15 +1,9 @@
 <template>
-  <Select
-    v-model="colorMode"
-    class="my-2 mr-2"
-    title="Color mode selector"
-    placeholder="Color mode"
-    search
-  >
-    <template v-slot:active>
+  <SimpleSelect v-model="colorMode" :options="colorModes" search>
+    <template v-slot:selected-option-label="{ label }">
       <div class="theme-option d-flex align-center">
         <i class="pi pi-palette-line mr-1" />
-        <span>{{ colorMode }}</span>
+        <span class="theme-option__label">{{ label }}</span>
         <div class="theme-palette ml-auto">
           <div
             v-for="color in colorMap[colorMode]"
@@ -20,21 +14,20 @@
         </div>
       </div>
     </template>
-
-    <Option v-for="mode in colorModes" :key="mode" :value="mode">
-      <span class="theme-option d-flex align-center">
-        <span>{{ mode }}</span>
+    <template v-slot:option-label="{ label }">
+      <div class="theme-option d-flex align-center">
+        <span class="theme-option__label">{{ label }}</span>
         <div class="theme-palette ml-auto">
           <div
-            v-for="color in colorMap[mode]"
+            v-for="color in colorMap[label]"
             :key="color"
             class="palette-option"
             :style="{ 'background-color': color }"
           />
         </div>
-      </span>
-    </Option>
-  </Select>
+      </div>
+    </template>
+  </SimpleSelect>
 </template>
 
 <script lang="ts">

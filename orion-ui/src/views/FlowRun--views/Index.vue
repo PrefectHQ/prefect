@@ -135,7 +135,7 @@
         <h2> No Results Found </h2>
       </div>
 
-      <results-list
+      <ResultsList
         v-else-if="resultsTab == 'task_runs'"
         key="flows"
         :filter="taskRunsFilter"
@@ -143,7 +143,7 @@
         endpoint="task_runs"
       />
 
-      <results-list
+      <ResultsList
         v-else-if="false && resultsTab == 'sub_flow_runs'"
         key="deployments"
         :filter="subFlowRunsFilter"
