@@ -6,8 +6,7 @@
     "serve": "vite",
     "build": "vite build",
     "test:unit": "jest src",
-    "lint": "eslint src --ext .js,.ts,.vue",
-    "clear_jest": "jest --clearCache"
+    "lint": "eslint src --ext .js,.ts,.vue"
   },
   "dependencies": {
     "@prefecthq/miter-design": "0.1.9",
