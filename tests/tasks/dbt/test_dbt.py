@@ -1,11 +1,12 @@
 import os
 import sys
 
+import responses
 import pytest
 
 from prefect import Flow
-from prefect.tasks.dbt import DbtShellTask
-
+from prefect.engine.signals import FAIL
+from prefect.tasks.dbt import DbtShellTask, DbtCloudRunJob
 
 pytestmark = pytest.mark.skipif(
     sys.platform == "win32", reason="DbtShellTask currently not supported on Windows"
@@ -156,3 +157,117 @@ def test_task_creates_default_profile_if_none_exists():
     )
     assert out.is_successful()
     assert default_profiles_path
+
+
+def test_dbt_cloud_run_job_create_task_without_cause():
+    dbt_run_job_task = DbtCloudRunJob(account_id=1234, token="xyz", job_id=1234)
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause is None
+
+
+def test_dbt_cloud_run_job_create_task_with_cause():
+    dbt_run_job_task = DbtCloudRunJob(
+        account_id=1234, token="xyz", job_id=1234, cause="foo"
+    )
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause == "foo"
+
+
+def test_dbt_cloud_run_job_create_task_from_default_env_vars(monkeypatch):
+    monkeypatch.setenv("DBT_CLOUD_ACCOUNT_ID", str(1234))
+    monkeypatch.setenv("DBT_CLOUD_JOB_ID", str(1234))
+    monkeypatch.setenv("DBT_CLOUD_TOKEN", "xyz")
+    dbt_run_job_task = DbtCloudRunJob()
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause is None
+
+
+def test_dbt_cloud_run_job_create_task_from_env_vars(monkeypatch):
+    monkeypatch.setenv("ACCOUNT_ID", str(1234))
+    monkeypatch.setenv("JOB_ID", str(1234))
+    monkeypatch.setenv("TOKEN", "xyz")
+    dbt_run_job_task = DbtCloudRunJob(
+        account_id_env_var_name="ACCOUNT_ID",
+        job_id_env_var_name="JOB_ID",
+        token_env_var_name="TOKEN",
+    )
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause is None
+
+
+def test_dbt_cloud_run_job_raises_value_error_with_missing_cause():
+    run_job = DbtCloudRunJob()
+    with pytest.raises(ValueError) as exc:
+        run_job.run()
+    assert "Cause cannot be None." in str(exc)
+
+
+def test_dbt_cloud_run_job_raises_value_error_with_missing_account_id():
+    run_job = DbtCloudRunJob()
+    with pytest.raises(ValueError) as exc:
+        run_job.run(cause="foo")
+    assert "dbt Cloud Account ID cannot be None." in str(exc)
+
+
+def test_dbt_cloud_run_job_raises_value_error_with_missing_job_id():
+    run_job = DbtCloudRunJob()
+    with pytest.raises(ValueError) as exc:
+        run_job.run(cause="foo", account_id=1234)
+    assert "dbt Cloud Job ID cannot be None." in str(exc)
+
+
+def test_dbt_cloud_run_job_raises_value_error_with_missing_token():
+    run_job = DbtCloudRunJob()
+    with pytest.raises(ValueError) as exc:
+        run_job.run(cause="foo", account_id=1234, job_id=1234)
+    assert "token cannot be None." in str(exc)
+
+
+@responses.activate
+def test_dbt_cloud_run_job_raises_failure():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=123,
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo", account_id=account_id, job_id=job_id, token="foo"
+    )
+    with pytest.raises(FAIL):
+        run_job.run()
+
+
+@responses.activate
+def test_dbt_cloud_run_job_trigger_job():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=200,
+        json={"data": {"foo": "bar"}},
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo", account_id=account_id, job_id=job_id, token="foo"
+    )
+    r = run_job.run()
+
+    assert r == {"foo": "bar"}

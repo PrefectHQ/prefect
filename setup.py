@@ -35,6 +35,8 @@ orchestration_extras = {
     "gcp": [
         "google-cloud-secret-manager >= 2.4.0",
         "google-cloud-storage >= 1.13, < 2.0",
+        "google-cloud-aiplatform >= 1.4.0, < 2.0",
+        "google-auth >= 2.0, < 3.0",
     ],
     "git": ["dulwich >= 0.19.7"],
     "github": ["PyGithub >= 1.51, < 2.0"],
@@ -56,14 +58,14 @@ extras = {
     "dropbox": ["dropbox ~= 9.0"],
     "ge": ["great_expectations >= 0.11.1"],
     "gcp": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "git": orchestration_extras["git"],
     "github": orchestration_extras["github"],
     "gitlab": orchestration_extras["gitlab"],
     "google": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
@@ -81,7 +83,7 @@ extras = {
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.5"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
-    "templates": ["jinja2 >= 2.0, < 3.0"],
+    "templates": ["jinja2 >= 2.0, < 4.0"],
     "test": test_requires,
     "vault": ["hvac >= 0.10"],
     "viz": ["graphviz >= 0.8.3"],

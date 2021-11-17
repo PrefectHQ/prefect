@@ -79,7 +79,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.15.6)', link: '/api/latest/' },
+          { text: 'Latest (0.15.9)', link: '/api/latest/' },
           { text: '0.14.22', link: '/api/0.14.22/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -165,11 +165,6 @@ module.exports = {
           children: getChildren('docs/api/latest', 'agent')
         },
         {
-          title: 'prefect.artifacts',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'artifacts')
-        },
-        {
           title: 'prefect.utilities',
           collapsable: true,
           children: getChildren('docs/api/latest', 'utilities')
@@ -240,6 +235,7 @@ module.exports = {
             'agents/local',
             'agents/docker',
             'agents/kubernetes',
+            'agents/vertex',
             'agents/ecs',
             'agents/fargate'
           ]

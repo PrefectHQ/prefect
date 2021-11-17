@@ -22,6 +22,8 @@ class FivetranSyncTask(Task):
         - **kwargs (Any, optional): additional kwargs to pass to the base Task constructor
     """
 
+    api_user_agent = "prefect/1.0.1"
+
     def __init__(self, connector_id: str = None, **kwargs):
         self.connector_id = connector_id
         super().__init__(**kwargs)
@@ -33,6 +35,7 @@ class FivetranSyncTask(Task):
         api_secret: str,
         connector_id: str = None,
         poll_status_every_n_seconds: int = 15,
+        manual=True,
     ) -> dict:
         """
         Task run method for Fivetran connector syncs.
@@ -47,6 +50,8 @@ class FivetranSyncTask(Task):
             - connector_id (str, optional): if provided, will overwrite value provided at init.
             - poll_status_every_n_seconds (int, optional): this task polls the Fivetran API for status,
                 if provided this value will override the default polling time of 15 seconds.
+            - manual (bool, optional): if provided, will overwrite Prefect's changes
+                to the Fivetran connector's schedule, keeping it on Fivetran auto scheduling
 
         Returns:
             - dict: connector_id (str) and succeeded_at (timestamp str)
@@ -79,11 +84,13 @@ class FivetranSyncTask(Task):
             )
         )
 
+        headers = {"User-Agent": self.api_user_agent}
+
         # Automatically call `raise_for_status` on every request
         session = requests.Session()
         session.hooks = {"response": lambda r, *args, **kwargs: r.raise_for_status()}
         # Make sure connector configuration has been completed successfully and is not broken.
-        resp = session.get(URL_CONNECTOR, auth=(api_key, api_secret))
+        resp = session.get(URL_CONNECTOR, auth=(api_key, api_secret), headers=headers)
         connector_details = resp.json()["data"]
         URL_LOGS = "https://fivetran.com/dashboard/connectors/{}/{}/logs".format(
             connector_details["service"], connector_details["schema"]
@@ -111,18 +118,23 @@ class FivetranSyncTask(Task):
         self.logger.info("Connectors logs at {}".format(URL_LOGS))
 
         # Set connector to manual sync mode, required to force sync through the API
-        resp = session.patch(
-            URL_CONNECTOR,
-            data=json.dumps({"schedule_type": "manual"}),
-            headers={"Content-Type": "application/json;version=2"},
-            auth=(api_key, api_secret),
-        )
+        if manual:
+            resp = session.patch(
+                URL_CONNECTOR,
+                data=json.dumps({"schedule_type": "manual"}),
+                headers={"Content-Type": "application/json;version=2"},
+                auth=(api_key, api_secret),
+            )
         # Start connector sync
-        resp = session.post(URL_CONNECTOR + "/force", auth=(api_key, api_secret))
+        resp = session.post(
+            URL_CONNECTOR + "/force", auth=(api_key, api_secret), headers=headers
+        )
 
         loop: bool = True
         while loop:
-            resp = session.get(URL_CONNECTOR, auth=(api_key, api_secret))
+            resp = session.get(
+                URL_CONNECTOR, auth=(api_key, api_secret), headers=headers
+            )
             current_details = resp.json()["data"]
             # Failsafe, in case we missed a state transition – it is possible with a long enough
             # `poll_status_every_n_seconds` we could completely miss the 'syncing' state
