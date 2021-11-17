@@ -52,6 +52,13 @@ class DockerAgent(Agent):
     prefect agent docker start --base-url "tcp://0.0.0.0:2375"
     ```
 
+    If connecting to a local instance of Prefect Server that does not have the
+    `--expose` flag set, you must provide a network:
+    ```
+    prefect agent docker start --network prefect-server
+    ```
+
+
 
     Args:
         - agent_config_id (str, optional): An optional agent configuration ID that can be used to set
