@@ -23,6 +23,7 @@ class TestSodaSparkScan:
         assert soda_spark_scan_task.scan_def is None
         assert soda_spark_scan_task.df is None
 
+    # @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_no_scan(self):
         df = SparkSession.builder.getOrCreate().createDataFrame(
             [{"id": 123, "value": "foo"}, {"id": 456, "value": "bar"}]
@@ -39,17 +40,7 @@ class TestSodaSparkScan:
             soda_spark_scan_task.run()
         assert "df cannot be None" in str(exc)
 
-    def test_run_invalid_scan(self, monkeypatch):
-        scan_def = "invalid scan definition"
-        df = SparkSession.builder.getOrCreate().createDataFrame(
-            [{"id": 123, "value": "foo"}, {"id": 456, "value": "bar"}]
-        )
-        sb_mock = MagicMock()
-        sb_mock.side_effect = AttributeError
-        monkeypatch.setattr("prefect.tasks.sodaspark.sodaspark_tasks.scan", sb_mock)
-        soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
-        soda_spark_scan_task.run()
-
+    # @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_invalid_scan(self, monkeypatch):
         scan_def = "invalid scan definition"
         df = SparkSession.builder.getOrCreate().createDataFrame(
@@ -78,7 +69,7 @@ class TestSodaSparkScan:
         soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
         soda_spark_scan_task.run()
 
-    @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
+    # @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_valid_scan_and_df_with_measurements(self):
         scan_def = """
         table_name: demodata
@@ -97,7 +88,7 @@ class TestSodaSparkScan:
 
         assert hasattr(res, "measurements")
 
-    @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
+    # @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_valid_scan_and_df_with_errors(self):
         scan_def = """
         table_name: demodata
