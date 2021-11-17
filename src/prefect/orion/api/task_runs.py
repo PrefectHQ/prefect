@@ -25,7 +25,7 @@ router = OrionRouter(prefix="/task_runs", tags=["Task Runs"])
 async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
-        session: sa.orm.Session = Depends(dependencies.get_session),
+    session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.TaskRun:
     """
     Create a task run. If a task run with the same flow_run_id,
