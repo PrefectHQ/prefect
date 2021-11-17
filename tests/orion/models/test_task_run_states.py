@@ -5,7 +5,10 @@ import pendulum
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration import dependencies
-from prefect.orion.orchestration.dependencies import provide_task_policy
+from prefect.orion.orchestration.dependencies import (
+    provide_task_policy,
+    temporary_task_policy,
+)
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.schemas.states import Failed, Running, Scheduled, StateType
 
@@ -142,28 +145,27 @@ class TestCreateTaskRunState:
             def priority():
                 return []
 
-        dependencies.ORCHESTRATION_DEPENDENCIES["task_policy"] = EmptyPolicy
+        with temporary_task_policy(EmptyPolicy):
+            # place the run in a scheduled state in the future
+            trs = await models.task_runs.set_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
+                task_policy=await provide_task_policy(),
+            )
 
-        # place the run in a scheduled state in the future
-        trs = await models.task_runs.set_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=Scheduled(scheduled_time=pendulum.now().add(months=1)),
-            task_policy=await provide_task_policy(),
-        )
+            # put the run in a pending state, which succeeds due to injected orchestration
+            trs2 = await models.task_runs.set_task_run_state(
+                session=session,
+                task_run_id=task_run.id,
+                state=Running(),
+                task_policy=await provide_task_policy(),
+            )
 
-        # put the run in a pending state, which succeeds due to injected orchestration
-        trs2 = await models.task_runs.set_task_run_state(
-            session=session,
-            task_run_id=task_run.id,
-            state=Running(),
-            task_policy=await provide_task_policy(),
-        )
-
-        assert trs2.status == schemas.responses.SetStateStatus.ACCEPT
-        # the original state remains in place
-        await session.refresh(task_run)
-        assert task_run.state.id != trs.state.id
+            assert trs2.status == schemas.responses.SetStateStatus.ACCEPT
+            # the original state remains in place
+            await session.refresh(task_run)
+            assert task_run.state.id != trs.state.id
 
 
 class TestReadTaskRunState:
