@@ -90,8 +90,7 @@ extras = {
     "twitter": ["tweepy >= 3.5, < 4.0"],
     "dremio": ["pyarrow >= 5.0.0"],
     "exasol": ["pyexasol >= 0.16.1"],
-    "sodasql": ["soda-sql >= 2.0.0b25"],
-    "sodaspark": ["soda-spark >= 0.2.1"],
+    "soda": ["soda-spark >= 0.2.1"],
     "sendgrid": ["sendgrid >= 6.7.0"],
 }
 

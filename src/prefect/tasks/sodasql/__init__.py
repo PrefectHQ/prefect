@@ -6,5 +6,5 @@ try:
     from prefect.tasks.sodasql.sodasql_tasks import SodaSQLScan
 except ImportError as err:
     raise ImportError(
-        'Using `prefect.tasks.sodasql` requires Prefect to be installed with the "sodasql" extra.'
+        'Using `prefect.tasks.sodasql` requires Prefect to be installed with the "soda" extra.'
     ) from err

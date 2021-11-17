@@ -6,5 +6,5 @@ try:
     from prefect.tasks.sodaspark.sodaspark_tasks import SodaSparkScan
 except ImportError as err:
     raise ImportError(
-        'Using `prefect.tasks.sodaspark` requires Prefect to be installed with the "sodaspark" extra.'
+        'Using `prefect.tasks.sodaspark` requires Prefect to be installed with the "soda" extra.'
     ) from err
