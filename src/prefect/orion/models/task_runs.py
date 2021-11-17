@@ -253,7 +253,7 @@ async def set_task_run_state(
     state: schemas.states.State,
     force: bool = False,
     task_policy: BaseOrchestrationPolicy = None,
-):
+) -> OrchestrationResult:
     """
     Creates a new orchestrated task run state.
 

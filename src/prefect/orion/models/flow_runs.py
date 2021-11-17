@@ -309,7 +309,7 @@ async def set_flow_run_state(
     state: schemas.states.State,
     force: bool = False,
     flow_policy: BaseOrchestrationPolicy = None,
-):
+) -> OrchestrationResult:
     """
     Creates a new orchestrated flow run state.
 
