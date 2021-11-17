@@ -1,6 +1,8 @@
 """
 Injected orchestration dependencies
 """
+from contextlib import contextmanager
+
 
 ORCHESTRATION_DEPENDENCIES = {
     "task_policy": None,
@@ -28,3 +30,23 @@ async def provide_flow_policy():
         provided_policy = CoreFlowPolicy
 
     return provided_policy
+
+
+@contextmanager
+def temporary_task_policy(tmp_task_policy):
+    starting_task_policy = ORCHESTRATION_DEPENDENCIES["task_policy"]
+    try:
+        ORCHESTRATION_DEPENDENCIES["task_policy"] = tmp_task_policy
+        yield
+    finally:
+        ORCHESTRATION_DEPENDENCIES["task_policy"] = starting_task_policy
+
+
+@contextmanager
+def temporary_flow_policy(tmp_flow_policy):
+    starting_flow_policy = ORCHESTRATION_DEPENDENCIES["flow_policy"]
+    try:
+        ORCHESTRATION_DEPENDENCIES["flow_policy"] = tmp_flow_policy
+        yield
+    finally:
+        ORCHESTRATION_DEPENDENCIES["flow_policy"] = starting_flow_policy
