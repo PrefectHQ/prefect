@@ -293,6 +293,13 @@ def test_dbt_cloud_run_job_trigger_job_with_wait():
         json={"data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}},
     )
 
+    responses.add(
+        responses.GET,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
+        status=200,
+        json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
+    )
+
     run_job = DbtCloudRunJob(
         cause="foo",
         account_id=account_id,

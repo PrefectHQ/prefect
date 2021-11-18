@@ -1,5 +1,5 @@
 from time import sleep
-from typing import List
+from typing import List, Tuple
 
 import requests
 
@@ -14,7 +14,13 @@ __DBT_CLOUD_GET_RUN_API_ENDPOINT_V2 = (
     "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/"
 )
 
-# dbt Cloud Get Run Artifacts API ->
+# dbt Cloud List Run Artifacts API ->
+#   https://docs.getdbt.com/dbt-cloud/api-v2#operation/listArtifactsByRunId
+__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2 = (
+    "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/artifacts/"
+)
+
+# dbt Cloud Get Run Artifact API ->
 #   https://docs.getdbt.com/dbt-cloud/api-v2#operation/getArtifactsByRunId
 __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2 = (
     "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/artifacts/{path}"
@@ -24,7 +30,7 @@ dbt_cloud_artifact_paths = ("manifest.json", "run_results.json", "catalog.json")
 
 
 class DbtCloudBaseException(Exception):
-    """"""
+    """Base excpetion for all dbt Cloud Excpetions"""
 
     pass
 
@@ -59,6 +65,12 @@ class DbtCloudRunTimedOut(DbtCloudBaseException):
     pass
 
 
+class DbtCloudListArtifactsFailed(DbtCloudBaseException):
+    """Raised when dbt Cloud artifacts cannot be listed"""
+
+    pass
+
+
 def trigger_job_run(
     account_id: int, job_id: int, token: str, cause: str, additional_args: dict
 ) -> dict:
@@ -76,7 +88,7 @@ def trigger_job_run(
         - The trigger run result, namely the "data" key in the API response
 
     Raises:
-        - prefect.engine.signals.FAIL: when the response code is != 200
+        - TriggerDbtCloudRunFailed: when the response code is != 200
     """
     data = additional_args if additional_args else {}
     data["cause"] = cause
@@ -111,7 +123,9 @@ def wait_for_job_run(
         - The job run result, namely the "data" key in the API response
 
     Raises:
-        - prefect.engine.signals.FAIL: if "finished_at" is not None and the result status != 10
+        - DbtCloudRunFailed: if "finished_at" is not None and the result status == 20
+        - DbtCloudRunCanceled: if "finished_at" is not None and the result status == 30
+        - DbtCloudRunTimedOut: if run does not finish before provided max_wait_time
     """
     wait_time_between_api_calls = 10
     elapsed_wait_time = 0
@@ -142,21 +156,41 @@ def wait_for_job_run(
     )
 
 
-def create_run_artifact_links(account_id: int, run_id: int) -> List[str]:
+def list_run_artifact_links(
+    account_id: int, run_id: int, token: str
+) -> List[Tuple[str, str]]:
     """
-    Generates a URL that can be used to download an artifact from a dbt run
+    Lists URLs that can be used to download artifacts from a dbt run
 
     Args:
         - account_id (int): dbt Cloud account ID
         - run_id (int): dbt Cloud job run ID
+        - token (str): dbt Cloud token
 
     Returns:
         - List of artifact download URLs
 
+    Raises:
+        - DbtCloudListArtifactsFailed: if API to list dbt artifacts fails
+
     """
+
+    list_run_artifact_response = requests.get(
+        url=__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2.format(
+            accountId=account_id, runId=run_id
+        ),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    if list_run_artifact_response.status_code != 200:
+        raise DbtCloudListArtifactsFailed(list_run_artifact_response.reason)
+
+    artifact_paths = list_run_artifact_response.json().get("data")
     return [
-        __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2.format(
-            accountId=account_id, runId=run_id, path=artifact_path
+        (
+            __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2.format(
+                accountId=account_id, runId=run_id, path=artifact_path
+            ),
+            artifact_path,
         )
-        for artifact_path in dbt_cloud_artifact_paths
+        for artifact_path in artifact_paths
     ]
