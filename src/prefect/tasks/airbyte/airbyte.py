@@ -34,7 +34,7 @@ class AirbyteConnectionTask(Task):
     See https://docs.airbyte.io/api-documentation
 
     Args:
-        - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured. 
+        - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured.
             Defaults to localhost.
         - airbyte_server_port (str, optional): Port that the Airbyte server is listening on.
             Defaults to 8000.
@@ -56,12 +56,12 @@ class AirbyteConnectionTask(Task):
     JOB_STATUS_FAILED = "failed"
 
     def __init__(
-            self,
-            airbyte_server_host: str = "localhost",
-            airbyte_server_port: int = 8000,
-            airbyte_api_version: str = "v1",
-            connection_id: str = None,
-            **kwargs,
+        self,
+        airbyte_server_host: str = "localhost",
+        airbyte_server_port: int = 8000,
+        airbyte_api_version: str = "v1",
+        connection_id: str = None,
+        **kwargs,
     ):
         self.airbyte_server_host = airbyte_server_host
         self.airbyte_server_port = airbyte_server_port
@@ -96,15 +96,13 @@ class AirbyteConnectionTask(Task):
             # check whether a schedule exists ...
             schedule = response.json()["schedule"]
             if schedule:
-                self.logger.warning(
-                    "Found existing Connection schedule, removing ...")
+                self.logger.warning("Found existing Connection schedule, removing ...")
 
                 # mandatory fields for Connection update ...
                 sync_catalog = response.json()["syncCatalog"]
                 connection_status = response.json()["status"]
 
-                update_connection_url = airbyte_base_url + "/connections" \
-                                                           "/update/"
+                update_connection_url = airbyte_base_url + "/connections" "/update/"
                 response2 = session.post(
                     update_connection_url,
                     json={
@@ -126,8 +124,7 @@ class AirbyteConnectionTask(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-    def _trigger_manual_sync_connection(self, session, airbyte_base_url,
-                                       connection_id):
+    def _trigger_manual_sync_connection(self, session, airbyte_base_url, connection_id):
         """
         Trigger a manual sync of the Connection, see:
         https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc
@@ -189,12 +186,12 @@ class AirbyteConnectionTask(Task):
         "connection_id",
     )
     def run(
-            self,
-            airbyte_server_host: str,
-            airbyte_server_port: int,
-            airbyte_api_version: str,
-            connection_id: str,
-            poll_interval_s: int = 15,
+        self,
+        airbyte_server_host: str,
+        airbyte_server_port: int,
+        airbyte_api_version: str,
+        connection_id: str,
+        poll_interval_s: int = 15,
     ) -> dict:
         """
         Task run method for triggering an Airbyte Connection.
@@ -212,12 +209,12 @@ class AirbyteConnectionTask(Task):
         when it receives an error status code from an API call.
 
         Args:
-            - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured. 
-                Will overwrite the value provided at init if provided.
+            - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is
+                configured. Will overwrite the value provided at init if provided.
             - airbyte_server_port (str, optional): Port that the Airbyte server is listening on.
                 Will overwrite the value provided at init if provided.
-            - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection sync.
-                Will overwrite the value provided at init if provided.
+            - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection
+                sync. Will overwrite the value provided at init if provided.
             - connection_id (str, optional): if provided,
                 will overwrite the value provided at init.
             - poll_interval_s (int, optional): this task polls the
@@ -228,8 +225,10 @@ class AirbyteConnectionTask(Task):
             - dict: connection_id (str) and succeeded_at (timestamp str)
         """
         if not connection_id:
-            raise ValueError("Value for parameter `connection_id` *must* \
-            be provided.")
+            raise ValueError(
+                "Value for parameter `connection_id` *must* \
+            be provided."
+            )
 
         uuid = re.compile("^[0-9A-Fa-f-]+$")
         match = uuid.match(connection_id)
@@ -241,8 +240,10 @@ class AirbyteConnectionTask(Task):
 
         # see https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com
         # /rapidoc-api-docs.html#overview
-        airbyte_base_url = f"http://{airbyte_server_host}:" \
-                           f"{airbyte_server_port}/api/{airbyte_api_version}"
+        airbyte_base_url = (
+            f"http://{airbyte_server_host}:"
+            f"{airbyte_server_port}/api/{airbyte_api_version}"
+        )
 
         session = requests.Session()
         self._check_health_status(session, airbyte_base_url)
@@ -261,10 +262,9 @@ class AirbyteConnectionTask(Task):
             )
 
             while True:
-                job_status, job_created_at, job_updated_at = \
-                    self._get_job_status(
-                        session, airbyte_base_url, job_id
-                    )
+                job_status, job_created_at, job_updated_at = self._get_job_status(
+                    session, airbyte_base_url, job_id
+                )
 
                 # pending┃running┃incomplete┃failed┃succeeded┃cancelled
                 if job_status == self.JOB_STATUS_SUCCEEDED:
@@ -286,12 +286,10 @@ class AirbyteConnectionTask(Task):
             }
         elif connection_status == self.CONNECTION_STATUS_INACTIVE:
             self.logger.error(
-                f"Please enable the Connection {connection_id} in Airbyte "
-                f"Server."
+                f"Please enable the Connection {connection_id} in Airbyte " f"Server."
             )
             raise FAIL(
-                f"Please enable the Connection {connection_id} in Airbyte "
-                f"Server."
+                f"Please enable the Connection {connection_id} in Airbyte " f"Server."
             )
         elif connection_status == self.CONNECTION_STATUS_DEPRECATED:
             self.logger.error(f"Connection {connection_id} is deprecated.")
