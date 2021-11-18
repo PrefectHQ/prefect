@@ -32,7 +32,7 @@ export declare interface Ring {
   nodes: RadarNodes
   radius: number
   positions: Positions
-  links: Link[]
+  links: Link[] // TODO: remove if unused
 }
 
 export declare type Positions = Map<number, Position>

@@ -37,6 +37,7 @@ const items = computed<[]>(() => {
 })
 
 watch(id, () => {
+  if (!id.value) return
   queries.radar.fetch()
 })
 </script>
