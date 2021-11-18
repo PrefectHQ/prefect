@@ -18,7 +18,7 @@ import {
   Position,
   Items
 } from '@/typings/radar'
-import { max, cos, sin, sqrt, pi, floor } from './math'
+import { max, cos, sin, sqrt, pi, floor, ceil } from './math'
 
 function getAvailablePositions(positions: Positions): [number, Position][] {
   return Array.from(positions).filter(
@@ -72,7 +72,7 @@ export class Radar {
   expandRing(ringId: number): Radar {
     const ring = this.rings.get(ringId)
     if (!ring) {
-      throw new Error('Invalid RingId when expanding ring.')
+      throw new Error('Invalid ringId when expanding ring.')
     }
 
     if (this.expandedRings.includes(ringId)) {
@@ -80,6 +80,29 @@ export class Radar {
     }
 
     this.expandedRings.push(ringId)
+    this.computeRings()
+    this.computeInitialPositions()
+    return this
+  }
+
+  /**
+   *
+   * @param ringId string; the id of the ring to collapse
+   * @returns instance of Radar
+   */
+  collapseRing(ringId: number): Radar {
+    const ring = this.rings.get(ringId)
+    if (!ring) {
+      throw new Error('Invalid ringId when collapsing ring.')
+    }
+
+    const index = this.expandedRings.indexOf(ringId)
+
+    if (index == -1) {
+      throw new Error('Attempted to collapse an already collapsed ring.')
+    }
+
+    this.expandedRings.splice(index, 1)
     this.computeRings()
     this.computeInitialPositions()
     return this
@@ -296,8 +319,9 @@ export class Radar {
       }
 
       if (this.expandedRings.includes(i) && size > 1) {
+        // TODO: Make this more precise
         radius = max(
-          floor((size * ((this.height + this.width) / 2)) / (pi * 2)),
+          ceil((size * max(this.height, this.width)) / (pi * 2)),
           radius
         )
       }
