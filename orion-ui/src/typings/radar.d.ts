@@ -31,7 +31,6 @@ export declare interface Position {
 export declare interface Ring {
   nodes: RadarNodes
   radius: number
-  expanded?: boolean
   positions: Positions
   links: Link[]
 }

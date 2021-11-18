@@ -39,6 +39,7 @@ export class Radar {
   positions: Positions = new Map()
   links: Links = []
   rings: Rings = new Map()
+  expandedRings: number[] = []
 
   baseRadius: number = 500
   channelWidth: number = 250
@@ -74,7 +75,11 @@ export class Radar {
       throw new Error('Invalid RingId when expanding ring.')
     }
 
-    this.rings.set(ringId, { ...ring, expanded: true })
+    if (this.expandedRings.includes(ringId)) {
+      throw new Error('Attempted to expand an already expanded ring.')
+    }
+
+    this.expandedRings.push(ringId)
     this.computeRings()
     this.computeInitialPositions()
     return this
@@ -290,7 +295,7 @@ export class Radar {
         radius = n === 1 ? i * this.baseRadius : (i + 1) * this.baseRadius
       }
 
-      if (rings[i][1].expanded && size > 1) {
+      if (this.expandedRings.includes(i) && size > 1) {
         radius = max(
           floor((size * ((this.height + this.width) / 2)) / (pi * 2)),
           radius
