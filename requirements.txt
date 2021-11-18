@@ -12,6 +12,7 @@ marshmallow >= 3.0.0b19
 marshmallow-oneofschema >= 2.0.0b2
 msgpack >= 0.6.0
 mypy_extensions >= 0.4.0
+packaging >= 20.0, < 22.0
 pendulum >= 2.0.4
 python-dateutil >= 2.7.0
 pyyaml >= 3.13
