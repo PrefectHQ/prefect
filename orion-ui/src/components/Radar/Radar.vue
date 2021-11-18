@@ -936,7 +936,7 @@ onUnmounted(() => {
     cursor: grab;
     left: 0;
     top: 0;
-    transform-origin: center;
+    transform-origin: top left;
     z-index: 2;
 
     &:active {
