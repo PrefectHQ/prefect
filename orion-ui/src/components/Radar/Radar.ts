@@ -18,7 +18,7 @@ import {
   Position,
   Items
 } from '@/typings/radar'
-import { max, cos, sin, sqrt, pi, floor, ceil } from './math'
+import { max, pow2, cos, sin, sqrt, pi, floor, ceil } from './math'
 
 function getAvailablePositions(positions: Positions): [number, Position][] {
   return Array.from(positions).filter(
@@ -293,7 +293,7 @@ export class Radar {
           distances.push(distance)
         }
 
-        return Math.max(...distances)
+        return max(...distances)
       }
 
       return depth
@@ -320,10 +320,9 @@ export class Radar {
 
       if (this.expandedRings.includes(i) && size > 1) {
         // TODO: Make this more precise
-        radius = max(
-          ceil((size * max(this.height, this.width)) / (pi * 2)),
-          radius
-        )
+        const circumference = sqrt(pow2(this.height) + pow2(this.width))
+
+        radius = max(ceil((size * circumference) / (pi * 2)), radius)
       }
 
       const positions = this.computeRingPositions(radius)
@@ -360,8 +359,8 @@ export class Radar {
       for (const [_key, node] of ring.nodes) {
         const position = this.getNodePosition(node, key, _r, i)
 
-        node.cx = this.cx + ring.radius * Math.cos(position.radian)
-        node.cy = this.cy + ring.radius * Math.sin(position.radian)
+        node.cx = this.cx + ring.radius * cos(position.radian)
+        node.cy = this.cy + ring.radius * sin(position.radian)
 
         node.radian = position.radian
         node.position = position
@@ -389,10 +388,6 @@ export class Radar {
   private computeRingPositions(radius: number): Positions {
     const positions: Positions = new Map()
 
-    const pow2 = (n: number) => {
-      return Math.pow(n, 2)
-    }
-
     if (radius <= 0) {
       positions.set(0, { id: 0, radian: 0, nodes: new Map(), radius: radius })
       return positions
@@ -402,13 +397,13 @@ export class Radar {
     let _delta = 0
 
     const positionalArray = [0]
-    const limit = Math.PI / 2 - (this.width * 0.8) / 2 / radius
+    const limit = pi / 2 - (this.width * 0.8) / 2 / radius
 
     while (total < limit) {
-      const lambda = 1.25 - 0.3 * Math.sin(total)
-      const arcLength = Math.sqrt(
-        pow2(this.height) * pow2(Math.cos(_delta)) +
-          pow2(this.width) * pow2(Math.sin(_delta))
+      const lambda = 1.25 - 0.3 * sin(total)
+      const arcLength = sqrt(
+        pow2(this.height) * pow2(cos(_delta)) +
+          pow2(this.width) * pow2(sin(_delta))
       )
       const delta = (lambda * arcLength) / radius
 
@@ -418,15 +413,15 @@ export class Radar {
       // Quadrant mirroring
       if (total < limit) {
         if (total < radius / (this.channelWidth + this.width / 2)) {
-          positionalArray.push(total % (2 * Math.PI)) // Lower right quad
-          positionalArray.push((3 * Math.PI - total) % (2 * Math.PI)) // Lower left quad
+          positionalArray.push(total % (2 * pi)) // Lower right quad
+          positionalArray.push((3 * pi - total) % (2 * pi)) // Lower left quad
         }
-        positionalArray.push((Math.PI + total) % (2 * Math.PI)) // Upper left quad
-        positionalArray.push((2 * Math.PI - total) % (2 * Math.PI)) // Upper right quad
+        positionalArray.push((pi + total) % (2 * pi)) // Upper left quad
+        positionalArray.push((2 * pi - total) % (2 * pi)) // Upper right quad
       }
     }
 
-    positionalArray.push(Math.PI)
+    positionalArray.push(pi)
 
     positionalArray
       .sort()
@@ -458,7 +453,7 @@ export class Radar {
       if (node_index === 0 || node_index % 2 === 0) {
         position = p.get(available[0]?.[0])
       } else {
-        position = p.get(available[Math.floor(available.length / 2)]?.[0])
+        position = p.get(available[floor(available.length / 2)]?.[0])
       }
     } else {
       const upstream = node.upstreamNodes.entries()
@@ -472,7 +467,7 @@ export class Radar {
 
         // We get the equivalent position on the current ring
         // as this upstream node
-        const equivalentPosition = Math.floor(
+        const equivalentPosition = floor(
           (_u.position / _r!.positions.size) * p.size
         )
         const potentialPosition = p.get(equivalentPosition)
