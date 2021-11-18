@@ -22,3 +22,7 @@ export const acos = (x: number): number => {
 export const asin = (x: number): number => {
   return x >= 1 ? halfPi : x <= -1 ? -halfPi : Math.asin(x)
 }
+
+export const pow2 = (n: number): number => {
+  return pow(n, 2)
+}
