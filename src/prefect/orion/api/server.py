@@ -89,7 +89,6 @@ def create_app(database_config=None) -> FastAPI:
         if settings.orion.services.run_in_app:
             loop = asyncio.get_running_loop()
             service_instances = [
-                services.agent.Agent(),
                 services.scheduler.Scheduler(),
                 services.late_runs.MarkLateRuns(),
             ]
