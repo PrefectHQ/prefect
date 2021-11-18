@@ -811,14 +811,6 @@ watch(selectedNodes, () => {
   requestAnimationFrame(() => updateLinks())
 })
 
-watch(visibleRings, () => {
-  // zoom.value.translateExtent(viewportExtent.value)
-  d3.select('.radar__canvas')
-    .transition()
-    .duration(250)
-    .call(zoom.value.transform, d3.zoomIdentity)
-})
-
 watch(visibleLinks, () => {
   requestAnimationFrame(() => updateAll())
 })
