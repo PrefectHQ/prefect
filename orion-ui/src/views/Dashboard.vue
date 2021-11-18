@@ -14,7 +14,7 @@
             </span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
-          <i class="pi pi-filter-3-line pi-lg" />
+          <i class="pi pi-filter-3-line pi-lg text--grey-80" />
         </div>
       </ButtonCard>
     </row>
