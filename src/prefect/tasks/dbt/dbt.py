@@ -6,7 +6,6 @@ import yaml
 from prefect.core.task import Task
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.tasks import defaults_from_attrs
-from prefect.backend.artifacts import create_link_artifact
 
 from .dbt_cloud_utils import (
     create_run_artifact_links,
