@@ -3,13 +3,14 @@ Routes for admin-level interactions with the Orion API.
 """
 
 import sqlalchemy as sa
+from sqlalchemy import orm
 from fastapi import Depends, status, Response, Body
 
 import prefect
-from prefect.utilities.logging import get_logger
 from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.api import dependencies
-from prefect.orion.utilities.database import Base
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.database.interface import OrionDBInterface
 
 router = OrionRouter(prefix="/admin", tags=["Admin"])
 
@@ -35,6 +36,7 @@ def read_version() -> str:
 @router.post("/database/clear", status_code=status.HTTP_204_NO_CONTENT)
 async def clear_database(
     session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
         embed=True,
@@ -46,14 +48,13 @@ async def clear_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-
-    for table in reversed(Base.metadata.sorted_tables):
+    for table in reversed(db.Base.metadata.sorted_tables):
         await session.execute(table.delete())
 
 
 @router.post("/database/drop", status_code=status.HTTP_204_NO_CONTENT)
 async def drop_database(
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
         embed=True,
@@ -65,12 +66,13 @@ async def drop_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    await prefect.orion.utilities.database.drop_db(session.bind)
+
+    await db.drop_db()
 
 
 @router.post("/database/create", status_code=status.HTTP_204_NO_CONTENT)
 async def create_database(
-    session: sa.orm.Session = Depends(dependencies.get_session),
+    db: OrionDBInterface = Depends(provide_database_interface),
     confirm: bool = Body(
         False,
         embed=True,
@@ -82,4 +84,5 @@ async def create_database(
     if not confirm:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return
-    await prefect.orion.utilities.database.create_db(session.bind)
+
+    await db.create_db()

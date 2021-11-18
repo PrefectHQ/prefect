@@ -7,88 +7,21 @@ import json
 from typing import List
 from typing_extensions import Literal
 
-import pendulum
 import sqlalchemy as sa
-
 
 import pydantic
 from prefect.orion import models, schemas
-from prefect.orion.utilities.database import Timestamp, get_dialect
 from prefect.utilities.logging import get_logger
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 logger = get_logger("orion.api")
 
 
-def sqlite_timestamp_intervals(
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
-    interval: datetime.timedelta,
-):
-    # validate inputs
-    start_time = pendulum.instance(start_time)
-    end_time = pendulum.instance(end_time)
-    assert isinstance(interval, datetime.timedelta)
-
-    return (
-        sa.text(
-            r"""
-            -- recursive CTE to mimic the behavior of `generate_series`, 
-            -- which is only available as a compiled extension 
-            WITH RECURSIVE intervals(interval_start, interval_end, counter) AS (
-                VALUES(
-                    strftime('%Y-%m-%d %H:%M:%f000', :start_time), 
-                    strftime('%Y-%m-%d %H:%M:%f000', :start_time, :interval),
-                    1
-                    )
-                
-                UNION ALL
-                
-                SELECT interval_end, strftime('%Y-%m-%d %H:%M:%f000', interval_end, :interval), counter + 1
-                FROM intervals
-                -- subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
-                WHERE 
-                    interval_start < strftime('%Y-%m-%d %H:%M:%f000', :end_time, :negative_interval)
-                    -- don't compute more than 500 intervals
-                    AND counter < 500
-            )
-            SELECT * FROM intervals
-            """
-        )
-        .bindparams(
-            start_time=str(start_time),
-            end_time=str(end_time),
-            interval=f"+{interval.total_seconds()} seconds",
-            negative_interval=f"-{interval.total_seconds()} seconds",
-        )
-        .columns(interval_start=Timestamp(), interval_end=Timestamp())
-    )
-
-
-def postgres_timestamp_intervals(
-    start_time: datetime.datetime,
-    end_time: datetime.datetime,
-    interval: datetime.timedelta,
-):
-    # validate inputs
-    start_time = pendulum.instance(start_time)
-    end_time = pendulum.instance(end_time)
-    assert isinstance(interval, datetime.timedelta)
-    return (
-        sa.select(
-            sa.literal_column("dt").label("interval_start"),
-            (sa.literal_column("dt") + interval).label("interval_end"),
-        )
-        .select_from(
-            sa.func.generate_series(start_time, end_time, interval).alias("dt")
-        )
-        .where(sa.literal_column("dt") < end_time)
-        # grab at most 500 intervals
-        .limit(500)
-    )
-
-
+@inject_db
 async def run_history(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     run_type: Literal["flow_run", "task_run"],
     history_start: datetime.datetime,
     history_end: datetime.datetime,
@@ -109,53 +42,39 @@ async def run_history(
 
     # prepare run-specific models
     if run_type == "flow_run":
-        run_model = models.orm.FlowRun
-        state_model = models.orm.FlowRunState
+        run_model = db.FlowRun
+        state_model = db.FlowRunState
         run_filter_function = models.flow_runs._apply_flow_run_filters
     elif run_type == "task_run":
-        run_model = models.orm.TaskRun
-        state_model = models.orm.TaskRunState
+        run_model = db.TaskRun
+        state_model = db.TaskRunState
         run_filter_function = models.task_runs._apply_task_run_filters
 
-    # prepare dialect-independent functions
-    if get_dialect(session=session).name == "postgresql":
-        make_timestamp_intervals = postgres_timestamp_intervals
-        json_arr_agg = sa.func.jsonb_agg
-        json_build_object = sa.func.jsonb_build_object
-        # unecessary for postgres
-        json_cast = lambda x: x
-        greatest = sa.func.greatest
-
-    elif get_dialect(session=session).name == "sqlite":
-        make_timestamp_intervals = sqlite_timestamp_intervals
-        json_arr_agg = sa.func.json_group_array
-        json_build_object = sa.func.json_object
-        json_cast = sa.func.json
-        greatest = sa.func.max
-
     # create a CTE for timestamp intervals
-    intervals = make_timestamp_intervals(
+    intervals = db.make_timestamp_intervals(
         history_start,
         history_end,
         history_interval,
     ).cte("intervals")
 
     # apply filters to the flow runs (and related states)
-    runs = run_filter_function(
-        sa.select(
-            run_model.id,
-            run_model.expected_start_time,
-            run_model.estimated_run_time,
-            run_model.estimated_start_time_delta,
-            state_model.type.label("state_type"),
-            state_model.name.label("state_name"),
+    runs = (
+        await run_filter_function(
+            sa.select(
+                run_model.id,
+                run_model.expected_start_time,
+                run_model.estimated_run_time,
+                run_model.estimated_start_time_delta,
+                state_model.type.label("state_type"),
+                state_model.name.label("state_name"),
+            )
+            .select_from(run_model)
+            .join(state_model, run_model.state_id == state_model.id),
+            flow_filter=flows,
+            flow_run_filter=flow_runs,
+            task_run_filter=task_runs,
+            deployment_filter=deployments,
         )
-        .select_from(run_model)
-        .join(state_model, run_model.state_id == state_model.id),
-        flow_filter=flows,
-        flow_run_filter=flow_runs,
-        task_run_filter=task_runs,
-        deployment_filter=deployments,
     ).alias("runs")
     # outer join intervals to the filtered runs to create a dataset composed of
     # every interval and the aggregate of all its runs. The runs aggregate is represented
@@ -167,7 +86,7 @@ async def run_history(
             # build a JSON object, ignoring the case where the count of runs is 0
             sa.case(
                 (sa.func.count(runs.c.id) == 0, None),
-                else_=json_build_object(
+                else_=db.build_json_object(
                     "state_type",
                     runs.c.state_type,
                     "state_name",
@@ -177,12 +96,12 @@ async def run_history(
                     # estimated run times only includes positive run times (to avoid any unexpected corner cases)
                     "sum_estimated_run_time",
                     sa.func.sum(
-                        greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
+                        db.greatest(0, sa.extract("epoch", runs.c.estimated_run_time))
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
-                        greatest(
+                        db.greatest(
                             0, sa.extract("epoch", runs.c.estimated_start_time_delta)
                         )
                     ),
@@ -213,7 +132,7 @@ async def run_history(
             counts.c.interval_start,
             counts.c.interval_end,
             sa.func.coalesce(
-                json_arr_agg(json_cast(counts.c.state_agg)).filter(
+                db.json_arr_agg(db.cast_to_json(counts.c.state_agg)).filter(
                     counts.c.state_agg.is_not(None)
                 ),
                 sa.text("'[]'"),
@@ -229,9 +148,8 @@ async def run_history(
     result = await session.execute(query)
     records = result.all()
 
-    # sqlite returns JSON as strings so we have to load
-    # and parse the record
-    if get_dialect(session=session).name == "sqlite":
+    # load and parse the record if the database returns JSON as strings
+    if db.uses_json_strings:
         records = [dict(r) for r in records]
         for r in records:
             r["states"] = json.loads(r["states"])
