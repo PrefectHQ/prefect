@@ -87,7 +87,7 @@ class DbtShellTask(ShellTask):
         shell: str = "bash",
         return_all: bool = False,
         log_stderr: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ):
         self.command = command
         self.profile_name = profile_name
@@ -103,7 +103,7 @@ class DbtShellTask(ShellTask):
             helper_script=helper_script,
             shell=shell,
             return_all=return_all,
-            log_stderr=log_stderr
+            log_stderr=log_stderr,
         )
 
     @defaults_from_attrs("command", "env", "helper_script", "dbt_kwargs")
@@ -398,7 +398,10 @@ class DbtCloudRunJob(Task):
                 account_id=account_id, run_id=run["id"]
             )
 
-            (create_link_artifact(link=link) for link in artifact_links)
+            markdown = f"Artifacts for dbt Cloud run {run['id']} of job {job_id}\n"
+            for link in artifact_links:
+                artifact_name = link.split("/")[-1]
+                markdown += f"- [{artifact_name}]({link})\n"
 
             job_run_result = wait_for_job_run(
                 account_id=account_id,
