@@ -149,8 +149,8 @@ export class Radar {
   }
 
   private update(items: Items) {
-    // this.nodes = new Map()
-    // this.rings = new Map()
+    this.nodes = new Map()
+    this.rings = new Map()
     this.links = []
 
     this.computeNodes(items)
@@ -158,7 +158,6 @@ export class Radar {
     this.computeNodeRings()
     this.computeRings()
     this.computeInitialPositions()
-    // this.computeIdealPositions()
   }
 
   private computeNodes(items: Items) {
@@ -176,7 +175,6 @@ export class Radar {
           data: item,
           downstreamNodes: new Map(),
           upstreamNodes: new Map(),
-          siblingNodes: new Map(),
           ring: node.ring
         })
       } else {
@@ -188,17 +186,8 @@ export class Radar {
           data: item,
           downstreamNodes: new Map(),
           upstreamNodes: new Map(),
-          siblingNodes: new Map(),
           ring: 0
         })
-      }
-
-      for (const [key] of this.nodes) {
-        const item = items.find((item) => item.id == key)
-
-        if (!item) {
-          this.nodes.delete(key)
-        }
       }
     }
   }
@@ -250,12 +239,6 @@ export class Radar {
         this.nodes.set(key, node)
 
         this.links.push(link)
-      }
-    }
-
-    for (const [, node] of this.nodes) {
-      for (const [, node_] of node.downstreamNodes) {
-        node_.siblingNodes = new Map(node.downstreamNodes)
       }
     }
   }
