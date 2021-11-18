@@ -124,7 +124,7 @@ import {
   Position
 } from '@/typings/radar'
 
-const props = defineProps<{ items: Item[] }>()
+const props = defineProps<{ items: Item[]; id: string }>()
 const items = ref<Item[]>(props.items)
 
 /**
@@ -783,19 +783,23 @@ const zoom = ref<d3.ZoomBehavior<any, any>>(d3.zoom())
  * Watchers
  */
 watch(
-  () => props.items,
+  () => [props.items, props.id],
   (curr, prev) => {
+    const [currItems, currId] = curr
+    const [prevItems, prevId] = prev
+
     items.value = props.items
     selectedNodes.length = 0
+
     radial.value.items(items.value)
 
-    if (curr.length > 0 && prev.length == 0) {
+    if ((currItems.length > 0 && prevItems.length == 0) || currId !== prevId) {
       radial.value.center([width.value / 2, height.value / 2])
 
       resetViewport()
     }
 
-    if (curr.length !== prev.length) {
+    if (currItems.length !== prevItems.length || currId !== prevId) {
       requestAnimationFrame(() => updateAll())
     } else {
       requestAnimationFrame(() => updateLinks())
@@ -809,10 +813,10 @@ watch(selectedNodes, () => {
 
 watch(visibleRings, () => {
   // zoom.value.translateExtent(viewportExtent.value)
-  // d3.select('.radar__canvas')
-  //   .transition()
-  //   .duration(250)
-  //   .call(zoom.value.transform, d3.zoomIdentity)
+  d3.select('.radar__canvas')
+    .transition()
+    .duration(250)
+    .call(zoom.value.transform, d3.zoomIdentity)
 })
 
 watch(visibleLinks, () => {
@@ -880,7 +884,7 @@ onMounted(() => {
     .center([width.value / 2, height.value / 2])
     .items(items.value)
 
-  console.log(radial.value)
+  // console.log(radial.value)
 
   createChart()
 })

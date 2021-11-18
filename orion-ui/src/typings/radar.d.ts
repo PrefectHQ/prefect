@@ -11,7 +11,6 @@ export declare interface RadarNode {
   data: any
   downstreamNodes: Map<string, RadarNode>
   upstreamNodes: Map<string, RadarNode>
-  siblingNodes: Map<string, RadarNode>
   ring: number
   position?: Position
 }
