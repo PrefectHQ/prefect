@@ -1,5 +1,7 @@
+import { State } from '@/types/states'
+
 export type StateBucket = {
-  state_type: string
+  state_type: State
   state_name: string
   count_runs: number
   sum_estimated_run_time: number
