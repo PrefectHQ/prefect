@@ -188,6 +188,12 @@ export class Radar {
     this.computeInitialPositions()
   }
 
+  /*
+    id: task_run_id
+    upstream_dependencies: []
+    state: ''
+  */
+
   private computeNodes(items: Items) {
     const len = items.length
     for (let i = 0; i < len; i++) {
@@ -441,6 +447,12 @@ export class Radar {
     const r = this.rings.get(rid)!
     const p = r.positions
     let position
+
+    // Circuit breaker; if all positions are already filled, we short the method immediately
+    const filled = [...p.values()].every((position) => position.nodes.size > 0)
+    if (filled) {
+      return p.get(p.size - 1)!
+    }
 
     // If the node has no upstream dependencies, we place
     // it in the first available position on the ring

@@ -789,12 +789,12 @@ watch(
     const [prevItems, prevId] = prev
 
     items.value = props.items
-    selectedNodes.length = 0
 
     radial.value.items(items.value)
 
     if ((currItems.length > 0 && prevItems.length == 0) || currId !== prevId) {
       radial.value.center([width.value / 2, height.value / 2])
+      selectedNodes.length = 0
 
       resetViewport()
     }
