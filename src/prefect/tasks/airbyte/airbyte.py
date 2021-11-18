@@ -34,10 +34,16 @@ class AirbyteConnectionTask(Task):
     See https://docs.airbyte.io/api-documentation
 
     Args:
+        - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured. 
+            Defaults to localhost.
+        - airbyte_server_port (str, optional): Port that the Airbyte server is listening on.
+            Defaults to 8000.
+        - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection sync.
+            Defaults to v1.
         - connection_id (str, optional): Default connection id to
-          use for sync jobs, if none is specified to `run`.
+            use for sync jobs, if none is specified to `run`.
         - **kwargs (Any, optional): additional kwargs to pass to the
-          base Task constructor
+            base Task constructor
     """
 
     # Connection statuses
@@ -63,7 +69,7 @@ class AirbyteConnectionTask(Task):
         self.connection_id = connection_id
         super().__init__(**kwargs)
 
-    def check_health_status(self, session, airbyte_base_url):
+    def _check_health_status(self, session, airbyte_base_url):
         get_connection_url = airbyte_base_url + "/health/"
         try:
             response = session.get(get_connection_url)
@@ -77,11 +83,10 @@ class AirbyteConnectionTask(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-    def get_connection_status(self, session, airbyte_base_url, connection_id):
+    def _get_connection_status(self, session, airbyte_base_url, connection_id):
         get_connection_url = airbyte_base_url + "/connections/get/"
 
-        # TODO - missing authentiction ...
-        # note - endpoint accepts application/json request body
+        # TODO - Missing authentication because Airbyte servers currently do not support authentication
         try:
             response = session.post(
                 get_connection_url, json={"connectionId": connection_id}
@@ -99,7 +104,7 @@ class AirbyteConnectionTask(Task):
                 connection_status = response.json()["status"]
 
                 update_connection_url = airbyte_base_url + "/connections" \
-                                                           "/update/ "
+                                                           "/update/"
                 response2 = session.post(
                     update_connection_url,
                     json={
@@ -121,7 +126,7 @@ class AirbyteConnectionTask(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-    def trigger_manual_sync_connection(self, session, airbyte_base_url,
+    def _trigger_manual_sync_connection(self, session, airbyte_base_url,
                                        connection_id):
         """
         Trigger a manual sync of the Connection, see:
@@ -129,9 +134,9 @@ class AirbyteConnectionTask(Task):
         -api-docs.html#post-/v1/connections/sync
 
         Args:
-            session:
-            airbyte_base_url:
-            connection_id:
+            session: requests session with which to make call to Airbyte server
+            airbyte_base_url: URL of Airbyte server
+            connection_id: ID of connection to sync
 
         Returns: created_at - timestamp of sync job creation
 
@@ -161,10 +166,8 @@ class AirbyteConnectionTask(Task):
         except RequestException as e:
             raise AirbyteServerNotHealthyException(e)
 
-    def get_job_status(self, session, airbyte_base_url, job_id):
+    def _get_job_status(self, session, airbyte_base_url, job_id):
         get_connection_url = airbyte_base_url + "/jobs/get/"
-
-        # TODO - missing authentication ...
         try:
             response = session.post(get_connection_url, json={"id": job_id})
             if response.status_code == 200:
@@ -209,11 +212,17 @@ class AirbyteConnectionTask(Task):
         when it receives an error status code from an API call.
 
         Args:
+            - airbyte_server_host (str, optional): Hostname of Airbyte server where connection is configured. 
+                Will overwrite the value provided at init if provided.
+            - airbyte_server_port (str, optional): Port that the Airbyte server is listening on.
+                Will overwrite the value provided at init if provided.
+            - airbyte_api_version (str, optional): Version of Airbyte API to use to trigger connection sync.
+                Will overwrite the value provided at init if provided.
             - connection_id (str, optional): if provided,
-              will overwrite the value provided at init.
+                will overwrite the value provided at init.
             - poll_interval_s (int, optional): this task polls the
-              Airbyte API for status, if provided this value will
-              override the default polling time of 15 seconds.
+                Airbyte API for status, if provided this value will
+                override the default polling time of 15 seconds.
 
         Returns:
             - dict: connection_id (str) and succeeded_at (timestamp str)
@@ -236,24 +245,24 @@ class AirbyteConnectionTask(Task):
                            f"{airbyte_server_port}/api/{airbyte_api_version}"
 
         session = requests.Session()
-        self.check_health_status(session, airbyte_base_url)
+        self._check_health_status(session, airbyte_base_url)
         self.logger.info(
             f"Getting Airbyte Connection {connection_id}, poll interval "
             f"{poll_interval_s} seconds, airbyte_base_url {airbyte_base_url}"
         )
 
-        connection_status = self.get_connection_status(
+        connection_status = self._get_connection_status(
             session, airbyte_base_url, connection_id
         )
         if connection_status == self.CONNECTION_STATUS_ACTIVE:
             # Trigger manual sync on the Connection ...
-            job_id, job_created_at = self.trigger_manual_sync_connection(
+            job_id, job_created_at = self._trigger_manual_sync_connection(
                 session, airbyte_base_url, connection_id
             )
 
             while True:
                 job_status, job_created_at, job_updated_at = \
-                    self.get_job_status(
+                    self._get_job_status(
                         session, airbyte_base_url, job_id
                     )
 

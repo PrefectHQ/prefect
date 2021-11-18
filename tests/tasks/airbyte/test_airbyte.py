@@ -36,7 +36,7 @@ class TestAirbyte:
         task = AirbyteConnectionTask(
             connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
         )
-        response = task.check_health_status(session, airbyte_base_url)
+        response = task._check_health_status(session, airbyte_base_url)
         assert response
 
     @responses.activate
@@ -50,7 +50,7 @@ class TestAirbyte:
             connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
         )
         with pytest.raises(AirbyteServerNotHealthyException):
-            task.check_health_status(session, airbyte_base_url)
+            task._check_health_status(session, airbyte_base_url)
 
     @responses.activate
     def test_get_connection_status(self):
@@ -70,7 +70,7 @@ class TestAirbyte:
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
-        response = task.get_connection_status(session, airbyte_base_url, connection_id)
+        response = task._get_connection_status(session, airbyte_base_url, connection_id)
         assert response == "active"
 
     @responses.activate
@@ -91,7 +91,7 @@ class TestAirbyte:
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
-        response = task.get_connection_status(session, airbyte_base_url, connection_id)
+        response = task._get_connection_status(session, airbyte_base_url, connection_id)
         assert response == "inactive"
 
     @responses.activate
@@ -112,7 +112,7 @@ class TestAirbyte:
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
-        response = task.get_connection_status(session, airbyte_base_url, connection_id)
+        response = task._get_connection_status(session, airbyte_base_url, connection_id)
         assert response == "deprecated"
 
     @responses.activate
@@ -139,7 +139,7 @@ class TestAirbyte:
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
-        response = task.get_connection_status(session, airbyte_base_url, connection_id)
+        response = task._get_connection_status(session, airbyte_base_url, connection_id)
         assert response == "active"
 
     @responses.activate
@@ -154,7 +154,7 @@ class TestAirbyte:
         session = requests.Session()
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
-        job_id, job_created_at = task.trigger_manual_sync_connection(
+        job_id, job_created_at = task._trigger_manual_sync_connection(
             session, airbyte_base_url, connection_id
         )
         assert job_id == "1"
@@ -171,7 +171,7 @@ class TestAirbyte:
         task = AirbyteConnectionTask(connection_id)
 
         with pytest.raises(ConnectionNotFoundException):
-            task.trigger_manual_sync_connection(
+            task._trigger_manual_sync_connection(
                 session, airbyte_base_url, connection_id
             )
 
@@ -194,7 +194,7 @@ class TestAirbyte:
         connection_id = "749c19dc-4f97-4f30-bb0f-126e53506960"
         task = AirbyteConnectionTask(connection_id)
         job_id = "1"
-        job_status, job_created_at, job_updated_at = task.get_job_status(
+        job_status, job_created_at, job_updated_at = task._get_job_status(
             session, airbyte_base_url, job_id
         )
         assert job_status == "running"
@@ -213,4 +213,4 @@ class TestAirbyte:
 
         job_id = "1"
         with pytest.raises(JobNotFoundException):
-            task.get_job_status(session, airbyte_base_url, job_id)
+            task._get_job_status(session, airbyte_base_url, job_id)
