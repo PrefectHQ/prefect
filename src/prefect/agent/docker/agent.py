@@ -411,7 +411,7 @@ class DockerAgent(Agent):
         # By default, auto-remove containers
         host_config: Dict[str, Any] = {"auto_remove": True}
         # By default, no ports
-        ports: Iterable[int] = None
+        ports = None
 
         # Set up a host gateway for local communication; check the docker version since
         # this is not supported by older versions
