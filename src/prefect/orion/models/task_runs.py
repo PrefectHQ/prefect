@@ -186,6 +186,7 @@ async def read_task_runs(
     result = await session.execute(query)
     return result.scalars().unique().all()
 
+
 @inject_db
 async def count_task_runs(
     session: sa.orm.Session,

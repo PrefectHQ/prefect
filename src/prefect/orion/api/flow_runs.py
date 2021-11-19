@@ -148,7 +148,9 @@ async def read_flow_run_graph(
     """
     Get a task run dependency map for a given flow run.
     """
-    return models.task_runs.read_task_run_dependencies(session=session, flow_run_id=flow_run_id)
+    return models.task_runs.read_task_run_dependencies(
+        session=session, flow_run_id=flow_run_id
+    )
 
 
 @router.post("/filter")
