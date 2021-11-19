@@ -116,6 +116,20 @@ class FlowRun(ORMBaseModel):
     def set_name(cls, name):
         return name or coolname.generate_slug(2)
 
+    def __eq__(self, other: Any) -> bool:
+        """
+        Check for "equality" to another flow run schema
+
+        Estimates times are rolling and will always change with repeated queries for
+        a flow run so we ignore them during equality checks.
+        """
+        if isinstance(other, FlowRun):
+            exclude_fields = {"estimated_run_time", "estimated_start_time_delta"}
+            return self.dict(exclude=exclude_fields) == other.dict(
+                exclude=exclude_fields
+            )
+        return super().__eq__(other)
+
 
 class TaskRunPolicy(PrefectBaseModel):
     """Defines of how a task run should retry."""

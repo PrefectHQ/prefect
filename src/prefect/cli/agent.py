@@ -3,10 +3,9 @@ Command line interface for working with agent services
 """
 import typer
 import anyio
-from prefect.client import OrionClient
 
 from prefect import settings
-from prefect.agents import OrionAgent
+from prefect.agent import OrionAgent
 from prefect.cli.base import app, console
 from prefect.utilities.asyncio import sync_compatible
 
@@ -20,19 +19,20 @@ async def start():
     """
     Start an agent service to query for and execute scheduled flow runs.
     """
-    console.print("Starting agent...")
+    if settings.orion_host:
+        console.print(f"Starting agent connected to {settings.orion_host}...")
+    else:
+        console.print("Starting agent with ephemeral API...")
+
     running = True
-    async with OrionClient() as client:
-        async with OrionAgent(
-            prefetch_seconds=settings.orion.services.agent_prefetch_seconds,
-        ) as agent:
-            console.print("Agent started! Checking for flow runs...")
-            while running:
-                try:
-                    await agent.get_and_submit_flow_runs(query_fn=client.read_flow_runs)
-                except KeyboardInterrupt:
-                    running = False
-                await anyio.sleep(settings.orion.services.agent_loop_seconds)
+    async with OrionAgent() as agent:
+        console.print("Agent started! Checking for flow runs...")
+        while running:
+            try:
+                await agent.get_and_submit_flow_runs()
+            except KeyboardInterrupt:
+                running = False
+            await anyio.sleep(settings.agent.query_interval)
     console.print("Agent stopped!")
 
 

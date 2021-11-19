@@ -1,7 +1,7 @@
 <template>
   <div>
     <row class="filter-row py-1 my-1" hide-scrollbars>
-      <button-card
+      <ButtonCard
         v-for="filter in premadeFilters"
         :key="filter.label"
         class="filter-card-button"
@@ -14,28 +14,20 @@
             </span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
-          <i class="pi pi-filter-3-line pi-lg" />
+          <i class="pi pi-filter-3-line pi-lg text--grey-80" />
         </div>
-      </button-card>
+      </ButtonCard>
     </row>
 
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
-      <IntervalBarChartCard
-        title="Duration"
-        endpoint="flow_runs_history"
-        state-bucket-key="sum_estimated_run_time"
-        height="77px"
+      <RunTimeIntervalBarChart
         :filter="flowRunStatsFilter"
         class="run-duration flex-grow-0"
       />
 
-      <IntervalBarChartCard
-        title="Lateness"
-        endpoint="flow_runs_history"
-        state-bucket-key="sum_estimated_lateness"
-        height="77px"
+      <LatenessIntervalBarChart
         :filter="flowRunStatsFilter"
         class="run-lateness flex-grow-0"
       />
@@ -121,35 +113,35 @@
           </div>
         </div>
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'flows'"
           key="flows"
           :filter="filter"
-          component="flow-list-item"
+          component="ListItemFlow"
           endpoint="flows"
         />
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
           :filter="filter"
-          component="deployment-list-item"
+          component="ListItemDeployment"
           endpoint="deployments"
         />
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'flow_runs'"
           key="flow_runs"
           :filter="filter"
-          component="flow-run-list-item"
+          component="ListItemFlowRun"
           endpoint="flow_runs"
         />
 
-        <results-list
+        <ResultsList
           v-else-if="resultsTab == 'task_runs'"
           key="task_runs"
           :filter="filter"
-          component="task-run-list-item"
+          component="ListItemTaskRun"
           endpoint="task_runs"
         />
       </transition>
@@ -161,7 +153,9 @@
 <script lang="ts" setup>
 import { computed, ref, Ref, onBeforeMount, ComputedRef, watch } from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
-import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
+import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
+import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
+
 import {
   Api,
   Endpoints,

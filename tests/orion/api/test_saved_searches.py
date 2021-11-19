@@ -103,24 +103,24 @@ class TestReadSavedSearchs:
         await session.commit()
 
     async def test_read_saved_searches(self, saved_searches, client):
-        response = await client.post("/saved_searches/filter/")
+        response = await client.post("/saved_searches/filter")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
     async def test_read_saved_searches_applies_limit(self, saved_searches, client):
-        response = await client.post("/saved_searches/filter/", json=dict(limit=1))
+        response = await client.post("/saved_searches/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_saved_searches_offset(self, saved_searches, client, session):
-        response = await client.post("/saved_searches/filter/", json=dict(offset=1))
+        response = await client.post("/saved_searches/filter", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         # ordered by name by default
         assert response.json()[0]["name"] == "My SavedSearch Y"
 
     async def test_read_saved_searches_returns_empty_list(self, client):
-        response = await client.post("/saved_searches/filter/")
+        response = await client.post("/saved_searches/filter")
         assert response.status_code == 200
         assert response.json() == []
 

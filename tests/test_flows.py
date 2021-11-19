@@ -14,7 +14,6 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
 from prefect.utilities.testing import exceptions_equal
-from prefect.utilities.collections import quote
 
 
 class TestFlow:
@@ -347,6 +346,8 @@ class TestFlowCall:
         with pytest.raises(ValueError, match="Test 2"):
             second.result()
 
+
+class TestSubflowRuns:
     async def test_subflow_call_with_no_tasks(self):
         @flow(version="foo")
         def child(x, y, z):
@@ -355,25 +356,13 @@ class TestFlowCall:
         @flow(version="bar")
         def parent(x, y=2, z=3):
             subflow_state = child(x, y, z)
-            return subflow_state.state_details.flow_run_id, subflow_state
+            return subflow_state
 
         parent_state = parent(1, 2)
-        parent_flow_run_id = parent_state.state_details.flow_run_id
         assert isinstance(parent_state, State)
 
-        subflow_id, child_state = parent_state.result()
+        child_state = parent_state.result()
         assert child_state.result() == 6
-
-        async with OrionClient() as client:
-            child_flow_run = await client.read_flow_run(subflow_id)
-            virtual_task = await client.read_task_run(child_flow_run.parent_task_run_id)
-
-        assert virtual_task.state.state_details.child_flow_run_id == subflow_id
-        assert virtual_task.state.state_details.flow_run_id == parent_flow_run_id
-        assert child_flow_run.parent_task_run_id == virtual_task.id
-        assert child_flow_run.id == subflow_id
-        assert child_flow_run.parameters == {"x": 1, "y": 2, "z": 3}
-        assert child_flow_run.flow_version == child.version
 
     def test_subflow_call_with_returned_task(self):
         @task
@@ -391,7 +380,7 @@ class TestFlowCall:
         parent_state = parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_async_flow_with_async_subflow_and_async_task(self):
         @task
@@ -409,7 +398,7 @@ class TestFlowCall:
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_async_flow_with_async_subflow_and_sync_task(self):
         @task
@@ -427,7 +416,7 @@ class TestFlowCall:
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
 
     async def test_async_flow_with_sync_subflow_and_sync_task(self):
         @task
@@ -445,7 +434,59 @@ class TestFlowCall:
         parent_state = await parent(1, 2)
         assert isinstance(parent_state, State)
         child_state = parent_state.result()
-        assert child_state.result() == 6
+        assert child_state.result().result() == 6
+
+    async def test_subflow_relationship_tracking(self, orion_client):
+        @flow()
+        def child(x, y):
+            return x + y
+
+        @flow()
+        def parent():
+            subflow_state = child(1, 2)
+            return subflow_state
+
+        parent_state = parent()
+        parent_flow_run_id = parent_state.state_details.flow_run_id
+        child_state = parent_state.result()
+        child_flow_run_id = child_state.state_details.flow_run_id
+
+        child_flow_run = await orion_client.read_flow_run(child_flow_run_id)
+
+        # This task represents the child flow run in the parent
+        parent_flow_run_task = await orion_client.read_task_run(
+            child_flow_run.parent_task_run_id
+        )
+
+        assert (
+            parent_flow_run_id != child_flow_run_id
+        ), "The subflow run and parent flow run are distinct"
+
+        assert (
+            child_state.state_details.task_run_id == parent_flow_run_task.id
+        ), "The client subflow run state links to the parent task"
+
+        assert all(
+            state.state_details.task_run_id == parent_flow_run_task.id
+            for state in await orion_client.read_flow_run_states(child_flow_run_id)
+        ), "All server subflow run states link to the parent task"
+
+        assert (
+            parent_flow_run_task.state.state_details.child_flow_run_id
+            == child_flow_run_id
+        ), "The parent task links to the subflow run id"
+
+        assert (
+            parent_flow_run_task.state.state_details.flow_run_id == parent_flow_run_id
+        ), "The parent task belongs to the parent flow"
+
+        assert (
+            child_flow_run.parent_task_run_id == parent_flow_run_task.id
+        ), "The server subflow run links to the parent task"
+
+        assert (
+            child_flow_run.id == child_flow_run_id
+        ), "The server subflow run id matches the client"
 
 
 class TestFlowRunTags:
@@ -464,14 +505,14 @@ class TestFlowRunTags:
         @flow
         def my_flow():
             with tags("c", "d"):
-                return quote(my_subflow())
+                return my_subflow()
 
         @flow
         def my_subflow():
             pass
 
         with tags("a", "b"):
-            subflow_state = my_flow().result().unquote()
+            subflow_state = my_flow().result()
 
         flow_run = await orion_client.read_flow_run(
             subflow_state.state_details.flow_run_id
@@ -487,7 +528,8 @@ class TestFlowTimeouts:
 
         state = my_flow()
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert state.name == "TimedOut"
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
     async def test_async_flows_fail_with_timeout(self):
         @flow(timeout_seconds=0.1)
@@ -496,7 +538,8 @@ class TestFlowTimeouts:
 
         state = await my_flow()
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert state.name == "TimedOut"
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
     def test_timeout_only_applies_if_exceeded(self):
         @flow(timeout_seconds=0.5)
@@ -519,12 +562,12 @@ class TestFlowTimeouts:
             time.sleep(1)
             canary_file.touch()
 
-        t0 = time.time()
+        t0 = time.perf_counter()
         state = my_flow()
-        t1 = time.time()
+        t1 = time.perf_counter()
 
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
         assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
 
         # Unfortunately, the worker thread continues running and we cannot stop it from
@@ -552,10 +595,11 @@ class TestFlowTimeouts:
         state = my_flow()
 
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
+
         assert not canary_file.exists()
         assert not task_canary_file.exists()
 
@@ -567,7 +611,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+            for _ in range(20):  # Sleep in intervals to give more chances for interrupt
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
@@ -576,13 +620,13 @@ class TestFlowTimeouts:
         t1 = anyio.current_time()
 
         assert state.is_failed()
-        assert "timed out after 0.1 seconds" in state.message
+        assert "exceeded timeout of 0.1 seconds" in state.message
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(1)
-        assert not canary_file.exists()
 
-        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
+        assert not canary_file.exists()
+        assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
@@ -592,7 +636,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_subflow():
-            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+            for _ in range(20):  # Sleep in intervals to give more chances for interrupt
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
@@ -606,17 +650,14 @@ class TestFlowTimeouts:
         state = await my_flow()
 
         runtime, subflow_state = state.result()
-        assert "timed out after 0.1 seconds" in subflow_state.message
+        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
-        # Wait in case the flow is just sleeping
-        await anyio.sleep(1)
         assert not canary_file.exists()
-
-        assert runtime < 1, "The engine returns without waiting"
+        assert runtime < 1.5, f"The engine returns without waiting; took {runtime}s"
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
-        Async flow runs can be cancelled after a timeout
+        Sync flow runs can be cancelled after a timeout once a task is called
         """
         canary_file = tmp_path / "canary"
 
@@ -628,24 +669,26 @@ class TestFlowTimeouts:
         def my_subflow():
             time.sleep(0.5)
             timeout_noticing_task()
+            time.sleep(0.5)
             canary_file.touch()  # Should not run
 
         @flow
         def my_flow():
-            t0 = time.time()
+            t0 = time.perf_counter()
             subflow_state = my_subflow()
-            t1 = time.time()
+            t1 = time.perf_counter()
             return t1 - t0, subflow_state
 
         state = my_flow()
 
         runtime, subflow_state = state.result()
-        assert "timed out after 0.1 seconds" in subflow_state.message
-        assert runtime < 0.5, "The engine returns without waiting"
+        assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
-        # Wait in case the flow is just sleeping
-        time.sleep(0.5)
+        # Wait in case the flow is just sleeping and will still create the canary
+        time.sleep(1)
+
         assert not canary_file.exists()
+        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
 
 
 class ParameterTestModel(pydantic.BaseModel):
@@ -759,4 +802,4 @@ class TestFlowParameterTypes:
         def my_subflow(x):
             return x
 
-        assert my_flow().result() == ParameterTestModel(data=1)
+        assert my_flow().result().result() == ParameterTestModel(data=1)

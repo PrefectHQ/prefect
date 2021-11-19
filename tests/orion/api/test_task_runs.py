@@ -118,7 +118,7 @@ class TestReadTaskRun:
 
 class TestReadTaskRuns:
     async def test_read_task_runs(self, task_run, client):
-        response = await client.post("/task_runs/filter/")
+        response = await client.post("/task_runs/filter")
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
@@ -130,7 +130,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.TaskRunFilterId(any_=[task_run.id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/task_runs/filter/", json=task_run_filter)
+        response = await client.post("/task_runs/filter", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
@@ -141,7 +141,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.TaskRunFilterId(any_=[uuid4()])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/task_runs/filter/", json=bad_task_run_filter)
+        response = await client.post("/task_runs/filter", json=bad_task_run_filter)
         assert response.status_code == 200
         assert response.json() == []
 
@@ -151,7 +151,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.FlowRunFilterId(any_=[task_run.flow_run_id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/task_runs/filter/", json=task_run_filter)
+        response = await client.post("/task_runs/filter", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
@@ -162,7 +162,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.FlowRunFilterId(any_=[uuid4()])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/task_runs/filter/", json=bad_task_run_filter)
+        response = await client.post("/task_runs/filter", json=bad_task_run_filter)
         assert response.status_code == 200
         assert response.json() == []
 
@@ -172,7 +172,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.FlowFilterId(any_=[flow.id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/task_runs/filter/", json=task_run_filter)
+        response = await client.post("/task_runs/filter", json=task_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(task_run.id)
@@ -183,7 +183,7 @@ class TestReadTaskRuns:
                 id=schemas.filters.FlowFilterId(any_=[uuid4()])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/task_runs/filter/", json=bad_task_run_filter)
+        response = await client.post("/task_runs/filter", json=bad_task_run_filter)
         assert response.status_code == 200
         assert response.json() == []
 
@@ -210,7 +210,7 @@ class TestReadTaskRuns:
         await session.commit()
 
         response = await client.post(
-            "/task_runs/filter/",
+            "/task_runs/filter",
             json=dict(
                 limit=1, sort=schemas.sorting.TaskRunSort.EXPECTED_START_TIME_DESC.value
             ),
@@ -219,7 +219,7 @@ class TestReadTaskRuns:
         assert response.json()[0]["id"] == str(task_run_2.id)
 
         response = await client.post(
-            "/task_runs/filter/",
+            "/task_runs/filter",
             json=dict(
                 limit=1,
                 offset=1,

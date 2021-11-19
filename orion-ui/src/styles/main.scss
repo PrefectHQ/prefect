@@ -6,5 +6,8 @@
 @use 'base/typography';
 @use 'base/spacing';
 @use 'base/colors';
+@use 'base/tables';
 
 @use 'vendors/normalize';
+
+@use './miter.scss';

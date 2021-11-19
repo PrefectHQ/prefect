@@ -57,7 +57,7 @@ class TestCreateFlowRun:
         response = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
         assert response.json()["state"]["type"] == "PENDING"
 
-    async def test_create_multiple_flow_runs(self, flow, client, session):
+    async def test_create_multiple_flow_runs(self, flow, client, session, db):
 
         response1 = await client.post(
             "/flow_runs/",
@@ -78,7 +78,7 @@ class TestCreateFlowRun:
         assert response1.json()["id"] != response2.json()["id"]
 
         result = await session.execute(
-            sa.select(models.orm.FlowRun.id).filter_by(flow_id=flow.id)
+            sa.select(db.FlowRun.id).filter_by(flow_id=flow.id)
         )
         ids = result.scalars().all()
         assert {response1.json()["id"], response2.json()["id"]} == {str(i) for i in ids}
@@ -97,9 +97,13 @@ class TestCreateFlowRun:
         assert response1.json()["id"] == response2.json()["id"]
 
     async def test_create_flow_run_with_idempotency_key_across_multiple_flows(
-        self, flow, client, session
+        self,
+        flow,
+        client,
+        session,
+        db,
     ):
-        flow2 = models.orm.Flow(name="another flow")
+        flow2 = db.Flow(name="another flow")
         session.add(flow2)
         await session.commit()
 
@@ -284,7 +288,7 @@ class TestReadFlowRuns:
                 id=schemas.filters.FlowFilterId(any_=[flow.id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flow_runs/filter/", json=flow_run_filter)
+        response = await client.post("/flow_runs/filter", json=flow_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 2
 
@@ -296,7 +300,7 @@ class TestReadFlowRuns:
                 id=schemas.filters.FlowRunFilterId(any_=[flow_runs[0].id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flow_runs/filter/", json=flow_run_filter)
+        response = await client.post("/flow_runs/filter", json=flow_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[0].id)
@@ -317,7 +321,7 @@ class TestReadFlowRuns:
                 id=schemas.filters.TaskRunFilterId(any_=[task_run_1.id])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/flow_runs/filter/", json=flow_run_filter)
+        response = await client.post("/flow_runs/filter", json=flow_run_filter)
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_runs[1].id)
@@ -357,7 +361,7 @@ class TestReadFlowRuns:
         await session.commit()
 
         response = await client.post(
-            "/flow_runs/filter/",
+            "/flow_runs/filter",
             json=dict(
                 limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_ASC.value
             ),
@@ -366,7 +370,7 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_run_1.id)
 
         response = await client.post(
-            "/flow_runs/filter/",
+            "/flow_runs/filter",
             json=dict(
                 limit=1,
                 offset=1,
@@ -377,7 +381,7 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_run_2.id)
 
         response = await client.post(
-            "/flow_runs/filter/",
+            "/flow_runs/filter",
             json=dict(
                 limit=1, sort=schemas.sorting.FlowRunSort.EXPECTED_START_TIME_DESC.value
             ),
@@ -386,7 +390,7 @@ class TestReadFlowRuns:
         assert response.json()[0]["id"] == str(flow_run_2.id)
 
         response = await client.post(
-            "/flow_runs/filter/",
+            "/flow_runs/filter",
             json=dict(
                 limit=1,
                 offset=1,

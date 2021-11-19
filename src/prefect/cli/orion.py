@@ -1,35 +1,100 @@
 """
 Command line interface for working with Orion
 """
+import os
+import subprocess
+from functools import partial
+from typing import Union, Sequence, Any
+
+import anyio
+import anyio.abc
 import typer
-import uvicorn
+from anyio.streams.text import TextReceiveStream
 
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
-from prefect.orion.utilities.database import create_db, drop_db, get_engine
-from prefect.utilities.asyncio import sync_compatible
-
+from prefect.orion.database.dependencies import provide_database_interface
+from prefect.utilities.asyncio import sync, sync_compatible
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)
 
 
+async def open_process_and_stream_output(
+    command: Union[str, Sequence[str]],
+    task_status: anyio.abc.TaskStatus = None,
+    **kwargs: Any,
+) -> None:
+    """
+    Opens a subprocess and streams standard output and error
+
+    Args:
+        command: The command to open a subprocess with.
+        task_status: Enables this coroutine function to be used with `task_group.start`
+            The task will report itself as started once the process is started.
+        **kwargs: Additional keyword arguments are passed to `anyio.open_process`.
+    """
+    async with await anyio.open_process(
+        command, stderr=subprocess.STDOUT, **kwargs
+    ) as process:
+        if task_status is not None:
+            task_status.started()
+
+        async for text in TextReceiveStream(process.stdout):
+            print(text, end="")  # Output is already new-line terminated
+
+
 @orion_app.command()
-def start(
+@sync_compatible
+async def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
     services: bool = True,
+    agent: bool = True,
 ):
     """Start an Orion server"""
-    # Delay this import so we don't instantiate the API uncessarily
-    from prefect.orion.api.server import app as orion_fastapi_app
+    # TODO - this logic should be abstracted in the interface
+    # create the sqlite database if it doesnt already exist
+    db = provide_database_interface()
+    await db.engine()
 
-    console.print("Starting Orion API...")
-    # Toggle `run_in_app` (settings are frozen and so it requires a forced update)
-    # See https://github.com/PrefectHQ/orion/issues/281
-    object.__setattr__(settings.orion.services, "run_in_app", services)
-    uvicorn.run(orion_fastapi_app, host=host, port=port, log_level=log_level.lower())
+    server_env = os.environ.copy()
+    server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+
+    agent_env = os.environ.copy()
+    agent_env["PREFECT_ORION_HOST"] = f"http://{host}:{port}/api/"
+
+    async with anyio.create_task_group() as tg:
+        console.print("Starting Orion API server...")
+        await tg.start(
+            partial(
+                open_process_and_stream_output,
+                command=[
+                    "uvicorn",
+                    "prefect.orion.api.server:app",
+                    "--host",
+                    str(host),
+                    "--port",
+                    str(port),
+                    "--log-level",
+                    log_level.lower(),
+                ],
+                env=server_env,
+            )
+        )
+
+        if agent:
+            # The server may not be ready yet despite waiting for the process to begin
+            await anyio.sleep(1)
+            tg.start_soon(
+                partial(
+                    open_process_and_stream_output,
+                    ["prefect", "agent", "start"],
+                    env=agent_env,
+                )
+            )
+
     console.print("Orion stopped!")
 
 
@@ -37,7 +102,8 @@ def start(
 @sync_compatible
 async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
     """Drop and recreate all Orion database tables"""
-    engine = await get_engine()
+    db = provide_database_interface()
+    engine = await db.engine()
     if not yes:
         confirm = typer.confirm(
             f'Are you sure you want to reset the Orion database located at "{engine.url}"? This will drop and recreate all tables.'
@@ -46,7 +112,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
             exit_with_error("Database reset aborted")
     console.print("Resetting Orion database...")
     console.print("Dropping tables...")
-    await drop_db()
+    await db.drop_db()
     console.print("Creating tables...")
-    await create_db()
+    await db.create_db()
     exit_with_success(f'Orion database "{engine.url}" reset!')

@@ -215,6 +215,7 @@ class TestCreateDeployment:
         deployment,
         session,
         flow_function,
+        db,
     ):
 
         # set active to schedule runs
@@ -256,7 +257,7 @@ class TestCreateDeployment:
         assert n_runs == 101
 
         # check that the maximum run is from the secondly schedule
-        query = sa.select(sa.func.max(models.orm.FlowRun.expected_start_time))
+        query = sa.select(sa.func.max(db.FlowRun.expected_start_time))
         result = await session.execute(query)
         assert result.scalar() < pendulum.now().add(seconds=100)
 
@@ -372,7 +373,7 @@ class TestReadDeployments:
         await session.commit()
 
     async def test_read_deployments(self, deployments, client):
-        response = await client.post("/deployments/filter/")
+        response = await client.post("/deployments/filter")
         assert response.status_code == 200
         assert len(response.json()) == 2
 
@@ -384,7 +385,7 @@ class TestReadDeployments:
                 name=schemas.filters.DeploymentFilterName(any_=["My Deployment X"])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1)
@@ -395,7 +396,7 @@ class TestReadDeployments:
                 name=schemas.filters.DeploymentFilterName(any_=["My Deployment 123"])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert len(response.json()) == 0
 
@@ -404,7 +405,7 @@ class TestReadDeployments:
                 name=schemas.filters.FlowFilterName(any_=[flow.name])
             ).dict(json_compatible=True)
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert {deployment["id"] for deployment in response.json()} == {
             str(deployment_id_1),
@@ -419,24 +420,24 @@ class TestReadDeployments:
                 name=schemas.filters.FlowFilterName(any_=["not a flow name"])
             ).dict(json_compatible=True),
         )
-        response = await client.post("/deployments/filter/", json=deployment_filter)
+        response = await client.post("/deployments/filter", json=deployment_filter)
         assert response.status_code == 200
         assert len(response.json()) == 0
 
     async def test_read_deployments_applies_limit(self, deployments, client):
-        response = await client.post("/deployments/filter/", json=dict(limit=1))
+        response = await client.post("/deployments/filter", json=dict(limit=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
 
     async def test_read_deployments_offset(self, deployments, client, session):
-        response = await client.post("/deployments/filter/", json=dict(offset=1))
+        response = await client.post("/deployments/filter", json=dict(offset=1))
         assert response.status_code == 200
         assert len(response.json()) == 1
         # sorted by name by default
         assert response.json()[0]["name"] == "My Deployment Y"
 
     async def test_read_deployments_returns_empty_list(self, client):
-        response = await client.post("/deployments/filter/")
+        response = await client.post("/deployments/filter")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -648,14 +649,14 @@ class TestScheduleDeployment:
 
         await client.post(
             f"/deployments/{deployment.id}/schedule",
-            json=dict(end_time=str(pendulum.now().add(days=7))),
+            json=dict(end_time=str(pendulum.now("UTC").add(days=7))),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
-            start=pendulum.now(),
-            end=pendulum.now().add(days=7),
+            start=pendulum.now("UTC"),
+            end=pendulum.now("UTC").add(days=7),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
@@ -668,16 +669,16 @@ class TestScheduleDeployment:
         await client.post(
             f"/deployments/{deployment.id}/schedule",
             json=dict(
-                start_time=str(pendulum.now().subtract(days=20)),
-                end_time=str(pendulum.now()),
+                start_time=str(pendulum.now("UTC").subtract(days=20)),
+                end_time=str(pendulum.now("UTC")),
             ),
         )
 
         runs = await models.flow_runs.read_flow_runs(session)
         expected_dates = await deployment.schedule.get_dates(
             n=services_settings.scheduler_max_runs,
-            start=pendulum.now().subtract(days=20),
-            end=pendulum.now(),
+            start=pendulum.now("UTC").subtract(days=20),
+            end=pendulum.now("UTC"),
         )
         actual_dates = {r.state.state_details.scheduled_time for r in runs}
         assert actual_dates == set(expected_dates)
