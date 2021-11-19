@@ -14,7 +14,7 @@
             </span>
             <span class="ml-1 body">{{ filter.label }}</span>
           </div>
-          <i class="pi pi-filter-3-line pi-lg" />
+          <i class="pi pi-filter-3-line pi-lg text--grey-80" />
         </div>
       </ButtonCard>
     </row>
@@ -22,20 +22,12 @@
     <div class="chart-section">
       <RunHistoryChartCard class="run-history" :filter="flowRunHistoryFilter" />
 
-      <IntervalBarChartCard
-        title="Duration"
-        endpoint="flow_runs_history"
-        state-bucket-key="sum_estimated_run_time"
-        height="77px"
+      <RunTimeIntervalBarChart
         :filter="flowRunStatsFilter"
         class="run-duration flex-grow-0"
       />
 
-      <IntervalBarChartCard
-        title="Lateness"
-        endpoint="flow_runs_history"
-        state-bucket-key="sum_estimated_lateness"
-        height="77px"
+      <LatenessIntervalBarChart
         :filter="flowRunStatsFilter"
         class="run-lateness flex-grow-0"
       />
@@ -161,7 +153,9 @@
 <script lang="ts" setup>
 import { computed, ref, Ref, onBeforeMount, ComputedRef, watch } from 'vue'
 import RunHistoryChartCard from '@/components/RunHistoryChart/RunHistoryChart--Card.vue'
-import IntervalBarChartCard from '@/components/IntervalBarChart/IntervalBarChart--Card.vue'
+import RunTimeIntervalBarChart from '@/components/RunTimeIntervalBarChart.vue'
+import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
+
 import {
   Api,
   Endpoints,

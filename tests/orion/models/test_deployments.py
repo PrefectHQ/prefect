@@ -9,7 +9,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
+
 from prefect.orion.schemas.states import StateType
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas import filters
@@ -436,14 +436,14 @@ class TestDeleteDeployment:
 
 
 class TestScheduledRuns:
-    async def test_schedule_runs_inserts_in_db(self, flow, deployment, session):
+    async def test_schedule_runs_inserts_in_db(self, flow, deployment, session, db):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
         assert len(scheduled_runs) == 100
         query_result = await session.execute(
-            sa.select(orm.FlowRun).where(
-                orm.FlowRun.state.has(orm.FlowRunState.type == StateType.SCHEDULED)
+            sa.select(db.FlowRun).where(
+                db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED)
             )
         )
 
@@ -457,7 +457,7 @@ class TestScheduledRuns:
             r.state.state_details.scheduled_time for r in db_scheduled_runs
         } == expected_times
 
-    async def test_schedule_runs_is_idempotent(self, flow, deployment, session):
+    async def test_schedule_runs_is_idempotent(self, flow, deployment, session, db):
         scheduled_runs = await models.deployments.schedule_runs(
             session, deployment_id=deployment.id
         )
@@ -471,9 +471,9 @@ class TestScheduledRuns:
 
         # only 100 runs were inserted
         query_result = await session.execute(
-            sa.select(orm.FlowRun).where(
-                orm.FlowRun.flow_id == flow.id,
-                orm.FlowRun.state.has(orm.FlowRunState.type == StateType.SCHEDULED),
+            sa.select(db.FlowRun).where(
+                db.FlowRun.flow_id == flow.id,
+                db.FlowRun.state.has(db.FlowRunState.type == StateType.SCHEDULED),
             )
         )
 
@@ -621,7 +621,7 @@ class TestScheduledRuns:
             assert r.expected_start_time == r.next_scheduled_start_time
 
     async def test_scheduling_multiple_batches_correctly_updates_runs(
-        self, session, deployment, flow_function, flow
+        self, session, deployment, flow_function, flow, db
     ):
         # ensures that updating flow run states works correctly and doesnt set
         # any to None inadvertently
@@ -638,7 +638,7 @@ class TestScheduledRuns:
         )
 
         # delete all runs
-        await session.execute(sa.delete(models.orm.FlowRun))
+        await session.execute(sa.delete(db.FlowRun))
 
         # schedule runs
         await models.deployments.schedule_runs(
@@ -646,9 +646,7 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(models.orm.FlowRun.id)).where(
-                models.orm.FlowRun.state_id.is_(None)
-            )
+            sa.select(sa.func.count(db.FlowRun.id)).where(db.FlowRun.state_id.is_(None))
         )
         # no runs with missing states
         assert result.scalar() == 0
@@ -659,9 +657,7 @@ class TestScheduledRuns:
         )
 
         result = await session.execute(
-            sa.select(sa.func.count(models.orm.FlowRun.id)).where(
-                models.orm.FlowRun.state_id.is_(None)
-            )
+            sa.select(sa.func.count(db.FlowRun.id)).where(db.FlowRun.state_id.is_(None))
         )
         # no runs with missing states
         assert result.scalar() == 0
