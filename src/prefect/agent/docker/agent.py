@@ -1,13 +1,13 @@
+import multiprocessing
 import ntpath
 import posixpath
-from packaging.version import parse as parse_version
-
-import multiprocessing
 import re
 import warnings
-from slugify import slugify
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Any
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple
+
+from packaging.version import parse as parse_version
+from slugify import slugify
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -410,6 +410,8 @@ class DockerAgent(Agent):
 
         # By default, auto-remove containers
         host_config: Dict[str, Any] = {"auto_remove": True}
+        # By default, no ports
+        ports: Iterable[int] = None
 
         # Set up a host gateway for local communication; check the docker version since
         # this is not supported by older versions
@@ -434,6 +436,8 @@ class DockerAgent(Agent):
         if run_config is not None and run_config.host_config:
             # The host_config passed from the run_config will overwrite defaults
             host_config.update(run_config.host_config)
+        if run_config is not None and run_config.ports:
+            ports = run_config.ports
 
         networking_config = None
         # At the time of creation, you can only connect a container to a single network,
@@ -484,6 +488,7 @@ class DockerAgent(Agent):
                     host_config=self.docker_client.create_host_config(**host_config),
                     networking_config=networking_config,
                     labels=labels,
+                    ports=ports,
                 )
             except docker.errors.APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):

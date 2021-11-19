@@ -95,9 +95,7 @@ def test_serialize_local_run(config):
     [
         DockerRun(),
         DockerRun(
-            env={"test": "foo"},
-            image="testing",
-            labels=["a", "b"],
+            env={"test": "foo"}, image="testing", labels=["a", "b"], ports=[12001]
         ),
     ],
 )
@@ -105,7 +103,7 @@ def test_serialize_docker_run(config):
     msg = RunConfigSchema().dump(config)
     config2 = RunConfigSchema().load(msg)
     assert sorted(config.labels) == sorted(config2.labels)
-    fields = ["env", "image"]
+    fields = ["env", "image", "ports"]
     for field in fields:
         assert getattr(config, field) == getattr(config2, field)
 
