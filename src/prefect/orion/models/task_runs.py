@@ -4,7 +4,6 @@ Intended for internal use by the Orion API.
 """
 
 import contextlib
-from typing import List
 from uuid import UUID
 
 import pendulum
@@ -186,38 +185,6 @@ async def read_task_runs(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
-
-async def read_task_run_dependencies(
-    session: sa.orm.Session,
-    flow_run_id: UUID,
-):
-    """
-    Get a task run dependency map for a given flow run.
-    """
-    flow_run = await models.flow_runs.read_flow_run(
-        session=session, flow_run_id=flow_run_id
-    )
-    if not flow_run:
-        raise ValueError(f"Flow run with id {flow_run_id} not found")
-
-
-    task_runs = await models.task_runs.read_task_runs(
-        session=session,
-        flow_run_filter=schemas.filters.FlowRunFilter(
-            id=schemas.filters.FlowRunFilterId(any_=[flow_run_id])
-        )
-    )
-
-    dependency_graph = []
-
-    for task_run in task_runs:
-        inputs = list(set(i for v in task_run.task_inputs.values() for i in v))
-        dependency_graph.append(
-            {"id": task_run.id, "upstream_dependencies": inputs, "state": task_run.state}
-        )
-
-    return dependency_graph
-
 
 @inject_db
 async def count_task_runs(
