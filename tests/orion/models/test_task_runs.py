@@ -1,9 +1,11 @@
 from uuid import uuid4
 
+import pytest
 import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.states import Scheduled
 
 
