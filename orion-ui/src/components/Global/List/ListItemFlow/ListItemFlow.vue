@@ -51,6 +51,7 @@
         :interval-seconds="store.getters.baseInterval * 2"
         static-median
         :padding="{ top: 3, bottom: 3, left: 3, right: 3, middle: 2 }"
+        disable-popovers
       />
     </div>
   </ListItem>

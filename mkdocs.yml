@@ -83,6 +83,7 @@ nav:
         - Overview: api-ref/overview.md
         - Prefect Python API: 
             - 'prefect.client': api-ref/prefect/client.md
+            - 'prefect.agent': api-ref/prefect/agent.md
             - 'prefect.context': api-ref/prefect/context.md
             - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md

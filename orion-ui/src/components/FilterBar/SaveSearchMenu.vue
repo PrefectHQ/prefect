@@ -2,7 +2,9 @@
   <Card class="menu font--primary" height="100%" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
-        <h3 class="d-flex align-center font--primary font-weight-semibold ml-auto">
+        <h3
+          class="d-flex align-center font--primary font-weight-semibold ml-auto"
+        >
           <i class="pi pi-star-fill text--grey-80 mr-1" />
           Save Search
         </h3>
@@ -13,21 +15,16 @@
           width="34px"
           class="ml-auto"
           flat
-          style="border-radius: 50%"
           @click="close"
         />
       </div>
     </template>
     <template v-else v-slot:header>
-      <div class="pa-2 d-flex justify-start align-center">
-        <h3 class="d-flex align-center font--primary font-weight-semibold">
-          Save Search
-        </h3>
-      </div>
+      <h3 class="pa-2 font--primary font-weight-semibold">Save Search</h3>
     </template>
 
     <div class="menu-content pa-2">
-      <Input label="Name" v-model="name" />
+      <Input label="Name" placeholder="New Filter" v-model="name" />
 
       <div class="my-4">
         <Tag v-for="(filter, i) in filters" :key="i" class="mr--half mb--half">
@@ -74,7 +71,7 @@ const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const loading = ref(false)
 
-const name = ref('New Filter')
+const name = ref('')
 
 const close = () => {
   emit('close')

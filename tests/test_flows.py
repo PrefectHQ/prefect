@@ -599,6 +599,7 @@ class TestFlowTimeouts:
 
         # Wait in case the flow is just sleeping
         time.sleep(0.5)
+
         assert not canary_file.exists()
         assert not task_canary_file.exists()
 
@@ -610,7 +611,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_flow():
-            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+            for _ in range(20):  # Sleep in intervals to give more chances for interrupt
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
@@ -623,9 +624,9 @@ class TestFlowTimeouts:
 
         # Wait in case the flow is just sleeping
         await anyio.sleep(1)
-        assert not canary_file.exists()
 
-        assert t1 - t0 < 1, f"The engine returns without waiting; took {t1-t0}s"
+        assert not canary_file.exists()
+        assert t1 - t0 < 1.5, f"The engine returns without waiting; took {t1-t0}s"
 
     async def test_timeout_stops_execution_in_async_subflows(self, tmp_path):
         """
@@ -635,7 +636,7 @@ class TestFlowTimeouts:
 
         @flow(timeout_seconds=0.1)
         async def my_subflow():
-            for _ in range(10):  # Sleep in intervals to give more chances for interrupt
+            for _ in range(20):  # Sleep in intervals to give more chances for interrupt
                 await anyio.sleep(0.1)
             canary_file.touch()  # Should not run
 
@@ -651,15 +652,12 @@ class TestFlowTimeouts:
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
 
-        # Wait in case the flow is just sleeping
-        await anyio.sleep(1)
         assert not canary_file.exists()
-
-        assert runtime < 1, "The engine returns without waiting"
+        assert runtime < 1.5, f"The engine returns without waiting; took {runtime}s"
 
     async def test_timeout_stops_execution_in_sync_subflows(self, tmp_path):
         """
-        Async flow runs can be cancelled after a timeout
+        Sync flow runs can be cancelled after a timeout once a task is called
         """
         canary_file = tmp_path / "canary"
 
@@ -671,6 +669,7 @@ class TestFlowTimeouts:
         def my_subflow():
             time.sleep(0.5)
             timeout_noticing_task()
+            time.sleep(0.5)
             canary_file.touch()  # Should not run
 
         @flow
@@ -684,11 +683,12 @@ class TestFlowTimeouts:
 
         runtime, subflow_state = state.result()
         assert "exceeded timeout of 0.1 seconds" in subflow_state.message
-        assert runtime < 0.5, "The engine returns without waiting"
 
-        # Wait in case the flow is just sleeping
-        time.sleep(0.5)
+        # Wait in case the flow is just sleeping and will still create the canary
+        time.sleep(1)
+
         assert not canary_file.exists()
+        assert runtime < 1, f"The engine returns without waiting; took {runtime}s"
 
 
 class ParameterTestModel(pydantic.BaseModel):

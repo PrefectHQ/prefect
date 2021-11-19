@@ -8,7 +8,10 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.orm import declarative_base
 
-from prefect import settings
+from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.database.configurations import AioSqliteConfiguration
+from prefect.orion.database.query_components import AioSqliteQueryComponents
+from prefect.orion.database.orm_models import AioSqliteORMConfiguration
 from prefect.orion.utilities.database import (
     JSON,
     Pydantic,
@@ -19,7 +22,6 @@ from prefect.orion.utilities.database import (
     json_contains,
     json_has_all_keys,
     json_has_any_key,
-    get_engine,
 )
 
 DBBase = declarative_base()
@@ -403,4 +405,12 @@ async def test_error_thrown_if_sqlite_version_is_below_minimum(monkeypatch):
         RuntimeError,
         match="Orion requires sqlite >= 3.24.0 but we found version 3.23.9",
     ):
-        await get_engine(connection_url="sqlite+aiosqlite:///file::memory")
+
+        db = OrionDBInterface(
+            database_config=AioSqliteConfiguration(
+                connection_url="sqlite+aiosqlite:///file::memory",
+            ),
+            query_components=AioSqliteQueryComponents(),
+            orm=AioSqliteORMConfiguration(),
+        )
+        await db.engine()

@@ -34,7 +34,10 @@ const intervalString = (
   )
 }
 
-export const secondsToString = (s: number, showOnes: boolean = true) => {
+export const secondsToString = (
+  s: number,
+  showOnes: boolean = true
+): string => {
   const { years, days, hours, minutes, seconds } = aggregateSeconds(s)
   const _y = intervalString('year', years, showOnes)
   const _d = intervalString('day', days, showOnes)
