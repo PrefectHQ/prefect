@@ -1,6 +1,5 @@
 <template>
   <div
-    v-if="true"
     ref="observe"
     class="node d-flex position-relative"
     :class="{
