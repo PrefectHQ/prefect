@@ -24,6 +24,7 @@ from typing import List
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.schemas.states import State
 
+
 @inject_db
 async def create_flow_run(
     session: sa.orm.Session, flow_run: schemas.core.FlowRun, db: OrionDBInterface
@@ -246,7 +247,6 @@ async def read_flow_runs(
     return result.scalars().unique().all()
 
 
-
 class DependencyResult(PrefectBaseModel):
     id: UUID
     upstream_dependencies: List[UUID]
@@ -266,12 +266,11 @@ async def read_task_run_dependencies(
     if not flow_run:
         raise ValueError(f"Flow run with id {flow_run_id} not found")
 
-
     task_runs = await models.task_runs.read_task_runs(
         session=session,
         flow_run_filter=schemas.filters.FlowRunFilter(
             id=schemas.filters.FlowRunFilterId(any_=[flow_run_id])
-        )
+        ),
     )
 
     dependency_graph = []
@@ -279,7 +278,11 @@ async def read_task_run_dependencies(
     for task_run in task_runs:
         inputs = list(set(chain(*task_run.task_inputs.values())))
         dependency_graph.append(
-            {"id": task_run.id, "upstream_dependencies": inputs, "state": task_run.state}
+            {
+                "id": task_run.id,
+                "upstream_dependencies": inputs,
+                "state": task_run.state,
+            }
         )
 
     return dependency_graph
