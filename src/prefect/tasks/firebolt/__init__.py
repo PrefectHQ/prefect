@@ -5,7 +5,9 @@ the firebolt-sqlalchemy-adapter library.
 
 try:
     from prefect.tasks.firebolt.firebolt import (
+        FireboltConnection,
         FireboltQuery,
+        FireboltQueryGetData
     )
 except ImportError as err:
     raise ImportError(
