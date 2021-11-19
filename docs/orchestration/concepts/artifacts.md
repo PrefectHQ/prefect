@@ -21,7 +21,7 @@ Within a task, you may use these commands as many times as necessary, but they d
 As a best practice, such as when using `create_markdown()` to create artifacts like reports or summaries, compile your message string separately, then pass to `create_markdown()` to create the full artifact.
 :::
 
-For more background on the design goals for the Artifacts API, see the [Introducing: The Artifacts API](https://medium.com/the-prefect-blog/introducing-the-artifacts-api-b9e5972db043) blog post and the [Great Expectations task](/api/latest/tasks/great_expectations.html).
+For more background on the design goals for the Artifacts API, see the [Introducing: The Artifacts API](https://www.prefect.io/blog/introducing-the-artifacts-api) blog post and the [Great Expectations task](/api/latest/tasks/great_expectations.html).
 
 ## UI
 
@@ -41,13 +41,17 @@ You can navigate between the artifacts created for a task run by clicking the do
 
 ## Creating Link Artifacts
 
-To create link artifacts, just import `create_link` from `prefect.artifacts`, then add a call to `create_link()` to any task orchestrated through a Prefect API. 
+To create link artifacts, just import `create_link` from `prefect.backend.artifacts`, then add a call to `create_link()` to any task orchestrated through a Prefect API. 
+
+::: tip Import path
+If you are using a version prior to Prefect 0.15.8, import `create_link` from `prefect.artifacts`.
+:::
 
 Pass `create_link()` a string containing the absolute URL of the location to which you want to link. 
 
 ```python
 from prefect import task, Flow
-from prefect.artifacts import create_link
+from prefect.backend.artifacts import create_link
 
 @task
 def send_artifact():
@@ -58,7 +62,11 @@ After the task runs, navigate to the UI’s Artifacts tab to see the output.
 
 ## Creating Markdown Artifacts
 
-To create link artifacts, just import `create_markdown` from `prefect.artifacts`, then add a call to `create_markdown()` to any task orchestrated through a Prefect API. 
+To create link artifacts, just import `create_markdown` from `prefect.backend.artifacts`, then add a call to `create_markdown()` to any task orchestrated through a Prefect API. 
+
+::: tip Import path
+If you are using a version prior to Prefect 0.15.8, import `create_markdown` from `prefect.artifacts`.
+:::
 
 Pass `create_markdown()` a string that will be rendered as an artifact. The string can contain any [Github-flavored Markdown](https://github.github.com/gfm/) markup including images, links, and tables. 
 
@@ -66,7 +74,7 @@ Note that any images referenced in your markdown must be linked by the absolute 
 
 ```python
 from prefect import task, Flow
-from prefect.artifacts import create_markdown
+from prefect.backend.artifacts import create_markdown
 
 @task
 def send_artifact():
