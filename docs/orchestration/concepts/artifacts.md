@@ -43,7 +43,7 @@ You can navigate between the artifacts created for a task run by clicking the do
 
 To create link artifacts, just import `create_link` from `prefect.artifacts`, then add a call to `create_link()` to any task orchestrated through a Prefect API. 
 
-Pass `create_link()` a string containing the absolute URI of the location to which you want to link. 
+Pass `create_link()` a string containing the absolute URL of the location to which you want to link. 
 
 ```python
 from prefect import task, Flow
@@ -61,6 +61,8 @@ After the task runs, navigate to the UI’s Artifacts tab to see the output.
 To create link artifacts, just import `create_markdown` from `prefect.artifacts`, then add a call to `create_markdown()` to any task orchestrated through a Prefect API. 
 
 Pass `create_markdown()` a string that will be rendered as an artifact. The string can contain any [Github-flavored Markdown](https://github.github.com/gfm/) markup including images, links, and tables. 
+
+Note that any images referenced in your markdown must be linked by absolute URL and served by an external web server. Linking to local files or by relative URL is not supported.
 
 ```python
 from prefect import task, Flow
