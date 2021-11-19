@@ -199,7 +199,8 @@ module.exports = {
             'concepts/secrets',
             'concepts/automations',
             'concepts/cloud_hooks',
-            'concepts/services'
+            'concepts/services',
+            'concepts/artifacts'
           ]
         },
         {
