@@ -21,8 +21,8 @@ const routes: Array<RouteRecordRaw> = [
         component: () => import('../views/FlowRun--views/Timeline.vue')
       },
       {
-        path: 'schematic',
-        component: () => import('../views/FlowRun--views/Schematic.vue')
+        path: 'radar',
+        component: () => import('../views/FlowRun--views/Radar.vue')
       }
     ]
   },

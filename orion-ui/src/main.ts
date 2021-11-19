@@ -18,6 +18,9 @@ import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFl
 import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue'
 import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
 import Row from '@/components/Global/Row/Row.vue'
+import RadarNode from '@/components/Radar/Nodes/Node.vue'
+import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
+import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
 import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
 
 import '@prefecthq/miter-design/dist/style.css'
@@ -45,6 +48,9 @@ app.component('ListItemFlowRun', ListItemFlowRun)
 app.component('ListItemTaskRun', ListItemTaskRun)
 app.component('ResultsList', ResultsList)
 app.component('Row', Row)
+app.component('RadarNode', RadarNode)
+app.component('RadarFlowRunNode', RadarFlowRunNode)
+app.component('RadarOverflowNode', RadarOverflowNode)
 app.component('StateIcon', StateIcon)
 
 app.mount('#app')
