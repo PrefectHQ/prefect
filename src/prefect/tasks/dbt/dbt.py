@@ -6,6 +6,7 @@ import yaml
 from prefect.core.task import Task
 from prefect.tasks.shell import ShellTask
 from prefect.utilities.tasks import defaults_from_attrs
+from prefect.backend.artifacts import create_markdown_artifact
 
 from .dbt_cloud_utils import (
     DbtCloudListArtifactsFailed,
@@ -412,6 +413,7 @@ class DbtCloudRunJob(Task):
                 markdown = f"Artifacts for dbt Cloud run {run['id']} of job {job_id}\n"
                 for link, name in artifact_links:
                     markdown += f"- [{name}]({link})\n"
+                create_markdown_artifact(markdown)
 
             except DbtCloudListArtifactsFailed as err:
                 self.logger.warn(
