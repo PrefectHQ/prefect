@@ -10,6 +10,7 @@ from itertools import chain
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from typing import List, Optional
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy
@@ -18,9 +19,9 @@ from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
 )
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
-from typing import List
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion.schemas.states import State
 
@@ -249,7 +250,7 @@ async def read_flow_runs(
 
 class DependencyResult(PrefectBaseModel):
     id: UUID
-    upstream_dependencies: List[UUID]
+    upstream_dependencies: List[TaskRunResult]
     state: State
 
 
