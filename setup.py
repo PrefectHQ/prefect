@@ -9,10 +9,16 @@ dev_requires = open("requirements-dev.txt").read().strip().split("\n")
 setup(
     # Package metadata
     name="prefect",
-    version=versioneer.get_version(),
     description="Workflow orchestration and management.",
+    license="Prefect Community License",
+    author="Prefect Technologies, Inc.",
+    author_email="help@prefect.io",
+    url="https://github.com/PrefectHQ/prefect/tree/orion",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
+    # Versioning
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     # Package setup
     packages=find_packages(where="src"),
     package_dir={"": "src"},

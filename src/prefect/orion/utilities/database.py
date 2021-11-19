@@ -7,157 +7,28 @@ allow Orion to seamlessly switch between the two.
 
 import datetime
 import json
-import os
 import re
 import uuid
-from asyncio import current_task, get_event_loop
-from typing import List, Union
+from typing import List
 
 import pendulum
 import pydantic
 import sqlalchemy as sa
-from sqlalchemy import Column
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_scoped_session,
-    create_async_engine,
-)
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import as_declarative, declared_attr, sessionmaker
-from sqlalchemy.schema import MetaData
 from sqlalchemy.sql.functions import FunctionElement
 from sqlalchemy.sql.sqltypes import BOOLEAN
 from sqlalchemy.types import CHAR, TypeDecorator, TypeEngine
-from typing import Optional
+
 from prefect import settings
 
 camel_to_snake = re.compile(r"(?<!^)(?=[A-Z])")
-
-ENGINES = {}
-SESSION_FACTORIES = {}
-
-
-def setup_sqlite(conn, named=True):
-    """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
-    duration of the connection. See https://www.sqlite.org/pragma.html for more info."""
-    if get_dialect(engine=conn.engine).name == "sqlite":
-        # enable foreign keys
-        conn.execute(sa.text("PRAGMA foreign_keys = ON;"))
-
-        # write to a write-ahead-log instead and regularly
-        # commit the changes
-        # this allows multiple concurrent readers even during
-        # a write transaction
-        conn.execute(sa.text("PRAGMA journal_mode = WAL;"))
-
-        # wait for this amount of time while a table is locked
-        # before returning and rasing an error
-        # setting the value very high allows for more 'concurrency'
-        # without running into errors, but may result in slow api calls
-        conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
-        conn.commit()
-
-
-async def get_engine(
-    connection_url: str = None,
-    echo: bool = settings.orion.database.echo,
-    timeout: Optional[float] = None,
-) -> sa.engine.Engine:
-    """Retrieves an async SQLAlchemy engine.
-
-    A new engine is created for each event loop and cached, so that engines are
-    not shared across loops.
-
-    If a sqlite in-memory database OR a non-existant sqlite file-based database
-    is provided, it is automatically populated with database objects.
-
-    Args:
-        connection_url (str, optional): The database connection string.
-            Defaults to the value in Prefect's settings.
-        echo (bool, optional): Whether to echo SQL sent
-            to the database. Defaults to the value in Prefect's settings.
-        timeout (float, optional): The database statement timeout, in seconds
-
-    Returns:
-        sa.engine.Engine: a SQLAlchemy engine
-    """
-    if connection_url is None:
-        connection_url = settings.orion.database.connection_url.get_secret_value()
-
-    loop = get_event_loop()
-    cache_key = (loop, connection_url, echo, timeout)
-    if cache_key not in ENGINES:
-        kwargs = {}
-
-        # apply database timeout
-        if timeout is not None:
-            dialect = get_dialect(connection_url=connection_url)
-            if dialect.driver == "aiosqlite":
-                kwargs["connect_args"] = dict(timeout=timeout)
-            elif dialect.driver == "asyncpg":
-                kwargs["connect_args"] = dict(command_timeout=timeout)
-
-        # ensure a long-lasting pool is used with in-memory databases
-        # because they disappear when the last connection closes
-        if connection_url.startswith("sqlite") and ":memory:" in connection_url:
-            kwargs.update(poolclass=sa.pool.SingletonThreadPool)
-
-        engine = create_async_engine(connection_url, echo=echo, **kwargs)
-        sa.event.listen(engine.sync_engine, "engine_connect", setup_sqlite)
-
-        # if this is a new sqlite database create all database objects
-        if engine.dialect.name == "sqlite" and (
-            ":memory:" in engine.url.database
-            or "mode=memory" in engine.url.database
-            or not os.path.exists(engine.url.database)
-        ):
-            await create_db(engine)
-
-        ENGINES[cache_key] = engine
-    return ENGINES[cache_key]
-
-
-async def get_session_factory(
-    bind: Union[sa.engine.Engine, sa.engine.Connection] = None,
-) -> sa.ext.asyncio.scoping.async_scoped_session:
-    """Retrieves a SQLAlchemy session factory for the provided bind.
-    The session factory is cached for each event loop.
-
-    Args:
-        engine (Union[sa.engine.Engine, sa.engine.Connection], optional): An
-            async SQLAlchemy engine or connection. If none is
-            provided, `get_engine()` is called to recover one.
-
-    Returns:
-        sa.ext.asyncio.scoping.async_scoped_session: an async scoped session factory
-    """
-    if bind is None:
-        bind = await get_engine()
-
-    loop = get_event_loop()
-    cache_key = (loop, bind)
-    if cache_key not in SESSION_FACTORIES:
-        # create session factory
-        session_factory = sessionmaker(
-            bind,
-            future=True,
-            expire_on_commit=False,
-            class_=AsyncSession,
-        )
-
-        # create session factory with async scoping
-        SESSION_FACTORIES[cache_key] = async_scoped_session(
-            session_factory, scopefunc=current_task
-        )
-
-    return SESSION_FACTORIES[cache_key]
 
 
 class GenerateUUID(FunctionElement):
     """
     Platform-independent UUID default generator.
-    Note the actual functionality for this class is speficied in the
+    Note the actual functionality for this class is specified in the
     `compiles`-decorated functions below
     """
 
@@ -663,98 +534,6 @@ def _json_has_all_keys_sqlite(element, compiler, **kwargs):
     )
 
 
-# define naming conventions for our Base class to use
-# sqlalchemy will use the following templated strings
-# to generate the names of indices, constraints, and keys
-#
-# we offset the table name with two underscores (__) to
-# help differentiate, for example, between "flow_run.state_type"
-# and "flow_run_state.type".
-#
-# more information on this templating and available
-# customization can be found here
-# https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData
-#
-# this also allows us to avoid having to specify names explicitly
-# when using sa.ForeignKey.use_alter = True
-# https://docs.sqlalchemy.org/en/14/core/constraints.html
-base_metadata = MetaData(
-    naming_convention={
-        "ix": "ix_%(table_name)s__%(column_0_N_name)s",
-        "uq": "uq_%(table_name)s__%(column_0_N_name)s",
-        "ck": "ck_%(table_name)s__%(constraint_name)s",
-        "fk": "fk_%(table_name)s__%(column_0_N_name)s__%(referred_table_name)s",
-        "pk": "pk_%(table_name)s",
-    }
-)
-
-
-@as_declarative(metadata=base_metadata)
-class Base(object):
-    """
-    Base SQLAlchemy model that automatically infers the table name
-    and provides ID, created, and updated columns
-    """
-
-    # required in order to access columns with server defaults
-    # or SQL expression defaults, subsequent to a flush, without
-    # triggering an expired load
-    #
-    # this allows us to load attributes with a server default after
-    # an INSERT, for example
-    #
-    # https://docs.sqlalchemy.org/en/14/orm/extensions/asyncio.html#preventing-implicit-io-when-using-asyncsession
-    __mapper_args__ = {"eager_defaults": True}
-
-    @declared_attr
-    def __tablename__(cls):
-        """
-        By default, turn the model's camel-case class name
-        into a snake-case table name. Override by providing
-        an explicit `__tablename__` class property.
-        """
-        return camel_to_snake.sub("_", cls.__name__).lower()
-
-    id = Column(
-        UUID(),
-        primary_key=True,
-        server_default=GenerateUUID(),
-        default=uuid.uuid4,
-    )
-    created = Column(
-        Timestamp(),
-        nullable=False,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
-    )
-
-    # onupdate is only called when statements are actually issued
-    # against the database. until COMMIT is issued, this column
-    # will not be updated
-    updated = Column(
-        Timestamp(),
-        nullable=False,
-        index=True,
-        server_default=now(),
-        default=lambda: pendulum.now("UTC"),
-        onupdate=now(),
-    )
-
-
-async def create_db(engine=None):
-    """Create all database tables."""
-    engine = engine or await get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
-
-async def drop_db(engine=None):
-    """Drop all database tables."""
-    engine = engine or await get_engine()
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-
 def get_dialect(
     session=None,
     engine=None,
@@ -789,12 +568,3 @@ def get_dialect(
             connection_url = settings.orion.database.connection_url.get_secret_value()
         url = sa.engine.url.make_url(connection_url)
     return url.get_dialect()
-
-
-def dialect_specific_insert(model: Base):
-    """Returns an INSERT statement specific to a dialect"""
-    inserts = {
-        "postgresql": postgresql.insert,
-        "sqlite": sqlite.insert,
-    }
-    return inserts[get_dialect().name](model)

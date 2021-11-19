@@ -1,36 +1,33 @@
 import datetime
-from typing import List
 
 import pendulum
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prefect import settings
 from prefect.orion import models, schemas
-from prefect.orion.models import orm
+
 from prefect.orion.schemas import states
 from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     TaskOrchestrationContext,
 )
 from prefect.orion.schemas.data import DataDocument
-from prefect.orion.utilities.database import (
-    ENGINES,
-    Base,
-    get_engine,
-    get_session_factory,
-)
+from prefect.orion.database.dependencies import provide_database_interface
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def database_engine():
+def db():
+    return provide_database_interface()
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def database_engine(db):
     """Produce a database engine"""
-    engine = await get_engine()
+    engine = await db.engine()
     try:
         yield engine
     finally:
         await engine.dispose()
-        ENGINES.clear()
 
 
 @pytest.fixture
@@ -42,23 +39,22 @@ def print_query(database_engine):
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def setup_db(database_engine):
+async def setup_db(database_engine, db):
     """Create all database objects prior to running tests, and drop them when tests are done."""
     try:
         # build the database
         async with database_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
+            await conn.run_sync(db.Base.metadata.create_all)
         yield
 
     finally:
         # tear down the databse
         async with database_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+            await conn.run_sync(db.Base.metadata.drop_all)
 
 
 @pytest.fixture(autouse=True)
-async def clear_db(database_engine):
+async def clear_db(database_engine, db):
     """Clear the database by
 
     Args:
@@ -66,19 +62,19 @@ async def clear_db(database_engine):
     """
     yield
     async with database_engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
+        for table in reversed(db.Base.metadata.sorted_tables):
             await conn.execute(table.delete())
 
 
 @pytest.fixture
-async def session(database_engine) -> AsyncSession:
-    session_factory = await get_session_factory(bind=database_engine)
+async def session(db) -> AsyncSession:
+    session_factory = await db.session_factory()
     async with session_factory() as session:
         yield session
 
 
 @pytest.fixture
-async def flow(session) -> models.orm.Flow:
+async def flow(session):
     model = await models.flows.create_flow(
         session=session, flow=schemas.actions.FlowCreate(name="my-flow")
     )
@@ -87,7 +83,7 @@ async def flow(session) -> models.orm.Flow:
 
 
 @pytest.fixture
-async def flow_run(session, flow) -> models.orm.FlowRun:
+async def flow_run(session, flow):
     model = await models.flow_runs.create_flow_run(
         session=session,
         flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
@@ -97,14 +93,14 @@ async def flow_run(session, flow) -> models.orm.FlowRun:
 
 
 @pytest.fixture
-async def flow_run_state(session, flow_run) -> models.orm.FlowRunState:
-    flow_run.set_state(models.orm.FlowRunState(**schemas.states.Pending().dict()))
+async def flow_run_state(session, flow_run, db):
+    flow_run.set_state(db.FlowRunState(**schemas.states.Pending().dict()))
     await session.commit()
     return flow_run.state
 
 
 @pytest.fixture
-async def task_run(session, flow_run) -> models.orm.TaskRun:
+async def task_run(session, flow_run):
     model = await models.task_runs.create_task_run(
         session=session,
         task_run=schemas.actions.TaskRunCreate(
@@ -116,16 +112,14 @@ async def task_run(session, flow_run) -> models.orm.TaskRun:
 
 
 @pytest.fixture
-async def task_run_state(session, task_run) -> models.orm.TaskRunState:
-    task_run.set_state(models.orm.TaskRunState(**schemas.states.Pending().dict()))
+async def task_run_state(session, task_run, db):
+    task_run.set_state(db.TaskRunState(**schemas.states.Pending().dict()))
     await session.commit()
     return task_run.state
 
 
 @pytest.fixture
-async def flow_run_states(
-    session, flow_run, flow_run_state
-) -> List[models.orm.FlowRunState]:
+async def flow_run_states(session, flow_run, flow_run_state):
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -153,9 +147,7 @@ async def flow_run_states(
 
 
 @pytest.fixture
-async def task_run_states(
-    session, task_run, task_run_state
-) -> List[models.orm.TaskRunState]:
+async def task_run_states(session, task_run, task_run_state):
     scheduled_state = schemas.states.State(
         type=schemas.states.StateType.SCHEDULED,
         timestamp=pendulum.now("UTC").subtract(seconds=5),
@@ -182,7 +174,7 @@ async def task_run_states(
 
 
 @pytest.fixture
-async def deployment(session, flow, flow_function) -> models.orm.Deployment:
+async def deployment(session, flow, flow_function):
     deployment = await models.deployments.create_deployment(
         session=session,
         deployment=schemas.core.Deployment(

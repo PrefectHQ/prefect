@@ -2,9 +2,11 @@
 Utilities for interoperability with async functions and workers from various contexts.
 """
 import inspect
+import warnings
 from contextvars import copy_context
 from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
+from typing_extensions import Literal
 from contextlib import asynccontextmanager
 
 import anyio
@@ -14,6 +16,9 @@ from typing_extensions import ParamSpec, TypeGuard
 T = TypeVar("T")
 P = ParamSpec("P")
 R = TypeVar("R")
+Async = Literal[True]
+Sync = Literal[False]
+A = TypeVar("A", Async, Sync, covariant=True)
 
 
 def is_async_fn(
@@ -117,3 +122,27 @@ def sync_compatible(async_fn: T) -> T:
 @asynccontextmanager
 async def asyncnullcontext():
     yield
+
+
+def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwargs) -> T:
+    """
+    Call an async function from a synchronous context. Block until completion.
+
+    If in an asynchronous context, we will run the code in a separate loop instead of
+    failing but a warning will be displayed since this is not recommended.
+    """
+    if in_async_main_thread():
+        warnings.warn(
+            "`sync` called from an asynchronous context; "
+            "you should `await` the async function directly instead."
+        )
+        with anyio.start_blocking_portal() as portal:
+            return portal.call(partial(__async_fn, *args, **kwargs))
+    elif in_async_worker_thread():
+        # In a sync context but we can access the event loop thread; send the async
+        # call to the parent
+        return run_async_from_worker_thread(__async_fn, *args, **kwargs)
+    else:
+        # In a sync context and there is no event loop; just create an event loop
+        # to run the async code then tear it down
+        return run_async_in_new_loop(__async_fn, *args, **kwargs)

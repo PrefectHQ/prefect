@@ -30,6 +30,7 @@ from prefect.futures import PrefectFuture
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.hashing import hash_objects, stable_hash, to_qualified_name
 from prefect.exceptions import ReservedArgumentError
+from prefect.utilities.asyncio import Async, Sync
 
 if TYPE_CHECKING:
     from prefect.context import TaskRunContext
@@ -147,7 +148,7 @@ class Task(Generic[P, R]):
         self: "Task[P, NoReturn]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[None]:
+    ) -> PrefectFuture[None, Sync]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
         # sync function from matching the `Coroutine` overload
         ...
@@ -157,7 +158,7 @@ class Task(Generic[P, R]):
         self: "Task[P, Coroutine[Any, Any, T]]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> Awaitable[PrefectFuture[T]]:
+    ) -> Awaitable[PrefectFuture[T, Async]]:
         ...
 
     @overload
@@ -165,7 +166,7 @@ class Task(Generic[P, R]):
         self: "Task[P, T]",
         *args: P.args,
         **kwargs: P.kwargs,
-    ) -> PrefectFuture[T]:
+    ) -> PrefectFuture[T, Sync]:
         ...
 
     def __call__(

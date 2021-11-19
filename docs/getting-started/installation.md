@@ -8,10 +8,10 @@ We assume you are familiar with managing a Python installation using tools like 
 
 ## Installing the latest version
 
-Prefect is published as a Python package. To install it, run the following in a shell
+Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell
 
 ```bash
-pip install prefect==2.0a1
+pip install -U "prefect>=2.0.0a"
 ```
 
 ## Installing the bleeding edge
@@ -45,8 +45,16 @@ To check that Prefect was installed correctly, you can test the CLI
 <div class="termy">
 ```
 $ prefect version
-2.0a1
+2.0a2
 ```
 </div>
 
 Running this command should print a familiar looking version string to your console.
+
+
+## External requirements
+
+### SQLite
+
+SQLite cannot be packaged with the installation, but is the default backing database.
+Most systems will have SQLite installed already. We require a minimum version of 3.24.0.
