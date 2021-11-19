@@ -148,7 +148,7 @@ async def read_flow_run_graph(
     """
     Get a task run dependency map for a given flow run.
     """
-    return models.flow_runs.read_task_run_dependencies(
+    return await models.flow_runs.read_task_run_dependencies(
         session=session, flow_run_id=flow_run_id
     )
 
