@@ -15,23 +15,15 @@ const colorModes = [
 
 const factoryMount = (props = {}, slots = {}) => {
   return mount(StateColorModeSelector, {
-    props: {
-      ...props
-    },
-    slots: {
-      ...slots
-    }
+    props,
+    slots
   })
 }
 
-test('component renders options for each color mode', async () => {
+test('component renders options for each color mode', () => {
   const wrapper = factoryMount()
-
-  await wrapper.trigger('click')
-
-  const themeOptions = wrapper.get('.theme-option')
-
-  const renderedOptions = themeOptions.forEach((option) => option.text())
+  const options = wrapper.findAll('option')
+  const renderedOptions = options.map((option) => option.text())
 
   expect(colorModes.every((mode) => renderedOptions.includes(mode)))
 })
