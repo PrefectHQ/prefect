@@ -340,6 +340,7 @@ classes = ["DatasetCreateFromDelimitedFiles",
 title = "Fivetran Tasks"
 module = "prefect.tasks.fivetran"
 classes = ["FivetranSyncTask"]
+partnership_integration = true
 
 [pages.tasks.prefect]
 title = "Prefect Tasks"
@@ -399,6 +400,7 @@ classes = [
         "DbtShellTask",
         "DbtCloudRunJob"
         ]
+partnership_integration = true
 
 [pages.tasks.asana]
 title = "Asana Tasks"
