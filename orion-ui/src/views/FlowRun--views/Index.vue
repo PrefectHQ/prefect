@@ -137,17 +137,17 @@
 
       <ResultsList
         v-else-if="resultsTab == 'task_runs'"
-        key="flows"
+        key="task_runs"
         :filter="taskRunsFilter"
-        component="task-run-list-item"
+        component="list-item-task-run"
         endpoint="task_runs"
       />
 
       <ResultsList
         v-else-if="false && resultsTab == 'sub_flow_runs'"
-        key="deployments"
+        key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="flow-run-list-item"
+        component="list-item-flow-run"
         endpoint="flow_runs"
       />
     </transition>
@@ -301,6 +301,7 @@ onBeforeUnmount(() => {
 
 onBeforeMount(() => {
   resultsTab.value = route.hash?.substr(1) || 'task_runs'
+  console.log(resultsTab.value)
 })
 </script>
 
