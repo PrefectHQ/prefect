@@ -48,8 +48,8 @@
             flex-grow-1 flex-shrink-0
           "
         >
-          <!-- {{ duration }} -->
-          {{ taskRun && taskRun.id && taskRun.id.slice(0, 8) }}
+          {{ duration }}
+          <!-- {{ taskRun && taskRun.id && taskRun.id.slice(0, 8) }} -->
         </div>
 
         <a
