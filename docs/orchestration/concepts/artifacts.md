@@ -79,6 +79,8 @@ Pass `create_markdown_artifact()` a string that will be rendered as an artifact.
 
 Note that any images referenced in your markdown must be linked by the absolute URL of a publicly available image. Linking to local files or by relative URL is not supported.
 
+Note that any images referenced in your markdown must be linked by absolute URL and served by an external web server. Linking to local files or by relative URL is not supported.
+
 ```python
 from prefect import task, Flow
 from prefect.backend.artifacts import create_markdown_artifact
