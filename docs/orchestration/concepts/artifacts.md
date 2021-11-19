@@ -6,8 +6,8 @@ Using the Artifacts API, you can easily publish information directly to the Pref
 
 Currently, the Artifacts API enables you to render the following artifact types:
 
-- links
-- markdown
+- Links
+- Markdown strings
 
 Link artifacts render a clickable hyperlink as an artifact.
 
@@ -45,14 +45,14 @@ To create link artifacts, just import `create_link` from `prefect.artifacts`, th
 
 Pass `create_link()` a string containing the absolute URI of the location to which you want to link. 
 
-'''python
+```python
 from prefect import task, Flow
 from prefect.artifacts import create_link
 
 @task
 def send_artifact():
     create_link("https://www.prefect.io/")
-'''
+```
 
 After the task runs, navigate to the UI’s Artifacts tab to see the output.
 
@@ -62,14 +62,22 @@ To create link artifacts, just import `create_markdown` from `prefect.artifacts`
 
 Pass `create_markdown()` a string that will be rendered as an artifact. The string can contain any [Github-flavored Markdown](https://github.github.com/gfm/) markup including images, links, and tables. 
 
-'''python
+```python
 from prefect import task, Flow
 from prefect.artifacts import create_markdown
 
 @task
 def send_artifact():
     create_markdown("# Heading\nText with [link]("https://www.prefect.io/").")
-'''
+```
+
+`create_markdown()` accepts any valid Python string and variable interpolation including, for example, f-strings.
+
+```python
+@task
+def send_artifact(heading, link_text, link):
+    create_markdown(f"# {heading}\nLink to [{link_text}]({link}).")
+```
 
 After the task runs, navigate to the UI’s Artifacts tab to see the output.
 
