@@ -24,10 +24,10 @@
 .main-grid {
   display: grid;
   grid-template-areas:
-    'details details schematic'
-    'timeline timeline schematic'
-    'timeline timeline schematic'
-    'timeline timeline schematic';
+    'details details radar'
+    'timeline timeline radar'
+    'timeline timeline radar'
+    'timeline timeline radar';
   grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-template-rows: repeat(4, 70px);
   column-gap: 16px;
@@ -35,7 +35,7 @@
 
   .details,
   .timeline,
-  .schematic {
+  .radar {
     height: 100%;
   }
 
@@ -47,8 +47,8 @@
     grid-area: timeline;
   }
 
-  .schematic {
-    grid-area: schematic;
+  .radar {
+    grid-area: radar;
   }
 }
 
@@ -78,7 +78,7 @@
   .main-grid {
     grid-template-areas:
       'details'
-      'schematic'
+      'radar'
       'timeline';
     grid-template-columns: repeat(1, minmax(0, 1fr));
     grid-template-rows: 70px 200px 250px;
