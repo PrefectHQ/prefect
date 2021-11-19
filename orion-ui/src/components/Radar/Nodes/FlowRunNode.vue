@@ -76,11 +76,12 @@
       </div>
     </transition>
   </div>
-  <div
+  <!-- DNR: This is used for testing placement -->
+  <!-- <div
     v-else
     class="circle-node cursor-pointer"
     :class="state.type.toLowerCase() + '-bg'"
-  />
+  /> -->
 </template>
 
 <script lang="ts" setup>
