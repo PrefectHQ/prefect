@@ -16,6 +16,8 @@ from prefect.orion.api import dependencies, run_history
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
+from prefect.orion.models.flow_runs import DependencyResult
+
 
 logger = get_logger("orion.api")
 
@@ -136,6 +138,19 @@ async def read_flow_run(
     if not flow_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
     return flow_run
+
+
+@router.get("/{id}/graph")
+async def read_flow_run_graph(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[DependencyResult]:
+    """
+    Get a task run dependency map for a given flow run.
+    """
+    return await models.flow_runs.read_task_run_dependencies(
+        session=session, flow_run_id=flow_run_id
+    )
 
 
 @router.post("/filter")

@@ -6,9 +6,11 @@ Intended for internal use by the Orion API.
 import contextlib
 from uuid import UUID
 
+from itertools import chain
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
+from typing import List, Optional
 
 from prefect.orion import models, schemas
 from prefect.orion.orchestration.core_policy import CoreFlowPolicy
@@ -17,8 +19,11 @@ from prefect.orion.orchestration.rules import (
     FlowOrchestrationContext,
     OrchestrationResult,
 )
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
+from prefect.orion.utilities.schemas import PrefectBaseModel
+from prefect.orion.schemas.states import State
 
 
 @inject_db
@@ -241,6 +246,47 @@ async def read_flow_runs(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+class DependencyResult(PrefectBaseModel):
+    id: UUID
+    upstream_dependencies: List[TaskRunResult]
+    state: State
+
+
+async def read_task_run_dependencies(
+    session: sa.orm.Session,
+    flow_run_id: UUID,
+) -> List[DependencyResult]:
+    """
+    Get a task run dependency map for a given flow run.
+    """
+    flow_run = await models.flow_runs.read_flow_run(
+        session=session, flow_run_id=flow_run_id
+    )
+    if not flow_run:
+        raise ValueError(f"Flow run with id {flow_run_id} not found")
+
+    task_runs = await models.task_runs.read_task_runs(
+        session=session,
+        flow_run_filter=schemas.filters.FlowRunFilter(
+            id=schemas.filters.FlowRunFilterId(any_=[flow_run_id])
+        ),
+    )
+
+    dependency_graph = []
+
+    for task_run in task_runs:
+        inputs = list(set(chain(*task_run.task_inputs.values())))
+        dependency_graph.append(
+            {
+                "id": task_run.id,
+                "upstream_dependencies": inputs,
+                "state": task_run.state,
+            }
+        )
+
+    return dependency_graph
 
 
 @inject_db
