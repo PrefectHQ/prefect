@@ -53,3 +53,13 @@ To delete an automation, click the **...** icon next to an automation, then clic
 To edit an automation, click anywhere on the automation tile and you'll enable a definition wizard similar to creating a new automation.
 
 ![Screenshot showing an automation selected for editing](/orchestration/ui/automations_edit.png)
+
+## Automation Actions
+
+An action is a response to an event. For each automation you can configure an [automation action](/orchestration/concepts/automations.html#actions) to happen when certain event conditions are met.
+
+Create an action through the **Choose an action** step of creating [new automations](#new-automations) as described above.
+
+To see details of actions configured for your team, click **Team > Automation Actions** or go directly to the [Automation Actions](https://cloud.prefect.io/team/actions) page in Prefect Cloud. There you can see a list of configured actions, test actions, and delete actions.
+
+![Screenshot of team Automation Actions page in Prefect Cloud](/orchestration/ui/automation_actions.png)
