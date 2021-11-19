@@ -6,6 +6,7 @@ Intended for internal use by the Orion API.
 import contextlib
 from uuid import UUID
 
+from itertools import chain
 import pendulum
 import sqlalchemy as sa
 from sqlalchemy import delete, select
@@ -276,7 +277,7 @@ async def read_task_run_dependencies(
     dependency_graph = []
 
     for task_run in task_runs:
-        inputs = list(set(i for v in task_run.task_inputs.values() for i in v))
+        inputs = list(set(chain(*task_run.task_inputs.values())))
         dependency_graph.append(
             {"id": task_run.id, "upstream_dependencies": inputs, "state": task_run.state}
         )
