@@ -122,7 +122,7 @@ export const Endpoints: { [key: string]: Endpoint } = {
   },
   radar: {
     method: 'GET',
-    url: '/flow_runs/{id}/schematic',
+    url: '/flow_runs/{id}/graph',
     interpolate: true
   },
   flow_runs: {
