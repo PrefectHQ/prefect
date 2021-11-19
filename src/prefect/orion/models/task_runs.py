@@ -187,10 +187,9 @@ async def read_task_runs(
     result = await session.execute(query)
     return result.scalars().unique().all()
 
-@inject_db
 async def read_task_run_dependencies(
-    flow_run_id: UUID,
     session: sa.orm.Session,
+    flow_run_id: UUID,
 ):
     """
     Get a task run dependency map for a given flow run.

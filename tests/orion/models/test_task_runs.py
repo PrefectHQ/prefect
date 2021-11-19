@@ -148,6 +148,56 @@ class TestReadTaskRun:
             await models.task_runs.read_task_run(session=session, task_run_id=uuid4())
         ) is None
 
+class TestReadTaskRunDependencies:
+    async def test_read_task_run_dependencies(self, flow_run, session):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="key-1", dynamic_key="0"
+            ),
+        )
+        
+        
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="key-2", dynamic_key="0", task_inputs=dict(x={TaskRunResult(id=task_run_1.id)})
+            ),
+        )
+        
+        task_run_3 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="key-3", dynamic_key="0", task_inputs=dict(x={TaskRunResult(id=task_run_2.id)})
+            ),
+        )
+        
+        dependencies = await models.task_runs.read_task_run_dependencies(
+            session=session, flow_run_id=flow_run.id
+        )
+        
+        # We do this because read_task_run_dependencies doesn't guarantee any ordering
+        d1 = next(filter(lambda d: d["id"] == task_run_1.id, dependencies))
+        d2 = next(filter(lambda d: d["id"] == task_run_2.id, dependencies))
+        d3 = next(filter(lambda d: d["id"] == task_run_3.id, dependencies))
+        
+        assert len(dependencies) == 3
+        assert d1["id"] == task_run_1.id
+        assert d2["id"] == task_run_2.id
+        assert d3["id"] == task_run_3.id
+        
+        assert len(d1["upstream_dependencies"]) == 0
+        assert len(d2["upstream_dependencies"]) == len(d3["upstream_dependencies"]) == 1
+        assert  d2["upstream_dependencies"][0].id == d1["id"]
+        assert  d3["upstream_dependencies"][0].id == d2["id"]
+        
+
+    async def test_read_task_run_dependencies_throws_error_if_does_not_exist(self, session):
+        with pytest.raises(ValueError):
+            await models.task_runs.read_task_run_dependencies(
+                session=session, flow_run_id=uuid4()
+            )
+
 
 class TestReadTaskRuns:
     async def test_read_task_runs_filters_by_task_run_ids_any(self, flow_run, session):
