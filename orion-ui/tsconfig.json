@@ -15,8 +15,7 @@
     "sourceMap": true,
     "baseUrl": ".",
     "types": [
-      "webpack-env",
-      "jest",
+      "@types/jest",
       "d3",
       "@prefecthq/miter-design"
     ],
