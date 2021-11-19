@@ -138,37 +138,15 @@ async def read_flow_run(
     return flow_run
 
 
-@router.get("/{id}/schematic")
-async def read_flow_run_schematic(
+@router.get("/{id}/graph")
+async def read_flow_run_graph(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ):
     """
     Get a task run dependency map for a given flow run.
     """
-    flow_run = await models.flow_runs.read_flow_run(
-        session=session, flow_run_id=flow_run_id
-    )
-    if not flow_run:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
-
-
-    task_runs = await models.task_runs.read_task_runs(
-        session=session,
-        flow_run_filter=schemas.filters.FlowRunFilter(
-            id=schemas.filters.FlowRunFilterId(any_=[flow_run_id])
-        )
-    )
-
-    dependency_graph = []
-
-    for task_run in task_runs:
-        inputs = list(set(i for v in task_run.task_inputs.values() for i in v))
-        dependency_graph.append(
-            {"id": task_run.id, "upstream_dependencies": inputs, "state": task_run.state}
-        )
-
-    return dependency_graph
+    return models.task_runs.read_task_run_dependencies(session=session, flow_run_id=flow_run_id)
 
 
 @router.post("/filter")
