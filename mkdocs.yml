@@ -119,19 +119,20 @@ nav:
                 - 'orion.api.saved_searches': api-ref/orion/api/saved_searches.md
                 - 'orion.api.server': api-ref/orion/api/server.md
                 - 'orion.api.task_runs': api-ref/orion/api/task_runs.md
-                - 'orion.api.task_run_states': api-ref/orion/api/task_run_states.md 
+                - 'orion.api.task_run_states': api-ref/orion/api/task_run_states.md
             - 'Models':
-                - 'orion.models.deployments': api-ref/orion/models/deployments.md
                 - 'orion.models.flows': api-ref/orion/models/flows.md
                 - 'orion.models.flow_runs': api-ref/orion/models/flow_runs.md
                 - 'orion.models.flow_run_states': api-ref/orion/models/flow_run_states.md
                 - 'orion.models.task_runs': api-ref/orion/models/task_runs.md
                 - 'orion.models.task_run_states': api-ref/orion/models/task_run_states.md
+                - 'orion.models.deployments': api-ref/orion/models/deployments.md
+                - 'orion.models.saved_searches': api-ref/orion/models/saved_searches.md
             - 'Orchestration':
+                - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
+                - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
                 - 'orion.orchestration.core_policy': api-ref/orion/orchestration/core_policy.md
                 - 'orion.orchestration.global_policy': api-ref/orion/orchestration/global_policy.md
-                - 'orion.orchestration.policies': api-ref/orion/orchestration/policies.md
-                - 'orion.orchestration.rules': api-ref/orion/orchestration/rules.md
             - 'Schemas':
                 - 'orion.schemas.actions': api-ref/orion/schemas/actions.md
                 - 'orion.schemas.core': api-ref/orion/schemas/core.md
