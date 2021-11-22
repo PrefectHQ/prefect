@@ -703,7 +703,7 @@ class OrionClient:
             flow_run_id: the id of the flow run
 
         Returns:
-            a list of [State model][prefect.orion.schemas.core.State] representation
+            a list of [State model][prefect.orion.schemas.states.State] representation
                 of the flow run states
         """
         response = await self.get(
@@ -860,7 +860,7 @@ class OrionClient:
             flow_run_id: an optional flow run id, used when proposing flow run states
 
         Returns:
-            a [State model][prefect.orion.schemas.core.State] representation of the
+            a [State model][prefect.orion.schemas.states.State] representation of the
                 flow or task run state
 
         Raises:
@@ -984,7 +984,7 @@ class OrionClient:
             task_run_id: the id of the task run
 
         Returns:
-            a list of [State model][prefect.orion.schemas.core.State] representation
+            a list of [State model][prefect.orion.schemas.states.State] representation
                 of the task run states
         """
         response = await self.get(
