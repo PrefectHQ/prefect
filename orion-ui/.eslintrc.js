@@ -39,12 +39,9 @@ module.exports = {
   },
   overrides: [
     {
-      files: [
-        '**/__tests__/*.{j,t}s?(x)',
-        '**/tests/unit/**/*.spec.{j,t}s?(x)'
-      ],
+      files: ['**/*.spec.js', '**/*.spec.ts'],
       env: {
-        // 'jest/globals': true
+        jest: true
       }
     }
   ]

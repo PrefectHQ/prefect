@@ -4,8 +4,10 @@ import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from typing import List
 
 from prefect.orion import models, schemas
+from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states, data
 
@@ -57,7 +59,7 @@ class TestCreateFlowRun:
         response = await client.post("/flow_runs/", json={"flow_id": str(flow.id)})
         assert response.json()["state"]["type"] == "PENDING"
 
-    async def test_create_multiple_flow_runs(self, flow, client, session):
+    async def test_create_multiple_flow_runs(self, flow, client, session, db):
 
         response1 = await client.post(
             "/flow_runs/",
@@ -78,7 +80,7 @@ class TestCreateFlowRun:
         assert response1.json()["id"] != response2.json()["id"]
 
         result = await session.execute(
-            sa.select(models.orm.FlowRun.id).filter_by(flow_id=flow.id)
+            sa.select(db.FlowRun.id).filter_by(flow_id=flow.id)
         )
         ids = result.scalars().all()
         assert {response1.json()["id"], response2.json()["id"]} == {str(i) for i in ids}
@@ -97,9 +99,13 @@ class TestCreateFlowRun:
         assert response1.json()["id"] == response2.json()["id"]
 
     async def test_create_flow_run_with_idempotency_key_across_multiple_flows(
-        self, flow, client, session
+        self,
+        flow,
+        client,
+        session,
+        db,
     ):
-        flow2 = models.orm.Flow(name="another flow")
+        flow2 = db.Flow(name="another flow")
         session.add(flow2)
         await session.commit()
 
@@ -407,6 +413,10 @@ class TestReadFlowRuns:
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
 
+class TestReadFlowRunGraph:
+    async def test_read_flow_run_graph(self, flow_run, client):
+        response = await client.get(f"/flow_runs/{flow_run.id}/graph")
+        assert response.status_code == 200
 
 class TestDeleteFlowRuns:
     async def test_delete_flow_runs(self, flow_run, client, session):

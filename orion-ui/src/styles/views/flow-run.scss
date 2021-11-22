@@ -18,3 +18,9 @@
     background-color: $grey-40;
   }
 }
+
+.blur {
+  backdrop-filter: blur(1px);
+  background-color: rgba(244, 245, 247, 0.8);
+  border-radius: 8px;
+}

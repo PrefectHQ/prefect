@@ -3,18 +3,20 @@ Functions for interacting with flow ORM objects.
 Intended for internal use by the Orion API.
 """
 
-from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy import delete, select
 
 from prefect.orion import schemas
-from prefect.orion.models import orm
-from prefect.orion.utilities.database import dialect_specific_insert
+from prefect.orion.database.dependencies import inject_db
+from prefect.orion.database.interface import OrionDBInterface
 
 
-async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.Flow:
+@inject_db
+async def create_flow(
+    session: sa.orm.Session, flow: schemas.core.Flow, db: OrionDBInterface
+):
     """
     Creates a new flow.
 
@@ -25,22 +27,22 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
         flow: a flow model
 
     Returns:
-        orm.Flow: the newly-created or existing flow
+        db.Flow: the newly-created or existing flow
     """
 
     insert_stmt = (
-        dialect_specific_insert(orm.Flow)
+        (await db.insert(db.Flow))
         .values(**flow.dict(shallow=True, exclude_unset=True))
         .on_conflict_do_nothing(
-            index_elements=["name"],
+            index_elements=db.flow_unique_upsert_columns,
         )
     )
     await session.execute(insert_stmt)
 
     query = (
-        sa.select(orm.Flow)
+        sa.select(db.Flow)
         .where(
-            orm.Flow.name == flow.name,
+            db.Flow.name == flow.name,
         )
         .limit(1)
         .execution_options(populate_existing=True)
@@ -50,9 +52,13 @@ async def create_flow(session: sa.orm.Session, flow: schemas.core.Flow) -> orm.F
     return model
 
 
+@inject_db
 async def update_flow(
-    session: sa.orm.Session, flow_id: UUID, flow: schemas.actions.FlowUpdate
-) -> orm.Flow:
+    session: sa.orm.Session,
+    flow_id: UUID,
+    flow: schemas.actions.FlowUpdate,
+    db: OrionDBInterface,
+):
     """
     Updates a flow.
 
@@ -71,7 +77,7 @@ async def update_flow(
         )
 
     update_stmt = (
-        sa.update(orm.Flow).where(orm.Flow.id == flow_id)
+        sa.update(db.Flow).where(db.Flow.id == flow_id)
         # exclude_unset=True allows us to only update values provided by
         # the user, ignoring any defaults on the model
         .values(**flow.dict(shallow=True, exclude_unset=True))
@@ -80,7 +86,8 @@ async def update_flow(
     return result.rowcount > 0
 
 
-async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
+@inject_db
+async def read_flow(session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface):
     """
     Reads a flow by id.
 
@@ -89,13 +96,13 @@ async def read_flow(session: sa.orm.Session, flow_id: UUID) -> orm.Flow:
         flow_id: a flow id
 
     Returns:
-        orm.Flow: the flow
+        db.Flow: the flow
     """
+    return await session.get(db.Flow, flow_id)
 
-    return await session.get(orm.Flow, flow_id)
 
-
-async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
+@inject_db
+async def read_flow_by_name(session: sa.orm.Session, name: str, db: OrionDBInterface):
     """
     Reads a flow by name.
 
@@ -104,15 +111,17 @@ async def read_flow_by_name(session: sa.orm.Session, name: str) -> orm.Flow:
         name: a flow name
 
     Returns:
-        orm.Flow: the flow
+        db.Flow: the flow
     """
 
-    result = await session.execute(select(orm.Flow).filter_by(name=name))
+    result = await session.execute(select(db.Flow).filter_by(name=name))
     return result.scalar()
 
 
-def _apply_flow_filters(
+@inject_db
+async def _apply_flow_filters(
     query,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -126,21 +135,22 @@ def _apply_flow_filters(
         query = query.where(flow_filter.as_sql_filter())
 
     if deployment_filter:
-        exists_clause = select(orm.Deployment).where(
-            orm.Deployment.flow_id == orm.Flow.id, deployment_filter.as_sql_filter()
+        exists_clause = select(db.Deployment).where(
+            db.Deployment.flow_id == db.Flow.id,
+            deployment_filter.as_sql_filter(),
         )
         query = query.where(exists_clause.exists())
 
     if flow_run_filter or task_run_filter:
-        exists_clause = select(orm.FlowRun).where(orm.FlowRun.flow_id == orm.Flow.id)
+        exists_clause = select(db.FlowRun).where(db.FlowRun.flow_id == db.Flow.id)
 
         if flow_run_filter:
             exists_clause = exists_clause.where(flow_run_filter.as_sql_filter())
 
         if task_run_filter:
             exists_clause = exists_clause.join(
-                orm.TaskRun,
-                orm.TaskRun.flow_run_id == orm.FlowRun.id,
+                db.TaskRun,
+                db.TaskRun.flow_run_id == db.FlowRun.id,
             ).where(task_run_filter.as_sql_filter())
 
         query = query.where(exists_clause.exists())
@@ -148,15 +158,17 @@ def _apply_flow_filters(
     return query
 
 
+@inject_db
 async def read_flows(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
     deployment_filter: schemas.filters.DeploymentFilter = None,
     offset: int = None,
     limit: int = None,
-) -> List[orm.Flow]:
+):
     """
     Read multiple flows.
 
@@ -170,17 +182,18 @@ async def read_flows(
         limit: Query limit
 
     Returns:
-        List[orm.Flow]: flows
+        List[db.Flow]: flows
     """
 
-    query = select(orm.Flow).order_by(orm.Flow.name)
+    query = select(db.Flow).order_by(db.Flow.name)
 
-    query = _apply_flow_filters(
+    query = await _apply_flow_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db=db,
     )
 
     if offset is not None:
@@ -193,8 +206,10 @@ async def read_flows(
     return result.scalars().unique().all()
 
 
+@inject_db
 async def count_flows(
     session: sa.orm.Session,
+    db: OrionDBInterface,
     flow_filter: schemas.filters.FlowFilter = None,
     flow_run_filter: schemas.filters.FlowRunFilter = None,
     task_run_filter: schemas.filters.TaskRunFilter = None,
@@ -214,21 +229,25 @@ async def count_flows(
         int: count of flows
     """
 
-    query = select(sa.func.count(sa.text("*"))).select_from(orm.Flow)
+    query = select(sa.func.count(sa.text("*"))).select_from(db.Flow)
 
-    query = _apply_flow_filters(
+    query = await _apply_flow_filters(
         query,
         flow_filter=flow_filter,
         flow_run_filter=flow_run_filter,
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
+        db=db,
     )
 
     result = await session.execute(query)
     return result.scalar()
 
 
-async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
+@inject_db
+async def delete_flow(
+    session: sa.orm.Session, flow_id: UUID, db: OrionDBInterface
+) -> bool:
     """
     Delete a flow by id.
 
@@ -240,5 +259,5 @@ async def delete_flow(session: sa.orm.Session, flow_id: UUID) -> bool:
         bool: whether or not the flow was deleted
     """
 
-    result = await session.execute(delete(orm.Flow).where(orm.Flow.id == flow_id))
+    result = await session.execute(delete(db.Flow).where(db.Flow.id == flow_id))
     return result.rowcount > 0

@@ -336,7 +336,10 @@ async def orchestrate_flow_run(
         )
 
     # TODO: Implement state orchestation logic using return values from the API
-    await client.propose_state(Running(), flow_run_id=flow_run.id)
+    await client.propose_state(
+        Running(),
+        flow_run_id=flow_run.id,
+    )
 
     timeout_context = (
         anyio.fail_after(flow.timeout_seconds)
@@ -471,7 +474,7 @@ async def collect_task_run_inputs(
             if expr.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
 
-    await visit_collection(expr, visit_fn=visit_fn)
+    await visit_collection(expr, visit_fn=visit_fn, return_data=False)
     return inputs
 
 
@@ -697,8 +700,9 @@ async def user_return_value_to_state(
     be placed in.
 
     - If data is returned, we create a 'COMPLETED' state with the data
-    - If a single state is returned and is not wrapped in a future, we use that state
-    - If an iterable of states are returned, we apply the aggregate rule
+    - If a single, manually created state is returned, we use that state as given
+        (manual creation is determined by the lack of ids)
+    - If an upstream state or iterable of upstream states is returned, we apply the aggregate rule
     - If a future or iterable of futures is returned, we resolve it into states then
         apply the aggregate rule
 
@@ -714,8 +718,12 @@ async def user_return_value_to_state(
     task future.
     """
 
-    # States returned directly are respected without applying a rule
-    if is_state(result):
+    if (
+        is_state(result)
+        # Check for manual creation
+        and not result.state_details.flow_run_id
+        and not result.state_details.task_run_id
+    ):
         return result
 
     # Ensure any futures are resolved

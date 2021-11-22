@@ -13,9 +13,13 @@ from fastapi import Body, Depends, HTTPException, Path, Response, status
 from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies, run_history
+from prefect.orion.orchestration import dependencies as orchestration_dependencies
+from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
 from prefect.utilities.logging import get_logger
+from prefect.orion.models.flow_runs import DependencyResult
+
 
 logger = get_logger("orion.api")
 
@@ -138,6 +142,19 @@ async def read_flow_run(
     return flow_run
 
 
+@router.get("/{id}/graph")
+async def read_flow_run_graph(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[DependencyResult]:
+    """
+    Get a task run dependency map for a given flow run.
+    """
+    return await models.flow_runs.read_task_run_dependencies(
+        session=session, flow_run_id=flow_run_id
+    )
+
+
 @router.post("/filter")
 async def read_flow_runs(
     sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
@@ -196,6 +213,9 @@ async def set_flow_run_state(
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
     response: Response = None,
+    flow_policy: BaseOrchestrationPolicy = Depends(
+        orchestration_dependencies.provide_flow_policy
+    ),
 ) -> OrchestrationResult:
     """Set a flow run state, invoking any orchestration rules."""
 
@@ -206,6 +226,7 @@ async def set_flow_run_state(
         # convert to a full State object
         state=schemas.states.State.parse_obj(state),
         force=force,
+        flow_policy=flow_policy,
     )
 
     # set the 201 because a new state was created

@@ -107,6 +107,13 @@ parameterize_with_sequential_executors = pytest.mark.parametrize(
 )
 
 
+async def test_executor_cannot_be_started_while_running():
+    async with SequentialExecutor().start() as executor:
+        with pytest.raises(RuntimeError, match="already started"):
+            async with executor.start():
+                pass
+
+
 @parameterize_with_all_executors
 def test_flow_run_by_executor(executor):
     @task
@@ -253,7 +260,7 @@ class TestExecutorParallelism:
 
     # Amount of time to sleep before writing 'foo'
     # A larger value will decrease brittleness but increase test times
-    SLEEP_TIME = 0.25 if sys.platform == "darwin" else 1.0
+    SLEEP_TIME = 0.25 if sys.platform == "darwin" else 1.5
 
     @pytest.fixture
     def tmp_file(self, tmp_path):

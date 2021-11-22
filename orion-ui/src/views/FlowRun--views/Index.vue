@@ -77,7 +77,7 @@
       </div>
     </Card>
 
-    <Card class="schematic" shadow="sm">
+    <Card class="radar" shadow="sm">
       <div
         style="
           top: 50%;
@@ -87,9 +87,9 @@
         "
         class="text-center"
       >
-        <router-link :to="`/flow-run/${id}/schematic`">
-          <IconButton icon="pi-full-screen" />
-          <div>View Schematic </div>
+        <router-link :to="`/flow-run/${id}/radar`">
+          <IconButton icon="pi-radar-fill" />
+          <div>View Radar </div>
         </router-link>
       </div>
     </Card>
@@ -135,19 +135,19 @@
         <h2> No Results Found </h2>
       </div>
 
-      <results-list
+      <ResultsList
         v-else-if="resultsTab == 'task_runs'"
-        key="flows"
+        key="task_runs"
         :filter="taskRunsFilter"
-        component="task-run-list-item"
+        component="list-item-task-run"
         endpoint="task_runs"
       />
 
-      <results-list
+      <ResultsList
         v-else-if="false && resultsTab == 'sub_flow_runs'"
-        key="deployments"
+        key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="flow-run-list-item"
+        component="list-item-flow-run"
         endpoint="flow_runs"
       />
     </transition>
@@ -301,6 +301,7 @@ onBeforeUnmount(() => {
 
 onBeforeMount(() => {
   resultsTab.value = route.hash?.substr(1) || 'task_runs'
+  console.log(resultsTab.value)
 })
 </script>
 

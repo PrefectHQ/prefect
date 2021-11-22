@@ -9,6 +9,7 @@ import pytest
 import sqlalchemy as sa
 
 from prefect.orion import models, schemas
+from prefect.orion.schemas.core import TaskRunResult
 
 
 class TestCreateFlowRun:
@@ -27,7 +28,7 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == flow.id
         assert flow_run.state is None
 
-    async def test_create_flow_run_with_state(self, flow, session):
+    async def test_create_flow_run_with_state(self, flow, session, db):
         state_id = uuid4()
         flow_run = await models.flow_runs.create_flow_run(
             session=session,
@@ -41,14 +42,14 @@ class TestCreateFlowRun:
         assert flow_run.flow_id == flow.id
         assert flow_run.state.id == state_id
 
-        query = await session.execute(
-            sa.select(models.orm.FlowRunState).filter_by(id=state_id)
-        )
+        query = await session.execute(sa.select(db.FlowRunState).filter_by(id=state_id))
         result = query.scalar()
         assert result.id == state_id
         assert result.name == "My Running State"
 
-    async def test_create_flow_run_with_state_and_idempotency_key(self, flow, session):
+    async def test_create_flow_run_with_state_and_idempotency_key(
+        self, flow, session, db
+    ):
         scheduled_state_id = uuid4()
         running_state_id = uuid4()
 
@@ -79,7 +80,7 @@ class TestCreateFlowRun:
         assert running_flow_run.state.id == scheduled_state_id
 
         query = await session.execute(
-            sa.select(models.orm.FlowRunState).filter_by(id=scheduled_state_id)
+            sa.select(db.FlowRunState).filter_by(id=scheduled_state_id)
         )
         result = query.scalar()
         assert result.id == scheduled_state_id
@@ -137,9 +138,9 @@ class TestCreateFlowRun:
         assert flow_run.id == anotha_flow_run.id
 
     async def test_create_flow_run_with_existing_idempotency_key_of_a_different_flow(
-        self, flow, session
+        self, flow, session, db
     ):
-        flow2 = models.orm.Flow(name="another flow")
+        flow2 = db.Flow(name="another flow")
         session.add(flow2)
         await session.flush()
 
@@ -263,8 +264,8 @@ class TestReadFlowRun:
 
 class TestReadFlowRuns:
     @pytest.fixture
-    async def flow_runs(self, flow, session):
-        await session.execute(sa.delete(models.orm.FlowRun))
+    async def flow_runs(self, flow, session, db):
+        await session.execute(sa.delete(db.FlowRun))
 
         flow_2 = await models.flows.create_flow(
             session=session,
@@ -1012,6 +1013,63 @@ class TestReadFlowRuns:
             limit=1,
         )
         assert result[0].id == flow_run_2.id
+
+
+class TestReadFlowRunTaskRunDependencies:
+    async def test_read_task_run_dependencies(self, flow_run, session):
+        task_run_1 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id, task_key="key-1", dynamic_key="0"
+            ),
+        )
+
+        task_run_2 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="key-2",
+                dynamic_key="0",
+                task_inputs=dict(x={TaskRunResult(id=task_run_1.id)}),
+            ),
+        )
+
+        task_run_3 = await models.task_runs.create_task_run(
+            session=session,
+            task_run=schemas.core.TaskRun(
+                flow_run_id=flow_run.id,
+                task_key="key-3",
+                dynamic_key="0",
+                task_inputs=dict(x={TaskRunResult(id=task_run_2.id)}),
+            ),
+        )
+
+        dependencies = await models.flow_runs.read_task_run_dependencies(
+            session=session, flow_run_id=flow_run.id
+        )
+
+        # We do this because read_task_run_dependencies doesn't guarantee any ordering
+        d1 = next(filter(lambda d: d["id"] == task_run_1.id, dependencies))
+        d2 = next(filter(lambda d: d["id"] == task_run_2.id, dependencies))
+        d3 = next(filter(lambda d: d["id"] == task_run_3.id, dependencies))
+
+        assert len(dependencies) == 3
+        assert d1["id"] == task_run_1.id
+        assert d2["id"] == task_run_2.id
+        assert d3["id"] == task_run_3.id
+
+        assert len(d1["upstream_dependencies"]) == 0
+        assert len(d2["upstream_dependencies"]) == len(d3["upstream_dependencies"]) == 1
+        assert d2["upstream_dependencies"][0].id == d1["id"]
+        assert d3["upstream_dependencies"][0].id == d2["id"]
+
+    async def test_read_task_run_dependencies_throws_error_if_does_not_exist(
+        self, session
+    ):
+        with pytest.raises(ValueError):
+            await models.flow_runs.read_task_run_dependencies(
+                session=session, flow_run_id=uuid4()
+            )
 
 
 class TestDeleteFlowRun:
