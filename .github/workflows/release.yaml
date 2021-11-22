@@ -77,7 +77,7 @@ jobs:
         run: git checkout -b "docs-for-release-${GITHUB_REF#refs/*/}"
 
       - name: Merge with main
-        run: git merge origin/main -m "Merge branch 'main' into temporary docs branch"
+        run: git merge origin/main --no-ff -m "Merge branch 'main' into temporary docs branch"
 
       - name: Push and open PR
         run: |
