@@ -298,7 +298,6 @@ def test_prefect_logging_level_override_logic(
     ],
 )
 def test_docker_agent_deploy_flow(core_version, command, api):
-
     agent = DockerAgent()
     agent.deploy_flow(
         flow_run=GraphQLResult(
@@ -467,7 +466,6 @@ def test_docker_agent_deploy_flow_sets_container_name_with_slugify(
 @pytest.mark.parametrize("run_kind", ["docker", "missing", "universal"])
 @pytest.mark.parametrize("has_docker_storage", [True, False])
 def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
-
     if has_docker_storage:
         storage = Docker(
             registry_url="testing", image_name="on-storage", image_tag="tag"
@@ -479,14 +477,16 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
 
     if run_kind == "docker":
         env = {"TESTING": "VALUE"}
+        ports = [12001]
         host_config = {"auto_remove": False, "shm_size": "128m"}
         exp_host_config = {
             "auto_remove": False,
             "shm_size": "128m",
         }
-        run = DockerRun(image=image, env=env, host_config=host_config)
+        run = DockerRun(image=image, env=env, ports=ports, host_config=host_config)
     else:
         env = {}
+        ports = []
         host_config = {}
         exp_host_config = {
             "auto_remove": True,
@@ -519,6 +519,9 @@ def test_docker_agent_deploy_flow_run_config(api, run_kind, has_docker_storage):
     res_env = api.create_container.call_args[1]["environment"]
     for k, v in env.items():
         assert res_env[k] == v
+    res_ports = api.create_container.call_args[1]["ports"]
+    for i, v in enumerate(ports):
+        assert res_ports[i] == v
     res_host_config = api.create_host_config.call_args[1]
     for k, v in exp_host_config.items():
         assert res_host_config[k] == v
