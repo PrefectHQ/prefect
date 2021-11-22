@@ -1,4 +1,4 @@
-from firebolt_db.firebolt_connector import Connection
+from firebolt.db import Connection
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -8,74 +8,73 @@ class FireboltConnection(Task):
 
     def __init__(
             self,
-            user_email: str = None,
+            engine_url: str = None,
+            database: str = None,
+            username: str = None,
             password: str = None,
-            db_name: str = None,
-            engine_name: str = None,
-            port: str = None,
+            api_endpoint: str = None,
             **kwargs
     ):
         """
-            Task for establishing a connection with a Firebolt database.
+        Class for creating a connection object.
 
-            Args:
-                - user email (str): user email used to authenticate
-                - password (str): password used to authenticate.
-                - db name (str): name of the default database to use
-                - engine_name (str, optional): name of the engine to use
-                - port (str): port of the database to connect
-                - **kwargs (dict, optional): additional keyword arguments to pass to the
-                    Task constructor
-            """
+        Args:
+            - engine url (str, optional): engine url of the engine to use
+            - database (str): name of the database to use
+            - username (str): username used to authenticate
+            - password (str): password used to authenticate.
+            - api_endpoint (str): default API endpoint of firebolt
+            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+        """
 
-        self.user_email = user_email
+        self.engine_url = engine_url
+        self.database = database
+        self.username = username
         self.password = password
-        self.port = port
-        self.db_name = db_name
-        self.engine_name = engine_name
+        self.api_endpoint = api_endpoint
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "user_email",
+        "engine_url",
+        "database",
+        "username",
         "password",
-        "port",
-        "db_name",
-        "engine_name",
     )
     def run(
             self,
-            user_email: str = None,
+            engine_url: str = None,
+            database: str = None,
+            username: str = None,
             password: str = None,
-            db_name: str = None,
-            engine_name: str = None,
-            port: str = None,
+            api_endpoint: str = None,
     ):
         """
-            Task for establishing a connection with a Firebolt database.
+        Task for establishing a connection with a Firebolt database.
 
-            Args:
-                - user email (str): user email used to authenticate
-                - password (str): password used to authenticate.
-                - db name (str): name of the default database to use
-                - engine_name (str, optional): name of the engine to use
-                - port (str): port of the database to connect
-                - **kwargs (dict, optional): additional keyword arguments to pass to the
-                    Task constructor
-            Raises:
-                - ValueError: if a required parameter is not supplied
-                - DatabaseError: if exception occurs when executing the query
+        Args:
+            - engine url (str, optional): engine url of the engine to use
+            - database (str): name of the database to use
+            - username (str): username used to authenticate
+            - password (str): password used to authenticate.
+            - api_endpoint (str): default API endpoint of firebolt
+
+        Returns:
+            - Connection object containing necessary details
+        Raises:
+            - ValueError: if a required parameter is not supplied
+            - DatabaseError: if exception occurs when executing the query
         """
-        if not user_email:
-            raise ValueError("User email must be provided")
+        if not engine_url:
+            raise ValueError("An engine url must be provided")
+        if not database:
+            raise ValueError("A database name must be provided")
+        if not username:
+            raise ValueError("User name must be provided")
         if not password:
             raise ValueError("A password must be provided")
-        if not db_name:
-            raise ValueError("A database name must be provided")
 
-        # connect to database, open cursor
-        conn = Connection(self.engine_name, self.port, self.user_email, self.password, self.db_name)
-        # print(conn.access_token)
-        # print(conn.engine_url)
+        # connect to database, return a connection object
+        conn = Connection(self.engine_url, self.database, self.username, self.password, self.api_endpoint)
         return conn
 
 
@@ -88,13 +87,11 @@ class FireboltQuery(Task):
                  ):
 
         """
-            Task for establishing a connection with a Firebolt database.
-
-            Args:
-                - conn (Connection): Connection object to create cursor to execute the query
-                - query (str): query to execute against database
-                - **kwargs (dict, optional): additional keyword arguments to pass to the
-                            Task constructor
+        Class to execute a DDL/DML query against a Firebolt database
+        Args:
+            - conn (Connection): Connection object to create cursor to execute the query
+            - query (str): query to execute against database
+            - **kwargs (dict, optional): additional keyword arguments to pass to the  Task constructor
         """
 
         self.conn = conn
@@ -126,9 +123,9 @@ class FireboltQuery(Task):
 
         # try to execute query
         try:
-            executed = conn.cursor().execute(query)
-            print(executed)
-            return executed
+            cursor = conn.cursor()
+            executed = cursor.execute(query)
+            cursor.close()
 
         # pass through error, and ensure connection is closed
         except Exception as error:
@@ -145,13 +142,12 @@ class FireboltQueryGetData(Task):
                  ):
 
         """
-            Task for establishing a connection with a Firebolt database.
+        Class to execute a query against a Firebolt database to retrieve metadata.
 
-            Args:
-                - conn (Connection): Connection object to create cursor to execute the query
-                - query (str): query to execute against database
-                - **kwargs (dict, optional): additional keyword arguments to pass to the
-                            Task constructor
+        Args:
+            - conn (Connection): Connection object to create cursor to execute the query
+            - query (str): query to execute against database
+            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
         """
 
         self.conn = conn
@@ -171,6 +167,9 @@ class FireboltQueryGetData(Task):
             - conn (Connection): Connection object to create cursor to execute the query
             - query (str): query to execute against database
 
+        Returns:
+            - metadata returned from the Firebolt API for the fired query.
+
         Raises:
             - ValueError: if a required parameter is not supplied
             - DatabaseError: if exception occurs when executing the query
@@ -183,9 +182,12 @@ class FireboltQueryGetData(Task):
 
         # try to execute query
         try:
-            executed = conn.cursor().execute(query).fetchall()
-            print(executed)
-            return executed
+            cursor = conn.cursor()
+            executed_count = cursor.execute(query)
+            executed_data = cursor.fetchall()
+            print("Row count: ", executed_count)
+            print("Metadata: ", executed_data)
+            cursor.close()
 
         # pass through error, and ensure connection is closed
         except Exception as error:
