@@ -30,7 +30,7 @@ dbt_cloud_artifact_paths = ("manifest.json", "run_results.json", "catalog.json")
 
 
 class DbtCloudBaseException(Exception):
-    """Base excpetion for all dbt Cloud Excpetions"""
+    """Base exception for all dbt Cloud errors"""
 
     pass
 
