@@ -83,7 +83,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, defineEmits, getCurrentInstance, readonly } from 'vue'
+import { ref, computed, getCurrentInstance, readonly } from 'vue'
 import { useStore } from 'vuex'
 
 import FilterAccordion from './FilterAccordion.vue'

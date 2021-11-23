@@ -77,15 +77,7 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  computed,
-  defineEmits,
-  onMounted,
-  onBeforeUnmount,
-  Ref,
-  ref,
-  watch
-} from 'vue'
+import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { RadarNode } from '@/typings/radar'
 import { State, TaskRun } from '@/typings/objects'
