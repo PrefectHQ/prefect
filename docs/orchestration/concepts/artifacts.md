@@ -81,16 +81,43 @@ def send_artifact():
     create_markdown_artifact("# Heading\nText with [link]("https://www.prefect.io/").")
 ```
 
+After the task runs, navigate to the UI’s Artifacts tab to see the output.
+
 `create_markdown_artifact()` accepts any valid Python string and variable interpolation including, for example, f-strings.
 
-```python
-@task
-def send_artifact(heading, link_text, link):
-    create_markdown_artifact(f"# {heading}\nLink to [{link_text}]({link}).")
-```
+In addition to creating an artifact, `create_markdown_artifact()` returns the ID of the artifact it created. You can use the ID to:
 
-After the task runs, navigate to the UI’s Artifacts tab to see the output.
+- Update the artifact using `update_markdown_artifact()`.
+- Delete the artifact using `delete_artifact()`.
+
+Note that `update_markdown_artifact()` updates an existing markdown artifact by replacing the entire current markdown artifact with the new data provided.
+
+```python
+from prefect import task, Flow
+from prefect.backend.artifacts import create_markdown_artifact, update_markdown_artifact
+
+@task(nout=2)
+def make_report():
+    report = "# My Report\n\nHello!"
+    artifact_id = create_markdown_artifact(report)
+    # Return both the ID of the new artifact and the original content
+    return artifact_id, report
+
+@task
+def add_to_report(artifact_id, current_report):
+    # Append new sections to the existing report
+    current_report += "\n\n## Subsection\n\ngoodbye!"
+    # Update artifact by ID with replaced text
+    update_markdown_artifact(artifact_id, current_report)
+
+
+with Flow(name="appending-artifact") as flow:
+    artifact_id, report = make_report()
+    add_to_report(artifact_id, report)
+```
 
 ::: tip Markdown strings and line endings
 Explicit line endings are important to the renderer correctly parsing markdown. When formatting markdown for artifacts, make sure that you include explicit line endings (`\n` or equivalent) where appropriate.
 :::
+
+## Deleting Artifacts
