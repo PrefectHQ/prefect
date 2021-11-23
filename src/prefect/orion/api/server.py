@@ -23,11 +23,12 @@ API_TITLE = "Prefect Orion API"
 UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
 
+
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 404:
-            response = await super().get_response('./index.html', scope)
+            response = await super().get_response("./index.html", scope)
         return response
 
 
@@ -47,13 +48,6 @@ def create_app(database_config=None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
-    ui_app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
 
     # api routers
     api_app.include_router(api.admin.router)
@@ -65,7 +59,7 @@ def create_app(database_config=None) -> FastAPI:
     api_app.include_router(api.task_run_states.router)
     api_app.include_router(api.deployments.router)
     api_app.include_router(api.saved_searches.router)
-    
+
     api_app.mount(
         "/static",
         StaticFiles(
@@ -75,12 +69,16 @@ def create_app(database_config=None) -> FastAPI:
         ),
         name="static",
     )
-    
-    app.mount('/api', app=api_app)
+
+    app.mount("/api", app=api_app)
 
     if os.path.exists(prefect.__ui_static_path__):
-        ui_app.mount("/", SPAStaticFiles(directory=prefect.__ui_static_path__, html = True), name="ui_root")
-        app.mount('/', app=ui_app, name="ui")
+        ui_app.mount(
+            "/",
+            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            name="ui_root",
+        )
+        app.mount("/", app=ui_app, name="ui")
     else:
         pass
 
