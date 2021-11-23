@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, defineProps, watch } from 'vue'
+import { defineEmits, ref, watch } from 'vue'
 
 const emit = defineEmits(['close', 'update:modelValue'])
 
