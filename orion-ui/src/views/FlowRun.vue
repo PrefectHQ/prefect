@@ -22,7 +22,7 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun } from '@/typings/objects'
-import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
+import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, getCurrentInstance } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -80,10 +80,14 @@ const crumbs = computed(() => {
   return arr
 })
 
+const instance = getCurrentInstance()
+
 const copyRunId = () => {
-  flowId
-    ? navigator.clipboard.writeText(flowId)
-    : navigator.clipboard.writeText('--')
+  navigator.clipboard.writeText(id)
+  instance?.appContext.config.globalProperties.$toast.add({
+    type: 'success',
+    content: 'Run ID was copied to clipboard'
+  })
 }
 
 // This cleanup is necessary since the initial flow run query isn't
