@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, reactive, ref, watch } from 'vue'
+import { defineEmits, reactive, ref, watch } from 'vue'
 import Tag from './Tag.vue'
 
 const props = defineProps<{ modelValue: string[] }>()

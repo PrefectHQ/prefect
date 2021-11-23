@@ -23,14 +23,7 @@
 </template>
 
 <script lang="ts" setup="context">
-import {
-  defineProps,
-  onMounted,
-  ref,
-  defineEmits,
-  computed,
-  onBeforeUnmount
-} from 'vue'
+import { onMounted, ref, defineEmits, computed, onBeforeUnmount } from 'vue'
 import { FilterObject } from './util'
 import Tag from './Tag.vue'
 

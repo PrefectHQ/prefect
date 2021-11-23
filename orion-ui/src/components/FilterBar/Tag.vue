@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, defineProps } from 'vue'
+import { defineEmits } from 'vue'
 
 const props = defineProps<{ clearable?: boolean }>()
 const emit = defineEmits(['remove'])
