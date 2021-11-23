@@ -5,7 +5,6 @@ the firebolt-sdk library.
 
 try:
     from prefect.tasks.firebolt.firebolt import (
-        FireboltConnection,
         FireboltQuery,
         FireboltQueryGetData
     )
