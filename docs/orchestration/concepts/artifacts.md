@@ -54,11 +54,18 @@ from prefect import task, Flow
 from prefect.backend.artifacts import create_link_artifact
 
 @task
-def send_artifact():
+def make_artifact():
     create_link_artifact("https://www.prefect.io/")
 ```
 
 After the task runs, navigate to the UI’s Artifacts tab to see the output.
+
+In addition to creating an artifact, `create_link_artifact()` returns the ID of the artifact it created. You can use the ID to:
+
+- Update the artifact using `update_link_artifact()`.
+- Delete the artifact using `delete_artifact()`.
+
+Note that `update_link_artifact()` updates an existing link artifact by replacing the entire current artifact string with the new data provided. See [Creating Markdown Artifacts](#creating-markdown-artifacts) and [Deleting Artifacts](#deleting-artifacts) for examples of these update and delete operations.
 
 ## Creating Markdown Artifacts
 
@@ -77,7 +84,7 @@ from prefect import task, Flow
 from prefect.backend.artifacts import create_markdown_artifact
 
 @task
-def send_artifact():
+def make_artifact():
     create_markdown_artifact("# Heading\nText with [link]("https://www.prefect.io/").")
 ```
 
@@ -110,7 +117,6 @@ def add_to_report(artifact_id, current_report):
     # Update artifact by ID with replaced text
     update_markdown_artifact(artifact_id, current_report)
 
-
 with Flow(name="appending-artifact") as flow:
     artifact_id, report = make_report()
     add_to_report(artifact_id, report)
@@ -121,3 +127,26 @@ Explicit line endings are important to the renderer correctly parsing markdown. 
 :::
 
 ## Deleting Artifacts
+
+To delete existing link or markdown artifacts, import `delete_artifact` from `prefect.backend.artifacts`, then add a call to `delete_artifact()` to any task orchestrated through a Prefect API, passing the ID of the artifact to delete.
+
+```python
+from prefect import task, Flow
+from prefect.backend.artifacts import create_markdown_artifact, delete_artifact
+
+@task
+def make_artifact(artifact_msg):
+    artifact_id = create_markdown_artifact(artifact_msg)
+    return artifact_id
+
+@task
+def remove_artifact(artifact_id):
+    delete_artifact(artifact_id)
+
+with Flow(name="deleting-artifact") as flow:
+    msg = "Space is big. Really big."
+    artifact_id = make_artifact(msg)
+    remove_artifact(artifact_id)
+```
+
+Artifacts cannot be retrieved once deleted.
