@@ -8,7 +8,7 @@
           <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
         </span>
 
-        <a v-breakpoints="'md'" class="copy-link ml-1">
+        <a v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
           <i class="pi pi-link pi-xs" />
           Copy Run ID
         </a>
@@ -79,6 +79,12 @@ const crumbs = computed(() => {
 
   return arr
 })
+
+const copyRunId = () => {
+  flowId
+    ? navigator.clipboard.writeText(flowId)
+    : navigator.clipboard.writeText('--')
+}
 
 // This cleanup is necessary since the initial flow run query isn't
 // wrapped in the queries object
