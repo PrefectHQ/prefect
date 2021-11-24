@@ -25,6 +25,10 @@ API_VERSION = prefect.__version__
 
 
 class SPAStaticFiles(StaticFiles):
+    # This class overrides the get_response method
+    # to ensure that when a resource isn't found the application still
+    # returns the index.html file. This is required for SPAs
+    # since in-app routing is handled by a single html file.
     async def get_response(self, path: str, scope):
         response = await super().get_response(path, scope)
         if response.status_code == 404:
