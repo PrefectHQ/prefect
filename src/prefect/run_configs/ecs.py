@@ -28,7 +28,8 @@ class ECSRun(RunConfig):
     `containerDefinitions` (of the `task_definition`), it will first be
     ovewritten with the Prefect config and then by `env` (if defined). Therefore,
     do not set any Prefect specific environment variables within `task_definition`,
-    `task_definition_path` or `task_definition_arn`.
+    `task_definition_path` or `task_definition_arn`. Instead, use the top-level
+    `ECSRun.env` setting.
 
     Args:
         - task_definition (dict, optional): An in-memory task definition spec
