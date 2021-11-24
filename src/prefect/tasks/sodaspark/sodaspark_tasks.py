@@ -7,10 +7,14 @@ from prefect.utilities.tasks import defaults_from_attrs
 class SodaSparkScan(Task):
     """
     Task for running a SodaSpark scan given a scan definition and a Spark Dataframe.
+    For information about SodaSpark please refer to https://docs.soda.io/soda-spark/install-and-use.html.
+    SodaSpark uses PySpark under the hood, hence you need Java to be installed on
+    the machine where you run this task.
 
     Args:
         - scan_def (str, optional): scan definition.
-          Can be either a path to a YAML file containing the scan definition
+          Can be either a path to a YAML file containing the scan definition.
+          Please refer to https://docs.soda.io/soda-sql/scan-yaml.html for more information.
           or the scan definition given as a valid YAML string
         - df (pyspark.sql.DataFrame, optional): Spark DataFrame.
           DataFrame where to run tests defined in the scan definition.
@@ -30,13 +34,14 @@ class SodaSparkScan(Task):
 
         Args:
             - scan_def (str, optional): scan definition.
-              Can be either a path to a YAML file containing the scan definition
+              Can be either a path to a YAML file containing the scan definition.
+              Please refer to https://docs.soda.io/soda-sql/scan-yaml.html for more information.
               or the scan definition given as a valid YAML string
             - df (pyspark.sql.DataFrame, optional): Spark DataFrame.
               DataFrame where to run tests defined in the scan definition.
 
         Returns:
-            - A SodaSpark
+            - A SodaSpark ScanResult
         Raises:
             - ValueError if scan_def is None or not a valid path to a YAML file
             - ValueError if df is None

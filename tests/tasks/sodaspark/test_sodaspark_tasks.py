@@ -50,7 +50,8 @@ class TestSodaSparkScan:
         sb_mock.side_effect = AttributeError
         monkeypatch.setattr("prefect.tasks.sodaspark.sodaspark_tasks.scan", sb_mock)
         soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
-        soda_spark_scan_task.run()
+        with pytest.raises(AttributeError):
+            soda_spark_scan_task.run()
 
     def test_run_invalid_df(self, monkeypatch):
         scan_def = """
@@ -67,7 +68,8 @@ class TestSodaSparkScan:
         sb_mock.side_effect = AttributeError
         monkeypatch.setattr("prefect.tasks.sodaspark.sodaspark_tasks.scan", sb_mock)
         soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
-        soda_spark_scan_task.run()
+        with pytest.raises(AttributeError):
+            soda_spark_scan_task.run()
 
     # @pytest.mark.skip(reason="Requires PySpark and Java to be installed")
     def test_run_valid_scan_and_df_with_measurements(self):
