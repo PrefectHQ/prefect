@@ -46,9 +46,6 @@ class TestSodaSparkScan:
         df = SparkSession.builder.getOrCreate().createDataFrame(
             [{"id": 123, "value": "foo"}, {"id": 456, "value": "bar"}]
         )
-        sb_mock = MagicMock()
-        sb_mock.side_effect = AttributeError
-        monkeypatch.setattr("prefect.tasks.sodaspark.sodaspark_tasks.scan", sb_mock)
         soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
         with pytest.raises(AttributeError):
             soda_spark_scan_task.run()
@@ -64,9 +61,6 @@ class TestSodaSparkScan:
         - row_count > 0
         """
         df = "not a valid df"
-        sb_mock = MagicMock()
-        sb_mock.side_effect = AttributeError
-        monkeypatch.setattr("prefect.tasks.sodaspark.sodaspark_tasks.scan", sb_mock)
         soda_spark_scan_task = SodaSparkScan(scan_def=scan_def, df=df)
         with pytest.raises(AttributeError):
             soda_spark_scan_task.run()
