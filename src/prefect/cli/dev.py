@@ -52,7 +52,7 @@ def build_ui():
 
             console.print("Building for distribution...")
             env = os.environ.copy()
-            env["ORION_UI_SERVE_BASE"] = "/ui/"
+            env["ORION_UI_SERVE_BASE"] = "/"
             subprocess.check_output(["npm", "run", "build"], env=env)
 
         if os.path.exists(prefect.__ui_static_path__):
