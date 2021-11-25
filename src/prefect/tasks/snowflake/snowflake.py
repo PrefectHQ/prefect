@@ -149,7 +149,7 @@ class SnowflakeQuery(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
-            "authenticator": authenticator
+            "authenticator": authenticator,
         }
 
         # filter out unset values
