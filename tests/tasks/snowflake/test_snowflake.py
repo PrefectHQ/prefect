@@ -27,6 +27,7 @@ class TestSnowflakeQuery:
             account="test", user="test", password="test", warehouse="test"
         )
         assert task.autocommit is None
+        assert task.authenticator is None
 
     def test_runtime(self, monkeypatch):
         cursor = MagicMock(spec=sf.DictCursor)
