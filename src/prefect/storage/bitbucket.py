@@ -18,7 +18,7 @@ BITBUCKET_CLOUD_RETRY = Retry(
     total=10,
     backoff_factor=0.5,
     status_forcelist=[429],
-    # ignoring new allowed_methods param until mypy update
+    # typeshed is out of date with urllib3 and missing `allowed_methods`
     allowed_methods=["HEAD", "GET", "OPTIONS"],  # type: ignore
 )
 
