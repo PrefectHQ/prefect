@@ -14,7 +14,7 @@ def is_state(obj: Any) -> bool:
 
 
 def is_state_iterable(obj: Any):
-    if isinstance(obj, IterableABC) and obj:
+    if isinstance(obj, IterableABC) and len(obj) > 0:
         return all([is_state(o) for o in obj])
     else:
         return False
