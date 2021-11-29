@@ -27,7 +27,7 @@ const props = defineProps<{
 }>()
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .wrapper {
   transition: top 150ms, left 150ms, transform 150ms, box-shadow 50ms;
   transform: translate(-50%, -50%);
