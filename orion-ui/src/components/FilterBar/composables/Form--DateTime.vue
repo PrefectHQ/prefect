@@ -221,6 +221,10 @@ watch(
 </script>
 
 <style lang="scss" scoped>
+.container {
+  width: 100%;
+}
+
 .selector {
   height: 40px !important;
   width: auto !important;
