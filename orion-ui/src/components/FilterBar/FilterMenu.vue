@@ -84,10 +84,29 @@
           <i class="pi pi-filter-3-line mr-1 pi-sm" />Tags
         </div>
         <div class="d-flex pa-1">
-          <Form-Tags title="Flows" icon="pi-flow" class="mr-1" />
-          <Form-Tags title="Deployments" icon="pi-map-pin-line" class="mr-1" />
-          <Form-Tags title="Flow runs" icon="pi-flow-run" class="mr-1" />
-          <Form-Tags title="Task runs" icon="pi-task" />
+          <Form-Tags
+            v-model="filters.flows.tags"
+            title="Flows"
+            icon="pi-flow"
+            class="mr-1"
+          />
+          <Form-Tags
+            v-model="filters.deployments.tags"
+            title="Deployments"
+            icon="pi-map-pin-line"
+            class="mr-1"
+          />
+          <Form-Tags
+            v-model="filters.flow_runs.tags"
+            title="Flow runs"
+            icon="pi-flow-run"
+            class="mr-1"
+          />
+          <Form-Tags
+            v-model="filters.task_runs.tags"
+            title="Task runs"
+            icon="pi-task"
+          />
         </div>
       </Card>
 
