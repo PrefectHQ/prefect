@@ -60,10 +60,12 @@ const toggleState = (state: { name: string; type: string }) => {
 }
 
 const toggleAll = () => {
+  // There might be a better way to do this while maintaining reactivity
   if (states.value.length == availableStates.length) {
-    states.value = []
+    states.value.length = 0
   } else {
-    states.value = [...availableStates]
+    states.value.length = 0
+    availableStates.forEach((s) => toggleState(s))
   }
 }
 
