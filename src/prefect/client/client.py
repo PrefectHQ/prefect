@@ -723,6 +723,9 @@ class Client:
 
             tenant_id = tenant.data.tenant[0].id
 
+        if not tenant_id:
+            raise ValueError("A `tenant_id` or `tenant_slug` must be provided.")
+
         self.tenant_id = tenant_id
         self._get_auth_tenant()
 
