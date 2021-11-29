@@ -1,6 +1,9 @@
 <template>
   <div class="container">
-    <div class="font-weight-semibold">Timeframe</div>
+    <div class="font-weight-semibold">
+      <i class="pi" :class="icon" />
+      {{ title }}
+    </div>
 
     <div class="my-2">
       <Radio
@@ -129,15 +132,37 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, defineProps, watch, computed } from 'vue'
+import {
+  defineEmits,
+  ref,
+  defineProps,
+  watch,
+  computed,
+  withDefaults
+} from 'vue'
 
-const props = defineProps<{
-  modelValue: {
-    dynamic: boolean
-    from: { timestamp: Date; unit: string; value: number }
-    to: { timestamp: Date; unit: string; value: number }
+const props = withDefaults(
+  defineProps<{
+    modelValue?: {
+      dynamic: boolean
+      from: { timestamp: Date; unit: string; value: number }
+      to: { timestamp: Date; unit: string; value: number }
+    }
+    title?: string
+    icon?: string
+  }>(),
+  {
+    modelValue: () => {
+      return {
+        dynamic: false,
+        from: { timestamp: new Date(), unit: 'minutes', value: 60 },
+        to: { timestamp: new Date(), unit: 'minutes', value: 60 }
+      }
+    },
+    title: 'Timeframe',
+    icon: 'pi-time-line'
   }
-}>()
+)
 
 const emit = defineEmits(['update:modelValue'])
 

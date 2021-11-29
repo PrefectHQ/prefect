@@ -1,7 +1,9 @@
 <template>
   <div>
-    <div class="font-weight-semibold">Run States</div>
-
+    <div class="font-weight-semibold">
+      <i class="pi" :class="icon" />
+      {{ title }}
+    </div>
     <a
       class="font--secondary text--primary text-decoration-none my-1 d-block"
       @click="toggleAll"
@@ -22,11 +24,19 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, defineProps, watch } from 'vue'
+import { defineEmits, ref, defineProps, watch, withDefaults } from 'vue'
 
 const emit = defineEmits(['close', 'update:modelValue'])
 
-const props = defineProps<{ modelValue: { name: string; type: string }[] }>()
+const props = withDefaults(
+  defineProps<{
+    modelValue?: { name: string; type: string }[]
+    title?: string
+    icon?: string
+  }>(),
+  { modelValue: () => [], title: 'States', icon: 'pi-history-fill' }
+)
+
 const states = ref([...props.modelValue])
 
 const availableStates = [

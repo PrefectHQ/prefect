@@ -14,7 +14,9 @@
           Clear all
         </a>
 
-        <h3 class="d-flex align-center font--primary font-weight-semibold ml-auto">
+        <h3
+          class="d-flex align-center font--primary font-weight-semibold ml-auto"
+        >
           <i class="pi pi-filter-3-line mr-1" />
           Filters
         </h3>
@@ -31,7 +33,25 @@
       </div>
     </template>
 
-    <div class="menu-content pa-2">
+    <div v-if="smAndDown" class="menu-content pa-2">
+      <FilterAccordion title="Tags" icon="pi-filter-3-line">
+        <div class="accordion-body"> Tags form </div>
+      </FilterAccordion>
+
+      <FilterAccordion title="States" icon="pi-filter-3-line">
+        <div class="accordion-body"> States form </div>
+      </FilterAccordion>
+
+      <FilterAccordion title="Timeframe" icon="pi-filter-3-line">
+        <div class="accordion-body"> Timeframe form </div>
+      </FilterAccordion>
+
+      <!-- <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
+        <div class="accordion-body">
+          <TagsForm v-model="filters.flows.tags" class="px-2 py-1" />
+        </div>
+      </FilterAccordion>
+
       <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
         <div class="accordion-body">
           <TagsForm v-model="filters.flows.tags" class="px-2 py-1" />
@@ -55,7 +75,24 @@
           <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" />
           <TagsForm v-model="filters.task_runs.tags" class="px-2 py-1" />
         </div>
-      </FilterAccordion>
+      </FilterAccordion> -->
+    </div>
+
+    <div v-else class="menu-content pa-2">
+      <Card class="shadow-sm">
+        <Form-Tags title="Flows" icon="pi-flow" />
+        <Form-Tags title="Deployments" icon="pi-deployment" />
+        <Form-Tags title="Flow runs" icon="pi-flow-run" />
+        <Form-Tags title="Task runs" icon="pi-task-run" />
+      </Card>
+
+      <Card class="shadow-sm">
+        <div> Test </div>
+      </Card>
+
+      <Card class="shadow-sm">
+        <div> Test </div>
+      </Card>
     </div>
 
     <template v-slot:actions>
@@ -87,9 +124,10 @@ import { ref, computed, defineEmits, getCurrentInstance, readonly } from 'vue'
 import { useStore } from 'vuex'
 
 import FilterAccordion from './FilterAccordion.vue'
-import TagsForm from './Form--Tags.vue'
-import StatesForm from './Form--States.vue'
-import TimeForm from './Form--DateTime.vue'
+import TagsForm from './Forms/Form--Tags.vue'
+import StatesForm from './Forms/Form--States.vue'
+import TimeForm from './Forms/Form--DateTime.vue'
+import FormTags from './composables/Form--Tags.vue'
 
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
