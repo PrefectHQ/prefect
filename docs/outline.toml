@@ -751,3 +751,8 @@ classes = ["SendEmail"]
 title = "Census Tasks"
 module = "prefect.tasks.census"
 classes = ["CensusSyncTask"]
+
+[pages.tasks.airbyte]
+title = "Airbyte Tasks"
+module = "prefect.tasks.airbyte"
+classes = ["AirbyteConnectionTask"]
