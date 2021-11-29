@@ -42,8 +42,8 @@
   align-items: stretch;
 
   > *:not(:first-child) {
-    border-left: 1px solid $secondary-hover;
-    border-top: 0;
+    // border-left: 1px solid $secondary-hover;
+    // border-top: 0;
   }
 
   > * {
@@ -56,8 +56,8 @@
 
     > * {
       max-width: 100%;
-      border-left: 0;
-      border-top: 1px solid $secondary-hover;
+      // border-left: 0;
+      // border-top: 1px solid $secondary-hover;
     }
   }
 }
