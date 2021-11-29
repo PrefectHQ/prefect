@@ -198,6 +198,10 @@ The following examples illustrate each of these cases:
         return "foo"
     ```
 
+!!! note
+
+    When returning multiple states, they must be contained in a `set`, `list`, or `tuple`. If other collection types are used, the result of the contained states will not be checked.
+
 ## Subflows
 
 A _subflow_ run is created when a flow function is called inside the execution of another flow. The primary flow is the "parent" flow. The flow created within the parent is the "child" flow or "subflow."
