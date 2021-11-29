@@ -117,6 +117,11 @@ class FlowRun(ORMBaseModel):
         False, description="Whether or not the flow run was automatically scheduled."
     )
 
+    flow_runner: FlowRunner = Field(
+        None,
+        description="The flow runner to use to create infrastructure to execute this flow run",
+    )
+
     # relationships
     # flow: Flow = None
     # task_runs: List["TaskRun"] = Field(default_factory=list)
@@ -287,6 +292,11 @@ class Deployment(ORMBaseModel):
         default_factory=list,
         description="A list of tags for the deployment",
         example=["tag-1", "tag-2"],
+    )
+
+    default_flow_runner: FlowRunner = Field(
+        None,
+        description="The default flow runner to assign to flow runs associated with this deployment.",
     )
 
     # flow: Flow = None
