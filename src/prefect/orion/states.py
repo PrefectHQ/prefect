@@ -23,13 +23,14 @@ def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
     Supported iterables are:
     - set
     - list
+    - tuple
 
     Other iterables will return `False` even if they contain states.
     """
     # We do not check for arbitary iterables because this is not intended to be used
     # for things like dictionaries, dataframes, or pydantic models
 
-    if isinstance(obj, (list, set)) and obj:
+    if isinstance(obj, (list, set, tuple)) and obj:
         return all([is_state(o) for o in obj])
     else:
         return False
