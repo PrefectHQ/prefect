@@ -8,10 +8,10 @@
           <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
         </span>
 
-        <a v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
+        <button v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
           <i class="pi pi-link pi-xs" />
           Copy Run ID
-        </a>
+        </button>
       </div>
     </div>
 
