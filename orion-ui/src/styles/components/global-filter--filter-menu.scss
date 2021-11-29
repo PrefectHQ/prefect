@@ -36,6 +36,14 @@
   }
 }
 
+.flex-card {
+  height: unset !important;
+
+  > ::v-deep(div) {
+    height: 100% !important;
+  }
+}
+
 .filter-button {
   align-items: center;
   background-color: $white;

@@ -129,12 +129,9 @@
         </div>
       </Card>
 
-      <div
-        class="d-flex align-stretch justify-start"
-        :class="{ 'flex-column': mdAndDown }"
-      >
+      <div class="d-flex align-stretch" :class="{ 'flex-column': mdAndDown }">
         <Card
-          class="shadow-sm"
+          class="shadow-sm flex-card"
           width="100%"
           :class="mdAndDown ? 'mb-1' : 'mr-1'"
         >
@@ -165,7 +162,11 @@
           </div>
         </Card>
 
-        <Card class="shadow-sm" width="100%" :class="mdAndDown ? 'mb-1' : ''">
+        <Card
+          class="shadow-sm flex-card"
+          width="100%"
+          :class="mdAndDown ? 'mb-1' : ''"
+        >
           <div
             class="
               py-1
