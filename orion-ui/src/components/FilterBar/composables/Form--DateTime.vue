@@ -1,7 +1,7 @@
 <template>
   <div class="container">
-    <div class="font-weight-semibold">
-      <i class="pi" :class="icon" />
+    <div class="font-weight-semibold d-flex align-center">
+      <i class="pi text--grey-40 mr-1 pi-sm" :class="icon" />
       {{ title }}
     </div>
 
@@ -223,6 +223,7 @@ watch(
 <style lang="scss" scoped>
 .container {
   min-height: 400px !important;
+  width: 100%;
 
   @media (max-width: 1024px) {
     min-height: 300px;

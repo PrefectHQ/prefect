@@ -1,7 +1,7 @@
 <template>
-  <div>
-    <div class="font-weight-semibold">
-      <i class="pi" :class="icon" />
+  <div class="container">
+    <div class="font-weight-semibold d-flex align-center">
+      <i class="pi text--grey-40 mr-1 pi-sm" :class="icon" />
       {{ title }}
     </div>
 
@@ -65,19 +65,7 @@ watch(tags, () => {
 </script>
 
 <style lang="scss" scoped>
-.tags-menu {
-  height: auto;
-
-  .menu-content {
-    min-height: 200px;
-    width: 300px;
-  }
-}
-
-hr {
-  border: 0;
-  border-bottom: 1px solid;
-  color: $grey-10 !important;
+.container {
   width: 100%;
 }
 </style>
