@@ -1,6 +1,9 @@
 <template>
   <div>
-    <h4 class="font-weight-semibold">Tags</h4>
+    <div class="font-weight-semibold">
+      <i class="pi" :class="icon" />
+      {{ title }}
+    </div>
 
     <Input
       v-model="input"
@@ -24,10 +27,20 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, reactive, ref, watch } from 'vue'
-import Tag from './Tag.vue'
+import {
+  defineProps,
+  defineEmits,
+  reactive,
+  ref,
+  watch,
+  withDefaults
+} from 'vue'
+import Tag from '../Tag.vue'
 
-const props = defineProps<{ modelValue: string[] }>()
+const props = withDefaults(
+  defineProps<{ modelValue?: string[]; title?: string; icon?: string }>(),
+  { modelValue: () => [], title: 'Tags', icon: 'pi-label' }
+)
 
 const emit = defineEmits(['update:modelValue'])
 
