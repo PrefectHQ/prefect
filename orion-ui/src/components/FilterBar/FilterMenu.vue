@@ -71,22 +71,7 @@
         <div class="accordion-body"> Timeframe form </div>
       </FilterAccordion>
 
-      <!-- <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
-        <div class="accordion-body">
-          <TagsForm v-model="filters.flows.tags" class="px-2 py-1" />
-        </div>
-      </FilterAccordion>
-
-      <FilterAccordion class="mb-1" title="Flows" icon="pi-filter-3-line">
-        <div class="accordion-body">
-          <TagsForm v-model="filters.flows.tags" class="px-2 py-1" />
-        </div>
-      </FilterAccordion>
-      <FilterAccordion class="mb-1" title="Deployments" icon="pi-filter-3-line">
-        <div class="accordion-body">
-          <TagsForm v-model="filters.deployments.tags" class="px-2 py-1" />
-        </div>
-      </FilterAccordion>
+      <!-- 
       <FilterAccordion class="mb-1" title="Flow Runs" icon="pi-filter-3-line">
         <div class="accordion-body">
           <StatesForm v-model="filters.flow_runs.states" class="px-2 py-1" />
@@ -104,7 +89,7 @@
     </div>
 
     <div v-else class="menu-content pa-2">
-      <Card class="shadow-sm">
+      <Card class="shadow-sm mb-1">
         <div class="pa-1 d-flex align-center font-weight-semibold text--black">
           <i class="pi pi-filter-3-line mr-1 pi-sm" />Tags
         </div>
@@ -135,13 +120,45 @@
         </div>
       </Card>
 
-      <Card class="shadow-sm">
-        <div> Test </div>
-      </Card>
+      <div
+        class="d-flex align-stretch justify-start"
+        :class="{ 'flex-column': mdAndDown }"
+      >
+        <Card
+          class="shadow-sm"
+          width="100%"
+          :class="mdAndDown ? 'mb-1' : 'mr-1'"
+        >
+          <div
+            class="pa-1 d-flex align-center font-weight-semibold text--black"
+          >
+            <i class="pi pi-filter-3-line mr-1 pi-sm" />States
+          </div>
 
-      <Card class="shadow-sm">
-        <div> Test </div>
-      </Card>
+          <div class="d-flex">
+            <Form-States
+              v-model="filters.flow_runs.states"
+              title="Flow runs"
+              icon="pi-flow-run"
+              class="px-2 py-1"
+            />
+            <Form-States
+              v-model="filters.task_runs.states"
+              title="Task runs"
+              icon="pi-task"
+              class="px-2 py-1"
+            />
+          </div>
+        </Card>
+
+        <Card class="shadow-sm" width="100%" :class="mdAndDown ? 'mb-1' : ''">
+          <div
+            class="pa-1 d-flex align-center font-weight-semibold text--black"
+          >
+            <i class="pi pi-filter-3-line mr-1 pi-sm" />Timeframes
+          </div>
+        </Card>
+      </div>
     </div>
 
     <template v-slot:actions>
@@ -173,10 +190,11 @@ import { ref, computed, defineEmits, getCurrentInstance, readonly } from 'vue'
 import { useStore } from 'vuex'
 
 import FilterAccordion from './FilterAccordion.vue'
-import TagsForm from './Forms/Form--Tags.vue'
-import StatesForm from './Forms/Form--States.vue'
-import TimeForm from './Forms/Form--DateTime.vue'
+// import TagsForm from './Forms/Form--Tags.vue'
+// import StatesForm from './Forms/Form--States.vue'
+// import TimeForm from './Forms/Form--DateTime.vue'
 import FormTags from './composables/Form--Tags.vue'
+import FormStates from './composables/Form--States.vue'
 
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
@@ -226,6 +244,11 @@ const filters = ref({ ...defaultFilters })
 const smAndDown = computed(() => {
   const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
   return !breakpoints.md
+})
+
+const mdAndDown = computed(() => {
+  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
+  return !breakpoints.lg
 })
 
 const apply = () => {
