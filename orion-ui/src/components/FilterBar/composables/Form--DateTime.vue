@@ -221,15 +221,6 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.container {
-  min-height: 400px !important;
-  width: 100%;
-
-  @media (max-width: 1024px) {
-    min-height: 300px;
-  }
-}
-
 .selector {
   height: 40px !important;
   width: auto !important;
