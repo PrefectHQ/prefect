@@ -35,7 +35,32 @@
 
     <div v-if="smAndDown" class="menu-content pa-2">
       <FilterAccordion title="Tags" icon="pi-filter-3-line">
-        <div class="accordion-body"> Tags form </div>
+        <div class="accordion-body">
+          <Form-Tags
+            v-model="filters.flows.tags"
+            title="Flows"
+            icon="pi-flow"
+            class="mb-2"
+          />
+          <Form-Tags
+            v-model="filters.deployments.tags"
+            title="Deployments"
+            icon="pi-map-pin-line"
+            class="mb-2"
+          />
+          <Form-Tags
+            v-model="filters.flow_runs.tags"
+            title="Flow runs"
+            icon="pi-flow-run"
+            class="mb-2"
+          />
+          <Form-Tags
+            v-model="filters.task_runs.tags"
+            title="Task runs"
+            icon="pi-task"
+            class="mb-2"
+          />
+        </div>
       </FilterAccordion>
 
       <FilterAccordion title="States" icon="pi-filter-3-line">
