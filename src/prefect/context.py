@@ -13,7 +13,7 @@ from pendulum.datetime import DateTime
 from pydantic import BaseModel, Field
 
 from prefect.client import OrionClient
-from prefect.executors import BaseTaskRunner
+from prefect.task_runners import BaseTaskRunner
 from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.tasks import Task
@@ -71,7 +71,7 @@ class FlowRunContext(RunContext):
         flow: The flow instance associated with the flow run
         flow_run_id: The unique id identifying the flow run
         client: The Orion client instance being used for API communication
-        executor: The executor instance being used for the flow run
+        task_runner: The task_runner instance being used for the flow run
         task_run_futures: A list of futures for task runs created within this flow run
         subflow_states: A list of states for flow runs created within this flow run
         sync_portal: A blocking portal for sync task/flow runs in an async flow
@@ -81,7 +81,7 @@ class FlowRunContext(RunContext):
     flow: Flow
     flow_run_id: UUID
     client: OrionClient
-    executor: BaseTaskRunner
+    task_runner: BaseTaskRunner
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
     # The synchronous portal is only created for async flows for creating engine calls
