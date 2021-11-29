@@ -1,5 +1,5 @@
-import re
 from time import sleep
+import uuid
 
 import requests
 from requests import RequestException
@@ -54,6 +54,7 @@ class AirbyteConnectionTask(Task):
     # Job statuses
     JOB_STATUS_SUCCEEDED = "succeeded"
     JOB_STATUS_FAILED = "failed"
+    JOB_STATUS_PENDING = "pending"
 
     def __init__(
         self,
@@ -230,9 +231,9 @@ class AirbyteConnectionTask(Task):
             be provided."
             )
 
-        uuid = re.compile("^[0-9A-Fa-f-]+$")
-        match = uuid.match(connection_id)
-        if not match:
+        try:
+            uuid.UUID(connection_id)
+        except (TypeError, ValueError):
             raise ValueError(
                 "Parameter `connection_id` *must* be a valid UUID \
                 i.e. 32 hex characters, including hyphens."
@@ -261,7 +262,9 @@ class AirbyteConnectionTask(Task):
                 session, airbyte_base_url, connection_id
             )
 
-            while True:
+            job_status = self.JOB_STATUS_PENDING
+
+            while job_status not in [self.JOB_STATUS_FAILED, self.JOB_STATUS_SUCCEEDED]:
                 job_status, job_created_at, job_updated_at = self._get_job_status(
                     session, airbyte_base_url, job_id
                 )
@@ -269,10 +272,8 @@ class AirbyteConnectionTask(Task):
                 # pending┃running┃incomplete┃failed┃succeeded┃cancelled
                 if job_status == self.JOB_STATUS_SUCCEEDED:
                     self.logger.info(f"Job {job_id} succeeded.")
-                    break
                 elif job_status == self.JOB_STATUS_FAILED:
                     self.logger.error(f"Job {job_id} failed.")
-                    break
                 else:
                     # wait for next poll interval
                     sleep(poll_interval_s)
@@ -286,10 +287,10 @@ class AirbyteConnectionTask(Task):
             }
         elif connection_status == self.CONNECTION_STATUS_INACTIVE:
             self.logger.error(
-                f"Please enable the Connection {connection_id} in Airbyte " f"Server."
+                f"Please enable the Connection {connection_id} in Airbyte Server."
             )
             raise FAIL(
-                f"Please enable the Connection {connection_id} in Airbyte " f"Server."
+                f"Please enable the Connection {connection_id} in Airbyte Server."
             )
         elif connection_status == self.CONNECTION_STATUS_DEPRECATED:
             self.logger.error(f"Connection {connection_id} is deprecated.")

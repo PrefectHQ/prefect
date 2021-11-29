@@ -55,10 +55,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status(self):
         """
-        Active Connection, No Schedule ...
-
-        Returns:
-
+        Active Connection, No Schedule
         """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
@@ -76,10 +73,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status_2(self):
         """
-        Inactive Connection, No Schedule ...
-
-        Returns:
-
+        Inactive Connection, No Schedule
         """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
@@ -97,10 +91,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status_3(self):
         """
-        Deprecated Connection, No Schedule ...
-
-        Returns:
-
+        Deprecated Connection, No Schedule
         """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
@@ -118,10 +109,7 @@ class TestAirbyte:
     @responses.activate
     def test_get_connection_status_4(self):
         """
-        Active Connection, Existing Schedule ...
-
-        Returns:
-
+        Active Connection, Existing Schedule
         """
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
