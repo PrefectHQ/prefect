@@ -179,11 +179,11 @@
             <i class="pi pi-filter-3-line mr-1 pi-sm" />Timeframes
           </div>
 
-          <div class="d-flex py-1 px-2">
+          <div class="d-flex py-1 px-2 align-stretch">
             <Form-DateTime
               v-model="filters.flow_runs.timeframe"
               title="Flow runs"
-              class="mr-1 mb-1"
+              class="mr-4 mb-1"
             />
             <Form-DateTime
               v-model="filters.task_runs.timeframe"
