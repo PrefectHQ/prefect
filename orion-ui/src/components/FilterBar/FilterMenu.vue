@@ -64,7 +64,20 @@
       </FilterAccordion>
 
       <FilterAccordion title="States" icon="pi-filter-3-line">
-        <div class="accordion-body"> States form </div>
+        <div class="d-flex">
+          <Form-States
+            v-model="filters.flow_runs.states"
+            title="Flow runs"
+            icon="pi-flow-run"
+            class="px-2 py-1"
+          />
+          <Form-States
+            v-model="filters.task_runs.states"
+            title="Task runs"
+            icon="pi-task"
+            class="px-2 py-1"
+          />
+        </div>
       </FilterAccordion>
 
       <FilterAccordion title="Timeframe" icon="pi-filter-3-line">
