@@ -28,15 +28,15 @@ class Flow(ORMBaseModel):
     # deployments: List["Deployment"] = Field(default_factory=list)
 
 
-class FlowRunner(ORMBaseModel):
+class FlowRunnerSettings(ORMBaseModel):
     typename: str = Field(
         ...,
         description="The name of the flow runner type.",
         example="SubprocessFlowRunner",
     )
-    settings: dict = Field(
+    config: dict = Field(
         default_factory=dict,
-        description="The settings for the flow runner. These are type specific.",
+        description="The configuration for the flow runner. These may be type specific.",
         example={"env": {"foo": "bar"}, "conda_env": "my-flow-env"},
     )
 
@@ -117,7 +117,7 @@ class FlowRun(ORMBaseModel):
         False, description="Whether or not the flow run was automatically scheduled."
     )
 
-    flow_runner: FlowRunner = Field(
+    flow_runner: FlowRunnerSettings = Field(
         None,
         description="The flow runner to use to create infrastructure to execute this flow run",
     )
@@ -294,7 +294,7 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    flow_runner: FlowRunner = Field(
+    flow_runner: FlowRunnerSettings = Field(
         None,
         description="The default flow runner to assign to flow runs associated with this deployment.",
     )
