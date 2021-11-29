@@ -12,7 +12,7 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.executors import SequentialTaskRunner
+from prefect.task_runners import SequentialTaskRunner
 
 
 class ExampleContext(ContextModel):
@@ -47,16 +47,16 @@ def test_flow_run_context():
 
     test_id = uuid4()
     test_client = OrionClient()
-    test_executor = SequentialTaskRunner()
+    test_task_runner = SequentialTaskRunner()
 
     with FlowRunContext(
-        flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
+        flow=foo, flow_run_id=test_id, client=test_client, task_runner=test_task_runner
     ):
         ctx = FlowRunContext.get()
         assert ctx.flow is foo
         assert ctx.flow_run_id == test_id
         assert ctx.client is test_client
-        assert ctx.executor is test_executor
+        assert ctx.task_runner is test_task_runner
         assert isinstance(ctx.start_time, DateTime)
 
 
@@ -88,13 +88,13 @@ def test_get_run_context():
 
     test_id = uuid4()
     test_client = OrionClient()
-    test_executor = SequentialTaskRunner()
+    test_task_runner = SequentialTaskRunner()
 
     with pytest.raises(RuntimeError):
         get_run_context()
 
     with FlowRunContext(
-        flow=foo, flow_run_id=test_id, client=test_client, executor=test_executor
+        flow=foo, flow_run_id=test_id, client=test_client, task_runner=test_task_runner
     ) as flow_ctx:
         assert get_run_context() is flow_ctx
 

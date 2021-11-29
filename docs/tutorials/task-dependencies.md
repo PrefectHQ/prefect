@@ -154,7 +154,7 @@ import random
 import time
 
 from prefect import task, flow
-from prefect.executors import DaskTaskRunner
+from prefect.task_runners import DaskTaskRunner
 
 @task
 def sleep(secs):
@@ -166,7 +166,7 @@ def sleep(secs):
 def fail():
     raise TypeError("Something was misconfigured")
 
-@flow(executor=DaskTaskRunner())
+@flow(task_runner=DaskTaskRunner())
 def complex_flow_logic():
     long_sleep = sleep(10)
 
