@@ -275,7 +275,7 @@ async def create_flow_run_from_deployment(
         deployment_id=deployment.id,
         parameters=parameters,
         tags=set(deployment.tags).union(flow_run.tags),
-        flow_runner=flow_run.flow_runner or deployment.default_flow_runner,
+        flow_runner=flow_run.flow_runner or deployment.flow_runner,
     )
 
     if not flow_run.state:

@@ -184,7 +184,7 @@ async def deployment(session, flow, flow_function):
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1)
             ),
-            default_flow_runner=schemas.core.FlowRunner(
+            flow_runner=schemas.core.FlowRunner(
                 typename="SubprocessFlowRunner",
                 settings={"env": {"TEST_VARIABLE": "1"}},
             ),

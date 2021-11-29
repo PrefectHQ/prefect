@@ -294,7 +294,7 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
-    default_flow_runner: FlowRunner = Field(
+    flow_runner: FlowRunner = Field(
         None,
         description="The default flow runner to assign to flow runs associated with this deployment.",
     )
