@@ -116,6 +116,7 @@ class DeploymentFlowRunCreate(
             "context",
             "tags",
             "idempotency_key",
+            "flow_runner",
         ],
     )
 ):
