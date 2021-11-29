@@ -473,6 +473,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = ["RunGreatExpectationsValidation"]
+partnership_integration = true
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"
