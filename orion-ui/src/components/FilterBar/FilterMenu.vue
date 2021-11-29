@@ -35,7 +35,7 @@
 
     <div v-if="smAndDown" class="menu-content pa-2">
       <FilterAccordion class="mb-1" title="Tags" icon="pi-filter-3-line">
-        <div>
+        <div class="py-1 px-2">
           <Form-Tags
             v-model="filters.flows.tags"
             title="Flows"
@@ -64,49 +64,45 @@
       </FilterAccordion>
 
       <FilterAccordion class="mb-1" title="States" icon="pi-filter-3-line">
-        <div class="d-flex">
+        <div class="d-flex py-1 px-2">
           <Form-States
             v-model="filters.flow_runs.states"
             title="Flow runs"
             icon="pi-flow-run"
-            class="px-2 py-1"
           />
           <Form-States
             v-model="filters.task_runs.states"
             title="Task runs"
             icon="pi-task"
-            class="px-2 py-1"
           />
         </div>
       </FilterAccordion>
 
-      <FilterAccordion title="Timeframe" icon="pi-filter-3-line">
-        <div class="accordion-body"> Timeframe form </div>
-      </FilterAccordion>
-
-      <!-- 
-      <FilterAccordion class="mb-1" title="Flow Runs" icon="pi-filter-3-line">
-        <div class="accordion-body">
-          <StatesForm v-model="filters.flow_runs.states" class="px-2 py-1" />
-          <TimeForm v-model="filters.flow_runs.timeframe" class="px-2 py-1" />
-          <TagsForm v-model="filters.flow_runs.tags" class="px-2 py-1" />
+      <FilterAccordion title="Timeframes" icon="pi-filter-3-line">
+        <div class="d-flex py-1 px-2" :class="smAndDown ? 'flex-column' : ''">
+          <Form-DateTime
+            v-model="filters.flow_runs.timeframe"
+            class="mr-1"
+            title="Flow runs"
+            icon="pi-flow-run"
+          />
+          <Form-DateTime
+            v-model="filters.task_runs.timeframe"
+            title="Task runs"
+            icon="pi-task"
+          />
         </div>
       </FilterAccordion>
-      <FilterAccordion class="mb-1" title="Task Runs" icon="pi-filter-3-line">
-        <div class="accordion-body">
-          <StatesForm v-model="filters.task_runs.states" class="px-2 py-1" />
-          <TimeForm v-model="filters.task_runs.timeframe" class="px-2 py-1" />
-          <TagsForm v-model="filters.task_runs.tags" class="px-2 py-1" />
-        </div>
-      </FilterAccordion> -->
     </div>
 
     <div v-else class="menu-content pa-2">
       <Card class="shadow-sm mb-1">
-        <div class="pa-1 d-flex align-center font-weight-semibold text--black">
+        <div
+          class="py-1 px-2 d-flex align-center font-weight-semibold text--black"
+        >
           <i class="pi pi-filter-3-line mr-1 pi-sm" />Tags
         </div>
-        <div class="d-flex pa-1">
+        <div class="d-flex py-1 px-2">
           <Form-Tags
             v-model="filters.flows.tags"
             title="Flows"
@@ -143,32 +139,56 @@
           :class="mdAndDown ? 'mb-1' : 'mr-1'"
         >
           <div
-            class="pa-1 d-flex align-center font-weight-semibold text--black"
+            class="
+              py-1
+              px-2
+              d-flex
+              align-center
+              font-weight-semibold
+              text--black
+            "
           >
             <i class="pi pi-filter-3-line mr-1 pi-sm" />States
           </div>
 
-          <div class="d-flex">
+          <div class="d-flex py-1 px-2">
             <Form-States
               v-model="filters.flow_runs.states"
               title="Flow runs"
               icon="pi-flow-run"
-              class="px-2 py-1"
             />
             <Form-States
               v-model="filters.task_runs.states"
               title="Task runs"
               icon="pi-task"
-              class="px-2 py-1"
             />
           </div>
         </Card>
 
         <Card class="shadow-sm" width="100%" :class="mdAndDown ? 'mb-1' : ''">
           <div
-            class="pa-1 d-flex align-center font-weight-semibold text--black"
+            class="
+              py-1
+              px-2
+              d-flex
+              align-center
+              font-weight-semibold
+              text--black
+            "
           >
             <i class="pi pi-filter-3-line mr-1 pi-sm" />Timeframes
+          </div>
+
+          <div class="d-flex py-1 px-2">
+            <Form-DateTime
+              v-model="filters.flow_runs.timeframe"
+              title="Flow runs"
+              class="mr-1 mb-1"
+            />
+            <Form-DateTime
+              v-model="filters.task_runs.timeframe"
+              title="Task runs"
+            />
           </div>
         </Card>
       </div>
@@ -203,11 +223,10 @@ import { ref, computed, defineEmits, getCurrentInstance, readonly } from 'vue'
 import { useStore } from 'vuex'
 
 import FilterAccordion from './FilterAccordion.vue'
-// import TagsForm from './Forms/Form--Tags.vue'
-// import StatesForm from './Forms/Form--States.vue'
-// import TimeForm from './Forms/Form--DateTime.vue'
+
 import FormTags from './composables/Form--Tags.vue'
 import FormStates from './composables/Form--States.vue'
+import FormDateTime from './composables/Form--DateTime.vue'
 
 const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
