@@ -80,10 +80,15 @@
 
     <div v-else class="menu-content pa-2">
       <Card class="shadow-sm">
-        <Form-Tags title="Flows" icon="pi-flow" />
-        <Form-Tags title="Deployments" icon="pi-deployment" />
-        <Form-Tags title="Flow runs" icon="pi-flow-run" />
-        <Form-Tags title="Task runs" icon="pi-task-run" />
+        <div class="pa-1 d-flex align-center font-weight-semibold text--black">
+          <i class="pi pi-filter-3-line mr-1 pi-sm" />Tags
+        </div>
+        <div class="d-flex pa-1">
+          <Form-Tags title="Flows" icon="pi-flow" class="mr-1" />
+          <Form-Tags title="Deployments" icon="pi-map-pin-line" class="mr-1" />
+          <Form-Tags title="Flow runs" icon="pi-flow-run" class="mr-1" />
+          <Form-Tags title="Task runs" icon="pi-task" />
+        </div>
       </Card>
 
       <Card class="shadow-sm">

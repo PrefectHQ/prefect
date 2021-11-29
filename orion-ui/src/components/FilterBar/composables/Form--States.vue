@@ -1,9 +1,10 @@
 <template>
-  <div>
-    <div class="font-weight-semibold">
-      <i class="pi" :class="icon" />
+  <div class="container">
+    <div class="font-weight-semibold d-flex align-center">
+      <i class="pi text--grey-40 mr-1 pi-sm" :class="icon" />
       {{ title }}
     </div>
+
     <a
       class="font--secondary text--primary text-decoration-none my-1 d-block"
       @click="toggleAll"
@@ -72,6 +73,10 @@ watch(states.value, () => {
 </script>
 
 <style lang="scss" scoped>
+.container {
+  width: 100%;
+}
+
 .checkbox {
   align-items: center;
   display: flex;
