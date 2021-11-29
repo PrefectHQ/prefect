@@ -314,7 +314,7 @@ class ORMFlowRun(ORMRun):
         JSON, server_default="{}", default=dict, nullable=False
     )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
-    flow_runner = sa.Column(Pydantic(core.FlowRunner), nullable=True)
+    flow_runner = sa.Column(Pydantic(core.FlowRunnerSettings), nullable=True)
 
     @declared_attr
     def parent_task_run_id(cls):
@@ -530,7 +530,7 @@ class ORMDeployment:
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = sa.Column(Pydantic(data.DataDocument))
-    flow_runner = sa.Column(Pydantic(core.FlowRunner), nullable=True)
+    flow_runner = sa.Column(Pydantic(core.FlowRunnerSettings), nullable=True)
 
     @declared_attr
     def flow(cls):
