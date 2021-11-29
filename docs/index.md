@@ -58,7 +58,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
 
     ```python hl_lines="2 14"
     from prefect import flow, task
-    from prefect.executors import DaskExecutor
+    from prefect.executors import DaskTaskRunner
     from typing import List
     import httpx
 
@@ -70,7 +70,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
         print(f"{repo} has {count} stars!")
 
 
-    @flow(name="Github Stars", executor=DaskExecutor())
+    @flow(name="Github Stars", executor=DaskTaskRunner())
     def github_stars(repos: List[str]):
         for repo in repos:
             get_stars(repo)

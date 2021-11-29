@@ -11,7 +11,7 @@ import pytest
 
 from prefect import flow, task
 from prefect.context import get_run_context
-from prefect.executors import BaseExecutor, DaskExecutor, SequentialExecutor
+from prefect.task_runners import BaseTaskRunner, DaskTaskRunner, SequentialTaskRunner
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
@@ -19,19 +19,19 @@ from prefect.orion.schemas.states import State, StateType
 
 
 @contextmanager
-def dask_executor_with_existing_cluster():
+def dask_task_runner_with_existing_cluster():
     """
-    Generate a dask executor that's connected to a local cluster
+    Generate a dask task_runner that's connected to a local cluster
     """
     with distributed.LocalCluster(n_workers=2) as cluster:
         with distributed.Client(cluster) as client:
             address = client.scheduler.address
-            yield DaskExecutor(address=address)
+            yield DaskTaskRunner(address=address)
 
 
 @contextmanager
-def dask_executor_with_process_pool():
-    yield DaskExecutor(cluster_kwargs={"processes": True})
+def dask_task_runner_with_process_pool():
+    yield DaskTaskRunner(cluster_kwargs={"processes": True})
 
 
 @pytest.fixture
@@ -52,70 +52,70 @@ def distributed_client_init(monkeypatch):
 
 
 @pytest.fixture
-def executor(request):
+def task_runner(request):
     """
     An indirect fixture that expects to receive one of the following
-    - executor instance
-    - executor type
-    - callable generator that yields an executor instance
+    - task_runner instance
+    - task_runner type
+    - callable generator that yields an task_runner instance
 
-    Returns an executor instance that can be used in the test
+    Returns an task_runner instance that can be used in the test
     """
-    if isinstance(request.param, BaseExecutor):
+    if isinstance(request.param, BaseTaskRunner):
         yield request.param
 
-    elif isinstance(request.param, type) and issubclass(request.param, BaseExecutor):
+    elif isinstance(request.param, type) and issubclass(request.param, BaseTaskRunner):
         yield request.param()
 
     elif callable(request.param):
-        with request.param() as executor:
-            yield executor
+        with request.param() as task_runner:
+            yield task_runner
 
     else:
         raise TypeError(
-            "Received invalid executor parameter. Expected executor type, instance, "
+            "Received invalid task_runner parameter. Expected task_runner type, instance, "
             f"or callable generator. Received {type(request.param).__name__}"
         )
 
 
-parameterize_with_all_executors = pytest.mark.parametrize(
-    "executor",
+parameterize_with_all_task_runners = pytest.mark.parametrize(
+    "task_runner",
     [
-        DaskExecutor,
-        SequentialExecutor,
-        dask_executor_with_existing_cluster,
-        dask_executor_with_process_pool,
+        DaskTaskRunner,
+        SequentialTaskRunner,
+        dask_task_runner_with_existing_cluster,
+        dask_task_runner_with_process_pool,
     ],
     indirect=True,
 )
 
 
-parameterize_with_parallel_executors = pytest.mark.parametrize(
-    "executor",
+parameterize_with_parallel_task_runners = pytest.mark.parametrize(
+    "task_runner",
     [
-        DaskExecutor,
-        dask_executor_with_existing_cluster,
+        DaskTaskRunner,
+        dask_task_runner_with_existing_cluster,
     ],
     indirect=True,
 )
 
 
-parameterize_with_sequential_executors = pytest.mark.parametrize(
-    "executor",
-    [SequentialExecutor],
+parameterize_with_sequential_task_runners = pytest.mark.parametrize(
+    "task_runner",
+    [SequentialTaskRunner],
     indirect=True,
 )
 
 
-async def test_executor_cannot_be_started_while_running():
-    async with SequentialExecutor().start() as executor:
+async def test_task_runner_cannot_be_started_while_running():
+    async with SequentialTaskRunner().start() as task_runner:
         with pytest.raises(RuntimeError, match="already started"):
-            async with executor.start():
+            async with task_runner.start():
                 pass
 
 
-@parameterize_with_all_executors
-def test_flow_run_by_executor(executor):
+@parameterize_with_all_task_runners
+def test_flow_run_by_task_runner(task_runner):
     @task
     def task_a():
         return "a"
@@ -128,7 +128,7 @@ def test_flow_run_by_executor(executor):
     def task_c(b):
         return b + "c"
 
-    @flow(version="test", executor=executor)
+    @flow(version="test", task_runner=task_runner)
     def test_flow():
         a = task_a()
         b = task_b()
@@ -144,8 +144,8 @@ def test_flow_run_by_executor(executor):
     )
 
 
-@parameterize_with_all_executors
-def test_failing_flow_run_by_executor(executor):
+@parameterize_with_all_task_runners
+def test_failing_flow_run_by_task_runner(task_runner):
     @task
     def task_a():
         raise RuntimeError("This task fails!")
@@ -159,7 +159,7 @@ def test_failing_flow_run_by_executor(executor):
         # This task attempts to use the upstream data and should fail too
         return b + "c"
 
-    @flow(version="test", executor=executor)
+    @flow(version="test", task_runner=task_runner)
     def test_flow():
         a = task_a()
         b = task_b()
@@ -193,17 +193,19 @@ def test_failing_flow_run_by_executor(executor):
 
 
 @pytest.mark.parametrize(
-    "parent_executor,child_executor",
+    "parent_task_runner,child_task_runner",
     [
-        (SequentialExecutor(), DaskExecutor()),
-        (DaskExecutor(), SequentialExecutor()),
-        # Select a random port for the child executor so it does not collide with the
+        (SequentialTaskRunner(), DaskTaskRunner()),
+        (DaskTaskRunner(), SequentialTaskRunner()),
+        # Select a random port for the child task_runner so it does not collide with the
         # parent. Dask will detect collisions and pick a new port, but it will display
         # a warning
-        (DaskExecutor(), DaskExecutor(cluster_kwargs={"dashboard_address": 8790})),
+        (DaskTaskRunner(), DaskTaskRunner(cluster_kwargs={"dashboard_address": 8790})),
     ],
 )
-def test_subflow_run_nested_executor_compatibility(parent_executor, child_executor):
+def test_subflow_run_nested_task_runner_compatibility(
+    parent_task_runner, child_task_runner
+):
     @task
     def task_a():
         return "a"
@@ -216,18 +218,18 @@ def test_subflow_run_nested_executor_compatibility(parent_executor, child_execut
     def task_c(b):
         return b + "c"
 
-    @flow(version="test", executor=parent_executor)
+    @flow(version="test", task_runner=parent_task_runner)
     def parent_flow():
-        assert get_run_context().executor is parent_executor
+        assert get_run_context().task_runner is parent_task_runner
         a = task_a()
         b = task_b()
         c = task_c(b)
         d = child_flow(c)
         return a, b, c, d
 
-    @flow(version="test", executor=child_executor)
+    @flow(version="test", task_runner=child_task_runner)
     def child_flow(c):
-        assert get_run_context().executor is child_executor
+        assert get_run_context().task_runner is child_task_runner
         a = task_a()
         b = task_b()
         c = task_c(b)
@@ -246,7 +248,7 @@ def test_subflow_run_nested_executor_compatibility(parent_executor, child_execut
     assert (a.result(), b.result(), c.result(), d.result()) == ("a", "b", "bc", "bcc")
 
 
-class TestExecutorParallelism:
+class TestTaskRunnerParallelism:
     """
     These tests use a simple canary file to indicate if a items in a flow have run
     sequentially or concurrently.
@@ -268,9 +270,9 @@ class TestExecutorParallelism:
         tmp_file.touch()
         return tmp_file
 
-    @parameterize_with_sequential_executors
-    def test_sync_tasks_run_sequentially_with_sequential_executors(
-        self, executor, tmp_file
+    @parameterize_with_sequential_task_runners
+    def test_sync_tasks_run_sequentially_with_sequential_task_runners(
+        self, task_runner, tmp_file
     ):
         @task
         def foo():
@@ -281,7 +283,7 @@ class TestExecutorParallelism:
         def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         def test_flow():
             foo()
             bar()
@@ -290,9 +292,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "bar"
 
-    @parameterize_with_parallel_executors
-    def test_sync_tasks_run_concurrently_with_parallel_executors(
-        self, executor, tmp_file
+    @parameterize_with_parallel_task_runners
+    def test_sync_tasks_run_concurrently_with_parallel_task_runners(
+        self, task_runner, tmp_file
     ):
         @task
         def foo():
@@ -303,7 +305,7 @@ class TestExecutorParallelism:
         def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         def test_flow():
             foo()
             bar()
@@ -312,9 +314,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "foo"
 
-    @parameterize_with_sequential_executors
-    async def test_async_tasks_run_sequentially_with_sequential_executors(
-        self, executor, tmp_file
+    @parameterize_with_sequential_task_runners
+    async def test_async_tasks_run_sequentially_with_sequential_task_runners(
+        self, task_runner, tmp_file
     ):
         @task
         async def foo():
@@ -325,7 +327,7 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         async def test_flow():
             await foo()
             await bar()
@@ -334,9 +336,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "bar"
 
-    @parameterize_with_parallel_executors
-    async def test_async_tasks_run_concurrently_with_parallel_executors(
-        self, executor, tmp_file
+    @parameterize_with_parallel_task_runners
+    async def test_async_tasks_run_concurrently_with_parallel_task_runners(
+        self, task_runner, tmp_file
     ):
         @task
         async def foo():
@@ -347,7 +349,7 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         async def test_flow():
             await foo()
             await bar()
@@ -356,9 +358,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "foo"
 
-    @parameterize_with_all_executors
-    async def test_async_tasks_run_concurrently_with_task_group_with_all_executors(
-        self, executor, tmp_file
+    @parameterize_with_all_task_runners
+    async def test_async_tasks_run_concurrently_with_task_group_with_all_task_runners(
+        self, task_runner, tmp_file
     ):
         @task
         async def foo():
@@ -369,7 +371,7 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         async def test_flow():
             async with anyio.create_task_group() as tg:
                 tg.start_soon(foo)
@@ -379,9 +381,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "foo"
 
-    @parameterize_with_all_executors
-    def test_sync_subflows_run_sequentially_with_all_executors(
-        self, executor, tmp_file
+    @parameterize_with_all_task_runners
+    def test_sync_subflows_run_sequentially_with_all_task_runners(
+        self, task_runner, tmp_file
     ):
         @flow
         def foo():
@@ -392,7 +394,7 @@ class TestExecutorParallelism:
         def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         def test_flow():
             foo()
             bar()
@@ -401,9 +403,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "bar"
 
-    @parameterize_with_all_executors
-    async def test_async_subflows_run_sequentially_with_all_executors(
-        self, executor, tmp_file
+    @parameterize_with_all_task_runners
+    async def test_async_subflows_run_sequentially_with_all_task_runners(
+        self, task_runner, tmp_file
     ):
         @flow
         async def foo():
@@ -414,7 +416,7 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         async def test_flow():
             await foo()
             await bar()
@@ -423,9 +425,9 @@ class TestExecutorParallelism:
 
         assert tmp_file.read_text() == "bar"
 
-    @parameterize_with_all_executors
-    async def test_async_subflows_run_concurrently_with_task_group_with_all_executors(
-        self, executor, tmp_file
+    @parameterize_with_all_task_runners
+    async def test_async_subflows_run_concurrently_with_task_group_with_all_task_runners(
+        self, task_runner, tmp_file
     ):
         @flow
         async def foo():
@@ -436,7 +438,7 @@ class TestExecutorParallelism:
         async def bar():
             tmp_file.write_text("bar")
 
-        @flow(version="test", executor=executor)
+        @flow(version="test", task_runner=task_runner)
         async def test_flow():
             async with anyio.create_task_group() as tg:
                 tg.start_soon(foo)
@@ -447,24 +449,24 @@ class TestExecutorParallelism:
         assert tmp_file.read_text() == "foo"
 
 
-@parameterize_with_all_executors
-async def test_is_pickleable_after_start(executor):
+@parameterize_with_all_task_runners
+async def test_is_pickleable_after_start(task_runner):
     """
-    The executor must be picklable as it is attached to `PrefectFuture` objects
+    The task_runner must be picklable as it is attached to `PrefectFuture` objects
     """
-    if isinstance(executor, DaskExecutor):
+    if isinstance(task_runner, DaskTaskRunner):
         # We must set the dask client as the default for it to be unpicklable in the
         # main process
-        executor.client_kwargs["set_as_default"] = True
+        task_runner.client_kwargs["set_as_default"] = True
 
-    async with executor.start():
-        pickled = cloudpickle.dumps(executor)
+    async with task_runner.start():
+        pickled = cloudpickle.dumps(task_runner)
         unpickled = cloudpickle.loads(pickled)
-        assert isinstance(unpickled, type(executor))
+        assert isinstance(unpickled, type(task_runner))
 
 
-@parameterize_with_all_executors
-async def test_submit_and_wait(executor):
+@parameterize_with_all_task_runners
+async def test_submit_and_wait(task_runner):
     task_run = TaskRun(flow_run_id=uuid4(), task_key="foo", dynamic_key="bar")
 
     async def fake_orchestrate_task_run(example_kwarg):
@@ -473,8 +475,8 @@ async def test_submit_and_wait(executor):
             data=DataDocument.encode("json", example_kwarg),
         )
 
-    async with executor.start():
-        fut = await executor.submit(
+    async with task_runner.start():
+        fut = await task_runner.submit(
             task_run=task_run,
             run_fn=fake_orchestrate_task_run,
             run_kwargs=dict(example_kwarg=1),
@@ -483,73 +485,73 @@ async def test_submit_and_wait(executor):
         assert fut.task_run == task_run, "the future should have the same task run"
         assert fut.asynchronous == True
 
-        state = await executor.wait(fut)
+        state = await task_runner.wait(fut)
         assert isinstance(state, State), "wait should return a state"
         assert state.result() == 1
 
 
-class TestDaskExecutor:
+class TestDaskTaskRunner:
     async def test_connect_to_running_cluster(self, distributed_client_init):
         with distributed.Client(processes=False, set_as_default=False) as client:
             address = client.scheduler.address
-            executor = DaskExecutor(address=address)
-            assert executor.address == address
+            task_runner = DaskTaskRunner(address=address)
+            assert task_runner.address == address
 
-            async with executor.start():
+            async with task_runner.start():
                 pass
 
             distributed_client_init.assert_called_with(
-                address, asynchronous=True, **executor.client_kwargs
+                address, asynchronous=True, **task_runner.client_kwargs
             )
 
     async def test_start_local_cluster(self, distributed_client_init):
-        executor = DaskExecutor(cluster_kwargs={"processes": False})
-        assert executor.cluster_class == distributed.LocalCluster
-        assert executor.cluster_kwargs == {"processes": False}
+        task_runner = DaskTaskRunner(cluster_kwargs={"processes": False})
+        assert task_runner.cluster_class == distributed.LocalCluster
+        assert task_runner.cluster_kwargs == {"processes": False}
 
-        async with executor.start():
+        async with task_runner.start():
             pass
 
         distributed_client_init.assert_called_with(
-            executor._cluster, asynchronous=True, **executor.client_kwargs
+            task_runner._cluster, asynchronous=True, **task_runner.client_kwargs
         )
 
     async def test_adapt_kwargs(self, monkeypatch):
         adapt_kwargs = {"minimum": 1, "maximum": 1}
         monkeypatch.setattr("distributed.LocalCluster.adapt", MagicMock())
 
-        executor = DaskExecutor(
+        task_runner = DaskTaskRunner(
             cluster_kwargs={"processes": False, "n_workers": 0},
             adapt_kwargs=adapt_kwargs,
         )
-        assert executor.adapt_kwargs == adapt_kwargs
+        assert task_runner.adapt_kwargs == adapt_kwargs
 
-        async with executor.start():
+        async with task_runner.start():
             pass
 
         distributed.LocalCluster.adapt.assert_called_once_with(**adapt_kwargs)
 
     async def test_client_kwargs(self, distributed_client_init):
-        executor = DaskExecutor(
+        task_runner = DaskTaskRunner(
             client_kwargs={"set_as_default": True, "connection_limit": 100},
         )
-        assert executor.client_kwargs == {
+        assert task_runner.client_kwargs == {
             "set_as_default": True,
             "connection_limit": 100,
         }
 
-        async with executor.start():
+        async with task_runner.start():
             pass
 
         distributed_client_init.assert_called_with(
-            executor._cluster, asynchronous=True, **executor.client_kwargs
+            task_runner._cluster, asynchronous=True, **task_runner.client_kwargs
         )
 
     async def test_cluster_class_string_is_imported(self):
-        executor = DaskExecutor(
+        task_runner = DaskTaskRunner(
             cluster_class="distributed.deploy.spec.SpecCluster",
         )
-        assert executor.cluster_class == distributed.deploy.spec.SpecCluster
+        assert task_runner.cluster_class == distributed.deploy.spec.SpecCluster
 
     async def test_cluster_class_and_kwargs(self):
 
@@ -562,13 +564,13 @@ class TestDaskExecutor:
                 init_method(*args, **kwargs)
                 return super().__init__(asynchronous=True)
 
-        executor = DaskExecutor(
+        task_runner = DaskTaskRunner(
             cluster_class=TestCluster,
             cluster_kwargs={"some_kwarg": "some_val"},
         )
-        assert executor.cluster_class == TestCluster
+        assert task_runner.cluster_class == TestCluster
 
-        async with executor.start():
+        async with task_runner.start():
             pass
 
         init_method.assert_called_once()
@@ -577,29 +579,29 @@ class TestDaskExecutor:
 
     def test_cannot_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
-            DaskExecutor(
+            DaskTaskRunner(
                 address="localhost:8787",
                 cluster_class=distributed.LocalCluster,
             )
 
     def test_cannot_specify_asynchronous(self):
         with pytest.raises(ValueError, match="`client_kwargs`"):
-            DaskExecutor(client_kwargs={"asynchronous": True})
+            DaskTaskRunner(client_kwargs={"asynchronous": True})
 
         with pytest.raises(ValueError, match="`cluster_kwargs`"):
-            DaskExecutor(cluster_kwargs={"asynchronous": True})
+            DaskTaskRunner(cluster_kwargs={"asynchronous": True})
 
-    def test_nested_dask_executors_warn_on_port_collision_but_succeeds(self):
+    def test_nested_dask_task_runners_warn_on_port_collision_but_succeeds(self):
         @task
         def idenitity(x):
             return x
 
-        @flow(version="test", executor=DaskExecutor())
+        @flow(version="test", task_runner=DaskTaskRunner())
         def parent_flow():
             a = idenitity("a")
             return child_flow(a), a
 
-        @flow(version="test", executor=DaskExecutor())
+        @flow(version="test", task_runner=DaskTaskRunner())
         def child_flow(a):
             return idenitity(a).wait().result()
 

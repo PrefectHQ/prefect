@@ -33,7 +33,7 @@ from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
-from prefect.executors import BaseExecutor
+from prefect.executors import BaseTaskRunner
 from prefect.flows import Flow
 from prefect.futures import (
     PrefectFuture,
@@ -311,7 +311,7 @@ async def create_and_begin_subflow_run(
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
-    executor: BaseExecutor,
+    executor: BaseTaskRunner,
     client: OrionClient,
     sync_portal: BlockingPortal,
 ) -> State:

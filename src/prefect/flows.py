@@ -27,7 +27,7 @@ from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
 
 from prefect import State
-from prefect.executors import BaseExecutor, SequentialExecutor
+from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.exceptions import ParameterTypeError
 from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
@@ -61,8 +61,8 @@ class Flow(Generic[P, R]):
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
-        executor: An optional executor to use for task execution within the flow; if
-            not provided, a `SequentialExecutor` will be instantiated.
+        task_runner: An optional task runner to use for task execution within the flow;
+            if not provided, a `SequentialTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -83,7 +83,7 @@ class Flow(Generic[P, R]):
         fn: Callable[P, R],
         name: str = None,
         version: str = None,
-        executor: Union[Type[BaseExecutor], BaseExecutor] = SequentialExecutor,
+        task_runner: Union[Type[BaseTaskRunner], BaseTaskRunner] = SequentialTaskRunner,
         description: str = None,
         timeout_seconds: Union[int, float] = None,
         validate_parameters: bool = True,
@@ -92,8 +92,10 @@ class Flow(Generic[P, R]):
             raise TypeError("'fn' must be callable")
 
         self.name = name or fn.__name__.replace("_", "-")
-        executor = executor or SequentialExecutor()
-        self.executor = executor() if isinstance(executor, type) else executor
+        task_runner = task_runner or SequentialTaskRunner()
+        self.task_runner = (
+            task_runner() if isinstance(task_runner, type) else task_runner
+        )
 
         self.description = description or inspect.getdoc(fn)
         update_wrapper(self, fn)
@@ -237,7 +239,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = SequentialExecutor,
+    task_runner: BaseTaskRunner = SequentialTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -250,7 +252,7 @@ def flow(
     *,
     name: str = None,
     version: str = None,
-    executor: BaseExecutor = SequentialExecutor,
+    task_runner: BaseTaskRunner = SequentialTaskRunner,
     description: str = None,
     timeout_seconds: Union[int, float] = None,
     validate_parameters: bool = True,
@@ -268,8 +270,8 @@ def flow(
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
-        executor: An optional executor to use for task execution within the flow; if
-            not provided, a `SequentialExecutor` will be instantiated.
+        task_runner: An optional task_runner to use for task execution within the flow; if
+            not provided, a `SequentialTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.
         timeout_seconds: An optional number of seconds indicating a maximum runtime for
@@ -314,9 +316,9 @@ def flow(
 
         Define a flow that submits its tasks to dask
 
-        >>> from prefect.executors import DaskExecutor
+        >>> from prefect.task_runners import DaskTaskRunner
         >>>
-        >>> @flow(executor=DaskExecutor)
+        >>> @flow(task_runner=DaskTaskRunner)
         >>> def my_flow():
         >>>     pass
     """
@@ -327,7 +329,7 @@ def flow(
                 fn=__fn,
                 name=name,
                 version=version,
-                executor=executor,
+                task_runner=task_runner,
                 description=description,
                 timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,
@@ -340,7 +342,7 @@ def flow(
                 flow,
                 name=name,
                 version=version,
-                executor=executor,
+                task_runner=task_runner,
                 description=description,
                 timeout_seconds=timeout_seconds,
                 validate_parameters=validate_parameters,

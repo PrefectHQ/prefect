@@ -27,7 +27,7 @@ from prefect.utilities.asyncio import sync, A, Async, Sync, sync_compatible
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
-    from prefect.executors import BaseExecutor
+    from prefect.executors import BaseTaskRunner
 
 
 R = TypeVar("R")
@@ -82,7 +82,7 @@ class PrefectFuture(Generic[R, A]):
     def __init__(
         self,
         task_run: TaskRun,
-        executor: "BaseExecutor",
+        executor: "BaseTaskRunner",
         asynchronous: A = True,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
