@@ -289,21 +289,13 @@ def switch_tenants(id, slug, default):
         )
         return
 
-    if slug:
-        tenant_id = client.switch_tenant(tenant_slug=slug)
-        if not tenant_id:
-            raise TerminalError("Unable to switch tenants!")
-    else:
-        client.tenant_id = id
-        try:
-            client._get_auth_tenant()
-        except AuthorizationError:
-            raise TerminalError(
-                "Unauthorized. Are you sure you gave the correct tenant id?."
-            )
+    try:
+        tenant_id = client.switch_tenant(tenant_slug=slug, tenant_id=id)
+    except AuthorizationError:
+        raise TerminalError("Unauthorized. Your API key is not valid for that tenant.")
 
     client.save_auth_to_disk()
-    click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
+    click.secho(f"Tenant switched to {tenant_id}", fg="green")
 
 
 @auth.command(hidden=True)

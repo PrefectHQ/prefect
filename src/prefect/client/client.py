@@ -681,44 +681,50 @@ class Client:
         """
         self._attached_headers.update(headers)
 
-    def switch_tenant(self, tenant_slug: str) -> str:
+    def switch_tenant(self, tenant_slug: str = None, tenant_id: str = None) -> str:
         """
-        Switch this client to the given tenant by slug.
-
-        If you want to switch by `tenant_id`, just update the client's tenant id
-
-        ```python
-        client.tenant_id = "..."
-        ```
+        Switch this client to the given tenant by slug or tenant id.
 
         The client tenant will be updated but will not be saved to disk without an
         explicit call.
 
         Args:
             - tenant_slug (str): the tenant's slug
+            - tenant_id (str): the tenant's id
 
         Returns:
             - str: The id of the tenant
 
         Raises:
             - ValueError: if no matching tenants are found
+            - ValueError: both slug and id are provided
+            - AuthenticationError: if the key is not valid for the given tenant
 
         """
 
         # Validate the given tenant id -------------------------------------------------
 
-        tenant = self.graphql(
-            {
-                "query($slug: String)": {
-                    "tenant(where: {slug: { _eq: $slug } })": {"id"}
-                }
-            },
-            variables=dict(slug=tenant_slug),
-        )
-        if not tenant.data.tenant:
-            raise ValueError(f"No matching tenant found for slug {tenant_slug}.")
+        if tenant_slug and tenant_id:
+            raise ValueError(
+                "Received both `tenant_slug` and `tenant_id`; only one is allowed."
+            )
 
-        self.tenant_id = tenant.data.tenant[0].id
+        if tenant_slug:
+            tenant = self.graphql(
+                {
+                    "query($slug: String)": {
+                        "tenant(where: {slug: { _eq: $slug } })": {"id"}
+                    }
+                },
+                variables=dict(slug=tenant_slug),
+            )
+            if not tenant.data.tenant:
+                raise ValueError(f"No matching tenant found for slug {tenant_slug!r}.")
+
+            tenant_id = tenant.data.tenant[0].id
+
+        self.tenant_id = tenant_id
+        self._get_auth_tenant()
 
         return self.tenant_id
 
