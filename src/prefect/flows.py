@@ -270,7 +270,7 @@ def flow(
         version: An optional version string for the flow; if not provided, we will
             attempt to create a version string as a hash of the file containing the
             wrapped function; if the file cannot be located, the version will be null.
-        task_runner: An optional task_runner to use for task execution within the flow; if
+        task_runner: An optional task runner to use for task execution within the flow; if
             not provided, a `SequentialTaskRunner` will be instantiated.
         description: An optional string description for the flow; if not provided, the
             description will be pulled from the docstring for the decorated function.

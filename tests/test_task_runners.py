@@ -21,7 +21,7 @@ from prefect.orion.schemas.states import State, StateType
 @contextmanager
 def dask_task_runner_with_existing_cluster():
     """
-    Generate a dask task_runner that's connected to a local cluster
+    Generate a dask task runner that's connected to a local cluster
     """
     with distributed.LocalCluster(n_workers=2) as cluster:
         with distributed.Client(cluster) as client:
@@ -73,8 +73,8 @@ def task_runner(request):
 
     else:
         raise TypeError(
-            "Received invalid task_runner parameter. Expected task_runner type, instance, "
-            f"or callable generator. Received {type(request.param).__name__}"
+            "Received invalid task_runner parameter. Expected task runner type, "
+            f"instance, or callable generator. Received {type(request.param).__name__}"
         )
 
 

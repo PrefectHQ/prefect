@@ -86,6 +86,6 @@ Hello!
 
 ## TaskRunner types
 
-See the [`prefect.task_runners` API reference](/api-ref/prefect/task_runners/) for descriptions of each task runner.
+See the [`prefect.task_runners` API reference](/api-ref/prefect/task-runners/) for descriptions of each task runner.
 
 Check out the [Dask task runner tutorial](/tutorials/dask-task-runner/) for some common Dask use cases.
