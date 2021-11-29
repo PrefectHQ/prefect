@@ -28,6 +28,19 @@ class Flow(ORMBaseModel):
     # deployments: List["Deployment"] = Field(default_factory=list)
 
 
+class FlowRunner(ORMBaseModel):
+    typename: str = Field(
+        ...,
+        description="The name of the flow runner type.",
+        example="SubprocessFlowRunner",
+    )
+    settings: dict = Field(
+        default_factory=dict,
+        description="The settings for the flow runner. These are type specific.",
+        example={"env": {"foo": "bar"}, "conda_env": "my-flow-env"},
+    )
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
