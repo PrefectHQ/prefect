@@ -158,13 +158,13 @@ def test_switch_tenants_success(monkeypatch, cloud_api):
 
 def test_switch_tenants_failed(monkeypatch, cloud_api):
     client = MagicMock()
-    client.return_value.switch_tenant = MagicMock(return_value=None)
+    client.return_value.switch_tenant = MagicMock(side_effect=AuthorizationError())
     monkeypatch.setattr("prefect.cli.auth.Client", client)
 
     runner = CliRunner()
     result = runner.invoke(auth, ["switch-tenants", "--slug", "slug"])
     assert result.exit_code == 1
-    assert "Unable to switch tenant" in result.output
+    assert "Unauthorized. Your API key is not valid for that tenant" in result.output
 
 
 @pytest.mark.parametrize(
