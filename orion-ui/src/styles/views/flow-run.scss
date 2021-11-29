@@ -1,8 +1,11 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .copy-link {
+  background: transparent;
+  border: none;
   border-radius: 4px;
   color: $primary !important;
+  cursor: pointer;
   padding: 4px 8px;
   text-decoration: none;
   transition: all 50ms;
