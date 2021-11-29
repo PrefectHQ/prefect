@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 from dataclasses import dataclass
 import datetime
 import pendulum
-import logging
+import uuid
 import pytest
 import re
 
@@ -41,7 +41,7 @@ def test_k8s_agent_init(monkeypatch, cloud_api):
     assert agent.batch_client
 
 
-def test_k8s_agent_config_options(monkeypatch, cloud_api):
+def test_k8s_agent_config_options(monkeypatch, config_with_api_key):
     k8s_client = MagicMock()
     monkeypatch.setattr("kubernetes.client", k8s_client)
 
@@ -51,19 +51,17 @@ def test_k8s_agent_config_options(monkeypatch, cloud_api):
         get_jobs,
     )
 
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-        agent = KubernetesAgent(name="test", labels=["test"], namespace="namespace")
-        assert agent
-        assert agent.labels == ["test"]
-        assert agent.name == "test"
-        assert agent.namespace == "namespace"
-        assert agent.client.get_auth_token() == "TEST_TOKEN"
-        assert agent.logger
-        assert agent.batch_client
+    agent = KubernetesAgent(name="test", labels=["test"], namespace="namespace")
+    assert agent
+    assert agent.labels == ["test"]
+    assert agent.name == "test"
+    assert agent.namespace == "namespace"
+    assert agent.client.api_key == config_with_api_key.cloud.api_key
+    assert agent.logger
+    assert agent.batch_client
 
 
-@pytest.mark.parametrize("use_token", [True, False])
-def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api, use_token):
+def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api):
     get_jobs = MagicMock(return_value=[])
     monkeypatch.setattr(
         "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
@@ -72,9 +70,8 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api, use_token):
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token" if use_token else None,
-        key="test-key" if not use_token else None,
-        tenant_id="test-tenant" if not use_token else None,
+        key="test-key",
+        tenant_id="test-tenant",
         api="test_api",
         namespace="test_namespace",
         backend="backend-test",
@@ -84,17 +81,17 @@ def test_k8s_agent_generate_deployment_yaml(monkeypatch, cloud_api, use_token):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[0]["value"] == ("test_token" if use_token else "")
+    assert agent_env[0]["value"] == "test-key"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
     assert agent_env[11]["value"] == "backend-test"
     assert agent_env[13] == {
         "name": "PREFECT__CLOUD__API_KEY",
-        "value": "test-key" if not use_token else "",
+        "value": "test-key",
     }
     assert agent_env[14] == {
         "name": "PREFECT__CLOUD__TENANT_ID",
-        "value": "test-tenant" if not use_token else "",
+        "value": "test-tenant",
     }
 
 
@@ -175,7 +172,7 @@ def test_k8s_agent_generate_deployment_yaml_local_version(
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        key="test-key",
         api="test_api",
         namespace="test_namespace",
     )
@@ -196,7 +193,7 @@ def test_k8s_agent_generate_deployment_yaml_latest(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        key="test-key",
         api="test_api",
         namespace="test_namespace",
         latest=True,
@@ -218,7 +215,7 @@ def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        key="test-key",
         api="test_api",
         namespace="test_namespace",
         labels=["test_label1", "test_label2"],
@@ -228,7 +225,7 @@ def test_k8s_agent_generate_deployment_yaml_labels(monkeypatch, cloud_api):
 
     agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
-    assert agent_env[0]["value"] == "test_token"
+    assert agent_env[0]["value"] == "test-key"
     assert agent_env[1]["value"] == "test_api"
     assert agent_env[2]["value"] == "test_namespace"
     assert agent_env[4]["value"] == "['test_label1', 'test_label2']"
@@ -247,7 +244,7 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token", api="test_api", namespace="test_namespace"
+        key="test-key", api="test_api", namespace="test_namespace"
     )
 
     deployment = yaml.safe_load(deployment)
@@ -268,7 +265,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        key="test-key",
         api="test_api",
         namespace="test_namespace",
         image_pull_secrets="secrets",
@@ -293,7 +290,7 @@ def test_k8s_agent_generate_deployment_yaml_contains_resources(monkeypatch, clou
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
+        key="test-key",
         api="test_api",
         namespace="test_namespace",
         mem_request="mr",
@@ -325,7 +322,7 @@ def test_k8s_agent_generate_deployment_yaml_rbac(monkeypatch, cloud_api):
 
     agent = KubernetesAgent()
     deployment = agent.generate_deployment_yaml(
-        token="test_token", api="test_api", namespace="test_namespace", rbac=True
+        key="test-key", api="test_api", namespace="test_namespace", rbac=True
     )
 
     deployment = yaml.safe_load_all(deployment)
@@ -969,48 +966,44 @@ class TestK8sAgentRunConfig:
             "CUSTOM4": "VALUE4",
         }
 
-    def test_environment_has_agent_token_from_config(self):
-        """Check that the API token is passed through from the config via environ"""
-        flow_run = self.build_flow_run(KubernetesRun())
-
-        with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
-            job = KubernetesAgent(
-                namespace="testing",
-            ).generate_job_spec(flow_run)
-
-        env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
-        env = {item["name"]: item["value"] for item in env_list}
-
-        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_TOKEN"
-
-    @pytest.mark.parametrize("tenant_id", ["ID", None])
-    def test_environment_has_api_key_from_config(self, tenant_id):
+    def test_environment_has_api_key_from_config(self, config_with_api_key):
         """Check that the API key is passed through from the config via environ"""
         flow_run = self.build_flow_run(KubernetesRun())
 
-        with set_temporary_config(
-            {
-                "cloud.api_key": "TEST_KEY",
-                "cloud.tenant_id": tenant_id,
-                "cloud.agent.auth_token": None,
-            }
-        ):
-            agent = KubernetesAgent(
-                namespace="testing",
-            )
-            agent.client._get_auth_tenant = MagicMock(return_value="ID")
-            job = agent.generate_job_spec(flow_run)
+        agent = KubernetesAgent(
+            namespace="testing",
+        )
+        job = agent.generate_job_spec(flow_run)
 
         env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
         env = {item["name"]: item["value"] for item in env_list}
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+        assert env["PREFECT__CLOUD__TENANT_ID"] == config_with_api_key.cloud.tenant_id
 
-    @pytest.mark.parametrize("tenant_id", ["ID", None])
-    def test_environment_has_api_key_from_disk(self, monkeypatch, tenant_id):
+    def test_environment_has_tenant_id_from_server(self, config_with_api_key):
+        """Check that the API key is passed through from the config via environ"""
+        flow_run = self.build_flow_run(KubernetesRun())
+        tenant_id = uuid.uuid4()
+
+        with set_temporary_config({"cloud.tenant_id": None}):
+            agent = KubernetesAgent(namespace="testing")
+
+            agent.client._get_auth_tenant = MagicMock(return_value=tenant_id)
+            job = agent.generate_job_spec(flow_run)
+
+            env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
+            env = {item["name"]: item["value"] for item in env_list}
+
+        assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
+        assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
+
+    def test_environment_has_api_key_from_disk(self, monkeypatch):
         """Check that the API key is passed through from the on disk cache"""
+        tenant_id = str(uuid.uuid4())
+
         monkeypatch.setattr(
             "prefect.Client.load_auth_from_disk",
             MagicMock(return_value={"api_key": "TEST_KEY", "tenant_id": tenant_id}),
@@ -1020,7 +1013,7 @@ class TestK8sAgentRunConfig:
         agent = KubernetesAgent(
             namespace="testing",
         )
-        agent.client._get_auth_tenant = MagicMock(return_value="ID")
+        agent.client._get_auth_tenant = MagicMock(return_value=tenant_id)
         job = agent.generate_job_spec(flow_run)
 
         env_list = job["spec"]["template"]["spec"]["containers"][0]["env"]
@@ -1028,7 +1021,7 @@ class TestK8sAgentRunConfig:
 
         assert env["PREFECT__CLOUD__API_KEY"] == "TEST_KEY"
         assert env["PREFECT__CLOUD__AUTH_TOKEN"] == "TEST_KEY"
-        assert env["PREFECT__CLOUD__TENANT_ID"] == "ID"
+        assert env["PREFECT__CLOUD__TENANT_ID"] == tenant_id
 
     @pytest.mark.parametrize(
         "config, agent_env_vars, run_config_env_vars, expected_logging_level",

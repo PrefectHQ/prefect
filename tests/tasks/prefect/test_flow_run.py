@@ -130,9 +130,7 @@ class TestCreateFlowRun:
         MockClient().create_flow_run.return_value = "flow-run-id"
         MockClient().get_cloud_url.return_value = "fake-url"
         create_flow_run.run(flow_id="flow-id")
-        MockClient().get_cloud_url.assert_called_once_with(
-            "flow-run", "flow-run-id", as_user=False
-        )
+        MockClient().get_cloud_url.assert_called_once_with("flow-run", "flow-run-id")
         assert "Created flow run '<generated-name>': fake-url" in caplog.text
 
 

@@ -560,16 +560,9 @@ class KubernetesAgent(Agent):
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__AGENT__LABELS": str(self.labels),
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": (
-                    # Pull an auth token if it exists but fall back to an API key so
-                    # flows in pre-0.15.0 containers still authenticate correctly
-                    config.cloud.agent.get("auth_token")
-                    or self.flow_run_api_key
-                    or ""
-                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
-                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    # A tenant id is only required when authenticating
                     self.client.tenant_id
                     if self.flow_run_api_key
                     else ""
@@ -583,6 +576,8 @@ class KubernetesAgent(Agent):
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                # Backwards compatibility variable for containers on Prefect <1.0.0
+                "PREFECT__CLOUD__AUTH_TOKEN": self.flow_run_api_key or "",
             }
         )
         container_env = [{"name": k, "value": v} for k, v in env.items()]
@@ -608,7 +603,6 @@ class KubernetesAgent(Agent):
 
     @staticmethod
     def generate_deployment_yaml(
-        token: str = None,
         api: str = None,
         namespace: str = None,
         image_pull_secrets: str = None,
@@ -631,7 +625,6 @@ class KubernetesAgent(Agent):
         Generate and output an installable YAML spec for the agent.
 
         Args:
-            - token (str, optional): A `RUNNER` token to give the agent
             - api (str, optional): A URL pointing to the Prefect API. Defaults to
                 `https://api.prefect.io`
             - namespace (str, optional): The namespace to create Prefect jobs in. Defaults
@@ -668,7 +661,6 @@ class KubernetesAgent(Agent):
         """
 
         # Use defaults if not provided
-        token = token or ""
         key = key or ""
         tenant_id = tenant_id or ""
         api = api or "https://api.prefect.io"
@@ -699,7 +691,7 @@ class KubernetesAgent(Agent):
         agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
 
         # Populate env vars
-        agent_env[0]["value"] = token
+        agent_env[0]["value"] = key  # Pass API keys as auth tokens for backwards compat
         agent_env[1]["value"] = api
         agent_env[2]["value"] = namespace
         agent_env[3]["value"] = image_pull_secrets or ""
