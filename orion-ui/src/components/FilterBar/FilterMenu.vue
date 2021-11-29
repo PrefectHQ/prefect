@@ -183,11 +183,13 @@
             <Form-DateTime
               v-model="filters.flow_runs.timeframe"
               title="Flow runs"
+              icon="pi-flow-run"
               class="mr-4 mb-1"
             />
             <Form-DateTime
               v-model="filters.task_runs.timeframe"
               title="Task runs"
+              icon="pi-task"
             />
           </div>
         </Card>

@@ -5,27 +5,26 @@
       {{ title }}
     </div>
 
-    <div class="my-2">
+    <form class="my-2 d-flex">
       <Radio
         v-model="timeframeSelector"
-        :value="'standard'"
-        :checked="timeframeSelector == 'standard'"
-        class="radio"
+        :value="'simple'"
+        :checked="timeframeSelector == 'simple'"
+        class="mr-2"
       >
-        Standard
+        Simple
       </Radio>
 
       <Radio
         v-model="timeframeSelector"
         :value="'custom'"
         :checked="timeframeSelector == 'custom'"
-        class="radio"
       >
         Custom
       </Radio>
-    </div>
+    </form>
 
-    <div v-if="timeframeSelector == 'standard'">
+    <div v-if="timeframeSelector == 'simple'">
       <div class="caption-small text-uppercase font-weight-semibold my-1">
         Past
       </div>
@@ -181,16 +180,15 @@ const tempToTimestamp = ref(props.modelValue.to.timestamp || new Date())
 
 const value = computed(() => {
   return {
-    dynamic: timeframeSelector.value == 'standard',
+    dynamic: timeframeSelector.value == 'simple',
     from: {
       timestamp:
-        timeframeSelector.value == 'standard' ? null : fromTimestamp.value,
+        timeframeSelector.value == 'simple' ? null : fromTimestamp.value,
       unit: fromUnit.value,
       value: fromValue.value
     },
     to: {
-      timestamp:
-        timeframeSelector.value == 'standard' ? null : toTimestamp.value,
+      timestamp: timeframeSelector.value == 'simple' ? null : toTimestamp.value,
       unit: toUnit.value,
       value: toValue.value
     }
@@ -207,14 +205,13 @@ const applyTempToTimestamp = () => {
   showToDateTimeMenu.value = false
 }
 
-const timeframeSelector = ref('standard')
+const timeframeSelector = ref('simple')
 
 const unitOptions = ['minutes', 'hours', 'days']
 
 watch(
   [fromUnit, toUnit, fromValue, toValue, fromTimestamp, toTimestamp],
   () => {
-    console.log('emitting')
     emit('update:modelValue', value.value)
   }
 )
@@ -223,6 +220,10 @@ watch(
 <style lang="scss" scoped>
 .container {
   width: 100%;
+}
+
+> ::v-deep(.radio) {
+  margin-left: 0 !important;
 }
 
 .selector {
