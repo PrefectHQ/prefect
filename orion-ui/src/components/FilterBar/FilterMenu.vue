@@ -34,8 +34,8 @@
     </template>
 
     <div v-if="smAndDown" class="menu-content pa-2">
-      <FilterAccordion title="Tags" icon="pi-filter-3-line">
-        <div class="accordion-body">
+      <FilterAccordion class="mb-1" title="Tags" icon="pi-filter-3-line">
+        <div>
           <Form-Tags
             v-model="filters.flows.tags"
             title="Flows"
@@ -63,7 +63,7 @@
         </div>
       </FilterAccordion>
 
-      <FilterAccordion title="States" icon="pi-filter-3-line">
+      <FilterAccordion class="mb-1" title="States" icon="pi-filter-3-line">
         <div class="d-flex">
           <Form-States
             v-model="filters.flow_runs.states"
