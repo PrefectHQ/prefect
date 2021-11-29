@@ -1,11 +1,11 @@
 """
-Interface and implementations of various task run executors.
+Interface and implementations of various task run task runners.
 
-**Executors** in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with executors outside of configuring and initializing them for a flow.
+**TaskRunners** in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task_runners outside of configuring and initializing them for a flow.
 
 Example:
 
-    >>> from prefect import flow, task, executors
+    >>> from prefect import flow, task, task_runners
     >>> from typing import List
     >>>
     >>> @task
@@ -16,7 +16,7 @@ Example:
     >>> def say_goodbye(name):
     ...     print(f"goodbye {name}")
     >>>
-    >>> @flow(executor=executors.SequentialExecutor())
+    >>> @flow(task_runner=task_runners.SequentialTaskRunner())
     >>> def greetings(names: List[str]):
     ...     for name in names:
     ...         say_hello(name)
@@ -32,8 +32,8 @@ Example:
     hello marvin
     goodbye marvin
 
-    Switching to a `DaskExecutor`:
-    >>> flow.executor = executors.DaskExecutor()
+    Switching to a `DaskTaskRunner`:
+    >>> flow.task_runner = task_runners.DaskTaskRunner()
     >>> greetings(["arthur", "trillian", "ford", "marvin"])
     hello arthur
     goodbye arthur
@@ -44,10 +44,10 @@ Example:
     goodbye ford
     goodbye trillian
 
-The following executors are currently supported:
+The following task runners are currently supported:
 
-- `SequentialExecutor`: the simplest executor and the default; submits each task run sequentially as they are called and blocks until completion
-- `DaskExecutor`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
+- `SequentialTaskRunner`: the simplest runner and the default; submits each task run sequentially as they are called and blocks until completion
+- `DaskTaskRunner`: creates a `LocalCluster` that task runs are submitted to; allows for parallelism with a flow run
 """
 import abc
 from contextlib import asynccontextmanager
@@ -64,7 +64,7 @@ from typing import (
 from uuid import UUID
 from contextlib import AsyncExitStack
 
-# TODO: Once executors are split into separate files this should become an optional dependency
+# TODO: Once task runners are split into separate files this should become an optional dependency
 import distributed
 
 from prefect.futures import PrefectFuture
@@ -75,13 +75,13 @@ from prefect.utilities.asyncio import A
 from prefect.utilities.importtools import import_object
 from prefect.utilities.hashing import to_qualified_name
 
-T = TypeVar("T", bound="BaseExecutor")
+T = TypeVar("T", bound="BaseTaskRunner")
 R = TypeVar("R")
 
 
-class BaseExecutor(metaclass=abc.ABCMeta):
+class BaseTaskRunner(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
-        self.logger = get_logger("executor")
+        self.logger = get_logger("task_runner")
         self._started: bool = False
 
     @abc.abstractmethod
@@ -121,29 +121,29 @@ class BaseExecutor(metaclass=abc.ABCMeta):
         self: T,
     ) -> AsyncIterator[T]:
         """
-        Start the executor, preparing any resources necessary for task submission.
+        Start the task runner, preparing any resources necessary for task submission.
 
         Children should implement `_start` to prepare and clean up resources.
 
         Yields:
-            The prepared executor
+            The prepared task runner
         """
         if self._started:
-            raise RuntimeError("The executor is already started!")
+            raise RuntimeError("The task runner is already started!")
 
         async with AsyncExitStack() as exit_stack:
-            self.logger.info(f"Starting executor `{self}`...")
+            self.logger.info(f"Starting task runner `{self}`...")
             try:
                 await self._start(exit_stack)
                 self._started = True
                 yield self
             finally:
-                self.logger.info(f"Shutting down executor `{self}`...")
+                self.logger.info(f"Shutting down task runner `{self}`...")
                 self._started = False
 
     async def _start(self, exit_stack: AsyncExitStack) -> None:
         """
-        Create any resources required for this executor to submit work.
+        Create any resources required for this task runner to submit work.
 
         Cleanup of resources should be submitted to the `exit_stack`.
         """
@@ -153,12 +153,12 @@ class BaseExecutor(metaclass=abc.ABCMeta):
         return type(self).__name__
 
 
-class SequentialExecutor(BaseExecutor):
+class SequentialTaskRunner(BaseTaskRunner):
     """
-    A simple executor that executes calls as they are submitted.
+    A simple task runner that executes calls as they are submitted.
 
-    If writing synchronous tasks, this executor will always run tasks sequentially.
-    If writing async tasks, this executor will run tasks sequentially unless grouped
+    If writing synchronous tasks, this runner will always execute tasks sequentially.
+    If writing async tasks, this runner will execute tasks sequentially unless grouped
     using `anyio.create_task_group` or `asyncio.gather`.
     """
 
@@ -174,13 +174,15 @@ class SequentialExecutor(BaseExecutor):
         asynchronous: A = True,
     ) -> PrefectFuture[R, A]:
         if not self._started:
-            raise RuntimeError("The executor must be started before submitting work.")
+            raise RuntimeError(
+                "The task runner must be started before submitting work."
+            )
 
         # Run the function immediately and store the result in memory
         self._results[task_run.id] = await run_fn(**run_kwargs)
 
         return PrefectFuture(
-            task_run=task_run, executor=self, asynchronous=asynchronous
+            task_run=task_run, task_runner=self, asynchronous=asynchronous
         )
 
     async def wait(
@@ -189,9 +191,9 @@ class SequentialExecutor(BaseExecutor):
         return self._results[prefect_future.run_id]
 
 
-class DaskExecutor(BaseExecutor):
+class DaskTaskRunner(BaseTaskRunner):
     """
-    A parallel executor that submits tasks to the `dask.distributed` scheduler.
+    A parallel task_runner that submits tasks to the `dask.distributed` scheduler.
 
     By default a temporary `distributed.LocalCluster` is created (and
     subsequently torn down) within the `start()` contextmanager. To use a
@@ -203,14 +205,14 @@ class DaskExecutor(BaseExecutor):
     the address of the scheduler via the `address` kwarg.
 
     !!! warning "Multiprocessing safety"
-        Please note that because the `DaskExecutor` uses multiprocessing, calls to flows
+        Please note that because the `DaskTaskRunner` uses multiprocessing, calls to flows
         in scripts must be guarded with `if __name__ == "__main__":` or warnings will
         be displayed.
 
     Args:
         address (string, optional): address of a currently running dask
             scheduler; if one is not provided, a temporary cluster will be
-            created in `executor.start()`.  Defaults to `None`.
+            created in `DaskTaskRunner.start()`.  Defaults to `None`.
         cluster_class (string or callable, optional): the cluster class to use
             when creating a temporary dask cluster. Can be either the full
             class name (e.g. `"distributed.LocalCluster"`), or the class itself.
@@ -226,12 +228,12 @@ class DaskExecutor(BaseExecutor):
 
         Using a temporary local dask cluster
         >>> from prefect import flow
-        >>> from prefect.executors import DaskExecutor
-        >>> @flow(executor=DaskExecutor)
+        >>> from prefect.task_runners import DaskTaskRunner
+        >>> @flow(task_runner=DaskTaskRunner)
 
         Using a temporary cluster running elsewhere. Any Dask cluster class should
         work, here we use [dask-cloudprovider](https://cloudprovider.dask.org)
-        >>> DaskExecutor(
+        >>> DaskTaskRunner(
         >>>     cluster_class="dask_cloudprovider.FargateCluster",
         >>>     cluster_kwargs={
         >>>          "image": "prefecthq/prefect:latest",
@@ -241,7 +243,7 @@ class DaskExecutor(BaseExecutor):
 
 
         Connecting to an existing dask cluster
-        >>> DaskExecutor(address="192.0.2.255:8786")
+        >>> DaskTaskRunner(address="192.0.2.255:8786")
     """
 
     def __init__(
@@ -307,12 +309,14 @@ class DaskExecutor(BaseExecutor):
         asynchronous: A = True,
     ) -> PrefectFuture[R, A]:
         if not self._started:
-            raise RuntimeError("The executor must be started before submitting work.")
+            raise RuntimeError(
+                "The task runner must be started before submitting work."
+            )
 
         self._dask_futures[task_run.id] = self._client.submit(run_fn, **run_kwargs)
 
         return PrefectFuture(
-            task_run=task_run, executor=self, asynchronous=asynchronous
+            task_run=task_run, task_runner=self, asynchronous=asynchronous
         )
 
     def _get_dask_future(self, prefect_future: PrefectFuture) -> "distributed.Future":
@@ -336,7 +340,7 @@ class DaskExecutor(BaseExecutor):
 
     async def _start(self, exit_stack: AsyncExitStack):
         """
-        Start the executor and prep for context exit
+        Start the task runner and prep for context exit
 
         - Creates a cluster if an external address is not set
         - Creates a client to connect to the cluster
@@ -382,7 +386,7 @@ class DaskExecutor(BaseExecutor):
 
     def __getstate__(self):
         """
-        Allow the `DaskExecutor` to be serialized by dropping the `distributed.Client`
+        Allow the `DaskTaskRunner` to be serialized by dropping the `distributed.Client`
         which contains locks. Must be deserialized on a dask worker.
         """
         data = self.__dict__.copy()

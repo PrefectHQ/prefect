@@ -2,7 +2,7 @@
 # Dask integration
 
 Prefect integrates with `Dask` via the [executor interface](/concepts/executors/). 
-The [DaskExecutor](/api-ref/prefect/executors.md#daskexecutor) runs Prefect
+The [DaskTaskRunner](/api-ref/prefect/executors.md#daskexecutor) runs Prefect
 tasks using [Dask's Distributed
 Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
 a single machine, but is most useful when scaling out distributed across multiple
@@ -11,7 +11,7 @@ nodes.
 
 ## Modes
 
-Prefect's `DaskExecutor` has 3 operating modes:
+Prefect's `DaskTaskRunner` has 3 operating modes:
 
 - Using a local cluster
 - Using a temporary cluster
@@ -19,15 +19,15 @@ Prefect's `DaskExecutor` has 3 operating modes:
 
 ### Using a local cluster
 
-By default, when you use a `DaskExecutor` it creates a temporary local Dask
+By default, when you use a `DaskTaskRunner` it creates a temporary local Dask
 cluster.
 
 ```python
-from prefect.executors import DaskExecutor
+from prefect.executors import DaskTaskRunner
 
 # By default this will use a temporary local Dask cluster
 @flow
-def my_flow(executor=DaskExecutor()):
+def my_flow(executor=DaskTaskRunner()):
     pass
 ```
 
@@ -38,14 +38,14 @@ most workloads. If you want to specify this explicitly, you can pass
 
 ```python
 # Use 4 worker processes, each with 2 threads
-DaskExecutor(
+DaskTaskRunner(
     cluster_kwargs={"n_workers": 4, "threads_per_worker": 2}
 )
 ```
 
 ### Using a temporary cluster
 
-The `DaskExecutor` is capable of creating a temporary cluster using any of
+The `DaskTaskRunner` is capable of creating a temporary cluster using any of
 [Dask's cluster-manager options](https://docs.dask.org/en/latest/setup.html).
 This can be useful when you want each flow run to have its own Dask cluster,
 allowing for adaptive scaling per-flow.
@@ -62,7 +62,7 @@ For example, to configure a flow to use a temporary
 named `my-prefect-image`:
 
 ```python
-DaskExecutor(
+DaskTaskRunner(
     cluster_class="dask_cloudprovider.aws.FargateCluster",
     cluster_kwargs={"n_workers": 4, "image": "my-prefect-image"},
 )
@@ -70,12 +70,12 @@ DaskExecutor(
 
 #### Adaptive scaling
 
-One nice feature of using a `DaskExecutor` is the ability to scale adaptively
+One nice feature of using a `DaskTaskRunner` is the ability to scale adaptively
 to the workload. Instead of specifying `n_workers` as a fixed number, this lets
 you specify a minimum and maximum number of workers to use, and the dask
 cluster will scale up and down as needed.
 
-To do this, you can pass `adapt_kwargs` to `DaskExecutor`. This takes the
+To do this, you can pass `adapt_kwargs` to `DaskTaskRunner`. This takes the
 following fields:
 
 - `maximum` (`int` or `None`, optional): the maximum number of workers to scale
@@ -87,7 +87,7 @@ For example, here we configure a flow to run on a `FargateCluster` scaling up
 to at most 10 workers.
 
 ```python
-DaskExecutor(
+DaskTaskRunner(
     cluster_class="dask_cloudprovider.aws.FargateCluster",
     adapt_kwargs={"maximum": 10}
 )
@@ -108,12 +108,12 @@ when compared to using a temporary cluster (as described above):
   sharing resources between tasks, but you may still run into issues.
 
 That said, you may prefer managing a single long running cluster. To configure
-a `DaskExecutor` to connect to an existing cluster, pass in the address of the
+a `DaskTaskRunner` to connect to an existing cluster, pass in the address of the
 scheduler to the `address` argument:
 
 ```python
 # Connect to an existing cluster running at a specified address
-DaskExecutor(address="tcp://...")
+DaskTaskRunner(address="tcp://...")
 ```
 
 ## Annotations
@@ -125,14 +125,14 @@ For example, we can set the [priority](http://distributed.dask.org/en/stable/pri
 ```python
 import dask
 from prefect import flow, task
-from prefect.executors import DaskExecutor
+from prefect.executors import DaskTaskRunner
 
 @task
 def show(x):
     print(x)
 
 
-@flow(executor=DaskExecutor())
+@flow(executor=DaskTaskRunner())
 def my_flow():
     with dask.annotate(priority=-10):
         future = show(1)  # low priority task
@@ -146,7 +146,7 @@ Another common use-case is [resource](http://distributed.dask.org/en/stable/reso
 ```python
 import dask
 from prefect import flow, task
-from prefect.executors import DaskExecutor
+from prefect.executors import DaskTaskRunner
 
 @task
 def show(x):
@@ -156,7 +156,7 @@ def show(x):
 # Annotations are abstract in dask and not inferred from your system.
 # Here, we claim that our system has 1 GPU and 1 process available per worker
 @flow(
-    executor=DaskExecutor(
+    executor=DaskTaskRunner(
         cluster_kwargs={"n_workers": 1, "resources": {"GPU": 1, "process": 1}}
     )
 )

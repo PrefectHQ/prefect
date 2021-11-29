@@ -15,7 +15,7 @@ from prefect.engine import (
     raise_failed_state,
     user_return_value_to_state,
 )
-from prefect.executors import SequentialExecutor
+from prefect.executors import SequentialTaskRunner
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
@@ -442,7 +442,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=SequentialExecutor(),
+            executor=SequentialTaskRunner(),
             sync_portal=None,
             client=orion_client,
         )
@@ -473,7 +473,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=SequentialExecutor(),
+            executor=SequentialTaskRunner(),
             sync_portal=None,
             client=orion_client,
         )
