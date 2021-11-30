@@ -17,7 +17,7 @@
 
       <Radio
         v-model="timeframeSelector"
-        :value="'custom'"
+        value="custom"
         :checked="timeframeSelector == 'custom'"
       >
         Custom
