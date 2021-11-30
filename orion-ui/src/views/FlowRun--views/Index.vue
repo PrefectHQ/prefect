@@ -23,6 +23,27 @@
               >
                 {{ tag }}
               </Tag>
+              <div
+                class="
+                  caption
+                  font--primary font-weight-semibold
+                  text--grey-40
+                  d-flex
+                  text-truncate
+                "
+              >
+                <span v-if="flowRun.start_time" > Started: </span>
+                <span v-if="flowRun.start_time" class="text--grey-80 mr-1">
+                  &nbsp;
+                  {{ formatDateTimeNumeric(flowRun.start_time) }}
+                </span>
+
+                <span v-if="flowRun.end_time"> Ended: </span>
+                <span v-if="flowRun.end_time" class="text--grey-80 mr-1">
+                  &nbsp;
+                  {{ formatDateTimeNumeric(flowRun.end_time) }}
+                </span>
+              </div>
             </span>
           </div>
 
@@ -38,12 +59,20 @@
           >
             <span v-if="deployment.name"> Deployment: </span>
             <span v-if="deployment.name" class="text--grey-80 mr-1">
+              &nbsp;
               {{ deployment.name }}
             </span>
 
             <span v-if="location"> Results: </span>
             <span v-if="location" class="text--grey-80">
+              &nbsp;
               {{ location }}
+            </span>
+
+            <span v-if="flowRun.flow_version"> Flow version: </span>
+            <span v-if="flowRun.flow_version" class="text--grey-80">
+              &nbsp;
+              {{ flowRun.flow_version }}
             </span>
           </div>
         </div>
@@ -162,6 +191,7 @@ import { State, FlowRun, Deployment, TaskRun } from '@/typings/objects'
 import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
+import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 
 const route = useRoute()
