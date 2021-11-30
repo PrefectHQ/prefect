@@ -14,7 +14,9 @@
           Clear all
         </a>
 
-        <h3 class="d-flex align-center font--primary font-weight-semibold ml-auto">
+        <h3
+          class="d-flex align-center font--primary font-weight-semibold ml-auto"
+        >
           <i class="pi pi-filter-3-line mr-1" />
           Filters
         </h3>
