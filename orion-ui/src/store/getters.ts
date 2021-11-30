@@ -200,18 +200,23 @@ export const baseFilter =
       const states = state.globalFilter[object]?.states
 
       if (states && states.length) {
-        val['state'] = {
-          type: states.reduce<{
-            any_: string[]
-          }>(
-            (acc, curr) => {
-              acc.any_.push(curr.type)
-              return acc
-            },
-            {
-              any_: []
-            }
-          )
+        const namedStates = ['Late', 'Crashed']
+        val['state'] = {}
+
+        const stateTypes: string[] = []
+        const stateNames: string[] = []
+
+        states.forEach((state) => {
+          if (namedStates.includes(state.name)) stateNames.push(state.name)
+          else stateTypes.push(state.type)
+        })
+
+        if (stateTypes.length > 0) {
+          val['state'].type = { any_: stateTypes }
+        }
+
+        if (stateNames.length > 0) {
+          val['state'].name = { any_: stateNames }
         }
       }
     }
