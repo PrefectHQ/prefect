@@ -15,8 +15,6 @@ $positions: 'relative', 'absolute', 'fixed', 'static', 'sticky', 'initial';
 @for $i from -20 through 20 {
   $key: if(math.div($i, math.abs($i)) == 1 or $i == 0, $i, 'n#{-$i}');
 
-  @debug $key;
-
   .z-#{$key} {
     z-index: $i;
   }
