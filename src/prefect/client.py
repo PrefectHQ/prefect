@@ -29,7 +29,7 @@ from prefect import exceptions, settings
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.core import TaskRun, FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
 from prefect.utilities.logging import get_logger
@@ -407,6 +407,7 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         tags: List[str] = None,
+        flow_runner_settings: FlowRunnerSettings = None,
     ) -> UUID:
         """
         Create a flow deployment in Orion.
@@ -431,6 +432,7 @@ class OrionClient:
             flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            flow_runner=flow_runner_settings,
         )
 
         response = await self.post(
