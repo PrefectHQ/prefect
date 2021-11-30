@@ -1,5 +1,5 @@
 <template>
-  <Card class="menu font--primary" height="100%" tabindex="0">
+  <Card class="filter-menu font--primary" height="100%" tabindex="0">
     <template v-if="smAndDown" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <a
@@ -40,11 +40,8 @@
         title="Tags"
         icon="pi-filter-3-line"
       >
-        <div
-          v-breakpoints="'md'"
-          class="py-1 px-2 d-flex align-center font-weight-semibold text--black"
-        >
-          <i class="pi pi-filter-3-line mr-1 pi-sm" />Tags
+        <div v-breakpoints="'md'" class="filter-menu--section-header">
+          <i class="filter-menu--section-header-icon pi-filter-3-line" />Tags
         </div>
 
         <div class="py-1 px-2" :class="{ 'd-flex': !smAndDown }">
@@ -92,18 +89,9 @@
           icon="pi-filter-3-line"
           width="100%"
         >
-          <div
-            v-breakpoints="'md'"
-            class="
-              py-1
-              px-2
-              d-flex
-              align-center
-              font-weight-semibold
-              text--black
-            "
-          >
-            <i class="pi pi-filter-3-line mr-1 pi-sm" />States
+          <div v-breakpoints="'md'" class="filter-menu--section-header">
+            <i class="filter-menu--section-header-icon pi-filter-3-line" />
+            States
           </div>
 
           <div class="d-flex py-1 px-2">
@@ -128,18 +116,10 @@
           icon="pi-filter-3-line"
           width="100%"
         >
-          <div
-            v-breakpoints="'md'"
-            class="
-              py-1
-              px-2
-              d-flex
-              align-center
-              font-weight-semibold
-              text--black
-            "
-          >
-            <i class="pi pi-filter-3-line mr-1 pi-sm" />Timeframes
+          <div v-breakpoints="'md'" class="filter-menu--section-header">
+            <i
+              class="filter-menu--section-header-icon pi-filter-3-line"
+            />Timeframes
           </div>
 
           <div class="d-flex py-1 px-2" :class="smAndDown ? 'flex-column' : ''">
