@@ -8,7 +8,7 @@
     <form class="my-2 d-flex">
       <Radio
         v-model="timeframeSelector"
-        :value="'simple'"
+        value="simple"
         :checked="timeframeSelector == 'simple'"
         class="mr-2"
       >
