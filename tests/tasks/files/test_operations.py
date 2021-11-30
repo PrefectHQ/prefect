@@ -1,8 +1,9 @@
 from pathlib import Path
+import pathlib
 
 import pytest
 
-from prefect.tasks.files import Copy, Move, Remove
+from prefect.tasks.files import Copy, Glob, Move, Remove
 
 
 class TestMove:
@@ -125,7 +126,7 @@ class TestRemove:
         r = Remove()
         assert r.path == ""
 
-    def test_path_not_provided(self, tmpdir):
+    def test_path_not_provided(self):
         r = Remove()
         with pytest.raises(ValueError, match="No `path` provided"):
             r.run()
@@ -144,3 +145,64 @@ class TestRemove:
 
         Remove(path=source).run()
         assert not source.exists()
+
+
+class TestGlob:
+    def test_initialization(self):
+        ld = Glob(path="/some/path")
+        assert ld.path == "/some/path"
+        assert ld.pattern == "*"
+
+        ld = Glob()
+        assert ld.path == ""
+
+    def test_path_not_provided(self):
+        ld = Glob()
+        with pytest.raises(ValueError, match="No `path` provided"):
+            ld.run()
+
+    def test_list_dir(self, tmp_path: pathlib.Path):
+        dir = tmp_path / "source"
+        dir.mkdir(exist_ok=True)
+        file = dir / "testfile"
+        file.write_text("test")
+
+        ld = Glob(path=dir)
+        res = ld.run()
+
+        assert res[0] == Path(str(file))
+        assert isinstance(res[0], Path)
+
+    def test_list_dir_recursive(self, tmp_path: pathlib.Path):
+        parent_dir = tmp_path / "source"
+
+        child_dir1 = parent_dir / "dir1"
+        child_dir1.mkdir(parents=True, exist_ok=True)
+        file1 = child_dir1 / "testfile"
+        file1.write_text("test")
+
+        child_dir2 = parent_dir / "dir2"
+        child_dir2.mkdir(parents=True, exist_ok=True)
+        file2 = child_dir2 / "filetest"
+        file2.write_text("test")
+
+        ld = Glob(path=parent_dir, pattern="**/*")
+        res = ld.run()
+
+        assert Path(str(file1)) in res
+        assert Path(str(file2)) in res
+        assert len(res) == 4
+
+    def test_glob_pattern(self, tmp_path: pathlib.Path):
+        dir = tmp_path / "source"
+        dir.mkdir(exist_ok=True)
+        file1 = dir / "testfile.txt"
+        file2 = dir / "testfile.log"
+        file1.write_text("test")
+        file2.write_text("test")
+
+        ld = Glob(path=dir, pattern="*.log")
+        res = ld.run()
+
+        assert len(res) == 1
+        assert res[0] == Path(str(file2))

@@ -1,6 +1,8 @@
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
+import marshmallow
+
 import prefect
 from prefect.run_configs.base import RunConfig
 from prefect.serialization.flow import FlowSchema
@@ -23,8 +25,6 @@ class FlowView:
 
     Args:
         - flow_id: The uuid of the flow
-        - flow: A deserialized copy of the flow. This is not loaded from storage, so
-             tasks will not be runnable but the DAG can be explored.
         - settings: A dict of flow settings
         - run_config: A dict representation of the flow's run configuration
         - serialized_flow: A serialized copy of the flow
@@ -37,7 +37,6 @@ class FlowView:
     """
 
     flow_id: str
-    flow: "prefect.Flow"
     settings: dict
     run_config: RunConfig
     serialized_flow: dict
@@ -47,6 +46,21 @@ class FlowView:
     storage: prefect.storage.Storage
     name: str
     flow_group_labels: List[str]
+
+    @property
+    def flow(self) -> "prefect.Flow":
+        """
+        Deserialize the flow from the backend into a 'Flow' object.
+
+        The deserialized flow is not expected to contain all of the same data as the flow
+        object that was originally registered. The backend is free to manipulate the
+        serialized flow for optimization.
+        """
+        # Perform this deserialization lazily (in a property) because it is more likely
+        # to fail and we do not want to break the entire view because of bad flow data
+        return FlowSchema().load(
+            data=self.serialized_flow, partial=True, unknown=marshmallow.EXCLUDE
+        )
 
     @classmethod
     def _from_flow_data(cls, flow_data: dict, **kwargs: Any) -> "FlowView":
@@ -66,7 +80,6 @@ class FlowView:
         flow_group_data = flow_data.pop("flow_group")
         flow_group_labels = flow_group_data["labels"]
         project_name = flow_data.pop("project")["name"]
-        deserialized_flow = FlowSchema().load(data=flow_data["serialized_flow"])
         storage = StorageSchema().load(flow_data.pop("storage"))
         run_config = RunConfigSchema().load(flow_data.pop("run_config"))
 
@@ -75,7 +88,6 @@ class FlowView:
             **dict(
                 flow_id=flow_id,
                 project_name=project_name,
-                flow=deserialized_flow,
                 storage=storage,
                 flow_group_labels=flow_group_labels,
                 run_config=run_config,

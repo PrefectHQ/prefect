@@ -9,7 +9,6 @@ import prefect.schedules
 import prefect.triggers
 import prefect.storage
 import prefect.executors
-import prefect.artifacts
 
 from prefect.core import Task, Flow, Parameter
 import prefect.engine
@@ -23,6 +22,7 @@ from prefect.utilities.edges import mapped, unmapped, flatten
 import prefect.serialization
 import prefect.agent
 import prefect.backend
+import prefect.artifacts
 
 from ._version import get_versions
 

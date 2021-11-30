@@ -4,7 +4,7 @@
 
 Prefect Server is composed of a few different services:
 
-- **UI**: the user inteface that provides a visual dashboard for mutating and querying metadata
+- **UI**: the user interface that provides a visual dashboard for mutating and querying metadata
 - **Apollo**: the main endpoint for interacting with the server
 - **PostgreSQL**: the database persistence layer where metadata is stored
 - **Hasura**: the GraphQL API that layers on top of Postgres for querying metadata
