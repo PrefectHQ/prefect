@@ -20,9 +20,9 @@
       >
         <span>
           Flow Version:
-          <span class="font-weight-semibold" v-if="!flowRun.flow_version"
-            >--</span
-          >
+          <span class="font-weight-semibold" v-if="!flowRun.flow_version">
+            --
+          </span>
           <span class="font-weight-semibold" v-else>{{
             flowRun.flow_version
           }}</span>
