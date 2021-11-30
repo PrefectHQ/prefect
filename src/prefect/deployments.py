@@ -220,7 +220,9 @@ async def create_deployment_from_spec(
         flow_data=flow_data,
         parameters=spec.parameters,
         tags=spec.tags,
-        flow_runner_settings=spec.flow_runner.to_settings(),
+        flow_runner_settings=(
+            spec.flow_runner.to_settings() if spec.flow_runner else None
+        ),
     )
 
     return deployment_id
