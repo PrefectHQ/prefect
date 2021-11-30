@@ -9,11 +9,7 @@
   border-radius: 0;
   position: relative;
 
-  .sub-menu {
-    position: absolute;
-  }
-
-  .menu-content {
+  &--content {
     border-top: 1px solid $secondary-hover;
     border-radius: 0 !important;
     background-color: $grey-10;
@@ -26,17 +22,13 @@
     }
   }
 
-  .menu-actions {
+  &--actions {
     border-top: 1px solid $secondary-hover;
   }
 
   > ::v-deep(div) {
     border-radius: 0 0 3px 3px !important;
     max-height: inherit;
-  }
-
-  .menu-container {
-    position: relative;
   }
 
   &--section-header {
@@ -53,39 +45,12 @@
     @extend .pi-sm;
     @extend .mr-1;
   }
-}
 
-.flex-card {
-  height: unset !important;
+  &--flex-card {
+    height: unset !important;
 
-  > ::v-deep(div) {
-    height: 100% !important;
-  }
-}
-
-.filter-button {
-  align-items: center;
-  background-color: $white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  height: 100%;
-  min-width: 52px;
-  outline: none;
-
-  &:hover,
-  &:focus {
-    background-color: $grey-10;
-  }
-
-  &:active {
-    background-color: $grey-20;
-  }
-
-  $border-style: 2px solid $grey-10;
-
-  &.objects {
-    border-right: $border-style;
-    border-radius: 4px 0 0 4px;
+    > ::v-deep(div) {
+      height: 100% !important;
+    }
   }
 }
