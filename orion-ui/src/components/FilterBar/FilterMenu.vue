@@ -33,7 +33,7 @@
       </div>
     </template>
 
-    <div class="menu-content pa-2">
+    <div class="filter-menu--content pa-2">
       <component
         :is="smAndDown ? FilterAccordion : 'Card'"
         class="shadow-sm mb-1"
@@ -81,7 +81,7 @@
           :is="smAndDown ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'flex-card': !smAndDown,
+            'filter-menu--flex-card': !smAndDown,
             'mb-1': mdAndDown,
             'mr-1': !mdAndDown
           }"
@@ -111,7 +111,10 @@
         <component
           :is="smAndDown ? FilterAccordion : 'Card'"
           class="shadow-sm"
-          :class="{ 'flex-card': !smAndDown, 'mb-1': mdAndDown && !smAndDown }"
+          :class="{
+            'filter-menu--flex-card': !smAndDown,
+            'mb-1': mdAndDown && !smAndDown
+          }"
           title="Timeframes"
           icon="pi-filter-3-line"
           width="100%"
@@ -140,7 +143,9 @@
     </div>
 
     <template v-slot:actions>
-      <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
+      <CardActions
+        class="pa-2 filter-menu--actions d-flex align-center justify-end"
+      >
         <Button
           v-if="!smAndDown"
           flat
