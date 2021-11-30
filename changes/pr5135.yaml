@@ -1,2 +1,0 @@
-enhancement:
-  - "Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)"
