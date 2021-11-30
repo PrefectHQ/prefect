@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineProps } from 'vue'
+import { computed } from 'vue'
 import { Api, Endpoints, FlowRunsHistoryFilter } from '@/plugins/api'
 import IntervalBarChartCard from './IntervalBarChart/IntervalBarChartCard.vue'
 import { IntervalBarChartItem } from './IntervalBarChart/Types/IntervalBarChartItem'

@@ -39,7 +39,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, defineEmits, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 const emit = defineEmits(['input', 'keyup.enter', 'focused'])
 const searchInput = ref()

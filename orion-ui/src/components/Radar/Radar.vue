@@ -100,15 +100,7 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  ref,
-  defineProps,
-  computed,
-  onMounted,
-  onUnmounted,
-  watch,
-  reactive
-} from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, reactive } from 'vue'
 import * as d3 from 'd3'
 import { Radar } from './Radar'
 import { pow, sqrt, pi, cos, sin } from './math'
