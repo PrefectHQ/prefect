@@ -2,16 +2,18 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import Awaitable, Callable, Coroutine, List, Optional
+from functools import partial
+from typing import Awaitable, Callable, List, Optional
 from uuid import UUID
 
 import anyio
 import anyio.to_process
 import pendulum
-from anyio.abc import TaskGroup, TaskStatus
+from anyio.abc import TaskGroup
 
 from prefect import settings
 from prefect.client import OrionClient
+from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -56,68 +58,31 @@ class OrionAgent:
             self.task_group.start_soon(
                 self.lookup_submission_method(flow_run),
                 flow_run,
-                self.submitted_callback,
+                self.task_group,
+                partial(self.submitted_callback, flow_run.id),
             )
         return submittable_runs
 
     def lookup_submission_method(
         self, flow_run: FlowRun
-    ) -> Callable[[FlowRun], Awaitable[None]]:
+    ) -> Callable[[FlowRun, TaskGroup, Callable[[bool], None]], Awaitable[None]]:
         """
-        Future hook for returning submission methods based on flow run configs
+        Returns a submission method based on the flow runner configuration
         """
-        # TODO: Add dispatching here and move submission functions out of the agent cls
-        return self.submit_flow_run_to_subprocess
-
-    async def submit_flow_run_to_subprocess(
-        self,
-        flow_run: FlowRun,
-        submitted_callback: Callable[[FlowRun, bool], None],
-    ) -> None:
-        async def check_result(
-            task: Coroutine, flow_run_id: UUID, task_status: TaskStatus
-        ) -> None:
-            """
-            Here we await the result of the subprocess which will contain the final flow
-            run state which we will log.
-
-            This is useful for early development but is not feasible for all planned
-            submission methods so I will not generalize it yet
-            """
-            task_status.started()
-
-            try:
-                state = await task
-            except BaseException as exc:
-                # Capture errors and display them instead of tearing down the agent
-                # This is most often an `Abort` signal because the flow is being run
-                # by another agent.
-                self.logger.info(
-                    f"Flow run '{flow_run_id}' exited with exception: {exc!r}"
-                )
-            else:
-                if state.is_failed():
-                    self.logger.info(f"Flow run '{flow_run_id}' failed!")
-                elif state.is_completed():
-                    self.logger.info(f"Flow run '{flow_run_id}' completed.")
-
-        import prefect.engine
-
-        task = anyio.to_process.run_sync(
-            prefect.engine.enter_flow_run_engine_from_subprocess,
-            flow_run.id,
-            cancellable=True,
-        )
-        await self.task_group.start(check_result, task, flow_run.id)
-        await submitted_callback(flow_run, True)
-
-    async def submitted_callback(self, flow_run: FlowRun, success: bool):
-        if success:
-            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+        if flow_run.flow_runner is not None:
+            return FlowRunner.from_settings(flow_run.flow_runner).submit_flow_run
         else:
-            self.logger.error(f"Failed to submit flow run '{flow_run.id}'")
+            # TODO: We do a local run by default, but we should do something more
+            #       interesting here like set a default type on the agent
+            return SubprocessFlowRunner().submit_flow_run
 
-            self.submitting_flow_run_ids.remove(flow_run.id)
+    def submitted_callback(self, flow_run_id: UUID, success: bool):
+        if success:
+            self.logger.info(f"Completed submission of flow run '{flow_run_id}'")
+        else:
+            self.logger.error(f"Failed to submit flow run '{flow_run_id}'")
+
+            self.submitting_flow_run_ids.remove(flow_run_id)
 
     # Context management ---------------------------------------------------------------
 
