@@ -60,6 +60,7 @@ from pydantic import root_validator, validator
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow
+from prefect.flow_runners import FlowRunner
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
@@ -98,6 +99,7 @@ class DeploymentSpec(PrefectBaseModel):
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
+    flow_runner: FlowRunner = None
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
