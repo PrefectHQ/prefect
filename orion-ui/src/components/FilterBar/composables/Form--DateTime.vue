@@ -131,14 +131,7 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  defineEmits,
-  ref,
-  defineProps,
-  watch,
-  computed,
-  withDefaults
-} from 'vue'
+import { ref, watch, computed, withDefaults } from 'vue'
 
 const props = withDefaults(
   defineProps<{

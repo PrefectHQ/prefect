@@ -21,7 +21,7 @@
 <script lang="ts" setup>
 import RunHistoryChart from './RunHistoryChart--Chart.vue'
 import { Api, FlowRunsHistoryFilter, Query, Endpoints } from '@/plugins/api'
-import { defineProps, computed } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps<{ filter: FlowRunsHistoryFilter }>()
 

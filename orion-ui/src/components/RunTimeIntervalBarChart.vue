@@ -38,7 +38,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineProps } from 'vue'
+import { computed } from 'vue'
 import { FlowRunsHistoryFilter } from '@/plugins/api'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import { secondsToApproximateString } from '@/util/util'
