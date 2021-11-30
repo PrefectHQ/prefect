@@ -32,16 +32,18 @@
                   text-truncate
                 "
               >
-                <span v-if="flowRun.start_time" > Started: </span>
-                <span v-if="flowRun.start_time" class="text--grey-80 mr-1">
-                  &nbsp;
-                  {{ formatDateTimeNumeric(flowRun.start_time) }}
+                <span v-if="flowRun.start_time">
+                  Started:
+                  <span class="text--grey-80 mr-1 ml--half">
+                    {{ formatDateTimeNumeric(flowRun.start_time) }}
+                  </span>
                 </span>
 
-                <span v-if="flowRun.end_time"> Ended: </span>
-                <span v-if="flowRun.end_time" class="text--grey-80 mr-1">
-                  &nbsp;
-                  {{ formatDateTimeNumeric(flowRun.end_time) }}
+                <span v-if="flowRun.end_time">
+                  Ended:
+                  <span class="text--grey-80 mr-1 ml--half">
+                    {{ formatDateTimeNumeric(flowRun.end_time) }}
+                  </span>
                 </span>
               </div>
             </span>
@@ -57,22 +59,25 @@
               text-truncate
             "
           >
-            <span v-if="deployment.name"> Deployment: </span>
-            <span v-if="deployment.name" class="text--grey-80 mr-1">
-              &nbsp;
-              {{ deployment.name }}
+            <span v-if="deployment.name">
+              Deployment:
+              <span class="text--grey-80 mr-1 ml--half">
+                {{ deployment.name }}
+              </span>
             </span>
 
-            <span v-if="location"> Results: </span>
-            <span v-if="location" class="text--grey-80">
-              &nbsp;
-              {{ location }}
+            <span v-if="location">
+              Results:
+              <span class="text--grey-80 mr-1 ml--half">
+                {{ location }}
+              </span>
             </span>
 
-            <span v-if="flowRun.flow_version"> Flow version: </span>
-            <span v-if="flowRun.flow_version" class="text--grey-80">
-              &nbsp;
-              {{ flowRun.flow_version }}
+            <span v-if="flowRun.flow_version">
+              Flow version:
+              <span class="text--grey-80 mr-1 ml--half">
+                {{ flowRun.flow_version }}
+              </span>
             </span>
           </div>
         </div>
