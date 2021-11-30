@@ -33,15 +33,15 @@
       </div>
     </template>
 
-    <div class="filter-menu--content pa-2">
+    <div class="filter-menu__content pa-2">
       <component
         :is="smAndDown ? FilterAccordion : 'Card'"
         class="shadow-sm mb-1"
         title="Tags"
         icon="pi-filter-3-line"
       >
-        <div v-breakpoints="'md'" class="filter-menu--section-header">
-          <i class="filter-menu--section-header-icon pi-filter-3-line" />Tags
+        <div v-breakpoints="'md'" class="filter-menu__section-header">
+          <i class="filter-menu__section-header-icon pi-filter-3-line" />Tags
         </div>
 
         <div class="py-1 px-2" :class="{ 'd-flex': !smAndDown }">
@@ -81,7 +81,7 @@
           :is="smAndDown ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'filter-menu--flex-card': !smAndDown,
+            'filter-menu__flex-card': !smAndDown,
             'mb-1': mdAndDown,
             'mr-1': !mdAndDown
           }"
@@ -89,8 +89,8 @@
           icon="pi-filter-3-line"
           width="100%"
         >
-          <div v-breakpoints="'md'" class="filter-menu--section-header">
-            <i class="filter-menu--section-header-icon pi-filter-3-line" />
+          <div v-breakpoints="'md'" class="filter-menu__section-header">
+            <i class="filter-menu__section-header-icon pi-filter-3-line" />
             States
           </div>
 
@@ -112,16 +112,16 @@
           :is="smAndDown ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'filter-menu--flex-card': !smAndDown,
+            'filter-menu__flex-card': !smAndDown,
             'mb-1': mdAndDown && !smAndDown
           }"
           title="Timeframes"
           icon="pi-filter-3-line"
           width="100%"
         >
-          <div v-breakpoints="'md'" class="filter-menu--section-header">
+          <div v-breakpoints="'md'" class="filter-menu__section-header">
             <i
-              class="filter-menu--section-header-icon pi-filter-3-line"
+              class="filter-menu__section-header-icon pi-filter-3-line"
             />Timeframes
           </div>
 
@@ -144,7 +144,7 @@
 
     <template v-slot:actions>
       <CardActions
-        class="pa-2 filter-menu--actions d-flex align-center justify-end"
+        class="pa-2 filter-menu__actions d-flex align-center justify-end"
       >
         <Button
           v-if="!smAndDown"

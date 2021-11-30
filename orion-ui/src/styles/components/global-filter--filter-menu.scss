@@ -9,7 +9,7 @@
   border-radius: 0;
   position: relative;
 
-  &--content {
+  &__content {
     border-top: 1px solid $secondary-hover;
     border-radius: 0 !important;
     background-color: $grey-10;
@@ -22,7 +22,7 @@
     }
   }
 
-  &--actions {
+  &__actions {
     border-top: 1px solid $secondary-hover;
   }
 
@@ -31,7 +31,7 @@
     max-height: inherit;
   }
 
-  &--section-header {
+  &__section-header {
     @extend .py-1;
     @extend .px-2;
     @extend .d-flex;
@@ -40,13 +40,13 @@
     @extend .text--black;
   }
 
-  &--section-header-icon {
+  &__section-header-icon {
     @extend .pi;
     @extend .pi-sm;
     @extend .mr-1;
   }
 
-  &--flex-card {
+  &__flex-card {
     height: unset !important;
 
     > ::v-deep(div) {
