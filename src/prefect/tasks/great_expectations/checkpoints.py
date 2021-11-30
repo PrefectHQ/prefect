@@ -211,8 +211,8 @@ class RunGreatExpectationsValidation(Task):
                 is used.
 
                 ('great_expectations.checkpoint.checkpoint.CheckpointResult'):
-                The Great Expectations metadata returned from running the provided checkpoint if the v3
-                (Batch Request) API is used.
+                The Great Expectations metadata returned from running the provided checkpoint if a
+                checkpoint name is provided.
 
         """
 
