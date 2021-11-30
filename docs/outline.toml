@@ -17,6 +17,17 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.artifacts]
+title = "Artifacts"
+module = "prefect.backend.artifacts"
+functions = [
+    "create_link_artifact",
+    "update_link_artifact",
+    "create_markdown_artifact",
+    "update_markdown_artifact",
+    "delete_artifact"
+]
+
 [pages.backend.flow]
 title = "Flow"
 module = "prefect.backend.flow"
@@ -121,6 +132,7 @@ classes = [
 functions = [
     "IntervalSchedule",
     "CronSchedule",
+    "RRuleSchedule",
 ]
 
 [pages.schedules.clocks]
@@ -131,6 +143,7 @@ classes = [
     "IntervalClock",
     "CronClock",
     "DatesClock",
+    "RRuleClock",
 ]
 
 [pages.schedules.filters]
@@ -267,7 +280,7 @@ classes = {Executor=[], LocalExecutor=[], LocalDaskExecutor=[], DaskExecutor=[]}
 [pages.run_configs]
 title = "Run Configuration"
 module = "prefect.run_configs"
-classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun"]
+classes = ["RunConfig", "UniversalRun", "LocalRun", "DockerRun", "KubernetesRun", "ECSRun", "VertexRun"]
 
 [pages.storage]
 title = "Storage"
@@ -382,7 +395,10 @@ classes = [
 [pages.tasks.dbt]
 title = "DBT Tasks"
 module = "prefect.tasks.dbt"
-classes = ["DbtShellTask"]
+classes = [
+        "DbtShellTask",
+        "DbtCloudRunJob"
+        ]
 
 [pages.tasks.asana]
 title = "Asana Tasks"
@@ -428,6 +444,7 @@ title = "File and Filesystem Tasks"
 module = "prefect.tasks.files"
 classes = [
         "Copy",
+        "Glob",
         "Move",
         "Remove",
         "Unzip",
@@ -472,6 +489,14 @@ classes = ["JiraTask", "JiraServiceDeskTask"]
 title = "Jupyter Tasks"
 module = "prefect.tasks.jupyter"
 classes = ["ExecuteNotebook"]
+
+[pages.tasks.kafka]
+title = "Kafka Tasks"
+module = "prefect.tasks.kafka"
+classes = [
+        "KafkaBatchConsume",
+        "KafkaBatchProduce"
+]
 
 [pages.tasks.monday]
 title = "Monday Tasks"
@@ -532,6 +557,11 @@ classes = ["SnowflakeQuery"]
 title = "SodaSQL Tasks"
 module = "prefect.tasks.sodasql"
 classes = ["SodaSQLScan"]
+
+[pages.tasks.sodaspark]
+title = "SodaSpark Tasks"
+module = "prefect.tasks.sodaspark"
+classes = ["SodaSparkScan"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
@@ -637,17 +667,10 @@ title = "ECS Agent"
 module = "prefect.agent.ecs"
 classes = {ECSAgent = ["start"]}
 
-[pages.artifacts.artifacts]
-title = "Artifacts"
-module = "prefect.artifacts"
-functions = [
-    "create_link",
-    "update_link",
-    "create_markdown",
-    "update_markdown",
-    "delete_artifact"
-]
-experimental = true
+[pages.agent.vertex]
+title = "Vertex Agent"
+module = "prefect.agent.vertex"
+classes = {VertexAgent = ["start"]}
 
 [pages.utilities.collections]
 title = "Collections"
@@ -733,3 +756,8 @@ classes = ["SendEmail"]
 title = "Census Tasks"
 module = "prefect.tasks.census"
 classes = ["CensusSyncTask"]
+
+[pages.tasks.airbyte]
+title = "Airbyte Tasks"
+module = "prefect.tasks.airbyte"
+classes = ["AirbyteConnectionTask"]

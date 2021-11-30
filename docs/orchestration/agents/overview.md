@@ -29,6 +29,9 @@ platforms.
 - **Kubernetes**: The [Kubernetes Agent](./kubernetes.md) executes flow runs as
   [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/).
 
+- **GCP Vertex**: The [Vertex Agent](./vertex.md) executes flow runs as
+  [Vertex Custom Jobs](https://cloud.google.com/vertex-ai/docs/training/create-custom-job).
+
 - **AWS ECS**: The [ECS Agent](./ecs.md) executes flow runs as [AWS ECS
   tasks](https://aws.amazon.com/ecs/) (on either ECS or Fargate).
 

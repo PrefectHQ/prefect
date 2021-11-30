@@ -171,3 +171,12 @@ def test_flow_view_from_flow_group_id_where_and_order_clauses(monkeypatch):
         in post.call_args[1]["params"]["query"]
     )
     assert "order_by: { created: desc }" in post.call_args[1]["params"]["query"]
+
+
+def test_flow_view_handles_extra_and_missing_fields_in_serialized_flows():
+    flow_data = FLOW_DATA_1.copy()
+    serialized = flow_data["serialized_flow"]
+    serialized["extra_field"] = "foo"  # extra data
+    serialized.pop("parameters")  # missing data
+    flow_view = FlowView._from_flow_data(flow_data)
+    assert isinstance(flow_view.flow, Flow)

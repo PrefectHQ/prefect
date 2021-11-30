@@ -1,0 +1,5 @@
+enhancement:
+  - "Expose container ports when using Prefect's DockerRun - [#5130](https://github.com/PrefectHQ/prefect/issues/5130)"
+
+contributor:
+  - "[Shahil Mawjee](https://github.com/s-mawjee)"

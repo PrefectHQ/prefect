@@ -1,0 +1,5 @@
+enhancement:
+  - "Add AirbyeConnectionTask - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)"
+
+contributor:
+  - "[Nicholas Hemley](https://github.com/iamniche-too)"

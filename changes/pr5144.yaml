@@ -1,0 +1,5 @@
+feature:
+  - "Add support for running Data Quality checks on Spark DataFrames using soda-spark library - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
