@@ -165,7 +165,7 @@
         <Card
           class="shadow-sm flex-card"
           width="100%"
-          :class="mdAndDown ? 'mb-1' : ''"
+          :class="{ 'mb-1': mdAndDown }"
         >
           <div
             class="
