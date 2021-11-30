@@ -20,8 +20,7 @@ import {
   onBeforeUnmount,
   watch,
   shallowRef,
-  ComponentPublicInstance,
-  defineProps
+  ComponentPublicInstance
 } from 'vue'
 import Observer from '@/components/Global/IntersectionObserver/IntersectionObsever.vue'
 import { Api, Endpoints, FilterBody } from '@/plugins/api'
