@@ -56,7 +56,7 @@ extras = {
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
-    "ge": ["great_expectations >= 0.11.1"],
+    "ge": ["great_expectations >= 0.13.8, < 0.14"],
     "gcp": [
         "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]

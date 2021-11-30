@@ -10,19 +10,20 @@ Prefect flow.
 """
 from typing import Optional
 
+import great_expectations as ge
+from packaging import version
+
 import prefect
 from prefect import Task
 from prefect.backend.artifacts import create_markdown_artifact
-
 from prefect.engine import signals
 from prefect.utilities.tasks import defaults_from_attrs
-
-import great_expectations as ge
 
 
 class RunGreatExpectationsValidation(Task):
     """
     Task for running data validation with Great Expectations.
+    Works with both the Great Expectations v2 (batch_kwargs) and v3 (Batch Request) APIs.
 
     Example using the GE getting started tutorial:
     https://github.com/superconductive/ge_tutorials/tree/main/ge_getting_started_tutorial
@@ -75,16 +76,17 @@ class RunGreatExpectationsValidation(Task):
 
     Args:
         - checkpoint_name (str, optional): the name of a pre-configured checkpoint; should match the
-            filename of the checkpoint without .py
+            filename of the checkpoint without the extension. Required when using the Great
+            Expectations v3 API.
         - context (DataContext, optional): an in-memory GE DataContext object. e.g.
             `ge.data_context.DataContext()` If not provided then `context_root_dir` will be used to
             look for one.
         - assets_to_validate (list, optional): A list of assets to validate when running the
-            validation operator.
+            validation operator. Only used in the Great Expectations v2 API
         - batch_kwargs (dict, optional): a dictionary of batch kwargs to be used when validating
-            assets.
+            assets. Only used in the Great Expectations v2 API
         - expectation_suite_name (str, optional): the name of an expectation suite to be used when
-            validating assets.
+            validating assets. Only used in the Great Expectations v2 API
         - context_root_dir (str, optional): the absolute or relative path to the directory holding
             your `great_expectations.yml`
         - runtime_environment (dict, optional): a dictionary of great expectation config key-value
@@ -170,16 +172,17 @@ class RunGreatExpectationsValidation(Task):
 
         Args:
             - checkpoint_name (str, optional): the name of the checkpoint; should match the filename of
-                the checkpoint without .py
+                the checkpoint without the extension. This is required for using the Great
+                Expectations v3 API.
             - context (DataContext, optional): an in-memory GE DataContext object. e.g.
                 `ge.data_context.DataContext()` If not provided then `context_root_dir` will be used to
                 look for one.
             - assets_to_validate (list, optional): A list of assets to validate when running the
-                validation operator.
+                validation operator. Only used in the Great Expectations v2 API
             - batch_kwargs (dict, optional): a dictionary of batch kwargs to be used when validating
-                assets.
+                assets. Only used in the Great Expectations v2 API
             - expectation_suite_name (str, optional): the name of an expectation suite to be used when
-                validating assets.
+                validating assets. Only used in the Great Expectations v2 API
             - context_root_dir (str, optional): the absolute or relative path to the directory holding
                 your `great_expectations.yml`
             - runtime_environment (dict, optional): a dictionary of great expectation config key-value
@@ -204,9 +207,20 @@ class RunGreatExpectationsValidation(Task):
         Returns:
             - result
                 ('great_expectations.validation_operators.types.validation_operator_result.ValidationOperatorResult'):
-                The Great Expectations metadata returned from the validation
+                The Great Expectations metadata returned from the validation if the v2 (batch_kwargs) API
+                is used.
+
+                ('great_expectations.checkpoint.checkpoint.CheckpointResult'):
+                The Great Expectations metadata returned from running the provided checkpoint if the v3
+                (Batch Request) API is used.
 
         """
+
+        if version.parse(ge.__version__) < version.parse("0.13.8"):
+            self.logger.warn(
+                "You are using a version of great_expectations before 0.13.8 which may cause"
+                "errors in this task. Please upgrade great_expections to 0.13.8 or later."
+            )
 
         runtime_environment = runtime_environment or dict()
 
@@ -234,52 +248,43 @@ class RunGreatExpectationsValidation(Task):
                 "checkpoint_name is required to run validation."
             )
 
-        # If assets are not provided directly through `assets_to_validate` then they need be loaded
-        #   if a checkpoint_name is supplied, then load suite and batch_kwargs from there
-        #   otherwise get batch from `batch_kwargs` and `expectation_suite_name`
-
-        if not assets_to_validate:
-            assets_to_validate = []
-            if checkpoint_name:
-                ge_checkpoint = context.get_checkpoint(checkpoint_name)
-
-                for batch in ge_checkpoint["batches"]:
-                    batch_kwargs = batch["batch_kwargs"]
-                    for suite_name in batch["expectation_suite_names"]:
-                        suite = context.get_expectation_suite(suite_name)
-                        batch = context.get_batch(batch_kwargs, suite)
-                        assets_to_validate.append(batch)
-                validation_operator = ge_checkpoint["validation_operator_name"]
-            else:
-                assets_to_validate.append(
+        results = None
+        # If there is a checkpoint name provided, run the checkpoint.
+        # Checkpoints are the preferred deployment of validation configuration.
+        if checkpoint_name:
+            ge_checkpoint = context.get_checkpoint(checkpoint_name)
+            results = ge_checkpoint.run()
+        else:
+            # If assets are not provided directly through `assets_to_validate` then they need be loaded
+            #   get batch from `batch_kwargs` and `expectation_suite_name`
+            if not assets_to_validate:
+                assets_to_validate = [
                     context.get_batch(batch_kwargs, expectation_suite_name)
-                )
+                ]
 
-        # Run validation operator
-        results = context.run_validation_operator(
-            validation_operator,
-            assets_to_validate=assets_to_validate,
-            run_id={"run_name": run_name or prefect.context.get("task_slug")},
-            evaluation_parameters=evaluation_parameters,
-        )
+            # Run validation operator
+            results = context.run_validation_operator(
+                validation_operator,
+                assets_to_validate=assets_to_validate,
+                run_id={"run_name": run_name or prefect.context.get("task_slug")},
+                evaluation_parameters=evaluation_parameters,
+            )
 
         # Generate artifact markdown
         if not disable_markdown_artifact:
-            run_info_at_end = True
             validation_results_page_renderer = (
                 ge.render.renderer.ValidationResultsPageRenderer(
                     run_info_at_end=run_info_at_end
                 )
             )
-            rendered_document_content_list = (
-                validation_results_page_renderer.render_validation_operator_result(
-                    validation_operator_result=results
-                )
+            rendered_content_list = validation_results_page_renderer.render_validation_operator_result(
+                # This also works with a CheckpointResult because of duck typing.
+                # The passed in object needs a list_validation_results method that
+                # returns a list of ExpectationSuiteValidationResult.
+                validation_operator_result=results
             )
             markdown_artifact = " ".join(
-                ge.render.view.DefaultMarkdownPageView().render(
-                    rendered_document_content_list
-                )
+                ge.render.view.DefaultMarkdownPageView().render(rendered_content_list)
             )
 
             create_markdown_artifact(markdown_artifact)
