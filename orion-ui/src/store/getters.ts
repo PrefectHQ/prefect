@@ -200,6 +200,9 @@ export const baseFilter =
       const states = state.globalFilter[object]?.states
 
       if (states && states.length) {
+        // TODO: This is hacky and not easy to maintain the more we use it;
+        // once we have a way to query for user-defined states in the API
+        // we should use those values as the basis for when to query for names vs. types
         const namedStates = ['Late', 'Crashed']
         val['state'] = {}
 
