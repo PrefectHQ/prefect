@@ -33,109 +33,67 @@
       </div>
     </template>
 
-    <div v-if="smAndDown" class="menu-content pa-2">
-      <FilterAccordion class="mb-1" title="Tags" icon="pi-filter-3-line">
-        <div class="py-1 px-2">
-          <Form-Tags
-            v-model="filters.flows.tags"
-            title="Flows"
-            icon="pi-flow"
-            class="mb-2"
-          />
-          <Form-Tags
-            v-model="filters.deployments.tags"
-            title="Deployments"
-            icon="pi-map-pin-line"
-            class="mb-2"
-          />
-          <Form-Tags
-            v-model="filters.flow_runs.tags"
-            title="Flow runs"
-            icon="pi-flow-run"
-            class="mb-2"
-          />
-          <Form-Tags
-            v-model="filters.task_runs.tags"
-            title="Task runs"
-            icon="pi-task"
-            class="mb-2"
-          />
-        </div>
-      </FilterAccordion>
-
-      <FilterAccordion class="mb-1" title="States" icon="pi-filter-3-line">
-        <div class="d-flex py-1 px-2">
-          <Form-States
-            v-model="filters.flow_runs.states"
-            title="Flow runs"
-            icon="pi-flow-run"
-          />
-          <Form-States
-            v-model="filters.task_runs.states"
-            title="Task runs"
-            icon="pi-task"
-          />
-        </div>
-      </FilterAccordion>
-
-      <FilterAccordion title="Timeframes" icon="pi-filter-3-line">
-        <div class="d-flex py-1 px-2" :class="smAndDown ? 'flex-column' : ''">
-          <Form-DateTime
-            v-model="filters.flow_runs.timeframe"
-            class="mr-1"
-            title="Flow runs"
-            icon="pi-flow-run"
-          />
-          <Form-DateTime
-            v-model="filters.task_runs.timeframe"
-            title="Task runs"
-            icon="pi-task"
-          />
-        </div>
-      </FilterAccordion>
-    </div>
-
-    <div v-else class="menu-content pa-2">
-      <Card class="shadow-sm mb-1">
+    <div class="menu-content pa-2">
+      <component
+        :is="smAndDown ? FilterAccordion : 'Card'"
+        class="shadow-sm mb-1"
+        title="Tags"
+        icon="pi-filter-3-line"
+      >
         <div
+          v-breakpoints="'md'"
           class="py-1 px-2 d-flex align-center font-weight-semibold text--black"
         >
           <i class="pi pi-filter-3-line mr-1 pi-sm" />Tags
         </div>
-        <div class="d-flex py-1 px-2">
+
+        <div class="py-1 px-2" :class="{ 'd-flex': !smAndDown }">
           <Form-Tags
             v-model="filters.flows.tags"
             title="Flows"
             icon="pi-flow"
-            class="mr-1"
+            class="mb-2"
           />
           <Form-Tags
             v-model="filters.deployments.tags"
             title="Deployments"
             icon="pi-map-pin-line"
-            class="mr-1"
+            class="mb-2"
           />
           <Form-Tags
             v-model="filters.flow_runs.tags"
             title="Flow runs"
             icon="pi-flow-run"
-            class="mr-1"
+            class="mb-2"
           />
           <Form-Tags
             v-model="filters.task_runs.tags"
             title="Task runs"
             icon="pi-task"
+            class="mb-2"
           />
         </div>
-      </Card>
+      </component>
 
-      <div class="d-flex align-stretch" :class="{ 'flex-column': mdAndDown }">
-        <Card
-          class="shadow-sm flex-card"
+      <component
+        :is="smAndDown ? 'template' : 'div'"
+        class="d-flex align-stretch"
+        :class="{ 'flex-column': mdAndDown }"
+      >
+        <component
+          :is="smAndDown ? FilterAccordion : 'Card'"
+          class="shadow-sm"
+          :class="{
+            'flex-card': !smAndDown,
+            'mb-1': mdAndDown,
+            'mr-1': !mdAndDown
+          }"
+          title="States"
+          icon="pi-filter-3-line"
           width="100%"
-          :class="mdAndDown ? 'mb-1' : 'mr-1'"
         >
           <div
+            v-breakpoints="'md'"
             class="
               py-1
               px-2
@@ -160,14 +118,18 @@
               icon="pi-task"
             />
           </div>
-        </Card>
+        </component>
 
-        <Card
-          class="shadow-sm flex-card"
+        <component
+          :is="smAndDown ? FilterAccordion : 'Card'"
+          class="shadow-sm"
+          :class="{ 'flex-card': !smAndDown, 'mb-1': mdAndDown && !smAndDown }"
+          title="Timeframes"
+          icon="pi-filter-3-line"
           width="100%"
-          :class="{ 'mb-1': mdAndDown }"
         >
           <div
+            v-breakpoints="'md'"
             class="
               py-1
               px-2
@@ -180,12 +142,12 @@
             <i class="pi pi-filter-3-line mr-1 pi-sm" />Timeframes
           </div>
 
-          <div class="d-flex py-1 px-2 align-stretch">
+          <div class="d-flex py-1 px-2" :class="smAndDown ? 'flex-column' : ''">
             <Form-DateTime
               v-model="filters.flow_runs.timeframe"
+              class="mr-1"
               title="Flow runs"
               icon="pi-flow-run"
-              class="mr-4 mb-1"
             />
             <Form-DateTime
               v-model="filters.task_runs.timeframe"
@@ -193,8 +155,8 @@
               icon="pi-task"
             />
           </div>
-        </Card>
-      </div>
+        </component>
+      </component>
     </div>
 
     <template v-slot:actions>
