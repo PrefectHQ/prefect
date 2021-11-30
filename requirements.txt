@@ -1,4 +1,4 @@
-aiofiles == 0.7.0
+aiofiles == 0.8.0
 aiosqlite>=0.17.0, < 0.18
 anyio >=3.0, <4.0
 asyncpg >= 0.23, < 0.26

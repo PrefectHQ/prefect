@@ -1,43 +1,57 @@
 <template>
-  <div ref="container" class="chart-container">
-    <svg :id="id" ref="chart" class="run-history-chart"></svg>
+  <div ref="container" class="run-history-chart">
+    <svg :id="id" ref="chart" class="run-history-chart__chart"></svg>
 
-    <div class="median" :style="medianPosition" />
+    <div class="run-history-chart__median" :style="medianPosition" />
 
-    <div class="bar-container">
+    <div class="run-history-chart__buckets">
       <div
         v-for="(item, i) in items"
         :key="item.interval_start"
-        class="interval-bucket"
+        class="run-history-chart__bucket"
         :style="calculateBucketPosition(item)"
       >
-        <div class="up">
-          <div
-            v-for="state in item.states.filter((s) =>
-              positiveStates.includes(s.state_type)
-            )"
-            :key="state.state_type"
-            class="interval-bucket-state"
-            :class="calculateBarClass(state)"
+        <template v-for="state in item.states" :key="state.state_type">
+          <Popover
+            :placement="['bottom', 'top', 'leftTop', 'rightTop']"
             :style="calculateBarPosition(state, i)"
-            tabindex="0"
+            :disabled="disablePopovers"
+            class="run-history-chart__popover"
           >
-          </div>
-        </div>
-
-        <div class="down">
-          <div
-            v-for="state in item.states.filter((s) =>
-              negativeStates.includes(s.state_type)
-            )"
-            :key="state.state_type"
-            class="interval-bucket-state"
-            :class="calculateBarClass(state)"
-            :style="calculateBarPosition(state, i)"
-            tabindex="0"
-          >
-          </div>
-        </div>
+            <template v-slot:trigger="{ open, close }">
+              <div
+                class="run-history-chart__bar"
+                :class="calculateBarClass(state)"
+                :style="styles.bar"
+                tabindex="0"
+                @focusin="open"
+                @focusout="close"
+                @mouseenter="open"
+                @mouseleave="close"
+              />
+            </template>
+            <template v-slot:header>
+              <div class="interval-bar-chart-card__popover-header">
+                <StateIcon class="mr-1" :state="state.state_type" colored />
+                <span>{{ state.state_name }} flow runs</span>
+              </div>
+            </template>
+            <table class="table table--data">
+              <tr>
+                <td>Run count:</td>
+                <td>{{ state.count_runs }}</td>
+              </tr>
+              <tr>
+                <td>Started after:</td>
+                <td>{{ formatDateTimeNumeric(item.interval_start) }}</td>
+              </tr>
+              <tr>
+                <td>Started before:</td>
+                <td>{{ formatDateTimeNumeric(item.interval_end) }}</td>
+              </tr>
+            </table>
+          </Popover>
+        </template>
       </div>
     </div>
   </div>
@@ -54,6 +68,10 @@ import { Transition } from 'd3-transition'
 import { AxisDomain } from 'd3-axis'
 import { Bucket, Buckets, StateBucket } from '@/typings/run_history'
 import { StyleValue } from '@vue/runtime-dom'
+import { ClassValue } from '@/types/css'
+
+import { formatDateTimeNumeric } from '@/utilities/dates'
+import { State, States, StateDirections } from '@/types/states'
 
 type TransitionSelectionType = Transition<
   SVGGElement,
@@ -65,26 +83,6 @@ type GroupSelectionType = Selection<SVGGElement, unknown, HTMLElement, null>
 
 type BucketSeries = Series<Bucket, string>
 type SeriesCollection = BucketSeries[]
-
-const positiveStates: string[] = [
-  'COMPLETED',
-  'RUNNING',
-  'SCHEDULED',
-  'PENDING'
-]
-const mappedPositiveStates: [string, number][] = positiveStates.map(
-  (d: string) => [d, -1]
-)
-
-const negativeStates: string[] = ['FAILED', 'CANCELLED']
-const mappedNegativeStates: [string, number][] = negativeStates.map(
-  (d: string) => [d, +1]
-)
-
-const directions: Map<string, number> = new Map([
-  ...mappedPositiveStates,
-  ...mappedNegativeStates
-])
 
 const formatMillisecond = d3.timeFormat('.%L'),
   formatSecond = d3.timeFormat(':%S'),
@@ -123,11 +121,8 @@ class Props {
   backgroundColor = prop<string>({ required: false, default: null })
   items = prop<Buckets>({ required: true })
   showAxis = prop<boolean>({ required: false, default: false, type: Boolean })
-  staticMedian = prop<boolean>({
-    required: false,
-    type: Boolean,
-    default: false
-  })
+  disablePopovers = prop<boolean>({ default: false })
+  staticMedian = prop<boolean>({ type: Boolean, default: false })
   padding = prop<{
     top: number
     bottom: number
@@ -151,10 +146,9 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
   xScale = d3.scaleTime()
   yScale = d3.scaleLinear()
 
-  xAxisGroup: GroupSelectionType | undefined
+  formatDateTimeNumeric = formatDateTimeNumeric
 
-  positiveStates = positiveStates
-  negativeStates = negativeStates
+  xAxisGroup: GroupSelectionType | undefined
 
   axisHeight = 20
 
@@ -170,7 +164,6 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
         d3
           .axisTop(this.xScale)
           .tickPadding(0)
-          // .tickArguments(d3.timeSecond.every(this.intervalSeconds))
           .tickFormat(formatLabel)
           .tickSizeInner(0)
           .tickSizeOuter(0)
@@ -178,18 +171,24 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       .call((g) => g.select('.domain').remove())
 
   get series(): SeriesCollection {
-    return (
-      d3
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .stack<any, Bucket, string>()
-        .keys([...positiveStates.slice().reverse(), ...negativeStates])
-        .value(
-          (d: Bucket, key: string) =>
-            (directions.get(key) || 1) *
-            (d.states.find((state) => state.state_type == key)?.count_runs || 0)
-        )
-        .offset(d3.stackOffsetDiverging)(this.items)
-    )
+    return d3
+      .stack<Bucket, string>()
+      .keys([
+        States.PENDING,
+        States.SCHEDULED,
+        States.RUNNING,
+        States.COMPLETED,
+        States.FAILED,
+        States.CANCELED
+      ])
+      .value((d: Bucket, key: string) => {
+        const value =
+          d.states.find((state) => state.state_type == key)?.count_runs || 0
+
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        return value * StateDirections.get(key as State)!
+      })
+      .offset(d3.stackOffsetDiverging)(this.items)
   }
 
   get seriesMap(): Map<string, BucketSeries> {
@@ -206,6 +205,14 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     return this.height - this.axisHeight
   }
 
+  get styles() {
+    return {
+      bar: {
+        width: `${this.barWidth}px`
+      }
+    }
+  }
+
   calculateBucketPosition(item: Bucket): StyleValue {
     return {
       left: this.xScale(new Date(item.interval_start)) + 'px'
@@ -220,30 +227,28 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     const middle = this.padding.middle / 2
     const middleOffset = this.padding.middle
       ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        directions.get(item.state_type)! > 0
-        ? middle
-        : middle * -1
+        StateDirections.get(item.state_type as State)! * middle
       : 0
 
     const top = this.yScale(seriesSlot[0]) + middleOffset
 
     return {
-      height: height + 'px',
-      top: top + this.padding.top + this.padding.middle / 2 + 'px',
-      transform: 'translate(-50%)',
-      width: this.barWidth + 'px'
+      height: `${height}px`,
+      top: top + this.padding.top + this.padding.middle / 2 + 'px'
     }
   }
 
-  calculateBarClass(item: StateBucket): { [key: string]: boolean } {
+  calculateBarClass(item: StateBucket): ClassValue {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const direction = directions.get(item.state_type)!
+    const direction = StateDirections.get(item.state_type as State)!
 
-    return {
-      [`${item.state_type.toLowerCase()}-bg`]: true,
-      up: direction < 0,
-      down: direction > 0
-    }
+    return [
+      `${item.state_type.toLowerCase()}-bg`,
+      {
+        up: direction < 0,
+        down: direction > 0
+      }
+    ]
   }
 
   median: number = -2
@@ -257,7 +262,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       (this.median > 0 ? this.median : this.height / 2) + this.padding.top
 
     return {
-      top: top + 'px'
+      top: `${top}px`
     }
   }
 
@@ -329,39 +334,65 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
       .attr('height', `${this.viewHeight}px`)
 
     this.xAxisGroup = this.svg.append('g')
-
-    // TODO: Remove this guidelines (for tesitng purposes only)
-    // const viewMiddle = this.viewHeight / 2
-    // this.svg
-    //   .append('line')
-    //   .attr('x1', 0)
-    //   .attr('x2', this.width)
-    //   .attr('y1', viewMiddle)
-    //   .attr('y2', viewMiddle)
-    //   .attr('stroke-width', 2)
-    //   .attr('stroke-dasharray', 12)
-    //   .attr('stroke', 'rgba(0, 0, 0, 0.03')
   }
 }
 </script>
-
-<style lang="scss" scoped>
-@use '@/styles/components/run-history--chart.scss';
-</style>
 
 <style lang="scss">
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 
 .run-history-chart {
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.run-history-chart__chart {
+  width: 100%;
+  height: 100%;
+
   .tick line {
     display: none;
   }
-
   .tick {
     &:first-of-type,
     &:last-of-type {
       display: none;
     }
   }
+}
+
+.run-history-chart__median {
+  height: 1px;
+  background-color: $blue-20;
+  position: absolute;
+  left: 0;
+  top: -2;
+  transition: top 150ms;
+  width: 100%;
+}
+
+.run-history-chart__buckets {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+.run-history-chart__bucket {
+  position: absolute;
+  transition: all 150ms;
+}
+
+.run-history-chart__popover {
+  position: absolute;
+}
+
+.run-history-chart__bar {
+  border-radius: 999px;
+  height: inherit;
 }
 </style>

@@ -120,6 +120,11 @@ export const Endpoints: { [key: string]: Endpoint } = {
     url: '/flow_runs/{id}',
     interpolate: true
   },
+  radar: {
+    method: 'GET',
+    url: '/flow_runs/{id}/graph',
+    interpolate: true
+  },
   flow_runs: {
     method: 'POST',
     url: '/flow_runs/filter'
