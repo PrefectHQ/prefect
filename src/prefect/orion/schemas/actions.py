@@ -33,6 +33,7 @@ class DeploymentCreate(
             "tags",
             "parameters",
             "flow_data",
+            "flow_runner",
         ],
     )
 ):

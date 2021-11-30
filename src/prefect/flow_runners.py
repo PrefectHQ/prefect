@@ -11,7 +11,7 @@ class FlowRunner(BaseModel):
     env: Dict[str, str]
 
     def to_settings(self):
-        return FlowRunnerSettings(name=type(self).__name__, settings=self.dict())
+        return FlowRunnerSettings(typename=type(self).__name__, config=self.dict())
 
     @classmethod
     def from_settings(cls, settings: FlowRunnerSettings):
@@ -20,6 +20,7 @@ class FlowRunner(BaseModel):
 
 def register_flow_runner(cls):
     _FLOW_RUNNERS[cls.__name__] = cls
+    return cls
 
 
 def lookup_flow_runner(typename: str) -> FlowRunner:
