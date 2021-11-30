@@ -1661,6 +1661,33 @@ class TestK8sAgentRunConfig:
             {"name": "on-agent-template"}
         ]
 
+
+    def test_generate_job_spec_without_image_pull_secrets(self, tmpdir):
+        run_config = KubernetesRun()
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert "imagePullSecrets" not in job["spec"]["template"]["spec"]
+
+
+    def test_generate_job_spec_image_pull_secrets_from_env(self, tmpdir, monkeypatch):
+        run_config = KubernetesRun()
+        monkeypatch.setenv("IMAGE_PULL_SECRETS", "in-env")
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
+            {"name": "in-env"}
+        ]
+
+
+    def test_generate_job_spec_image_pull_secrets_empty_string_in_env(self, tmpdir, monkeypatch):
+        """Regression test for issue #5001."""
+        run_config = KubernetesRun()
+        monkeypatch.setenv("IMAGE_PULL_SECRETS", "")
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert "imagePullSecrets" not in job["spec"]["template"]["spec"]
+
+
     @pytest.mark.parametrize("image_pull_policy", ["Always", "Never", "IfNotPresent"])
     def test_generate_job_spec_sets_image_pull_policy_from_run_config(
         self, image_pull_policy
