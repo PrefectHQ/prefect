@@ -558,7 +558,7 @@ class DockerAgent(Agent):
             - dict: a dictionary representing the populated environment variables
         """
         if "localhost" in config.cloud.api:
-            if "prefect-server" in self.networks:
+            if self.networks and "prefect-server" in self.networks:
                 api = "http://apollo:{}".format(config.server.port)
             else:
                 api = "http://host.docker.internal:{}".format(config.server.port)
