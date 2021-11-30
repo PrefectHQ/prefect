@@ -1,7 +1,7 @@
 """
-Interface and implementations of various task run task runners.
+Interface and implementations of various task runners.
 
-**TaskRunners** in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task_runners outside of configuring and initializing them for a flow.
+**TaskRunners** in Prefect are responsible for managing the execution of Prefect task runs. Generally speaking, users are not expected to interact with task runners outside of configuring and initializing them for a flow.
 
 Example:
 
