@@ -18,7 +18,7 @@ Released on November 30, 2021.
 
 ### Task Library
 
-- Add `AirbyteConnectionTask` - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
+- Add support for triggering [Airbyte](https://airbyte.io/) connection sync jobs using `AirbyteConnectionTask` - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
 - Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)
 - Add support for running data quality checks on Spark DataFrames using `soda-spark` - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)
 
