@@ -4,22 +4,20 @@
 
 Released on November 30, 2021.
 
-### Features
-
-- Add support for running Data Quality checks on Spark DataFrames using soda-spark library - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)
-
 ### Enhancements
 
-- Add AirbyeConnectionTask - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
-- Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)
 - Add `end_time` to `FlowRunView.get_logs` - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
-- `watch_flow_run` streams logs immediately instead of waiting for flow run state changes - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
-- Expose container ports when using Prefect's DockerRun - [#5130](https://github.com/PrefectHQ/prefect/issues/5130)
+- Update `watch_flow_run` to stream logs immediately instead of waiting for flow run state changes - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
+- Allow setting container ports for `DockerRun` - [#5130](https://github.com/PrefectHQ/prefect/issues/5130)
+- Clarify `ECSRun` documentation, especially the ambiguities in setting IAM roles - [#5110](https://github.com/PrefectHQ/prefect/issues/5110)
+- Fix deprecated usage of `marshmallow.fields.Dict` in RRule schedules - [#4540](https://github.com/PrefectHQ/prefect/issues/4540), [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
 
-### Fixes
 
-- Re-fix use of marshmallow.fields.Dict to use keys correctly as a kwarg rather than key. - [#4540](https://github.com/PrefectHQ/prefect/issues/4540), [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
-- Clarifying documentation, especially the ambiguities in setting IAM roles on the ECSRun - [#5110](https://github.com/PrefectHQ/prefect/issues/5110)
+### Task Library
+
+- Add `AirbyteConnectionTask` - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
+- Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)
+- Add support for running data quality checks on Spark DataFrames using `soda-spark` - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)
 
 ### Contributors
 
