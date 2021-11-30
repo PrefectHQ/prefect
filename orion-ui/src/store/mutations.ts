@@ -1,12 +1,12 @@
 import { GlobalFilter, RunState, RunTimeFrame } from '@/typings/global'
-import { State, initialGlobalFilterState } from '.'
+import { State, generateInitialGlobalFilterState } from '.'
 
 export const globalFilter = (state: State, g: GlobalFilter): void => {
   state.globalFilter = { ...g }
 }
 
 export const resetFilters = (state: State): void => {
-  state.globalFilter = { ...initialGlobalFilterState }
+  state.globalFilter = generateInitialGlobalFilterState()
 }
 
 export const states = (
