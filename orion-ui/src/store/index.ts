@@ -15,12 +15,12 @@ export const initialGlobalFilterState: GlobalFilter = {
     timeframe: {
       dynamic: true,
       from: {
-        value: 60,
-        unit: 'minutes'
+        value: 7,
+        unit: 'days'
       },
       to: {
-        value: 60,
-        unit: 'minutes'
+        value: 1,
+        unit: 'days'
       }
     },
     states: [
