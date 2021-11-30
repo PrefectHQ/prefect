@@ -1,10 +1,10 @@
 # global owners
-*   @madkinsz
+*                           @madkinsz
 
 # task library owners
-/src/prefect/tasks           @desertaxle
-/tests/tasks                 @desertaxle
-/docs/core/task_library      @desertaxle
+/src/prefect/tasks          @desertaxle
+/tests/tasks                @desertaxle
+/docs/core/task_library     @desertaxle
 
 # documentation owners
-/docs                        @tpdorsey
+/docs                       @tpdorsey
