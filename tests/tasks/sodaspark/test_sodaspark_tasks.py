@@ -1,6 +1,9 @@
 from unittest.mock import MagicMock
 
+
 import pytest
+
+pytest.importorskip("sodaspark")
 from pyspark.sql import SparkSession
 
 from prefect.tasks.sodaspark import SodaSparkScan
