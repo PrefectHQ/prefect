@@ -1,7 +1,11 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 @use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
+@use '@prefecthq/miter-design/src/styles/base/base';
+@use '@prefecthq/miter-design/src/styles/base/spacing';
+@use '@prefecthq/miter-design/src/styles/base/typography';
+@use '@prefecthq/miter-design/src/styles/base/colors';
 
-.menu {
+.filter-menu {
   border-radius: 0;
   position: relative;
 
@@ -33,6 +37,21 @@
 
   .menu-container {
     position: relative;
+  }
+
+  &--section-header {
+    @extend .py-1;
+    @extend .px-2;
+    @extend .d-flex;
+    @extend .align-center;
+    @extend .font-weight-semibold;
+    @extend .text--black;
+  }
+
+  &--section-header-icon {
+    @extend .pi;
+    @extend .pi-sm;
+    @extend .mr-1;
   }
 }
 
