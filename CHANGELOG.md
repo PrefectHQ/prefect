@@ -12,12 +12,16 @@ Released on November 30, 2021.
 - Clarify `ECSRun` documentation, especially the ambiguities in setting IAM roles - [#5110](https://github.com/PrefectHQ/prefect/issues/5110)
 - Fix deprecated usage of `marshmallow.fields.Dict` in RRule schedules - [#4540](https://github.com/PrefectHQ/prefect/issues/4540), [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
 
+### Fixes
+
+- Fix connection to local server instances when using `DockerAgent` on linux - [#5182](https://github.com/PrefectHQ/prefect/pull/5182)
 
 ### Task Library
 
 - Add `AirbyteConnectionTask` - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
 - Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)
 - Add support for running data quality checks on Spark DataFrames using `soda-spark` - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)
+
 
 ### Contributors
 
