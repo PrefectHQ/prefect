@@ -43,7 +43,7 @@ By default the UI will attempt to communicate with the Apollo endpoint at
 different location (e.g. if you're running Prefect Server behind a proxy), you'll need to configure the UI
 to look at a different URL.
 
-You can set this directly from the browser. First click *Menu* -> *Home*. In the *Connecting your Infrastructure* block, select the *Prefect Server* tab. Then you'll see this configuration option under *Connect the UI*: 
+You can set this directly from the browser. First click **Menu > Home**. In the **Connecting your Infrastructure** block, select the **Prefect Server** tab. Then you'll see this configuration option under **Connect the UI**: 
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
@@ -59,8 +59,8 @@ Note: The second method will change the _default_ Apollo endpoint but can still 
 
 ### Virtual Machine
 
-If you are running prefect server on a virtual machine, you may need to 
-configure the UI Endpoint Setting (aka `apollo_url`) just like you would in a server deploy.
+If you are running prefect server on a virtual machine (VM), you may need to 
+configure the UI Endpoint Setting (`apollo_url`) just like you would in a server deploy.
 
 For example, if you access the UI at
 `http://IP_OF_VIRTUAL_MACHINE:8080`,
@@ -69,16 +69,16 @@ that by default the UI makes requests to
 `http://localhost:4200/graphql`
 
 If those requests are failing, simply configure the UI Endpoint Setting 
-(aka `apollo_url`) to point to
+(`apollo_url`) to point to
 `http://IP_OF_VIRTUAL_MACHINE/graphql:4200`
 
 
 ### Vagrant
 
-If you are a running prefect server inside a virtual machine using vagrant, 
+If you are a running Prefect server inside a VM using vagrant, 
 the easiest way to get the UI working is to simply forward ports 8080 and 4200 
 from the host to the guest.  That way the default UI Endpoint Setting 
-(aka `apollo_url`) will work fine. 
+(`apollo_url`) will work fine. 
 
 Add this to your Vagrantfile:
 
