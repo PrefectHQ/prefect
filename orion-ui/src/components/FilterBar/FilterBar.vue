@@ -96,6 +96,8 @@ import { parseFilters, FilterObject } from './util'
 import { initialGlobalFilterState } from '@/store'
 import TagGroup from './TagGroup.vue'
 
+const initialGlobalFilterStateString = JSON.stringify(initialGlobalFilterState)
+
 const store = useStore()
 const route = useRoute()
 
@@ -193,7 +195,7 @@ const overlay = computed(() => {
 
 const filtersApplied = computed(() => {
   return (
-    JSON.stringify(initialGlobalFilterState) !==
+    initialGlobalFilterStateString !==
     JSON.stringify(store.getters.globalFilter)
   )
 })
