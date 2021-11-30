@@ -101,7 +101,7 @@ const crumbs = computed(() => {
 const instance = getCurrentInstance()
 
 const copyRunId = () => {
-  navigator.clipboard.writeText(id)
+  navigator.clipboard.writeText(id.value)
   instance?.appContext.config.globalProperties.$toast.add({
     type: 'success',
     content: 'Run ID was copied to clipboard'
