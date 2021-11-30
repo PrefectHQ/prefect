@@ -4,8 +4,10 @@ import pendulum
 import pydantic
 import pytest
 import sqlalchemy as sa
+from typing import List
 
 from prefect.orion import models, schemas
+from prefect.orion.models.flow_runs import DependencyResult
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas import actions, core, responses, states, data
 
@@ -410,6 +412,12 @@ class TestReadFlowRuns:
         assert response.status_code == 200
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
+
+
+class TestReadFlowRunGraph:
+    async def test_read_flow_run_graph(self, flow_run, client):
+        response = await client.get(f"/flow_runs/{flow_run.id}/graph")
+        assert response.status_code == 200
 
 
 class TestDeleteFlowRuns:
