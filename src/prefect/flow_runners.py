@@ -23,8 +23,8 @@ class FlowRunner(BaseModel):
     @classmethod
     def from_settings(cls, settings: FlowRunnerSettings):
         subcls = lookup_flow_runner(settings.typename)
-        return subcls(**settings.config)
-
+        return = subcls(**settings.config)
+        
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
@@ -32,6 +32,9 @@ class FlowRunner(BaseModel):
         callback: Callable[[bool], None],
     ) -> None:
         raise NotImplementedError()
+
+    class Config:
+        extra = "forbid"
 
 
 def register_flow_runner(cls):
@@ -100,3 +103,28 @@ class SubprocessFlowRunner(FlowRunner):
             # Submission failed
             callback(False)
             raise
+
+
+@register_flow_runner
+class FakeFlowRunner(FlowRunner):
+    run_success: bool = True
+    deploy_success: bool = True
+
+    async def submit_flow_run(
+        self,
+        flow_run: FlowRun,
+        task_group: TaskGroup,
+        callback: Callable[[bool], None],
+    ) -> None:
+        from prefect.client import OrionClient
+        from prefect.orion.schemas.states import Completed, Failed
+
+        if self.deploy_success:
+            async with OrionClient() as client:
+                await client.set_flow_run_state(
+                    flow_run.id, Completed() if self.run_success else Failed()
+                )
+
+            callback(True)
+        else:
+            callback(False, reason="Fake failure!")
