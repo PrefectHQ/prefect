@@ -34,6 +34,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
 from prefect.executors import BaseExecutor
+from prefect.exceptions import Abort
 from prefect.flows import Flow
 from prefect.futures import (
     PrefectFuture,
@@ -836,58 +837,36 @@ async def resolve_upstream_task_futures(
     )
 
 
-@contextmanager
-def tags(*new_tags: str) -> Set[str]:
-    """
-    Context manager to add tags to flow and task run calls.
+if __name__ == "__main__":
+    import sys
 
-    Tags are always combined with any existing tags.
+    try:
+        flow_run_id = UUID(sys.argv[1])
+    except Exception:
+        logger.error(
+            f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
+        )
+        exit(1)
 
-    Yields:
-        The current set of tags
-
-    Examples:
-        >>> from prefect import tags, task, flow
-        >>> @task
-        >>> def my_task():
-        >>>     pass
-
-        Run a task with tags
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("a", "b"):
-        >>>         my_task()  # has tags: a, b
-
-        Run a flow with tags
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     pass
-        >>> with tags("a", b"):
-        >>>     my_flow()  # has tags: a, b
-
-        Run a task with nested tag contexts
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("a", "b"):
-        >>>         with tags("c", "d"):
-        >>>             my_task()  # has tags: a, b, c, d
-        >>>         my_task()  # has tags: a, b
-
-        Inspect the current tags
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("c", "d"):
-        >>>         with tags("e", "f") as current_tags:
-        >>>              print(current_tags)
-        >>> with tags("a", b"):
-        >>>     my_flow()
-        {"a", "b", "c", "d", "e", "f"}
-    """
-    current_tags = TagsContext.get().current_tags
-    new_tags = current_tags.union(new_tags)
-    with TagsContext(current_tags=new_tags):
-        yield new_tags
+    try:
+        enter_flow_run_engine_from_subprocess(flow_run_id)
+    except Abort as exc:
+        logger.info(
+            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+        )
+        exit(0)
+    except Exception:
+        logger.error(
+            f"Engine execution of flow run '{flow_run_id}' exited with unexpected "
+            "exception",
+            exc_info=True,
+        )
+        exit(1)
+    except BaseException:
+        logger.error(
+            f"Engine execution of flow run '{flow_run_id}' interrupted by base "
+            "exception",
+            exc_info=True,
+        )
+        # Let the exit code be determined by the base exception type
+        raise
