@@ -20,12 +20,21 @@ logger = get_logger("flow_runner")
 
 
 class FlowRunner(BaseModel):
-    def __init__(__pydantic_self__, **data: Any) -> None:
-        super().__init__(**data)
+    """
+    Flow runners are responsible for creating infrastructure for flow runs and starting
+    execution.
+
+    Attributes:
+        env: Environment variables to provide to the flow run
+    """
 
     env: Dict[str, str] = Field(default_factory=dict)
 
     def to_settings(self):
+        """
+        Convert this instance to a `FlowRunnerSettings` instance for storage in the
+        backend.
+        """
         return FlowRunnerSettings(typename=type(self).__name__, config=self.dict())
 
     @classmethod
@@ -59,7 +68,7 @@ def register_flow_runner(cls):
 
 
 def lookup_flow_runner(typename: str) -> FlowRunner:
-    """Return the serializer implementation for the given ``encoding``"""
+    """Return the flow runner class for the given `typename`"""
     try:
         return _FLOW_RUNNERS[typename]
     except KeyError:
@@ -68,20 +77,31 @@ def lookup_flow_runner(typename: str) -> FlowRunner:
 
 @register_flow_runner
 class SubprocessFlowRunner(FlowRunner):
+    """
+    Executes flow runs in a local subprocess
+    """
+
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> None:
+
+        # Open a subprocess to execute the flow run
         logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
         process_context = await anyio.open_process(
             ["python", "-m", "prefect.engine", flow_run.id.hex],
             stderr=subprocess.STDOUT,
         )
+
+        # Mark this submission as successful
         task_status.started()
 
+        # Wait for the process to exit
+        # - We must the output stream so the buffer does not fill
+        # - We can log the success/failure of the process
+
         async with process_context as process:
-            # Consume the text stream so the buffer does not fill
             async for text in TextReceiveStream(process.stdout):
                 # TODO: Toggle the display of this output
                 print(text, end="")  # Output is already new-line terminated
