@@ -1,13 +1,13 @@
+import multiprocessing
 import ntpath
 import posixpath
-from packaging.version import parse as parse_version
-
-import multiprocessing
 import re
 import warnings
-from slugify import slugify
 from sys import platform
-from typing import TYPE_CHECKING, Dict, Iterable, List, Tuple, Any
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Tuple
+
+from packaging.version import parse as parse_version
+from slugify import slugify
 
 from prefect import config, context
 from prefect.agent import Agent
@@ -410,6 +410,8 @@ class DockerAgent(Agent):
 
         # By default, auto-remove containers
         host_config: Dict[str, Any] = {"auto_remove": True}
+        # By default, no ports
+        ports = None
 
         # Set up a host gateway for local communication; check the docker version since
         # this is not supported by older versions
@@ -434,6 +436,8 @@ class DockerAgent(Agent):
         if run_config is not None and run_config.host_config:
             # The host_config passed from the run_config will overwrite defaults
             host_config.update(run_config.host_config)
+        if run_config is not None and run_config.ports:
+            ports = run_config.ports
 
         networking_config = None
         # At the time of creation, you can only connect a container to a single network,
@@ -484,6 +488,7 @@ class DockerAgent(Agent):
                     host_config=self.docker_client.create_host_config(**host_config),
                     networking_config=networking_config,
                     labels=labels,
+                    ports=ports,
                 )
             except docker.errors.APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
@@ -553,12 +558,18 @@ class DockerAgent(Agent):
             - dict: a dictionary representing the populated environment variables
         """
         if "localhost" in config.cloud.api:
-            api = "http://host.docker.internal:{}".format(config.server.port)
+            if self.networks and "prefect-server" in self.networks:
+                api = "http://apollo:{}".format(config.server.port)
+            else:
+                api = "http://host.docker.internal:{}".format(config.server.port)
         else:
             api = config.cloud.api
 
-        env = {}
         # Populate environment variables, later sources overriding
+        # Set the API to be the same as the agent connects to, but since the flow run
+        # will be in a container and our inferences above are not perfect, allow the
+        # user to override the value
+        env = {"PREFECT__CLOUD__API": api}
 
         # 1. Logging level from config
         # Default to the config logging level, allowing it to be overriden
@@ -576,7 +587,6 @@ class DockerAgent(Agent):
         env.update(
             {
                 "PREFECT__BACKEND": config.backend,
-                "PREFECT__CLOUD__API": api,
                 "PREFECT__CLOUD__AUTH_TOKEN": (
                     # Pull an auth token if it exists but fall back to an API key so
                     # flows in pre-0.15.0 containers still authenticate correctly

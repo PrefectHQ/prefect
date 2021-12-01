@@ -561,6 +561,11 @@ title = "SodaSQL Tasks"
 module = "prefect.tasks.sodasql"
 classes = ["SodaSQLScan"]
 
+[pages.tasks.sodaspark]
+title = "SodaSpark Tasks"
+module = "prefect.tasks.sodaspark"
+classes = ["SodaSparkScan"]
+
 [pages.tasks.databricks]
 title = "Databricks Tasks"
 module = "prefect.tasks.databricks"
@@ -754,3 +759,8 @@ classes = ["SendEmail"]
 title = "Census Tasks"
 module = "prefect.tasks.census"
 classes = ["CensusSyncTask"]
+
+[pages.tasks.airbyte]
+title = "Airbyte Tasks"
+module = "prefect.tasks.airbyte"
+classes = ["AirbyteConnectionTask"]

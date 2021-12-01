@@ -199,7 +199,8 @@ module.exports = {
             'concepts/secrets',
             'concepts/automations',
             'concepts/cloud_hooks',
-            'concepts/services'
+            'concepts/services',
+            'concepts/artifacts'
           ]
         },
         {
@@ -267,7 +268,8 @@ module.exports = {
             'server/overview',
             'server/architecture',
             'server/deploy-local',
-            'server/telemetry'
+            'server/telemetry',
+            'server/troubleshooting',
           ]
         },
         {
