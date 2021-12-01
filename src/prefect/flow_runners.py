@@ -1,14 +1,22 @@
-from typing import Any, Callable, Coroutine, Dict
+import subprocess
+from typing import Any, Dict
 from uuid import UUID
 
 import anyio
-from anyio.abc import TaskGroup, TaskStatus
+import anyio.abc
+from anyio.abc import TaskStatus
+from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field
 
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.logging import get_logger
 
+
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
+
+
+# TODO: Sort out logging
+logger = get_logger("flow_runner")
 
 
 class FlowRunner(BaseModel):
@@ -21,15 +29,14 @@ class FlowRunner(BaseModel):
         return FlowRunnerSettings(typename=type(self).__name__, config=self.dict())
 
     @classmethod
-    def from_settings(cls, settings: FlowRunnerSettings):
+    def from_settings(cls, settings: FlowRunnerSettings) -> "FlowRunner":
         subcls = lookup_flow_runner(settings.typename)
-        return = subcls(**settings.config)
-        
+        return subcls(**settings.config)
+
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_group: TaskGroup,
-        callback: Callable[[bool], None],
+        task_status: TaskStatus,
     ) -> None:
         raise NotImplementedError()
 
@@ -55,76 +62,49 @@ class SubprocessFlowRunner(FlowRunner):
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_group: TaskGroup,
-        callback: Callable[[bool], None],
+        task_status: TaskStatus,
     ) -> None:
-        # TODO: Sort out logging
-        logger = get_logger(type(self).__name__)
 
-        async def check_result(
-            task: Coroutine, flow_run_id: UUID, task_status: TaskStatus
-        ) -> None:
-            """
-            Here we await the result of the subprocess which will contain the final flow
-            run state which we will log.
+        logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
+        process_context = await anyio.open_process(
+            ["python", "-m", "prefect.engine", flow_run.id.hex],
+            stderr=subprocess.STDOUT,
+        )
+        task_status.started()
 
-            This is useful for early development but is not feasible for all planned
-            submission methods so I will not generalize it yet
-            """
-            task_status.started()
+        async with process_context as process:
+            # Consume the text stream so the buffer does not fill
+            async for text in TextReceiveStream(process.stdout):
+                # TODO: Toggle the display of this output
+                print(text, end="")  # Output is already new-line terminated
 
-            try:
-                state = await task
-            except BaseException as exc:
-                # Capture errors and display them instead of tearing down the agent
-                # This is most often an `Abort` signal because the flow is being run
-                # by another agent.
-                logger.info(f"Flow run '{flow_run_id}' exited with exception: {exc!r}")
-            else:
-                if state.is_failed():
-                    logger.info(f"Flow run '{flow_run_id}' failed!")
-                elif state.is_completed():
-                    logger.info(f"Flow run '{flow_run_id}' completed.")
-
-        import prefect.engine
-
-        try:
-            task = anyio.to_process.run_sync(
-                prefect.engine.enter_flow_run_engine_from_subprocess,
-                flow_run.id,
-                cancellable=True,
+        if process.returncode:
+            logger.error(
+                f"Subprocess for flow run '{flow_run.id}' exited with bad code: "
+                f"{process.returncode}"
             )
-            await task_group.start(check_result, task, flow_run.id)
-
-            # Submission was successful
-            callback(True)
-
-        except:
-            # Submission failed
-            callback(False)
-            raise
+        else:
+            logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
 
 
 @register_flow_runner
 class FakeFlowRunner(FlowRunner):
     run_success: bool = True
-    deploy_success: bool = True
+    submit_success: bool = True
 
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
-        task_group: TaskGroup,
-        callback: Callable[[bool], None],
+        task_status: TaskStatus,
     ) -> None:
         from prefect.client import OrionClient
         from prefect.orion.schemas.states import Completed, Failed
 
-        if self.deploy_success:
+        if self.submit_success:
+            task_status.started()
             async with OrionClient() as client:
                 await client.set_flow_run_state(
                     flow_run.id, Completed() if self.run_success else Failed()
                 )
-
-            callback(True)
         else:
-            callback(False, reason="Fake failure!")
+            raise RuntimeError("Fake failure on submission!")
