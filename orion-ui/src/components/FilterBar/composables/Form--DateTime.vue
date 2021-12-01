@@ -1,28 +1,30 @@
 <template>
   <div class="container">
-    <div class="font-weight-semibold">Timeframe</div>
+    <div class="font-weight-semibold d-flex align-center">
+      <i class="pi text--grey-40 mr-1 pi-sm" :class="icon" />
+      {{ title }}
+    </div>
 
-    <div class="my-2">
+    <form class="my-2 d-flex">
       <Radio
         v-model="timeframeSelector"
-        :value="'standard'"
-        :checked="timeframeSelector == 'standard'"
-        class="radio"
+        value="simple"
+        :checked="timeframeSelector == 'simple'"
+        class="mr-2"
       >
-        Standard
+        Simple
       </Radio>
 
       <Radio
         v-model="timeframeSelector"
-        :value="'custom'"
+        value="custom"
         :checked="timeframeSelector == 'custom'"
-        class="radio"
       >
         Custom
       </Radio>
-    </div>
+    </form>
 
-    <div v-if="timeframeSelector == 'standard'">
+    <div v-if="timeframeSelector == 'simple'">
       <div class="caption-small text-uppercase font-weight-semibold my-1">
         Past
       </div>
@@ -129,15 +131,30 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, withDefaults } from 'vue'
 
-const props = defineProps<{
-  modelValue: {
-    dynamic: boolean
-    from: { timestamp: Date; unit: string; value: number }
-    to: { timestamp: Date; unit: string; value: number }
+const props = withDefaults(
+  defineProps<{
+    modelValue?: {
+      dynamic: boolean
+      from: { timestamp: Date; unit: string; value: number }
+      to: { timestamp: Date; unit: string; value: number }
+    }
+    title?: string
+    icon?: string
+  }>(),
+  {
+    modelValue: () => {
+      return {
+        dynamic: false,
+        from: { timestamp: new Date(), unit: 'minutes', value: 60 },
+        to: { timestamp: new Date(), unit: 'minutes', value: 60 }
+      }
+    },
+    title: 'Timeframe',
+    icon: 'pi-time-line'
   }
-}>()
+)
 
 const emit = defineEmits(['update:modelValue'])
 
@@ -156,16 +173,15 @@ const tempToTimestamp = ref(props.modelValue.to.timestamp || new Date())
 
 const value = computed(() => {
   return {
-    dynamic: timeframeSelector.value == 'standard',
+    dynamic: timeframeSelector.value == 'simple',
     from: {
       timestamp:
-        timeframeSelector.value == 'standard' ? null : fromTimestamp.value,
+        timeframeSelector.value == 'simple' ? null : fromTimestamp.value,
       unit: fromUnit.value,
       value: fromValue.value
     },
     to: {
-      timestamp:
-        timeframeSelector.value == 'standard' ? null : toTimestamp.value,
+      timestamp: timeframeSelector.value == 'simple' ? null : toTimestamp.value,
       unit: toUnit.value,
       value: toValue.value
     }
@@ -182,14 +198,13 @@ const applyTempToTimestamp = () => {
   showToDateTimeMenu.value = false
 }
 
-const timeframeSelector = ref('standard')
+const timeframeSelector = ref('simple')
 
 const unitOptions = ['minutes', 'hours', 'days']
 
 watch(
   [fromUnit, toUnit, fromValue, toValue, fromTimestamp, toTimestamp],
   () => {
-    console.log('emitting')
     emit('update:modelValue', value.value)
   }
 )
@@ -197,11 +212,11 @@ watch(
 
 <style lang="scss" scoped>
 .container {
-  min-height: 400px !important;
+  width: 100%;
+}
 
-  @media (max-width: 1024px) {
-    min-height: 300px;
-  }
+> ::v-deep(.radio) {
+  margin-left: 0 !important;
 }
 
 .selector {
