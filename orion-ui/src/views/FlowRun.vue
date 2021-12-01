@@ -23,9 +23,9 @@
           <span class="font-weight-semibold" v-if="!flowRun.flow_version">
             --
           </span>
-          <span class="font-weight-semibold" v-else>{{
-            flowRun.flow_version
-          }}</span>
+          <span class="font-weight-semibold" v-else>
+          {{ flowRun.flow_version }}
+          </span>
         </span>
 
         <a v-breakpoints="'md'" class="copy-link ml-1">
