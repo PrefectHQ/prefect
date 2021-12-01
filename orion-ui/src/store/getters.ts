@@ -200,18 +200,26 @@ export const baseFilter =
       const states = state.globalFilter[object]?.states
 
       if (states && states.length) {
-        val['state'] = {
-          type: states.reduce<{
-            any_: string[]
-          }>(
-            (acc, curr) => {
-              acc.any_.push(curr.type)
-              return acc
-            },
-            {
-              any_: []
-            }
-          )
+        // TODO: This is hacky and not easy to maintain the more we use it;
+        // once we have a way to query for user-defined states in the API
+        // we should use those values as the basis for when to query for names vs. types
+        const namedStates = ['Late', 'Crashed']
+        val['state'] = {}
+
+        const stateTypes: string[] = []
+        const stateNames: string[] = []
+
+        states.forEach((state) => {
+          if (namedStates.includes(state.name)) stateNames.push(state.name)
+          else stateTypes.push(state.type)
+        })
+
+        if (stateTypes.length > 0) {
+          val['state'].type = { any_: stateTypes }
+        }
+
+        if (stateNames.length > 0) {
+          val['state'].name = { any_: stateNames }
         }
       }
     }
