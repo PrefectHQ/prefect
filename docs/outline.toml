@@ -764,3 +764,4 @@ classes = ["CensusSyncTask"]
 title = "Airbyte Tasks"
 module = "prefect.tasks.airbyte"
 classes = ["AirbyteConnectionTask"]
+partnership_integration = true
