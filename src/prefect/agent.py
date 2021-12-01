@@ -9,7 +9,7 @@ from uuid import UUID
 import anyio
 import anyio.to_process
 import pendulum
-from anyio.abc import TaskGroup
+from anyio.abc import TaskGroup, TaskStatus
 
 from prefect import settings
 from prefect.client import OrionClient
@@ -25,11 +25,13 @@ class OrionAgent:
     def __init__(
         self,
         prefetch_seconds: int = settings.agent.prefetch_seconds,
+        max_parallel_submissions: int = 10,
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
+        self.limiter = anyio.CapacityLimiter(max_parallel_submissions)
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
 
@@ -56,36 +58,34 @@ class OrionAgent:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
             self.submitting_flow_run_ids.add(flow_run.id)
             self.task_group.start_soon(
-                self.lookup_submission_method(flow_run),
+                self.submit_run,
                 flow_run,
-                self.task_group,
-                partial(self.submitted_callback, flow_run.id),
             )
         return submittable_runs
 
-    def lookup_submission_method(
-        self, flow_run: FlowRun
-    ) -> Callable[[FlowRun, TaskGroup, Callable[[bool], None]], Awaitable[None]]:
+    async def submit_run(self, flow_run: FlowRun):
         """
-        Returns a submission method based on the flow runner configuration
+        Submit a flow run to the flow runner
         """
         if flow_run.flow_runner is not None:
-            return FlowRunner.from_settings(flow_run.flow_runner).submit_flow_run
+            # TODO: Here, the agent may merge settings with those contained in the
+            #       flow_run.flow_runner settings object
+            flow_runner = FlowRunner.from_settings(flow_run.flow_runner)
         else:
             # TODO: We do a local run by default, but we should do something more
             #       interesting here like set a default type on the agent
-            return SubprocessFlowRunner().submit_flow_run
+            flow_runner = SubprocessFlowRunner()
 
-    def submitted_callback(self, flow_run_id: UUID, success: bool, reason: str = None):
-        message = f": {reason}" if reason else ""
-        if success:
-            self.logger.info(
-                f"Completed submission of flow run '{flow_run_id}'" + message
+        try:
+            async with self.limiter:
+                await self.task_group.start(flow_runner.submit_flow_run, flow_run)
+            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+        except Exception:
+            self.logger.error(
+                f"Failed to submit flow run '{flow_run.id}'", exc_info=True
             )
-        else:
-            self.logger.error(f"Failed to submit flow run '{flow_run_id}'" + message)
 
-            self.submitting_flow_run_ids.remove(flow_run_id)
+        self.submitting_flow_run_ids.remove(flow_run.id)
 
     # Context management ---------------------------------------------------------------
 
