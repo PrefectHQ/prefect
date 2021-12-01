@@ -6,6 +6,7 @@
         :key="filter.label"
         class="filter-card-button"
         shadow="sm"
+        @click="applyFilter(filter)"
       >
         <div class="d-flex justify-space-between align-center px-1">
           <div>
@@ -190,7 +191,10 @@ const end = computed<Date>(() => {
   return store.getters.end
 })
 
-const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
+const countsFilter = (
+  state_name: string,
+  state_type: string
+): ComputedRef<BaseFilter> => {
   return computed<BaseFilter>((): BaseFilter => {
     let start_time: { after_?: string; before_?: string } | undefined =
       undefined
@@ -202,9 +206,11 @@ const countsFilter = (state_name: string): ComputedRef<BaseFilter> => {
     }
 
     const composedFilter = store.getters.composedFilter
+
+    const stateType = state_name == 'Failed'
     composedFilter.flow_runs.state = {
-      name: {
-        any_: [state_name]
+      [stateType ? 'type' : 'name']: {
+        any_: [stateType ? state_type : state_name]
       }
     }
 
@@ -247,21 +253,21 @@ const queries: { [key: string]: Query } = {
   }),
   filter_counts_failed: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Failed'),
+    body: countsFilter('Failed', 'FAILED'),
     options: {
       pollInterval: basePollInterval
     }
   }),
   filter_counts_late: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Late'),
+    body: countsFilter('Late', 'FAILED'),
     options: {
       pollInterval: basePollInterval
     }
   }),
   filter_counts_scheduled: Api.query({
     endpoint: Endpoints.flow_runs_count,
-    body: countsFilter('Scheduled'),
+    body: countsFilter('Scheduled', 'SCHEDULED'),
     options: {
       pollInterval: basePollInterval
     }
@@ -277,15 +283,21 @@ const premadeFilters = computed<
   return [
     {
       label: 'Failed Runs',
-      count: typeof failed == 'number' ? failed.toLocaleString() : '--'
+      count: typeof failed == 'number' ? failed.toLocaleString() : '--',
+      type: 'FAILED',
+      name: 'Failed'
     },
     {
       label: 'Late Runs',
-      count: typeof late == 'number' ? late.toLocaleString() : '--'
+      count: typeof late == 'number' ? late.toLocaleString() : '--',
+      type: 'SCHEDULED',
+      name: 'Late'
     },
     {
       label: 'Upcoming Runs',
-      count: typeof scheduled == 'number' ? scheduled.toLocaleString() : '--'
+      count: typeof scheduled == 'number' ? scheduled.toLocaleString() : '--',
+      type: 'SCHEDULED',
+      name: 'Scheduled'
     }
   ]
 })
@@ -331,6 +343,14 @@ const resultsCount = computed<number>(() => {
   if (!resultsTab.value) return 0
   return queries[resultsTab.value].response.value || 0
 })
+
+const applyFilter = (filter: {
+  [key: string]: string | undefined | number
+}) => {
+  const globalFilter = { ...store.getters.globalFilter }
+  globalFilter.flow_runs.states = [{ name: filter.name, type: filter.type }]
+  store.commit('globalFilter', globalFilter)
+}
 
 watch([resultsTab], () => {
   router.push({ hash: `#${resultsTab.value}` })
