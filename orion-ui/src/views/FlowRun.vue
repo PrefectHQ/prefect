@@ -18,7 +18,7 @@
         class="text-truncate"
         v-show="route.fullPath.includes('/radar')"
       >
-        <span>
+        <span v-breakpoints="'sm'" class='ml-5'>
           Flow Version:
           <span class="font-weight-semibold" v-if="!flowRun.flow_version">
             --
