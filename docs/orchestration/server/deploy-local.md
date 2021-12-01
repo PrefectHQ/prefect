@@ -43,7 +43,7 @@ By default the UI will attempt to communicate with the Apollo endpoint at
 different location (e.g. if you're running Prefect Server behind a proxy), you'll need to configure the UI
 to look at a different URL.
 
-You can set this directly in the UI on the Home page:
+You can set this directly from the browser. First click **Menu > Home**. In the **Connecting your Infrastructure** block, select the **Prefect Server** tab. Then you'll see this configuration option under **Connect the UI**: 
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
@@ -55,7 +55,38 @@ You can set this directly in the UI on the Home page:
   apollo_url="http://localhost:4200/graphql"
 ```
 
-Note: The second method will change the _default_ Apollo endpoint but can still be overidden by the UI setting.
+Note: The second method will change the _default_ Apollo endpoint but can still be overridden by the UI setting.
+
+### Virtual Machine
+
+If you are running prefect server on a virtual machine (VM), you may need to 
+configure the UI Endpoint Setting (`apollo_url`) just like you would in a server deploy.
+
+For example, if you access the UI at
+`http://IP_OF_VIRTUAL_MACHINE:8080`,
+you can open the *Network* tab of your browser's developer console and you will see
+that by default the UI makes requests to 
+`http://localhost:4200/graphql`
+
+If those requests are failing, simply configure the UI Endpoint Setting 
+(`apollo_url`) to point to
+`http://IP_OF_VIRTUAL_MACHINE/graphql:4200`
+
+
+### Vagrant
+
+If you are a running Prefect server inside a VM using vagrant, 
+the easiest way to get the UI working is to simply forward ports 8080 and 4200 
+from the host to the guest.  That way the default UI Endpoint Setting 
+(`apollo_url`) will work fine. 
+
+Add this to your Vagrantfile:
+
+```
+config.vm.network "forwarded_port", guest: 4200, host: 4200
+config.vm.network "forwarded_port", guest: 8080, host: 8080
+```
+
 
 ::: tip You don't need to host the UI yourself!
 Because the UI is code that runs in your browser, you can reuse Prefect Cloud's hosted UI for local purposes!
