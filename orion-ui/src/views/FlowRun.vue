@@ -13,10 +13,19 @@
       :class="{ blur: route.fullPath.includes('/radar') }"
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
-      <div v-breakpoints="'sm'" class="text-truncate">
-        <span>
+      <div
+        v-breakpoints="'sm'"
+        class="text-truncate"
+        v-show="route.fullPath.includes('/radar')"
+      >
+        <span v-breakpoints="'sm'" class='ml-5'>
           Flow Version:
-          <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
+          <span class="font-weight-semibold" v-if="!flowRun.flow_version">
+            --
+          </span>
+          <span class="font-weight-semibold" v-else>
+          {{ flowRun.flow_version }}
+          </span>
         </span>
 
         <button v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
