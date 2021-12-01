@@ -76,11 +76,14 @@ class OrionAgent:
             #       interesting here like set a default type on the agent
             return SubprocessFlowRunner().submit_flow_run
 
-    def submitted_callback(self, flow_run_id: UUID, success: bool):
+    def submitted_callback(self, flow_run_id: UUID, success: bool, reason: str = None):
+        message = f": {reason}" if reason else ""
         if success:
-            self.logger.info(f"Completed submission of flow run '{flow_run_id}'")
+            self.logger.info(
+                f"Completed submission of flow run '{flow_run_id}'" + message
+            )
         else:
-            self.logger.error(f"Failed to submit flow run '{flow_run_id}'")
+            self.logger.error(f"Failed to submit flow run '{flow_run_id}'" + message)
 
             self.submitting_flow_run_ids.remove(flow_run_id)
 

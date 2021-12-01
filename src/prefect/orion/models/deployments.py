@@ -329,6 +329,7 @@ async def _generate_scheduled_flow_runs(
             flow_id=deployment.flow_id,
             deployment_id=deployment_id,
             parameters=deployment.parameters,
+            flow_runner=deployment.flow_runner,
             idempotency_key=f"scheduled {deployment.id} {date}",
             tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,
