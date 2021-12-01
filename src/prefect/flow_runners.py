@@ -38,6 +38,15 @@ class FlowRunner(BaseModel):
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> None:
+        """
+        Implementions should:
+
+        - Create flow run infrastructure.
+        - Start the flow run within it.
+        - Call `task_status.started()` to indicate that submission was successful
+
+        The method can then exit or continue monitor the flow run asynchronously.
+        """
         raise NotImplementedError()
 
     class Config:
@@ -64,7 +73,6 @@ class SubprocessFlowRunner(FlowRunner):
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> None:
-
         logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
         process_context = await anyio.open_process(
             ["python", "-m", "prefect.engine", flow_run.id.hex],
