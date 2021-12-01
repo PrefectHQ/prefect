@@ -65,7 +65,13 @@ For more detail, please see the [Core docs](https://docs.prefect.io/core/)
 
 In addition to the [Prefect Cloud](https://www.prefect.io/cloud) platform, Prefect includes an open-source backend for orchestrating and managing flows, consisting primarily of [Prefect Server](https://github.com/prefecthq/server) and [Prefect UI](https://github.com/prefecthq/ui). This local server stores flow metadata in a Postgres database and exposes a GraphQL API.
 
-Before running the server for the first time, run `prefect backend server` to configure Prefect for local orchestration. Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
+By default, Prefect is configured to use Prefect Cloud as the backend. Before running the server for the first time, run the following command to configure Prefect for local orchestration:
+
+```
+prefect backend server
+``` 
+
+Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
 
 To start the server, UI, and all required infrastructure, run:
 
@@ -78,9 +84,13 @@ Once all components are running, you can view the UI by visiting [http://localho
 **Tip:** Check our [troubleshooting guide](https://docs.prefect.io/orchestration/server/troubleshooting.html) if you run into any issues starting the server.
 
 
-Please note that executing flows from the server requires at least one Prefect Agent to be running: `prefect agent local start`.
+Please note that executing flows from the server requires at least one Prefect Agent to be running. For example, to start the local Agent, run the following command: 
 
-Finally, to register any flow with the server, call `flow.register()`. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
+```
+prefect agent local start
+```
+
+Finally, to [register any flow](https://docs.prefect.io/orchestration/concepts/flows.html#registration) with the server, call `flow.register(project_name="<project_name>")` within your flow using the name of your project. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
 
 ## "...Prefect?"
 
@@ -95,6 +105,14 @@ Thanks to Prefect's growing task library and deep ecosystem integrations, buildi
 Something missing? Open a [feature request](https://github.com/PrefectHQ/prefect/issues/new/choose) or [contribute a PR](https://docs.prefect.io/core/development/overview.html)! Prefect was designed to make adding new functionality extremely easy, whether you build on top of the open-source package or maintain an internal task library for your team.
 
 ### Task Library
+
+The Prefect task library is a constantly growing list of pre-defined tasks that provide off-the-shelf functionality for working with a wide range of tools anywhere from shell script execution to kubernetes job management to sending tweets.
+
+<style>
+    th {
+        display: none;
+    }
+</style>
 
 |                                                                                                                                                                                                                                                                           |                                                                                                                                                                                                                                                               |                                                                                                                                                                                                                                                                      |                                                                                                                                                                                                                                                                                     |                                                                                                                                                                                                                                                                |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
