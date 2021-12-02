@@ -1,5 +1,4 @@
-from uuid import uuid4
-from unittest.mock import MagicMock
+from unittest.mock import ANY
 
 import pendulum
 import pytest
@@ -7,8 +6,6 @@ import sys
 
 from prefect import flow
 from prefect.agent import OrionAgent
-from prefect.orion.schemas.core import FlowRun
-from prefect.orion.schemas.actions import FlowRunCreate
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 
 if sys.version_info < (3, 8):
@@ -76,7 +73,7 @@ async def test_agent_submittable_flow_run_filter(orion_client, deployment):
     fr_id_8 = (await orion_client.create_flow_run(foo, state=Scheduled())).id
 
     async with OrionAgent(prefetch_seconds=10) as agent:
-        agent.submit_flow_run_to_subprocess = AsyncMock()  # do not actually run
+        agent.submit_run = AsyncMock()  # do not actually run
         agent.submitting_flow_run_ids.add(fr_id_4)  # add a submitting id to check skip
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
 
@@ -92,10 +89,9 @@ async def test_agent_flow_run_submission(orion_client, deployment):
         state=Scheduled(scheduled_time=pendulum.now("utc")),
     )
 
-    mock_submit = AsyncMock()
     async with OrionAgent(prefetch_seconds=10) as agent:
         # Mock the lookup so we can assert that submit is called with the flow run
-        agent.lookup_submission_method = MagicMock(return_value=mock_submit)
+        agent.submit_run = AsyncMock()
         await agent.get_and_submit_flow_runs()
 
-    mock_submit.assert_awaited_once_with(flow_run, agent.submitted_callback)
+    agent.submit_run.assert_awaited_once_with(flow_run)
