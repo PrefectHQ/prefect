@@ -732,7 +732,7 @@ class Client:
             backoff_factor=1,
             status_forcelist=[500, 502, 503, 504],
             # typeshed is out of date with urllib3 and missing `allowed_methods`
-            allowed_methods=["DELETE", "GET", "POST"],
+            allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
