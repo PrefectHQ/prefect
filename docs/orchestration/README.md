@@ -66,7 +66,7 @@ To start the server, UI, and all required infrastructure, run:
 $ prefect server start
 ```
 
-When server is running, navigate to `http://localhost:8080`.
+When server is running, navigate to [`http://localhost:8080`](http://localhost:8080).
 
 ## Architecture Overview
 
