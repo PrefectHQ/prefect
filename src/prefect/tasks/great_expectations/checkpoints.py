@@ -37,29 +37,27 @@ class RunGreatExpectationsValidation(Task):
     3. assets_to_validate: a list of dicts of expectation_suite + batch_kwargs. This will only work
     with the Great Expectations v2 API.
 
+    To create a checkpoint you can use:
+    - for the v2 API: `great_expectations checkpoint new <expectations_suite_name> <name_for_this_checkpoint>`
+    - for the v3 API: `great_expectations --v3-api checkpoint new <name_for_this_checkpoint>`
+
+    Here is an example that can be used with both v2 and v3 API provided that 
+    the checkpoint has been already created, as described above:
     ```python
-    from prefect import task, Flow, Parameter
+    from prefect import Flow, Parameter
     from prefect.tasks.great_expectations import RunGreatExpectationsValidation
-    import great_expectations as ge
 
-
-    # Define checkpoint task
     validation_task = RunGreatExpectationsValidation()
 
     with Flow("ge_test") as flow:
         checkpoint_name = Parameter("checkpoint_name")
-
-        prev_run_row_count = 100 # can be taken eg. from Prefect KV store
+        prev_run_row_count = 100  # can be taken eg. from Prefect KV store
         validation_task(
             checkpoint_name=checkpoint_name,
-            evaluation_parameters=dict(prev_run_row_count=prev_run_row_count)
+            evaluation_parameters=dict(prev_run_row_count=prev_run_row_count),
         )
 
-    flow.run(
-        parameters={
-            "checkpoint_name": "my_checkpoint",
-        },
-    )
+    flow.run(parameters={"checkpoint_name": "my_checkpoint"})
     ```
 
 
