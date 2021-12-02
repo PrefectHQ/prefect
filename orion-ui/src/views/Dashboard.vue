@@ -107,10 +107,16 @@
           class="text-center my-8"
           key="no-results"
         >
-          <h2> No Results Found </h2>
-          <div v-show="resultsTab == 'deployments'" class="mt-2">
-            Deployments can only be created using the Prefect CLI
+          <div v-if="resultsTab == 'deployments'">
+            <h2> No scheduled results found </h2>
+            <div class="my-2">
+              Deployments can only be created using the Prefect CLI
+            </div>
+            <Button color="alternate" @click="showAllDeployments">
+              Show all deployments
+            </Button>
           </div>
+          <h2 v-else> No results found </h2>
         </div>
 
         <ResultsList
@@ -331,6 +337,10 @@ const resultsCount = computed<number>(() => {
   if (!resultsTab.value) return 0
   return queries[resultsTab.value].response.value || 0
 })
+
+const showAllDeployments = () => {
+  console.log('Show all deployments')
+}
 
 watch([resultsTab], () => {
   router.push({ hash: `#${resultsTab.value}` })
