@@ -46,6 +46,9 @@ class OrionAgent:
         )
 
     async def get_and_submit_flow_runs(self) -> List[FlowRun]:
+        """
+        Queries for scheduled flow runs and submits them for execution in parallel
+        """
         if not self.started:
             raise RuntimeError("Agent is not started. Use `async with OrionAgent()...`")
 
@@ -77,8 +80,11 @@ class OrionAgent:
             flow_runner = SubprocessFlowRunner()
 
         try:
+            # Wait for submission to be completed. Note that the submission function
+            # may continue to run in the background after this exits.
             async with self.limiter:
                 await self.task_group.start(flow_runner.submit_flow_run, flow_run)
+
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
         except Exception:
             self.logger.error(
