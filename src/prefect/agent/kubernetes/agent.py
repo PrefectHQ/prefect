@@ -184,6 +184,16 @@ class KubernetesAgent(Agent):
                         )
                         continue
 
+                    try:
+                        # Do not attempt to process a job with an invalid flow run id
+                        flow_run_state = self.client.get_flow_run_state(flow_run_id)
+                    except ObjectNotFoundError:
+                        self.logger.warning(
+                            f"Job {job.name!r} is for flow run {flow_run_id!r} "
+                            "which does not exist. It will be ignored."
+                        )
+                        continue
+
                     # Check for pods that are stuck with image pull errors
                     if not delete_job:
                         pods = self.core_client.list_namespaced_pod(
@@ -350,33 +360,24 @@ class KubernetesAgent(Agent):
                             )
 
                         # If there are failed pods and the run is not finished, fail the run
-                        if failed_pods:
+                        if failed_pods and not flow_run_state.is_finished():
+                            self.logger.debug(
+                                f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
+                            )
                             try:
-                                state = self.client.get_flow_run_state(flow_run_id)
-                            except ObjectNotFoundError:
-                                self.logger.error(
-                                    f"Job {job.name!r} is for flow run {flow_run_id!r} "
-                                    "which does not exist. It will be ignored."
+                                self.client.set_flow_run_state(
+                                    flow_run_id=flow_run_id,
+                                    state=Failed(
+                                        message="Kubernetes Error: pods {} failed for this job".format(
+                                            failed_pods
+                                        )
+                                    ),
                                 )
-                            else:
-                                if not state.is_finished():
-                                    self.logger.debug(
-                                        f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
-                                    )
-                                    try:
-                                        self.client.set_flow_run_state(
-                                            flow_run_id=flow_run_id,
-                                            state=Failed(
-                                                message="Kubernetes Error: pods {} failed for this job".format(
-                                                    failed_pods
-                                                )
-                                            ),
-                                        )
-                                    except ClientError as exc:
-                                        self.logger.error(
-                                            f"Error attempting to set flow run state for {flow_run_id}: "
-                                            f"{exc}"
-                                        )
+                            except ClientError as exc:
+                                self.logger.error(
+                                    f"Error attempting to set flow run state for {flow_run_id}: "
+                                    f"{exc}"
+                                )
 
                     # Delete job if it is successful or failed
                     if delete_job and self.delete_finished_jobs:

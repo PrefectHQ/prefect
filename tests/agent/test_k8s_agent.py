@@ -812,6 +812,19 @@ def test_k8s_agent_manage_jobs_pass(monkeypatch, cloud_api):
 
 
 def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                set_flow_run_state=None,
+                write_run_logs=None,
+                get_flow_run_state=prefect.engine.state.Success(),
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
     job_mock = MagicMock()
     job_mock.metadata.labels = {
         "prefect.io/identifier": "id",
@@ -844,6 +857,19 @@ def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
 
 
 def test_k8s_agent_manage_jobs_does_not_delete_if_disabled(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                set_flow_run_state=None,
+                write_run_logs=None,
+                get_flow_run_state=prefect.engine.state.Success(),
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
     job_mock = MagicMock()
     job_mock.metadata.labels = {
         "prefect.io/identifier": "id",
