@@ -185,7 +185,7 @@ async def deployment(session, flow, flow_function):
                 interval=datetime.timedelta(days=1)
             ),
             flow_runner=schemas.core.FlowRunner(
-                typename="SubprocessFlowRunner",
+                typename="subprocess",
                 settings={"env": {"TEST_VARIABLE": "1"}},
             ),
         ),

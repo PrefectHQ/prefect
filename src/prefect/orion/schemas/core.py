@@ -32,7 +32,7 @@ class FlowRunnerSettings(ORMBaseModel):
     typename: str = Field(
         ...,
         description="The name of the flow runner type.",
-        example="SubprocessFlowRunner",
+        example="subprocess",
     )
     config: dict = Field(
         default_factory=dict,
