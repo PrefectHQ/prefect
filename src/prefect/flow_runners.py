@@ -6,10 +6,10 @@ import anyio.abc
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field
+from typing_extensions import Literal
 
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.logging import get_logger
-
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
