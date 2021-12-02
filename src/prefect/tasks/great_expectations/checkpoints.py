@@ -26,49 +26,38 @@ class RunGreatExpectationsValidation(Task):
     Works with both the Great Expectations v2 (batch_kwargs) and v3 (Batch Request) APIs.
 
     Example using the GE getting started tutorial:
-    https://github.com/superconductive/ge_tutorials/tree/main/ge_getting_started_tutorial
+    https://github.com/superconductive/ge_tutorials/tree/main/getting_started_tutorial_final_v3_api
 
     The task can be used to run validation in one of the following ways:
 
-    1. expectation_suite AND batch_kwargs, where batch_kwargs is a dict
-    2. assets_to_validate: a list of dicts of expectation_suite + batch_kwargs
-    3. checkpoint_name: the name of a pre-configured checkpoint (which bundles expectation suites
-    and batch_kwargs)
+    1. checkpoint_name: the name of a pre-configured checkpoint (which bundles expectation suites
+    and batch_kwargs). This is the preferred option.
+    2. expectation_suite AND batch_kwargs, where batch_kwargs is a dict. This will only work with the
+    Great Expectations v2 API.
+    3. assets_to_validate: a list of dicts of expectation_suite + batch_kwargs. This will only work
+    with the Great Expectations v2 API.
 
     ```python
     from prefect import task, Flow, Parameter
     from prefect.tasks.great_expectations import RunGreatExpectationsValidation
+    import great_expectations as ge
 
 
     # Define checkpoint task
     validation_task = RunGreatExpectationsValidation()
 
-
-    # Task for retrieving batch kwargs including csv dataset
-    @task
-    def get_batch_kwargs(datasource_name, dataset):
-        dataset = ge.read_csv(dataset)
-        return {"dataset": dataset, "datasource": datasource_name}
-
-
     with Flow("ge_test") as flow:
-        datasource_name = Parameter("datasource_name")
-        dataset = Parameter("dataset")
-        batch_kwargs = get_batch_kwargs(datasource_name, dataset)
+        checkpoint_name = Parameter("checkpoint_name")
 
-        expectation_suite_name = Parameter("expectation_suite_name")
-        prev_run_row_count = 100  # can be taken eg. from Prefect KV store
+        prev_run_row_count = 100 # can be taken eg. from Prefect KV store
         validation_task(
-            batch_kwargs=batch_kwargs,
-            expectation_suite_name=expectation_suite_name,
+            checkpoint_name=checkpoint_name,
             evaluation_parameters=dict(prev_run_row_count=prev_run_row_count)
         )
 
     flow.run(
         parameters={
-            "datasource_name": "data__dir",
-            "dataset": "data/yellow_tripdata_sample_2019-01.csv",
-            "expectation_suite_name": "yellow_tripdata_sample_2019-01.warning",
+            "checkpoint_name": "my_checkpoint",
         },
     )
     ```
@@ -253,7 +242,10 @@ class RunGreatExpectationsValidation(Task):
         # Checkpoints are the preferred deployment of validation configuration.
         if checkpoint_name:
             ge_checkpoint = context.get_checkpoint(checkpoint_name)
-            results = ge_checkpoint.run()
+            results = ge_checkpoint.run(
+                evaluation_parameters=evaluation_parameters,
+                run_id={"run_name": run_name or prefect.context.get("task_slug")},
+            )
         else:
             # If assets are not provided directly through `assets_to_validate` then they need be loaded
             #   get batch from `batch_kwargs` and `expectation_suite_name`
