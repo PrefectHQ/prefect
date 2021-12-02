@@ -2,15 +2,15 @@
 
 The Prefect orchestration layer lets you move from running single flows as scripts to running, monitoring, and scheduling many flows through a single web UI. 
 
-Prefect Cloud and the Prefect Core server provide ready-to-use backend for maintaining task and flow state and inspecting their progress regardless of where you task and flow code runs.
+Prefect Cloud and the Prefect Server provide ready-to-use backend for maintaining task and flow state and inspecting their progress regardless of where you task and flow code runs.
 
-## Prefect Cloud and Core Server
+## Prefect Cloud and Server
 
-If you want an orchestration layer, you have two options: Prefect Cloud or Prefect Core server. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
+If you want an orchestration layer, you have two options: Prefect Cloud or Prefect Server. You can see an overview and comparison on the [welcome](/orchestration/README.md) page. 
 
 We encourage users to try Prefect Cloud first, unless your environment has restricted access to the Internet, or you prefer a self-hosted server for which you want to build your own authentication and scaling mechanism.
 
-This guide focusses on setting up Prefect Cloud. More information on Prefect Core server is available in the [Prefect Server documentation](/orchestration/server/overview.html).
+This guide focusses on setting up Prefect Cloud. More information on Prefect Server is available in the [Prefect Server documentation](/orchestration/server/overview.html).
 
 ### Create (or log into) your Prefect Cloud account
 

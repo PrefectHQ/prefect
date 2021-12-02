@@ -65,18 +65,24 @@ For more detail, please see the [Core docs](https://docs.prefect.io/core/)
 
 In addition to the [Prefect Cloud](https://www.prefect.io/cloud) platform, Prefect includes an open-source backend for orchestrating and managing flows, consisting primarily of [Prefect Server](https://github.com/prefecthq/server) and [Prefect UI](https://github.com/prefecthq/ui). This local server stores flow metadata in a Postgres database and exposes a GraphQL API.
 
-By default, Prefect is configured to use Prefect Cloud as the backend. Before running the server for the first time, run the following command to configure Prefect for local orchestration:
+By default, Prefect is configured to use Prefect Cloud as the backend, and you can set Prefect Cloud as the backend by running the command: 
 
+```bash
+$ prefect backend cloud
 ```
-prefect backend server
+
+To use Prefect Server as the backend, run the following command to configure Prefect for local orchestration:
+
+```bash
+$ prefect backend server
 ``` 
 
 Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
 
 To start the server, UI, and all required infrastructure, run:
 
-```
-prefect server start
+```bash
+$ prefect server start
 ```
 
 Once all components are running, you can view the UI by visiting [http://localhost:8080](http://localhost:8080).
@@ -86,8 +92,8 @@ Once all components are running, you can view the UI by visiting [http://localho
 
 Please note that executing flows from the server requires at least one Prefect Agent to be running. For example, to start the local Agent, run the following command: 
 
-```
-prefect agent local start
+```bash
+$ prefect agent local start
 ```
 
 Finally, to [register any flow](https://docs.prefect.io/orchestration/concepts/flows.html#registration) with the server, call `flow.register(project_name="<project_name>")` within your flow using the name of your project. For more detail, please see the [orchestration docs](https://docs.prefect.io/orchestration/).
