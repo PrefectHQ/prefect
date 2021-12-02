@@ -15,7 +15,8 @@ _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 
 
-# TODO: Sort out logging
+# TODO: Sort out logging; we will likely want one logger per flow runner but we can't
+#       add it at __init__ time since they are pydantic models
 logger = get_logger("flow_runner")
 
 
