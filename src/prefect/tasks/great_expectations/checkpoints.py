@@ -38,10 +38,11 @@ class RunGreatExpectationsValidation(Task):
     with the Great Expectations v2 API.
 
     To create a checkpoint you can use:
-    - for the v2 API: `great_expectations checkpoint new <expectations_suite_name> <name_for_this_checkpoint>`
+    - for the v2 API:
+        `great_expectations checkpoint new <expectations_suite_name> <name_for_this_checkpoint>`
     - for the v3 API: `great_expectations --v3-api checkpoint new <name_for_this_checkpoint>`
 
-    Here is an example that can be used with both v2 and v3 API provided that 
+    Here is an example that can be used with both v2 and v3 API provided that
     the checkpoint has been already created, as described above:
     ```python
     from prefect import Flow, Parameter
