@@ -1,6 +1,5 @@
 import subprocess
-from typing import Any, Dict
-from uuid import UUID
+from typing import Dict, TypeVar, Literal, Type
 
 import anyio
 import anyio.abc
@@ -13,6 +12,7 @@ from prefect.utilities.logging import get_logger
 
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
+FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 
 
 # TODO: Sort out logging
@@ -28,6 +28,7 @@ class FlowRunner(BaseModel):
         env: Environment variables to provide to the flow run
     """
 
+    typename: Literal["universal"] = "universal"
     env: Dict[str, str] = Field(default_factory=dict)
 
     def to_settings(self):
@@ -35,7 +36,7 @@ class FlowRunner(BaseModel):
         Convert this instance to a `FlowRunnerSettings` instance for storage in the
         backend.
         """
-        return FlowRunnerSettings(typename=type(self).__name__, config=self.dict())
+        return FlowRunnerSettings(typename=self.typename, config=self.dict())
 
     @classmethod
     def from_settings(cls, settings: FlowRunnerSettings) -> "FlowRunner":
@@ -62,8 +63,8 @@ class FlowRunner(BaseModel):
         extra = "forbid"
 
 
-def register_flow_runner(cls):
-    _FLOW_RUNNERS[cls.__name__] = cls
+def register_flow_runner(cls: FlowRunnerT) -> FlowRunnerT:
+    _FLOW_RUNNERS[cls.__fields__["typename"].default] = cls
     return cls
 
 
@@ -80,6 +81,16 @@ class SubprocessFlowRunner(FlowRunner):
     """
     Executes flow runs in a local subprocess
     """
+
+    typename: Literal["subprocess"] = "subprocess"
+    condaenv: str = Field(
+        None,
+        description="An optional name of an anaconda environment to run the flow in. ",
+    )
+    virtualenv: str = Field(
+        None,
+        description="An optional path to a virtualenv environment to run the flow in.",
+    )
 
     async def submit_flow_run(
         self,
@@ -117,6 +128,7 @@ class SubprocessFlowRunner(FlowRunner):
 
 @register_flow_runner
 class FakeFlowRunner(FlowRunner):
+    typename: Literal["fake"] = "fake"
     run_success: bool = True
     submit_success: bool = True
 
