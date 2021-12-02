@@ -78,7 +78,7 @@ class ClientError(PrefectException, ClientError_):
         super().__init__(message)
 
 
-class ObjectNotFoundError(PrefectException):
+class ObjectNotFoundError(ClientError):
     """
     Raised when an object is not found on the Server
 
