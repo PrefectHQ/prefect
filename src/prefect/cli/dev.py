@@ -92,7 +92,10 @@ async def ui():
 async def start():    
     async with anyio.create_task_group() as tg:
         tg.start_soon(
-            start_orion
+            partial(
+                start_orion,
+                ui=False
+            )
         )
         
         tg.start_soon(

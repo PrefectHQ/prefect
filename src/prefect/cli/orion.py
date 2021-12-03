@@ -51,7 +51,8 @@ async def start(
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
     services: bool = True,
-    agent: bool = True
+    agent: bool = True,
+    ui: bool = True
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -61,6 +62,7 @@ async def start(
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_ORION_UI_ENABLED"] = str(ui)
 
     agent_env = os.environ.copy()
     agent_env["PREFECT_ORION_HOST"] = f"http://{host}:{port}/api/"
@@ -78,7 +80,7 @@ async def start(
                     "--port",
                     str(port),
                     "--log-level",
-                    log_level.lower(),
+                    log_level.lower()
                 ],
                 env=server_env,
             )
