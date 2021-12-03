@@ -88,8 +88,10 @@ async def ui():
 
 @dev_app.command()
 @sync_compatible
-async def start():
+async def start(
+    agent: bool = True
+):
     async with anyio.create_task_group() as tg:
-        tg.start_soon(partial(start_orion, ui=False))
+        tg.start_soon(partial(start_orion, ui=False, agent=agent))
 
         tg.start_soon(ui)
