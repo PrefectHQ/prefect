@@ -51,7 +51,7 @@ async def start(
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
     services: bool = True,
-    agent: bool = True,
+    agent: bool = True
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -87,6 +87,7 @@ async def start(
         if agent:
             # The server may not be ready yet despite waiting for the process to begin
             await anyio.sleep(1)
+            console.print("Starting agent...")
             tg.start_soon(
                 partial(
                     open_process_and_stream_output,

@@ -6,12 +6,16 @@ import shutil
 import subprocess
 import os
 
+import anyio
+from functools import partial
 import typer
 
 import prefect
 from prefect.cli.base import app, console
+from prefect.cli.orion import start as start_orion
+from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.filesystem import tmpchdir
-
+from prefect.cli.orion import open_process_and_stream_output
 
 dev_app = typer.Typer(name="dev")
 app.add_typer(dev_app)
@@ -43,7 +47,8 @@ def build_docs(
 
 
 @dev_app.command()
-def build_ui():
+@sync_compatible
+async def build_ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
@@ -63,3 +68,33 @@ def build_ui():
         shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
 
     console.print("Complete!")
+    
+
+@dev_app.command()
+@sync_compatible
+async def ui():
+    with tmpchdir(prefect.__root_path__):
+        with tmpchdir(prefect.__root_path__ / "orion-ui"):
+            console.print("Installing npm packages...")
+            subprocess.check_output(["npm", "install"])
+            
+            async with anyio.create_task_group() as tg:
+                console.print("Starting UI development server...")
+                tg.start_soon(
+                    partial(
+                        open_process_and_stream_output,
+                        command=["npm", "run", "serve"]
+                    )
+                )
+
+@dev_app.command()
+@sync_compatible
+async def start():    
+    async with anyio.create_task_group() as tg:
+        tg.start_soon(
+            start_orion
+        )
+        
+        tg.start_soon(
+            ui
+        )
