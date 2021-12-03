@@ -98,7 +98,6 @@ class FireboltQuery(Task):
         try:
             with conn:
                 with conn.cursor() as cursor:
-                    self.logger.info("Running query: " + query)
                     executed = cursor.execute(query)
             conn.close()
             return executed
@@ -202,12 +201,8 @@ class FireboltQueryGetData(Task):
         try:
             with conn:
                 with conn.cursor() as cursor:
-                    # self.logger.info("Running query: " + query)
                     executed_count = cursor.execute(query)
                     executed_data = cursor.fetchall()
-                    # print(executed_data)
-                    # self.logger.debug("Row count: ", executed_count)
-                    # self.logger.debug("Metadata: ", executed_data)
             conn.close()
             return executed_data
 

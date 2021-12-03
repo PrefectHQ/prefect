@@ -55,16 +55,6 @@ class TestFireboltQuery:
         with pytest.raises(ValueError, match="A query string must be provided"):
             task.run()
 
-    def test_firebolt_params_passed_to_connection(self, monkeypatch):
-        task = FireboltQuery(database="test", username="test", password="test", engine_name="test",
-                             engine_url=None, api_endpoint="test", query="test")
-        firebolt_conn = MagicMock()
-        monkeypatch.setattr("prefect.tasks.firebolt.firebolt.firebolt_conn", firebolt_conn)
-        task.run()
-        for call in firebolt_conn.call_args_list:
-            args, kwargs = call
-            self.assertTrue(all(a.startswith('test') for a in args))
-
     def test_execute_query(self, monkeypatch):
         """
         Tests that the FireboltQuery Task calls the execute method on the cursor.
@@ -144,16 +134,6 @@ class TestFireboltQueryGetData():
                                     engine_url=None, api_endpoint="test")
         with pytest.raises(ValueError, match="A query string must be provided"):
             task.run()
-
-    def test_firebolt_params_passed_to_connection(self, monkeypatch):
-        task = FireboltQueryGetData(database="test", username="test", password="test", engine_name="test",
-                                    engine_url=None, api_endpoint="test", query="test")
-        firebolt_conn = MagicMock()
-        monkeypatch.setattr("prefect.tasks.firebolt.firebolt.firebolt_conn", firebolt_conn)
-        task.run()
-        for call in firebolt_conn.call_args_list:
-            args, kwargs = call
-            self.assertTrue(all(a.startswith('test') for a in args))
 
     def test_execute_fetchall(self, monkeypatch):
         """
