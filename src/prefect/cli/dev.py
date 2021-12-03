@@ -67,7 +67,7 @@ def build_ui():
         shutil.copytree("orion-ui/dist", prefect.__ui_static_path__)
 
     console.print("Complete!")
-    
+
 
 @dev_app.command()
 @sync_compatible
@@ -76,27 +76,20 @@ async def ui():
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
             console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"])
-            
+
             async with anyio.create_task_group() as tg:
                 console.print("Starting UI development server...")
                 tg.start_soon(
                     partial(
-                        open_process_and_stream_output,
-                        command=["npm", "run", "serve"]
+                        open_process_and_stream_output, command=["npm", "run", "serve"]
                     )
                 )
 
+
 @dev_app.command()
 @sync_compatible
-async def start():    
+async def start():
     async with anyio.create_task_group() as tg:
-        tg.start_soon(
-            partial(
-                start_orion,
-                ui=False
-            )
-        )
-        
-        tg.start_soon(
-            ui
-        )
+        tg.start_soon(partial(start_orion, ui=False))
+
+        tg.start_soon(ui)
