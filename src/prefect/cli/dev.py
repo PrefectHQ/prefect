@@ -88,10 +88,13 @@ async def ui():
 
 @dev_app.command()
 @sync_compatible
-async def start(
-    agent: bool = True
-):
+async def start(agent: bool = True):
+    """
+    Starts a dev server for the UI with hot module replacement and the Orion Server (without the static UI).
+
+    Args:
+        agent: Whether or not the Orion Server should spin up an agent
+    """
     async with anyio.create_task_group() as tg:
         tg.start_soon(partial(start_orion, ui=False, agent=agent))
-
         tg.start_soon(ui)
