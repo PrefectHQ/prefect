@@ -112,7 +112,7 @@
             <div class="my-2">
               Deployments can only be created using the Prefect CLI
             </div>
-            <Button color="alternate" @click="showAllDeployments">
+            <Button color="alternate" @click="onFilterOff">
               Show all deployments
             </Button>
           </div>
@@ -130,7 +130,7 @@
         <ResultsList
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
-          :filter="filter"
+          :filter="deploymentsFilter"
           component="ListItemDeployment"
           endpoint="deployments"
         />
@@ -188,6 +188,15 @@ const filter = computed<
   return { ...store.getters.composedFilter }
 })
 
+let deploymentFilterStatus = { ...store.getters.composedFilter }
+
+const onFilterOff = () => {
+  deploymentFilterStatus = { ...store.getters.filterOff }
+}
+const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
+  return deploymentFilterStatus
+})
+
 const start = computed<Date>(() => {
   return store.getters.start
 })
@@ -225,7 +234,7 @@ const basePollInterval = 30000
 const queries: { [key: string]: Query } = {
   deployments: Api.query({
     endpoint: Endpoints.deployments_count,
-    body: filter,
+    body: deploymentsFilter,
     options: {
       pollInterval: basePollInterval
     }
@@ -337,10 +346,6 @@ const resultsCount = computed<number>(() => {
   if (!resultsTab.value) return 0
   return queries[resultsTab.value].response.value || 0
 })
-
-const showAllDeployments = () => {
-  console.log('Show all deployments')
-}
 
 watch([resultsTab], () => {
   router.push({ hash: `#${resultsTab.value}` })
