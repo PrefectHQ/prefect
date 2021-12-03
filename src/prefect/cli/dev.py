@@ -77,13 +77,8 @@ async def ui():
             console.print("Installing npm packages...")
             subprocess.check_output(["npm", "install"])
 
-            async with anyio.create_task_group() as tg:
-                console.print("Starting UI development server...")
-                tg.start_soon(
-                    partial(
-                        open_process_and_stream_output, command=["npm", "run", "serve"]
-                    )
-                )
+            console.print("Starting UI development server...")
+            await open_process_and_stream_output(command=["npm", "run", "serve"])
 
 
 @dev_app.command()
