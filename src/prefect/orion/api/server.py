@@ -75,8 +75,7 @@ def create_app(database_config=None) -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-
-    if os.path.exists(prefect.__ui_static_path__):
+    if os.path.exists(prefect.__ui_static_path__) and os.environ.get("PREFECT_ORION_UI_ENABLED") == 'True':
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
