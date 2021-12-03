@@ -38,9 +38,8 @@ class RunGreatExpectationsValidation(Task):
     with the Great Expectations v2 API.
 
     To create a checkpoint you can use:
-    - for the v2 API:
-        `great_expectations checkpoint new <expectations_suite_name> <name_for_this_checkpoint>`
-    - for the v3 API: `great_expectations --v3-api checkpoint new <name_for_this_checkpoint>`
+    - for the v2 API: `great_expectations checkpoint new <expectations_suite_name> <checkpoint_name>`
+    - for the v3 API: `great_expectations --v3-api checkpoint new <checkpoint_name>`
 
     Here is an example that can be used with both v2 and v3 API provided that
     the checkpoint has been already created, as described above:
@@ -109,7 +108,7 @@ class RunGreatExpectationsValidation(Task):
         disable_markdown_artifact: bool = False,
         validation_operator: str = "action_list_operator",
         evaluation_parameters: Optional[dict] = None,
-        **kwargs
+        **kwargs,
     ):
         self.checkpoint_name = checkpoint_name
         self.context = context
@@ -206,7 +205,7 @@ class RunGreatExpectationsValidation(Task):
 
         if version.parse(ge.__version__) < version.parse("0.13.8"):
             self.logger.warn(
-                "You are using a version of great_expectations before 0.13.8 which may cause"
+                f"You are using great_expectations version {ge.__version__} which may cause"
                 "errors in this task. Please upgrade great_expections to 0.13.8 or later."
             )
 

@@ -1,2 +1,2 @@
 fix:
-  - "Updates RunGreatExpectationsValidation task to work with latest version of great_expectations - [#5172](https://github.com/PrefectHQ/prefect/issues/5172)"
+  - "Update `RunGreatExpectationsValidation` task to work with latest version of `great_expectations` - [#5172](https://github.com/PrefectHQ/prefect/issues/5172)"
