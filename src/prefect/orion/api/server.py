@@ -5,7 +5,6 @@ Defines the Orion FastAPI app.
 import asyncio
 from functools import partial
 import os
-from distutils.util import strtobool
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
