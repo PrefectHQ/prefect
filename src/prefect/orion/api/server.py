@@ -5,6 +5,7 @@ Defines the Orion FastAPI app.
 import asyncio
 from functools import partial
 import os
+from distutils.util import strtobool
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,7 +76,7 @@ def create_app(database_config=None) -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-    if os.path.exists(prefect.__ui_static_path__) and os.environ.get("PREFECT_ORION_UI_ENABLED") == 'True':
+    if os.path.exists(prefect.__ui_static_path__) and strtobool(os.environ.get("PREFECT_ORION_SERVICES_UI", "true")) == True:
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
