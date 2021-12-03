@@ -221,7 +221,7 @@ class ServicesSettings(BaseSettings):
     # -- UI
 
     # serve the UI
-    ui: bool = Field(
+    ui_enabled: bool = Field(
         True,
         description="""Whether or not to build and serve the Orion UI.""",
     )

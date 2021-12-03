@@ -78,7 +78,7 @@ def create_app(database_config=None) -> FastAPI:
     app.mount("/api", app=api_app)
     if (
         os.path.exists(prefect.__ui_static_path__)
-        and strtobool(os.environ.get("PREFECT_ORION_SERVICES_UI", "true")) == True
+        and settings.orion.services.ui_enabled
     ):
         ui_app.mount(
             "/",
