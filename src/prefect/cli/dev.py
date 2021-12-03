@@ -47,8 +47,7 @@ def build_docs(
 
 
 @dev_app.command()
-@sync_compatible
-async def build_ui():
+def build_ui():
     with tmpchdir(prefect.__root_path__):
         with tmpchdir(prefect.__root_path__ / "orion-ui"):
 
