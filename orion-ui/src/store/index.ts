@@ -6,7 +6,6 @@ import * as mutations from './mutations'
 
 export interface State {
   globalFilter: GlobalFilter
-  filterOff: object
 }
 
 export const initialGlobalFilterState: GlobalFilter = {
@@ -37,8 +36,7 @@ export const initialGlobalFilterState: GlobalFilter = {
 }
 
 const state: State = {
-  globalFilter: { ...initialGlobalFilterState },
-  filterOff: {}
+  globalFilter: { ...initialGlobalFilterState }
 }
 
 const actions = {}

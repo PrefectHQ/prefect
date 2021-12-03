@@ -238,5 +238,3 @@ export const composedFilter = (state: State, getters: any): UnionFilters => {
   return { ...val }
 }
 /* eslint-enable @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any */
-
-export const filterOff = (state: State) => state.filterOff
