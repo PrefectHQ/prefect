@@ -261,7 +261,7 @@ class OrionSettings(BaseSettings):
         description="Nested [Services settings][prefect.utilities.settings.ServicesSettings].",
     )
     ui: UISettings = Field(
-        default_factor=UISettings,
+        default_factory=UISettings,
         description="Nested [UI settings][prefect.utilities.settings.UISettings]."
     )
 
