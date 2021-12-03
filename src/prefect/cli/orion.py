@@ -50,7 +50,7 @@ async def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
-    services: bool = True,
+    services: bool = settings.orion.services.run_in_app,
     agent: bool = True,
     ui: bool = settings.orion.ui.enabled,
 ):
