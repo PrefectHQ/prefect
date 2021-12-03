@@ -188,13 +188,16 @@ const filter = computed<
   return { ...store.getters.composedFilter }
 })
 
-let deploymentFilterStatus = { ...store.getters.composedFilter }
+const deploymentFilterOff = ref(false)
 
 const onFilterOff = () => {
-  deploymentFilterStatus = { ...store.getters.filterOff }
+  deploymentFilterOff.value = true
 }
 const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
-  return deploymentFilterStatus
+  if (deploymentFilterOff.value) {
+    return {}
+  }
+  return filter.value
 })
 
 const start = computed<Date>(() => {
