@@ -52,7 +52,7 @@ async def start(
     log_level: str = settings.logging.default_level,
     services: bool = True,
     agent: bool = True,
-    ui: bool = settings.orion.services.ui
+    ui: bool = settings.orion.services.ui,
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -80,7 +80,7 @@ async def start(
                     "--port",
                     str(port),
                     "--log-level",
-                    log_level.lower()
+                    log_level.lower(),
                 ],
                 env=server_env,
             )

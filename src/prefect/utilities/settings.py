@@ -217,8 +217,7 @@ class ServicesSettings(BaseSettings):
         have exceeded their scheduled start time by this many seconds. Defaults
         to `5` seconds.""",
     )
-    
-    
+
     # -- UI
 
     # serve the UI
