@@ -48,28 +48,30 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints, TaskRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 
 const props = defineProps<{ item: TaskRun }>()
 
-const flow_run_filter_body: FlowRunsFilter = {
-  flow_runs: {
-    id: {
-      any_: [props.item.flow_run_id]
+const taskRunFilterBody = computed<TaskRunsFilter>(() => {
+  return {
+    flow_runs: {
+      id: {
+        any_: [props.item.flow_run_id]
+      }
     }
   }
-}
+})
 
 const queries: { [key: string]: Query } = {
   flow_run: Api.query({
     endpoint: Endpoints.flow_runs,
-    body: flow_run_filter_body.value
+    body: taskRunFilterBody.value
   }),
   flow: Api.query({
     endpoint: Endpoints.flows,
-    body: flow_run_filter_body.value
+    body: taskRunFilterBody.value
   })
 }
 
