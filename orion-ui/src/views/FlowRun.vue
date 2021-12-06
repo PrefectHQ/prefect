@@ -18,13 +18,13 @@
         class="text-truncate"
         v-show="route.fullPath.includes('/radar')"
       >
-        <span v-breakpoints="'sm'" class='ml-5'>
+        <span v-breakpoints="'sm'" class="ml-5">
           Flow Version:
           <span class="font-weight-semibold" v-if="!flowRun.flow_version">
             --
           </span>
           <span class="font-weight-semibold" v-else>
-          {{ flowRun.flow_version }}
+            {{ flowRun.flow_version }}
           </span>
         </span>
 
@@ -42,7 +42,15 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, Flow } from '@/typings/objects'
-import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch, getCurrentInstance } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onBeforeMount,
+  ref,
+  Ref,
+  watch,
+  getCurrentInstance
+} from 'vue'
 
 import { useRoute } from 'vue-router'
 
