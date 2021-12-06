@@ -14,8 +14,12 @@ async def get_session(
 ):
     """
     Dependency-injected database session.
-    The context manager will automatically handle commits,
-    rollbacks, and closing the connection.
+
+    The context manager will automatically handle commits, rollbacks, and closing the
+    connection.
+
+    A `response_scoped_dependency` is used to ensure this session is closed before the
+    response is returned to a client.
     """
     # load engine with API timeout setting
     session_factory = await db.session_factory()
