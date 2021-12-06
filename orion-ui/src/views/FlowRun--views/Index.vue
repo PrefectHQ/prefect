@@ -272,14 +272,6 @@ const queries: { [key: string]: Query } = {
       pollInterval: 10000
     }
   }),
-  // TODO: Need to add a query for task runs with this flow run id that have sub flow runs and pipe that in to this as parent task run id
-  sub_flow_runs: Api.query({
-    endpoint: Endpoints.flow_runs,
-    body: subFlowRunsFilter,
-    options: {
-      pollInterval: 10000
-    }
-  }),
   sub_flow_runs_count: Api.query({
     endpoint: Endpoints.flow_runs_count,
     body: subFlowRunsFilter,
