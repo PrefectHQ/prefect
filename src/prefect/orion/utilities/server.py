@@ -42,8 +42,7 @@ def response_scoped_dependency(dependency: Callable):
     # FastAPI will inject the request as a dependency.
     signature = inspect.signature(dependency)
     new_parameters = signature.parameters.copy()
-    request_parameter = inspect.signature(wrapper).parameters["__request__"]
-    new_parameters["__request__"] = request_parameter
+    new_parameters["__request__"] = inspect.signature(wrapper).parameters["__request__"]
     functools.update_wrapper(wrapper, dependency)
     wrapper.__signature__ = signature.replace(parameters=tuple(new_parameters.values()))
 
