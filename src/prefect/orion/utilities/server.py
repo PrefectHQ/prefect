@@ -17,8 +17,7 @@ def response_scoped_dependency(dependency: Callable):
     which must be committed before the client can do more work.
 
     Args:
-        dependency: An async callable which consumes the `fastapi.Request` object.
-            Additional FastAPI dependencies may be included as well.
+        dependency: An async callable. FastAPI dependencies may still be used.
 
     Returns:
         A wrapped `dependency` which will push the `dependency` context manager onto
@@ -39,7 +38,8 @@ def response_scoped_dependency(dependency: Callable):
             )
         )
 
-    # Generate a new signature
+    # Generate a new signature that includes `__request__: Request` to ensure that
+    # FastAPI will inject the request as a dependency.
     signature = inspect.signature(dependency)
     new_parameters = signature.parameters.copy()
     request_parameter = inspect.signature(wrapper).parameters["__request__"]
@@ -54,9 +54,9 @@ class OrionAPIRoute(APIRoute):
     """
     A FastAPI APIRoute class which inserts a special stack on requests.
 
-    Requests have `request.scope.astack` which is an async stack for the entire scope
-    of the request. However, if you want to close a dependency before the request is
-    complete (i.e. before returning a response to the user), we need a stack with a
+    Requests have `request.scope.fastapi_astack` which is an async stack for the entire
+    scope of the request. However, if you want to close a dependency before the request
+    is complete (i.e. before returning a response to the user), we need a stack with a
     different scope.
     """
 
