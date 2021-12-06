@@ -1,5 +1,5 @@
 import subprocess
-from typing import Dict, TypeVar, Literal, Type
+from typing import Dict, TypeVar, Type
 
 import anyio
 import anyio.abc
