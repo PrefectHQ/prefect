@@ -181,7 +181,7 @@
         v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="list-item-task-run"
+        component="list-item-sub-flow-run"
         endpoint="task_runs"
       />
     </transition>
