@@ -73,7 +73,11 @@ class OrionAgent:
         # TODO: Here, the agent may merge settings with those contained in the
         #       flow_run.flow_runner settings object
         flow_runner = FlowRunner.get_instance(
-            typename=flow_run.runner_type or self.default_runner_type,
+            typename=(
+                self.default_runner_type
+                if flow_run.runner_type is None or flow_run.runner_type == "universal"
+                else flow_run.runner_type
+            ),
             config=flow_run.runner_config,
         )
 
