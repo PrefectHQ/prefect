@@ -1,11 +1,10 @@
 """
 Utilities for injecting FastAPI dependencies.
 """
+from fastapi import Request
 
 from prefect.orion.database.dependencies import provide_database_interface
-from contextlib import asynccontextmanager
 from prefect.orion.utilities.server import response_scoped_dependency
-from fastapi import Request, Depends
 
 
 @response_scoped_dependency
