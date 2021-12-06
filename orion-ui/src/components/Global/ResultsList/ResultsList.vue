@@ -70,7 +70,7 @@ const init = async () => {
   const results = await getData()
   items.value = new Map(results.map((r: any) => [r.id, r]))
   limit.value = 10
-  console.log(items.value)
+  console.log(props.endpoint, items.value)
 }
 
 init()

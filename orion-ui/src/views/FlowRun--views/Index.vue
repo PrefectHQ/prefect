@@ -146,7 +146,7 @@
       Sub Flow Runs
       <span
         class="result-badge caption ml-1"
-        :class="{ active: resultsTab == 'flow_runs' }"
+        :class="{ active: resultsTab == 'sub_flow_runs' }"
       >
         {{ subFlowRunsCount.toLocaleString() }}
       </span>
@@ -181,8 +181,8 @@
         v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="list-item-flow-run"
-        endpoint="flow_runs"
+        component="list-item-task-run"
+        endpoint="task_runs"
       />
     </transition>
   </section>
@@ -239,8 +239,13 @@ const taskRunsFilter = computed<BaseFilter>(() => {
 const subFlowRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
-      parent_task_run_id: {
+      id: {
         any_: [id]
+      }
+    },
+    task_runs: {
+      subflow_runs: {
+        exists_: true
       }
     }
   }
@@ -273,7 +278,7 @@ const queries: { [key: string]: Query } = {
     }
   }),
   sub_flow_runs_count: Api.query({
-    endpoint: Endpoints.flow_runs_count,
+    endpoint: Endpoints.task_runs_count,
     body: subFlowRunsFilter,
     options: {
       pollInterval: 10000
@@ -281,9 +286,14 @@ const queries: { [key: string]: Query } = {
   })
 }
 
+const countMap: { [key: string]: string } = {
+  task_runs: 'task_runs_count',
+  sub_flow_runs: 'sub_flow_runs_count'
+}
+
 const resultsCount = computed(() => {
   if (!resultsTab.value) return 0
-  return queries[resultsTab.value]?.response || 0
+  return queries[countMap[resultsTab.value]]?.response || 0
 })
 
 const deployment = computed<Deployment>(() => {
@@ -339,7 +349,6 @@ onBeforeUnmount(() => {
 
 onBeforeMount(() => {
   resultsTab.value = route.hash?.substr(1) || 'task_runs'
-  console.log(resultsTab.value)
 })
 </script>
 
