@@ -118,27 +118,3 @@ class SubprocessFlowRunner(FlowRunner):
             )
         else:
             logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
-
-
-@register_flow_runner
-class FakeFlowRunner(FlowRunner):
-    typename: Literal["fake"] = "fake"
-    run_success: bool = True
-    submit_success: bool = True
-
-    async def submit_flow_run(
-        self,
-        flow_run: FlowRun,
-        task_status: TaskStatus,
-    ) -> None:
-        from prefect.client import OrionClient
-        from prefect.orion.schemas.states import Completed, Failed
-
-        if self.submit_success:
-            task_status.started()
-            async with OrionClient() as client:
-                await client.set_flow_run_state(
-                    flow_run.id, Completed() if self.run_success else Failed()
-                )
-        else:
-            raise RuntimeError("Fake failure on submission!")
