@@ -2,7 +2,7 @@
 # Dask integration
 
 Prefect integrates with `Dask` via the [executor interface](/concepts/executors/). 
-The [DaskTaskRunner](/api-ref/prefect/executors.md#daskexecutor) runs Prefect
+The [DaskTaskRunner](/api-ref/prefect/task-runners.md#prefect.task_runners.DaskTaskRunner) runs Prefect
 tasks using [Dask's Distributed
 Scheduler](https://distributed.dask.org/en/latest/). It can be used locally on
 a single machine, but is most useful when scaling out distributed across multiple
@@ -23,11 +23,11 @@ By default, when you use a `DaskTaskRunner` it creates a temporary local Dask
 cluster.
 
 ```python
-from prefect.executors import DaskTaskRunner
+from prefect.task_runners import DaskTaskRunner
 
 # By default this will use a temporary local Dask cluster
 @flow
-def my_flow(executor=DaskTaskRunner()):
+def my_flow(task_runner=DaskTaskRunner()):
     pass
 ```
 
@@ -132,7 +132,7 @@ def show(x):
     print(x)
 
 
-@flow(executor=DaskTaskRunner())
+@flow(task_runner=DaskTaskRunner())
 def my_flow():
     with dask.annotate(priority=-10):
         future = show(1)  # low priority task
@@ -146,7 +146,7 @@ Another common use-case is [resource](http://distributed.dask.org/en/stable/reso
 ```python
 import dask
 from prefect import flow, task
-from prefect.executors import DaskTaskRunner
+from prefect.task_runners import DaskTaskRunner
 
 @task
 def show(x):
@@ -156,7 +156,7 @@ def show(x):
 # Annotations are abstract in dask and not inferred from your system.
 # Here, we claim that our system has 1 GPU and 1 process available per worker
 @flow(
-    executor=DaskTaskRunner(
+    task_runner=DaskTaskRunner(
         cluster_kwargs={"n_workers": 1, "resources": {"GPU": 1, "process": 1}}
     )
 )
