@@ -22,9 +22,13 @@
 }
 
 .run-state {
+  font-family: barlow;
+  font-size: 13px;
+  height: 20px;
   border-radius: 4px;
-  padding: 2px 8px;
+  padding: 0 8px;
   text-transform: capitalize;
+  align-self: center;
 }
 
 .tag-container {
