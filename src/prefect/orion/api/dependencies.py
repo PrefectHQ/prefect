@@ -9,9 +9,7 @@ from prefect.orion.utilities.server import response_scoped_dependency
 
 
 @response_scoped_dependency
-async def get_session(
-    request: Request, db: OrionDBInterface = Depends(provide_database_interface)
-):
+async def get_session(db: OrionDBInterface = Depends(provide_database_interface)):
     """
     Dependency-injected database session.
 
