@@ -33,7 +33,8 @@ class DeploymentCreate(
             "tags",
             "parameters",
             "flow_data",
-            "flow_runner",
+            "flow_runner_type",
+            "flow_runner_config",
         ],
     )
 ):
@@ -117,7 +118,8 @@ class DeploymentFlowRunCreate(
             "context",
             "tags",
             "idempotency_key",
-            "flow_runner",
+            "runner_type",
+            "runner_config",
         ],
     )
 ):

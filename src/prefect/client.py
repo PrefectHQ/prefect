@@ -29,7 +29,7 @@ from prefect import exceptions, settings
 from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
-from prefect.orion.schemas.core import TaskRun, FlowRunnerSettings
+from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
 from prefect.utilities.logging import get_logger
@@ -37,6 +37,7 @@ from prefect.utilities.logging import get_logger
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
+    from prefect.flow_runners import FlowRunner
 
 
 def inject_client(fn):
@@ -407,7 +408,7 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         tags: List[str] = None,
-        flow_runner_settings: FlowRunnerSettings = None,
+        flow_runner: "FlowRunner" = None,
     ) -> UUID:
         """
         Create a flow deployment in Orion.
@@ -418,6 +419,7 @@ class OrionClient:
             flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
+            flow_runner: an optional flow runner to specify for this deployment
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -432,7 +434,10 @@ class OrionClient:
             flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
-            flow_runner=flow_runner_settings,
+            flow_runner_type=flow_runner.typename if flow_runner else None,
+            flow_runner_config=(
+                flow_runner.dict(exclude={"typename"}) if flow_runner else None
+            ),
         )
 
         response = await self.post(

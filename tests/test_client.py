@@ -242,7 +242,8 @@ async def test_create_flow_run_from_deployment(orion_client, deployment):
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
     # Includes flow runner
-    assert flow_run.flow_runner == deployment.flow_runner
+    assert flow_run.runner_type == deployment.flow_runner_type
+    assert flow_run.runner_config == deployment.flow_runner_config
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now

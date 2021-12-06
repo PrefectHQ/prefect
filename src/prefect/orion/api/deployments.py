@@ -270,12 +270,13 @@ async def create_flow_run_from_deployment(
 
     # hydrate the input model into a full flow run / state model
     flow_run = schemas.core.FlowRun(
-        **flow_run.dict(exclude={"parameters", "tags", "flow_runner"}),
+        **flow_run.dict(exclude={"parameters", "tags", "runner_type", "runner_config"}),
         flow_id=deployment.flow_id,
         deployment_id=deployment.id,
         parameters=parameters,
         tags=set(deployment.tags).union(flow_run.tags),
-        flow_runner=flow_run.flow_runner or deployment.flow_runner,
+        runner_type=flow_run.runner_type or deployment.flow_runner_type,
+        runner_config=flow_run.runner_config or deployment.flow_runner_config,
     )
 
     if not flow_run.state:
