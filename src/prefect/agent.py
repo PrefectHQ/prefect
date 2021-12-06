@@ -2,18 +2,16 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from functools import partial
-from typing import Awaitable, Callable, List, Optional
-from uuid import UUID
+from typing import List, Optional, Set
 
 import anyio
 import anyio.to_process
 import pendulum
-from anyio.abc import TaskGroup, TaskStatus
+from anyio.abc import TaskGroup
 
 from prefect import settings
 from prefect.client import OrionClient
-from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
+from prefect.flow_runners import FlowRunner
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -26,6 +24,7 @@ class OrionAgent:
         self,
         prefetch_seconds: int = settings.agent.prefetch_seconds,
         max_parallel_submissions: int = 10,
+        default_runner_type: str = "subprocess",
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
@@ -34,6 +33,7 @@ class OrionAgent:
         self.limiter = anyio.CapacityLimiter(max_parallel_submissions)
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
+        self.default_runner_type = default_runner_type
 
     def flow_run_query_filter(self) -> FlowRunFilter:
         return FlowRunFilter(
@@ -70,14 +70,12 @@ class OrionAgent:
         """
         Submit a flow run to the flow runner
         """
-        if flow_run.flow_runner is not None:
-            # TODO: Here, the agent may merge settings with those contained in the
-            #       flow_run.flow_runner settings object
-            flow_runner = FlowRunner.from_settings(flow_run.flow_runner)
-        else:
-            # TODO: We do a local run by default, but we should do something more
-            #       interesting here like set a default type on the agent
-            flow_runner = SubprocessFlowRunner()
+        # TODO: Here, the agent may merge settings with those contained in the
+        #       flow_run.flow_runner settings object
+        flow_runner = FlowRunner.get_instance(
+            typename=flow_run.runner_type or self.default_runner_type,
+            config=flow_run.runner_config,
+        )
 
         try:
             # Wait for submission to be completed. Note that the submission function

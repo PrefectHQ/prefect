@@ -8,7 +8,7 @@ from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
 
-from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
+from prefect.orion.schemas.core import FlowRun
 from prefect.utilities.logging import get_logger
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
@@ -32,17 +32,10 @@ class FlowRunner(BaseModel):
     typename: Literal["universal"] = "universal"
     env: Dict[str, str] = Field(default_factory=dict)
 
-    def to_settings(self):
-        """
-        Convert this instance to a `FlowRunnerSettings` instance for storage in the
-        backend.
-        """
-        return FlowRunnerSettings(typename=self.typename, config=self.dict())
-
     @classmethod
-    def from_settings(cls, settings: FlowRunnerSettings) -> "FlowRunner":
-        subcls = lookup_flow_runner(settings.typename)
-        return subcls(**settings.config)
+    def get_instance(cls, typename: str, config: dict) -> "FlowRunner":
+        subcls = lookup_flow_runner(typename)
+        return subcls(**config)
 
     async def submit_flow_run(
         self,
