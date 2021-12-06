@@ -3,9 +3,17 @@ Utilities for injecting FastAPI dependencies.
 """
 
 from prefect.orion.database.dependencies import provide_database_interface
+from contextlib import asynccontextmanager
+from prefect.orion.utilities.server import response_scoped_dependency
+from fastapi import Request, Depends
 
 
-async def get_session():
+def test():
+    return "foo"
+
+
+@response_scoped_dependency
+async def get_session(request: Request, foo=Depends(test)):
     """
     Dependency-injected database session.
     The context manager will automatically handle commits,
@@ -20,3 +28,4 @@ async def get_session():
     async with session_factory() as session:
         async with session.begin():
             yield session
+    print("Exiting session context")
