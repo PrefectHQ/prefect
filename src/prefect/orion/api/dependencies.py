@@ -1,7 +1,7 @@
 """
 Utilities for injecting FastAPI dependencies.
 """
-from fastapi import Request, Depends
+from fastapi import Depends
 
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
