@@ -15,6 +15,10 @@ def response_scoped_dependency(dependency: Callable):
     Uses an async stack that is exited before the response is returned to a client to
     ensure a dependency is closed. This is particularly useful for database sesssions
     which must be committed before the client can do more work.
+
+    Args:
+        dependency: An async callable which consumes the `fastapi.Request` object.
+            Additional FastAPI dependencies may be included as well.
     """
     if "request" not in inspect.signature(dependency).parameters:
         raise TypeError(
