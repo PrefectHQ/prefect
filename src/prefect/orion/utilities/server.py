@@ -24,17 +24,8 @@ def response_scoped_dependency(dependency: Callable):
         A wrapped `dependency` which will push the `dependency` context manager onto
         a stack when called.
     """
-    if "request" not in inspect.signature(dependency).parameters:
-        raise TypeError(
-            "Functions decorated with `response_scoped_dependency` must consume "
-            "`request: Request`"
-        )
-        # In the future, we could coerce the returned wrapper to include the `request`
-        # annotation such that it is injected by FastAPI whether or not the user of
-        # this decorator includes it.
 
-    @functools.wraps(dependency)
-    async def wrapper(*args, request: Request, **kwargs):
+    async def wrapper(*args, __request__: Request, **kwargs):
         # Replicate FastAPI behavior of auto-creating a context manager
         if inspect.isasyncgenfunction(dependency):
             context_manager = asynccontextmanager(dependency)
@@ -42,9 +33,19 @@ def response_scoped_dependency(dependency: Callable):
             context_manager = dependency
 
         # Enter the special stack
-        return await request.state.response_scoped_depends_stack.enter_async_context(
-            context_manager(*args, request=request, **kwargs)
+        return (
+            await __request__.state.response_scoped_depends_stack.enter_async_context(
+                context_manager(*args, **kwargs)
+            )
         )
+
+    # Generate a new signature
+    signature = inspect.signature(dependency)
+    new_parameters = signature.parameters.copy()
+    request_parameter = inspect.signature(wrapper).parameters["__request__"]
+    new_parameters["__request__"] = request_parameter
+    functools.update_wrapper(wrapper, dependency)
+    wrapper.__signature__ = signature.replace(parameters=tuple(new_parameters.values()))
 
     return wrapper
 
