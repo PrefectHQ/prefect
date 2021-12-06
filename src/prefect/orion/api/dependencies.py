@@ -8,12 +8,8 @@ from prefect.orion.utilities.server import response_scoped_dependency
 from fastapi import Request, Depends
 
 
-def test():
-    return "foo"
-
-
 @response_scoped_dependency
-async def get_session(request: Request, foo=Depends(test)):
+async def get_session(request: Request):
     """
     Dependency-injected database session.
     The context manager will automatically handle commits,
@@ -28,4 +24,3 @@ async def get_session(request: Request, foo=Depends(test)):
     async with session_factory() as session:
         async with session.begin():
             yield session
-    print("Exiting session context")
