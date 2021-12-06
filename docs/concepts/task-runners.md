@@ -2,7 +2,7 @@
 
 Task runners are responsible for running Prefect tasks. Each flow has an task runner associated with it. The task runner is started at the beginning of a flow run and shutdown at the end.
 
-Depending on the task runner you use, the tasks within your flow can run in parallel or seqentially. The default task runner is the `SequentialTaskRunner`, which does not run your tasks in parallel. To run tasks in parallel, you can use an task runner such as the `DaskTaskRunner`, which enables Dask-based parallel execution.
+Depending on the task runner you use, the tasks within your flow can run in parallel or sequentially. The default task runner is the `SequentialTaskRunner`, which does not run your tasks in parallel. To run tasks in parallel, you can use a task runner such as the `DaskTaskRunner`, which enables Dask-based parallel execution.
 
 ## Using an task runner
 
@@ -17,7 +17,7 @@ def my_flow():
     pass
 ```
 
-If an task runner type is passed, an task runner instance will be created with the default settings. TaskRunner instances can be passed for additional configuration:
+If a task runner type is passed, a task runner instance will be created with the default settings. TaskRunner instances can be passed for additional configuration:
 
 
 ```python hl_lines="4"
@@ -60,7 +60,7 @@ def my_subflow():
 my_flow()
 ```
 
-This script outputs the following logs demonstrating the temporary dask task runner:
+This script outputs the following logs demonstrating the temporary Dask task runner:
 
 ```text hl_lines="7"
 13:46:58.865 | Beginning flow run 'olivine-swan' for flow 'my-flow'...
