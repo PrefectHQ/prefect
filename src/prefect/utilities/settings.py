@@ -219,6 +219,22 @@ class ServicesSettings(BaseSettings):
     )
 
 
+class UISettings(BaseSettings):
+    """Settings related to the Orion UI. To change these settings via environment variable, set
+    `PREFECT_ORION_UI_{SETTING}=X`.
+    """
+
+    class Config:
+        env_prefix = "PREFECT_ORION_UI_"
+        frozen = True
+
+    # serve the UI
+    enabled: bool = Field(
+        True,
+        description="""Whether or not to serve the Orion UI.""",
+    )
+
+
 class OrionSettings(BaseSettings):
     """Settings related to Orion. To change these settings via environment variable, set
     `PREFECT_ORION_{SETTING}=X`.
@@ -243,6 +259,10 @@ class OrionSettings(BaseSettings):
     services: ServicesSettings = Field(
         default_factory=ServicesSettings,
         description="Nested [Services settings][prefect.utilities.settings.ServicesSettings].",
+    )
+    ui: UISettings = Field(
+        default_factory=UISettings,
+        description="Nested [UI settings][prefect.utilities.settings.UISettings].",
     )
 
 
