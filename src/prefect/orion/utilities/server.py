@@ -19,6 +19,10 @@ def response_scoped_dependency(dependency: Callable):
     Args:
         dependency: An async callable which consumes the `fastapi.Request` object.
             Additional FastAPI dependencies may be included as well.
+
+    Returns:
+        A wrapped `dependency` which will push the `dependency` context manager onto
+        a stack when called.
     """
     if "request" not in inspect.signature(dependency).parameters:
         raise TypeError(
