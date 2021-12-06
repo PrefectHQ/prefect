@@ -266,11 +266,15 @@ class RunGreatExpectationsValidation(Task):
         # Generate artifact markdown
         if not disable_markdown_artifact:
             run_info_at_end = True
-            validation_results_page_renderer = ge.render.renderer.ValidationResultsPageRenderer(
-                run_info_at_end=run_info_at_end
+            validation_results_page_renderer = (
+                ge.render.renderer.ValidationResultsPageRenderer(
+                    run_info_at_end=run_info_at_end
+                )
             )
-            rendered_document_content_list = validation_results_page_renderer.render_validation_operator_result(
-                validation_operator_result=results
+            rendered_document_content_list = (
+                validation_results_page_renderer.render_validation_operator_result(
+                    validation_operator_result=results
+                )
             )
             markdown_artifact = " ".join(
                 ge.render.view.DefaultMarkdownPageView().render(

@@ -287,7 +287,10 @@ class LambdaInvoke(Task):
 
     @defaults_from_attrs("function_name", "payload")
     def run(
-        self, function_name: str = None, payload: str = None, credentials: dict = None,
+        self,
+        function_name: str = None,
+        payload: str = None,
+        credentials: dict = None,
     ):
         """
         Task run method. Invokes Lambda function.

@@ -121,7 +121,9 @@ def test_shell_attaches_result_to_failure(caplog):
 def test_shell_respects_stream_output(caplog, stream_output):
 
     with Flow(name="test") as f:
-        ShellTask(stream_output=stream_output)(command="echo foo && echo bar",)
+        ShellTask(stream_output=stream_output)(
+            command="echo foo && echo bar",
+        )
     f.run()
 
     stdout_in_log = "foo" in caplog.messages and "bar" in caplog.messages

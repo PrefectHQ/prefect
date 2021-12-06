@@ -27,11 +27,15 @@ def stream_flow_run_logs(flow_run_id: str) -> None:
         level_name = logging.getLevelName(log.level)
         timestamp = log.timestamp.in_tz(tz="local")
         # Uses `print` instead of the logger to prevent duplicate timestamps
-        print(f"{timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",)
+        print(
+            f"{timestamp:%H:%M:%S} | {level_name:<7} | {log.message}",
+        )
 
 
 def watch_flow_run(
-    flow_run_id: str, stream_states: bool = True, stream_logs: bool = True,
+    flow_run_id: str,
+    stream_states: bool = True,
+    stream_logs: bool = True,
 ) -> Iterator["FlowRunLog"]:
     """
     Watch execution of a flow run displaying state changes. This function will yield
@@ -424,7 +428,9 @@ class FlowRunView:
         )
 
     def get_logs(
-        self, start_time: pendulum.DateTime = None, end_time: pendulum.DateTime = None,
+        self,
+        start_time: pendulum.DateTime = None,
+        end_time: pendulum.DateTime = None,
     ) -> List["FlowRunLog"]:
         """
         Get logs for this flow run from `start_time` to `end_time`.
@@ -467,7 +473,10 @@ class FlowRunView:
             {
                 "query": {
                     with_args(
-                        "flow_run", {"where": {"id": {"_eq": self.flow_run_id}},},
+                        "flow_run",
+                        {
+                            "where": {"id": {"_eq": self.flow_run_id}},
+                        },
                     ): logs_query
                 }
             }
@@ -565,7 +574,10 @@ class FlowRunView:
 
         if load_static_tasks:
             task_run_data = TaskRunView._query_for_task_runs(
-                where={"map_index": {"_eq": -1}, "flow_run_id": {"_eq": flow_run_id},},
+                where={
+                    "map_index": {"_eq": -1},
+                    "flow_run_id": {"_eq": flow_run_id},
+                },
             )
             task_runs = [
                 TaskRunView._from_task_run_data(data) for data in task_run_data
@@ -623,7 +635,10 @@ class FlowRunView:
         return flow_runs[0]
 
     def get_task_run(
-        self, task_slug: str = None, task_run_id: str = None, map_index: int = None,
+        self,
+        task_slug: str = None,
+        task_run_id: str = None,
+        map_index: int = None,
     ) -> "TaskRunView":
         """
         Get information about a task run from this flow run. Lookup is available by one
@@ -744,7 +759,12 @@ class FlowRunView:
         task_query = {
             "query": {
                 with_args(
-                    "task_run", {"where": {"flow_run_id": {"_eq": self.flow_run_id},}},
+                    "task_run",
+                    {
+                        "where": {
+                            "flow_run_id": {"_eq": self.flow_run_id},
+                        }
+                    },
                 ): {
                     "id": True,
                 }

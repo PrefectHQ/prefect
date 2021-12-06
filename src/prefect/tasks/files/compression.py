@@ -37,7 +37,8 @@ class Unzip(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "zip_path", "extract_dir",
+        "zip_path",
+        "extract_dir",
     )
     def run(
         self,
@@ -127,7 +128,8 @@ class Zip(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "source_path", "zip_path",
+        "source_path",
+        "zip_path",
     )
     def run(
         self,
@@ -165,7 +167,11 @@ class Zip(Task):
                 compresslevel=self.compression_level,
             )
         else:
-            zip_file = ZipFile(zip_path, "w", compression=self.compression,)
+            zip_file = ZipFile(
+                zip_path,
+                "w",
+                compression=self.compression,
+            )
 
         with zip_file:
             self.logger.info(f"Creating zip archive {zip_path}")

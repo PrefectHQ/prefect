@@ -82,7 +82,8 @@ def test_get_flow_gitlab(monkeypatch):
 
     extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
-        "prefect.storage.gitlab.extract_flow_from_file", extract_flow_from_file,
+        "prefect.storage.gitlab.extract_flow_from_file",
+        extract_flow_from_file,
     )
 
     storage = GitLab(repo="test/repo", path="flow.py")

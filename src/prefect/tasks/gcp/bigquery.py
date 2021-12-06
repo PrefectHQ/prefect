@@ -383,7 +383,10 @@ class BigQueryLoadGoogleCloudStorage(Task):
         load_job = None
         try:
             load_job = client.load_table_from_uri(
-                uri, table_ref, location=location, job_config=job_config,
+                uri,
+                table_ref,
+                location=location,
+                job_config=job_config,
             )
 
             # Start the job and wait for it to complete and get the result

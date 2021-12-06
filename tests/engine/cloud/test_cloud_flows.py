@@ -279,10 +279,14 @@ def test_simple_two_task_flow_2(monkeypatch, executor):
         flow_runs=[FlowRun(id=flow_run_id)],
         task_runs=[
             TaskRun(
-                id=task_run_id_1, task_slug=flow.slugs[t1], flow_run_id=flow_run_id,
+                id=task_run_id_1,
+                task_slug=flow.slugs[t1],
+                flow_run_id=flow_run_id,
             ),
             TaskRun(
-                id=task_run_id_2, task_slug=flow.slugs[t2], flow_run_id=flow_run_id,
+                id=task_run_id_2,
+                task_slug=flow.slugs[t2],
+                flow_run_id=flow_run_id,
             ),
         ],
         monkeypatch=monkeypatch,
@@ -1041,7 +1045,10 @@ def test_can_queue_successfully_and_run(monkeypatch):
                 id=str(uuid.uuid4()), task_slug=flow.slugs[t1], flow_run_id=flow_run_id
             )
             for t in flow.tasks
-            if t not in [t1,]
+            if t
+            not in [
+                t1,
+            ]
         ],
         monkeypatch=monkeypatch,
         num_times_in_queue=6,

@@ -29,10 +29,13 @@ class Move(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "source_path", "target_path",
+        "source_path",
+        "target_path",
     )
     def run(
-        self, source_path: Union[str, Path] = "", target_path: Union[str, Path] = "",
+        self,
+        source_path: Union[str, Path] = "",
+        target_path: Union[str, Path] = "",
     ) -> Path:
         """
         Task run method.
@@ -86,10 +89,13 @@ class Copy(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "source_path", "target_path",
+        "source_path",
+        "target_path",
     )
     def run(
-        self, source_path: Union[str, Path] = "", target_path: Union[str, Path] = "",
+        self,
+        source_path: Union[str, Path] = "",
+        target_path: Union[str, Path] = "",
     ) -> Path:
         """
         Task run method.
@@ -134,12 +140,16 @@ class Remove(Task):
     """
 
     def __init__(
-        self, path: Union[str, Path] = "", **kwargs: Any,
+        self,
+        path: Union[str, Path] = "",
+        **kwargs: Any,
     ):
         self.path = path
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("path",)
+    @defaults_from_attrs(
+        "path",
+    )
     def run(self, path: Union[str, Path] = "") -> None:
         """
         Task run method.
@@ -174,14 +184,21 @@ class Glob(Task):
     """
 
     def __init__(
-        self, path: Union[str, Path] = "", pattern: str = "*", **kwargs: Any,
+        self,
+        path: Union[str, Path] = "",
+        pattern: str = "*",
+        **kwargs: Any,
     ):
         self.path = path
         self.pattern = pattern
         super().__init__(**kwargs)
 
     @defaults_from_attrs("path", "pattern")
-    def run(self, path: Union[str, Path] = "", pattern: str = "*",) -> List[Path]:
+    def run(
+        self,
+        path: Union[str, Path] = "",
+        pattern: str = "*",
+    ) -> List[Path]:
         """
         Task run method.
 

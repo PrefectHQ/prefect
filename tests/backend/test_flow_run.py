@@ -176,7 +176,9 @@ def test_flow_run_view_from_returns_instance(patch_post, from_method):
     assert flow_run._cached_task_runs == {}
 
 
-def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(patch_posts,):
+def test_flow_run_view_from_returns_instance_with_loaded_static_tasks(
+    patch_posts,
+):
     patch_posts(
         [
             {"data": {"flow_run": [FLOW_RUN_DATA_1]}},
@@ -278,7 +280,9 @@ def test_flow_run_view_from_flow_run_id_where_clause(monkeypatch):
 
 
 def test_check_for_compatible_agents_no_agents_returned(patch_post):
-    patch_post({"data": {"agent": []}},)
+    patch_post(
+        {"data": {"agent": []}},
+    )
 
     result = check_for_compatible_agents([])
     assert "no healthy agents" in result

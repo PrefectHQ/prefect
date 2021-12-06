@@ -81,8 +81,8 @@ class TestSnowflakeQuery:
         connection.cursor = cursor
 
         # database cursors can be ugly to mock given  the use of __enter__
-        cursor.return_value.__enter__.return_value.execute.side_effect = sf.DatabaseError(
-            "Invalid query"
+        cursor.return_value.__enter__.return_value.execute.side_effect = (
+            sf.DatabaseError("Invalid query")
         )
         snowflake_connector_module = MagicMock(connect=snowflake_module_connect_method)
 

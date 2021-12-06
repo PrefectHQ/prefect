@@ -17,7 +17,9 @@ class CancelFlowRun(Task):
     """
 
     def __init__(
-        self, flow_run_id: str = None, **kwargs: Any,
+        self,
+        flow_run_id: str = None,
+        **kwargs: Any,
     ):
         self.flow_run_id = flow_run_id
         super().__init__(**kwargs)

@@ -255,7 +255,16 @@ def test_run_flow_no_labels_provided(monkeypatch, cloud_api):
     )
 
     runner = CliRunner()
-    result = runner.invoke(run, ["flow", "--name", "flow", "--project", "project",],)
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+            "--name",
+            "flow",
+            "--project",
+            "project",
+        ],
+    )
     assert result.exit_code == 0
     assert "Flow Run" in result.output
     assert create_flow_run_mock.called
@@ -505,7 +514,10 @@ def test_run_flow_using_id(monkeypatch, cloud_api):
     )
 
     runner = CliRunner()
-    result = runner.invoke(run, ["flow", "--id", "id"],)
+    result = runner.invoke(
+        run,
+        ["flow", "--id", "id"],
+    )
     assert result.exit_code == 0
     assert "Flow Run" in result.output
     assert create_flow_run_mock.called
@@ -564,7 +576,10 @@ def test_run_flow_using_version_group_id(monkeypatch, cloud_api):
     )
 
     runner = CliRunner()
-    result = runner.invoke(run, ["flow", "--version-group-id", "v_id"],)
+    result = runner.invoke(
+        run,
+        ["flow", "--version-group-id", "v_id"],
+    )
     assert result.exit_code == 0
     assert "Flow Run" in result.output
     assert create_flow_run_mock.called
@@ -572,7 +587,12 @@ def test_run_flow_using_version_group_id(monkeypatch, cloud_api):
 
 def test_run_flow_no_id_or_name_and_project():
     runner = CliRunner()
-    result = runner.invoke(run, ["flow",],)
+    result = runner.invoke(
+        run,
+        [
+            "flow",
+        ],
+    )
     assert (
         "A flow ID, version group ID, or a combination of flow name and project must be provided."
         in result.output
@@ -582,7 +602,16 @@ def test_run_flow_no_id_or_name_and_project():
 def test_run_flow_no_id_or_name_and_project():
     runner = CliRunner()
     result = runner.invoke(
-        run, ["flow", "--id", "id", "--name", "flow", "--project", "project",],
+        run,
+        [
+            "flow",
+            "--id",
+            "id",
+            "--name",
+            "flow",
+            "--project",
+            "project",
+        ],
     )
     assert (
         "Only one of flow ID, version group ID, or a name/project combination can be provided."

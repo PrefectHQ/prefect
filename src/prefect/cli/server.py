@@ -723,10 +723,17 @@ def stop():
 
 @server.command(hidden=True)
 @click.option(
-    "--name", "-n", help="The name of a tenant to create", hidden=True,
+    "--name",
+    "-n",
+    help="The name of a tenant to create",
+    hidden=True,
 )
 @click.option(
-    "--slug", "-s", help="The slug of a tenant to create", default=None, hidden=True,
+    "--slug",
+    "-s",
+    help="The slug of a tenant to create",
+    default=None,
+    hidden=True,
 )
 def create_tenant(name, slug):
     """

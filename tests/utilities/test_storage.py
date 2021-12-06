@@ -41,7 +41,11 @@ def test_get_flow_image_env_metadata():
 
 
 def test_get_flow_image_raises_on_missing_info():
-    flow = Flow("test", environment=LocalEnvironment(), storage=Local(),)
+    flow = Flow(
+        "test",
+        environment=LocalEnvironment(),
+        storage=Local(),
+    )
     with pytest.raises(ValueError):
         get_flow_image(flow=flow)
 

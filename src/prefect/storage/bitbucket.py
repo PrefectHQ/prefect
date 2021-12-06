@@ -196,7 +196,10 @@ class Bitbucket(Storage):
 
         try:
             contents = client.get_content_of_file(
-                self.project, self.repo, flow_location, at=ref,
+                self.project,
+                self.repo,
+                flow_location,
+                at=ref,
             )
         except HTTPError as err:
             if err.code == 401:

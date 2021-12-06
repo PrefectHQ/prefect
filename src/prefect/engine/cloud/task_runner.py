@@ -169,7 +169,8 @@ class CloudTaskRunner(TaskRunner):
             )
             if state is None:
                 state = Failed(
-                    message="Could not retrieve state from Prefect Cloud", result=exc,
+                    message="Could not retrieve state from Prefect Cloud",
+                    result=exc,
                 )
             raise ENDRUN(state=state) from exc
 

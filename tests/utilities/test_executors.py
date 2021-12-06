@@ -82,7 +82,10 @@ def test_timeout_handler_passes_args_and_kwargs_and_returns(timeout_handler):
 
     assert timeout_handler(
         just_return, args=[5], kwargs=dict(y="yellow"), timeout=10
-    ) == (5, "yellow",)
+    ) == (
+        5,
+        "yellow",
+    )
 
 
 @pytest.mark.skipif(
@@ -216,7 +219,8 @@ def test_run_with_multiprocess_timeout_handles_unpicklable_return_values():
         return threading.Lock()
 
     with pytest.raises(
-        RuntimeError, match="Failed to pickle result of type 'lock'",
+        RuntimeError,
+        match="Failed to pickle result of type 'lock'",
     ) as exc_info:
         run_with_multiprocess_timeout(fn, timeout=12)
 
@@ -240,7 +244,8 @@ def test_multiprocessing_safe_run_and_retrieve_logs_queue_errors(caplog):
     request = cloudpickle.dumps({"fn": fn})
 
     with pytest.raises(
-        Exception, match="Test",
+        Exception,
+        match="Test",
     ):
         multiprocessing_safe_run_and_retrieve(mock_queue, request)
 
