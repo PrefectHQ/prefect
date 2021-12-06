@@ -403,14 +403,8 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
             },
             {
                 "environment": [
-                    {
-                        "name": "foo",
-                        "value": "bar",
-                    },
-                    {
-                        "name": "foo2",
-                        "value": "bar2",
-                    },
+                    {"name": "foo", "value": "bar",},
+                    {"name": "foo2", "value": "bar2",},
                     {"name": "PREFECT__CLOUD__GRAPHQL", "value": config.cloud.graphql},
                     {"name": "PREFECT__CLOUD__USE_LOCAL_SECRETS", "value": "false"},
                     {
@@ -461,9 +455,7 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
                 },
                 "name": "some-other-container",
                 "image": "test/image:tag",
-                "command": [
-                    "/bin/sh",
-                ],
+                "command": ["/bin/sh",],
             },
         ],
         "memory": 256,
@@ -483,14 +475,8 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
             {},
             {
                 "environment": [
-                    {
-                        "name": "foo2",
-                        "value": "bar2",
-                    },
-                    {
-                        "name": "foo",
-                        "value": "bar",
-                    },
+                    {"name": "foo2", "value": "bar2",},
+                    {"name": "foo", "value": "bar",},
                 ],
                 "secrets": [
                     {"name": "2", "valueFrom": "2"},
@@ -526,9 +512,7 @@ def test_validate_definition_not_changed_when_out_of_order_in_second_container(
                 },
                 "name": "some-other-container",
                 "image": "test/image:tag",
-                "command": [
-                    "/bin/sh",
-                ],
+                "command": ["/bin/sh",],
             },
         ],
     )
@@ -655,10 +639,7 @@ def test_setup_definition_register(monkeypatch):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
-                {
-                    "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                    "value": "[]",
-                },
+                {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
             ],
             "essential": True,
         }
@@ -702,10 +683,7 @@ def test_setup_definition_register_no_defintions(monkeypatch):
                     "value": "prefect.engine.cloud.CloudTaskRunner",
                 },
                 {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "true"},
-                {
-                    "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
-                    "value": "[]",
-                },
+                {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "[]",},
             ],
             "name": "flow-container",
             "image": "test/image:tag",

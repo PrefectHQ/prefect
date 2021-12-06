@@ -86,8 +86,7 @@ def test_describe_flows_populated(monkeypatch, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(
-        describe,
-        ["flows", "--name", "flow", "--version", "2", "--project", "project"],
+        describe, ["flows", "--name", "flow", "--version", "2", "--project", "project"],
     )
     assert result.exit_code == 0
 
@@ -126,8 +125,7 @@ def test_describe_flows_output(monkeypatch, output, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(
-        describe,
-        ["flows", "--name", "flow", "--project", "proj", "--output", output],
+        describe, ["flows", "--name", "flow", "--project", "proj", "--output", output],
     )
     assert result.exit_code == 0
 
@@ -221,8 +219,7 @@ def test_describe_tasks_output(monkeypatch, output, cloud_api):
 
     runner = CliRunner()
     result = runner.invoke(
-        describe,
-        ["tasks", "--name", "flow", "--project", "proj", "--output", output],
+        describe, ["tasks", "--name", "flow", "--project", "proj", "--output", output],
     )
     assert result.exit_code == 0
 

@@ -202,8 +202,7 @@ class FlowView:
             }
 
         flows = cls._query_for_flows(
-            where=where,
-            order_by={"created": EnumValue("desc")},
+            where=where, order_by={"created": EnumValue("desc")},
         )
         if len(flows) > 1 and not last_updated:
             raise ValueError(
@@ -244,9 +243,7 @@ class FlowView:
 
     @staticmethod
     def _query_for_flows(
-        where: dict,
-        order_by: dict = None,
-        error_on_empty: bool = True,
+        where: dict, order_by: dict = None, error_on_empty: bool = True,
     ) -> List[dict]:
         """
         Query for flow data necessary to initialize `Flow` instances with

@@ -375,16 +375,14 @@ class TestPrefectServerStart:
 
     def test_server_start_skip_pull(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
-            server,
-            ["start", "--skip-pull"],
+            server, ["start", "--skip-pull"],
         )
         assert_command_not_called(mock_subprocess, ["docker-compose", "pull"])
         assert get_command_call(mock_subprocess, ["docker-compose", "up"])
 
     def test_server_start_no_upgrade(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
-            server,
-            ["start", "--no-upgrade"],
+            server, ["start", "--no-upgrade"],
         )
         up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
         env = up_kwargs.get("env")
@@ -417,8 +415,7 @@ class TestPrefectServerStart:
 
     def test_server_start_detach(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
-            server,
-            ["start", "--detach"],
+            server, ["start", "--detach"],
         )
         assert get_command_call(mock_subprocess, ["docker-compose", "up", "--detach"])
 
@@ -449,8 +446,7 @@ class TestPrefectServerStart:
 
     def test_server_start_no_ui_service(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
-            server,
-            ["start", "--no-ui"],
+            server, ["start", "--no-ui"],
         )
         up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
         tmpdir = up_kwargs["cwd"]
@@ -462,8 +458,7 @@ class TestPrefectServerStart:
 
     def test_server_start_with_volume(self, macos_platform, mock_subprocess):
         CliRunner().invoke(
-            server,
-            ["start", "--use-volume", "--volume-path", "/foo"],
+            server, ["start", "--use-volume", "--volume-path", "/foo"],
         )
         up_args, up_kwargs = get_command_call(mock_subprocess, ["docker-compose", "up"])
         tmpdir = up_kwargs["cwd"]
@@ -546,17 +541,13 @@ def test_create_tenant(monkeypatch, cloud_api):
     monkeypatch.setattr("prefect.client.Client.create_tenant", create_tenant)
 
     result = CliRunner().invoke(
-        server,
-        ["create-tenant", "-n", "my-name", "-s", "my-slug"],
+        server, ["create-tenant", "-n", "my-name", "-s", "my-slug"],
     )
     assert result.exit_code == 0
     assert "my_id" in result.output
     assert create_tenant.call_args[1] == {"name": "my-name", "slug": "my-slug"}
 
-    result = CliRunner().invoke(
-        server,
-        ["create-tenant", "-n", "my-name"],
-    )
+    result = CliRunner().invoke(server, ["create-tenant", "-n", "my-name"],)
     assert result.exit_code == 0
     assert "my_id" in result.output
     assert create_tenant.call_args[1] == {"name": "my-name", "slug": None}

@@ -60,9 +60,7 @@ class TenantView:
 
     @staticmethod
     def _query_for_tenants(
-        where: dict,
-        order_by: dict = None,
-        error_on_empty: bool = True,
+        where: dict, order_by: dict = None, error_on_empty: bool = True,
     ) -> List[dict]:
         """
         Query for tenant data necessary to initialize `TenantView` instances with
@@ -85,13 +83,7 @@ class TenantView:
             query_args["order_by"] = order_by
 
         tenant_query = {
-            "query": {
-                with_args("tenant", query_args): {
-                    "id",
-                    "slug",
-                    "name",
-                }
-            }
+            "query": {with_args("tenant", query_args): {"id", "slug", "name",}}
         }
 
         result = client.graphql(tenant_query)

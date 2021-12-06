@@ -17,10 +17,7 @@ class RenameFlowRun(Task):
     """
 
     def __init__(
-        self,
-        flow_run_id: str = None,
-        flow_run_name: str = None,
-        **kwargs: Any,
+        self, flow_run_id: str = None, flow_run_name: str = None, **kwargs: Any,
     ):
         self.flow_run_id = flow_run_id
         self.flow_run_name = flow_run_name

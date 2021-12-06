@@ -28,14 +28,9 @@ COMMON_START_OPTIONS = [
         help="A Prefect API URL. If not set, the value in the config is used.",
     ),
     click.option(
-        "--agent-config-id",
-        help="An agent ID to link this agent instance with",
+        "--agent-config-id", help="An agent ID to link this agent instance with",
     ),
-    click.option(
-        "--name",
-        "-n",
-        help="A name to use for the agent",
-    ),
+    click.option("--name", "-n", help="A name to use for the agent",),
     click.option(
         "--label",
         "-l",
@@ -89,11 +84,7 @@ COMMON_START_OPTIONS = [
 
 
 COMMON_INSTALL_OPTIONS = [
-    click.option(
-        "--key",
-        "-k",
-        help="A Prefect Cloud API key",
-    ),
+    click.option("--key", "-k", help="A Prefect Cloud API key",),
     click.option(
         "--tenant-id",
         help=(
@@ -119,8 +110,7 @@ COMMON_INSTALL_OPTIONS = [
         help="A Prefect Cloud API token with RUNNER scope. DEPRECATED.",
     ),
     click.option(
-        "--agent-config-id",
-        help="An agent ID to link this agent instance with",
+        "--agent-config-id", help="An agent ID to link this agent instance with",
     ),
 ]
 
@@ -294,8 +284,7 @@ def kubernetes():
 @kubernetes.command()
 @add_options(COMMON_START_OPTIONS)
 @click.option(
-    "--namespace",
-    help="Kubernetes namespace to deploy in. Defaults to `default`.",
+    "--namespace", help="Kubernetes namespace to deploy in. Defaults to `default`.",
 )
 @click.option(
     "--job-template",
@@ -469,8 +458,7 @@ def vertex():
     help="The Google cloud project where flow runs will be launched in vertex.",
 )
 @click.option(
-    "--region-name",
-    help="The region where flow runs will be launched in vertex.",
+    "--region-name", help="The region where flow runs will be launched in vertex.",
 )
 @click.option(
     "--service-account",

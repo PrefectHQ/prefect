@@ -86,14 +86,10 @@ def auth():
 
 @auth.command(hidden=True)
 @click.option(
-    "--key",
-    "-k",
-    help="A Prefect Cloud API key.",
+    "--key", "-k", help="A Prefect Cloud API key.",
 )
 @click.option(
-    "--token",
-    "-t",
-    help="A Prefect Cloud API token. DEPRECATED.",
+    "--token", "-t", help="A Prefect Cloud API token. DEPRECATED.",
 )
 @handle_terminal_error
 def login(key, token):
@@ -511,10 +507,7 @@ def revoke_token(id):
     default=None,
 )
 @click.option(
-    "--quiet",
-    "-q",
-    help="If set, only display the created key.",
-    is_flag=True,
+    "--quiet", "-q", help="If set, only display the created key.", is_flag=True,
 )
 @handle_terminal_error
 def create_key(name, expire, quiet):
@@ -597,13 +590,7 @@ def list_keys():
 
     response = client.graphql(
         query={
-            "query": {
-                "auth_api_key": {
-                    "id": True,
-                    "name": True,
-                    "expires_at": True,
-                }
-            }
+            "query": {"auth_api_key": {"id": True, "name": True, "expires_at": True,}}
         }
     )
     keys = response.get("data", {}).get("auth_api_key")
@@ -627,10 +614,7 @@ def list_keys():
 
 @auth.command(hidden=True)
 @click.option(
-    "--id",
-    "-i",
-    required=True,
-    help="The UUID for the API key to delete.",
+    "--id", "-i", required=True, help="The UUID for the API key to delete.",
 )
 @handle_terminal_error
 def revoke_key(id):

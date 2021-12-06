@@ -58,11 +58,7 @@ class TestResultEquality:
 
 
 @pytest.mark.parametrize(
-    "obj",
-    [
-        Result(3),
-        Result(object, location=lambda: None),
-    ],
+    "obj", [Result(3), Result(object, location=lambda: None),],
 )
 def test_everything_is_pickleable_after_init(obj):
     assert cloudpickle.loads(cloudpickle.dumps(obj)) == obj

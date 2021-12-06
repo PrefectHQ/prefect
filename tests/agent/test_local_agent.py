@@ -55,11 +55,7 @@ def test_local_agent_deduplicates_labels():
 
 
 def test_local_agent_config_options():
-    agent = LocalAgent(
-        name="test",
-        labels=["test_label"],
-        import_paths=["test_path"],
-    )
+    agent = LocalAgent(name="test", labels=["test_label"], import_paths=["test_path"],)
     assert agent.name == "test"
     assert agent.client.get_auth_token() == "TEST_TOKEN"
     assert agent.logger

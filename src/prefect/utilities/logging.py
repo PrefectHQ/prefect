@@ -54,9 +54,7 @@ class LogManager:
             self.client = prefect.Client()
             self.logging_period = context.config.cloud.logging_heartbeat
             self.thread = threading.Thread(
-                target=self._write_logs_loop,
-                name="prefect-log-manager",
-                daemon=True,
+                target=self._write_logs_loop, name="prefect-log-manager", daemon=True,
             )
             self.thread.start()
             atexit.register(self._on_shutdown)
@@ -305,9 +303,7 @@ def get_logger(name: str = None) -> logging.Logger:
 
 @contextmanager
 def temporary_logger_config(
-    level: Union[int, str] = None,
-    stream_fmt: str = None,
-    stream_datefmt: str = None,
+    level: Union[int, str] = None, stream_fmt: str = None, stream_datefmt: str = None,
 ) -> Generator[logging.Logger, None, None]:
     """
     Set a temporary config for the `prefect` logger. The formatting can be updated

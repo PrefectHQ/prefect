@@ -58,10 +58,7 @@ class Result:
     """
 
     def __init__(
-        self,
-        value: Any = None,
-        location: str = None,
-        serializer: Serializer = None,
+        self, value: Any = None, location: str = None, serializer: Serializer = None,
     ):
         self.value = value
         if serializer is None:

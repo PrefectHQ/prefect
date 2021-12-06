@@ -172,8 +172,7 @@ class TestGenerateTaskDefinition:
     def test_generate_task_definition_simple(self, agent):
         # These are set inside the pool spec
         run_config = VertexRun(
-            image="prefecthq/prefect:xyz",
-            machine_type="e2-highmem-16",
+            image="prefecthq/prefect:xyz", machine_type="e2-highmem-16",
         )
         flow_run = graphql_result(run_config)
         task_def = agent.generate_task_definition(flow_run)
@@ -255,10 +254,7 @@ class TestDeployFlow:
                                 "value": config.logging.level,
                             },
                             {"name": "PREFECT__BACKEND", "value": config.backend},
-                            {
-                                "name": "PREFECT__CLOUD__API",
-                                "value": config.cloud.api,
-                            },
+                            {"name": "PREFECT__CLOUD__API", "value": config.cloud.api,},
                             {"name": "PREFECT__CLOUD__AUTH_TOKEN", "value": ""},
                             {"name": "PREFECT__CLOUD__API_KEY", "value": ""},
                             {"name": "PREFECT__CLOUD__TENANT_ID", "value": ""},

@@ -155,10 +155,7 @@ class GCSDownload(GCSBaseTask):
 
         # identify blob name
         blob = self._get_blob(
-            bucket,
-            blob,
-            chunk_size=chunk_size,
-            encryption_key=encryption_key,
+            bucket, blob, chunk_size=chunk_size, encryption_key=encryption_key,
         )
         # Support GCS < 1.31
         return (
@@ -215,11 +212,7 @@ class GCSUpload(GCSBaseTask):
         )
 
     @defaults_from_attrs(
-        "bucket",
-        "blob",
-        "project",
-        "create_bucket",
-        "request_timeout",
+        "bucket", "blob", "project", "create_bucket", "request_timeout",
     )
     def run(
         self,
@@ -283,10 +276,7 @@ class GCSUpload(GCSBaseTask):
 
         # identify blob name
         gcs_blob = self._get_blob(
-            bucket,
-            blob,
-            chunk_size=chunk_size,
-            encryption_key=encryption_key,
+            bucket, blob, chunk_size=chunk_size, encryption_key=encryption_key,
         )
 
         # Set content type and encoding if supplied.

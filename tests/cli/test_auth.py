@@ -350,8 +350,7 @@ def test_override_functions_on_commands(cloud_api):
 
 
 @pytest.mark.parametrize(
-    "expires",
-    [None, "2025-06-14T12:04:56.044422-05:00", "2025-12-05"],
+    "expires", [None, "2025-06-14T12:04:56.044422-05:00", "2025-12-05"],
 )
 @pytest.mark.parametrize("quiet", [True, False])
 def test_create_key(patch_post, cloud_api, quiet, expires):
@@ -396,16 +395,7 @@ def test_create_key_unparsable_expiration(patch_post, cloud_api):
 def test_create_key_expiration_in_the_past(patch_post, cloud_api):
     runner = CliRunner()
 
-    result = runner.invoke(
-        auth,
-        [
-            "create-key",
-            "-n",
-            "this-name",
-            "-e",
-            "1900-1-1",
-        ],
-    )
+    result = runner.invoke(auth, ["create-key", "-n", "this-name", "-e", "1900-1-1",],)
     assert result.exit_code == 1
     assert "Given expiration time '1900-1-1' is a time in the past" in result.output
 

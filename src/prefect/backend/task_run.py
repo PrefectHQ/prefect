@@ -319,9 +319,7 @@ class TaskRunView:
 
     @staticmethod
     def _query_for_task_runs(
-        where: dict,
-        order_by: dict = None,
-        error_on_empty: bool = True,
+        where: dict, order_by: dict = None, error_on_empty: bool = True,
     ) -> List[dict]:
         """
         Query for task run data necessary to initialize `TaskRunView` instances

@@ -380,11 +380,7 @@ def test_parse_task_kwargs_invalid_value_removed(monkeypatch, cloud_api):
 
     kwarg_dict = {
         "test": "not_real",
-        "containerDefinitions": [
-            {
-                "test": "not_real",
-            }
-        ],
+        "containerDefinitions": [{"test": "not_real",}],
     }
 
     (
@@ -938,10 +934,7 @@ def test_deploy_flow_register_task_definition_uses_user_env_vars(
     ],
 )
 def test_deploy_flow_register_task_definition_all_args(
-    core_version,
-    command,
-    monkeypatch,
-    backend,
+    core_version, command, monkeypatch, backend,
 ):
     boto3_client = MagicMock()
 

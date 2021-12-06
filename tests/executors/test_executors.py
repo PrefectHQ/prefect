@@ -414,8 +414,7 @@ class TestDaskExecutor:
     def test_cant_specify_both_address_and_cluster_class(self):
         with pytest.raises(ValueError):
             DaskExecutor(
-                address="localhost:8787",
-                cluster_class=distributed.LocalCluster,
+                address="localhost:8787", cluster_class=distributed.LocalCluster,
             )
 
     def test_prep_dask_kwargs(self):

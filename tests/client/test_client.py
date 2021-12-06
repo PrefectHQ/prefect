@@ -951,13 +951,7 @@ def test_client_delete_project(patch_post, monkeypatch):
 
 
 def test_client_delete_project_error(patch_post, monkeypatch):
-    patch_post(
-        {
-            "data": {
-                "project": {},
-            }
-        }
-    )
+    patch_post({"data": {"project": {},}})
 
     project_name = "my-default-project"
 
@@ -1149,10 +1143,7 @@ def test_get_flow_run_info(patch_post):
             "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
             "serialized_state": {
                 "type": "Pending",
-                "_result": {
-                    "type": "PrefectResult",
-                    "location": "42",
-                },
+                "_result": {"type": "PrefectResult", "location": "42",},
                 "message": None,
                 "__version__": "0.3.3+309.gf1db024",
                 "cached_inputs": None,
@@ -1214,10 +1205,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
             "scheduled_start_time": "2019-01-25T19:15:58.632412+00:00",
             "serialized_state": {
                 "type": "Pending",
-                "_result": {
-                    "type": "PrefectResult",
-                    "location": "42",
-                },
+                "_result": {"type": "PrefectResult", "location": "42",},
                 "message": None,
                 "__version__": "0.3.3+309.gf1db024",
                 "cached_inputs": None,
@@ -1289,10 +1277,7 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
         "flow_run_by_pk": {
             "serialized_state": {
                 "type": "Pending",
-                "_result": {
-                    "type": "PrefectResult",
-                    "location": "42",
-                },
+                "_result": {"type": "PrefectResult", "location": "42",},
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
                 "cached_inputs": None,
@@ -1421,10 +1406,7 @@ def test_get_task_run_info(patch_posts):
             "version": 0,
             "serialized_state": {
                 "type": "Pending",
-                "_result": {
-                    "type": "PrefectResult",
-                    "location": "42",
-                },
+                "_result": {"type": "PrefectResult", "location": "42",},
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
                 "cached_inputs": None,
@@ -1490,10 +1472,7 @@ def test_get_task_run_state(patch_posts, cloud_api, runner_token):
         "get_task_run_info": {
             "serialized_state": {
                 "type": "Pending",
-                "_result": {
-                    "type": "PrefectResult",
-                    "location": "42",
-                },
+                "_result": {"type": "PrefectResult", "location": "42",},
                 "message": None,
                 "__version__": "0.3.3+310.gd19b9b7.dirty",
                 "cached_inputs": None,
@@ -1771,10 +1750,7 @@ def test_get_cloud_url_not_as_user(patch_post, cloud_api):
     patch_post(response)
 
     with set_temporary_config(
-        {
-            "cloud.api": "http://api.prefect.io",
-            "backend": "cloud",
-        }
+        {"cloud.api": "http://api.prefect.io", "backend": "cloud",}
     ):
         client = Client()
         client._tenant_id = "tenant-id"
@@ -1891,11 +1867,7 @@ def test_artifacts_client_functions(patch_post, cloud_api):
     client.update_task_run_artifact(task_run_artifact_id="tra_id", data={"new": "data"})
     client.delete_task_run_artifact(task_run_artifact_id="tra_id")
 
-    response = {
-        "data": {
-            "create_task_run_artifact": {"id": None},
-        }
-    }
+    response = {"data": {"create_task_run_artifact": {"id": None},}}
 
     patch_post(response)
 
@@ -1915,10 +1887,7 @@ def test_client_posts_graphql_to_api_server_backend_server(patch_post):
     post = patch_post(dict(data=dict(success=True)))
 
     with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "backend": "server",
-        }
+        {"cloud.api": "http://my-cloud.foo", "backend": "server",}
     ):
         client = Client()
     result = client.graphql("{projects{name}}")
