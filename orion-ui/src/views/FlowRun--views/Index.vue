@@ -129,6 +129,7 @@
     </Card>
   </div>
 
+  {{ resultsTab }}
   <Tabs v-model="resultsTab" class="mt-3">
     <Tab href="task_runs" class="subheader">
       <i class="pi pi-task mr-1 text--grey-40" />
@@ -193,7 +194,7 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints, BaseFilter } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun } from '@/typings/objects'
-import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
+import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
@@ -201,14 +202,16 @@ import Timeline from '@/components/Timeline/Timeline.vue'
 
 const route = useRoute()
 
-const resultsTab: Ref<string | null> = ref(null)
+const resultsTab: Ref<string | null> = ref('task_runs')
 
-const id: string = route.params.id as string
+const id = computed<string>(() => {
+  return route?.params.id as string
+})
 
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
   body: {
-    id: id
+    id: id.value
   },
   options: {
     pollInterval: 5000
@@ -230,7 +233,7 @@ const taskRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
       id: {
-        any_: [id]
+        any_: [id.value]
       }
     }
   }
@@ -240,7 +243,7 @@ const subFlowRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
       id: {
-        any_: [id]
+        any_: [id.value]
       }
     },
     task_runs: {
@@ -265,14 +268,14 @@ const queries: { [key: string]: Query } = {
   }),
   task_runs_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: taskRunsFilter.value,
+    body: taskRunsFilter,
     options: {
       pollInterval: 10000
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs,
-    body: taskRunsFilter.value,
+    body: taskRunsFilter,
     options: {
       pollInterval: 10000
     }
@@ -347,8 +350,15 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
-onBeforeMount(() => {
-  resultsTab.value = route.hash?.substr(1) || 'task_runs'
+watch(id, () => {
+  queries.flow.fetch()
+  flowRunBase.fetch()
+  if (deploymentId) queries.deployment.fetch()
+  queries.task_runs_count.fetch()
+  queries.task_runs.fetch()
+  queries.sub_flow_runs_count.fetch()
+
+  resultsTab.value = 'task_runs'
 })
 </script>
 
