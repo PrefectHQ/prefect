@@ -43,7 +43,12 @@ def response_scoped_dependency(dependency: Callable):
 
 class OrionAPIRoute(APIRoute):
     """
-    A FastAPI APIRoute class which inserts a special stack that will
+    A FastAPI APIRoute class which inserts a special stack on requests.
+
+    Requests have `request.scope.astack` which is an async stack for the entire scope
+    of the request. However, if you want to close a dependency before the request is
+    complete (i.e. before returning a response to the user), we need a stack with a
+    different scope.
     """
 
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
