@@ -125,7 +125,7 @@ For example, we can set the [priority](http://distributed.dask.org/en/stable/pri
 ```python
 import dask
 from prefect import flow, task
-from prefect.executors import DaskTaskRunner
+from prefect.task_runners import DaskTaskRunner
 
 @task
 def show(x):
