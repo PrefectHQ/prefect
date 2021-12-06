@@ -63,8 +63,6 @@ def create_app(database_config=None) -> FastAPI:
     api_app.include_router(api.deployments.router)
     api_app.include_router(api.saved_searches.router)
 
-    from prefect.orion.api.dependencies import get_session
-
     api_app.mount(
         "/static",
         StaticFiles(
