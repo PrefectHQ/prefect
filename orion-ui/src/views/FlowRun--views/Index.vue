@@ -141,14 +141,14 @@
       </span>
     </Tab>
 
-    <Tab disabled href="sub_flow_runs" class="subheader">
+    <Tab href="sub_flow_runs" class="subheader">
       <i class="pi pi-flow-run mr-1 text--grey-40" />
       Sub Flow Runs
       <span
         class="result-badge caption ml-1"
         :class="{ active: resultsTab == 'flow_runs' }"
       >
-        <!-- {{ subFlowRunsCount.toLocaleString() }} -->
+        {{ subFlowRunsCount.toLocaleString() }}
       </span>
     </Tab>
   </Tabs>
@@ -178,7 +178,7 @@
       />
 
       <ResultsList
-        v-else-if="false && resultsTab == 'sub_flow_runs'"
+        v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
         component="list-item-flow-run"
@@ -239,9 +239,9 @@ const taskRunsFilter = computed<BaseFilter>(() => {
 const subFlowRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
-      // parent_task_run_id: {
-      //   any_: []
-      // }
+      parent_task_run_id: {
+        any_: [id]
+      }
     }
   }
 })
@@ -271,15 +271,22 @@ const queries: { [key: string]: Query } = {
     options: {
       pollInterval: 10000
     }
-  })
+  }),
   // TODO: Need to add a query for task runs with this flow run id that have sub flow runs and pipe that in to this as parent task run id
-  // sub_flow_runs: Api.query({
-  //   endpoint: Endpoints.flow_runs_count,
-  //   body: subFlowRunsFilter,
-  //   options: {
-  //     pollInterval: 10000
-  //   }
-  // })
+  sub_flow_runs: Api.query({
+    endpoint: Endpoints.flow_runs,
+    body: subFlowRunsFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  sub_flow_runs_count: Api.query({
+    endpoint: Endpoints.flow_runs_count,
+    body: subFlowRunsFilter,
+    options: {
+      pollInterval: 10000
+    }
+  })
 }
 
 const resultsCount = computed(() => {
@@ -313,6 +320,10 @@ const tags = computed(() => {
 
 const taskRunsCount = computed(() => {
   return queries.task_runs_count.response?.value || 0
+})
+
+const subFlowRunsCount = computed(() => {
+  return queries.sub_flow_runs_count.response?.value || 0
 })
 
 const taskRuns = computed<TaskRun[]>(() => {
