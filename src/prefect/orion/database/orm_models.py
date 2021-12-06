@@ -310,15 +310,16 @@ class ORMFlowRun(ORMRun):
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
-    empirical_config = sa.Column(
-        JSON, server_default="{}", default=dict, nullable=False
-    )
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     runner_type = sa.Column(sa.String)
     runner_config = sa.Column(JSON)
-    empirical_runner_type = sa.Column(sa.String)
-    empirical_runner_config = sa.Column(JSON)
+
+    # TODO: This field is unused and should be replaced with `empirical_runner_type` and
+    #       `empirical_runner_config` to capture final settings used by agents
+    empirical_config = sa.Column(
+        JSON, server_default="{}", default=dict, nullable=False
+    )
 
     @declared_attr
     def parent_task_run_id(cls):
