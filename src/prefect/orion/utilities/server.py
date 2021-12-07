@@ -12,9 +12,16 @@ from fastapi.routing import APIRoute
 
 def response_scoped_dependency(dependency: Callable):
     """
-    Uses an async stack that is exited before the response is returned to a client to
-    ensure a dependency is closed. This is particularly useful for database sesssions
-    which must be committed before the client can do more work.
+    Ensure that this dependency closes before the response is returned to the client. By
+    default, FastAPI closes dependencies after sending the response.
+
+    Uses an async stack that is exited before the response is returned. This is
+    particularly useful for database sesssions which must be committed before the client
+    can do more work.
+
+    NOTE: Do not use a response-scoped dependency within a FastAPI background task.
+          Background tasks run after FastAPI sends the response, so a response-scoped
+          dependency will already be closed. Use a normal FastAPI dependency instead.
 
     Args:
         dependency: An async callable. FastAPI dependencies may still be used.
