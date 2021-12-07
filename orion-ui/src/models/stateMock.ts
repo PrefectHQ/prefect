@@ -15,7 +15,7 @@ export default class StateMock extends State {
 
     const state_details = state.state_details ?? {}
     const data = state.data ?? {}
-    const timestamp = state.timestamp ?? faker.date.past().toString()
+    const timestamp = state.timestamp ?? faker.date.recent(7).toString()
 
     super({
       id,

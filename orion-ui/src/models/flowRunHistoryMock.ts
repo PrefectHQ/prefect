@@ -7,7 +7,7 @@ import { State, StateNames, States } from '@/types/states'
 
 export default class FlowRunHistoryMock extends FlowRunHistory {
   constructor(flow: Partial<IFlowRunHistory> = {}) {
-    const interval_start = flow.interval_start ?? faker.date.past()
+    const interval_start = flow.interval_start ?? faker.date.recent(7)
     const interval_end =
       flow.interval_end ?? faker.date.between(interval_start, new Date())
     const possibleStates: State[] = Object.values(States)
