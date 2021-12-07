@@ -23,14 +23,19 @@ class OrionAgent:
     def __init__(
         self,
         prefetch_seconds: int = settings.agent.prefetch_seconds,
-        max_parallel_submissions: int = 10,
         default_runner_type: str = "subprocess",
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
-        self.limiter = anyio.CapacityLimiter(max_parallel_submissions)
+
+        # TODO: This limits the number of parallel submissions (but not the number of
+        #       parallel runs) because submitting a large backlog of flow runs at once
+        #       can deadlock the system. In the future, this may be better enforced in
+        #       the API layer.
+        self.submission_limiter = anyio.CapacityLimiter(10)
+
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
         self.default_runner_type = default_runner_type
@@ -84,7 +89,7 @@ class OrionAgent:
         try:
             # Wait for submission to be completed. Note that the submission function
             # may continue to run in the background after this exits.
-            async with self.limiter:
+            async with self.submission_limiter:
                 await self.task_group.start(flow_runner.submit_flow_run, flow_run)
 
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
