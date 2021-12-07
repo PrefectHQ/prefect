@@ -36,7 +36,8 @@ def response_scoped_dependency(dependency: Callable):
         if "request" in signature.parameters:
             kwargs["request"] = request
 
-        # Enter the special stack
+        # Enter the route handler provided stack that is closed before responding,
+        # return the value yielded by the wrapped dependency
         return await request.state.response_scoped_depends_stack.enter_async_context(
             context_manager(*args, **kwargs)
         )
