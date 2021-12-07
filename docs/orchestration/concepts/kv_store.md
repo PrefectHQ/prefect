@@ -6,7 +6,7 @@ Key Value Store is a managed metadata database for Prefect Cloud.
 
 The number of key value pairs allowed is limited by license, starting with 10 pairs on the Free tier. Values are limited to 10 KB in size.
 
-Key value pairs can be configured via the Prefect CLI, Python library, API, and UI.
+Key value pairs can be configured via the Prefect CLI, Python library, API, and UI. See the [KV Store API](/api/latest/backend/kv_store.html) documentation for further usage details.
 
 ## UI
 
@@ -19,7 +19,7 @@ Setting a key value pair will overwrite the existing value if the key exists.
 :::: tabs
 ::: tab Python client
 ```python
-from prefect.backend import set_key_value
+from prefect.backend.kv_store import set_key_value
 key_value_uuid = set_key_value(key="foo", value="bar")
 ```
 :::
@@ -45,7 +45,7 @@ mutation {
 :::: tabs
 ::: tab Python client
 ```python
-from prefect.backend import get_key_value
+from prefect.backend.kv_store import get_key_value
 value = get_key_value(key="foo")
 ```
 :::
@@ -71,7 +71,7 @@ query {
 :::: tabs
 ::: tab Python client
 ```python
-from prefect.backend import delete_key
+from prefect.backend.kv_store import delete_key
 success = delete_key(key="foo")
 ```
 :::
@@ -97,7 +97,7 @@ mutation {
 :::: tabs
 ::: tab Python client
 ```python
-from prefect.backend import list_keys
+from prefect.backend.kv_store import list_keys
 my_keys = list_keys()
 ```
 :::
@@ -132,7 +132,7 @@ For example, let's say we wanted to track the last date a flow has been executed
 from datetime import datetime, timedelta
 import prefect
 from prefect import task, Flow
-from prefect.backend import set_key_value, get_key_value
+from prefect.backend.kv_store import set_key_value, get_key_value
 
 LAST_EXECUTED_KEY = 'my-flow-last-executed'
 
