@@ -1,5 +1,4 @@
-// todo: this needs to be abstracted out into a utility
-const ui = `http://localhost:${process.env.ORION_UI_PORT}`
+import { ui } from '@/utilities/testing'
 
 describe('Dashboard run history', () => {
   it('should show the correct number of bars', async () => {

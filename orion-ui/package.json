@@ -5,9 +5,9 @@
   "scripts": {
     "serve": "vite",
     "build": "vite build",
-    "test": "cross-env PREFECT_USE_MIRAGEJS=true jest",
-    "test:unit": "cross-env PREFECT_USE_MIRAGEJS=true jest --projects tests/unit",
-    "test:integration": "cross-env PREFECT_USE_MIRAGEJS=true jest --projects tests/integration",
+    "test": "cross-env PREFECT_USE_MIRAGEJS=true PREFECT_UI_PORT=4002 jest",
+    "test:unit": "cross-env PREFECT_USE_MIRAGEJS=true PREFECT_UI_PORT=4002 jest --projects tests/unit",
+    "test:integration": "cross-env PREFECT_USE_MIRAGEJS=true PREFECT_UI_PORT=4002 jest --projects tests/integration",
     "test:clear-cache": "jest --clearCache",
     "lint": "eslint src --ext .js,.ts,.vue"
   },
