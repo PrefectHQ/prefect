@@ -1,10 +1,10 @@
 import type { Config } from '@jest/types'
 
 const config: Config.InitialProjectOptions = {
-  name: 'unit',
-  displayName: 'Unit Tests',
-  roots: ['<rootDir>/../../src/'],
-  testEnvironment: 'jsdom',
+  name: 'integration',
+  displayName: 'Integration Tests',
+  rootDir: '.',
+  roots: ['<rootDir>/tests'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {}],
     '.*\\.(vue)$': ['vue3-jest', {}]
@@ -12,7 +12,9 @@ const config: Config.InitialProjectOptions = {
   moduleNameMapper: {
     '@/(.*)$': '<rootDir>/../../src/$1'
   },
-  setupFiles: ['./setup.ts']
+  testEnvironment: 'jest-environment-puppeteer',
+  globalSetup: './setup.js',
+  globalTeardown: './teardown.js'
 }
 
 export default config

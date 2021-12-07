@@ -4,7 +4,7 @@ import type { Config } from '@jest/types'
 class DOMRect {}
 
 const config: Config.InitialOptions = {
-  projects: ['./tests/*'],
+  projects: ['./test-projects/*'],
   maxWorkers: 1,
   moduleFileExtensions: ['js', 'ts', 'json', 'vue'],
   rootDir: '.',
