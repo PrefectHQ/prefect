@@ -19,7 +19,7 @@ from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.exceptions import ClientError, AuthorizationError
+from prefect.exceptions import ClientError, AuthorizationError, ObjectNotFoundError
 from prefect.utilities.graphql import decompress
 
 
@@ -1286,6 +1286,16 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
     assert isinstance(state, Pending)
     assert state._result.location == "42"
     assert state.message is None
+
+
+def test_get_flow_run_state_object_not_found(patch_posts, cloud_api, runner_token):
+    query_resp = {"flow_run_by_pk": {}}
+
+    patch_posts([dict(data=query_resp)])
+
+    client = Client()
+    with pytest.raises(ObjectNotFoundError):
+        client.get_flow_run_state(flow_run_id="72-salt")
 
 
 def test_set_flow_run_state(patch_post):
