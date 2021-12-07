@@ -93,8 +93,12 @@ import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
 import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
-import { initialGlobalFilterState } from '@/store'
+import { generateInitialGlobalFilterState } from '@/store'
 import TagGroup from './TagGroup.vue'
+
+const initialGlobalFilterStateString = JSON.stringify(
+  generateInitialGlobalFilterState()
+)
 
 const store = useStore()
 const route = useRoute()
@@ -193,7 +197,7 @@ const overlay = computed(() => {
 
 const filtersApplied = computed(() => {
   return (
-    JSON.stringify(initialGlobalFilterState) !==
+    initialGlobalFilterStateString !==
     JSON.stringify(store.getters.globalFilter)
   )
 })
