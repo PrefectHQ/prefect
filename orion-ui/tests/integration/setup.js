@@ -1,10 +1,7 @@
 const { setup: setupDevServer } = require('jest-dev-server')
 const { setup: setupPuppeteer } = require('jest-environment-puppeteer')
+const { port, ui } = require('../../src/utilities/testing')
 const puppeteer = require('puppeteer')
-
-const port = (process.env.ORION_UI_PORT = 4002)
-const ui =
-  (process.env.ORION_UI = `http://localhost:${process.env.ORION_UI_PORT}`)
 const cyan = '\x1b[36m%s\x1b[0m'
 
 const warmUpVite = async function () {
