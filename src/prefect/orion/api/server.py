@@ -9,7 +9,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 import prefect
@@ -75,8 +74,7 @@ def create_app(database_config=None) -> FastAPI:
     )
 
     app.mount("/api", app=api_app)
-
-    if os.path.exists(prefect.__ui_static_path__):
+    if os.path.exists(prefect.__ui_static_path__) and settings.orion.ui.enabled:
         ui_app.mount(
             "/",
             SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
