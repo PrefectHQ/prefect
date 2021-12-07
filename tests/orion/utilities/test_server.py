@@ -125,7 +125,6 @@ async def test_response_scoped_dependency_is_closed_before_response_is_returned(
     async def request_scoped():
         order.append("request enter")
         yield
-        await anyio.sleep(1)
         order.append("request exit")
 
     app = FastAPI()
