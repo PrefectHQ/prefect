@@ -113,6 +113,54 @@ async def test_response_scoped_dependency_is_closed_before_request_scoped():
     assert order == ["endpoint", "response", "request", "request"]
 
 
+async def test_response_scoped_dependency_is_closed_before_response_is_returned():
+    order = []
+
+    @response_scoped_dependency
+    async def response_scoped():
+        order.append("response enter")
+        yield
+        order.append("response exit")
+
+    async def request_scoped():
+        order.append("request enter")
+        yield
+        await anyio.sleep(1)
+        order.append("request exit")
+
+    app = FastAPI()
+    router = OrionRouter()
+
+    @router.get("/")
+    def foo(
+        x=Depends(request_scoped),
+        y=Depends(response_scoped),
+    ):
+        order.append("endpoint called")
+
+    app.include_router(router)
+
+    async with httpx.AsyncClient(app=app) as client:
+        order.append("request sent")
+        response = await client.get("http://localhost/")
+        order.append("response received")
+
+    assert response.status_code == status.HTTP_200_OK
+    assert order == [
+        "request sent",
+        "request enter",
+        "response enter",
+        "endpoint called",
+        "response exit",
+        # We would like to demonstrate that the response can be received before the
+        # request exits, but inserting a sleep into shutdown of the request context
+        # does not change this ordering. We've seen the response return before the
+        # request context exits when using a non-ephemeral server.
+        "request exit",
+        "response received",
+    ]
+
+
 def test_response_scoped_dependency_is_overridable():
     @response_scoped_dependency
     async def test():
