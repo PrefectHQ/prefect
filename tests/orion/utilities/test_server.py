@@ -187,6 +187,31 @@ def test_response_scoped_dependency_can_raise_after_yield():
     assert response.status_code == 202
 
 
+def test_request_scoped_dependency_cannot_raise_after_yield():
+    # Converse to the above test. This does not cover any of our code, just FastAPI
+    # behavior.
+    async def test():
+        yield
+        raise HTTPException(status_code=202)
+
+    app = FastAPI()
+    router = OrionRouter()
+
+    @router.get("/")
+    def foo(
+        x=Depends(test),
+    ):
+        pass
+
+    app.include_router(router)
+
+    client = TestClient(app)
+    with pytest.raises(HTTPException):
+        # The exception is raised in the app (and consequently here) instead of in
+        # the response
+        client.get("/")
+
+
 def test_response_scoped_dependency_is_overridable():
     @response_scoped_dependency
     async def test():
