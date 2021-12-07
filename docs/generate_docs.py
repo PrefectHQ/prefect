@@ -11,7 +11,7 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "top-level-doc" -> (object, optional): module object that contains the
         docstring that will be displayed at the top of the generated page
     - "experimental" -> (bool = False, optional): whether or not to display the "Experimental" flag at the top of the page
-    - "partnership_integration" -> (bool = False, optional): whether or not to display the "Partnership Integration" flag at the top of the page
+    - "verified_task" -> (bool = False, optional): whether or not to display the "Verified by Prefect" flag at the top of the page
 
 On a development installation of Prefect, run `python generate_docs.py` from inside the `docs/` folder.
 """
@@ -81,7 +81,7 @@ def load_outline(
                 page=f"{fname}{ext}",
                 title=data.get("title", ""),
                 experimental=data.get("experimental", False),
-                partnership_integration=data.get("partnership_integration", False),
+                verified_task=data.get("verified_task", False),
             )
             module_name = data["module"]
             page["top-level-doc"] = importlib.import_module(module_name)
@@ -653,25 +653,18 @@ The functionality here is experimental, and may change between versions without 
 ---\n
 """
                         )
-                    elif page.get("partnership_integration"):
+                    elif page.get("verified_task"):
                         f.write(
                             f"""# {title}\n
-::: tip Partnership Integration
-<div class="partnership-integration">
+::: tip Verified by Prefect
+<div class="verified-task">
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
-<circle cx="24" cy="24" r="24" fill="url(#paint0_linear)"/>
-<circle cx="24" cy="24" r="9" stroke="#090422" stroke-width="2"/>
-<path d="M19 24L22.4375 27L29 20.5" stroke="#090422" stroke-width="2"/>
-<defs>
-<linearGradient id="paint0_linear" x1="24" y1="0" x2="24" y2="48" gradientUnits="userSpaceOnUse">
-<stop stop-color="#91EBFF"/>
-<stop offset="1" stop-color="#8497FF"/>
-</linearGradient>
-</defs>
+<circle cx="24" cy="24" r="24" fill="#42b983"/>
+<circle cx="24" cy="24" r="9" stroke="#fff" stroke-width="2"/>
+<path d="M19 24L22.4375 27L29 20.5" stroke="#fff" stroke-width="2"/>
 </svg>
-
 <div>
-These tasks are part of an official Prefect Partnership integration.
+These tasks have been tested and verified by Prefect.
 </div>
 </div>
 :::
