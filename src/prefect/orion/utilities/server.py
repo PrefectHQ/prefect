@@ -67,7 +67,7 @@ class OrionAPIRoute(APIRoute):
     the full scope of the request. This stack is used for managing contexts of FastAPI
     dependencies. If we want to close a dependency before the request is complete
     (i.e. before returning a response to the user), we need a stack with a different
-    scope. This extension adds this stack to `request.state.response_scoped_stack`
+    scope. This extension adds this stack at `request.state.response_scoped_stack`.
     """
 
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
