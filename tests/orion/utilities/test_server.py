@@ -1,7 +1,7 @@
 import anyio
 import httpx
 import pytest
-from fastapi import Depends, FastAPI, Request, status, Path
+from fastapi import Depends, FastAPI, Request, status, Path, HTTPException
 from fastapi.testclient import TestClient
 
 from prefect.orion.utilities.server import (
@@ -159,6 +159,32 @@ async def test_response_scoped_dependency_is_closed_before_response_is_returned(
         "request exit",
         "response received",
     ]
+
+
+def test_response_scoped_dependency_can_raise_after_yield():
+    # Unlike normal dependencies, response scoped dependencies can raise the exceptions
+    # after yielding
+    # https://fastapi.tiangolo.com/zh/tutorial/dependencies/dependencies-with-yield/#dependencies-with-yield-and-httpexception
+
+    @response_scoped_dependency
+    async def test():
+        yield
+        raise HTTPException(status_code=202)
+
+    app = FastAPI()
+    router = OrionRouter()
+
+    @router.get("/")
+    def foo(
+        x=Depends(test),
+    ):
+        pass
+
+    app.include_router(router)
+
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == 202
 
 
 def test_response_scoped_dependency_is_overridable():
