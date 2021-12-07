@@ -1,2 +1,0 @@
-fix:
-  - Re-fix use of marshmallow.fields.Dict to use keys correctly as a kwarg rather than key. - [#4540](https://github.com/PrefectHQ/prefect/issues/4540), [#4903](https://github.com/PrefectHQ/prefect/pull/4903)

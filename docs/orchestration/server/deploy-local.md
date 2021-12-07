@@ -5,8 +5,16 @@ Prefect Server can be deployed on a single node using [docker-compose](https://d
 The easiest way accomplish this is to use the built-in command in the Prefect CLI.
 Note that this requires both `docker-compose >= 1.18.0` and `docker` to be installed.
 
+By default, Prefect is configured to use Prefect Cloud as the backend. To use Prefect Server as the backend, run the following Prefect CLI command to configure Prefect for local orchestration:
+
+```
+$ prefect backend server
+``` 
+
+Now you can start the server using the command:
+
 ```bash
-prefect server start
+$ prefect server start
 ```
 
 
@@ -14,7 +22,7 @@ prefect server start
 To start Prefect Server on a remote compute instance (such as AWS, GCP, ...), make sure to add the `--expose` flag, which ensures that the Server and UI listen to all interfaces. Under the hood, this flag changes the host IP to "0.0.0.0" instead of using the default localhost.
 
 ```bash
-prefect server start --expose
+$ prefect server start --expose
 ```
 
 
@@ -118,7 +126,7 @@ You can also configure Prefect Server to use an external Postgres instance.
 The simplest way to specify an external Postgres instance is passing in a command line argument:
 
 ```bash
-prefect server start --postgres-url postgres://<username>:<password>@hostname:<port>/<dbname>
+$ prefect server start --postgres-url postgres://<username>:<password>@hostname:<port>/<dbname>
 ```
 
 You can also configure the database url in `~/.prefect/config.toml` on whatever machine you're running Prefect Server:

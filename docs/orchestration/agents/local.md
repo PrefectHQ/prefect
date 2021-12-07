@@ -11,8 +11,13 @@ help with modularity and scale.
 
 ## Requirements
 
-The local agent has no outside dependencies and only requires that [Prefect is
-installed](/core/getting_started/installation.md).
+The local agent has no outside dependencies and only requires that [Prefect is installed](/core/getting_started/installation.md).
+
+If you want to use a Prefect backend for orchestrating and managing flows, you can use Prefect Cloud or the open-source Prefect Server.
+
+To learn more about Prefect Server, which is the recommended orchestration backend, see the [Orchestration layer set up](/orchestration/getting-started/set-up.html) documentation.
+
+To learn more about Prefect Server, see the [Server Overview](/orchestration/server/overview.html) documentation and the instructions for [Deploying to a single node](/orchestration/server/deploy-local.html).
 
 ::: tip Docker
 If running the local agent inside a Docker container, we recommend you also use
@@ -50,7 +55,7 @@ documentation for more information.
 The local agent can be started from the Prefect CLI as
 
 ```bash
-prefect agent local start
+$ prefect agent local start
 ```
 
 ::: tip API Keys <Badge text="Cloud"/>
@@ -68,7 +73,7 @@ configured with labels. These are used to filter which flow runs an agent can
 deploy.
 
 ```bash
-prefect agent local start -l label1 -l label2
+$ prefect agent local start -l label1 -l label2
 ```
 
 By default, the local agent will include a label for its hostname. This is
@@ -78,7 +83,7 @@ label by default. To disable this default label, use the `--no-hostname-label`
 flag:
 
 ```bash
-prefect agent local start --no-hostname-label
+$ prefect agent local start --no-hostname-label
 ```
 
 ### Streaming Flow Run Logs
@@ -89,7 +94,7 @@ can be useful for debugging flow runs locally. To enable, use the
 `--show-flow-logs` flag:
 
 ```bash
-prefect agent local start --show-flow-logs
+$ prefect agent local start --show-flow-logs
 ```
 
 ## Using with Supervisor
@@ -103,7 +108,7 @@ The Prefect CLI provides a command for generating an example `supervisord.conf`
 file for managing a local agent.
 
 ```bash
-prefect agent local install
+$ prefect agent local install
 ```
 
 This outputs example contents of a `supervisord.conf`. The `install` command

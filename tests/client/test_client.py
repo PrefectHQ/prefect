@@ -253,6 +253,27 @@ class TestClientAuthentication:
                 client._get_default_server_tenant()
 
 
+def test_client_requests_use_retries(monkeypatch):
+    Session, HTTPAdapter, Retry = MagicMock(), MagicMock(), MagicMock()
+    monkeypatch.setattr("requests.Session", Session)
+    monkeypatch.setattr("requests.adapters.HTTPAdapter", HTTPAdapter)
+    monkeypatch.setattr("urllib3.util.retry.Retry", Retry)
+
+    client = Client()
+    client.post("/foo/bar")
+
+    # These don't implement equality checks so we can't just assert `mount` was called
+    # correctly and need to check each object individually
+    Retry.assert_called_once_with(
+        total=6,
+        backoff_factor=1,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
+    )
+    HTTPAdapter.assert_called_once_with(max_retries=Retry())
+    Session().mount.assert_called_once_with("https://", HTTPAdapter())
+
+
 def test_client_posts_to_api_server(patch_post):
     post = patch_post(dict(success=True))
 
