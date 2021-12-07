@@ -1,0 +1,35 @@
+const { setup: setupDevServer } = require('jest-dev-server')
+const { setup: setupPuppeteer } = require('jest-environment-puppeteer')
+const puppeteer = require('puppeteer')
+
+const port = (process.env.ORION_UI_PORT = 4002)
+const ui =
+  (process.env.ORION_UI = `http://localhost:${process.env.ORION_UI_PORT}`)
+const cyan = '\x1b[36m%s\x1b[0m'
+
+const warmUpVite = async function () {
+  console.log('\n')
+  console.log(cyan, 'Warming up vite...', '\n')
+
+  const browser = await puppeteer.launch()
+  const page = await browser.newPage()
+
+  await page.goto(ui)
+  await page.waitForSelector('.application')
+
+  await browser.close()
+
+  console.log(cyan, 'Toasty!', '\n')
+}
+
+module.exports = async function globalSetup(globalConfig) {
+  await setupPuppeteer(globalConfig)
+
+  await setupDevServer({
+    command: `vite --port ${port} --strict-port`,
+    launchTimeout: 10000,
+    port
+  })
+
+  await warmUpVite()
+}

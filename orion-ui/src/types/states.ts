@@ -1,3 +1,4 @@
+// todo: rename this to StateType
 export type State =
   | 'COMPLETED'
   | 'RUNNING'
@@ -5,6 +6,14 @@ export type State =
   | 'PENDING'
   | 'FAILED'
   | 'CANCELED'
+
+export type StateName =
+  | 'Completed'
+  | 'Running'
+  | 'Scheduled'
+  | 'Pending'
+  | 'Failed'
+  | 'Canceled'
 
 export type StateDirection = 1 | -1
 export type StateIcon = `pi-${Lowercase<State>}`
@@ -18,6 +27,15 @@ export class States {
   public static readonly FAILED = 'FAILED'
   public static readonly CANCELED = 'CANCELED'
 }
+
+export const StateNames: ReadonlyMap<State, StateName> = new Map([
+  [States.COMPLETED, 'Completed'],
+  [States.RUNNING, 'Running'],
+  [States.SCHEDULED, 'Scheduled'],
+  [States.PENDING, 'Pending'],
+  [States.FAILED, 'Failed'],
+  [States.CANCELED, 'Canceled']
+])
 
 export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([
   [States.COMPLETED, -1],
