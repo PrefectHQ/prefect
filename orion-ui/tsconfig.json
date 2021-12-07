@@ -16,8 +16,10 @@
     "baseUrl": ".",
     "types": [
       "@types/jest",
-      "d3",
-      "@prefecthq/miter-design"
+      "@types/d3",
+      "@types/puppeteer",
+      "@types/jest-environment-puppeteer",
+      "@types/expect-puppeteer"
     ],
     "typeRoots": [
       "./typings"
@@ -39,7 +41,7 @@
     "src/**/*.tsx",
     "src/**/*.vue",
     "tests/**/*.ts",
-    "tests/**/*.tsx"
+    "tests/**/*.tsx"  
   ],
   "exclude": [
     "node_modules"
