@@ -109,7 +109,7 @@
           key="no-results"
         >
           <template v-if="resultsTab == 'deployments'">
-            <h2> No scheduled results found </h2>
+            <h2> No scheduled deployments found </h2>
             <div class="my-2">
               Deployments can only be created using the Prefect CLI
             </div>
