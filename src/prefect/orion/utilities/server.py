@@ -38,7 +38,7 @@ def response_scoped_dependency(dependency: Callable):
 
         # Enter the route handler provided stack that is closed before responding,
         # return the value yielded by the wrapped dependency
-        return await request.state.response_scoped_depends_stack.enter_async_context(
+        return await request.state.response_scoped_stack.enter_async_context(
             context_manager(*args, **kwargs)
         )
 
@@ -60,21 +60,23 @@ def response_scoped_dependency(dependency: Callable):
 
 class OrionAPIRoute(APIRoute):
     """
-    A FastAPI APIRoute class which inserts a special stack on requests.
+    A FastAPI APIRoute class which attaches an async stack to requests that exits before
+    a response is returned.
 
-    Requests have `request.scope['fastapi_astack']` which is an async stack for the full
-    scope of the request. However, if you want to close a dependency before the request
-    is complete (i.e. before returning a response to the user), we need a stack with a
-    different scope.
+    Requests already have `request.scope['fastapi_astack']` which is an async stack for
+    the full scope of the request. This stack is used for managing contexts of FastAPI
+    dependencies. If we want to close a dependency before the request is complete
+    (i.e. before returning a response to the user), we need a stack with a different
+    scope. This extension adds this stack to `request.state.response_scoped_stack`
     """
 
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
         default_handler = super().get_route_handler()
 
         async def handle_response_scoped_depends(request: Request) -> Response:
+            # Create a new stack scoped to exit before the response is returned
             async with AsyncExitStack() as stack:
-                # Create a new stack scoped to exit before the response is returned
-                request.state.response_scoped_depends_stack = stack
+                request.state.response_scoped_stack = stack
                 response = await default_handler(request)
 
             return response
