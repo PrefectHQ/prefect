@@ -73,7 +73,7 @@
               </span>
               /<router-link
                 :to="`/flow-run/${parentFlowRun.id}`"
-                class="mr-1 ml--half"
+                class="mr-1 ml--half text--primary"
               >
                 {{ parentFlowRun.name }}
               </router-link>
