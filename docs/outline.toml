@@ -439,6 +439,14 @@ classes = [
         "Zip",
         ]
 
+[pages.tasks.firebolt]
+title = "Firebolt Tasks"
+module = "prefect.tasks.firebolt"
+classes = [
+         "FireboltQuery",
+         "FireboltQueryGetData"
+         ]
+
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"

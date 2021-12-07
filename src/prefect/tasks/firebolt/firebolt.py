@@ -5,17 +5,16 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 
 class FireboltQuery(Task):
-
     def __init__(
-            self,
-            database: str = None,
-            username: str = None,
-            password: str = None,
-            engine_name: str = None,
-            engine_url: str = None,
-            api_endpoint: str = None,
-            query: str = None,
-            **kwargs
+        self,
+        database: str = None,
+        username: str = None,
+        password: str = None,
+        engine_name: str = None,
+        engine_url: str = None,
+        api_endpoint: str = None,
+        query: str = None,
+        **kwargs
     ):
         """
         Task for executing a query against a Firebolt database.
@@ -41,22 +40,17 @@ class FireboltQuery(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "database",
-        "username",
-        "password",
-        "engine_name",
-        "api_endpoint",
-        "query"
+        "database", "username", "password", "engine_name", "api_endpoint", "query"
     )
     def run(
-            self,
-            database: str = None,
-            username: str = None,
-            password: str = None,
-            engine_name: str = None,
-            engine_url: str = None,
-            api_endpoint: str = None,
-            query: str = None
+        self,
+        database: str = None,
+        username: str = None,
+        password: str = None,
+        engine_name: str = None,
+        engine_url: str = None,
+        api_endpoint: str = None,
+        query: str = None,
     ):
         """
         Task run method. Executes a query against Firebolt database.
@@ -71,7 +65,7 @@ class FireboltQuery(Task):
             - query (str): query to execute against database
 
         Returns:
-            - output of cursor.execute(query)
+            - executed (int): output of cursor.execute(query)
 
         Raises:
             - ValueError: if a required parameter is not supplied
@@ -92,7 +86,9 @@ class FireboltQuery(Task):
             raise ValueError("A query string must be provided")
 
         # connect to database, return a connection object
-        conn = firebolt_conn.connect(database, username, password, engine_name, engine_url, api_endpoint)
+        conn = firebolt_conn.connect(
+            database, username, password, engine_name, engine_url, api_endpoint
+        )
 
         # try to execute query
         try:
@@ -108,23 +104,22 @@ class FireboltQuery(Task):
 
 
 class FireboltQueryGetData(Task):
-
     def __init__(
-            self,
-            database: str = None,
-            username: str = None,
-            password: str = None,
-            engine_name: str = None,
-            engine_url: str = None,
-            api_endpoint: str = None,
-            query: str = None,
-            **kwargs
+        self,
+        database: str = None,
+        username: str = None,
+        password: str = None,
+        engine_name: str = None,
+        engine_url: str = None,
+        api_endpoint: str = None,
+        query: str = None,
+        **kwargs
     ):
         """
         Task for executing a query against a Firebolt database to retrieve data.
 
         Args:
-           - database (str): name of the database to use
+            - database (str): name of the database to use
             - username (str): username used to authenticate
             - password (str): password used to authenticate.
             - engine name (str): name of the engine to use
@@ -144,22 +139,17 @@ class FireboltQueryGetData(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "database",
-        "username",
-        "password",
-        "engine_name",
-        "api_endpoint",
-        "query"
+        "database", "username", "password", "engine_name", "api_endpoint", "query"
     )
     def run(
-            self,
-            database: str = None,
-            username: str = None,
-            password: str = None,
-            engine_name: str = None,
-            engine_url: str = None,
-            api_endpoint: str = None,
-            query: str = None
+        self,
+        database: str = None,
+        username: str = None,
+        password: str = None,
+        engine_name: str = None,
+        engine_url: str = None,
+        api_endpoint: str = None,
+        query: str = None,
     ):
         """
         Task run method. Executes a query against Firebolt database to retrieve data.
@@ -195,7 +185,9 @@ class FireboltQueryGetData(Task):
             raise ValueError("A query string must be provided")
 
         # connect to database, return a connection object
-        conn = firebolt_conn.connect(database, username, password, engine_name, engine_url, api_endpoint)
+        conn = firebolt_conn.connect(
+            database, username, password, engine_name, engine_url, api_endpoint
+        )
 
         # try to execute query
         try:
@@ -203,6 +195,7 @@ class FireboltQueryGetData(Task):
                 with conn.cursor() as cursor:
                     executed_count = cursor.execute(query)
                     executed_data = cursor.fetchall()
+                    print(executed_data)
             conn.close()
             return executed_data
 
