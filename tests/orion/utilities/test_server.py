@@ -74,6 +74,9 @@ async def test_response_scoped_dependency_can_have_request_dependency():
 
 
 async def test_response_scoped_dependency_is_closed_before_request_scoped():
+    # This test is not a strict guarantee that the behavior is correct, but if you
+    # change the OrionAPIRoute class to use the FastAPI stack instead of the correctly
+    # scoped stack, the test will fail which indicates it is a helpful signal.
     order = []
 
     @response_scoped_dependency
@@ -83,6 +86,7 @@ async def test_response_scoped_dependency_is_closed_before_request_scoped():
         order.append("response")
 
     def make_request_scoped():
+        # Use a factory to avoid caching
         async def request_scoped():
             yield
             order.append("request")
@@ -107,3 +111,27 @@ async def test_response_scoped_dependency_is_closed_before_request_scoped():
 
     assert response.status_code == status.HTTP_200_OK
     assert order == ["endpoint", "response", "request", "request"]
+
+
+def test_response_scoped_dependency_is_overridable():
+    @response_scoped_dependency
+    async def test():
+        yield "test"
+
+    app = FastAPI()
+    router = OrionRouter()
+
+    @router.get("/")
+    def foo(test=Depends(test)):
+        return test
+
+    def override():
+        yield "override"
+
+    app.include_router(router)
+    app.dependency_overrides[test] = override
+
+    client = TestClient(app)
+    response = client.get("/")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == "override"
