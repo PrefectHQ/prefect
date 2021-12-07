@@ -66,6 +66,19 @@
               </span>
             </span>
 
+            <span v-if="parentFlow.name">
+              Parent:
+              <span class="text--grey-80">
+                {{ parentFlow.name }}
+              </span>
+              /<router-link
+                :to="`/flow-run/${parentFlowRun.id}`"
+                class="mr-1 ml--half"
+              >
+                {{ parentFlowRun.name }}
+              </router-link>
+            </span>
+
             <span v-if="location">
               Results:
               <span class="text--grey-80 mr-1 ml--half">
@@ -129,7 +142,6 @@
     </Card>
   </div>
 
-  {{ resultsTab }}
   <Tabs v-model="resultsTab" class="mt-3">
     <Tab href="task_runs" class="subheader">
       <i class="pi pi-task mr-1 text--grey-40" />
@@ -192,8 +204,8 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, BaseFilter } from '@/plugins/api'
-import { State, FlowRun, Deployment, TaskRun } from '@/typings/objects'
+import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
+import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
@@ -204,30 +216,71 @@ const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref('task_runs')
 
-const id = computed<string>(() => {
+const id = computed(() => {
   return route?.params.id as string
+})
+
+const flowRunbaseFilter = computed(() => {
+  return { id: id.value }
 })
 
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
-  body: {
-    id: id.value
-  },
+  body: flowRunbaseFilter,
   options: {
     pollInterval: 5000
   }
 }).fetch()
 
-const flowId = flowRunBase.response.value.flow_id
-const deploymentId = flowRunBase.response.value.deployment_id
+const flowId = computed<string>(() => {
+  return flowRunBase.response.value.flow_id
+})
 
-const flowFilter = {
-  id: flowId
-}
+const parentTaskRunId = computed<string>(() => {
+  return flowRunBase.response.value.parent_task_run_id
+})
 
-const deploymentFilter = {
-  id: deploymentId
-}
+const deploymentId = computed<string>(() => {
+  return flowRunBase.response.value.deployment_id
+})
+
+// const flowId = flowRunBase.response.value.flow_id
+// const parentTaskRunId = flowRunBase.response.value.parent_task_run_id
+// const deploymentId = flowRunBase.response.value.deployment_id
+
+const flowFilter = computed(() => {
+  return {
+    id: flowId.value
+  }
+})
+
+const deploymentFilter = computed(() => {
+  return {
+    id: deploymentId.value
+  }
+})
+
+const parentFlowFilter = computed<FlowsFilter>(() => {
+  return {
+    task_runs: {
+      id: {
+        any_: [parentTaskRunId.value]
+      }
+    }
+  }
+})
+
+// const parentFlowFilter: FlowsFilter = {
+//   task_runs: {
+//     id: {
+//       any_: [parentTaskRunId.value]
+//     }
+//   }
+// }
+
+// const deploymentFilter = {
+//   id: deploymentId
+// }
 
 const taskRunsFilter = computed<BaseFilter>(() => {
   return {
@@ -263,7 +316,21 @@ const queries: { [key: string]: Query } = {
     endpoint: Endpoints.deployment,
     body: deploymentFilter,
     options: {
-      paused: !deploymentId
+      paused: !deploymentId.value
+    }
+  }),
+  parent_flow: Api.query({
+    endpoint: Endpoints.flows,
+    body: parentFlowFilter,
+    options: {
+      paused: !parentTaskRunId.value
+    }
+  }),
+  parent_flow_run: Api.query({
+    endpoint: Endpoints.flow_runs,
+    body: parentFlowFilter,
+    options: {
+      paused: !parentTaskRunId.value
     }
   }),
   task_runs_count: Api.query({
@@ -301,6 +368,14 @@ const resultsCount = computed(() => {
 
 const deployment = computed<Deployment>(() => {
   return queries.deployment.response?.value || {}
+})
+
+const parentFlow = computed<Flow>(() => {
+  return queries.parent_flow.response?.value?.[0] || {}
+})
+
+const parentFlowRun = computed<FlowRun>(() => {
+  return queries.parent_flow_run.response?.value?.[0] || {}
 })
 
 const location = computed(() => {
@@ -350,13 +425,20 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
-watch(id, () => {
+watch(id, async () => {
+  await flowRunBase.fetch()
   queries.flow.fetch()
-  flowRunBase.fetch()
-  if (deploymentId) queries.deployment.fetch()
+
   queries.task_runs_count.fetch()
   queries.task_runs.fetch()
   queries.sub_flow_runs_count.fetch()
+
+  if (deploymentId.value) queries.deployment.fetch()
+  else queries.deployment.clearResult()
+  if (parentTaskRunId.value) queries.parent_flow.fetch()
+  else queries.parent_flow.clearResult()
+  if (parentTaskRunId.value) queries.parent_flow_run.fetch()
+  else queries.parent_flow_run.clearResult()
 
   resultsTab.value = 'task_runs'
 })
