@@ -23,28 +23,36 @@ def response_scoped_dependency(dependency: Callable):
         A wrapped `dependency` which will push the `dependency` context manager onto
         a stack when called.
     """
+    signature = inspect.signature(dependency)
 
-    async def wrapper(*args, __request__: Request, **kwargs):
+    async def wrapper(*args, request: Request, **kwargs):
         # Replicate FastAPI behavior of auto-creating a context manager
         if inspect.isasyncgenfunction(dependency):
             context_manager = asynccontextmanager(dependency)
         else:
             context_manager = dependency
 
+        # Ensure request is provided if requested
+        if "request" in signature.parameters:
+            kwargs["request"] = request
+
         # Enter the special stack
-        return (
-            await __request__.state.response_scoped_depends_stack.enter_async_context(
-                context_manager(*args, **kwargs)
-            )
+        return await request.state.response_scoped_depends_stack.enter_async_context(
+            context_manager(*args, **kwargs)
         )
 
-    # Generate a new signature that includes `__request__: Request` to ensure that
-    # FastAPI will inject the request as a dependency.
-    signature = inspect.signature(dependency)
-    new_parameters = signature.parameters.copy()
-    new_parameters["__request__"] = inspect.signature(wrapper).parameters["__request__"]
+    # Ensure that the signature includes `request: Request` to ensure that FastAPI will
+    # inject the request as a dependency; maintain the old signature so those depends
+    # work
+    request_parameter = inspect.signature(wrapper).parameters["request"]
     functools.update_wrapper(wrapper, dependency)
-    wrapper.__signature__ = signature.replace(parameters=tuple(new_parameters.values()))
+
+    if "request" not in signature.parameters:
+        new_parameters = signature.parameters.copy()
+        new_parameters["request"] = request_parameter
+        wrapper.__signature__ = signature.replace(
+            parameters=tuple(new_parameters.values())
+        )
 
     return wrapper
 
@@ -53,7 +61,7 @@ class OrionAPIRoute(APIRoute):
     """
     A FastAPI APIRoute class which inserts a special stack on requests.
 
-    Requests have `request.scope.fastapi_astack` which is an async stack for the entire
+    Requests have `request.scope['fastapi_astack']` which is an async stack for the full
     scope of the request. However, if you want to close a dependency before the request
     is complete (i.e. before returning a response to the user), we need a stack with a
     different scope.
