@@ -163,7 +163,7 @@ async def test_response_scoped_dependency_is_closed_before_response_is_returned(
 
 def test_response_scoped_dependency_can_raise_after_yield():
     # Unlike normal dependencies, response scoped dependencies can raise the exceptions
-    # after yielding
+    # after yielding to set the response
     # https://fastapi.tiangolo.com/zh/tutorial/dependencies/dependencies-with-yield/#dependencies-with-yield-and-httpexception
 
     @response_scoped_dependency
