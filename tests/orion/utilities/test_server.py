@@ -53,7 +53,7 @@ def test_response_scoped_dependency_can_have_dependencies():
     assert response.json() == ["test", "bar"]
 
 
-async def test_response_scoped_dependency_can_have_request_dependency():
+def test_response_scoped_dependency_can_have_request_dependency():
     @response_scoped_dependency
     async def test(request: Request):
         yield request.path_params
