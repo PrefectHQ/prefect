@@ -5,9 +5,9 @@
   "scripts": {
     "serve": "vite",
     "build": "vite build",
-    "test": "jest",
-    "test:unit": "jest --projects tests/unit",
-    "test:integration": "jest --projects tests/integration",
+    "test": "cross-env PREFECT_USE_MIRAGEJS=true jest",
+    "test:unit": "cross-env PREFECT_USE_MIRAGEJS=true jest --projects tests/unit",
+    "test:integration": "cross-env PREFECT_USE_MIRAGEJS=true jest --projects tests/integration",
     "test:clear-cache": "jest --clearCache",
     "lint": "eslint src --ext .js,.ts,.vue"
   },
@@ -38,6 +38,7 @@
     "@vue/eslint-config-prettier": "^6.0.0",
     "@vue/eslint-config-typescript": "^9.1.0",
     "@vue/test-utils": "^2.0.0-rc.16",
+    "cross-env": "^7.0.3",
     "date-fns": "^2.25.0",
     "eslint": "^8.2.0",
     "eslint-plugin-vue": "^8.0.3",
