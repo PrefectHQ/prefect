@@ -108,10 +108,16 @@
           class="text-center my-8"
           key="no-results"
         >
-          <h2> No Results Found </h2>
-          <div v-show="resultsTab == 'deployments'" class="mt-2">
-            Deployments can only be created using the Prefect CLI
-          </div>
+          <template v-if="resultsTab == 'deployments'">
+            <h2> No scheduled deployments found </h2>
+            <div class="my-2">
+              Deployments can only be created using the Prefect CLI
+            </div>
+            <Button color="alternate" @click="onFilterOff">
+              Show all deployments
+            </Button>
+          </template>
+          <h2 v-else> No results found </h2>
         </div>
 
         <ResultsList
@@ -125,7 +131,7 @@
         <ResultsList
           v-else-if="resultsTab == 'deployments'"
           key="deployments"
-          :filter="filter"
+          :filter="deploymentsFilter"
           component="ListItemDeployment"
           endpoint="deployments"
         />
@@ -183,6 +189,18 @@ const filter = computed<
   return { ...store.getters.composedFilter }
 })
 
+const deploymentFilterOff = ref(false)
+
+const onFilterOff = () => {
+  deploymentFilterOff.value = true
+}
+const deploymentsFilter = computed<object | DeploymentsFilter>(() => {
+  if (deploymentFilterOff.value) {
+    return {}
+  }
+  return filter.value
+})
+
 const start = computed<Date>(() => {
   return store.getters.start
 })
@@ -225,7 +243,7 @@ const basePollInterval = 30000
 const queries: { [key: string]: Query } = {
   deployments: Api.query({
     endpoint: Endpoints.deployments_count,
-    body: filter,
+    body: deploymentsFilter,
     options: {
       pollInterval: basePollInterval
     }

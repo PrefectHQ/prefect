@@ -13,6 +13,5 @@ if sys.version_info < (3, 9):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, functools.partial(fn, *args, **kwargs))
 
-
 else:
     from asyncio import to_thread as asyncio_to_thread
