@@ -125,7 +125,10 @@
     </Card>
 
     <Card class="radar" shadow="sm">
-      <div
+      <router-link :to="`/flow-run/${id}/radar`">
+        <MiniRadarView :id="id" />
+      </router-link>
+      <!-- <div
         style="
           top: 50%;
           left: 50%;
@@ -138,7 +141,7 @@
           <IconButton icon="pi-radar-fill" />
           <div>View Radar </div>
         </router-link>
-      </div>
+      </div> -->
     </Card>
   </div>
 
@@ -211,6 +214,7 @@ import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
+import MiniRadarView from './MiniRadar.vue'
 
 const route = useRoute()
 

@@ -33,7 +33,7 @@ const props = withDefaults(
   defineProps<{
     radar: Radar
     collapsedTrees?: Map<string, Map<string, RadarNode>>
-    transform: { x: number; y: number; k: number }
+    transform?: { x: number; y: number; k: number }
     height: number
     width: number
     id: string
@@ -42,7 +42,10 @@ const props = withDefaults(
   }>(),
   {
     baseRadius: 300,
-    hideViewport: false
+    hideViewport: false,
+    transform: () => {
+      return { x: 0, y: 0, k: 1 }
+    }
   }
 )
 
