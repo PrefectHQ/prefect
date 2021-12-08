@@ -254,11 +254,14 @@ async def create_and_begin_subflow_run(
         f"Creating subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r}..."
     )
 
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+
     # Generate a task in the parent flow run to represent the result of the subflow run
     parent_task_run = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
         dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
+        task_inputs=task_inputs,
     )
 
     # Resolve any task futures in the input
