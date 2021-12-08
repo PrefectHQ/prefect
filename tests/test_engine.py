@@ -611,13 +611,20 @@ class TestFlowRunCrashes:
                         client=orion_client,
                     )
                 )
-                await anyio.sleep(0.2)  # Give the flow time to start
+                await anyio.sleep(0.5)  # Give the flow time to start
+                # If the `CancelledError` is raised in the test,
                 tg.cancel_scope.cancel()
         except BaseException:
             # In python 3.8+ cancellation raises a `BaseException` that will not
             # be captured by `orchestrate_flow_run` and needs to be trapped here to
             # prevent the test from failing before we can assert things are 'Crashed'
             pass
+        except anyio.get_cancelled_exc_class() as exc:
+            raise RuntimeError(
+                "The cancellation error was not caught. This indicates a regression "
+                "or that the flow run has not begun and we did not reach the "
+                "cancellation capturing code — increasing the sleep may resolve this."
+            ) from exc
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
