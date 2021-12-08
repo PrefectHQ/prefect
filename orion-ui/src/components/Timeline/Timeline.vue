@@ -71,7 +71,7 @@ import { ref } from 'vue'
 import { StyleValue } from '@vue/runtime-dom'
 
 interface Item extends TaskRun {
-  style: {
+  style?: {
     left: string
     top: string
     width: string
