@@ -612,7 +612,6 @@ class TestFlowRunCrashes:
                     )
                 )
                 await anyio.sleep(0.5)  # Give the flow time to start
-                # If the `CancelledError` is raised in the test,
                 tg.cancel_scope.cancel()
         except BaseException:
             # In python 3.8+ cancellation raises a `BaseException` that will not
