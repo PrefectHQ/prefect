@@ -45,10 +45,10 @@ class FlowRunnerSettings(PrefectBaseModel):
 
     # The following is required for composite compatibility in the ORM
 
-    def __init__(self, type: str, config: dict) -> None:
+    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
         # Pydantic does not support positional arguments so they must be converted to
         # keyword arguments
-        super().__init__(type=type, config=config)
+        super().__init__(type=type, config=config, **kwargs)
 
     def __composite_values__(self):
         return self.type, self.config
