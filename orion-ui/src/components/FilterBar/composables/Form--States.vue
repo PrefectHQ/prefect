@@ -1,6 +1,9 @@
 <template>
-  <div>
-    <div class="font-weight-semibold">Run States</div>
+  <div class="container">
+    <div class="font-weight-semibold d-flex align-center">
+      <i class="pi text--grey-40 mr-1 pi-sm" :class="icon" />
+      {{ title }}
+    </div>
 
     <a
       class="font--secondary text--primary text-decoration-none my-1 d-block"
@@ -22,11 +25,19 @@
 </template>
 
 <script lang="ts" setup>
-import { defineEmits, ref, defineProps, watch } from 'vue'
+import { ref, watch, withDefaults } from 'vue'
 
 const emit = defineEmits(['close', 'update:modelValue'])
 
-const props = defineProps<{ modelValue: { name: string; type: string }[] }>()
+const props = withDefaults(
+  defineProps<{
+    modelValue?: { name: string; type: string }[]
+    title?: string
+    icon?: string
+  }>(),
+  { modelValue: () => [], title: 'States', icon: 'pi-history-fill' }
+)
+
 const states = ref([...props.modelValue])
 
 const availableStates = [
@@ -49,10 +60,12 @@ const toggleState = (state: { name: string; type: string }) => {
 }
 
 const toggleAll = () => {
+  // There might be a better way to do this while maintaining reactivity
   if (states.value.length == availableStates.length) {
-    states.value = []
+    states.value.length = 0
   } else {
-    states.value = [...availableStates]
+    states.value.length = 0
+    availableStates.forEach((s) => toggleState(s))
   }
 }
 
@@ -62,6 +75,10 @@ watch(states.value, () => {
 </script>
 
 <style lang="scss" scoped>
+.container {
+  width: 100%;
+}
+
 .checkbox {
   align-items: center;
   display: flex;

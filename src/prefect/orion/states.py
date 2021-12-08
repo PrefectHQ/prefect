@@ -3,18 +3,34 @@ Contains methods for working with `State` objects defined by the Orion schema at
 `prefect.orion.schemas.states`
 """
 from collections import Counter
-from collections.abc import Iterable as IterableABC
 from typing import Any, Dict, Iterable
+from typing_extensions import TypeGuard
 
 from prefect.orion.schemas.states import State, StateType
 
 
-def is_state(obj: Any) -> bool:
+def is_state(obj: Any) -> TypeGuard[State]:
+    """
+    Check if the given object is a state type
+    """
     return isinstance(obj, State)
 
 
-def is_state_iterable(obj: Any):
-    if isinstance(obj, IterableABC) and obj:
+def is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]:
+    """
+    Check if a the given object is an iterable of states types
+
+    Supported iterables are:
+    - set
+    - list
+    - tuple
+
+    Other iterables will return `False` even if they contain states.
+    """
+    # We do not check for arbitary iterables because this is not intended to be used
+    # for things like dictionaries, dataframes, or pydantic models
+
+    if isinstance(obj, (list, set, tuple)) and obj:
         return all([is_state(o) for o in obj])
     else:
         return False

@@ -2,26 +2,26 @@
 
 Prefect allows you to configure many aspects of how your flows and tasks run - here we review execution configuration _within a single flow run_.  For topics such as scheduling and flow deployment configuration see the tutorial on [Deployments](/tutorials/deployments/).
 
-## Executors
+## TaskRunners
 
-Oftentimes we want our tasks to run in parallel or even on different machines for efficiency.  Prefect exposes this functionality via the concept of an _executor_.
+Oftentimes we want our tasks to run in parallel or even on different machines for efficiency.  Prefect exposes this functionality via the concept of an _task runner_.
 
 !!! note "Running flows in parallel requires no configuration"
-    Note that executors only manage _task runs_ within a single flow run - the ability to run multiple flow runs in parallel is default behavior in Prefect.  
+    Note that task runners only manage _task runs_ within a single flow run - the ability to run multiple flow runs in parallel is default behavior in Prefect.  
 
-Every time you call a task function, it is submitted to the flow's executor for execution.  By default, Prefect uses a [`SequentialExecutor`][prefect.executors.SequentialExecutor] that blocks and runs tasks in sequence as they are called.  For many situations, this is perfectly acceptable.
+Every time you call a task function, it is submitted to the flow's task runner for execution.  By default, Prefect uses a [`SequentialTaskRunner`][prefect.task_runners.SequentialTaskRunner] that blocks and runs tasks in sequence as they are called.  For many situations, this is perfectly acceptable.
 
 If, however, we want our tasks to run in parallel (or asynchronously) then we need to consider alternative approaches. 
 
 ## Parallel Execution
 
-Achieving parallelism within a flow run is as simple as switching your executor to Prefect's `DaskExecutor`; however please note that because the `DaskExecutor` uses multiprocessing, it can only be used when running interactively or when protected by an `if __name__ == "__main__":` guard when used in a script.
+Achieving parallelism within a flow run is as simple as switching your task runner to Prefect's `DaskTaskRunner`; however please note that because the `DaskTaskRunner` uses multiprocessing, it can only be used when running interactively or when protected by an `if __name__ == "__main__":` guard when used in a script.
 
 ```python
 import time
 
 from prefect import task, flow
-from prefect.executors import DaskExecutor
+from prefect.task_runners import DaskTaskRunner
 
 @task
 def print_values(values):
@@ -29,7 +29,7 @@ def print_values(values):
         time.sleep(0.5)
         print(value, end="\r")
 
-@flow(executor=DaskExecutor())
+@flow(task_runner=DaskTaskRunner())
 def parallel_flow():
     print_values(["AAAA"] * 15)
     print_values(["BBBB"] * 10)
@@ -41,11 +41,11 @@ if __name__ == "__main__":
 When you run this flow you should see the terminal output randomly switching between `AAAA` and `BBBB` showing that these two tasks are indeed running in parallel.
 
 !!! warning "The dask scheduler can be hard to predict"
-    When using the `DaskExecutor`, Prefect is submitting each task run to a dask cluster object.  [The dask scheduler then determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
+    When using the `DaskTaskRunner`, Prefect is submitting each task run to a dask cluster object.  [The dask scheduler then determines when and how each individual run should be executed](https://distributed.dask.org/en/latest/scheduling-policies.html) (with the constraint that the order matches the execution graph that Prefect provided).  
 
     This means that the only way to _force_ dask to walk the task graph in a particular order is to configure Prefect dependencies between your tasks.
 
-Read more about customizing Dask in our [Dask executor tutorial](/tutorials/dask-executor/).
+Read more about customizing Dask in our [Dask task runner tutorial](/tutorials/dask-task-runner/).
 
 ## Asynchronous Execution
 
@@ -82,7 +82,7 @@ When we run this flow, we find that the coroutines that were gathered yield cont
 ```
 </div>
 
-Asynchronous task execution is currently supported with all executors.
+Asynchronous task execution is currently supported with all task runners.
 
 !!! warning "Asynchronous tasks within synchronous flows"
     Asynchronous tasks cannot be run within synchronous flows.  Combining asynchronous tasks with synchronous flows results in:
@@ -94,4 +94,4 @@ Asynchronous task execution is currently supported with all executors.
 !!! tip "Additional Reading"
     To learn more about the concepts presented here, check out the following resources:
 
-    - [Executors](/concepts/executors/)
+    - [Task runners](/concepts/task_runners/)

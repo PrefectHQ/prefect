@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, computed } from 'vue'
+import { computed } from 'vue'
 import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'

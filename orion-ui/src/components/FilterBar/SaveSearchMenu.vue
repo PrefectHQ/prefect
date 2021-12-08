@@ -60,7 +60,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, defineEmits, ref, getCurrentInstance } from 'vue'
+import { computed, ref, getCurrentInstance } from 'vue'
 import { useStore } from 'vuex'
 import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
