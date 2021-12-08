@@ -1,6 +1,6 @@
 const { setup: setupDevServer } = require('jest-dev-server')
 const { setup: setupPuppeteer } = require('jest-environment-puppeteer')
-const { port, ui } = require('../../src/utilities/testing')
+const { port, uri } = require('../../src/utilities/testing')
 const puppeteer = require('puppeteer')
 const cyan = '\x1b[36m%s\x1b[0m'
 
@@ -11,7 +11,7 @@ const warmUpVite = async function () {
   const browser = await puppeteer.launch()
   const page = await browser.newPage()
 
-  await page.goto(ui)
+  await page.goto(uri)
   await page.waitForSelector('.application')
 
   await browser.close()
