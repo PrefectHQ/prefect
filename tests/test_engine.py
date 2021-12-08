@@ -1,6 +1,7 @@
 import sys
 from functools import partial
 from unittest.mock import MagicMock
+from contextlib import contextmanager
 
 import anyio
 import pendulum
@@ -483,12 +484,29 @@ class TestOrchestrateFlowRun:
 
 
 class TestFlowRunCrashes:
+    @contextmanager
+    @staticmethod
+    def capture_cancellation():
+        try:
+            yield
+        except BaseException:
+            # In python 3.8+ cancellation raises a `BaseException` that will not
+            # be captured by `orchestrate_flow_run` and needs to be trapped here to
+            # prevent the test from failing before we can assert things are 'Crashed'
+            pass
+        except anyio.get_cancelled_exc_class() as exc:
+            raise RuntimeError(
+                "The cancellation error was not caught. This indicates a regression "
+                "or that the flow run has not begun and we did not reach the "
+                "cancellation capturing code — increasing the sleep may resolve this."
+            ) from exc
+
     async def test_anyio_cancellation_crashes_flow(self, flow_run, orion_client):
         @flow
         async def my_flow():
             await anyio.sleep_forever()
 
-        try:
+        with self.capture_cancellation():
             async with anyio.create_task_group() as tg:
                 tg.start_soon(
                     partial(
@@ -498,13 +516,8 @@ class TestFlowRunCrashes:
                         client=orion_client,
                     )
                 )
-                await anyio.sleep(0.2)  # Give the flow time to start
+                await anyio.sleep(0.5)  # Give the flow time to start
                 tg.cancel_scope.cancel()
-        except BaseException:
-            # In python 3.8+ cancellation raises a `BaseException` that will not
-            # be captured by `orchestrate_flow_run` and needs to be trapped here to
-            # prevent the test from failing before we can assert things are 'Crashed'
-            pass
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
@@ -523,7 +536,7 @@ class TestFlowRunCrashes:
         async def parent_flow():
             await child_flow()
 
-        try:
+        with self.capture_cancellation():
             async with anyio.create_task_group() as tg:
                 tg.start_soon(
                     partial(
@@ -535,11 +548,6 @@ class TestFlowRunCrashes:
                 )
                 await anyio.sleep(0.5)  # Give the subflow time to start
                 tg.cancel_scope.cancel()
-        except BaseException:
-            # In python 3.8+ cancellation raises a `BaseException` that will not
-            # be captured by `orchestrate_flow_run` and needs to be trapped here to
-            # prevent the test from failing before we can assert things are 'Crashed'
-            pass
 
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
         assert parent_flow_run.state.is_failed()
@@ -601,7 +609,7 @@ class TestFlowRunCrashes:
         async def my_flow():
             await anyio.sleep_forever()
 
-        try:
+        with self.capture_cancellation():
             async with anyio.create_task_group() as tg:
                 tg.start_soon(
                     partial(
@@ -613,17 +621,6 @@ class TestFlowRunCrashes:
                 )
                 await anyio.sleep(0.5)  # Give the flow time to start
                 tg.cancel_scope.cancel()
-        except BaseException:
-            # In python 3.8+ cancellation raises a `BaseException` that will not
-            # be captured by `orchestrate_flow_run` and needs to be trapped here to
-            # prevent the test from failing before we can assert things are 'Crashed'
-            pass
-        except anyio.get_cancelled_exc_class() as exc:
-            raise RuntimeError(
-                "The cancellation error was not caught. This indicates a regression "
-                "or that the flow run has not begun and we did not reach the "
-                "cancellation capturing code — increasing the sleep may resolve this."
-            ) from exc
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
 
