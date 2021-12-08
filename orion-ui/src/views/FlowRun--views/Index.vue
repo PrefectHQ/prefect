@@ -214,7 +214,7 @@ import Timeline from '@/components/Timeline/Timeline.vue'
 
 const route = useRoute()
 
-const resultsTab: Ref<string | null> = ref('task_runs')
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
 
 const id = computed(() => {
   return route?.params.id as string
@@ -340,7 +340,7 @@ const queries: { [key: string]: Query } = {
   })
 }
 
-const countMap: { [key: string]: string } = {
+const countMap = {
   task_runs: 'task_runs_count',
   sub_flow_runs: 'sub_flow_runs_count'
 }
