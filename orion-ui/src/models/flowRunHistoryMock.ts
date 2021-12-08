@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import FlowRunHistory, { IFlowRunHistory } from './flowRunHistory'
-import FlowRunStateMock from './flowRunStateMock'
+import FlowRunStateHistoryMock from './flowRunStateHistoryMock'
 import faker from 'faker'
 import { fakerRandomArray } from '@/utilities/faker'
 import { State, StateNames, States } from '@/types/states'
@@ -22,7 +22,7 @@ export default class FlowRunHistoryMock extends FlowRunHistory {
           const state_type = possibleStates.splice(index, 1)[0]
           const state_name = StateNames.get(state_type)!
 
-          return new FlowRunStateMock({
+          return new FlowRunStateHistoryMock({
             state_type,
             state_name,
             count_runs: faker.datatype.number(20),
