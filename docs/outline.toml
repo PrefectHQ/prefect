@@ -442,10 +442,7 @@ classes = [
 [pages.tasks.firebolt]
 title = "Firebolt Tasks"
 module = "prefect.tasks.firebolt"
-classes = [
-         "FireboltQuery",
-         "FireboltQueryGetData"
-         ]
+classes = ["FireboltQuery"]
 
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
