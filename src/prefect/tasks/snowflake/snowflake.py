@@ -129,10 +129,11 @@ class SnowflakeQuery(Task):
                 takes snowflake AUTOCOMMIT parameter
             - cursor_type (SnowflakeCursor, optional): specify the type of database
                 cursor to use for the query, defaults to SnowflakeCursor
-            - authenticator (str, optional): type of authenticator to use for initiating
-                connection (oauth, externalbrowser...), refer to snowflake documentation
-                https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
-                for details, default to None
+        - authenticator (str, optional): type of authenticator to use for initiating
+            connection (oauth, externalbrowser...), refer to snowflake documentation
+            https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
+            for details, note that `externalbrowser` will only work in an environment 
+            where a browser is available, default to None
             - token (str, optional): OAuth or JWT Token to provide when authenticator
                 is set to oauth, default to None
 
