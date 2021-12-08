@@ -15,7 +15,7 @@ from prefect.engine import (
     raise_failed_state,
     user_return_value_to_state,
 )
-from prefect.executors import SequentialExecutor
+from prefect.task_runners import SequentialTaskRunner
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
@@ -87,7 +87,7 @@ class TestUserReturnValueToState:
         state = Completed(data=DataDocument.encode("json", "hello"))
         future = PrefectFuture(
             task_run=task_run,
-            executor=None,
+            task_runner=None,
             _final_state=state,
         )
         result_state = await user_return_value_to_state(future)
@@ -337,7 +337,7 @@ class TestOrchestrateTaskRun:
         # incomplete state
         future = PrefectFuture(
             task_run=upstream_task_run,
-            executor=None,
+            task_runner=None,
             _final_state=upstream_task_state,
         )
 
@@ -442,7 +442,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=SequentialExecutor(),
+            task_runner=SequentialTaskRunner(),
             sync_portal=None,
             client=orion_client,
         )
@@ -473,7 +473,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
-            executor=SequentialExecutor(),
+            task_runner=SequentialTaskRunner(),
             sync_portal=None,
             client=orion_client,
         )

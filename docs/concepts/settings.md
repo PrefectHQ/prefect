@@ -10,7 +10,7 @@ All settings can be modified via environment variables using the following synta
 [PREFIX]_[SETTING]=value
 ```
 
-- The `PREFIX` is a string that describes the fully-qualified name of the setting. All prefixes begin with `PREFECT_` and add additional words only to describe nested settings. For example, the prefix for `prefect.settings.home` is just `PREFECT_`, because it is a top-level key in the `settings` object. The prefix for `settings.orion.api.port` is `PREFECT_ORION_API_`, indicating its nested position.
+- The `PREFIX` is a string that describes the fully-qualified name of the setting. All prefixes begin with `PREFECT_` and add additional words only to describe nested settings. For example, the prefix for `prefect.settings.home` is just `PREFECT_`, because it is a top-level key in the `settings` object. The prefix for `prefect.settings.orion.api.port` is `PREFECT_ORION_API_`, indicating its nested position.
 - The `SETTING` corresponds directly to the name of the prefect setting's key. Note that while keys are lowercase, we provide environment variables as uppercase by convention. 
 
 ### Examples
