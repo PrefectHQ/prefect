@@ -15,6 +15,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from contextlib import contextmanager
 from functools import wraps
 from logging import Logger
+from queue import Empty
 
 import prefect
 from prefect import config
@@ -402,12 +403,12 @@ def run_with_multiprocess_timeout(
     # Handle the process result, if the queue is empty the function did not finish
     # before the timeout
     logger.debug(f"{name}: Execution process closed, collecting result...")
-    if not queue.empty():
-        result = cloudpickle.loads(queue.get())
+    try:
+        result = cloudpickle.loads(queue.get(block=True, timeout=1))
         if isinstance(result, Exception):
             raise result
         return result
-    else:
+    except Empty:
         raise TaskTimeoutSignal(f"Execution timed out for {name}.")
 
 
