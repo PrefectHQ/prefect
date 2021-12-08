@@ -15,34 +15,31 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
-import pendulum
+import logging
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Set, TypeVar, Union, Iterable, Optional
+from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
 
-import pendulum
-import logging
 import anyio
+import pendulum
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from prefect.exceptions import UpstreamTaskError
 
 import prefect
-from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
-from prefect.executors import BaseExecutor
-from prefect.exceptions import Abort
+from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import (
     PrefectFuture,
+    call_repr,
     resolve_futures_to_data,
     resolve_futures_to_states,
-    call_repr,
 )
 from prefect.orion.schemas import core
+from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -53,20 +50,20 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.orion.schemas.core import TaskRun, FlowRun
 from prefect.orion.states import StateSet, is_state, is_state_iterable
+from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
+    in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
-    in_async_main_thread,
 )
 from prefect.utilities.callables import (
     assert_parameters_are_serializable,
     parameters_to_args_kwargs,
 )
-from prefect.utilities.collections import ensure_iterable
+from prefect.utilities.collections import ensure_iterable, visit_collection
 from prefect.utilities.logging import get_logger
 
 
@@ -191,9 +188,9 @@ async def begin_flow_run(
     """
     Begins execution of a flow run; blocks until completion of the flow run
 
-    - Starts an executor
+    - Starts a task runner
     - Orchestrates the flow run (runs the user-function and generates tasks)
-    - Waits for tasks to complete / shutsdown the executor
+    - Waits for tasks to complete / shutsdown the task runner
     - Sets a terminal state for the flow run
 
     Returns:
@@ -205,17 +202,17 @@ async def begin_flow_run(
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-        async with flow.executor.start() as executor:
+        async with flow.task_runner.start() as task_runner:
             with portal_context as sync_portal:
                 terminal_state = await orchestrate_flow_run(
                     flow,
                     flow_run=flow_run,
-                    executor=executor,
+                    task_runner=task_runner,
                     client=client,
                     sync_portal=sync_portal,
                 )
 
-        # Update the flow to the terminal state _after_ the executor has shut down
+        # Update the flow to the terminal state _after_ the task runner has shut down
         await client.propose_state(
             state=terminal_state,
             flow_run_id=flow_run.id,
@@ -255,11 +252,14 @@ async def create_and_begin_subflow_run(
         f"Creating subflow run for flow {flow.name!r} within {parent_flow_run_context.flow.name!r}..."
     )
 
+    task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
+
     # Generate a task in the parent flow run to represent the result of the subflow run
     parent_task_run = await client.create_task_run(
         task=Task(name=flow.name, fn=lambda _: ...),
         flow_run_id=parent_flow_run_context.flow_run_id,
         dynamic_key=uuid4().hex,  # TODO: We can use a more friendly key here if needed
+        task_inputs=task_inputs,
     )
 
     # Resolve any task futures in the input
@@ -279,11 +279,11 @@ async def create_and_begin_subflow_run(
     logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
 
     async with detect_crashes(flow_run=flow_run):
-        async with flow.executor.start() as executor:
+        async with flow.task_runner.start() as task_runner:
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
-                executor=executor,
+                task_runner=task_runner,
                 client=client,
                 sync_portal=parent_flow_run_context.sync_portal,
             )
@@ -312,7 +312,7 @@ async def create_and_begin_subflow_run(
 async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
-    executor: BaseExecutor,
+    task_runner: BaseTaskRunner,
     client: OrionClient,
     sync_portal: BlockingPortal,
 ) -> State:
@@ -323,7 +323,7 @@ async def orchestrate_flow_run(
         Since async flows are run directly in the main event loop, timeout behavior will
         match that described by anyio. If the flow is awaiting something, it will
         immediately return; otherwise, the next time it awaits it will exit. Sync flows
-        are being executor in a worker thread, which cannot be interrupted. The worker
+        are being task runner in a worker thread, which cannot be interrupted. The worker
         thread will exit at the next task call. The worker thread also has access to the
         status of the cancellation scope at `FlowRunContext.timeout_scope.cancel_called`
         which allows it to raise a `TimeoutError` to respect the timeout.
@@ -355,7 +355,7 @@ async def orchestrate_flow_run(
                 flow_run_id=flow_run.id,
                 flow=flow,
                 client=client,
-                executor=executor,
+                task_runner=task_runner,
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
             ) as flow_run_context:
@@ -490,8 +490,8 @@ async def create_and_submit_task_run(
     Async entrypoint for task calls.
 
     Tasks must be called within a flow. When tasks are called, they create a task run
-    and submit orchestration of the run to the flow run's executor. The executor returns
-    a future that is returned immediately.
+    and submit orchestration of the run to the flow run's task runner. The task runner
+    returns a future that is returned immediately.
     """
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
     if wait_for:
@@ -506,9 +506,9 @@ async def create_and_submit_task_run(
         task_inputs=task_inputs,
     )
 
-    logger.info(f"Submitting task run {task_run.name!r} to executor...")
+    logger.info(f"Submitting task run {task_run.name!r} to task runner...")
 
-    future = await flow_run_context.executor.submit(
+    future = await flow_run_context.task_runner.submit(
         task_run,
         run_fn=orchestrate_task_run,
         run_kwargs=dict(
@@ -537,8 +537,8 @@ async def orchestrate_task_run(
     """
     Execute a task run
 
-    This function should be submitted to an executor. We must construct the context here
-    instead of receiving it already populated since we may be in a new environment.
+    This function should be submitted to an task runner. We must construct the context
+    here instead of receiving it already populated since we may be in a new environment.
 
     Proposes a RUNNING state, then
     - if accepted, the task user function will be run
