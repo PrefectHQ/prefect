@@ -1,4 +1,4 @@
-import { ui } from '@/utilities/testing'
+import { uri } from '@/utilities/testing'
 
 describe('Dashboard run history', () => {
   it('should show the correct number of bars', async () => {
