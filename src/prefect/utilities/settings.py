@@ -2,7 +2,7 @@
 Prefect settings. Settings objects are Pydantic `BaseSettings` models for typed
 configuration via environment variables. For organization, they are grouped into
 multiple settings classes that are nested and can all be accessed from the main
-settings object, `Settings()`. 
+settings object, `Settings()`.
 """
 # Note that when implementing nested settings, a `default_factory` should be
 # used to avoid instantiating the nested settings class until runtime.
