@@ -315,7 +315,9 @@ def multiprocessing_safe_run_and_retrieve(
         )
 
     try:
+        logger.debug(f"{name}: Pickling value of size {sys.getsizeof(return_val)}...")
         pickled_val = cloudpickle.dumps(return_val)
+        logger.debug(f"{name}: Pickling successful!")
     except Exception as exc:
         err_msg = (
             f"Failed to pickle result of type {type(return_val).__name__!r} with "
