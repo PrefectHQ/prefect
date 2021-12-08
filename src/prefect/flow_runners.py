@@ -82,14 +82,6 @@ class SubprocessFlowRunner(FlowRunner):
     """
 
     typename: Literal["subprocess"] = "subprocess"
-    condaenv: str = Field(
-        None,
-        description="An optional name of an anaconda environment to run the flow in. ",
-    )
-    virtualenv: str = Field(
-        None,
-        description="An optional path to a virtualenv environment to run the flow in.",
-    )
 
     async def submit_flow_run(
         self,
