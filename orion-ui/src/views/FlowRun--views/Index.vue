@@ -156,7 +156,7 @@
 
     <Tab href="sub_flow_runs" class="subheader">
       <i class="pi pi-flow-run mr-1 text--grey-40" />
-      Sub Flow Runs
+      Subflow Runs
       <span
         class="result-badge caption ml-1"
         :class="{ active: resultsTab == 'sub_flow_runs' }"
