@@ -131,6 +131,7 @@ jobs:
         # the release tag is parsed from the ref
         run: |
           git checkout -b "orion-release-${GITHUB_REF#refs/*/}"
+          git fetch prefect-orion
           git merge prefect-orion/orion -m "Merge w/ latest upstream changes"
 
       - name: Push and open PR
