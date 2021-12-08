@@ -75,23 +75,17 @@
         />
       </div>
 
-      <div
+      <MiniRadar
         class="radar__minimap position-relative"
-        @mousemove="dragViewport"
-        @mouseleave="dragging = false"
-      >
-        <svg class="radar__minimap-canvas" @click="panToLocation">
-          <g class="radar__minimap-ring-container" />
-        </svg>
-
-        <div
-          ref="viewport"
-          class="radar__minimap-viewport position-absolute"
-          :style="miniMapViewportStyle"
-          @mousedown="dragging = true"
-          @mouseup="dragging = false"
-        />
-      </div>
+        :id="id"
+        :transform="transform_"
+        :collapsed-trees="collapsedTrees"
+        :radar="radial"
+        :height="height"
+        :width="width"
+        @drag-viewport="dragViewport"
+        @pan-to-location="panToLocation"
+      />
     </div>
   </div>
 </template>
@@ -99,8 +93,10 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted, watch, reactive } from 'vue'
 import * as d3 from 'd3'
+import { ZoomTransform } from 'd3-zoom'
 import { Radar } from './Radar'
 import { pow, sqrt, pi, cos, sin } from './math'
+import MiniRadar from './MiniRadar.vue'
 
 import {
   Item,
@@ -109,8 +105,7 @@ import {
   RadarNode,
   Rings,
   Ring,
-  Links,
-  Position
+  Links
 } from '@/typings/radar'
 
 const props = defineProps<{ items: Item[]; id: string }>()
@@ -122,12 +117,9 @@ const items = ref<Item[]>(props.items)
 type Selection = d3.Selection<SVGGElement, unknown, HTMLElement, any>
 
 const container = ref<HTMLElement>()
-const viewport = ref<HTMLElement>()
-const miniCanvas = ref<Selection>()
 const canvas = ref<Selection>()
 const edgeContainer = ref<Selection>()
 const ringContainer = ref<Selection>()
-const miniRingContainer = ref<Selection>()
 const nodeContainer = ref<Selection>()
 
 /**
@@ -174,48 +166,6 @@ const visibleLinks = computed<Links>(() => {
     })
 })
 
-const viewportOffset = computed<number>(() => {
-  const radii = [...visibleRings.value.entries()].map(([, ring]) => ring.radius)
-  return Math.max(...radii, baseRadius * 2)
-})
-
-const viewportExtent = computed<[[number, number], [number, number]]>(() => {
-  /**
-   * So we don't forget this later:
-   * The translation extent is the min coordinates of the translation axis;
-   * In the negative direction, this means the negative radius of the outtermost circle (- 1 radius unit for padding)
-   * In the positive direction, it's the radius of the outermost circle PLUS the circle offset, which is 1/2 the height in the Y direction and 1/2 the width in the X direction
-   */
-  const maxX = width.value + viewportOffset.value
-  const maxY = height.value + viewportOffset.value
-  return [
-    [-viewportOffset.value, -viewportOffset.value],
-    [maxX, maxY]
-  ]
-})
-
-const scale = computed<number>(() => {
-  const scale_ = 200 / (viewportOffset.value * 2.5)
-  return scale_
-})
-
-const miniMapViewportStyle = computed<{
-  width: string
-  height: string
-}>(() => {
-  return {
-    height: miniMapDimensions.value.height + 'px',
-    width: miniMapDimensions.value.width + 'px'
-  }
-})
-
-const miniMapDimensions = computed<{ width: number; height: number }>(() => {
-  return {
-    height: height.value * scale.value,
-    width: width.value * scale.value
-  }
-})
-
 /**
  * Methods
  */
@@ -228,24 +178,7 @@ const zoomed = ({
   ringContainer.value?.style('transform', ts)
   edgeContainer.value?.style('transform', ts)
   nodeContainer.value?.style('transform', ts)
-
-  k = transform.k
-
-  if (viewport.value) {
-    const x =
-      (1 - transform.x / transform.k) * scale.value +
-      100 -
-      miniMapDimensions.value.width / 2
-    const y =
-      (1 - transform.y / transform.k) * scale.value +
-      100 -
-      miniMapDimensions.value.height / 2
-
-    viewport.value.style.transform = `translate(${x}px, ${y}px) scale(${
-      1 / transform.k
-    })`
-    viewport.value.style.borderRadius = `${Math.max(4 * transform.k, 4)}px`
-  }
+  transform_.value = transform
 }
 
 const expandRing = (node: RadarNode) => {
@@ -286,76 +219,6 @@ const updateRings = (): void => {
     return `M ${x0} ${y0} A${d.radius} ${d.radius} 0 1 0 ${x1} ${y1}`
   }
 
-  type Arc = {
-    start: number
-    end: number
-    radius: number
-    state: string | null
-  }
-
-  const calculateArcSegment = (arc: Arc, scale: number = 1): string => {
-    const r = arc.radius
-    const cx = 100
-    const cy = 100
-
-    const path = d3.path()
-
-    path.arc(cx, cy, r, arc.start, arc.end, false)
-    return path.toString()
-  }
-
-  const generateArcs = ([, d]: [number, Ring]): Arc[] => {
-    const arcs: Arc[] = []
-
-    const r = d.radius
-    const channel = 125
-
-    const channelAngle = (channel * 360) / (2 * pi * r || 10)
-
-    // Convert start/end angles to radians
-    const startTheta = ((90 - channelAngle) * pi) / 180
-    const endTheta = ((90 + channelAngle) * pi) / 180
-
-    let theta = d.positions.get(d.positions.size - 1)?.radian || 0
-
-    for (const [key, position] of d.positions) {
-      const positionalArr = [...position.nodes.values()]
-      const state = positionalArr?.[0]?.data?.state?.type?.toLowerCase()
-
-      if (r == 0) {
-        // This is only for the innermost ring for radars with a single root node
-        arcs.push({
-          start: (115 * pi) / 180,
-          end: (65 * pi) / 180,
-          radius: baseRadius / 4,
-          state: state || null
-        })
-      } else if (position.radian > startTheta && theta < endTheta) {
-        arcs.push({
-          start: theta,
-          end: startTheta,
-          radius: r,
-          state: null
-        })
-        arcs.push({
-          start: endTheta,
-          end: position.radian,
-          radius: r,
-          state: state || null
-        })
-      } else {
-        arcs.push({
-          start: theta,
-          end: position.radian,
-          radius: r,
-          state: state || null
-        })
-      }
-      theta = position.radian
-    }
-    return arcs
-  }
-
   ringContainer.value
     ?.selectAll('.radar__ring')
     .data(visibleRings.value)
@@ -382,44 +245,6 @@ const updateRings = (): void => {
           .attr('d', (d: [number, Ring]) => calculateArc(d, 1))
         return selection
       },
-      // exit
-      (selection: any) => selection.remove()
-    )
-
-  const classGenerator = (d: Arc): string => {
-    const strokeClass = d.state ? `${d.state}-stroke` : ''
-    return `radar__arc-segment ${strokeClass}`
-  }
-
-  miniRingContainer.value
-    ?.style('transform', `scale(${scale.value})`)
-    .selectAll('.radar__arc-segment-group')
-    .data(visibleRings.value)
-    .join(
-      // enter
-      (selection: any) =>
-        selection.append('g').attr('class', 'radar__arc-segment-group'),
-      // update
-      (selection: any) => selection,
-      // exit
-      (selection: any) => selection.remove()
-    )
-    .selectAll('.radar__arc-segment')
-    .data((d: [number, Ring]) => generateArcs(d))
-    .join(
-      // enter
-      (selection: any) =>
-        selection
-          .append('path')
-          .attr('class', classGenerator)
-          .attr('fill', 'transparent')
-          .attr('stroke', 'rgba(0, 0, 0, 0.1)')
-          .attr('stroke-width', 80)
-          .attr('d', (d: Arc) => calculateArcSegment(d, scale.value)),
-      (selection: any) =>
-        selection
-          .attr('class', classGenerator)
-          .attr('d', (d: Arc) => calculateArcSegment(d, scale.value)),
       // exit
       (selection: any) => selection.remove()
     )
@@ -690,13 +515,7 @@ const panToNode = (item: RadarNode): void => {
   })
 }
 
-const panToLocation = (e: MouseEvent): void => {
-  const rect = (e.target as Element)?.getBoundingClientRect()
-
-  const x_ = (e.clientX - rect.left - 100) / scale.value
-  const y_ = (e.clientY - rect.top - 100) / scale.value
-  const zoomIdentity = d3.zoomIdentity.scale(k).translate(-x_, -y_)
-
+const panToLocation = (zoomIdentity: ZoomTransform): void => {
   requestAnimationFrame(() => {
     d3.select('.radar__canvas')
       .transition()
@@ -705,12 +524,7 @@ const panToLocation = (e: MouseEvent): void => {
   })
 }
 
-const dragViewport = (e: MouseEvent): void => {
-  if (!dragging.value) return
-  // We multiply the mouse movement by a multiplier equal to the inverse
-  // of the scale applied to the minimap
-  const x = e.movementX * -(1 / scale.value)
-  const y = e.movementY * -(1 / scale.value)
+const dragViewport = ({ x, y }: { x: number; y: number }): void => {
   zoom.value.translateBy(d3.select('.radar__canvas'), x, y)
 }
 
@@ -760,8 +574,11 @@ const width = ref<number>(0)
 const baseRadius: number = 300
 const highlightedNode = ref<string>()
 const selectedNodes = reactive<string[]>([])
-const dragging = ref<boolean>(false)
-let k: number = 1 // scale applied to primary view
+const transform_ = ref<{ x: number; y: number; k: number }>({
+  x: 0,
+  y: 0,
+  k: 1
+})
 
 const collapsedTrees = ref<Map<string, Map<string, RadarNode>>>(new Map())
 const radial = ref<Radar>(new Radar())
@@ -815,16 +632,9 @@ const handleWindowResize = (): void => {
 
 const createChart = (): void => {
   canvas.value = d3.select('.radar__canvas')
-  miniCanvas.value = d3.select('.radar__minimap-canvas')
   ringContainer.value = canvas.value.select('.radar__ring-container')
-  miniRingContainer.value = miniCanvas.value.select(
-    '.radar__minimap-ring-container'
-  )
   edgeContainer.value = canvas.value.select('.radar__edge-container')
   nodeContainer.value = d3.select('.radar__node-container')
-
-  miniRingContainer.value.style('transform', `scale(${scale.value})`)
-
   zoom.value = d3
     .zoom()
     .extent([
@@ -836,13 +646,12 @@ const createChart = (): void => {
     // .filter((e: Event) => e?.type !== 'wheel' && e?.type !== 'dblclick') // Disables user mouse wheel and double click zoom in/out
     .on('zoom', zoomed)
 
-  miniCanvas.value?.attr('viewbox', '0, 0, 200, 200')
-
   canvas.value
     ?.attr('viewbox', `0, 0, ${width.value}, ${height.value}`)
     .call(zoom.value)
 
   updateAll()
+  resetViewport()
 }
 
 // This is used to prevent scrolling of the container when
@@ -865,8 +674,6 @@ onMounted(() => {
     .center([width.value / 2, height.value / 2])
     .items(items.value)
 
-  // console.log(radial.value)
-
   createChart()
 })
 
@@ -885,8 +692,7 @@ onUnmounted(() => {
   position: fixed;
   width: 100%;
 
-  &__canvas,
-  &__minimap-canvas {
+  &__canvas {
     cursor: grab;
     height: inherit;
     left: 0;
@@ -899,38 +705,10 @@ onUnmounted(() => {
     }
   }
 
-  &__minimap-canvas {
-    cursor: pointer !important;
-  }
-
   &__minimap-container {
     bottom: 0;
     right: 0;
     z-index: 1;
-  }
-
-  &__minimap {
-    backdrop-filter: blur(1px);
-    background-color: rgba(244, 245, 247, 0.9);
-    border-radius: 8px;
-    filter: $drop-shadow-sm;
-    height: 200px;
-    overflow: hidden;
-    width: 200px;
-  }
-
-  &__minimap-viewport {
-    background-color: rgba(63, 150, 216, 0.2);
-    border-radius: 8px;
-    cursor: grab;
-    left: 0;
-    top: 0;
-    transform-origin: top left;
-    z-index: 2;
-
-    &:active {
-      cursor: grabbing;
-    }
   }
 
   &__node-container {
@@ -968,13 +746,8 @@ onUnmounted(() => {
     }
   }
 
-  &__ring,
-  &__arc-segment-group {
+  &__ring {
     pointer-events: none;
-  }
-
-  &__minimap-ring-container {
-    transform-origin: center;
   }
 }
 </style>
