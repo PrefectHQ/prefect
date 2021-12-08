@@ -244,10 +244,6 @@ const deploymentId = computed<string>(() => {
   return flowRunBase.response.value.deployment_id
 })
 
-// const flowId = flowRunBase.response.value.flow_id
-// const parentTaskRunId = flowRunBase.response.value.parent_task_run_id
-// const deploymentId = flowRunBase.response.value.deployment_id
-
 const flowFilter = computed(() => {
   return {
     id: flowId.value
@@ -269,18 +265,6 @@ const parentFlowFilter = computed<FlowsFilter>(() => {
     }
   }
 })
-
-// const parentFlowFilter: FlowsFilter = {
-//   task_runs: {
-//     id: {
-//       any_: [parentTaskRunId.value]
-//     }
-//   }
-// }
-
-// const deploymentFilter = {
-//   id: deploymentId
-// }
 
 const taskRunsFilter = computed<BaseFilter>(() => {
   return {
