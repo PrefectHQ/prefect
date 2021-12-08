@@ -212,8 +212,7 @@ async def test_create_deployment_from_spec(orion_client):
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
-    assert lookup.flow_runner_type == spec.flow_runner.typename
-    assert lookup.flow_runner_config == spec.flow_runner.dict(exclude={"typename"})
+    assert lookup.flow_runner == spec.flow_runner.to_settings()
 
     # Location was encoded into a data document
     assert lookup.flow_data == DataDocument(

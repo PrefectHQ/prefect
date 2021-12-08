@@ -28,6 +28,7 @@ class TestCreateDeployment:
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+        assert response.json()["flow_runner"] == {"config": None, "type": None}
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -38,6 +39,38 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            config=None, type=None
+        )
+
+    @pytest.mark.parametrize("with_config", [True, False])
+    async def test_create_deployment_with_flow_runner(
+        self, session, client, flow, flow_function, with_config
+    ):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+            flow_runner=schemas.core.FlowRunnerSettings(
+                type="test", config={"foo": "bar"} if with_config else None
+            ),
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
+        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"} if with_config else None
+        ).dict(json_compatible=True)
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=response.json()["id"]
+        )
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"} if with_config else None
+        )
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow, flow_function
@@ -68,6 +101,7 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+        assert response.json()["flow_runner"] == {"config": None, "type": None}
         assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
@@ -76,6 +110,9 @@ class TestCreateDeployment:
             flow_id=flow.id,
             flow_data=DataDocument.encode("json", "test"),
             is_schedule_active=True,
+            flow_runner=schemas.core.FlowRunnerSettings(
+                type="test", config={"foo": "bar"}
+            ),
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 200
@@ -85,6 +122,9 @@ class TestCreateDeployment:
         assert response.json()["flow_data"] == DataDocument.encode("json", "test").dict(
             json_compatible=True
         )
+        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"}
+        ).dict(json_compatible=True)
 
     async def test_create_deployment_populates_and_returned_created(
         self, client, flow, flow_function
