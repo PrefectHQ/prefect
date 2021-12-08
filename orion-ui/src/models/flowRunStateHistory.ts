@@ -1,6 +1,6 @@
 import { State, StateName } from '@/types/states'
 
-export type IFlowRunState = {
+export type IFlowRunStateHistory = {
   state_type: State
   state_name: StateName
   count_runs: number
@@ -8,14 +8,14 @@ export type IFlowRunState = {
   sum_estimated_lateness: number
 }
 
-export default class FlowRunState implements IFlowRunState {
+export default class FlowRunStateHistory implements IFlowRunStateHistory {
   public readonly state_type: State
   public readonly state_name: StateName
   public readonly count_runs: number
   public readonly sum_estimated_run_time: number
   public readonly sum_estimated_lateness: number
 
-  constructor(state: IFlowRunState) {
+  constructor(state: IFlowRunStateHistory) {
     this.state_type = state.state_type
     this.state_name = state.state_name
     this.count_runs = state.count_runs

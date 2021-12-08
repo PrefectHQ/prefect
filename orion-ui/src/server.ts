@@ -5,7 +5,7 @@ import { belongsTo, createServer, JSONAPISerializer, Model } from 'miragejs'
 import FlowMock from './models/flowMock'
 import FlowRunHistoryMock from './models/flowRunHistoryMock'
 import FlowRunMock from './models/flowRunMock'
-import FlowRunStateMock from './models/flowRunStateMock'
+import FlowRunStateHistoryMock from './models/flowRunStateHistoryMock'
 import { HistoryFilter } from './plugins/api'
 import { StateNames } from './types/states'
 import { server } from './utilities/api'
@@ -65,13 +65,13 @@ export function startServer() {
               })
           )
 
-          const states: FlowRunStateMock[] = []
+          const states: FlowRunStateHistoryMock[] = []
 
           unique(runs.map((run) => run.state_type)).forEach((state_type) => {
             const stateRuns = runs.filter((run) => run.state_type == state_type)
 
             states.push(
-              new FlowRunStateMock({
+              new FlowRunStateHistoryMock({
                 state_name: StateNames.get(state_type),
                 state_type: state_type,
                 count_runs: stateRuns.length,
