@@ -3,10 +3,11 @@ from unittest.mock import MagicMock
 import pytest
 import firebolt.db.connection as fb_conn
 
-from prefect.tasks.firebolt.firebolt import FireboltQuery, FireboltQueryGetData
+from prefect.tasks.firebolt.firebolt import FireboltQuery
 
 
 class TestFireboltQuery:
+    # test to check if the connection object has been created
     def test_construction(self):
         task = FireboltQuery(
             database="test",
@@ -18,84 +19,34 @@ class TestFireboltQuery:
         )
         assert task.engine_url is None
 
-    # raises Value error if engine name is not provided
-    def test_engine_name_not_provided(self):
-        task = FireboltQuery(
-            database="test",
-            username="test",
-            password="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
+    # test to check if there are missing required parameters
+    def test_required_params(self):
+        # raises Value error if engine name is not provided
         with pytest.raises(ValueError, match="An engine name must be provided"):
-            task.run()
-
-    # raises Value error if database name is not provided
-    def test_database_not_provided(self):
-        task = FireboltQuery(
-            username="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
+            FireboltQuery().run(database="test", username="test", password="test", engine_url=None,
+                                api_endpoint="test", query="test")
+        # raises Value error if database name is not provided
         with pytest.raises(ValueError, match="A database name must be provided"):
-            task.run()
-
-    # raises Value error if username is not provided
-    def test_username_not_provided(self):
-        task = FireboltQuery(
-            database="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
+            FireboltQuery().run(username="test", password="test", engine_name="test", engine_url=None,
+                                api_endpoint="test", query="test")
+        # raises Value error if username is not provided
         with pytest.raises(ValueError, match="User name must be provided"):
-            task.run()
-
-    # raises Value error if password is not provided
-    def test_password_not_provided(self):
-        task = FireboltQuery(
-            database="test",
-            username="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
+            FireboltQuery().run(database="test", password="test", engine_name="test", engine_url=None,
+                                api_endpoint="test", query="test")
+        # raises Value error if password is not provided
         with pytest.raises(ValueError, match="A password must be provided"):
-            task.run()
-
-    # raises Value error if api_endpoint is not provided
-    def test_api_endpoint_not_provided(self):
-        task = FireboltQuery(
-            database="test",
-            username="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            query="test",
-        )
+            FireboltQuery().run(database="test", username="test", engine_name="test", engine_url=None,
+                                api_endpoint="test", query="test")
+        # raises Value error if api_endpoint is not provided
         with pytest.raises(ValueError, match="An api endpoint must be provided"):
-            task.run()
-
-    # raises Value error if query is not provided
-    def test_query_not_provided(self):
-        task = FireboltQuery(
-            database="test",
-            username="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-        )
+            FireboltQuery().run(database="test", username="test", password="test", engine_name="test",
+                                engine_url=None, query="test")
+        # raises Value error if query is not provided
         with pytest.raises(ValueError, match="A query string must be provided"):
-            task.run()
+            FireboltQuery().run(database="test", username="test", password="test", engine_name="test",
+                                engine_url=None, api_endpoint="test")
 
+    # test to check if the ddl/dml query was executed
     def test_execute_query(self, monkeypatch):
         """
         Tests that the FireboltQuery Task calls the execute method on the cursor.
@@ -109,7 +60,7 @@ class TestFireboltQuery:
         connection.cursor = cursor
 
         # setting fetchall return
-        cursor.return_value.__enter__.return_value.execute.return_value = ["TESTDB"]
+        cursor.return_value.__enter__.return_value.execute.return_value = -1
 
         firebolt_connection = MagicMock(connect=firebolt_conn)
 
@@ -129,99 +80,9 @@ class TestFireboltQuery:
             query=query,
         ).run()
 
-        assert output == ["TESTDB"]
+        assert output == []
 
-
-class TestFireboltQueryGetData:
-    def test_construction(self):
-        task = FireboltQueryGetData(
-            database="test",
-            username="test",
-            password="test",
-            engine_name="test",
-            api_endpoint="test",
-            query="test",
-        )
-        assert task.engine_url is None
-
-    # raises Value error if engine name is not provided
-    def test_engine_name_not_provided(self):
-        task = FireboltQueryGetData(
-            database="test",
-            username="test",
-            password="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
-        with pytest.raises(ValueError, match="An engine name must be provided"):
-            task.run()
-
-    # raises Value error if database name is not provided
-    def test_database_not_provided(self):
-        task = FireboltQueryGetData(
-            username="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
-        with pytest.raises(ValueError, match="A database name must be provided"):
-            task.run()
-
-    # raises Value error if username is not provided
-    def test_username_not_provided(self):
-        task = FireboltQueryGetData(
-            database="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
-        with pytest.raises(ValueError, match="User name must be provided"):
-            task.run()
-
-    # raises Value error if password is not provided
-    def test_password_not_provided(self):
-        task = FireboltQueryGetData(
-            database="test",
-            username="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-            query="test",
-        )
-        with pytest.raises(ValueError, match="A password must be provided"):
-            task.run()
-
-    # raises Value error if api_endpoint is not provided
-    def test_api_endpoint_not_provided(self):
-        task = FireboltQueryGetData(
-            database="test",
-            username="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            query="test",
-        )
-        with pytest.raises(ValueError, match="An api endpoint must be provided"):
-            task.run()
-
-    # raises Value error if query is not provided
-    def test_query_not_provided(self):
-        task = FireboltQueryGetData(
-            database="test",
-            username="test",
-            password="test",
-            engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
-        )
-        with pytest.raises(ValueError, match="A query string must be provided"):
-            task.run()
-
+    # test to check if the query was executed and metadata was retrieved from database
     def test_execute_fetchall(self, monkeypatch):
         """
         Tests that the FireboltQuery Task calls the fetchall method on the cursor.
@@ -236,6 +97,7 @@ class TestFireboltQueryGetData:
         connection.cursor = cursor
 
         # setting fetchall return
+        cursor.return_value.__enter__.return_value.execute.return_value = 1
         cursor.return_value.__enter__.return_value.fetchall.return_value = ["TESTDB"]
 
         firebolt_connection = MagicMock(connect=firebolt_conn)
@@ -246,7 +108,7 @@ class TestFireboltQueryGetData:
 
         query = "SHOW DATABASES"
 
-        output = FireboltQueryGetData(
+        output = FireboltQuery(
             database="test",
             username="test",
             password="test",
