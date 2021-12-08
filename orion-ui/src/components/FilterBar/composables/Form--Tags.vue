@@ -1,6 +1,9 @@
 <template>
-  <div>
-    <h4 class="font-weight-semibold">Tags</h4>
+  <div class="container">
+    <div class="font-weight-semibold d-flex align-center">
+      <i class="pi text--grey-40 mr-1 pi-sm" :class="icon" />
+      {{ title }}
+    </div>
 
     <Input
       v-model="input"
@@ -24,10 +27,13 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, defineEmits, reactive, ref, watch } from 'vue'
-import Tag from './Tag.vue'
+import { ref, watch, reactive, withDefaults } from 'vue'
+import Tag from '../Tag.vue'
 
-const props = defineProps<{ modelValue: string[] }>()
+const props = withDefaults(
+  defineProps<{ modelValue?: string[]; title?: string; icon?: string }>(),
+  { modelValue: () => [], title: 'Tags', icon: 'pi-label' }
+)
 
 const emit = defineEmits(['update:modelValue'])
 
@@ -52,19 +58,7 @@ watch(tags, () => {
 </script>
 
 <style lang="scss" scoped>
-.tags-menu {
-  height: auto;
-
-  .menu-content {
-    min-height: 200px;
-    width: 300px;
-  }
-}
-
-hr {
-  border: 0;
-  border-bottom: 1px solid;
-  color: $grey-10 !important;
+.container {
   width: 100%;
 }
 </style>

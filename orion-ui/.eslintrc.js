@@ -44,5 +44,9 @@ module.exports = {
         jest: true
       }
     }
-  ]
+  ],
+  globals: {
+    defineProps: 'readonly',
+    defineEmits: 'readonly'
+  }
 }

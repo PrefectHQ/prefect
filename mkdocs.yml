@@ -65,7 +65,7 @@ nav:
             - tutorials/flow-configuration.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
-            - tutorials/dask-executor.md
+            - tutorials/dask-task-runner.md
             - tutorials/orion.md
             - tutorials/deployments.md
     - Concepts:
@@ -74,7 +74,7 @@ nav:
         - Tasks: concepts/tasks.md
         - States: concepts/states.md
         - Orchestration Rules: concepts/orchestration.md
-        - Executors: concepts/executors.md
+        - Task Runners: concepts/task-runners.md
         - Deployments: concepts/deployments.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
@@ -88,7 +88,7 @@ nav:
             - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
             - 'prefect.exceptions': api-ref/prefect/exceptions.md
-            - 'prefect.executors': api-ref/prefect/executors.md
+            - 'prefect.task_runners': api-ref/prefect/task-runners.md
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
             - 'prefect.serializers': api-ref/prefect/serializers.md
