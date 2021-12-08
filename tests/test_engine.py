@@ -484,9 +484,10 @@ class TestOrchestrateFlowRun:
 
 
 class TestFlowRunCrashes:
-    @contextmanager
     @staticmethod
+    @contextmanager
     def capture_cancellation():
+        """Utility for capturing crash exceptions consistently in these tests"""
         try:
             yield
         except BaseException:
