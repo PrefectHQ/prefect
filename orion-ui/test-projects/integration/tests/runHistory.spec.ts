@@ -4,7 +4,7 @@ describe('Dashboard run history', () => {
   it('should show the correct number of bars', async () => {
     const selector = '.run-history-chart__bucket'
 
-    await page.goto(ui)
+    await page.goto(uri)
     await page.waitForSelector(selector)
 
     const bars = await page.$$(selector)
