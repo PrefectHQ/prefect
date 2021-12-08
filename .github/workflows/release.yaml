@@ -138,7 +138,7 @@ jobs:
         run: |
           git push --set-upstream prefect-orion "orion-release-${GITHUB_REF#refs/*/}"
           gh pr create \
-            --title "Publish code from release ${GITHUB_REF#refs/*/}" \
+            --title "Publish code from Orion release ${GITHUB_REF#refs/*/}" \
             --body '_automatically created with `gh` cli on merge to `main`_' \
             --base orion
         env:
