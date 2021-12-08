@@ -32,7 +32,8 @@ class SnowflakeQuery(Task):
         - authenticator (str, optional): type of authenticator to use for initiating
             connection (oauth, externalbrowser...), refer to snowflake documentation
             https://docs.snowflake.com/en/user-guide/python-connector-api.html#connect
-            for details, default to None
+            for details, note that `externalbrowser` will only work in an environment 
+            where a browser is available, default to None
         - token (str, optional): OAuth or JWT Token to provide when authenticator
             is set to oauth, default to None
         - **kwargs (dict, optional): additional keyword arguments to pass to the
