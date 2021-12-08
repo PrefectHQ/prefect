@@ -37,6 +37,7 @@ from prefect.exceptions import (
     AuthorizationError,
     ClientError,
     VersionLockMismatchSignal,
+    ObjectNotFoundError,
 )
 from prefect.utilities.graphql import (
     EnumValue,
@@ -1658,6 +1659,9 @@ class Client:
         }
 
         flow_run = self.graphql(query).data.flow_run_by_pk
+
+        if not flow_run:
+            raise ObjectNotFoundError(f"Flow run {flow_run_id!r} not found.")
 
         return prefect.engine.state.State.deserialize(flow_run.serialized_state)
 

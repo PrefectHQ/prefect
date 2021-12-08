@@ -17,7 +17,7 @@ from prefect.environments import LocalEnvironment
 from prefect.storage import Docker, Local
 from prefect.run_configs import KubernetesRun, LocalRun, UniversalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.exceptions import ClientError
+from prefect.exceptions import ClientError, ObjectNotFoundError
 from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities import kubernetes
 
@@ -811,7 +811,56 @@ def test_k8s_agent_manage_jobs_pass(monkeypatch, cloud_api):
     agent.heartbeat()
 
 
+def test_k8s_agent_manage_jobs_handles_missing_flow_runs(
+    monkeypatch, cloud_api, caplog
+):
+    Client = MagicMock()
+    Client().get_flow_run_state.side_effect = ObjectNotFoundError()
+    monkeypatch.setattr("prefect.agent.agent.Client", Client)
+
+    job_mock = MagicMock()
+    job_mock.metadata.labels = {
+        "prefect.io/identifier": "id",
+        "prefect.io/flow_run_id": "fr",
+    }
+    job_mock.metadata.name = "my_job"
+
+    list_job = MagicMock()
+    list_job.metadata._continue = 0
+    list_job.items = [job_mock]
+
+    pod = MagicMock()
+    pod.metadata.name = "pod_name"
+
+    list_pods = MagicMock()
+    list_pods.items = [pod]
+
+    agent = KubernetesAgent()
+
+    agent.batch_client.list_namespaced_job.return_value = list_job
+    agent.core_client.list_namespaced_pod.return_value = list_pods
+    agent.heartbeat()
+
+    assert (
+        f"Job {job_mock.name!r} is for flow run 'fr' which does not exist. It will be ignored."
+        in caplog.messages
+    )
+
+
 def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                set_flow_run_state=None,
+                write_run_logs=None,
+                get_flow_run_state=prefect.engine.state.Success(),
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
     job_mock = MagicMock()
     job_mock.metadata.labels = {
         "prefect.io/identifier": "id",
@@ -844,6 +893,19 @@ def test_k8s_agent_manage_jobs_delete_jobs(monkeypatch, cloud_api):
 
 
 def test_k8s_agent_manage_jobs_does_not_delete_if_disabled(monkeypatch, cloud_api):
+    gql_return = MagicMock(
+        return_value=MagicMock(
+            data=MagicMock(
+                set_flow_run_state=None,
+                write_run_logs=None,
+                get_flow_run_state=prefect.engine.state.Success(),
+            )
+        )
+    )
+    client = MagicMock()
+    client.return_value.graphql = gql_return
+    monkeypatch.setattr("prefect.agent.agent.Client", client)
+
     job_mock = MagicMock()
     job_mock.metadata.labels = {
         "prefect.io/identifier": "id",

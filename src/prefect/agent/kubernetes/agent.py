@@ -21,9 +21,10 @@ from prefect.agent import Agent
 from prefect.engine.state import Failed
 from prefect.run_configs import KubernetesRun
 from prefect.utilities.agent import get_flow_image, get_flow_run_command
-from prefect.exceptions import ClientError
+from prefect.exceptions import ClientError, ObjectNotFoundError
 from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.utilities.graphql import GraphQLResult
+
 
 DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
 
@@ -180,6 +181,16 @@ class KubernetesAgent(Agent):
                         self.logger.warning(
                             f"Cannot manage job {job_name!r}, it is missing a "
                             "'prefect.io/flow_run_id' label."
+                        )
+                        continue
+
+                    try:
+                        # Do not attempt to process a job with an invalid flow run id
+                        flow_run_state = self.client.get_flow_run_state(flow_run_id)
+                    except ObjectNotFoundError:
+                        self.logger.warning(
+                            f"Job {job.name!r} is for flow run {flow_run_id!r} "
+                            "which does not exist. It will be ignored."
                         )
                         continue
 
@@ -349,12 +360,7 @@ class KubernetesAgent(Agent):
                             )
 
                         # If there are failed pods and the run is not finished, fail the run
-                        if (
-                            failed_pods
-                            and not self.client.get_flow_run_state(
-                                flow_run_id
-                            ).is_finished()
-                        ):
+                        if failed_pods and not flow_run_state.is_finished():
                             self.logger.debug(
                                 f"Failing flow run {flow_run_id} due to the failed pods {failed_pods}"
                             )
