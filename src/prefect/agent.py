@@ -70,14 +70,7 @@ class OrionAgent:
         """
         # TODO: Here, the agent may merge settings with those contained in the
         #       flow_run.flow_runner settings object
-        flow_runner = FlowRunner.get_instance(
-            typename=(
-                self.default_runner_type
-                if flow_run.runner_type is None or flow_run.runner_type == "universal"
-                else flow_run.runner_type
-            ),
-            config=flow_run.runner_config,
-        )
+        flow_runner = FlowRunner.from_settings(flow_run.flow_runner)
 
         try:
             # Wait for submission to be completed. Note that the submission function

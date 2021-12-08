@@ -312,11 +312,19 @@ class ORMFlowRun(ORMRun):
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
-    runner_type = sa.Column(sa.String)
-    runner_config = sa.Column(JSON)
+    flow_runner_type = sa.Column(sa.String)
+    flow_runner_config = sa.Column(JSON)
 
-    # TODO: This field is unused and should be replaced with `empirical_runner_type` and
-    #       `empirical_runner_config` to capture final settings used by agents
+    @declared_attr
+    def flow_runner(cls):
+        return sa.orm.composite(
+            core.FlowRunnerSettings,
+            cls.flow_runner_type,
+            cls.flow_runner_config,
+        )
+
+    # TODO: This field is unused and should be replaced with `empirical_flow_runner_type`
+    #       and `empirical_flow_runner_config` to capture final settings used by agents
     empirical_config = sa.Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
@@ -535,8 +543,17 @@ class ORMDeployment:
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = sa.Column(Pydantic(data.DataDocument))
-    flow_runner_type = sa.Column(sa.String, nullable=True)
-    flow_runner_config = sa.Column(JSON, nullable=True)
+
+    flow_runner_type = sa.Column(sa.String)
+    flow_runner_config = sa.Column(JSON)
+
+    @declared_attr
+    def flow_runner(cls):
+        return sa.orm.composite(
+            core.FlowRunnerSettings,
+            cls.flow_runner_type,
+            cls.flow_runner_config,
+        )
 
     @declared_attr
     def flow(cls):

@@ -33,8 +33,7 @@ class DeploymentCreate(
             "tags",
             "parameters",
             "flow_data",
-            "flow_runner_type",
-            "flow_runner_config",
+            "flow_runner",
         ],
     )
 ):
@@ -43,7 +42,8 @@ class DeploymentCreate(
 
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
-        name="FlowRunUpdate", include_fields=["flow_version", "parameters", "name"]
+        name="FlowRunUpdate",
+        include_fields=["flow_version", "parameters", "name", "flow_runner"],
     )
 ):
     """Data used by the Orion API to update a flow run."""
@@ -100,6 +100,7 @@ class FlowRunCreate(
             "tags",
             "idempotency_key",
             "parent_task_run_id",
+            "flow_runner",
         ],
     )
 ):
@@ -118,8 +119,7 @@ class DeploymentFlowRunCreate(
             "context",
             "tags",
             "idempotency_key",
-            "runner_type",
-            "runner_config",
+            "flow_runner",
         ],
     )
 ):

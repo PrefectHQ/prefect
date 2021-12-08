@@ -364,7 +364,6 @@ class OrionClient:
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
-
         response = await self.post("/flow_runs/", json=flow_run_create_json)
         flow_run = schemas.core.FlowRun.parse_obj(response.json())
 
@@ -434,10 +433,7 @@ class OrionClient:
             flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
-            flow_runner_type=flow_runner.typename if flow_runner else None,
-            flow_runner_config=(
-                flow_runner.dict(exclude={"typename"}) if flow_runner else None
-            ),
+            flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
         response = await self.post(
