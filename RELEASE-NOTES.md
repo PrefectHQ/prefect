@@ -4,7 +4,6 @@
 
 We're excited to announce the fourth alpha release of Prefect's second-generation workflow engine.
 
-
 In this release, the highlight is executors. Executors are used to run tasks in Prefect workflows. 
 In Orion, you can write a flow that contains no tasks. 
 It can call many functions and execute arbitrary Python, but it will all happen sequentially and on a single machine.
@@ -18,8 +17,8 @@ Those of you already familiar with Prefect have likely used our Dask executor.
 The first release of Orion came with a Dask executor that could run simple local clusters.
 This allowed tasks to run in parallel, but did not expose the full power of Dask.
 In this release of Orion, we've reached feature parity with the existing Dask executor.
-You can [create customizable temporary clusters](https://orion-docs.prefect.io/tutorials/dask-executor/#using-a-temporary-cluster) and [connect to existing Dask clusters](https://orion-docs.prefect.io/tutorials/dask-executor/#connecting-to-an-existing-cluster).
-Additionally, because flows are not statically registered, we're able to easily expose Dask annotations, which allow you to [specify fine-grained controls over the scheduling of your tasks](https://orion-docs.prefect.io/tutorials/dask-executor/#annotations) within Dask.
+You can [create customizable temporary clusters](https://orion-docs.prefect.io/tutorials/dask-task-runner/#using-a-temporary-cluster) and [connect to existing Dask clusters](https://orion-docs.prefect.io/tutorials/dask-task-runner/#connecting-to-an-existing-cluster).
+Additionally, because flows are not statically registered, we're able to easily expose Dask annotations, which allow you to [specify fine-grained controls over the scheduling of your tasks](https://orion-docs.prefect.io/tutorials/dask-task-runner/#annotations) within Dask.
 
 
 ### Subflow executors
@@ -30,7 +29,7 @@ You can move your computationally intensive tasks into their own flow, which use
 Next, you simply call the flow that uses a `DaskExecutor` from your other, parent flow.
 This pattern can be nested or reused multiple times, enabling groups of tasks to use the executor that makes sense for their workload.
 
-Check out our [multiple executor documentation](https://orion-docs.prefect.io/concepts/executors/#using-multiple-executors) for an example.
+Check out our [multiple executor documentation](https://orion-docs.prefect.io/concepts/executors/#using-multiple-task-runners) for an example.
 
 
 ### Other notes
