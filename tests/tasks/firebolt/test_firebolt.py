@@ -23,28 +23,64 @@ class TestFireboltQuery:
     def test_required_params(self):
         # raises Value error if engine name is not provided
         with pytest.raises(ValueError, match="An engine name must be provided"):
-            FireboltQuery().run(database="test", username="test", password="test", engine_url=None,
-                                api_endpoint="test", query="test")
+            FireboltQuery().run(
+                database="test",
+                username="test",
+                password="test",
+                engine_url=None,
+                api_endpoint="test",
+                query="test",
+            )
         # raises Value error if database name is not provided
         with pytest.raises(ValueError, match="A database name must be provided"):
-            FireboltQuery().run(username="test", password="test", engine_name="test", engine_url=None,
-                                api_endpoint="test", query="test")
+            FireboltQuery().run(
+                username="test",
+                password="test",
+                engine_name="test",
+                engine_url=None,
+                api_endpoint="test",
+                query="test",
+            )
         # raises Value error if username is not provided
         with pytest.raises(ValueError, match="User name must be provided"):
-            FireboltQuery().run(database="test", password="test", engine_name="test", engine_url=None,
-                                api_endpoint="test", query="test")
+            FireboltQuery().run(
+                database="test",
+                password="test",
+                engine_name="test",
+                engine_url=None,
+                api_endpoint="test",
+                query="test",
+            )
         # raises Value error if password is not provided
         with pytest.raises(ValueError, match="A password must be provided"):
-            FireboltQuery().run(database="test", username="test", engine_name="test", engine_url=None,
-                                api_endpoint="test", query="test")
+            FireboltQuery().run(
+                database="test",
+                username="test",
+                engine_name="test",
+                engine_url=None,
+                api_endpoint="test",
+                query="test",
+            )
         # raises Value error if api_endpoint is not provided
         with pytest.raises(ValueError, match="An api endpoint must be provided"):
-            FireboltQuery().run(database="test", username="test", password="test", engine_name="test",
-                                engine_url=None, query="test")
+            FireboltQuery().run(
+                database="test",
+                username="test",
+                password="test",
+                engine_name="test",
+                engine_url=None,
+                query="test",
+            )
         # raises Value error if query is not provided
         with pytest.raises(ValueError, match="A query string must be provided"):
-            FireboltQuery().run(database="test", username="test", password="test", engine_name="test",
-                                engine_url=None, api_endpoint="test")
+            FireboltQuery().run(
+                database="test",
+                username="test",
+                password="test",
+                engine_name="test",
+                engine_url=None,
+                api_endpoint="test",
+            )
 
     # test to check if the ddl/dml query was executed
     def test_execute_query(self, monkeypatch):
