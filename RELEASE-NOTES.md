@@ -13,6 +13,7 @@ With the 2.0a5 release, we introduced the ability to navigate seamlessly between
 Previews versions of Prefect could only trigger execution of code in tasks. Orion can trigger execution of significant code that can be run _outside of tasks_. In order to make the role previously played by Prefect's `Executor` more explicit, we have renamed `Executor` to `TaskRunner`
 
 A related `FlowRunner` component is forthcoming. 
+
 ### Other enhancements
 In addition to the introducing of runners and subflow UI enhancements, we added several other enhancements and resolved a few issues, including: 
 - Introduced dependency injection pathways so that Orion's database access can be modified after import time
