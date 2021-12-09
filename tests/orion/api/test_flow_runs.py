@@ -413,10 +413,12 @@ class TestReadFlowRuns:
         assert len(response.json()) == 1
         assert response.json()[0]["id"] == str(flow_run.id)
 
+
 class TestReadFlowRunGraph:
     async def test_read_flow_run_graph(self, flow_run, client):
         response = await client.get(f"/flow_runs/{flow_run.id}/graph")
         assert response.status_code == 200
+
 
 class TestDeleteFlowRuns:
     async def test_delete_flow_runs(self, flow_run, client, session):

@@ -15,6 +15,7 @@ import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 import ListItemDeployment from '@/components/Global/List/ListItemDeployment/ListItemDeployment.vue'
 import ListItemFlow from '@/components/Global/List/ListItemFlow/ListItemFlow.vue'
 import ListItemFlowRun from '@/components/Global/List/ListItemFlowRun/ListItemFlowRun.vue'
+import ListItemSubFlowRun from '@/components/Global/List/ListItemSubFlowRun/ListItemSubFlowRun.vue'
 import ListItemTaskRun from '@/components/Global/List/ListItemTaskRun/ListItemTaskRun.vue'
 import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
 import Row from '@/components/Global/Row/Row.vue'
@@ -45,6 +46,7 @@ app.component('ListItem', ListItem)
 app.component('ListItemDeployment', ListItemDeployment)
 app.component('ListItemFlow', ListItemFlow)
 app.component('ListItemFlowRun', ListItemFlowRun)
+app.component('ListItemSubFlowRun', ListItemSubFlowRun)
 app.component('ListItemTaskRun', ListItemTaskRun)
 app.component('ResultsList', ResultsList)
 app.component('Row', Row)

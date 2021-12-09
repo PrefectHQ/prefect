@@ -23,6 +23,29 @@
               >
                 {{ tag }}
               </Tag>
+              <div
+                class="
+                  caption
+                  font--primary font-weight-semibold
+                  text--grey-40
+                  d-flex
+                  text-truncate
+                "
+              >
+                <span v-if="flowRun.start_time">
+                  Started:
+                  <span class="text--grey-80 mr-1 ml--half">
+                    {{ formatDateTimeNumeric(flowRun.start_time) }}
+                  </span>
+                </span>
+
+                <span v-if="flowRun.end_time">
+                  Ended:
+                  <span class="text--grey-80 mr-1 ml--half">
+                    {{ formatDateTimeNumeric(flowRun.end_time) }}
+                  </span>
+                </span>
+              </div>
             </span>
           </div>
 
@@ -36,14 +59,38 @@
               text-truncate
             "
           >
-            <span v-if="deployment.name"> Deployment: </span>
-            <span v-if="deployment.name" class="text--grey-80 mr-1">
-              {{ deployment.name }}
+            <span v-if="deployment.name">
+              Deployment:
+              <span class="text--grey-80 mr-1 ml--half">
+                {{ deployment.name }}
+              </span>
             </span>
 
-            <span v-if="location"> Results: </span>
-            <span v-if="location" class="text--grey-80">
-              {{ location }}
+            <span v-if="parentFlow.name">
+              Parent:
+              <span class="text--grey-80">
+                {{ parentFlow.name }}
+              </span>
+              /<router-link
+                :to="`/flow-run/${parentFlowRun.id}`"
+                class="mr-1 ml--half text--primary"
+              >
+                {{ parentFlowRun.name }}
+              </router-link>
+            </span>
+
+            <span v-if="location">
+              Results:
+              <span class="text--grey-80 mr-1 ml--half">
+                {{ location }}
+              </span>
+            </span>
+
+            <span v-if="flowRun.flow_version">
+              Flow version:
+              <span class="text--grey-80 mr-1 ml--half">
+                {{ flowRun.flow_version }}
+              </span>
             </span>
           </div>
         </div>
@@ -78,7 +125,20 @@
     </Card>
 
     <Card class="radar" shadow="sm">
-      <div
+      <template v-slot:header>
+        <div class="d-flex align-center justify-space-between py-1 px-2">
+          <div class="subheader">Radar</div>
+
+          <router-link :to="`/flow-run/${id}/radar`">
+            <IconButton icon="pi-full-screen" />
+          </router-link>
+        </div>
+      </template>
+
+      <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
+        <MiniRadarView :id="id" />
+      </div>
+      <!-- <div
         style="
           top: 50%;
           left: 50%;
@@ -91,7 +151,7 @@
           <IconButton icon="pi-radar-fill" />
           <div>View Radar </div>
         </router-link>
-      </div>
+      </div> -->
     </Card>
   </div>
 
@@ -107,14 +167,14 @@
       </span>
     </Tab>
 
-    <Tab disabled href="sub_flow_runs" class="subheader">
+    <Tab href="sub_flow_runs" class="subheader">
       <i class="pi pi-flow-run mr-1 text--grey-40" />
-      Sub Flow Runs
+      Subflow Runs
       <span
         class="result-badge caption ml-1"
-        :class="{ active: resultsTab == 'flow_runs' }"
+        :class="{ active: resultsTab == 'sub_flow_runs' }"
       >
-        <!-- {{ subFlowRunsCount.toLocaleString() }} -->
+        {{ subFlowRunsCount.toLocaleString() }}
       </span>
     </Tab>
   </Tabs>
@@ -141,14 +201,16 @@
         :filter="taskRunsFilter"
         component="list-item-task-run"
         endpoint="task_runs"
+        :poll-interval="5000"
       />
 
       <ResultsList
-        v-else-if="false && resultsTab == 'sub_flow_runs'"
+        v-else-if="resultsTab == 'sub_flow_runs'"
         key="sub_flow_runs"
         :filter="subFlowRunsFilter"
-        component="list-item-flow-run"
-        endpoint="flow_runs"
+        component="list-item-sub-flow-run"
+        endpoint="task_runs"
+        :poll-interval="5000"
       />
     </transition>
   </section>
@@ -157,45 +219,74 @@
 </template>
 
 <script lang="ts" setup>
-import { Api, Query, Endpoints, BaseFilter } from '@/plugins/api'
-import { State, FlowRun, Deployment, TaskRun } from '@/typings/objects'
-import { computed, onBeforeUnmount, onBeforeMount, ref, Ref } from 'vue'
+import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
+import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
+import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
+import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
+import MiniRadarView from './MiniRadar.vue'
 
 const route = useRoute()
 
-const resultsTab: Ref<string | null> = ref(null)
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
 
-const id: string = route.params.id as string
+const id = computed(() => {
+  return route?.params.id as string
+})
+
+const flowRunbaseFilter = computed(() => {
+  return { id: id.value }
+})
 
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
-  body: {
-    id: id
-  },
+  body: flowRunbaseFilter,
   options: {
     pollInterval: 5000
   }
 }).fetch()
 
-const flowId = flowRunBase.response.value.flow_id
-const deploymentId = flowRunBase.response.value.deployment_id
+const flowId = computed<string>(() => {
+  return flowRunBase.response.value.flow_id
+})
 
-const flowFilter = {
-  id: flowId
-}
+const parentTaskRunId = computed<string>(() => {
+  return flowRunBase.response.value.parent_task_run_id
+})
 
-const deploymentFilter = {
-  id: deploymentId
-}
+const deploymentId = computed<string>(() => {
+  return flowRunBase.response.value.deployment_id
+})
+
+const flowFilter = computed(() => {
+  return {
+    id: flowId.value
+  }
+})
+
+const deploymentFilter = computed(() => {
+  return {
+    id: deploymentId.value
+  }
+})
+
+const parentFlowFilter = computed<FlowsFilter>(() => {
+  return {
+    task_runs: {
+      id: {
+        any_: [parentTaskRunId.value]
+      }
+    }
+  }
+})
 
 const taskRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
       id: {
-        any_: [id]
+        any_: [id.value]
       }
     }
   }
@@ -204,9 +295,14 @@ const taskRunsFilter = computed<BaseFilter>(() => {
 const subFlowRunsFilter = computed<BaseFilter>(() => {
   return {
     flow_runs: {
-      // parent_task_run_id: {
-      //   any_: []
-      // }
+      id: {
+        any_: [id.value]
+      }
+    },
+    task_runs: {
+      subflow_runs: {
+        exists_: true
+      }
     }
   }
 })
@@ -220,40 +316,66 @@ const queries: { [key: string]: Query } = {
     endpoint: Endpoints.deployment,
     body: deploymentFilter,
     options: {
-      paused: !deploymentId
+      paused: !deploymentId.value
+    }
+  }),
+  parent_flow: Api.query({
+    endpoint: Endpoints.flows,
+    body: parentFlowFilter,
+    options: {
+      paused: !parentTaskRunId.value
+    }
+  }),
+  parent_flow_run: Api.query({
+    endpoint: Endpoints.flow_runs,
+    body: parentFlowFilter,
+    options: {
+      paused: !parentTaskRunId.value
     }
   }),
   task_runs_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: taskRunsFilter.value,
+    body: taskRunsFilter,
     options: {
       pollInterval: 10000
     }
   }),
   task_runs: Api.query({
     endpoint: Endpoints.task_runs,
-    body: taskRunsFilter.value,
+    body: taskRunsFilter,
+    options: {
+      pollInterval: 10000
+    }
+  }),
+  sub_flow_runs_count: Api.query({
+    endpoint: Endpoints.task_runs_count,
+    body: subFlowRunsFilter,
     options: {
       pollInterval: 10000
     }
   })
-  // TODO: Need to add a query for task runs with this flow run id that have sub flow runs and pipe that in to this as parent task run id
-  // sub_flow_runs: Api.query({
-  //   endpoint: Endpoints.flow_runs_count,
-  //   body: subFlowRunsFilter,
-  //   options: {
-  //     pollInterval: 10000
-  //   }
-  // })
+}
+
+const countMap = {
+  task_runs: 'task_runs_count',
+  sub_flow_runs: 'sub_flow_runs_count'
 }
 
 const resultsCount = computed(() => {
   if (!resultsTab.value) return 0
-  return queries[resultsTab.value]?.response || 0
+  return queries[countMap[resultsTab.value]]?.response || 0
 })
 
 const deployment = computed<Deployment>(() => {
   return queries.deployment.response?.value || {}
+})
+
+const parentFlow = computed<Flow>(() => {
+  return queries.parent_flow.response?.value?.[0] || {}
+})
+
+const parentFlowRun = computed<FlowRun>(() => {
+  return queries.parent_flow_run.response?.value?.[0] || {}
 })
 
 const location = computed(() => {
@@ -280,6 +402,10 @@ const taskRunsCount = computed(() => {
   return queries.task_runs_count.response?.value || 0
 })
 
+const subFlowRunsCount = computed(() => {
+  return queries.sub_flow_runs_count.response?.value || 0
+})
+
 const taskRuns = computed<TaskRun[]>(() => {
   return queries.task_runs.response?.value || []
 })
@@ -299,9 +425,22 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
-onBeforeMount(() => {
-  resultsTab.value = route.hash?.substr(1) || 'task_runs'
-  console.log(resultsTab.value)
+watch(id, async () => {
+  await flowRunBase.fetch()
+  queries.flow.fetch()
+
+  queries.task_runs_count.fetch()
+  queries.task_runs.fetch()
+  queries.sub_flow_runs_count.fetch()
+
+  if (deploymentId.value) queries.deployment.fetch()
+  else queries.deployment.clearResult()
+  if (parentTaskRunId.value) queries.parent_flow.fetch()
+  else queries.parent_flow.clearResult()
+  if (parentTaskRunId.value) queries.parent_flow_run.fetch()
+  else queries.parent_flow_run.clearResult()
+
+  resultsTab.value = 'task_runs'
 })
 </script>
 

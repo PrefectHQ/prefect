@@ -1,15 +1,15 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 @use '@prefecthq/miter-design/src/styles/abstracts/mixins' as mixins;
+@use '@prefecthq/miter-design/src/styles/base/base';
+@use '@prefecthq/miter-design/src/styles/base/spacing';
+@use '@prefecthq/miter-design/src/styles/base/typography';
+@use '@prefecthq/miter-design/src/styles/base/colors';
 
-.menu {
+.filter-menu {
   border-radius: 0;
   position: relative;
 
-  .sub-menu {
-    position: absolute;
-  }
-
-  .menu-content {
+  &__content {
     border-top: 1px solid $secondary-hover;
     border-radius: 0 !important;
     background-color: $grey-10;
@@ -22,7 +22,7 @@
     }
   }
 
-  .menu-actions {
+  &__actions {
     border-top: 1px solid $secondary-hover;
   }
 
@@ -31,60 +31,26 @@
     max-height: inherit;
   }
 
-  .menu-container {
-    position: relative;
-  }
-}
-
-.accordion-body {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-
-  > *:not(:first-child) {
-    border-left: 1px solid $secondary-hover;
-    border-top: 0;
+  &__section-header {
+    @extend .py-1;
+    @extend .px-2;
+    @extend .d-flex;
+    @extend .align-center;
+    @extend .font-weight-semibold;
+    @extend .text--black;
   }
 
-  > * {
-    max-width: 50%;
-    width: 100%;
+  &__section-header-icon {
+    @extend .pi;
+    @extend .pi-sm;
+    @extend .mr-1;
   }
 
-  @media (max-width: 1024px) {
-    flex-direction: column;
+  &__flex-card {
+    height: unset !important;
 
-    > * {
-      max-width: 100%;
-      border-left: 0;
-      border-top: 1px solid $secondary-hover;
+    > ::v-deep(div) {
+      height: 100% !important;
     }
-  }
-}
-
-.filter-button {
-  align-items: center;
-  background-color: $white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  height: 100%;
-  min-width: 52px;
-  outline: none;
-
-  &:hover,
-  &:focus {
-    background-color: $grey-10;
-  }
-
-  &:active {
-    background-color: $grey-20;
-  }
-
-  $border-style: 2px solid $grey-10;
-
-  &.objects {
-    border-right: $border-style;
-    border-radius: 4px 0 0 4px;
   }
 }

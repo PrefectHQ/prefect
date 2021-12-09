@@ -13,16 +13,25 @@
       :class="{ blur: route.fullPath.includes('/radar') }"
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
-      <div v-breakpoints="'sm'" class="text-truncate">
-        <span>
+      <div
+        v-breakpoints="'sm'"
+        class="text-truncate"
+        v-show="route.fullPath.includes('/radar')"
+      >
+        <span v-breakpoints="'sm'" class="ml-5">
           Flow Version:
-          <span class="font-weight-semibold">{{ flowRun.flow_version }}</span>
+          <span class="font-weight-semibold" v-if="!flowRun.flow_version">
+            --
+          </span>
+          <span class="font-weight-semibold" v-else>
+            {{ flowRun.flow_version }}
+          </span>
         </span>
 
-        <a v-breakpoints="'md'" class="copy-link ml-1">
+        <button v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
           <i class="pi pi-link pi-xs" />
           Copy Run ID
-        </a>
+        </button>
       </div>
     </div>
 
@@ -33,7 +42,16 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, Flow } from '@/typings/objects'
-import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
+import {
+  computed,
+  onBeforeUnmount,
+  onBeforeMount,
+  ref,
+  Ref,
+  watch,
+  getCurrentInstance
+} from 'vue'
+
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -96,6 +114,16 @@ const crumbs = computed(() => {
 
   return arr
 })
+
+const instance = getCurrentInstance()
+
+const copyRunId = () => {
+  navigator.clipboard.writeText(id.value)
+  instance?.appContext.config.globalProperties.$toast.add({
+    type: 'success',
+    content: 'Run ID was copied to clipboard'
+  })
+}
 
 // This cleanup is necessary since the initial flow run query isn't
 // wrapped in the queries object

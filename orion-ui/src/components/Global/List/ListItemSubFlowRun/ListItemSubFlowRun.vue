@@ -70,21 +70,15 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import {
-  Api,
-  Query,
-  Endpoints,
-  TaskRunsFilter,
-  FlowsFilter
-} from '@/plugins/api'
-import { FlowRun } from '@/typings/objects'
+import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
+import { TaskRun } from '@/typings/objects'
+import { secondsToApproximateString } from '@/util/util'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
-import { secondsToApproximateString } from '@/util/util'
+import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 
 const store = useStore()
-const props = defineProps<{ item: FlowRun }>()
+const props = defineProps<{ item: TaskRun }>()
 
 const start = computed(() => {
   return new Date(props.item.start_time)
@@ -100,27 +94,15 @@ const end = computed(() => {
   return new Date(props.item.end_time)
 })
 
-const flow_runs_filter_body: TaskRunsFilter = {
-  sort: 'START_TIME_DESC',
-  flow_runs: {
-    id: {
-      any_: [props.item.id]
-    }
-  },
-  task_runs: {
-    subflow_runs: {
-      exists_: false
+const flowRunFilterBody = computed<FlowRunsFilter>(() => {
+  return {
+    flow_runs: {
+      id: {
+        any_: [props.item.state.state_details.child_flow_run_id]
+      }
     }
   }
-}
-
-const flow_filter_body: FlowsFilter = {
-  flow_runs: {
-    id: {
-      any_: [props.item.id]
-    }
-  }
-}
+})
 
 const taskRunHistoryFilter = computed(() => {
   const interval = Math.floor(
@@ -130,39 +112,39 @@ const taskRunHistoryFilter = computed(() => {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
     history_interval_seconds: interval,
-    flow_runs: flow_runs_filter_body.flow_runs
+    flow_runs: flowRunFilterBody.value.flow_runs
   }
 })
 
 const queries: { [key: string]: Query } = {
+  flow_run: Api.query({
+    endpoint: Endpoints.flow_runs,
+    body: flowRunFilterBody.value
+  }),
+  flow: Api.query({
+    endpoint: Endpoints.flows,
+    body: flowRunFilterBody.value
+  }),
   task_run_history: Api.query({
     endpoint: Endpoints.task_runs_history,
     body: taskRunHistoryFilter.value
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: flow_runs_filter_body
-  }),
-  flow: Api.query({
-    endpoint: Endpoints.flows,
-    body: flow_filter_body
+    body: flowRunFilterBody
   })
 }
 
-const duration = computed(() => {
-  return state.value == 'pending' || state.value == 'scheduled'
-    ? '--'
-    : props.item.total_run_time
-    ? secondsToApproximateString(props.item.total_run_time)
-    : secondsToApproximateString(props.item.estimated_run_time)
-})
-
 const state = computed(() => {
-  return props.item.state.name.toLowerCase()
+  return props.item.state.type.toLowerCase()
 })
 
 const tags = computed(() => {
   return props.item.tags
+})
+
+const flowRun = computed(() => {
+  return queries.flow_run?.response?.value?.[0] || {}
 })
 
 const flow = computed(() => {
@@ -177,15 +159,22 @@ const taskRunHistory = computed((): Buckets => {
   return queries.task_run_history?.response.value || []
 })
 
+const duration = computed(() => {
+  return state.value == 'pending' || state.value == 'scheduled'
+    ? '--'
+    : props.item.total_run_time
+    ? secondsToApproximateString(props.item.total_run_time)
+    : secondsToApproximateString(props.item.estimated_run_time)
+})
+
 const crumbs = computed(() => {
   return [
     { text: flow.value?.name },
-    { text: props.item.name, to: `/flow-run/${props.item.id}` }
+    { text: flowRun.value?.name, to: `/flow-run/${flowRun.value?.id}` },
+    { text: props.item.name }
   ]
 })
 </script>
-
-<style lang="scss" scoped></style>
 
 <style lang="scss" scoped>
 @use '@/styles/components/list-item--flow-run.scss';

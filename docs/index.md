@@ -54,11 +54,11 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
 
 === "Parallel execution"
 
-    Control task execution by changing a flow's `executor`. The tasks in this flow will automatically be submitted to run in parallel on a [Dask](https://dask.org) distributed cluster.
+    Control task execution by changing a flow's `task_runner`. The tasks in this flow will automatically be submitted to run in parallel on a [Dask](https://dask.org) distributed cluster.
 
     ```python hl_lines="2 14"
     from prefect import flow, task
-    from prefect.executors import DaskExecutor
+    from prefect.task_runners import DaskTaskRunner
     from typing import List
     import httpx
 
@@ -70,7 +70,7 @@ Add workflow features like retries, distributed execution, scheduling, caching, 
         print(f"{repo} has {count} stars!")
 
 
-    @flow(name="Github Stars", executor=DaskExecutor())
+    @flow(name="Github Stars", task_runner=DaskTaskRunner())
     def github_stars(repos: List[str]):
         for repo in repos:
             get_stars(repo)

@@ -1,15 +1,17 @@
-from typing import List
-import anyio
 import enum
+import time
+from typing import List
+
+import anyio
 import pydantic
 import pytest
-import time
 
-from prefect import flow, task, tags
+from prefect import flow, tags, task
 from prefect.client import OrionClient
 from prefect.engine import raise_failed_state
 from prefect.exceptions import ParameterTypeError
 from prefect.flows import Flow
+from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
 from prefect.utilities.hashing import file_hash
@@ -78,7 +80,7 @@ class TestFlow:
 
 class TestDecorator:
     def test_flow_decorator_initializes(self):
-        # TODO: We should cover initialization with an executor once introduced
+        # TODO: We should cover initialization with a task runner once introduced
         @flow(name="foo", version="B")
         def my_flow():
             return "bar"
@@ -803,3 +805,49 @@ class TestFlowParameterTypes:
             return x
 
         assert my_flow().result().result() == ParameterTestModel(data=1)
+
+
+class TestSubflowTaskInputs:
+    async def test_subflow_with_one_upstream_kwarg(self, orion_client):
+        @task
+        def foo(x):
+            return x
+
+        @flow
+        def bar(x, y):
+            return x + y
+
+        @flow
+        def test_flow():
+            a = foo(1)
+            b = bar(x=a, y=1)
+            return a, b
+
+        flow_state = test_flow()
+        a, b = flow_state.result()
+
+        task_run = await orion_client.read_task_run(b.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[TaskRunResult(id=a.state_details.task_run_id)],
+            y=[],
+        )
+
+    async def test_subflow_with_no_upstream_tasks(self, orion_client):
+        @flow
+        def bar(x, y):
+            return x + y
+
+        @flow
+        def test_flow():
+            return bar(x=2, y=1)
+
+        flow_state = test_flow()
+        state = flow_state.result()
+
+        task_run = await orion_client.read_task_run(state.state_details.task_run_id)
+
+        assert task_run.task_inputs == dict(
+            x=[],
+            y=[],
+        )
