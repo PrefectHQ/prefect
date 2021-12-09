@@ -23,6 +23,9 @@ class TestFlowRunner:
         with pytest.raises(NotImplementedError):
             await FlowRunner(typename="test").submit_flow_run(None, None)
 
+    def test_logger_based_on_name(self):
+        assert FlowRunner(typename="foobar").logger.name == "prefect.flow_runner.foobar"
+
 
 class TestFlowRunnerDispatch:
     def test_register_and_lookup(self):
@@ -109,7 +112,7 @@ class TestSubprocessFlowRunner:
         if not stream_output:
             assert output.out == ""
         else:
-            assert "Beginning flow run" in output.out. "Log from the engine is present"
+            assert "Beginning flow run" in output.out, "Log from the engine is present"
             assert "\n\n" not in output.out, "Line endings are not double terminated"
 
 
