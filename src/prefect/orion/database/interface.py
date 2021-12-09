@@ -86,7 +86,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def session_factory(self):
         engine = await self.engine()
-        return await self.database_config.session_factory(bind=engine)
+        return await self.database_config.session_factory(engine)
 
     @property
     def Base(self):
