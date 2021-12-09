@@ -5,7 +5,7 @@
 ### Subflows and Radar follow up
 With the 2.0a5 release, we introduced the ability to navigate seamlessly between subflows and parent flows via Radar. In this release, we further enabled that ability by:
 - Enabling the dedicated subflow runs tab on the Flow Run page
-- Tracking of upstream inputs to task runs
+- Tracking of upstream inputs to subflow runs
 - Adding a flow and task run count to all subflow run cards in the Radar view
 - Adding a mini Radar view on the Flow run page
 
