@@ -15,6 +15,98 @@ _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 
 
+"""Temporary patch"""
+
+import asyncio
+import itertools
+import logging
+import time
+import threading
+
+try:
+    # Python 3.8 or newer has a suitable process watcher
+    asyncio.ThreadedChildWatcher
+except AttributeError:
+    # backport the Python 3.8 threaded child watcher
+    import os
+    import warnings
+
+    # Python 3.7 preferred API
+    _get_running_loop = getattr(asyncio, "get_running_loop", asyncio.get_event_loop)
+
+    class _Py38ThreadedChildWatcher(asyncio.AbstractChildWatcher):
+        def __init__(self):
+            self._pid_counter = itertools.count(0)
+            self._threads = {}
+
+        def is_active(self):
+            return True
+
+        def close(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+        def __del__(self, _warn=warnings.warn):
+            threads = [t for t in list(self._threads.values()) if t.is_alive()]
+            if threads:
+                _warn(
+                    f"{self.__class__} has registered but not finished child processes",
+                    ResourceWarning,
+                    source=self,
+                )
+
+        def add_child_handler(self, pid, callback, *args):
+            loop = _get_running_loop()
+            thread = threading.Thread(
+                target=self._do_waitpid,
+                name=f"waitpid-{next(self._pid_counter)}",
+                args=(loop, pid, callback, args),
+                daemon=True,
+            )
+            self._threads[pid] = thread
+            thread.start()
+
+        def remove_child_handler(self, pid):
+            # asyncio never calls remove_child_handler() !!!
+            # The method is no-op but is implemented because
+            # abstract base class requires it
+            return True
+
+        def attach_loop(self, loop):
+            pass
+
+        def _do_waitpid(self, loop, expected_pid, callback, args):
+            assert expected_pid > 0
+
+            try:
+                pid, status = os.waitpid(expected_pid, 0)
+            except ChildProcessError:
+                # The child process is already reaped
+                # (may happen if waitpid() is called elsewhere).
+                pid = expected_pid
+                returncode = 255
+            else:
+                if os.WIFSIGNALED(status):
+                    returncode = -os.WTERMSIG(status)
+                elif os.WIFEXITED(status):
+                    returncode = os.WEXITSTATUS(status)
+                else:
+                    returncode = status
+
+            if not loop.is_closed():
+                loop.call_soon_threadsafe(callback, pid, returncode, *args)
+
+            self._threads.pop(expected_pid)
+
+    # add the watcher to the loop policy
+    asyncio.get_event_loop_policy().set_child_watcher(_Py38ThreadedChildWatcher())
+
+
 class FlowRunner(BaseModel):
     """
     Flow runners are responsible for creating infrastructure for flow runs and starting
