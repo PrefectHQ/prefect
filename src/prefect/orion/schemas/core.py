@@ -40,7 +40,8 @@ class FlowRunnerSettings(PrefectBaseModel):
         description="The type of the flow runner which can be used by the client for dispatching.",
     )
     config: dict = Field(
-        None, description="The configuration for the given flow runner type."
+        default_factory=dict,
+        description="The configuration for the given flow runner type.",
     )
 
     # The following is required for composite compatibility in the ORM
@@ -48,7 +49,11 @@ class FlowRunnerSettings(PrefectBaseModel):
     def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
         # Pydantic does not support positional arguments so they must be converted to
         # keyword arguments
-        super().__init__(type=type, config=config, **kwargs)
+        if type is not None:
+            kwargs["type"] = type
+        if config is not None:
+            kwargs["config"] = config
+        super().__init__(**kwargs)
 
     def __composite_values__(self):
         return self.type, self.config
