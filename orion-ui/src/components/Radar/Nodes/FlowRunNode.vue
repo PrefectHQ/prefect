@@ -100,13 +100,7 @@
 
 <script lang="ts" setup>
 import { computed, onMounted, onBeforeUnmount, Ref, ref, watch } from 'vue'
-import {
-  Api,
-  Endpoints,
-  Query,
-  TaskRunsFilter,
-  FlowRunsFilter
-} from '@/plugins/api'
+import { Api, Endpoints, Query, TaskRunsFilter } from '@/plugins/api'
 import { RadarNode } from '@/typings/radar'
 import { State, FlowRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
@@ -136,7 +130,7 @@ const task_runs_count_filter_body: TaskRunsFilter = {
   }
 }
 
-const flow_runs_count_filter_body: FlowRunsFilter = {
+const flow_runs_count_filter_body: TaskRunsFilter = {
   flow_runs: {
     id: {
       any_: [flowRunId.value]
@@ -164,7 +158,7 @@ const queries: { [key: string]: Query } = {
     body: task_runs_count_filter_body
   }),
   flow_run_count: Api.query({
-    endpoint: Endpoints.flow_runs_count,
+    endpoint: Endpoints.task_runs_count,
     body: flow_runs_count_filter_body
   })
 }
@@ -204,7 +198,7 @@ const flowRunCount = computed((): number => {
 })
 
 const handleClick = () => {
-  console.log(flowRun.value)
+  return
 }
 
 /**
