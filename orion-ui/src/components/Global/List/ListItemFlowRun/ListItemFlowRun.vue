@@ -20,12 +20,7 @@
       <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
-        <span
-          class="run-state correct-text caption mr-1"
-          :class="state + '-bg'"
-        >
-          {{ state }}
-        </span>
+        <Label :state="state" />
 
         <Tag
           v-for="tag in tags"
@@ -82,6 +77,7 @@ import { FlowRun } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
 import { secondsToApproximateString } from '@/util/util'
+import Label from '@/components/Global/Label/Label.vue'
 
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()

@@ -1,17 +1,6 @@
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
 @use 'sass:map';
 
-.run-state {
-  display: inline-block;
-  font-family: barlow;
-  font-size: 13px;
-  height: 20px;
-  border-radius: 4px;
-  padding: 0 8px;
-  text-transform: capitalize;
-  align-self: center;
-}
-
 .result-badge {
   background-color: $white;
   border-radius: 16px;

@@ -20,12 +20,7 @@
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
       <div class="tag-container nowrap d-flex align-bottom">
-        <span
-          class="run-state correct-text caption mr-1"
-          :class="state + '-bg'"
-        >
-          {{ state }}
-        </span>
+        <Label :state="state" />
 
         <Tag
           v-for="tag in tags"
@@ -51,6 +46,7 @@ import { computed } from 'vue'
 import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
+import Label from '@/components/Global/Label/Label.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
