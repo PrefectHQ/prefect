@@ -70,7 +70,7 @@ class OrionAgent:
         #       flow_run.flow_runner settings object
 
         flow_runner_settings = flow_run.flow_runner or FlowRunnerSettings()
-        if not flow_runner_settings.type:
+        if not flow_runner_settings.type or flow_runner_settings.type == "universal":
             flow_runner_settings.type = "subprocess"
 
         flow_runner = FlowRunner.from_settings(flow_runner_settings)
