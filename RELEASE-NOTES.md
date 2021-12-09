@@ -10,7 +10,7 @@ With the 2.0a5 release, we introduced the ability to navigate seamlessly between
 - Adding a mini Radar view on the Flow run page
 
 ### Runners
-Previous versions of Prefect could only trigger execution of code defined within tasks. Orion can trigger execution of significant code that can be run _outside of tasks_. In order to make the role previously played by Prefect's `Executor` more explicit, we have renamed `Executor` to `TaskRunner`
+Previous versions of Prefect could only trigger execution of code defined within tasks. Orion can trigger execution of significant code that can be run _outside of tasks_. In order to make the role previously played by Prefect's `Executor` more explicit, we have renamed `Executor` to `TaskRunner`.
 
 A related `FlowRunner` component is forthcoming. 
 
