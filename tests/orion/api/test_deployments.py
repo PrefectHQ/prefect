@@ -726,24 +726,10 @@ class TestScheduleDeployment:
 
 
 class TestCreateFlowRunFromDeployment:
-    async def test_create_flow_run_from_deployment(self, session, client, flow):
-        @prefect.flow
-        def echo_flow(foo):
-            return foo
-
-        deployment = await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="My Deployment",
-                flow_data=DataDocument.encode("cloudpickle", echo_flow),
-                flow_id=flow.id,
-                parameters={"foo": "bar"},
-                tags=["bar", "foo"],
-            ),
-        )
-        await session.commit()
-
-        # should use default parameters and tags
+    async def test_create_flow_run_from_deployment_with_defaults(
+        self, deployment, client
+    ):
+        # should use default parameters, tags, and flow runner
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run", json={}
         )
@@ -751,27 +737,43 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["parameters"] == deployment.parameters
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
+        assert response.json()["flow_runner"] == deployment.flow_runner.dict(
+            json_compatible=True
+        )
 
-        # should override params
+    async def test_create_flow_run_from_deployment_override_params(
+        self, deployment, client
+    ):
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run",
             json=schemas.actions.DeploymentFlowRunCreate(
                 parameters={"foo": "not_bar"}
             ).dict(json_compatible=True),
         )
-        assert sorted(response.json()["tags"]) == sorted(deployment.tags)
         assert response.json()["parameters"] == {"foo": "not_bar"}
-        assert response.json()["flow_id"] == str(deployment.flow_id)
-        assert response.json()["deployment_id"] == str(deployment.id)
 
-        # should override tags
+    async def test_create_flow_run_from_deployment_override_tags(
+        self, deployment, client
+    ):
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(tags=["nope"]).dict(
+                json_compatible=True
+            ),
+        )
+        assert sorted(response.json()["tags"]) == ["nope"]
+
+    async def test_create_flow_run_from_deployment_override_flow_runner(
+        self, deployment, client
+    ):
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run",
             json=schemas.actions.DeploymentFlowRunCreate(
-                parameters={"foo": "not_bar"}, tags=["nope"]
+                flow_runner=schemas.core.FlowRunnerSettings(
+                    type="override", config={"apple": "berry"}
+                )
             ).dict(json_compatible=True),
         )
-        assert sorted(response.json()["tags"]) == ["bar", "foo", "nope"]
-        assert response.json()["parameters"] == {"foo": "not_bar"}
-        assert response.json()["flow_id"] == str(deployment.flow_id)
-        assert response.json()["deployment_id"] == str(deployment.id)
+        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
+            type="override", config={"apple": "berry"}
+        ).dict(json_compatible=True)
