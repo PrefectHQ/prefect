@@ -1,17 +1,19 @@
+import subprocess
+from unittest.mock import AsyncMock, MagicMock
+
+import anyio
+import pydantic
+import pytest
+from typing_extensions import Literal
+
 from prefect.flow_runners import (
     FlowRunner,
     SubprocessFlowRunner,
     UniversalFlowRunner,
-    register_flow_runner,
     lookup_flow_runner,
+    register_flow_runner,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
-from typing import Literal
-import pytest
-import pydantic
-from unittest.mock import AsyncMock, MagicMock
-import anyio
-import subprocess
 
 
 class TestFlowRunner:
