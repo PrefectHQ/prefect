@@ -15,7 +15,6 @@ In addition to the introducing of runners and subflow UI enhancements, we added 
 - Enabled the ability to copy the run ID from the flow run page
 - Added additional metadata to the flow run page details panel
 - Enabled and refined dashboard filters to improve usability, reactivity, and aesthetics
-- Added `prefect dev start` which (re)installs dependencies and rebuilds the UI as Orion starts
 - Added a button to remove filters that prevent deployments without runs from displaying in the dashboard
 - Implemented # response scoped dependency handling to ensure that a session is always committed before a response is returned to the user
 
