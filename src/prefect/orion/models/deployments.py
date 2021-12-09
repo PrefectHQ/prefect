@@ -373,13 +373,21 @@ async def _insert_scheduled_flow_runs(
     if not runs:
         return []
 
+    bulk_insert_values = []
+    for run in runs:
+        run_insert_values = run.dict(exclude={"created", "updated"})
+        flow_runner = run_insert_values.pop("flow_runner", {})
+        run_insert_values["flow_runner_type"] = flow_runner.get("type")
+        run_insert_values["flow_runner_config"] = flow_runner.get("config")
+        bulk_insert_values.append(run_insert_values)
+
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
     insert = await db.insert(db.FlowRun)
     await session.execute(
         insert.on_conflict_do_nothing(index_elements=db.flow_run_unique_upsert_columns),
-        [r.dict(exclude={"created", "updated"}) for r in runs],
+        bulk_insert_values,
     )
 
     # query for the rows that were newly inserted (by checking for any flow runs with
