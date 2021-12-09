@@ -125,9 +125,19 @@
     </Card>
 
     <Card class="radar" shadow="sm">
-      <router-link :to="`/flow-run/${id}/radar`">
+      <template v-slot:header>
+        <div class="d-flex align-center justify-space-between py-1 px-2">
+          <div class="subheader">Radar</div>
+
+          <router-link :to="`/flow-run/${id}/radar`">
+            <IconButton icon="pi-full-screen" />
+          </router-link>
+        </div>
+      </template>
+
+      <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
         <MiniRadarView :id="id" />
-      </router-link>
+      </div>
       <!-- <div
         style="
           top: 50%;

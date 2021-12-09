@@ -1,12 +1,6 @@
 <template>
-  <div ref="container" class="container z-0">
-    <MiniRadar
-      :id="id"
-      :radar="radar"
-      :height="height"
-      :width="width"
-      hide-viewport
-    />
+  <div ref="container">
+    <MiniRadar :id="id" :radar="radar" hide-viewport disable-interactions />
   </div>
 </template>
 
@@ -68,7 +62,3 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleWindowResize)
 })
 </script>
-
-<style lang="scss" scoped>
-// @use '@/styles/views/flow-run/radar.scss';
-</style>
