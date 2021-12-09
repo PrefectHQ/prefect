@@ -74,6 +74,14 @@
   height: 2px;
 }
 
+a {
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
 @media (max-width: map.get($breakpoints, 'md')) {
   .main-grid {
     grid-template-areas:
