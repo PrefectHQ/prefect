@@ -2,7 +2,7 @@
 The agent is responsible for checking for flow runs that are ready to run and starting
 their execution.
 """
-from typing import List, Optional, Set
+from typing import List, Optional
 
 import anyio
 import anyio.to_process
@@ -11,7 +11,7 @@ from anyio.abc import TaskGroup
 
 from prefect import settings
 from prefect.client import OrionClient
-from prefect.flow_runners import FlowRunner
+from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
 from prefect.orion.schemas.core import FlowRun
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
@@ -23,7 +23,6 @@ class OrionAgent:
     def __init__(
         self,
         prefetch_seconds: int = settings.agent.prefetch_seconds,
-        default_runner_type: str = "subprocess",
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
         self.submitting_flow_run_ids = set()
@@ -31,7 +30,6 @@ class OrionAgent:
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
         self.client: Optional[OrionClient] = None
-        self.default_runner_type = default_runner_type
 
     def flow_run_query_filter(self) -> FlowRunFilter:
         return FlowRunFilter(
@@ -70,6 +68,10 @@ class OrionAgent:
         """
         # TODO: Here, the agent may merge settings with those contained in the
         #       flow_run.flow_runner settings object
+        if not flow_run.flow_runner:
+            flow_runner = SubprocessFlowRunner()
+        elif not flow_run.flow_runner.type:
+            flow_run.flow_runner.type = "subprocess"
         flow_runner = FlowRunner.from_settings(flow_run.flow_runner)
 
         try:
