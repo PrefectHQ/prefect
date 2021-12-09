@@ -51,7 +51,7 @@
       </template>
     </div>
 
-    <div class="radar__minimap-controls-container position-absolute mr-2 mb-2">
+    <div class="radar__minimap-controls-container">
       <div class="mb-1 d-flex align-center justify-end">
         <icon-button
           class="bg--white justify-self-start mr-auto"
@@ -709,6 +709,8 @@ onUnmounted(() => {
 
   &__minimap-controls-container {
     bottom: 0;
+    margin: 0 16px 16px 0;
+    position: absolute;
     right: 0;
     z-index: 1;
   }
