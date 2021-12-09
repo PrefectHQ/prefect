@@ -108,3 +108,38 @@ jobs:
           PREFECT_ORION_DATABASE_CONNECTION_URL: 'postgresql+asyncpg://prefect:prefect@localhost/orion'
         run: |
           pytest tests
+
+
+  run-tests-lower-bounds:
+    name: Lower bound requirements
+
+    runs-on: ubuntu-18.04
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Generate lower bound requirements
+        # Creates lower bound files then replaces the input files so we can do a normal install
+        run: |
+          ./scripts/generate-lower-bounds.py requirements.txt > requirements-lower.txt
+          ./scripts/generate-lower-bounds.py requirements-dev.txt > requirements-dev-lower.txt
+          mv requirements-lower.txt requirements.txt
+          mv requirements-dev-lower.txt requirements-dev.txt
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run tests
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
+        run: |
+          pytest tests
