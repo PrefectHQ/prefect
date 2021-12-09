@@ -188,6 +188,7 @@
         :filter="taskRunsFilter"
         component="list-item-task-run"
         endpoint="task_runs"
+        :poll-interval="5000"
       />
 
       <ResultsList
@@ -196,6 +197,7 @@
         :filter="subFlowRunsFilter"
         component="list-item-sub-flow-run"
         endpoint="task_runs"
+        :poll-interval="5000"
       />
     </transition>
   </section>
