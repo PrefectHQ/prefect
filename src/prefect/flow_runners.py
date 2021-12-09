@@ -15,11 +15,6 @@ _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 
 
-# TODO: Sort out logging; we will likely want one logger per flow runner but we can't
-#       add it at __init__ time since they are pydantic models
-logger = get_logger("flow_runner")
-
-
 class FlowRunner(BaseModel):
     """
     Flow runners are responsible for creating infrastructure for flow runs and starting
@@ -40,6 +35,10 @@ class FlowRunner(BaseModel):
     def from_settings(cls, settings: FlowRunnerSettings) -> "FlowRunner":
         subcls = lookup_flow_runner(settings.type)
         return subcls(**settings.config)
+
+    @property
+    def logger(self):
+        return get_logger(f"flow_runner.{self.typename}")
 
     async def submit_flow_run(
         self,
@@ -114,7 +113,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
     ) -> Optional[bool]:
 
         # Open a subprocess to execute the flow run
-        logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
+        self.logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
         process_context = await anyio.open_process(
             ["python", "-m", "prefect.engine", flow_run.id.hex],
             stderr=subprocess.STDOUT,
@@ -133,11 +132,11 @@ class SubprocessFlowRunner(UniversalFlowRunner):
                     print(text, end="")  # Output is already new-line terminated
 
         if process.returncode:
-            logger.error(
+            self.logger.error(
                 f"Subprocess for flow run '{flow_run.id}' exited with bad code: "
                 f"{process.returncode}"
             )
         else:
-            logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
+            self.logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
 
         return not process.returncode

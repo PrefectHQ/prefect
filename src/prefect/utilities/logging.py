@@ -2,7 +2,7 @@ import logging
 import logging.config
 import os
 import re
-from functools import partial
+from functools import partial, lru_cache
 from pathlib import Path
 import yaml
 
@@ -71,6 +71,7 @@ def setup_logging(settings: Settings) -> None:
     logging.config.dictConfig(config)
 
 
+@lru_cache()
 def get_logger(name: str = None) -> logging.Logger:
     """
     Get a `prefect` logger.
