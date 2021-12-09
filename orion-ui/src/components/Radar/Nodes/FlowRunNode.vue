@@ -130,8 +130,6 @@ const task_runs_count_filter_body: TaskRunsFilter = {
   }
 }
 
-console.log(props.node)
-
 const flow_runs_count_filter_body: TaskRunsFilter = {
   flow_runs: {
     id: {
