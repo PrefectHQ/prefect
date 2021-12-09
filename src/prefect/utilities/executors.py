@@ -315,7 +315,9 @@ def multiprocessing_safe_run_and_retrieve(
         )
 
     try:
-        logger.debug(f"{name}: Pickling value of size {sys.getsizeof(return_val)}...")
+        logger.debug(
+            "%s: Pickling value of size %s...", name, sys.getsizeof(return_val)
+        )  # Only calculate the size if debug logs are enabled
         pickled_val = cloudpickle.dumps(return_val)
         logger.debug(f"{name}: Pickling successful!")
     except Exception as exc:
@@ -327,7 +329,7 @@ def multiprocessing_safe_run_and_retrieve(
         logger.error(f"{name}: {err_msg}")
         pickled_val = cloudpickle.dumps(RuntimeError(err_msg))
 
-    logger.info(f"{name}: Passing result back to main process...")
+    logger.debug(f"{name}: Passing result back to main process...")
 
     try:
         queue.put(pickled_val)
@@ -336,14 +338,7 @@ def multiprocessing_safe_run_and_retrieve(
             f"{name}: Failed to put result in queue to main process!",
             exc_info=True,
         )
-        logging.shutdown()
         raise
-    else:
-        logging.shutdown()
-
-    import time
-
-    time.sleep(10)
 
 
 def run_with_multiprocess_timeout(
@@ -356,7 +351,9 @@ def run_with_multiprocess_timeout(
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
-    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+
+    Implemented by spawning a new multiprocess.Process() and using a queue to pass
+    the result back. The result is retrieved from the queue with a timeout.
 
     Args:
         - fn (callable): the function to execute
@@ -374,6 +371,7 @@ def run_with_multiprocess_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
+        - Exception: Any user errors within the subprocess will be pickled and reraised
         - AssertionError: if run from a daemonic process
         - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
