@@ -147,14 +147,14 @@ The two relevant methods for futures are:
 - `wait`: when called, blocks until the underlying task run is complete and returns its final state
 - `get_state`: immediately query for the current state of the underlying task run and return it
 
-Using the `DaskExecutor` we can see this clearly:
+Using the `DaskTaskRunner` we can see this clearly:
 
 ```python
 import random
 import time
 
 from prefect import task, flow
-from prefect.executors import DaskExecutor
+from prefect.task_runners import DaskTaskRunner
 
 @task
 def sleep(secs):
@@ -166,7 +166,7 @@ def sleep(secs):
 def fail():
     raise TypeError("Something was misconfigured")
 
-@flow(executor=DaskExecutor())
+@flow(task_runner=DaskTaskRunner())
 def complex_flow_logic():
     long_sleep = sleep(10)
 
