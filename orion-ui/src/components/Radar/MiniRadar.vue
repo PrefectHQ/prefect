@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch, withDefaults } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, withDefaults } from 'vue'
 import * as d3 from 'd3'
 import { Radar } from './Radar'
 import { generateArcs, calculateArcSegment, Arc } from './utils'
@@ -62,6 +62,9 @@ const container = ref<HTMLElement>()
 const viewport = ref<HTMLElement>()
 const canvas = ref<Selection>()
 const ringContainer = ref<Selection>()
+
+const containerHeight = ref<number>(0)
+const containerWidth = ref<number>(0)
 
 /**
  * Misc refs
@@ -105,7 +108,9 @@ const viewportOffset = computed<number>(() => {
 })
 
 const scale = computed<number>(() => {
-  const scale_ = 200 / (viewportOffset.value * 2.5)
+  const scale_ =
+    Math.min(containerWidth.value, containerHeight.value) /
+    (viewportOffset.value * 2.5)
   return scale_
 })
 
@@ -193,6 +198,21 @@ const pan = (e: MouseEvent): void => {
   emit('pan-to-location', zoomIdentity)
 }
 
+const handleWindowResize = (): void => {
+  if (!container.value) return
+  const width = container.value.offsetWidth
+  const height = container.value.offsetHeight
+
+  containerWidth.value = width
+  containerHeight.value = height
+  canvas.value
+    ?.attr('viewbox', '0, 0, 200, 200')
+    .attr('width', width)
+    .attr('height', height)
+
+  updateRings()
+}
+
 /**
  * Watchers
  */
@@ -230,21 +250,17 @@ const createChart = (): void => {
   ringContainer.value = canvas.value.select('.mini-radar__ring-container')
   ringContainer.value.style('transform', `scale(${scale.value})`)
 
-  if (container.value) {
-    canvas.value
-      ?.attr(
-        'viewbox',
-        `0, 0, ${container.value.offsetWidth}, ${container.value.offsetHeight}`
-      )
-      .attr('width', container.value.offsetWidth)
-      .attr('height', container.value.offsetHeight)
-  }
-
+  handleWindowResize()
   updateRings()
 }
 
 onMounted(() => {
   createChart()
+  window.addEventListener('resize', handleWindowResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleWindowResize)
 })
 </script>
 
