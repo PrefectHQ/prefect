@@ -14,10 +14,9 @@ class TestFireboltQuery:
             username="test",
             password="test",
             engine_name="test",
-            api_endpoint="test",
             query="test",
         )
-        assert task.engine_url is None
+        assert task.database is not None
 
     # test to check if there are missing required parameters
     def test_required_params(self):
@@ -27,8 +26,6 @@ class TestFireboltQuery:
                 database="test",
                 username="test",
                 password="test",
-                engine_url=None,
-                api_endpoint="test",
                 query="test",
             )
         # raises Value error if database name is not provided
@@ -37,8 +34,6 @@ class TestFireboltQuery:
                 username="test",
                 password="test",
                 engine_name="test",
-                engine_url=None,
-                api_endpoint="test",
                 query="test",
             )
         # raises Value error if username is not provided
@@ -47,8 +42,6 @@ class TestFireboltQuery:
                 database="test",
                 password="test",
                 engine_name="test",
-                engine_url=None,
-                api_endpoint="test",
                 query="test",
             )
         # raises Value error if password is not provided
@@ -57,18 +50,6 @@ class TestFireboltQuery:
                 database="test",
                 username="test",
                 engine_name="test",
-                engine_url=None,
-                api_endpoint="test",
-                query="test",
-            )
-        # raises Value error if api_endpoint is not provided
-        with pytest.raises(ValueError, match="An api endpoint must be provided"):
-            FireboltQuery().run(
-                database="test",
-                username="test",
-                password="test",
-                engine_name="test",
-                engine_url=None,
                 query="test",
             )
         # raises Value error if query is not provided
@@ -78,8 +59,6 @@ class TestFireboltQuery:
                 username="test",
                 password="test",
                 engine_name="test",
-                engine_url=None,
-                api_endpoint="test",
             )
 
     # test to check if the ddl/dml query was executed
@@ -111,8 +90,6 @@ class TestFireboltQuery:
             username="test",
             password="test",
             engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
             query=query,
         ).run()
 
@@ -149,8 +126,6 @@ class TestFireboltQuery:
             username="test",
             password="test",
             engine_name="test",
-            engine_url=None,
-            api_endpoint="test",
             query=query,
         ).run()
         assert output == ["TESTDB"]

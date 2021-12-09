@@ -11,8 +11,6 @@ class FireboltQuery(Task):
         username: str = None,
         password: str = None,
         engine_name: str = None,
-        engine_url: str = None,
-        api_endpoint: str = None,
         query: str = None,
         **kwargs
     ):
@@ -24,8 +22,6 @@ class FireboltQuery(Task):
             - username (str): username used to authenticate
             - password (str): password used to authenticate.
             - engine name (str): name of the engine to use
-            - engine url (str, optional): engine url of the engine to use
-            - api_endpoint (str): default API endpoint of firebolt
             - query (str): query to execute against database
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
         """
@@ -34,22 +30,16 @@ class FireboltQuery(Task):
         self.username = username
         self.password = password
         self.engine_name = engine_name
-        self.engine_url = engine_url
-        self.api_endpoint = api_endpoint
         self.query = query
         super().__init__(**kwargs)
 
-    @defaults_from_attrs(
-        "database", "username", "password", "engine_name", "api_endpoint", "query"
-    )
+    @defaults_from_attrs("database", "username", "password", "engine_name", "query")
     def run(
         self,
         database: str = None,
         username: str = None,
         password: str = None,
         engine_name: str = None,
-        engine_url: str = None,
-        api_endpoint: str = None,
         query: str = None,
     ):
         """
@@ -60,8 +50,6 @@ class FireboltQuery(Task):
             - username (str): username used to authenticate
             - password (str): password used to authenticate.
             - engine name (str): name of the engine to use
-            - engine url (str, optional): engine url of the engine to use
-            - api_endpoint (str): default API endpoint of firebolt
             - query (str): query to execute against database
 
         Returns:
@@ -80,27 +68,27 @@ class FireboltQuery(Task):
             raise ValueError("A password must be provided")
         if not engine_name:
             raise ValueError("An engine name must be provided")
-        if not api_endpoint:
-            raise ValueError("An api endpoint must be provided")
         if not query:
             raise ValueError("A query string must be provided")
 
+        conn_config = {
+            "database": database,
+            "username": username,
+            "password": password,
+            "engine_name": engine_name,
+        }
+
         # connect to database, return a connection object
-        conn = firebolt_conn.connect(
-            database, username, password, engine_name, engine_url, api_endpoint
-        )
+        conn = firebolt_conn.connect(**conn_config)
         result = []
 
         # try to execute query
         try:
             with conn:
                 with conn.cursor() as cursor:
-                    print(query)
                     execute = cursor.execute(query)
-                    print(execute)
-                    if execute >= 0:
+                    if execute > 0:
                         result = cursor.fetchall()
-                        print(result)
             conn.close()
             return result
         # pass through error, and ensure connection is closed
