@@ -336,7 +336,10 @@ def multiprocessing_safe_run_and_retrieve(
             f"{name}: Failed to put result in queue to main process!",
             exc_info=True,
         )
+        logging.shutdown()
         raise
+    else:
+        logging.shutdown()
 
 
 def run_with_multiprocess_timeout(
