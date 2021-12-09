@@ -252,8 +252,6 @@ def test_multiprocessing_safe_run_and_retrieve_logs_queue_errors(caplog):
     assert "Failed to put result in queue to main process!" in caplog.text
     assert "Exception: Test" in caplog.text
 
-    breakpoint()
-
 
 def test_recursion_go_case():
     @tail_recursive
