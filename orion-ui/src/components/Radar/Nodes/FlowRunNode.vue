@@ -200,7 +200,7 @@ const flowRunCount = computed((): number => {
 })
 
 const handleClick = () => {
-  console.log(queries.flow_run_count)
+  return
 }
 
 /**
