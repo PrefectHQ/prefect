@@ -1,6 +1,8 @@
 <template>
   <div
+    ref="container"
     class="mini-radar position-relative"
+    :class="{ 'mini-radar--disabled': props.disableInteractions }"
     @mousemove="dragViewport"
     @mouseleave="dragging = false"
   >
@@ -34,15 +36,17 @@ const props = withDefaults(
     radar: Radar
     collapsedTrees?: Map<string, Map<string, RadarNode>>
     transform?: { x: number; y: number; k: number }
-    height: number
-    width: number
+    height?: number
+    width?: number
     id: string
     baseRadius?: number
+    disableInteractions?: boolean
     hideViewport?: boolean
   }>(),
   {
     baseRadius: 300,
     hideViewport: false,
+    disableInteractions: false,
     transform: () => {
       return { x: 0, y: 0, k: 1 }
     }
@@ -54,6 +58,7 @@ const props = withDefaults(
  */
 type Selection = d3.Selection<SVGGElement, unknown, HTMLElement, any>
 
+const container = ref<HTMLElement>()
 const viewport = ref<HTMLElement>()
 const canvas = ref<Selection>()
 const ringContainer = ref<Selection>()
@@ -115,6 +120,7 @@ const viewportStyle = computed<{
 })
 
 const dimensions = computed<{ width: number; height: number }>(() => {
+  if (!props.height || !props.width) return { height: 0, width: 0 }
   return {
     height: props.height * scale.value,
     width: props.width * scale.value
@@ -165,7 +171,7 @@ const updateRings = (): void => {
 }
 
 const dragViewport = (e: MouseEvent): void => {
-  if (!dragging.value) return
+  if (!dragging.value || props.disableInteractions) return
 
   // We multiply the mouse movement by a multiplier equal to the inverse
   // of the scale applied to the minimap
@@ -175,6 +181,7 @@ const dragViewport = (e: MouseEvent): void => {
 }
 
 const pan = (e: MouseEvent): void => {
+  if (props.disableInteractions) return
   const rect = (e.target as Element)?.getBoundingClientRect()
 
   const x_ = (e.clientX - rect.left - 100) / scale.value
@@ -223,7 +230,15 @@ const createChart = (): void => {
   ringContainer.value = canvas.value.select('.mini-radar__ring-container')
   ringContainer.value.style('transform', `scale(${scale.value})`)
 
-  canvas.value?.attr('viewbox', '0, 0, 200, 200')
+  if (container.value) {
+    canvas.value
+      ?.attr(
+        'viewbox',
+        `0, 0, ${container.value.offsetWidth}, ${container.value.offsetHeight}`
+      )
+      .attr('width', container.value.offsetWidth)
+      .attr('height', container.value.offsetHeight)
+  }
 
   updateRings()
 }
@@ -235,14 +250,13 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+
 .mini-radar {
-  backdrop-filter: blur(1px);
-  background-color: rgba(244, 245, 247, 0.9);
-  border-radius: 8px;
-  filter: $drop-shadow-sm;
-  height: 200px;
+  $self: &;
+
+  height: 100%;
   overflow: hidden;
-  width: 200px;
+  width: 100%;
 
   &__canvas {
     cursor: pointer;
@@ -268,6 +282,22 @@ onMounted(() => {
 
     &:active {
       cursor: grabbing;
+    }
+  }
+
+  &--disabled {
+    cursor: default !important;
+
+    #{$self}__canvas {
+      cursor: default !important;
+    }
+
+    #{$self}__viewport {
+      cursor: default !important;
+
+      &:active {
+        cursor: default;
+      }
     }
   }
 }

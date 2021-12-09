@@ -51,7 +51,7 @@
       </template>
     </div>
 
-    <div class="radar__minimap-container position-absolute mr-2 mb-2">
+    <div class="radar__minimap-controls-container position-absolute mr-2 mb-2">
       <div class="mb-1 d-flex align-center justify-end">
         <icon-button
           class="bg--white justify-self-start mr-auto"
@@ -75,17 +75,19 @@
         />
       </div>
 
-      <MiniRadar
-        class="radar__minimap position-relative"
-        :id="id"
-        :transform="transform_"
-        :collapsed-trees="collapsedTrees"
-        :radar="radial"
-        :height="height"
-        :width="width"
-        @drag-viewport="dragViewport"
-        @pan-to-location="panToLocation"
-      />
+      <div class="radar__minimap-container">
+        <MiniRadar
+          class="radar__minimap position-relative"
+          :id="id"
+          :transform="transform_"
+          :collapsed-trees="collapsedTrees"
+          :radar="radial"
+          :height="height"
+          :width="width"
+          @drag-viewport="dragViewport"
+          @pan-to-location="panToLocation"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -705,10 +707,20 @@ onUnmounted(() => {
     }
   }
 
-  &__minimap-container {
+  &__minimap-controls-container {
     bottom: 0;
     right: 0;
     z-index: 1;
+  }
+
+  &__minimap-container {
+    backdrop-filter: blur(1px);
+    background-color: rgba(244, 245, 247, 0.9);
+    border-radius: 8px;
+    filter: $drop-shadow-sm;
+    height: 200px;
+    overflow: hidden;
+    width: 200px;
   }
 
   &__node-container {
