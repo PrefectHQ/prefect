@@ -1,11 +1,11 @@
 <template>
   <ListItem class="list-item--task-run d-flex align-start justify-start">
     <!-- For a later date... maybe -->
-    <!-- :class="state + '-border'" -->
+    <!-- :class="stateType + '-border'" -->
 
     <i
       class="item--icon pi text--grey-40 align-self-start"
-      :class="`pi-${state}`"
+      :class="`pi-${stateType}`"
     />
     <div
       class="
@@ -20,7 +20,7 @@
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
       <div class="tag-container nowrap d-flex align-bottom">
-        <Label :state="state" />
+        <StateLabel :name="state.name" :type="state.type" class="mr-1" />
 
         <Tag
           v-for="tag in tags"
@@ -46,7 +46,7 @@ import { computed } from 'vue'
 import { Api, Query, Endpoints, FlowRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
-import Label from '@/components/Global/Label/Label.vue'
+import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
@@ -70,6 +70,10 @@ const queries: { [key: string]: Query } = {
 }
 
 const state = computed(() => {
+  return props.item.state
+})
+
+const stateType = computed(() => {
   return props.item.state.type.toLowerCase()
 })
 
@@ -86,7 +90,7 @@ const flow = computed(() => {
 })
 
 const duration = computed(() => {
-  return state.value == 'pending' || state.value == 'scheduled'
+  return stateType.value == 'pending' || stateType.value == 'scheduled'
     ? '--'
     : props.item.total_run_time
     ? secondsToApproximateString(props.item.total_run_time)
