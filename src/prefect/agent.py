@@ -62,18 +62,21 @@ class OrionAgent:
             )
         return submittable_runs
 
+    def get_flow_runner(self, flow_run: FlowRun):
+        # TODO: Here, the agent may merge settings with those contained in the
+        #       flow_run.flow_runner settings object
+
+        flow_runner_settings = flow_run.flow_runner.copy() or FlowRunnerSettings()
+        if not flow_runner_settings.type or flow_runner_settings.type == "universal":
+            flow_runner_settings.type = "subprocess"
+
+        return FlowRunner.from_settings(flow_runner_settings)
+
     async def submit_run(self, flow_run: FlowRun):
         """
         Submit a flow run to the flow runner
         """
-        # TODO: Here, the agent may merge settings with those contained in the
-        #       flow_run.flow_runner settings object
-
-        flow_runner_settings = flow_run.flow_runner or FlowRunnerSettings()
-        if not flow_runner_settings.type or flow_runner_settings.type == "universal":
-            flow_runner_settings.type = "subprocess"
-
-        flow_runner = FlowRunner.from_settings(flow_runner_settings)
+        flow_runner = self.get_flow_runner(flow_run)
 
         try:
             # Wait for submission to be completed. Note that the submission function
