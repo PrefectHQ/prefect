@@ -322,6 +322,7 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
+        flow_runner: "FlowRunner" = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
@@ -336,6 +337,7 @@ class OrionClient:
                 of the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            flow_runner: An optional flow runnner to use to execute this flow run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -361,6 +363,7 @@ class OrionClient:
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state,
+            flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
