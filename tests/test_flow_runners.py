@@ -97,7 +97,7 @@ class TestSubprocessFlowRunner:
     async def test_executes_flow_run(self, deployment, capsys, orion_client):
         fake_status = MagicMock()
 
-        flow_run = await orion_client.create_flow_run_from_deployment(deployment)
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
 
         successful = await SubprocessFlowRunner().submit_flow_run(flow_run, fake_status)
 
@@ -111,7 +111,7 @@ class TestSubprocessFlowRunner:
     ):
         fake_status = MagicMock()
 
-        flow_run = await orion_client.create_flow_run_from_deployment(deployment)
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
 
         assert await SubprocessFlowRunner(stream_output=stream_output).submit_flow_run(
             flow_run, fake_status
