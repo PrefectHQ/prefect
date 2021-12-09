@@ -47,40 +47,38 @@ async def test_agent_submittable_flow_run_filter(orion_client, deployment):
             deployment, state=state
         )
     )
-    fr_id_1 = (await create_run_with_deployment(Pending())).id
-    fr_id_2 = (
+
+    flow_runs = [
+        await create_run_with_deployment(Pending()),
         await create_run_with_deployment(
             Scheduled(scheduled_time=pendulum.now("utc").subtract(days=1))
-        )
-    ).id
-    fr_id_3 = (
+        ),
         await create_run_with_deployment(
             Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        )
-    ).id
-    fr_id_4 = (
+        ),
         await create_run_with_deployment(
             Scheduled(scheduled_time=pendulum.now("utc").add(seconds=5))
-        )
-    ).id
-    fr_id_5 = (
+        ),
         await create_run_with_deployment(
             Scheduled(scheduled_time=pendulum.now("utc").add(seconds=20))
-        )
-    ).id
-    fr_id_6 = (await create_run_with_deployment(Running())).id
-    fr_id_7 = (await create_run_with_deployment(Completed())).id
-    fr_id_8 = (await orion_client.create_flow_run(foo, state=Scheduled())).id
+        ),
+        await create_run_with_deployment(Running()),
+        await create_run_with_deployment(Completed()),
+        await orion_client.create_flow_run(foo, state=Scheduled()),
+    ]
+    flow_run_ids = [run.id for run in flow_runs]
 
     async with OrionAgent(prefetch_seconds=10) as agent:
         agent.submit_run = AsyncMock()  # do not actually run
-        agent.submitting_flow_run_ids.add(fr_id_4)  # add a submitting id to check skip
+        agent.submitting_flow_run_ids.add(
+            flow_run_ids[3]
+        )  # add a submitting id to check skip
         submitted_flow_runs = await agent.get_and_submit_flow_runs()
 
     submitted_flow_run_ids = {flow_run.id for flow_run in submitted_flow_runs}
     # Only include scheduled runs in the past or next prefetch seconds
     # Does not include runs without deployments
-    assert submitted_flow_run_ids == {fr_id_2, fr_id_3}
+    assert submitted_flow_run_ids == {flow_run_ids[1], flow_run_ids[2]}
 
 
 async def test_agent_flow_run_submission(orion_client, deployment):
