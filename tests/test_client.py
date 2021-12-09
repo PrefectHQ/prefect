@@ -242,7 +242,7 @@ async def test_read_flows_with_filter(orion_client):
 
 
 async def test_create_flow_run_from_deployment(orion_client, deployment):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment)
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
