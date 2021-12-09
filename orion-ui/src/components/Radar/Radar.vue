@@ -6,11 +6,7 @@
     </svg>
 
     <div class="radar__node-container">
-      <template
-        v-for="[key, node] of visibleNodes"
-        :id="`node-${key}`"
-        :key="key"
-      >
+      <template v-for="[key, node] of visibleNodes" :key="key">
         <component
           v-if="node.position?.nodes.size == 1"
           :is="
@@ -18,6 +14,7 @@
               ? 'radar-flow-run-node'
               : 'radar-node'
           "
+          :id="`node-${key}`"
           :node="node"
           :selected="selectedNodes.includes(node.id)"
           class="radar__node position-absolute"

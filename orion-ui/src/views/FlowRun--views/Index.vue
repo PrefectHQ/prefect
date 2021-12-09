@@ -156,7 +156,7 @@
 
     <Tab href="sub_flow_runs" class="subheader">
       <i class="pi pi-flow-run mr-1 text--grey-40" />
-      Sub Flow Runs
+      Subflow Runs
       <span
         class="result-badge caption ml-1"
         :class="{ active: resultsTab == 'sub_flow_runs' }"
@@ -214,7 +214,7 @@ import Timeline from '@/components/Timeline/Timeline.vue'
 
 const route = useRoute()
 
-const resultsTab: Ref<string | null> = ref('task_runs')
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
 
 const id = computed(() => {
   return route?.params.id as string
@@ -244,10 +244,6 @@ const deploymentId = computed<string>(() => {
   return flowRunBase.response.value.deployment_id
 })
 
-// const flowId = flowRunBase.response.value.flow_id
-// const parentTaskRunId = flowRunBase.response.value.parent_task_run_id
-// const deploymentId = flowRunBase.response.value.deployment_id
-
 const flowFilter = computed(() => {
   return {
     id: flowId.value
@@ -269,18 +265,6 @@ const parentFlowFilter = computed<FlowsFilter>(() => {
     }
   }
 })
-
-// const parentFlowFilter: FlowsFilter = {
-//   task_runs: {
-//     id: {
-//       any_: [parentTaskRunId.value]
-//     }
-//   }
-// }
-
-// const deploymentFilter = {
-//   id: deploymentId
-// }
 
 const taskRunsFilter = computed<BaseFilter>(() => {
   return {
@@ -356,7 +340,7 @@ const queries: { [key: string]: Query } = {
   })
 }
 
-const countMap: { [key: string]: string } = {
+const countMap = {
   task_runs: 'task_runs_count',
   sub_flow_runs: 'sub_flow_runs_count'
 }
