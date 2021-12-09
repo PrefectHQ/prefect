@@ -129,7 +129,7 @@ jobs:
       - name: Configure upstream
         run: git remote add prefect-orion https://${MARVIN_GITHUB_TOKEN}@github.com/PrefectHQ/prefect.git
         env:
-          MARVIN_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
+          MARVIN_GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
       - name: Create a temporary branch & merge w/ upstream
         # the release tag is parsed from the ref
