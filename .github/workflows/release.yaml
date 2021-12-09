@@ -57,6 +57,7 @@ jobs:
   publish-docs:
     name: Open PR to docs branch
     needs: [build-release, publish-test-release]
+    environment: 'prod'
     runs-on: ubuntu-latest
 
     steps:
