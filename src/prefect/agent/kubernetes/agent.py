@@ -114,7 +114,9 @@ class KubernetesAgent(Agent):
         if not image_pull_secrets:
             image_pull_secrets_env = os.getenv("IMAGE_PULL_SECRETS")
             if image_pull_secrets_env:
-                image_pull_secrets = [s.strip() for s in image_pull_secrets_env.split(",")]
+                image_pull_secrets = [
+                    s.strip() for s in image_pull_secrets_env.split(",")
+                ]
             else:
                 image_pull_secrets = None
         self.image_pull_secrets = image_pull_secrets
