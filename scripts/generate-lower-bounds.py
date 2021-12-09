@@ -19,10 +19,13 @@ A file can be generated and used with pip:
     generate-lower-bounds.py > requirements-lower.txt
     pip install -r requirements-lower.txt
 
+NOTE: Writing requirements to the same file that they are read from will result in an
+      empty file.
+
 It can be used inline with pip if newlines are converted to spaces:
 
    pip install $(generate-lower-bounds.py | tr "\n" " ")
-   
+
 """
 import re
 import sys
@@ -30,8 +33,8 @@ import sys
 
 def generate_lower_bounds(input_path):
     with open(input_path, "r") as f:
-        for req in f:
-            pkg_data = re.split(">=|,|==", req.replace("~", ">"))
+        for line in f:
+            pkg_data = re.split(">=|,|==", line.replace("~", ">"))
 
             if len(pkg_data) == 1:
                 # There is no versioning for this requirement
