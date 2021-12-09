@@ -21,7 +21,7 @@ In addition to the introducing of runners and subflow UI enhancements, we added 
 - Added additional metadata to the flow run page details panel
 - Enabled and refined dashboard filters to improve usability, reactivity, and aesthetics
 - Added a button to remove filters that prevent deployments without runs from displaying in the dashboard
-- Implemented # response scoped dependency handling to ensure that a session is always committed before a response is returned to the user
+- Implemented response scoped dependency handling to ensure that a session is always committed before a response is returned to the user
 
 ## 2.0a5
 
