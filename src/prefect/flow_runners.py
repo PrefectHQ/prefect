@@ -34,7 +34,7 @@ class FlowRunner(BaseModel):
     @classmethod
     def from_settings(cls, settings: FlowRunnerSettings) -> "FlowRunner":
         subcls = lookup_flow_runner(settings.type)
-        return subcls(**settings.config)
+        return subcls(**(settings.config or {}))
 
     @property
     def logger(self):
