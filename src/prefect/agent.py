@@ -11,8 +11,8 @@ from anyio.abc import TaskGroup
 
 from prefect import settings
 from prefect.client import OrionClient
-from prefect.flow_runners import FlowRunner, SubprocessFlowRunner
-from prefect.orion.schemas.core import FlowRun
+from prefect.flow_runners import FlowRunner
+from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import StateType
@@ -68,11 +68,12 @@ class OrionAgent:
         """
         # TODO: Here, the agent may merge settings with those contained in the
         #       flow_run.flow_runner settings object
-        if not flow_run.flow_runner:
-            flow_runner = SubprocessFlowRunner()
-        elif not flow_run.flow_runner.type:
-            flow_run.flow_runner.type = "subprocess"
-        flow_runner = FlowRunner.from_settings(flow_run.flow_runner)
+
+        flow_runner_settings = flow_run.flow_runner or FlowRunnerSettings()
+        if not flow_runner_settings.type:
+            flow_runner_settings.type = "subprocess"
+
+        flow_runner = FlowRunner.from_settings(flow_runner_settings)
 
         try:
             # Wait for submission to be completed. Note that the submission function
