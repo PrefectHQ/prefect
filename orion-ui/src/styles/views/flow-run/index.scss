@@ -68,6 +68,21 @@
   }
 }
 
+.radar {
+  .radar-content {
+    box-sizing: content-box;
+    min-height: 100px;
+  }
+
+  &.full-screen {
+    height: 60vh;
+
+    .timeline-content {
+      max-height: calc(60vh - 40px);
+    }
+  }
+}
+
 .results-hr {
   background-color: $grey-20;
   border: none;
