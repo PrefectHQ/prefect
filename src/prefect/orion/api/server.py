@@ -9,7 +9,6 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 import prefect
@@ -18,15 +17,31 @@ from prefect.orion import api, services
 from prefect.utilities.logging import get_logger
 from prefect.orion.database.dependencies import MODELS_DEPENDENCIES
 
-API_TITLE = "Prefect Orion"
+TITLE = "Prefect Orion"
+API_TITLE = "Prefect Orion API"
+UI_TITLE = "Prefect Orion UI"
 API_VERSION = prefect.__version__
+
+
+class SPAStaticFiles(StaticFiles):
+    # This class overrides the get_response method
+    # to ensure that when a resource isn't found the application still
+    # returns the index.html file. This is required for SPAs
+    # since in-app routing is handled by a single html file.
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 404:
+            response = await super().get_response("./index.html", scope)
+        return response
 
 
 def create_app(database_config=None) -> FastAPI:
 
     MODELS_DEPENDENCIES["database_config"] = database_config
 
-    app = FastAPI(title=API_TITLE, version=API_VERSION)
+    app = FastAPI(title=TITLE, version=API_VERSION)
+    api_app = FastAPI(title=API_TITLE)
+    ui_app = FastAPI(title=UI_TITLE)
     logger = get_logger("orion")
 
     # middleware
@@ -37,18 +52,18 @@ def create_app(database_config=None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # routers
-    app.include_router(api.admin.router, prefix="/api")
-    app.include_router(api.data.router, prefix="/api")
-    app.include_router(api.flows.router, prefix="/api")
-    app.include_router(api.flow_runs.router, prefix="/api")
-    app.include_router(api.task_runs.router, prefix="/api")
-    app.include_router(api.flow_run_states.router, prefix="/api")
-    app.include_router(api.task_run_states.router, prefix="/api")
-    app.include_router(api.deployments.router, prefix="/api")
-    app.include_router(api.saved_searches.router, prefix="/api")
+    # api routers
+    api_app.include_router(api.admin.router)
+    api_app.include_router(api.data.router)
+    api_app.include_router(api.flows.router)
+    api_app.include_router(api.flow_runs.router)
+    api_app.include_router(api.task_runs.router)
+    api_app.include_router(api.flow_run_states.router)
+    api_app.include_router(api.task_run_states.router)
+    api_app.include_router(api.deployments.router)
+    api_app.include_router(api.saved_searches.router)
 
-    app.mount(
+    api_app.mount(
         "/static",
         StaticFiles(
             directory=os.path.join(
@@ -58,14 +73,16 @@ def create_app(database_config=None) -> FastAPI:
         name="static",
     )
 
-    if os.path.exists(prefect.__ui_static_path__):
-        app.mount("/ui", StaticFiles(directory=prefect.__ui_static_path__), name="ui")
+    app.mount("/api", app=api_app)
+    if os.path.exists(prefect.__ui_static_path__) and settings.orion.ui.enabled:
+        ui_app.mount(
+            "/",
+            SPAStaticFiles(directory=prefect.__ui_static_path__, html=True),
+            name="ui_root",
+        )
+        app.mount("/", app=ui_app, name="ui")
     else:
         pass
-
-    @app.get("/")
-    async def root():
-        return HTMLResponse(open(prefect.__ui_static_path__ / "index.html").read())
 
     def openapi():
         if app.openapi_schema:

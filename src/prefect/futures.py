@@ -27,7 +27,7 @@ from prefect.utilities.asyncio import sync, A, Async, Sync, sync_compatible
 from prefect.utilities.collections import visit_collection
 
 if TYPE_CHECKING:
-    from prefect.executors import BaseExecutor
+    from prefect.task_runners import BaseTaskRunner
 
 
 R = TypeVar("R")
@@ -35,10 +35,10 @@ R = TypeVar("R")
 
 class PrefectFuture(Generic[R, A]):
     """
-    Represents the result of a computation happening in an executor.
+    Represents the result of a computation happening in a task runner.
 
-    When tasks are called, they are submitted to an executor which creates a future for
-    access to the state and result of the task.
+    When tasks are called, they are submitted to a task runner which creates a future
+    for access to the state and result of the task.
 
     Examples:
         Define a task that returns a string
@@ -82,7 +82,7 @@ class PrefectFuture(Generic[R, A]):
     def __init__(
         self,
         task_run: TaskRun,
-        executor: "BaseExecutor",
+        task_runner: "BaseTaskRunner",
         asynchronous: A = True,
         _final_state: State[R] = None,  # Exposed for testing
     ) -> None:
@@ -91,7 +91,7 @@ class PrefectFuture(Generic[R, A]):
         self.asynchronous = asynchronous
         self._final_state = _final_state
         self._exception: Optional[Exception] = None
-        self._executor = executor
+        self._task_runner = task_runner
 
     @overload
     def wait(
@@ -141,7 +141,7 @@ class PrefectFuture(Generic[R, A]):
         if self._final_state:
             return self._final_state
 
-        self._final_state = await self._executor.wait(self, timeout)
+        self._final_state = await self._task_runner.wait(self, timeout)
         return self._final_state
 
     @overload

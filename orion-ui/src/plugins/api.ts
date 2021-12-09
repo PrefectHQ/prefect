@@ -225,6 +225,10 @@ export class Query {
     this.fetch()
   }
 
+  clearResult(): void {
+    this.response.value = null
+  }
+
   stopPolling(): void {
     if (this.interval) clearTimeout(this.interval)
   }

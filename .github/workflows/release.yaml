@@ -84,7 +84,8 @@ jobs:
           git push --set-upstream origin HEAD
           gh pr create \
             --title "Publish docs from release ${GITHUB_REF#refs/*/}" \
-            --body '_automatically created with `gh` cli on merge to `main`_'
+            --body '_automatically created with `gh` cli on merge to `main`_' \
+            --base docs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -105,6 +106,43 @@ jobs:
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository_url: https://test.pypi.org/legacy/
+
+  publish-code:
+    name: Open PR to OS Prefect repo
+    environment: 'prod'
+    needs: [build-release, publish-test-release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Configure upstream
+        run: git remote add prefect-orion https://github.com/PrefectHQ/prefect.git
+
+      - name: Create a temporary branch & merge w/ upstream
+        # the release tag is parsed from the ref
+        run: |
+          git checkout -b "orion-release-${GITHUB_REF#refs/*/}"
+          git fetch prefect-orion
+          git merge prefect-orion/orion -m "Merge w/ latest upstream changes"
+
+      - name: Push and open PR
+        run: |
+          git push --set-upstream prefect-orion "orion-release-${GITHUB_REF#refs/*/}"
+          gh pr create \
+            --title "Publish code from Orion release ${GITHUB_REF#refs/*/}" \
+            --body '_automatically created with `gh` cli on merge to `main`_' \
+            --base orion
+        env:
+          GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
   publish-release:
     name: Publish Release to PyPI

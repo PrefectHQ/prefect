@@ -50,8 +50,9 @@ async def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
-    services: bool = True,
+    services: bool = settings.orion.services.run_in_app,
     agent: bool = True,
+    ui: bool = settings.orion.ui.enabled,
 ):
     """Start an Orion server"""
     # TODO - this logic should be abstracted in the interface
@@ -61,6 +62,7 @@ async def start(
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
+    server_env["PREFECT_ORION_SERVICES_UI"] = str(ui)
 
     agent_env = os.environ.copy()
     agent_env["PREFECT_ORION_HOST"] = f"http://{host}:{port}/api/"
@@ -87,6 +89,7 @@ async def start(
         if agent:
             # The server may not be ready yet despite waiting for the process to begin
             await anyio.sleep(1)
+            console.print("Starting agent...")
             tg.start_soon(
                 partial(
                     open_process_and_stream_output,

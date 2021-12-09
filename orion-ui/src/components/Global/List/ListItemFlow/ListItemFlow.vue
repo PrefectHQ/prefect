@@ -58,7 +58,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineProps, computed } from 'vue'
+import { computed } from 'vue'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
 import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
