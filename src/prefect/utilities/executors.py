@@ -327,7 +327,7 @@ def multiprocessing_safe_run_and_retrieve(
         logger.error(f"{name}: {err_msg}")
         pickled_val = cloudpickle.dumps(RuntimeError(err_msg))
 
-    logger.debug(f"{name}: Passing result back to main process...")
+    logger.info(f"{name}: Passing result back to main process...")
 
     try:
         queue.put(pickled_val)
@@ -340,6 +340,10 @@ def multiprocessing_safe_run_and_retrieve(
         raise
     else:
         logging.shutdown()
+
+    import time
+
+    time.sleep(10)
 
 
 def run_with_multiprocess_timeout(
@@ -397,25 +401,29 @@ def run_with_multiprocess_timeout(
     payload = cloudpickle.dumps(request)
 
     run_process = spawn_mp.Process(
-        target=multiprocessing_safe_run_and_retrieve, args=(queue, payload)
+        target=multiprocessing_safe_run_and_retrieve,
+        args=(queue, payload),
     )
     logger.debug(f"{name}: Sending execution to a new process...")
     run_process.start()
     logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
-    run_process.join(timeout)
-    run_process.terminate()
 
-    # Handle the process result, if the queue is empty the function did not finish
-    # before the timeout
-    logger.debug(f"{name}: Execution process closed, collecting result...")
+    # Pull the data from the queue. If empty, the function did not finish before
+    # the timeout
     try:
-        result = cloudpickle.loads(queue.get(block=True, timeout=1))
+        pickled_result = queue.get(block=True, timeout=timeout)
+        logger.debug(f"{name}: Result received from subprocess, unpickling...")
+        result = cloudpickle.loads(pickled_result)
         if isinstance(result, Exception):
             raise result
         return result
     except Empty:
         logger.debug(f"{name}: No result returned within the timeout period!")
         raise TaskTimeoutSignal(f"Execution timed out for {name}.")
+    finally:
+        # Do not let the process dangle
+        run_process.join(0.1)
+        run_process.terminate()
 
 
 def run_task_with_timeout(
