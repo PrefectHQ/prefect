@@ -22,9 +22,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # Versioneer only generates correct versions with a full fetch
-          # Versioneer is not setup for this repo yet
-          # fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
@@ -76,9 +73,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          # Versioneer only generates correct versions with a full fetch
-          # Versioneer is not setup for this repo yet
-          # fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
