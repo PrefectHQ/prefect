@@ -1,3 +1,6 @@
 
 fix:
   - "Allow unsetting imagePullSecrets with an empty string - [#5001](https://github.com/PrefectHQ/prefect/pull/5001)"
+
+contributor:
+  - "[Andrew Farley](https://github.com/AndrewFarley)"
