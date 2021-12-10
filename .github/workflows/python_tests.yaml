@@ -31,14 +31,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-
-      - uses: actions/cache@v2
-        with:
-          path: ${{ env.pythonLocation }}
-          # Load installed python packages from the cache
-          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
-          
-      - name: Install packages
+          cache: 'pip'
+          cache-dependency-path: 'requirements*.txt'
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
@@ -91,14 +85,8 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-
-      - uses: actions/cache@v2
-        with:
-          path: ${{ env.pythonLocation }}
-          # Load installed python packages from the cache
-          key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
-
-      - name: Install packages
+          cache: 'pip'
+          cache-dependency-path: 'requirements*.txt'
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
