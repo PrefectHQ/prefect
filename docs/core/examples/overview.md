@@ -25,8 +25,12 @@ $ prefect register --json https://docs.prefect.io/examples.json \
     --name "Example: Mapping"
 ```
 
-These can then be run using any agent with a ``prefect-examples`` label. For
-example, to start a local agent for running the examples:
+These can then be run using any agent with a ``prefect-examples`` label. Before starting the agent, 
+make sure the Github extra is installed so the agent can pull the flows by doing:
+
+`pip install "prefect[github]"` 
+
+Then to start a local agent for running the examples:
 
 ```
 $ prefect agent local start -l prefect-examples
