@@ -7,8 +7,10 @@ from prefect.tasks.firebolt.firebolt import FireboltQuery
 
 
 class TestFireboltQuery:
-    # test to check if the connection object has been created
     def test_construction(self):
+        """
+        Tests that all required params are present for FireboltQuery Task.
+        """
         task = FireboltQuery(
             database="test",
             username="test",
@@ -18,8 +20,10 @@ class TestFireboltQuery:
         )
         assert task.database is not None
 
-    # test to check if there are missing required parameters
     def test_required_params(self):
+        """
+        Tests to check if there are missing required parameters.
+        """
         # raises Value error if engine name is not provided
         with pytest.raises(ValueError, match="An engine name must be provided"):
             FireboltQuery().run(

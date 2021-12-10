@@ -20,7 +20,7 @@ class FireboltQuery(Task):
         Args:
             - database (str): name of the database to use
             - username (str): username used to authenticate
-            - password (str): password used to authenticate.
+            - password (str): password used to authenticate
             - engine name (str): name of the engine to use
             - query (str): query to execute against database
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
@@ -48,12 +48,12 @@ class FireboltQuery(Task):
         Args:
             - database (str): name of the database to use
             - username (str): username used to authenticate
-            - password (str): password used to authenticate.
+            - password (str): password used to authenticate
             - engine name (str): name of the engine to use
             - query (str): query to execute against database
 
         Returns:
-            - List[List]: output of cursor.fetchall() if cursor.rowcount >= 0 else an empty list.
+            - List[List]: output of cursor.fetchall() if cursor.rowcount > 0 else an empty list
 
         Raises:
             - ValueError: if a required parameter is not supplied
