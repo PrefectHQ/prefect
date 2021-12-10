@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, Optional, Sequence, Tuple, Type, TypeVar
+from typing import Dict, Optional, Sequence, Tuple, Type, TypeVar, Union
 from uuid import UUID
 
 import anyio
@@ -11,7 +11,7 @@ import anyio.abc
 import sniffio
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing_extensions import Literal
 
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
@@ -119,15 +119,26 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
     Attributes:
         stream_output: Stream output from the subprocess to local standard output
-        conda_env: An optional name of an anaconda environment to run the flow in.
-        virtual_env: An optional path to a virtualenv environment to run the flow in.
+        condaenv: An optional name of an anaconda environment to run the flow in.
+            A path can be provided instead, similar to `conda --prefix ...`.
+        virtualenv: An optional path to a virtualenv environment to run the flow in.
 
     """
 
     typename: Literal["subprocess"] = "subprocess"
     stream_output: bool = False
-    condaenv: str = None
+    condaenv: Union[str, Path] = None
     virtualenv: Path = None
+
+    @validator("condaenv")
+    def coerce_pathlike_string_to_path(cls, value):
+        if (
+            not isinstance(value, Path)
+            and value is not None
+            and (value.startswith(os.sep) or value.startswith("~"))
+        ):
+            value = Path(value)
+        return value
 
     async def submit_flow_run(
         self,
@@ -188,7 +199,12 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         # Prepare to run in `conda`
         if self.condaenv:
-            command = ["conda", "run", "-n", self.condaenv]
+            command += ["conda", "run"]
+            if isinstance(self.condaenv, Path):
+                command += ["--prefix", str(self.condaenv.expanduser().resolve())]
+            else:
+                command += ["--name", self.condaenv]
+
             python_executable = "python"
 
         # Prepare to run in `virtualenv`
