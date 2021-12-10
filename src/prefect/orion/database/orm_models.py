@@ -71,7 +71,7 @@ class ORMBase:
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
         onupdate=now(),
-        server_onupdate=FetchedValue()
+        server_onupdate=FetchedValue(),
     )
 
 
