@@ -64,9 +64,10 @@ def conda_environment_path(tmp_path):
 
     environment_path = tmp_path / f"test-{coolname.generate_slug(2)}"
 
-    # Create the conda environment with a matching python version
+    # Create the conda environment with a matching python version up to `minor`
+    # We cannot match up to `micro` because it is not always available in conda
     v = sys.version_info
-    python_version = f"{v.major}.{v.minor}.{v.micro}"
+    python_version = f"{v.major}.{v.minor}"
     subprocess.check_output(
         [
             "conda",
