@@ -438,7 +438,7 @@ def build_example(path):
             if not f.run_config:
                 f.run_config = UniversalRun()
             f.run_config.labels.add("prefect-examples")
-            flows[f.name] = f.serialize()
+            flows[f.name] = f.serialize(build=True)
 
     source = "\n".join(contents.splitlines()[offset:]).strip()
 
