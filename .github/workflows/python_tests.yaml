@@ -112,9 +112,8 @@ jobs:
 
   run-tests-lower-bounds:
     name: Lower bound requirements
-
-    # Note we're running on Ubuntu LTS instead of latest
-    runs-on: ubuntu-18.04
+    # We cannot test on Ubuntu LTS because the sqlite version is not new enough
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -125,33 +124,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.7
-
-      - name: Install minimum sqlite3 version
-        run: |
-          apt-get update
-          apt-get install -y tcl
-          wget https://github.com/sqlite/sqlite/archive/refs/tags/version-3.24.0.tar.gz
-          tar xzf version-3.24.0.tar.gz
-          cd sqlite-version-3.24.0/
-          export CFLAGS="-DSQLITE_ENABLE_FTS3 \
-              -DSQLITE_ENABLE_FTS3_PARENTHESIS \
-              -DSQLITE_ENABLE_FTS4 \
-              -DSQLITE_ENABLE_FTS5 \
-              -DSQLITE_ENABLE_JSON1 \
-              -DSQLITE_ENABLE_LOAD_EXTENSION \
-              -DSQLITE_ENABLE_RTREE \
-              -DSQLITE_ENABLE_STAT4 \
-              -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT \
-              -DSQLITE_SOUNDEX \
-              -DSQLITE_TEMP_STORE=3 \
-              -DSQLITE_USE_URI \
-              -O2 \
-              -fPIC"
-          export PREFIX="/usr/local"
-          LIBS="-lm" ./configure --disable-tcl --enable-shared --enable-tempstore=always --prefix="$PREFIX"
-          make
-          make install
-          ln -sf /usr/local/lib/libsqlite3.so /usr/lib/x86_64-linux-gnu/libsqlite3.so
 
       - name: Generate lower bound python requirements
         # Creates lower bound files then replaces the input files so we can do a normal install
@@ -170,5 +142,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
         run: |
-          
-          pytest tests -x
+          pytest tests
