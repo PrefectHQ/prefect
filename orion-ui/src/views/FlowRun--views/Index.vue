@@ -5,12 +5,7 @@
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
-            <span
-              class="run-state correct-text caption mr-1"
-              :class="state.type?.toLowerCase() + '-bg'"
-            >
-              {{ state.name }}
-            </span>
+            <StateLabel :name="state.name" :type="state.type" class="mr-1" />
 
             <span class="d-inline-flex align-center text-truncate">
               <Tag
@@ -227,6 +222,7 @@ import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
+import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
 const route = useRoute()
 
