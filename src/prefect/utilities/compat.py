@@ -1,6 +1,8 @@
 """
 Utilities for Python version compatibility
 """
+# Please organize additions to this file by version
+
 import sys
 
 if sys.version_info < (3, 9):
@@ -15,6 +17,14 @@ if sys.version_info < (3, 9):
 
 else:
     from asyncio import to_thread as asyncio_to_thread
+
+
+if sys.version_info < (3, 8):
+    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
+
+    from mock import AsyncMock
+else:
+    from unittest.mock import AsyncMock
 
 
 if sys.version_info < (3, 8):
