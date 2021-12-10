@@ -17,6 +17,7 @@ from prefect.flow_runners import (
     register_flow_runner,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
+from prefect.utilities.compat import AsyncMock
 
 
 class TestFlowRunner:
