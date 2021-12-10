@@ -1,9 +1,11 @@
 import subprocess
 import sys
 from unittest.mock import MagicMock
+from pathlib import Path
 
 import anyio
 import pydantic
+import os
 import pytest
 from typing_extensions import Literal
 
@@ -15,14 +17,6 @@ from prefect.flow_runners import (
     register_flow_runner,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
-
-
-if sys.version_info < (3, 8):
-    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-
-    from mock import AsyncMock
-else:
-    from unittest.mock import AsyncMock
 
 
 class TestFlowRunner:
@@ -38,13 +32,13 @@ class TestFlowRunner:
         assert FlowRunner(typename="foobar").logger.name == "prefect.flow_runner.foobar"
 
 
-class TestFlowRunnerDispatch:
+class TestFlowRunnerRegistration:
     def test_register_and_lookup(self):
         @register_flow_runner
-        class TestFlowRunner(FlowRunner):
+        class TestFlowRunnerConfig(FlowRunner):
             typename: Literal["test"] = "test"
 
-        assert lookup_flow_runner("test") == TestFlowRunner
+        assert lookup_flow_runner("test") == TestFlowRunnerConfig
 
     def test_to_settings(self):
         flow_runner = UniversalFlowRunner(env={"foo": "bar"})
@@ -88,13 +82,89 @@ class TestSubprocessFlowRunner:
             await SubprocessFlowRunner().submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
+        anyio.open_process.assert_awaited_once()
+
+    async def test_creates_subprocess_with_current_python_executable(
+        self, monkeypatch, flow_run
+    ):
+        monkeypatch.setattr(
+            "anyio.open_process",
+            # TODO: Consider more robust mocking for opened processes
+            AsyncMock(side_effect=RuntimeError("Exit without streaming from process.")),
+        )
+        with pytest.raises(RuntimeError, match="Exit without streaming"):
+            await SubprocessFlowRunner().submit_flow_run(flow_run, MagicMock())
 
         anyio.open_process.assert_awaited_once_with(
-            ["python", "-m", "prefect.engine", flow_run.id.hex],
+            [sys.executable, "-m", "prefect.engine", flow_run.id.hex],
             stderr=subprocess.STDOUT,
+            env=os.environ,
         )
 
-    async def test_executes_flow_run(self, deployment, capsys, orion_client):
+    async def test_creates_subprocess_with_conda_command(self, monkeypatch, flow_run):
+        monkeypatch.setattr(
+            "anyio.open_process",
+            # TODO: Consider more robust mocking for opened processes
+            AsyncMock(side_effect=RuntimeError("Exit without streaming from process.")),
+        )
+        with pytest.raises(RuntimeError, match="Exit without streaming"):
+            await SubprocessFlowRunner(condaenv="foo").submit_flow_run(
+                flow_run, MagicMock()
+            )
+
+        anyio.open_process.assert_awaited_once_with(
+            [
+                "conda",
+                "run",
+                "-n",
+                "foo",
+                "python",
+                "-m",
+                "prefect.engine",
+                flow_run.id.hex,
+            ],
+            stderr=subprocess.STDOUT,
+            env=os.environ,
+        )
+
+    async def test_creates_subprocess_with_virtualenv_setup(
+        self, monkeypatch, flow_run
+    ):
+        # PYTHONHOME must be unset in the subprocess
+        monkeypatch.setenv("PYTHONHOME", "FOO")
+
+        monkeypatch.setattr(
+            "anyio.open_process",
+            # TODO: Consider more robust mocking for opened processes
+            AsyncMock(side_effect=RuntimeError("Exit without streaming from process.")),
+        )
+        with pytest.raises(RuntimeError, match="Exit without streaming"):
+            await SubprocessFlowRunner(virtualenv="~/fakevenv").submit_flow_run(
+                flow_run, MagicMock()
+            )
+
+        # Replicate expected generation of virtual environment call
+        virtualenv_path = Path("~/fakevenv").expanduser()
+        python_executable = str(virtualenv_path / "bin" / "python")
+        expected_env = os.environ.copy()
+        expected_env["PATH"] = (
+            str(virtualenv_path / "bin") + os.pathsep + expected_env["PATH"]
+        )
+        expected_env.pop("PYTHONHOME")
+        expected_env["VIRTUAL_ENV"] = str(virtualenv_path)
+
+        anyio.open_process.assert_awaited_once_with(
+            [
+                python_executable,
+                "-m",
+                "prefect.engine",
+                flow_run.id.hex,
+            ],
+            stderr=subprocess.STDOUT,
+            env=expected_env,
+        )
+
+    async def test_executes_flow_run(self, deployment, orion_client):
         fake_status = MagicMock()
 
         flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
@@ -131,7 +201,7 @@ class TestSubprocessFlowRunner:
 
 
 @pytest.mark.parametrize("runner_type", [UniversalFlowRunner, SubprocessFlowRunner])
-class TestFlowRunnerEnv:
+class TestFlowRunnerConfigEnv:
     def test_flow_runner_env_config(self, runner_type):
         assert runner_type(env={"foo": "bar"}).env == {"foo": "bar"}
 
@@ -149,7 +219,7 @@ class TestFlowRunnerEnv:
 
 
 @pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
-class TestFlowRunnerStreamOutput:
+class TestFlowRunnerConfigStreamOutput:
     def test_flow_runner_stream_output_config(self, runner_type):
         assert runner_type(stream_output=True).stream_output == True
 
@@ -165,3 +235,44 @@ class TestFlowRunnerStreamOutput:
         runner = runner_type(stream_output=value)
         settings = runner.to_settings()
         assert settings.config["stream_output"] == value
+
+
+@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
+class TestFlowRunnerConfigCondaEnv:
+    def test_flow_runner_condaenv_config(self, runner_type):
+        assert runner_type(condaenv="test").condaenv == "test"
+
+    def test_flow_runner_condaenv_config_casts_to_string(self, runner_type):
+        assert runner_type(condaenv=1).condaenv == "1"
+
+    def test_flow_runner_condaenv_config_errors_if_not_castable(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(condaenv=object())
+
+    @pytest.mark.parametrize("value", ["test", None])
+    def test_flow_runner_condaenv_to_settings(self, runner_type, value):
+        runner = runner_type(condaenv=value)
+        settings = runner.to_settings()
+        assert settings.config["condaenv"] == value
+
+
+@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
+class TestFlowRunnerConfigVirtualEnv:
+    def test_flow_runner_virtualenv_config(self, runner_type):
+        path = Path("~").expanduser()
+        assert runner_type(virtualenv=path).virtualenv == path
+
+    def test_flow_runner_virtualenv_config_casts_to_path(self, runner_type):
+        assert runner_type(virtualenv="~/test").virtualenv == Path("~/test")
+        assert (
+            Path("~/test") != Path("~/test").expanduser()
+        ), "We do not want to expand user at configuration time"
+
+    def test_flow_runner_virtualenv_config_errors_if_not_castable(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(virtualenv=object())
+
+    def test_flow_runner_virtualenv_to_settings(self, runner_type):
+        runner = runner_type(virtualenv=Path("~/test"))
+        settings = runner.to_settings()
+        assert settings.config["virtualenv"] == Path("~/test")

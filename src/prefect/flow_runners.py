@@ -1,11 +1,14 @@
+import asyncio
+import os
 import subprocess
 import sys
-import sniffio
-import asyncio
-from typing import Dict, TypeVar, Type, Optional
+from pathlib import Path
+from typing import Dict, Optional, Sequence, Tuple, Type, TypeVar
+from uuid import UUID
 
 import anyio
 import anyio.abc
+import sniffio
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field
@@ -105,7 +108,7 @@ class UniversalFlowRunner(FlowRunner):
         raise RuntimeError(
             "The universal flow runner cannot be used to submit flow runs. If a flow "
             "run has a universal flow runner, it should be updated to the default "
-            "runner type."
+            "runner type by the agent or user."
         )
 
 
@@ -116,10 +119,15 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
     Attributes:
         stream_output: Stream output from the subprocess to local standard output
+        conda_env: An optional name of an anaconda environment to run the flow in.
+        virtual_env: An optional path to a virtualenv environment to run the flow in.
+
     """
 
     typename: Literal["subprocess"] = "subprocess"
     stream_output: bool = False
+    condaenv: str = None
+    virtualenv: Path = None
 
     async def submit_flow_run(
         self,
@@ -135,9 +143,15 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         # Open a subprocess to execute the flow run
         self.logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
+
+        command, env = self._generate_command_and_environment(flow_run.id)
+
+        self.logger.debug(f"Using command: {' '.join(command)}")
+
         process_context = await anyio.open_process(
-            ["python", "-m", "prefect.engine", flow_run.id.hex],
+            command,
             stderr=subprocess.STDOUT,
+            env=env,
         )
 
         # Mark this submission as successful
@@ -161,3 +175,40 @@ class SubprocessFlowRunner(UniversalFlowRunner):
             self.logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
 
         return not process.returncode
+
+    def _generate_command_and_environment(
+        self, flow_run_id: UUID
+    ) -> Tuple[Sequence[str], Dict[str, str]]:
+        # Copy the base environment
+        env = os.environ.copy()
+
+        # Set up defaults
+        command = []
+        python_executable = sys.executable
+
+        # Prepare to run in `conda`
+        if self.condaenv:
+            command = ["conda", "run", "-n", self.condaenv]
+            python_executable = "python"
+
+        # Prepare to run in `virtualenv`
+        elif self.virtualenv:
+            virtualenv_path = self.virtualenv.expanduser().resolve()
+            python_executable = str(virtualenv_path / "bin" / "python")
+            # Update the path to include the bin
+            env["PATH"] = str(virtualenv_path / "bin") + os.pathsep + env["PATH"]
+            env.pop("PYTHONHOME", None)
+            env["VIRTUAL_ENV"] = str(virtualenv_path)
+
+        # Add `prefect.engine` call
+        command += [
+            python_executable,
+            "-m",
+            "prefect.engine",
+            flow_run_id.hex,
+        ]
+
+        # Override with any user-provided variables
+        env.update(self.env)
+
+        return command, env
