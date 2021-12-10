@@ -24,13 +24,14 @@ class FlowRunner(BaseModel):
     Flow runners are responsible for creating infrastructure for flow runs and starting
     execution.
 
-    Attributes:
-        env: Environment variables to provide to the flow run
+    This base implementation manages casting to and from the API representation of
+    flow runner settings and defines the interface for `submit_flow_run`. It cannot
+    be used to run flows.
     """
 
     typename: str
 
-    def to_settings(self):
+    def to_settings(self) -> FlowRunnerSettings:
         return FlowRunnerSettings(
             type=self.typename, config=self.dict(exclude={"typename"})
         )
@@ -83,6 +84,16 @@ def lookup_flow_runner(typename: str) -> FlowRunner:
 
 @register_flow_runner
 class UniversalFlowRunner(FlowRunner):
+    """
+    The universal flow runner contains configuration options that can be used by any
+    Prefect flow runner implementation.
+
+    This flow runner cannot be used at runtime and should be converted into a subtype.
+
+    Attributes:
+        env: Environment variables to provide to the flow run
+    """
+
     typename: Literal["universal"] = "universal"
     env: Dict[str, str] = Field(default_factory=dict)
 
@@ -101,14 +112,14 @@ class UniversalFlowRunner(FlowRunner):
 @register_flow_runner
 class SubprocessFlowRunner(UniversalFlowRunner):
     """
-    Executes flow runs in a local subprocess
+    Executes flow runs in a local subprocess.
+
+    Attributes:
+        stream_output: Stream output from the subprocess to local standard output
     """
 
     typename: Literal["subprocess"] = "subprocess"
-    stream_output: bool = Field(
-        False,
-        description="Stream output from the subprocess to local standard output.",
-    )
+    stream_output: bool = False
 
     async def submit_flow_run(
         self,
