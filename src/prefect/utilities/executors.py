@@ -15,6 +15,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from contextlib import contextmanager
 from functools import wraps
 from logging import Logger
+from queue import Empty
 
 import prefect
 from prefect import config
@@ -314,7 +315,11 @@ def multiprocessing_safe_run_and_retrieve(
         )
 
     try:
+        logger.debug(
+            "%s: Pickling value of size %s...", name, sys.getsizeof(return_val)
+        )  # Only calculate the size if debug logs are enabled
         pickled_val = cloudpickle.dumps(return_val)
+        logger.debug(f"{name}: Pickling successful!")
     except Exception as exc:
         err_msg = (
             f"Failed to pickle result of type {type(return_val).__name__!r} with "
@@ -346,7 +351,9 @@ def run_with_multiprocess_timeout(
 ) -> Any:
     """
     Helper function for implementing timeouts on function executions.
-    Implemented by spawning a new multiprocess.Process() and joining with timeout.
+
+    Implemented by spawning a new multiprocess.Process() and using a queue to pass
+    the result back. The result is retrieved from the queue with a timeout.
 
     Args:
         - fn (callable): the function to execute
@@ -364,6 +371,7 @@ def run_with_multiprocess_timeout(
         - the result of `f(*args, **kwargs)`
 
     Raises:
+        - Exception: Any user errors within the subprocess will be pickled and reraised
         - AssertionError: if run from a daemonic process
         - TaskTimeoutSignal: if function execution exceeds the allowed timeout
     """
@@ -391,24 +399,29 @@ def run_with_multiprocess_timeout(
     payload = cloudpickle.dumps(request)
 
     run_process = spawn_mp.Process(
-        target=multiprocessing_safe_run_and_retrieve, args=(queue, payload)
+        target=multiprocessing_safe_run_and_retrieve,
+        args=(queue, payload),
     )
     logger.debug(f"{name}: Sending execution to a new process...")
     run_process.start()
     logger.debug(f"{name}: Waiting for process to return with {timeout}s timeout...")
-    run_process.join(timeout)
-    run_process.terminate()
 
-    # Handle the process result, if the queue is empty the function did not finish
-    # before the timeout
-    logger.debug(f"{name}: Execution process closed, collecting result...")
-    if not queue.empty():
-        result = cloudpickle.loads(queue.get())
+    # Pull the data from the queue. If empty, the function did not finish before
+    # the timeout
+    try:
+        pickled_result = queue.get(block=True, timeout=timeout)
+        logger.debug(f"{name}: Result received from subprocess, unpickling...")
+        result = cloudpickle.loads(pickled_result)
         if isinstance(result, Exception):
             raise result
         return result
-    else:
+    except Empty:
+        logger.debug(f"{name}: No result returned within the timeout period!")
         raise TaskTimeoutSignal(f"Execution timed out for {name}.")
+    finally:
+        # Do not let the process dangle
+        run_process.join(0.1)
+        run_process.terminate()
 
 
 def run_task_with_timeout(
