@@ -17,7 +17,7 @@ mock_client.read_flow_run_states.return_value = [Completed()]
 async def test_resolve_futures_transforms_future(task_run):
     future = PrefectFuture(
         task_run=task_run,
-        executor=None,
+        task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     assert await resolve_futures_to_data(future) == "foo"
@@ -27,7 +27,7 @@ async def test_resolve_futures_transforms_future(task_run):
 async def test_resolve_futures_transforms_future_in_listlike_type(typ, task_run):
     future = PrefectFuture(
         task_run=task_run,
-        executor=None,
+        task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     assert await resolve_futures_to_data(typ(["a", future, "b"])) == typ(
@@ -40,7 +40,7 @@ async def test_resolve_futures_transforms_future_in_generator_type(task_run):
         yield "a"
         yield PrefectFuture(
             task_run=task_run,
-            executor=None,
+            task_runner=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
         yield "b"
@@ -52,7 +52,7 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types(task_
     def gen_a():
         yield PrefectFuture(
             task_run=task_run,
-            executor=None,
+            task_runner=None,
             _final_state=Completed(data=DataDocument.encode("json", "foo")),
         )
 
@@ -68,12 +68,12 @@ async def test_resolve_futures_transforms_future_in_nested_generator_types(task_
 async def test_resolve_futures_transforms_future_in_dictlike_type(typ, task_run):
     key_future = PrefectFuture(
         task_run=task_run,
-        executor=None,
+        task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "foo")),
     )
     value_future = PrefectFuture(
         task_run=task_run,
-        executor=None,
+        task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
     assert await resolve_futures_to_data(
@@ -90,7 +90,7 @@ async def test_resolve_futures_transforms_future_in_dataclass(task_run):
 
     future = PrefectFuture(
         task_run=task_run,
-        executor=None,
+        task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
     assert await resolve_futures_to_data(Foo(a=1, foo=future)) == Foo(
@@ -107,7 +107,7 @@ async def test_resolves_futures_in_nested_collections(task_run):
 
     future = PrefectFuture(
         task_run=task_run,
-        executor=None,
+        task_runner=None,
         _final_state=Completed(data=DataDocument.encode("json", "bar")),
     )
     assert await resolve_futures_to_data(

@@ -51,9 +51,23 @@
           {{ duration }}
           <!-- {{ flowRun && flowRun.id && flowRun.id.slice(0, 8) }} -->
         </div>
-        <router-link :to="`/flow-run/${flowRunId}/radar`">
+        <router-link
+          v-if="taskRunCount > 0"
+          :to="`/flow-run/${flowRunId}/radar`"
+          @click.stop
+        >
           <ButtonRounded>
             {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
+          </ButtonRounded>
+        </router-link>
+
+        <router-link
+          v-if="flowRunCount > 0"
+          :to="`/flow-run/${flowRunId}/radar`"
+          @click.stop
+        >
+          <ButtonRounded>
+            {{ flowRunCount }} flow run{{ flowRunCount == 1 ? '' : 's' }}
           </ButtonRounded>
         </router-link>
       </div>
@@ -103,8 +117,7 @@ const flowRunId = computed<string>(() => {
   return props.node.data.state.state_details.child_flow_run_id
 })
 
-const flow_runs_filter_body: TaskRunsFilter = {
-  sort: 'START_TIME_DESC',
+const task_runs_count_filter_body: TaskRunsFilter = {
   flow_runs: {
     id: {
       any_: [flowRunId.value]
@@ -113,6 +126,19 @@ const flow_runs_filter_body: TaskRunsFilter = {
   task_runs: {
     subflow_runs: {
       exists_: false
+    }
+  }
+}
+
+const flow_runs_count_filter_body: TaskRunsFilter = {
+  flow_runs: {
+    id: {
+      any_: [flowRunId.value]
+    }
+  },
+  task_runs: {
+    subflow_runs: {
+      exists_: true
     }
   }
 }
@@ -129,7 +155,11 @@ const queries: { [key: string]: Query } = {
   }),
   task_run_count: Api.query({
     endpoint: Endpoints.task_runs_count,
-    body: flow_runs_filter_body
+    body: task_runs_count_filter_body
+  }),
+  flow_run_count: Api.query({
+    endpoint: Endpoints.task_runs_count,
+    body: flow_runs_count_filter_body
   })
 }
 
@@ -163,8 +193,12 @@ const taskRunCount = computed((): number => {
   return queries.task_run_count?.response?.value || 0
 })
 
+const flowRunCount = computed((): number => {
+  return queries.flow_run_count?.response?.value || 0
+})
+
 const handleClick = () => {
-  console.log(flowRun.value)
+  return
 }
 
 /**

@@ -20,16 +20,22 @@ import {
   onBeforeUnmount,
   watch,
   shallowRef,
-  ComponentPublicInstance
+  ComponentPublicInstance,
+  withDefaults,
+  WatchStopHandle
 } from 'vue'
 import Observer from '@/components/Global/IntersectionObserver/IntersectionObsever.vue'
-import { Api, Endpoints, FilterBody } from '@/plugins/api'
+import { Api, Endpoints, FilterBody, Query } from '@/plugins/api'
 
-const props = defineProps<{
-  filter: FilterBody
-  component: string
-  endpoint: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    filter: FilterBody
+    component: string
+    endpoint: string
+    pollInterval?: number
+  }>(),
+  { pollInterval: 10000 }
+)
 const limit = ref(20)
 const offset = ref(0)
 const loading = ref(false)
@@ -46,31 +52,39 @@ const filter_ = computed(() => {
   }
 })
 
+const queries: { query: Query; watcher: WatchStopHandle }[] = []
+
 const getData = async () => {
   loading.value = true
+
   const query = Api.query({
     endpoint: Endpoints[props.endpoint],
     body: filter_.value,
-    options: {}
+    options: {
+      pollInterval: props.pollInterval
+    }
   })
-  await query.fetch()
+
+  const watcher = watch(query.response, (val) => {
+    if (val) {
+      val.forEach((r: any) => {
+        items.value.set(r.id, r)
+      })
+    }
+  })
+
+  queries.push({ query: query, watcher: watcher })
   loading.value = false
-  return query.response.value
 }
 
 const fetchMore = async () => {
   offset.value = (items.value?.size || 0) + offset.value
-  const results = await getData()
-  results.forEach((r: any) => {
-    items.value.set(r.id, r)
-  })
+  await getData()
 }
 
 const init = async () => {
-  const results = await getData()
-  items.value = new Map(results.map((r: any) => [r.id, r]))
+  await getData()
   limit.value = 10
-  console.log(items.value)
 }
 
 init()
@@ -130,6 +144,15 @@ watch(
 
 onBeforeUnmount(() => {
   observer.disconnect()
+  queries.forEach((queryItem) => {
+    const query = Api.queries.get(queryItem.query.id)
+    query?.stopPolling()
+
+    // This removes the watcher since the query is no longer polling.
+    queryItem.watcher()
+
+    Api.queries.delete(queryItem.query.id)
+  })
 })
 </script>
 
