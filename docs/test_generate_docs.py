@@ -496,4 +496,4 @@ def test_example(path):
     rendered, flows = build_example(path)
     for f in flows.keys():
         # Assert there is a serialized Flow in storage
-        assert len(flows[f]['storage']['flows']) > 0
+        assert len(flows[f]["storage"]["flows"]) > 0
