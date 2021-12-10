@@ -51,7 +51,7 @@ class BaseDatabaseConfiguration(ABC):
         """Returns a SqlAlchemy engine"""
 
     @abstractmethod
-    async def session_factory(self):
+    async def session_factory(self, bind):
         """
         Retrieves a SQLAlchemy session factory for self.engine.
         The session factory is cached for each event loop.
@@ -162,13 +162,12 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         # Begin iterating so it will be cleaned up as an incomplete generator
         await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
 
-    async def session_factory(self):
+    async def session_factory(self, bind):
         """
         Retrieves a SQLAlchemy session factory for self.engine.
         The session factory is cached for each event loop.
         """
         loop = get_event_loop()
-        bind = await self.engine()
         cache_key = (loop, bind)
         if cache_key not in self.SESSION_FACTORIES:
 
@@ -269,13 +268,12 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
 
-    async def session_factory(self):
+    async def session_factory(self, bind):
         """
         Retrieves a SQLAlchemy session factory for self.engine.
         The session factory is cached for each event loop.
         """
         loop = get_event_loop()
-        bind = await self.engine()
         cache_key = (loop, bind)
         if cache_key not in self.SESSION_FACTORIES:
 

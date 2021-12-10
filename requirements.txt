@@ -18,4 +18,4 @@ rich >= 10.0, < 11.0
 sqlalchemy[asyncio] >= 1.4.20, < 2.0
 typer >= 0.4.0, < 1.0
 typing_extensions >= 3.10.0.1, < 5.0
-uvicorn  >= 0.14.0, < 0.16.0
+uvicorn  >= 0.14.0, < 0.17.0

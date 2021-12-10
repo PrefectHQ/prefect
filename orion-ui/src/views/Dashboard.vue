@@ -126,6 +126,7 @@
           :filter="filter"
           component="ListItemFlow"
           endpoint="flows"
+          :poll-interval="15000"
         />
 
         <ResultsList
@@ -134,6 +135,7 @@
           :filter="deploymentsFilter"
           component="ListItemDeployment"
           endpoint="deployments"
+          :poll-interval="15000"
         />
 
         <ResultsList
@@ -142,6 +144,7 @@
           :filter="filter"
           component="ListItemFlowRun"
           endpoint="flow_runs"
+          :poll-interval="7500"
         />
 
         <ResultsList
@@ -150,6 +153,7 @@
           :filter="filter"
           component="ListItemTaskRun"
           endpoint="task_runs"
+          :poll-interval="10000"
         />
       </transition>
     </section>

@@ -82,7 +82,7 @@ One of the reasons we are open-sourcing the technical preview is to begin solici
 
 ### Does Orion support mapping?
 
-Mapping is one of the most popular features in Prefect Core, allowing users to tap into their executor's native fan-out abilities. An equivalent `.map()` operator will be released for Orion soon. For now, users can take advantage of Orion's support for native Python to call tasks in loops:
+Mapping is one of the most popular features in Prefect Core, allowing users to tap into their task runner's native fan-out abilities. An equivalent `.map()` operator will be released for Orion soon. For now, users can take advantage of Orion's support for native Python to call tasks in loops:
 
 ```python
 @flow

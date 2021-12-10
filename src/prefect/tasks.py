@@ -181,9 +181,9 @@ class Task(Generic[P, R]):
         If writing an async task, this call must be awaited.
 
         Will create a new task run in the backing API and submit the task to the flow's
-        executor. This call only blocks execution while the task is being submitted,
+        task runner. This call only blocks execution while the task is being submitted,
         once it is submitted, the flow function will continue executing. However, note
-        that the `SequentialExecutor` does not implement parallel execution for sync tasks
+        that the `SequentialTaskRunner` does not implement parallel execution for sync tasks
         and they are fully resolved on submission.
 
         Args:
