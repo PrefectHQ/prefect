@@ -1,11 +1,11 @@
 <template>
   <ListItem class="list-item--flow-run d-flex align-start justify-start">
     <!-- For a later date... maybe -->
-    <!-- :class="stateName + '-border'" -->
+    <!-- :class="stateType + '-border'" -->
 
     <i
       class="item--icon pi text--grey-40 align-self-start"
-      :class="`pi-${stateName}`"
+      :class="`pi-${stateType}`"
     />
     <div
       class="
@@ -146,7 +146,7 @@ const queries: { [key: string]: Query } = {
 }
 
 const duration = computed(() => {
-  return stateName.value == 'pending' || stateName.value == 'scheduled'
+  return stateType.value == 'pending' || stateType.value == 'scheduled'
     ? '--'
     : props.item.total_run_time
     ? secondsToApproximateString(props.item.total_run_time)
@@ -157,8 +157,8 @@ const state = computed(() => {
   return props.item.state
 })
 
-const stateName = computed(() => {
-  return props.item.state.name.toLowerCase()
+const stateType = computed(() => {
+  return props.item.state.type.toLowerCase()
 })
 
 const tags = computed(() => {
