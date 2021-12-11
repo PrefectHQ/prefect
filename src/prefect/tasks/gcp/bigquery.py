@@ -267,20 +267,41 @@ class BigQueryStreamingInsert(Task):
 
         # get table reference
         table_ref = client.dataset(dataset_id).table(table)
+    
+        '''
+        insert_rows_json - Legacy Streaming API
 
-        # stream data in
-        response = client.insert_rows_json(table=table_ref, json_rows=records, **kwargs)
+        https://cloud.google.com/bigquery/quotas#streaming_inserts
+
+        Maximum rows per request - 50,000 rows
+            - A maximum of 500 rows is recommended.
+            - Batching can increase performance and throughput to a point, but at the cost of per-request latency.
+            - Too few rows per request and the overhead of each request can make ingestion inefficient.
+            - Too many rows per request and the throughput can drop. Experiment with representative data (schema and data sizes) to determine the ideal batch size for your data.
+        '''
+
+        def batch(iterable, size):
+            it = iter(iterable)
+            while item := list(itertools.islice(it, size)):
+                yield item
 
         errors = []
         output = []
-        for row in response:
-            output.append(row)
-            if "errors" in row:
-                errors.append(row["errors"])
+
+        for rows_chunk in list(batch(records, 500)):
+
+            # stream data in
+            response = client.insert_rows_json(table=table_ref, json_rows=rows_chunk, **kwargs)
+
+            for row in response:
+                output.append(row)
+                if "errors" in row:
+                    errors.append(row["errors"])
+
 
         if errors:
             raise ValueError(errors)
-
+           
         return output
 
 
