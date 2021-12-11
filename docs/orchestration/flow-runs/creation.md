@@ -198,7 +198,7 @@ GraphQL expects ISO formatted datetime strings. This is default when you cast a 
 
 ### Idempotency
 
-If you provide an `idempotency_key` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Idempotency is preserved for 24 hours, after which time a new run will be created for the same key. Each idempotent request refreshes the cache for an additional 24 hours.
+If you provide an `idempotency_key` when creating a flow run, you can safely attempt to recreate that run again without actually recreating it. This is helpful when you have a substandard network connection or when you're worried about redundancy in your run triggers. Note that Idempotency keys do not expire. To create a new run, a new idempotent request must be made. 
 
 :::: tabs
 
