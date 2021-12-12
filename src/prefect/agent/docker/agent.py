@@ -558,12 +558,18 @@ class DockerAgent(Agent):
             - dict: a dictionary representing the populated environment variables
         """
         if "localhost" in config.cloud.api:
-            api = "http://host.docker.internal:{}".format(config.server.port)
+            if self.networks and "prefect-server" in self.networks:
+                api = "http://apollo:{}".format(config.server.port)
+            else:
+                api = "http://host.docker.internal:{}".format(config.server.port)
         else:
             api = config.cloud.api
 
-        env = {}
         # Populate environment variables, later sources overriding
+        # Set the API to be the same as the agent connects to, but since the flow run
+        # will be in a container and our inferences above are not perfect, allow the
+        # user to override the value
+        env = {"PREFECT__CLOUD__API": api}
 
         # 1. Logging level from config
         # Default to the config logging level, allowing it to be overriden
@@ -581,7 +587,6 @@ class DockerAgent(Agent):
         env.update(
             {
                 "PREFECT__BACKEND": config.backend,
-                "PREFECT__CLOUD__API": api,
                 "PREFECT__CLOUD__AUTH_TOKEN": (
                     # Pull an auth token if it exists but fall back to an API key so
                     # flows in pre-0.15.0 containers still authenticate correctly
