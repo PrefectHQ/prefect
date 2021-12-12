@@ -149,7 +149,7 @@ behalf. If actions taken to _start_ your task require external AWS services
 Permissions used by your code once your task starts are granted via [task
 roles](#task-role-arn) instead (see above).
 
-ECS provides a builtin policy `AmazonECSTaskExecutionPolicy` that provides
+ECS provides a builtin policy `AmazonECSTaskExecutionRolePolicy` that provides
 common settings. This supports pulling images from ECR and enables using
 CloudWatch logs. The full policy is below:
 
