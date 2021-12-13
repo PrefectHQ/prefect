@@ -706,6 +706,64 @@ def test_k8s_agent_generate_deployment_yaml_no_image_pull_secrets(
     assert agent_env[3]["value"] == ""
 
 
+def test_k8s_agent_generate_deployment_yaml_empty_image_pull_secrets(
+    monkeypatch, cloud_api
+):
+    """
+    A test to validate that generating the Deployment YAML works correctly if
+    the image_pull_secrets parameter is an empty string, per issue #5001.
+    """
+    get_jobs = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
+        get_jobs,
+    )
+
+    agent = KubernetesAgent()
+
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+        image_pull_secrets="",
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    assert "imagePullSecrets" not in deployment["spec"]["template"]["spec"]
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert agent_env[3]["value"] == ""
+
+
+def test_k8s_agent_generate_deployment_yaml_env_contains_empty_image_pull_secrets(
+    monkeypatch, cloud_api
+):
+    """
+    A test to validate that generating the Deployment YAML works correctly if
+    the IMAGE_PULL_SECRETS env var is an empty string, per issue #5001.
+    """
+    get_jobs = MagicMock(return_value=[])
+    monkeypatch.setattr(
+        "prefect.agent.kubernetes.agent.KubernetesAgent.manage_jobs",
+        get_jobs,
+    )
+    monkeypatch.setenv("IMAGE_PULL_SECRETS", "")
+
+    agent = KubernetesAgent()
+
+    deployment = agent.generate_deployment_yaml(
+        token="test_token",
+        api="test_api",
+        namespace="test_namespace",
+    )
+
+    deployment = yaml.safe_load(deployment)
+
+    assert "imagePullSecrets" not in deployment["spec"]["template"]["spec"]
+    agent_env = deployment["spec"]["template"]["spec"]["containers"][0]["env"]
+    assert agent_env[3]["value"] == ""
+
+
 def test_k8s_agent_generate_deployment_yaml_contains_image_pull_secrets(
     monkeypatch, cloud_api
 ):
@@ -1671,6 +1729,40 @@ class TestK8sAgentRunConfig:
         assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
             {"name": "on-agent-template"}
         ]
+
+    def test_generate_job_spec_without_image_pull_secrets(self, tmpdir):
+        run_config = KubernetesRun()
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert "imagePullSecrets" not in job["spec"]["template"]["spec"]
+
+    def test_generate_job_spec_image_pull_secrets_from_env(self, tmpdir, monkeypatch):
+        run_config = KubernetesRun()
+        monkeypatch.setenv("IMAGE_PULL_SECRETS", "in-env")
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert job["spec"]["template"]["spec"]["imagePullSecrets"] == [
+            {"name": "in-env"}
+        ]
+
+    def test_generate_job_spec_image_pull_secrets_empty_string_in_env(
+        self, tmpdir, monkeypatch
+    ):
+        """Regression test for issue #5001."""
+        run_config = KubernetesRun()
+        monkeypatch.setenv("IMAGE_PULL_SECRETS", "")
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert "imagePullSecrets" not in job["spec"]["template"]["spec"]
+
+    def test_generate_job_spec_image_pull_secrets_empty_string_in_runconfig(
+        self, tmpdir
+    ):
+        """Regression test for issue #5001."""
+        run_config = KubernetesRun(image_pull_secrets="")
+        agent = KubernetesAgent(namespace="testing")
+        job = agent.generate_job_spec(self.build_flow_run(run_config))
+        assert "imagePullSecrets" not in job["spec"]["template"]["spec"]
 
     @pytest.mark.parametrize("image_pull_policy", ["Always", "Never", "IfNotPresent"])
     def test_generate_job_spec_sets_image_pull_policy_from_run_config(

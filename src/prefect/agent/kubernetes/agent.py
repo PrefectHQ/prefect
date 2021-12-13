@@ -117,13 +117,14 @@ class KubernetesAgent(Agent):
         self.service_account_name = service_account_name or os.getenv(
             "SERVICE_ACCOUNT_NAME"
         )
-        if image_pull_secrets is None:
+        if not image_pull_secrets:
             image_pull_secrets_env = os.getenv("IMAGE_PULL_SECRETS")
-            image_pull_secrets = (
-                [s.strip() for s in image_pull_secrets_env.split(",")]
-                if image_pull_secrets_env is not None
-                else None
-            )
+            if image_pull_secrets_env:
+                image_pull_secrets = [
+                    s.strip() for s in image_pull_secrets_env.split(",")
+                ]
+            else:
+                image_pull_secrets = None
         self.image_pull_secrets = image_pull_secrets
         self.job_template_path = job_template_path or DEFAULT_JOB_TEMPLATE_PATH
         self.volume_mounts = volume_mounts
@@ -666,7 +667,7 @@ class KubernetesAgent(Agent):
             pod_spec["serviceAccountName"] = service_account_name
 
         # Configure `image_pull_secrets` if specified
-        if run_config.image_pull_secrets is not None:
+        if run_config.image_pull_secrets:
             # On run-config, always override
             image_pull_secrets = (
                 run_config.image_pull_secrets
