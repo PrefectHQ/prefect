@@ -2,7 +2,7 @@ import subprocess
 import sys
 import sniffio
 import asyncio
-from typing import Dict, TypeVar, Type, Optional, List
+from typing import Dict, TypeVar, Type, Optional, List, TYPE_CHECKING
 
 import anyio
 import anyio.abc
@@ -12,10 +12,16 @@ from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field
 from typing_extensions import Literal
 
+import prefect
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.logging import get_logger
 from prefect.utilities.asyncio import run_sync_in_worker_thread
+
+
+if TYPE_CHECKING:
+    from docker.models.containers import Container
+
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
@@ -173,6 +179,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     networks: List[str] = Field(default_factory=list)
     labels: Dict[str, str] = None
     auto_remove: bool = False
+    stream_output: bool = True
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
@@ -199,15 +206,27 @@ class DockerFlowRunner(UniversalFlowRunner):
             or flow_run.id
         )
 
-    def _get_start_command(self, flow_run: FlowRun):
+    def _get_start_command(self, flow_run: FlowRun) -> List[str]:
         return [
             "python",
             "-m",
             "prefect.engine",
-            "{flow_run.id}",
+            f"{flow_run.id}",
         ]
 
-    def _create_container(self, flow_run):
+    def _get_volumes(self) -> Dict[str, Dict[str, str]]:
+        return {
+            f"{prefect.settings.home.absolute()}": {
+                "bind": f"/root/{prefect.settings.home.name}",
+                "mode": "rw",
+            },
+            f"{prefect.settings.orion.data.base_path}": {
+                "bind": f"{prefect.settings.orion.data.base_path}",
+                "mode": "rw",
+            },
+        }
+
+    def _create_container(self, flow_run: FlowRun) -> "Container":
         import docker
 
         docker_client = docker.from_env()
@@ -233,6 +252,7 @@ class DockerFlowRunner(UniversalFlowRunner):
                     environment=self.env,
                     auto_remove=self.auto_remove,
                     labels=labels,
+                    volumes=self._get_volumes(),
                 )
             except docker.errors.APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
@@ -251,7 +271,6 @@ class DockerFlowRunner(UniversalFlowRunner):
         return container
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
-
         container = self._create_container(flow_run)
 
         # Start the container
@@ -259,10 +278,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         return container.id
 
-    def _check_running_container(self, container_id: str) -> bool:
-        """
-        If the container is not running, returns `False`
-        """
+    def _watch_container(self, container_id: str) -> bool:
         import docker
 
         docker_client = docker.from_env()
@@ -271,15 +287,22 @@ class DockerFlowRunner(UniversalFlowRunner):
             container = docker_client.containers.get(container_id)
         except docker.errors.ImageNotFound:
             self.logger.error(f"Flow run container {container_id!r} was removed.")
-            return False
 
+        status = container.status
         self.logger.info(
-            f"Flow run container {container.name!r} has status: {container.status!r}"
+            f"Flow run container {container.name!r} has status {container.status!r}"
         )
-        if container.status != "running":
-            return False
-        else:
-            return True
+
+        for log in container.logs(stream=True):
+            log: bytes
+            if self.stream_output:
+                print(log.decode().rstrip())
+
+        container.reload()
+        if container.status != status:
+            self.logger.info(
+                f"Flow run container {container.name!r} has status {container.status!r}"
+            )
 
     async def submit_flow_run(
         self,
@@ -297,9 +320,4 @@ class DockerFlowRunner(UniversalFlowRunner):
         task_status.started()
 
         # Monitor the container
-        container_running = True
-        while container_running:
-            container_running = await run_sync_in_worker_thread(
-                self._check_running_container, container_id
-            )
-            await anyio.sleep(10)
+        await run_sync_in_worker_thread(self._watch_container, container_id)
