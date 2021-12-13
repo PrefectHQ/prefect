@@ -142,4 +142,4 @@ jobs:
         env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
         run: |
-          pytest tests
+          pytest tests -vv
