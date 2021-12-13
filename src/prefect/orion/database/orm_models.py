@@ -6,6 +6,7 @@ from coolname import generate_slug
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, declarative_mixin, as_declarative
 from prefect.orion.schemas import core, data, schedules, states
@@ -70,6 +71,7 @@ class ORMBase:
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
         onupdate=now(),
+        server_onupdate=FetchedValue(),
     )
 
 
