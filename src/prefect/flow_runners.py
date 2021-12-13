@@ -2,10 +2,11 @@ import subprocess
 import sys
 import sniffio
 import asyncio
-from typing import Dict, TypeVar, Type, Optional
+from typing import Dict, TypeVar, Type, Optional, List
 
 import anyio
 import anyio.abc
+from slugify import slugify
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field
@@ -14,6 +15,7 @@ from typing_extensions import Literal
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.logging import get_logger
+from prefect.utilities.asyncio import run_sync_in_worker_thread
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
@@ -161,3 +163,132 @@ class SubprocessFlowRunner(UniversalFlowRunner):
             self.logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
 
         return not process.returncode
+
+
+@register_flow_runner
+class DockerFlowRunner(UniversalFlowRunner):
+    typename: Literal["docker"] = "docker"
+
+    image: str = "python:3.8"
+    networks: List[str] = Field(default_factory=list)
+
+    def _get_container_name(self, flow_run: FlowRun) -> str:
+        """
+        Generatse a container name to match the flow run name, ensuring it is docker
+        compatible and unique.
+        """
+        # Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
+
+        return (
+            slugify(
+                flow_run.name,
+                lowercase=False,
+                # Docker does not limit length but URL limits apply eventually so
+                # limit the length for safety
+                max_length=250,
+                # Docker allows these characters for container names
+                regex_pattern=r"[^a-zA-Z0-9_.-]+",
+            ).lstrip(
+                # Docker does not allow leading underscore, dash, or period
+                "_-."
+            )
+            # Docker does not allow 0 character names so use the flow run id if name
+            # would be empty after cleaning
+            or flow_run.id
+        )
+
+    def _get_start_command(self, flow_run: FlowRun):
+        return [
+            "bash",
+            "-c",
+            f"python -m prefect.engine {flow_run.id}",
+        ]
+
+    def _create_container(self, docker_client, flow_run):
+        import docker
+
+        # Create the container with retries on name conflicts (with an incremented idx)
+        index = 0
+        container = None
+        container_name = original_container_name = self._get_container_name(flow_run)
+        while not container:
+            try:
+                container = docker_client.containers.create(
+                    self.image,
+                    name=container_name,
+                    detach=True,
+                    network=self.networks[0] if len(self.networks) else None,
+                    command=self._get_start_command(flow_run),
+                    environment=self.env,
+                )
+            except docker.errors.APIError as exc:
+                if "Conflict" in str(exc) and "container name" in str(exc):
+                    index += 1
+                    container_name = f"{original_container_name}-{index}"
+                else:
+                    raise
+        return container
+
+    def _create_and_start_container(self, flow_run: FlowRun) -> str:
+        import docker
+
+        docker_client = docker.from_env()
+
+        container = self._create_container(docker_client, flow_run)
+
+        # Add additional networks after the container is created; only one network can
+        # be attached at creation time
+        if len(self.networks) > 1:
+            for network_name in self.networks[1:]:
+                network = docker_client.networks.get(network_name)
+                network.connect(container)
+
+        # Start the container
+        container.start()
+
+        return container.id
+
+    def _check_running_container(self, container_id: str) -> bool:
+        """
+        If the container is not running, returns `False`
+        """
+        import docker
+
+        docker_client = docker.from_env()
+
+        try:
+            container = docker_client.containers.get(container_id)
+        except docker.errors.ImageNotFound:
+            self.logger.error(f"Flow run container {container_id!r} was removed.")
+            return False
+
+        self.logger.info(
+            f"Flow run container {container.name!r} has status: {container.status!r}"
+        )
+        if container.status != "running":
+            return False
+        else:
+            return True
+
+    async def submit_flow_run(
+        self,
+        flow_run: FlowRun,
+        task_status: TaskStatus,
+    ) -> Optional[bool]:
+
+        # The `docker` library uses requests instead of an async http library so it must
+        # be run in a thread to avoid blocking the event loop.
+        container_id = await run_sync_in_worker_thread(
+            self._create_and_start_container, flow_run
+        )
+
+        # Mark as started
+        task_status.started()
+
+        # Monitor the container
+        container_running = True
+        while container_running:
+            container_running = await run_sync_in_worker_thread(
+                self._check_running_container, container_id
+            )
+            await anyio.sleep(10)
