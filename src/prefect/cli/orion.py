@@ -14,7 +14,7 @@ from anyio.streams.text import TextReceiveStream
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import sync, sync_compatible
+from prefect.utilities.asyncio import sync_compatible
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)

@@ -28,6 +28,32 @@ class Flow(ORMBaseModel):
     # deployments: List["Deployment"] = Field(default_factory=list)
 
 
+class FlowRunnerSettings(PrefectBaseModel):
+    """
+    An API schema for passing details about the flow runner.
+
+    This schema is agnostic to the types and configuration provided by clients
+    """
+
+    type: str = Field(
+        None,
+        description="The type of the flow runner which can be used by the client for dispatching.",
+    )
+    config: dict = Field(
+        None, description="The configuration for the given flow runner type."
+    )
+
+    # The following is required for composite compatibility in the ORM
+
+    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
+        # Pydantic does not support positional arguments so they must be converted to
+        # keyword arguments
+        super().__init__(type=type, config=config, **kwargs)
+
+    def __composite_values__(self):
+        return self.type, self.config
+
+
 class FlowRun(ORMBaseModel):
     """An ORM representation of flow run data."""
 
@@ -102,6 +128,10 @@ class FlowRun(ORMBaseModel):
     )
     auto_scheduled: bool = Field(
         False, description="Whether or not the flow run was automatically scheduled."
+    )
+    flow_runner: FlowRunnerSettings = Field(
+        None,
+        description="The flow runner to use to create infrastructure to execute this flow run",
     )
 
     # relationships
@@ -274,6 +304,11 @@ class Deployment(ORMBaseModel):
         default_factory=list,
         description="A list of tags for the deployment",
         example=["tag-1", "tag-2"],
+    )
+
+    flow_runner: FlowRunnerSettings = Field(
+        None,
+        description="The flow runner to assign to flow runs associated with this deployment.",
     )
 
     # flow: Flow = None
