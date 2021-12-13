@@ -169,8 +169,10 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 class DockerFlowRunner(UniversalFlowRunner):
     typename: Literal["docker"] = "docker"
 
-    image: str = "python:3.8"
+    image: str = "prefect:main"
     networks: List[str] = Field(default_factory=list)
+    labels: Dict[str, str] = None
+    auto_remove: bool = False
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
@@ -199,13 +201,23 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_start_command(self, flow_run: FlowRun):
         return [
-            "bash",
-            "-c",
-            f"python -m prefect.engine {flow_run.id}",
+            "python",
+            "-m",
+            "prefect.engine",
+            "{flow_run.id}",
         ]
 
-    def _create_container(self, docker_client, flow_run):
+    def _create_container(self, flow_run):
         import docker
+
+        docker_client = docker.from_env()
+
+        labels = self.labels.copy() if self.labels else {}
+        labels.update(
+            {
+                "io.prefect.flow-run-id": str(flow_run.id),
+            }
+        )
 
         # Create the container with retries on name conflicts (with an incremented idx)
         index = 0
@@ -219,6 +231,8 @@ class DockerFlowRunner(UniversalFlowRunner):
                     network=self.networks[0] if self.networks else None,
                     command=self._get_start_command(flow_run),
                     environment=self.env,
+                    auto_remove=self.auto_remove,
+                    labels=labels,
                 )
             except docker.errors.APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
@@ -226,14 +240,6 @@ class DockerFlowRunner(UniversalFlowRunner):
                     container_name = f"{original_container_name}-{index}"
                 else:
                     raise
-        return container
-
-    def _create_and_start_container(self, flow_run: FlowRun) -> str:
-        import docker
-
-        docker_client = docker.from_env()
-
-        container = self._create_container(docker_client, flow_run)
 
         # Add additional networks after the container is created; only one network can
         # be attached at creation time
@@ -241,6 +247,12 @@ class DockerFlowRunner(UniversalFlowRunner):
             for network_name in self.networks[1:]:
                 network = docker_client.networks.get(network_name)
                 network.connect(container)
+
+        return container
+
+    def _create_and_start_container(self, flow_run: FlowRun) -> str:
+
+        container = self._create_container(flow_run)
 
         # Start the container
         container.start()
