@@ -212,7 +212,9 @@ async def create_deployment_from_spec(
     """
     spec.load_flow()
     flow_id = await client.create_flow(spec.flow)
-    flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
+    with open(spec.flow_location, "rb") as flow_file:
+        flow_data = await client.persist_data(flow_file.read())
+    # flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
         name=spec.name,
