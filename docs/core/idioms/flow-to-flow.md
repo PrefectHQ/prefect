@@ -28,14 +28,14 @@ from prefect.tasks.prefect import create_flow_run
 
 @task
 def extract_some_data():
-    return {"param-key": "some-random-piece-of-data"}
+    return "some-random-piece-of-data"
 
 with Flow("parent-flow") as flow:
-    params = extract_some_data()
+    data = extract_some_data()
     # assumes you have registered a flow named "example" in a project named "examples"
     flow_run = create_flow_run(flow_name="example", 
                                project_name="examples", 
-                               parameters=params)
+                               parameters={"param-key": data})
 ```
 
 ## Scheduling a Flow-of-Flows
