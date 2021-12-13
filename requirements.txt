@@ -1,6 +1,6 @@
 aiofiles >= 0.7.0
 aiosqlite >= 0.17.0
-anyio >=3.2.1
+anyio >= 3.2.1
 asyncpg >= 0.23
 coolname >= 1.0.4
 click >= 7.1.2
@@ -12,7 +12,7 @@ fsspec >= 2021.7.0
 httpx >= 0.18
 pendulum >= 2.1.2
 pydantic >= 1.8.2
-pyyaml >=5.1b1
+pyyaml >= 5.1b1
 pytz >= 2021.1
 rich >= 10.0
 sqlalchemy[asyncio] >= 1.4.20
