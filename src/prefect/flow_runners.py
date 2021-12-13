@@ -216,8 +216,7 @@ class DockerFlowRunner(UniversalFlowRunner):
                 container = docker_client.containers.create(
                     self.image,
                     name=container_name,
-                    detach=True,
-                    network=self.networks[0] if len(self.networks) else None,
+                    network=self.networks[0] if self.networks else None,
                     command=self._get_start_command(flow_run),
                     environment=self.env,
                 )
