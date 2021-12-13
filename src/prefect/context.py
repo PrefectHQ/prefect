@@ -3,6 +3,7 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
+from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Optional, Type, TypeVar, Union, List, Set
 from uuid import UUID
@@ -151,3 +152,60 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     raise RuntimeError(
         "No run context available. You are not in a flow or task run context."
     )
+
+
+@contextmanager
+def tags(*new_tags: str) -> Set[str]:
+    """
+    Context manager to add tags to flow and task run calls.
+
+    Tags are always combined with any existing tags.
+
+    Yields:
+        The current set of tags
+
+    Examples:
+        >>> from prefect import tags, task, flow
+        >>> @task
+        >>> def my_task():
+        >>>     pass
+
+        Run a task with tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("a", "b"):
+        >>>         my_task()  # has tags: a, b
+
+        Run a flow with tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     pass
+        >>> with tags("a", b"):
+        >>>     my_flow()  # has tags: a, b
+
+        Run a task with nested tag contexts
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("a", "b"):
+        >>>         with tags("c", "d"):
+        >>>             my_task()  # has tags: a, b, c, d
+        >>>         my_task()  # has tags: a, b
+
+        Inspect the current tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("c", "d"):
+        >>>         with tags("e", "f") as current_tags:
+        >>>              print(current_tags)
+        >>> with tags("a", b"):
+        >>>     my_flow()
+        {"a", "b", "c", "d", "e", "f"}
+    """
+    current_tags = TagsContext.get().current_tags
+    new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=new_tags):
+        yield new_tags

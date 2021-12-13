@@ -27,6 +27,9 @@ class TestCreateDeployment:
                 flow_id=flow.id,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
+                flow_runner=schemas.core.FlowRunnerSettings(
+                    type="test", config={"foo": "bar"}
+                ),
             ),
         )
         assert deployment.name == "My Deployment"
@@ -34,6 +37,9 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"}
+        )
 
     async def test_create_deployment_updates_existing_deployment(
         self, session, flow, flow_function
@@ -55,6 +61,9 @@ class TestCreateDeployment:
         assert deployment.flow_data == flow_data
         assert deployment.parameters == {}
         assert deployment.tags == []
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            type=None, config=None
+        )
 
         time.sleep(1)
 
@@ -73,6 +82,9 @@ class TestCreateDeployment:
                 is_schedule_active=False,
                 parameters={"foo": "bar"},
                 tags=["foo", "bar"],
+                flow_runner=schemas.core.FlowRunnerSettings(
+                    type="test", config={"foo": "bar"}
+                ),
             ),
         )
         assert deployment.name == "My Deployment"
@@ -83,6 +95,9 @@ class TestCreateDeployment:
         assert deployment.parameters == {"foo": "bar"}
         assert deployment.tags == ["foo", "bar"]
         assert deployment.updated > original_update_time
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"}
+        )
 
     async def test_create_deployment_with_schedule(self, session, flow, flow_function):
         schedule = schemas.schedules.IntervalSchedule(

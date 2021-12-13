@@ -37,22 +37,34 @@ async def create_deployment(
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     deployment.updated = pendulum.now("UTC")
 
+    insert_values = deployment.dict(shallow=True, exclude_unset=True)
+
+    # Unpack the flow runner composite if set
+    flow_runner = insert_values.pop("flow_runner", None)
+    flow_runner_values = {}
+    if flow_runner:
+        flow_runner_values["flow_runner_type"] = flow_runner.type
+        flow_runner_values["flow_runner_config"] = flow_runner.config
+
     insert_stmt = (
         (await db.insert(db.Deployment))
-        .values(**deployment.dict(shallow=True, exclude_unset=True))
+        .values(**insert_values, **flow_runner_values)
         .on_conflict_do_update(
             index_elements=db.deployment_unique_upsert_columns,
-            set_=deployment.dict(
-                shallow=True,
-                include={
-                    "schedule",
-                    "is_schedule_active",
-                    "tags",
-                    "parameters",
-                    "flow_data",
-                    "updated",
-                },
-            ),
+            set_={
+                **deployment.dict(
+                    shallow=True,
+                    include={
+                        "schedule",
+                        "is_schedule_active",
+                        "tags",
+                        "parameters",
+                        "flow_data",
+                        "updated",
+                    },
+                ),
+                **flow_runner_values,
+            },
         )
     )
 
@@ -329,6 +341,7 @@ async def _generate_scheduled_flow_runs(
             flow_id=deployment.flow_id,
             deployment_id=deployment_id,
             parameters=deployment.parameters,
+            flow_runner=deployment.flow_runner,
             idempotency_key=f"scheduled {deployment.id} {date}",
             tags=["auto-scheduled"] + deployment.tags,
             auto_scheduled=True,
@@ -360,13 +373,21 @@ async def _insert_scheduled_flow_runs(
     if not runs:
         return []
 
+    bulk_insert_values = []
+    for run in runs:
+        run_insert_values = run.dict(exclude={"created", "updated"})
+        flow_runner = run_insert_values.pop("flow_runner", {})
+        run_insert_values["flow_runner_type"] = flow_runner.get("type")
+        run_insert_values["flow_runner_config"] = flow_runner.get("config")
+        bulk_insert_values.append(run_insert_values)
+
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
     insert = await db.insert(db.FlowRun)
     await session.execute(
         insert.on_conflict_do_nothing(index_elements=db.flow_run_unique_upsert_columns),
-        [r.dict(exclude={"created", "updated"}) for r in runs],
+        bulk_insert_values,
     )
 
     # query for the rows that were newly inserted (by checking for any flow runs with

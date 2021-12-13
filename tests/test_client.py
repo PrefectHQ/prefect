@@ -14,6 +14,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled, Pending, Running, StateType
 from prefect.tasks import task
 from prefect.orion.schemas.schedules import IntervalSchedule
+from prefect.flow_runners import UniversalFlowRunner
 
 
 async def test_hello(orion_client):
@@ -50,6 +51,7 @@ async def test_create_then_read_deployment(orion_client):
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
+        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
     )
 
     lookup = await orion_client.read_deployment(deployment_id)
@@ -59,6 +61,7 @@ async def test_create_then_read_deployment(orion_client):
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
+    assert lookup.flow_runner == UniversalFlowRunner(env={"foo": "bar"}).to_settings()
 
 
 async def test_read_deployment_by_name(orion_client):
@@ -90,7 +93,9 @@ async def test_create_then_read_flow_run(orion_client):
     def foo():
         pass
 
-    flow_run = await orion_client.create_flow_run(foo, name="zachs-flow-run")
+    flow_run = await orion_client.create_flow_run(
+        foo, name="zachs-flow-run", flow_runner=UniversalFlowRunner(env={"foo": "bar"})
+    )
     assert isinstance(flow_run, schemas.core.FlowRun)
 
     lookup = await orion_client.read_flow_run(flow_run.id)
@@ -237,10 +242,12 @@ async def test_read_flows_with_filter(orion_client):
 
 
 async def test_create_flow_run_from_deployment(orion_client, deployment):
-    flow_run = await orion_client.create_flow_run_from_deployment(deployment)
+    flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
     # Deployment details attached
     assert flow_run.deployment_id == deployment.id
     assert flow_run.flow_id == deployment.flow_id
+    # Includes flow runner
+    assert flow_run.flow_runner.dict() == deployment.flow_runner.dict()
     # Flow version is not populated yet
     assert flow_run.flow_version is None
     # State is scheduled for now
