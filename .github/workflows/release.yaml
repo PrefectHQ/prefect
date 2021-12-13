@@ -56,6 +56,8 @@ jobs:
 
   publish-docs:
     name: Open PR to docs branch
+    needs: [build-release, publish-test-release]
+    environment: 'prod'
     runs-on: ubuntu-latest
 
     steps:
@@ -125,7 +127,9 @@ jobs:
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Configure upstream
-        run: git remote add prefect-orion https://github.com/PrefectHQ/prefect.git
+        run: git remote add prefect-orion https://${MARVIN_GITHUB_TOKEN}@github.com/PrefectHQ/prefect.git
+        env:
+          MARVIN_GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
       - name: Create a temporary branch & merge w/ upstream
         # the release tag is parsed from the ref
@@ -140,9 +144,7 @@ jobs:
           gh pr create \
             --title "Publish code from Orion release ${GITHUB_REF#refs/*/}" \
             --body '_automatically created with `gh` cli on merge to `main`_' \
-            --base orion
-        env:
-          GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
+            --base orion --repo prefecthq/prefect
 
   publish-release:
     name: Publish Release to PyPI
