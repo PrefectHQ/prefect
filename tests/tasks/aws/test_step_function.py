@@ -12,9 +12,7 @@ class TestStepActivate:
         task = StepActivate(state_machine_arn="arn")
 
     def test_initialization_passes_to_task_constructor(self):
-        task = StepActivate(
-            state_machine_arn="arn", name="test", tags=["AWS"]
-        )
+        task = StepActivate(state_machine_arn="arn", name="test", tags=["AWS"])
         assert task.name == "test"
         assert task.tags == {"AWS"}
 
@@ -27,4 +25,8 @@ class TestStepActivate:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().start_execution"
-        assert called_method[2] == {"stateMachineArn": "arn", "name": "name", "input": "{}"}
+        assert called_method[2] == {
+            "stateMachineArn": "arn",
+            "name": "name",
+            "input": "{}",
+        }
