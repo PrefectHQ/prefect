@@ -327,6 +327,24 @@ class AgentSettings(BaseSettings):
     )
 
 
+class DevelopmentSettings(BaseSettings):
+    """
+    Settings for development of the `prefect` library itself. Intended for use by
+    contributors.
+    """
+
+    class Config:
+        env_prefix = "PREFECT_DEV_"
+        frozen = True
+
+    repo_path: Path = Field(
+        None,
+        description="""The path to your local prefect installation. If provided, will 
+        be attached to containers created by the docker flow runner so they use a 
+        matching install.""",
+    )
+
+
 class Settings(SharedSettings):
     """Global Prefect settings. To change these settings via environment variable, set
     `PREFECT_{SETTING}=X`.
@@ -357,6 +375,12 @@ class Settings(SharedSettings):
         None,
         description="""If provided, the url of an externally-hosted Orion API.
         Defaults to `None`.""",
+    )
+
+    # settings for contributor tools
+    dev: DevelopmentSettings = Field(
+        default_factory=DevelopmentSettings,
+        description="Nested [Development settings][prefect.utilities.settings.DevelopmentSettings].",
     )
 
 

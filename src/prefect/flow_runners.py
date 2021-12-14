@@ -2,6 +2,9 @@ import subprocess
 import sys
 import sniffio
 import asyncio
+import packaging.version
+import warnings
+import threading
 from typing import Dict, TypeVar, Type, Optional, List, TYPE_CHECKING
 
 import anyio
@@ -25,6 +28,9 @@ if TYPE_CHECKING:
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
+
+
+DOCKER_BUILD_LOCK = threading.Lock()
 
 
 class FlowRunner(BaseModel):
@@ -175,11 +181,30 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 class DockerFlowRunner(UniversalFlowRunner):
     typename: Literal["docker"] = "docker"
 
-    image: str = "prefect:main"
+    image: str = None
     networks: List[str] = Field(default_factory=list)
     labels: Dict[str, str] = None
     auto_remove: bool = False
     stream_output: bool = True
+
+    def _get_image(self, docker_client):
+        if self.image:
+            return self.image
+
+        import docker
+
+        # Check for an image, lock so that we do not try to build it again if another
+        # thread is already doing so
+        with DOCKER_BUILD_LOCK:
+            try:
+                docker_client.images.get()
+            except docker.errors.ImageNotFound:
+                self.logger.info("Orion image not found! Building...")
+                docker_client.images.build(
+                    path=str(prefect.__root_path__), tag="prefect:orion"
+                )
+
+        return "prefect:orion"
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
@@ -215,28 +240,56 @@ class DockerFlowRunner(UniversalFlowRunner):
         ]
 
     def _get_volumes(self) -> Dict[str, Dict[str, str]]:
-        return {
-            f"{prefect.settings.home.absolute()}": {
-                "bind": f"/root/{prefect.settings.home.name}",
-                "mode": "rw",
-            },
-            f"{prefect.settings.orion.data.base_path}": {
-                "bind": f"{prefect.settings.orion.data.base_path}",
-                "mode": "rw",
-            },
-        }
+        volumes = {}
+        local_install = prefect.settings.dev.repo_path
+        if local_install:
+            self.logger.info(
+                f"Attaching editable install at '{local_install}' to run container..."
+            )
+            volumes[str(local_install)] = {"bind": "/opt/prefect", "mode": "ro"}
+        return volumes
 
-    def _create_container(self, flow_run: FlowRun) -> "Container":
-        import docker
+    def _get_extra_hosts(self, docker_client) -> Dict[str, str]:
+        """
+        A host.docker.internal -> host-gateway mapping is necessary for communicating
+        with the API on Linux machines
+        """
+        user_version = packaging.version.parse(docker_client.version()["Version"])
+        required_version = packaging.version.parse("20.10.0")
 
-        docker_client = docker.from_env()
+        if user_version < required_version:
+            warnings.warn(
+                "`host.docker.internal` could not be automatically resolved to your "
+                "local host. This feature is not supported on Docker Engine "
+                f"v{user_version}, upgrade to v{required_version}+ if you "
+                "encounter issues."
+            )
+        else:
+            # Compatibility for linux -- https://github.com/docker/cli/issues/2290
+            # Only supported by Docker v20.10.0+ which is our minimum recommend version
+            return {"host.docker.internal": "host-gateway"}
 
+    def _get_environment_variables(self):
+        env = self.env.copy()
+        env.setdefault(
+            "PREFECT_ORION_HOST",
+            f"http://host.docker.internal:{prefect.settings.orion.api.port}/api",
+        )
+        return env
+
+    def _get_labels(self, flow_run: FlowRun):
         labels = self.labels.copy() if self.labels else {}
         labels.update(
             {
                 "io.prefect.flow-run-id": str(flow_run.id),
             }
         )
+        return labels
+
+    def _create_container(self, flow_run: FlowRun) -> "Container":
+        import docker
+
+        docker_client = docker.from_env()
 
         # Create the container with retries on name conflicts (with an incremented idx)
         index = 0
@@ -245,14 +298,15 @@ class DockerFlowRunner(UniversalFlowRunner):
         while not container:
             try:
                 container = docker_client.containers.create(
-                    self.image,
+                    self._get_image(docker_client),
                     name=container_name,
                     network=self.networks[0] if self.networks else None,
                     command=self._get_start_command(flow_run),
-                    environment=self.env,
+                    environment=self._get_environment_variables(),
                     auto_remove=self.auto_remove,
-                    labels=labels,
+                    labels=self._get_labels(flow_run),
                     volumes=self._get_volumes(),
+                    extra_hosts=self._get_extra_hosts(docker_client),
                 )
             except docker.errors.APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
