@@ -157,6 +157,7 @@ def merge(*tasks: Task, flow=None, mapped: bool = False, **kwargs) -> Task:
             in context if no flow is specified
         - mapped (bool, optional): If true, the `merge` operation will be mapped over the
             arguments instead of applied directly. Defaults to `False`.
+        - **kwargs (optional): kwargs to be passed to the Merge constructor.
 
     Returns:
         - Task: a Task representing the merged result.
