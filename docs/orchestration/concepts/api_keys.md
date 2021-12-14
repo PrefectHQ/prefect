@@ -199,34 +199,53 @@ mutation {
 
 ## Using API keys with older versions of Prefect
 
-The `prefect auth login` command will not work with API keys and the  `PREFECT__CLOUD__API_KEY` setting will be ignored before version 0.15.0. In older versions, there were authentication tokens. Keys can be used in-place in older versions by setting them in the config or the environment in the `PREFECT__CLOUD__AUTH_TOKEN` setting.
+::: warning
+API tokens are deprecated as an authentication method.
 
-Using an API key as a token for registering flows
+If you are running a version of Prefect older than 0.15.0, this section describes how you can use API keys for authentication.
+
+If you have logged in with an API key, but a token still exists on your machine, the API key will be used and the token will be ignored.
+:::
+
+The `prefect auth login` CLI command will not work with API keys and the  `PREFECT__CLOUD__API_KEY` setting will be ignored before version 0.15.0. In older versions, there were authentication tokens. Keys can be used in-place in older versions by setting them in the config or the environment in the `PREFECT__CLOUD__AUTH_TOKEN` setting.
+
+Using an API key as a token for registering flows:
+
 ```bash
 export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
 ```
 
-Using an API key as a token for starting an agent by CLI
+Using an API key as a token for starting an agent by CLI:
+
 ```bash
 $ prefect agent local start -k "<SERVICE_ACCOUNT_API_KEY>"
 ```
 
-Using an API key as a token for starting an agent by environment
+Using an API key as a token for starting an agent by environment:
+
 ```bash
 $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN="<YOUR-KEY>"
 $ prefect agent local start
 ```
 
+`PREFECT__CLOUD__AUTH_TOKEN` is no longer passed through to non-container flow run jobs.
+
+`PREFECT__CLOUD__AUTH_TOKEN` is set to the value of `PREFECT__CLOUD__API_KEY` for containerized flow run jobs, which will allow containers running old versions of Prefect to work with current agents with the caveat that the API key must be used with the default tenant.
+
 ## Removing API tokens
 
-If you've used `prefect auth login` with an API token or have set an API token in your config or environment, you will receieve warnings starting with version 0.15.0 that tokens have been deprecated. API keys are more secure and simpler to use, we urge you to switch over. 
+If you've used `prefect auth login` with an API token or have set an API token in your config or environment, you will receive warnings starting with version 0.15.0 that tokens have been deprecated. API keys are more secure and simpler to use, we urge you to switch over. 
 
-If you logged in with `prefect auth login`, you can remove your token with `prefect auth logout --token` or `rm -r ~/.prefect/client`.
+`prefect auth status` will warn about existing authentication tokens and advise on removal.
+
+If you logged in with `prefect auth login`, you can remove your token with the CLI command:
+
+```bash
+prefect auth logout --token
+``` 
+
+You can remove the tokens manually by using the command `rm -r ~/.prefect/client`.
 
 If you set your token in the environment, you can unset it with `unset PREFECT__CLOUD__AUTH_TOKEN`.
 
 If you set your token in the config, you will have to modify `~/.prefect/config.toml` to remove it.
-
-::: warning 
-If you have logged in with an API key but a token still exists on your machine, the API key will be used and the token will be ignored.
-:::

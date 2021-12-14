@@ -91,7 +91,7 @@ class DockerAgent(Agent):
             from the listed registries.
         - docker_client_timeout (int, optional): The timeout to use for docker
             API calls, defaults to 60 seconds.
-        - docker_interface: This option has been deprecated and has no effect.
+        - docker_interface: This option has been deprecated and raises an exception if passed.
     """
 
     def __init__(
