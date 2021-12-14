@@ -77,11 +77,10 @@ class OrionAgent:
         """
         Submit a flow run to the flow runner
         """
-        success = await self._propose_pending_state(flow_run)
+        ready_to_submit = await self._propose_pending_state(flow_run)
 
-        if success:
-            # Successfully entered a pending state, this run should be submitted to the
-            # flow runner
+        if ready_to_submit:
+            # Successfully entered a pending state; submit to flow runner
             flow_runner = self.get_flow_runner(flow_run)
 
             try:
