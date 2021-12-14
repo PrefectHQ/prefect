@@ -15,7 +15,7 @@ from prefect.flow_runners import FlowRunner
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType, Pending
+from prefect.orion.schemas.states import StateType, Pending, State
 from prefect.utilities.logging import get_logger
 from prefect.exceptions import Abort
 
@@ -77,6 +77,27 @@ class OrionAgent:
         """
         Submit a flow run to the flow runner
         """
+        success = await self._propose_pending_state(flow_run)
+
+        if success:
+            # Successfully entered a pending state, this run should be submitted to the
+            # flow runner
+            flow_runner = self.get_flow_runner(flow_run)
+
+            try:
+                # Wait for submission to be completed. Note that the submission function
+                # may continue to run in the background after this exits.
+                await self.task_group.start(flow_runner.submit_flow_run, flow_run)
+                self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
+            except Exception:
+                self.logger.error(
+                    f"Flow runner failed to submit flow run '{flow_run.id}'",
+                    exc_info=True,
+                )
+
+        self.submitting_flow_run_ids.remove(flow_run.id)
+
+    async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
         while state.is_scheduled():
             try:
@@ -85,35 +106,25 @@ class OrionAgent:
                 )
             except Abort as exc:
                 self.logger.info(
-                    f"Aborting submission of flow run '{flow_run.id}': "
-                    f"Server sent an abort signal {exc}",
+                    f"Aborted submission of flow run '{flow_run.id}'. "
+                    f"Server sent an abort signal: {exc}",
                 )
-                self.submitting_flow_run_ids.remove(flow_run.id)
-                return
+                return False
+            except Exception as exc:
+                self.logger.error(
+                    f"Failed to update state of flow run '{flow_run.id}'",
+                    exc_info=True,
+                )
+                return False
 
         if not state.is_pending():
             self.logger.info(
-                f"Aborting submission of flow run '{flow_run.id}': "
+                f"Aborted submission of flow run '{flow_run.id}': "
                 f"Server returned a non-pending state {state.type.value!r}",
             )
-            self.submitting_flow_run_ids.remove(flow_run.id)
-            return
+            return False
 
-        # Successfully entered a pending state, this run should be submitted to the
-        # flow runner
-        flow_runner = self.get_flow_runner(flow_run)
-
-        try:
-            # Wait for submission to be completed. Note that the submission function
-            # may continue to run in the background after this exits.
-            await self.task_group.start(flow_runner.submit_flow_run, flow_run)
-            self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
-        except Exception:
-            self.logger.error(
-                f"Failed to submit flow run '{flow_run.id}'", exc_info=True
-            )
-
-        self.submitting_flow_run_ids.remove(flow_run.id)
+        return True
 
     # Context management ---------------------------------------------------------------
 

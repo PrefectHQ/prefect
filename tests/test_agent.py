@@ -1,5 +1,6 @@
 import sys
 from unittest.mock import ANY, MagicMock
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -218,12 +219,47 @@ async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
         agent.submitting_flow_run_ids.add(flow_run.id)
+        agent.logger = MagicMock()
 
         agent.client.propose_state = AsyncMock(return_value=Running())
         await agent.submit_run(flow_run)
 
-    agent.get_flow_runner.assert_not_called()
+    agent.get_flow_runner().submit_flow_run.assert_not_called()
     assert flow_run.id not in agent.submitting_flow_run_ids
+    agent.logger.info.assert_called_with(
+        f"Aborted submission of flow run '{flow_run.id}': "
+        "Server returned a non-pending state 'RUNNING'"
+    )
+
+
+async def test_agent_submit_run_aborts_if_flow_run_is_missing(orion_client, deployment):
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        deployment.id,
+        state=Scheduled(scheduled_time=pendulum.now("utc")),
+        flow_runner=UniversalFlowRunner(env={"foo": "bar"}),
+    )
+
+    # TODO: The client cannot delete flow runs yet, change the id instead
+    flow_run.id = uuid4()
+
+    def mark_as_started(_, task_status):
+        task_status.started()
+
+    async with OrionAgent(prefetch_seconds=10) as agent:
+        # Create a mock flow runner
+        agent.get_flow_runner = MagicMock()
+        agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
+        agent.submitting_flow_run_ids.add(flow_run.id)
+        agent.logger = MagicMock()
+
+        await agent.submit_run(flow_run)
+
+    agent.get_flow_runner().submit_flow_run.assert_not_called()
+    assert flow_run.id not in agent.submitting_flow_run_ids
+    agent.logger.error.assert_called_with(
+        f"Failed to update state of flow run '{flow_run.id}'",
+        exc_info=True,
+    )
 
 
 async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
@@ -243,12 +279,17 @@ async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
         agent.get_flow_runner = MagicMock()
         agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
         agent.submitting_flow_run_ids.add(flow_run.id)
+        agent.logger = MagicMock()
 
-        agent.client.propose_state = AsyncMock(side_effect=Abort())
+        agent.client.propose_state = AsyncMock(side_effect=Abort("message"))
         await agent.submit_run(flow_run)
 
-    agent.get_flow_runner.assert_not_called()
+    agent.get_flow_runner().submit_flow_run.assert_not_called()
     assert flow_run.id not in agent.submitting_flow_run_ids
+    agent.logger.info.assert_called_with(
+        f"Aborted submission of flow run '{flow_run.id}'. "
+        "Server sent an abort signal: message"
+    )
 
 
 async def test_agent_does_not_raise_if_flow_runner_submission_fails(
@@ -272,7 +313,7 @@ async def test_agent_does_not_raise_if_flow_runner_submission_fails(
         flow_run, task_status=ANY
     )
     agent.logger.error.assert_called_once_with(
-        f"Failed to submit flow run '{flow_run.id}'", exc_info=True
+        f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
     )
 
 
@@ -300,7 +341,7 @@ async def test_agent_does_not_fail_if_flow_runner_does_not_mark_as_started(
         flow_run, task_status=ANY
     )
     agent.logger.error.assert_called_once_with(
-        f"Failed to submit flow run '{flow_run.id}'", exc_info=True
+        f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
     )
 
 
