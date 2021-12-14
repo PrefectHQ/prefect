@@ -1,9 +1,9 @@
-from collections import OrderedDict
+from functools import lru_cache
 
 import sqlalchemy as sa
 import sqlite3
 import os
-from asyncio import current_task, get_event_loop
+from asyncio import current_task, get_event_loop, AbstractEventLoop
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -53,10 +53,9 @@ class BaseDatabaseConfiguration(ABC):
         """Returns a SqlAlchemy engine"""
 
     @abstractmethod
-    async def session_factory(self, bind):
+    async def session_factory(self, engine: sa.engine.Engine) -> async_scoped_session:
         """
-        Retrieves a SQLAlchemy session factory for self.engine.
-        The session factory is cached for each event loop.
+        Retrieves a SQLAlchemy session factory for an engine.
         """
 
     @abstractmethod
@@ -76,7 +75,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
     ENGINES = dict()
     ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
-    SESSION_FACTORIES = dict()
 
     async def engine(
         self,
@@ -164,26 +162,37 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         # Begin iterating so it will be cleaned up as an incomplete generator
         await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
 
-    async def session_factory(self, bind):
+    async def session_factory(self, engine: sa.engine.Engine) -> async_scoped_session:
         """
-        Retrieves a SQLAlchemy session factory for self.engine.
-        The session factory is cached for each event loop.
+        Retrieves a SQLAlchemy session factory for an engine.
+        The session factory is cached for each event loop and engine.
+
+        Args:
+            engine: a sqlalchemy engine
         """
         loop = get_event_loop()
-        cache_key = (loop, bind)
-        if cache_key not in self.SESSION_FACTORIES:
+        return self._session_factory(engine=engine, loop=loop)
 
-            session_factory = sessionmaker(
-                bind,
-                future=True,
-                expire_on_commit=False,
-                class_=AsyncSession,
-            )
+    @lru_cache(maxsize=100)
+    def _session_factory(
+        self, engine: sa.engine.Engine, loop: AbstractEventLoop
+    ) -> async_scoped_session:
+        """
+        Get a session factory for a given engine and event loop.
 
-            session = async_scoped_session(session_factory, scopefunc=current_task)
-            self.SESSION_FACTORIES[cache_key] = session
+        Args:
+            engine: a sqlalchemy engine
+            loop: an event loop for the session factory
+        """
+        session_factory = sessionmaker(
+            engine,
+            future=True,
+            expire_on_commit=False,
+            class_=AsyncSession,
+        )
 
-        return self.SESSION_FACTORIES[cache_key]
+        session = async_scoped_session(session_factory, scopefunc=current_task)
+        return session
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""
@@ -201,36 +210,10 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         return False
 
 
-class SizeLimitedLeastRecentlyUsedOrderedDict(OrderedDict):
-    """
-    Store items in the order keys were last added, up to a maximum size
-
-    Args:
-        max_size: the maximum number of keys to hold in the dictionary
-    """
-
-    def __init__(self, *args, max_size: int = None, **kwargs):
-        self._max_size = max_size
-        super().__init__(*args, **kwargs)
-
-    def __getitem__(self, key):
-        """Get a value from the dictionary and put the accessed key at the end of the dictionary."""
-        value = super().__getitem__(key)
-        self.move_to_end(key)
-        return value
-
-    def __setitem__(self, key, value):
-        """Set a key value pair in the dictionary. If maximum size is reached, remove the last item."""
-        super().__setitem__(key, value)
-        if self._max_size is not None and len(self) > self._max_size:
-            self.popitem(last=False)
-
-
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
-    ENGINES = SizeLimitedLeastRecentlyUsedOrderedDict(max_size=20)
+    ENGINES = dict()
     ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
-    SESSION_FACTORIES = SizeLimitedLeastRecentlyUsedOrderedDict(max_size=100)
     MIN_SQLITE_VERSION = (3, 24, 0)
 
     async def engine(
@@ -352,29 +335,37 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
 
-    async def session_factory(self, bind):
+    async def session_factory(self, engine: sa.engine.Engine) -> async_scoped_session:
         """
-        Retrieves a SQLAlchemy session factory for self.engine.
-        The session factory is cached for each event loop.
+        Retrieves a SQLAlchemy session factory for an engine.
+        The session factory is cached for each event loop and engine.
 
         Args:
-            TODO
+            engine: a sqlalchemy engine
         """
         loop = get_event_loop()
-        cache_key = (loop, bind)
-        if cache_key not in self.SESSION_FACTORIES:
+        return self._session_factory(engine=engine, loop=loop)
 
-            session_factory = sessionmaker(
-                bind,
-                future=True,
-                expire_on_commit=False,
-                class_=AsyncSession,
-            )
+    @lru_cache(maxsize=100)
+    def _session_factory(
+        self, engine: sa.engine.Engine, loop: AbstractEventLoop
+    ) -> async_scoped_session:
+        """
+        Get a session factory for a given engine and event loop.
 
-            session = async_scoped_session(session_factory, scopefunc=current_task)
-            self.SESSION_FACTORIES[cache_key] = session
+        Args:
+            engine: a sqlalchemy engine
+            loop: an event loop for the session factory
+        """
+        session_factory = sessionmaker(
+            engine,
+            future=True,
+            expire_on_commit=False,
+            class_=AsyncSession,
+        )
 
-        return self.SESSION_FACTORIES[cache_key]
+        session = async_scoped_session(session_factory, scopefunc=current_task)
+        return session
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""
