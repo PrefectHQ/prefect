@@ -197,7 +197,6 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         command = []
         python_executable = sys.executable
 
-        # Prepare to run in `conda`
         if self.condaenv:
             command += ["conda", "run"]
             if isinstance(self.condaenv, Path):
@@ -207,8 +206,10 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
             python_executable = "python"
 
-        # Prepare to run in `virtualenv`
         elif self.virtualenv:
+            # This reproduces the relevant behavior of virtualenv's activation script
+            # https://github.com/pypa/virtualenv/blob/main/src/virtualenv/activation/bash/activate.sh
+
             virtualenv_path = self.virtualenv.expanduser().resolve()
             python_executable = str(virtualenv_path / "bin" / "python")
             # Update the path to include the bin
