@@ -15,8 +15,9 @@ from prefect.flow_runners import FlowRunner
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType
+from prefect.orion.schemas.states import StateType, Pending
 from prefect.utilities.logging import get_logger
+from prefect.exceptions import Abort
 
 
 class OrionAgent:
@@ -72,17 +73,40 @@ class OrionAgent:
 
         return FlowRunner.from_settings(flow_runner_settings)
 
-    async def submit_run(self, flow_run: FlowRun):
+    async def submit_run(self, flow_run: FlowRun) -> None:
         """
         Submit a flow run to the flow runner
         """
+        state = flow_run.state
+        while state.is_scheduled():
+            try:
+                state = await self.client.propose_state(
+                    Pending(), flow_run_id=flow_run.id
+                )
+            except Abort as exc:
+                self.logger.info(
+                    f"Aborting submission of flow run '{flow_run.id}': "
+                    f"Server sent an abort signal {exc}",
+                )
+                self.submitting_flow_run_ids.remove(flow_run.id)
+                return
+
+        if not state.is_pending():
+            self.logger.info(
+                f"Aborting submission of flow run '{flow_run.id}': "
+                f"Server returned a non-pending state {state.type.value!r}",
+            )
+            self.submitting_flow_run_ids.remove(flow_run.id)
+            return
+
+        # Successfully entered a pending state, this run should be submitted to the
+        # flow runner
         flow_runner = self.get_flow_runner(flow_run)
 
         try:
             # Wait for submission to be completed. Note that the submission function
             # may continue to run in the background after this exits.
             await self.task_group.start(flow_runner.submit_flow_run, flow_run)
-
             self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
         except Exception:
             self.logger.error(
