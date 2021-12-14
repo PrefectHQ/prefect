@@ -121,11 +121,39 @@ and using supervisor.
 
 ## Multiple local agents with the same label
 
-In general, assigning a unique label to each agent is recommended. 
-While Prefect Cloud has a mechanism to ensure that each flow run gets executed 
-only once, race conditions may happen if you have multiple agents with the same 
-label. At the time of writing, Prefect has no notion of a task queue that would 
-allow round-robin flow runs based on available resources on a local agent. 
-If you need such functionality, you would need to ensure on your own that you 
-assign flows to agents that have enough resources by leveraging labels. 
-To help with scale, we recommend using one of the other agents. 
+We recommend assigning a unique label to each agent, particularly when 
+running multiple local agents. While Prefect Cloud has a mechanism to ensure 
+that each flow run gets executed only once, race conditions may occur if you 
+have multiple agents with the same label. The example below shows that instead 
+of starting all agents with label "prod", we can add a number to make it unique.
+
+```bash
+$ prefect agent local start --no-hostname-label --label prod1
+$ prefect agent local start --no-hostname-label --label prod2
+```
+
+Currently, Prefect has no notion of a task queue that would allow
+load-balancing flow runs across multiple agents based on available 
+resources on each agent. If you need such functionality, 
+you would need to assign unique labels to your agents, 
+and then assign corresponding labels to your flows 
+to spread the load across multiple agents. For instance:
+
+Flow 1:
+```python
+from prefect.run_configs import UniversalRun
+...
+with Flow(name="example1", run_config=UniversalRun(labels=["prod1"])) as flow:
+```
+
+Flow 2:
+```python
+from prefect.run_configs import UniversalRun
+...
+with Flow(name="example2", run_config=UniversalRun(labels=["prod2"])) as flow:
+```
+
+To help with scale, we recommend using one of the other agents, such as:
+- [KubernetesAgent](/orchestration/agents/kubernetes.md)
+- [ECSAgent](/orchestration/agents/ecs.md)
+- [VertexAgent](/orchestration/agents/vertex.md)
