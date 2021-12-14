@@ -471,13 +471,14 @@ class TestOrchestrateFlowRun:
         sleep = AsyncMock()
         monkeypatch.setattr("anyio.sleep", sleep)
 
-        state = await orchestrate_flow_run(
-            flow=foo,
-            flow_run=flow_run,
-            task_runner=SequentialTaskRunner(),
-            sync_portal=None,
-            client=orion_client,
-        )
+        with anyio.fail_after(5):
+            state = await orchestrate_flow_run(
+                flow=foo,
+                flow_run=flow_run,
+                task_runner=SequentialTaskRunner(),
+                sync_portal=None,
+                client=orion_client,
+            )
 
         sleep.assert_not_called()
         assert state.result() == 1
