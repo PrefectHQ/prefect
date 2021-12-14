@@ -68,6 +68,7 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
+from prefect.flow_runners import SubprocessFlowRunner
 
 
 class DeploymentSpec(PrefectBaseModel):
@@ -85,6 +86,10 @@ class DeploymentSpec(PrefectBaseModel):
             from `flow` if provided.
         flow_location: The path to a script containing the flow to associate with the
             deployment. Inferred from `flow` if provided.
+        push_to_server: By default, the flow text will be loaded from the flow location
+            and stored on the server instead of locally. This allows the flow to be
+            compatible with all flow runners. If disabled, only an agent on the same
+            machine will be able to run the deployment.
         parameters: An optional dictionary of default parameters to set on flow runs
             from this deployment. If defined in Python, the values should be Pydantic
             compatible objects.
@@ -96,6 +101,7 @@ class DeploymentSpec(PrefectBaseModel):
     flow: Flow = None
     flow_name: str = None
     flow_location: str = None
+    push_to_server: bool = True
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -212,9 +218,13 @@ async def create_deployment_from_spec(
     """
     spec.load_flow()
     flow_id = await client.create_flow(spec.flow)
-    with open(spec.flow_location, "rb") as flow_file:
-        flow_data = await client.persist_data(flow_file.read())
-    # flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
+
+    if spec.push_to_server:
+        with open(spec.flow_location, "rb") as flow_file:
+            flow_data = await client.persist_data(flow_file.read())
+    else:
+        flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
+
     deployment_id = await client.create_deployment(
         flow_id=flow_id,
         name=spec.name,

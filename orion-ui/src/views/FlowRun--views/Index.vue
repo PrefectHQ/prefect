@@ -5,12 +5,7 @@
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
-            <span
-              class="run-state correct-text caption mr-1"
-              :class="state.type?.toLowerCase() + '-bg'"
-            >
-              {{ state.name }}
-            </span>
+            <StateLabel :name="state.name" :type="state.type" class="mr-1" />
 
             <span class="d-inline-flex align-center text-truncate">
               <Tag
@@ -125,7 +120,20 @@
     </Card>
 
     <Card class="radar" shadow="sm">
-      <div
+      <template v-slot:header>
+        <div class="d-flex align-center justify-space-between py-1 px-2">
+          <div class="subheader">Radar</div>
+
+          <router-link :to="`/flow-run/${id}/radar`">
+            <IconButton icon="pi-full-screen" />
+          </router-link>
+        </div>
+      </template>
+
+      <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
+        <MiniRadarView :id="id" />
+      </div>
+      <!-- <div
         style="
           top: 50%;
           left: 50%;
@@ -138,7 +146,7 @@
           <IconButton icon="pi-radar-fill" />
           <div>View Radar </div>
         </router-link>
-      </div>
+      </div> -->
     </Card>
   </div>
 
@@ -188,6 +196,7 @@
         :filter="taskRunsFilter"
         component="list-item-task-run"
         endpoint="task_runs"
+        :poll-interval="5000"
       />
 
       <ResultsList
@@ -196,6 +205,7 @@
         :filter="subFlowRunsFilter"
         component="list-item-sub-flow-run"
         endpoint="task_runs"
+        :poll-interval="5000"
       />
     </transition>
   </section>
@@ -211,6 +221,8 @@ import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
+import MiniRadarView from './MiniRadar.vue'
+import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
 const route = useRoute()
 
