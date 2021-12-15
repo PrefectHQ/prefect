@@ -60,7 +60,7 @@ In more recent releases of Core your flow will default to using a `AzureResult` 
 :::
 
 :::tip Azure Credentials
-Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for Azure authentication in aim to upload (build) or download flows, so make sure to provide a  valid connection string for your Azure account. A connection string can be set as a [secret](https://docs.prefect.io/orchestration/concepts/secrets.html#secrets) or an environment variable `AZURE_STORAGE_CONNECTION_STRING` in run configuration if it is not passed as `connection_string_secret`.
+Azure Storage uses an Azure [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string) for Azure authentication in aim to upload (build) or download flows, so make sure to provide a  valid connection string for your Azure account. A connection string can be set as a [secret](/orchestration/concepts/secrets.html#secrets) or an environment variable `AZURE_STORAGE_CONNECTION_STRING` in run configuration if it is not passed as `connection_string_secret`.
 :::
 
 ## AWS S3
