@@ -36,7 +36,7 @@ async def test_injecting_a_really_dumb_database_database_config():
         ):
             ...
 
-        async def session_factory(self):
+        async def session(self, engine):
             ...
 
         async def create_db(self, connection, base_metadata):

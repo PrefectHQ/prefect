@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 import sqlalchemy as sa
 import sqlite3
 import os
@@ -53,9 +51,9 @@ class BaseDatabaseConfiguration(ABC):
         """Returns a SqlAlchemy engine"""
 
     @abstractmethod
-    async def session_factory(self, engine: sa.engine.Engine) -> async_scoped_session:
+    async def session(self, engine: sa.engine.Engine) -> AsyncSession:
         """
-        Retrieves a SQLAlchemy session factory for an engine.
+        Retrieves a SQLAlchemy session for an engine.
         """
 
     @abstractmethod
@@ -162,37 +160,14 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         # Begin iterating so it will be cleaned up as an incomplete generator
         await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
 
-    async def session_factory(self, engine: sa.engine.Engine) -> async_scoped_session:
+    async def session(self, engine: sa.engine.Engine) -> AsyncSession:
         """
-        Retrieves a SQLAlchemy session factory for an engine.
-        The session factory is cached for each event loop and engine.
+        Retrieves a SQLAlchemy session for an engine.
 
         Args:
             engine: a sqlalchemy engine
         """
-        loop = get_event_loop()
-        return self._session_factory(engine=engine, loop=loop)
-
-    @lru_cache(maxsize=100)
-    def _session_factory(
-        self, engine: sa.engine.Engine, loop: AbstractEventLoop
-    ) -> async_scoped_session:
-        """
-        Get a session factory for a given engine and event loop.
-
-        Args:
-            engine: a sqlalchemy engine
-            loop: an event loop for the session factory
-        """
-        session_factory = sessionmaker(
-            engine,
-            future=True,
-            expire_on_commit=False,
-            class_=AsyncSession,
-        )
-
-        session = async_scoped_session(session_factory, scopefunc=current_task)
-        return session
+        return AsyncSession(engine, expire_on_commit=False)
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""
@@ -335,37 +310,14 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         conn.execute(sa.text("PRAGMA busy_timeout = 60000;"))  # 60s
         conn.commit()
 
-    async def session_factory(self, engine: sa.engine.Engine) -> async_scoped_session:
+    async def session(self, engine: sa.engine.Engine) -> AsyncSession:
         """
-        Retrieves a SQLAlchemy session factory for an engine.
-        The session factory is cached for each event loop and engine.
+        Retrieves a SQLAlchemy session for an engine.
 
         Args:
             engine: a sqlalchemy engine
         """
-        loop = get_event_loop()
-        return self._session_factory(engine=engine, loop=loop)
-
-    @lru_cache(maxsize=100)
-    def _session_factory(
-        self, engine: sa.engine.Engine, loop: AbstractEventLoop
-    ) -> async_scoped_session:
-        """
-        Get a session factory for a given engine and event loop.
-
-        Args:
-            engine: a sqlalchemy engine
-            loop: an event loop for the session factory
-        """
-        session_factory = sessionmaker(
-            engine,
-            future=True,
-            expire_on_commit=False,
-            class_=AsyncSession,
-        )
-
-        session = async_scoped_session(session_factory, scopefunc=current_task)
-        return session
+        return AsyncSession(engine, expire_on_commit=False)
 
     async def create_db(self, connection, base_metadata):
         """Create the database"""

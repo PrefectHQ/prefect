@@ -68,8 +68,8 @@ async def clear_db(database_engine, db):
 
 @pytest.fixture
 async def session(db) -> AsyncSession:
-    session_factory = await db.session_factory()
-    async with session_factory() as session:
+    session = await db.session()
+    async with session:
         yield session
 
 
