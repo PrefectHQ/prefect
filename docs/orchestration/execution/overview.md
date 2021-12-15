@@ -1,4 +1,4 @@
-# Execution Overview
+# Environments Overview
 
 ::: warning
 Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading](/orchestration/flow_config/upgrade.md) documentation for more information.
@@ -24,7 +24,7 @@ from prefect.storage import Docker
 f = Flow("example-storage", storage=Docker(registry_url="prefecthq/storage-example"))
 ```
 
-or assign it directly:
+Or assign it directly:
 
 ```python
 from prefect.storage import Docker

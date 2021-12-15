@@ -61,9 +61,9 @@ You may also provide your key with an environment variable or the config. This i
 ::: tab Environment
 
 ```bash
-export PREFECT__CLOUD__API_KEY="<YOUR-KEY>"
+$ export PREFECT__CLOUD__API_KEY="<YOUR-KEY>"
 # Optional
-export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
+$ export PREFECT__CLOUD__TENANT_ID="<TENANT-ID>"
 ```
 :::
 
@@ -88,7 +88,7 @@ tenant_id = "<TENANT-ID>"
 Agents will load keys from these default locations as described above, but you can also pass an override directly to the agent when you start it. For example:
 
 ```bash
-prefect agent local start --key "<YOUR-KEY>"
+$ prefect agent local start --key "<YOUR-KEY>"
 ```
 :::
 
@@ -176,7 +176,7 @@ To revoke an API key in the UI navigate to Team Settings > Service Accounts or A
 To revoke an API key from the Prefect CLI, use the `prefect auth revoke-key` command. You will likely need to retrieve the ID of they key with `prefect auth list-keys` first.
 
 ```bash
-prefect auth revoke-key --id API_KEY_ID
+$ prefect auth revoke-key --id API_KEY_ID
 ```
 
 :::
@@ -216,7 +216,7 @@ Versions prior to Prefect 0.15.0 used _authentication tokens_. You can use API k
 
 Using an API key as a token for registering flows:
 ```bash
-export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
+$ export PREFECT__CLOUD__AUTH_TOKEN="<YOUR-KEY>"
 ```
 
 Using an API key as a token for starting an agent by CLI:
@@ -243,7 +243,7 @@ As of version 1.0.0, support for API tokens has been removed. If you used `prefe
 If you logged in with `prefect auth login`, you can remove your token with the CLI command:
 
 ```bash
-prefect auth purge-tokens
+$ prefect auth purge-tokens
 ``` 
 
 You can remove the tokens manually by using the command `rm -r ~/.prefect/client`.
