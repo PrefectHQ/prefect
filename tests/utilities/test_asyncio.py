@@ -1,7 +1,7 @@
 import pytest
 import threading
 import asyncio
-from unittest.mock import AsyncMock
+import anyio
 
 from prefect.utilities.asyncio import (
     run_async_in_new_loop,
@@ -137,7 +137,7 @@ def test_sync_compatible_requires_async_function():
             pass
 
 
-def test_add_event_loop_shutdown_callback():
+def test_add_event_loop_shutdown_callback_is_called_with_asyncio_run():
     callback_called = threading.Event()
 
     async def set_event():
@@ -146,14 +146,28 @@ def test_add_event_loop_shutdown_callback():
     async def run_test():
         await add_event_loop_shutdown_callback(set_event)
 
-    loop = asyncio.new_event_loop()
     thread = threading.Thread(target=asyncio.run(run_test()))
     thread.start()
     assert callback_called.wait(timeout=1)
     thread.join(timeout=1)
 
 
-def test_add_event_loop_shutdown_callback_is_not_set_with_loop_run_until_complete():
+def test_add_event_loop_shutdown_callback_is_called_with_anyio_run():
+    callback_called = threading.Event()
+
+    async def set_event():
+        callback_called.set()
+
+    async def run_test():
+        await add_event_loop_shutdown_callback(set_event)
+
+    thread = threading.Thread(target=anyio.run(run_test))
+    thread.start()
+    assert callback_called.wait(timeout=1)
+    thread.join(timeout=1)
+
+
+def test_add_event_loop_shutdown_callback_is_not_called_with_loop_run_until_complete():
     callback_called = threading.Event()
 
     async def set_event():
