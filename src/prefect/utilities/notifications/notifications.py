@@ -252,6 +252,7 @@ def slack_notifier(
     only_states: list = None,
     webhook_secret: str = None,
     backend_info: bool = True,
+    proxies: dict = None,
 ) -> "prefect.engine.state.State":
     """
     Slack state change handler; requires having the Prefect slack app installed.  Works as a
@@ -274,6 +275,9 @@ def slack_notifier(
             webhook URL; defaults to `"SLACK_WEBHOOK_URL"`
         - backend_info (bool, optional): Whether to supply slack notification with urls
             pointing to backend pages; defaults to True
+        - proxies (dict), optional): `dict` with "http" and/or "https" keys, passed to
+         `requests.get` - for situations where a proxy is required to send requests to the
+          Slack webhook
 
     Returns:
         - State: the `new_state` object that was provided
@@ -310,7 +314,7 @@ def slack_notifier(
     import requests
 
     form_data = slack_message_formatter(tracked_obj, new_state, backend_info)
-    r = requests.post(webhook_url, json=form_data)
+    r = requests.post(webhook_url, json=form_data, proxies=proxies)
     if not r.ok:
         raise ValueError("Slack notification for {} failed".format(tracked_obj))
     return new_state
