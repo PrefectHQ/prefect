@@ -276,7 +276,7 @@ def slack_notifier(
         - backend_info (bool, optional): Whether to supply slack notification with urls
             pointing to backend pages; defaults to True
         - proxies (dict), optional): `dict` with "http" and/or "https" keys, passed to
-         `requests.get` - for situations where a proxy is required to send requests to the
+         `requests.post` - for situations where a proxy is required to send requests to the
           Slack webhook
 
     Returns:
