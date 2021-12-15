@@ -44,6 +44,7 @@ class StepActivate(Task):
         "state_machine_arn",
         "execution_name",
         "execution_input",
+        "boto_kwargs",
     )
     def run(
         self,
@@ -51,6 +52,7 @@ class StepActivate(Task):
         state_machine_arn: str = None,
         execution_name: str = None,
         execution_input: str = None,
+        boto_kwargs: dict = None,
     ) -> Dict:
         """
         Task run method. Activates AWS Step function.
@@ -67,6 +69,8 @@ class StepActivate(Task):
                 your AWS account, region, and state machine for 90 days
             - execution_input (str, optional): string that contains the JSON input data for
                 the execution, defaults to `"{}"`
+            - boto_kwargs (dict, optional): additional keyword arguments to forward to the
+                boto client.
 
         Returns:
             - dict: response from AWS StartExecution endpoint
@@ -75,7 +79,7 @@ class StepActivate(Task):
             raise ValueError("A state machine ARN must be provided")
 
         step_client = get_boto_client(
-            "stepfunctions", credentials=credentials, **self.boto_kwargs
+            "stepfunctions", credentials=credentials, **boto_kwargs
         )
 
         response = step_client.start_execution(
