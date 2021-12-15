@@ -175,10 +175,6 @@ def test_merge_imperative_flow_checkpoint_false():
     c = merge(a, b, flow=flow, checkpoint=False)
 
     state = flow.run()
-    assert state.result[cond].result is True
-    assert state.result[a].result == 2
-    assert state.result[b].is_skipped()
-    assert state.result[c].result == 2
     assert c.checkpoint == False
 
 
