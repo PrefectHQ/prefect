@@ -8,6 +8,7 @@ from functools import partial, wraps
 from typing import Any, Awaitable, Callable, TypeVar, Union
 from typing_extensions import Literal
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 import anyio
 import sniffio
@@ -19,6 +20,9 @@ R = TypeVar("R")
 Async = Literal[True]
 Sync = Literal[False]
 A = TypeVar("A", Async, Sync, covariant=True)
+
+# Global references to garbage collection functions to run on event loop closure
+EVENT_LOOP_GC_REFS = {}
 
 
 def is_async_fn(
@@ -146,3 +150,38 @@ def sync(__async_fn: Callable[P, Awaitable[T]], *args: P.args, **kwargs: P.kwarg
         # In a sync context and there is no event loop; just create an event loop
         # to run the async code then tear it down
         return run_async_in_new_loop(__async_fn, *args, **kwargs)
+
+
+async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]):
+    """
+    Adds a callback to the given callable on event loop closure. The callable must be
+    a coroutine function. It will be awaited when the current event loop is shutting
+    down.
+
+    Requires use of `asyncio.run()` which waits for async generator shutdown by
+    default or explicit call of `asyncio.shutdown_asyncgens()`. If the application
+    is entered with `asyncio.run_until_complete()` and the user calls
+    `asyncio.close()` without the generator shutdown call, this will not trigger
+    callbacks.
+
+    asyncio does not provided _any_ other way to clean up a resource when the event
+    loop is about to close.
+
+    This is notably used for cleaning up SQLAlchemy engines.
+    """
+
+    async def on_shutdown(key):
+        try:
+            yield
+        except GeneratorExit:
+            await coroutine_fn()
+            # Remove self from the garbage collection set
+            EVENT_LOOP_GC_REFS.pop(key)
+
+    # Create the iterator and store it in a global variable so it is not cleaned up
+    # when this function scope ends
+    key = id(on_shutdown)
+    EVENT_LOOP_GC_REFS[key] = on_shutdown(key)
+
+    # Begin iterating so it will be cleaned up as an incomplete generator
+    await EVENT_LOOP_GC_REFS[key].__anext__()
