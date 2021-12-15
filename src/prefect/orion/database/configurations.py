@@ -141,7 +141,7 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if engine:
                 await engine.dispose()
 
-        add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
+        await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
     async def session(self, engine: sa.engine.Engine) -> AsyncSession:
         """
@@ -253,7 +253,7 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
             if engine:
                 await engine.dispose()
 
-        add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
+        await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
     def setup_sqlite(self, conn, named=True):
         """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
