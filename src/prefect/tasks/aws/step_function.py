@@ -14,8 +14,9 @@ class StepActivate(Task):
             to execute
         - execution_name (str): the name of the execution, this name must be unique for
             your AWS account, region, and state machine for 90 days
-        - execution_input (str, optional): string that contains the JSON input data for
-            the execution, defaults to `"{}"`
+        - execution_input (str, optional, DEPRECATED): string that contains the JSON input data for
+            the execution, defaults to `"{}"`. Setting `execution_input` through the constructor is
+            deprecated. Set it when running this task instead.
         - boto_kwargs (dict, optional): additional keyword arguments to forward to the boto client.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
@@ -27,11 +28,18 @@ class StepActivate(Task):
         execution_name: str = None,
         execution_input: str = "{}",
         boto_kwargs: dict = None,
-        **kwargs
+        **kwargs,
     ):
         self.state_machine_arn = state_machine_arn
         self.execution_name = execution_name
         self.execution_input = execution_input
+
+        if execution_name is not None:
+            self.logger.warn(
+                f"It's not recommended to set execution_name={execution_name} in the StepActivate "
+                f"constructor, because the name has to be unique across executions in our account "
+                f"and AWS region. Set execution_name when running your task instead."
+            )
 
         if boto_kwargs is None:
             self.boto_kwargs = {}
