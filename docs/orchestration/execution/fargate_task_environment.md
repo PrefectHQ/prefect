@@ -1,10 +1,7 @@
 # Fargate Task Environment
 
 ::: warning
-Flows configured with environments are being deprecated - we recommend users
-transition to using "Run Configs" instead. See [flow
-configuration](/orchestration/flow_config/overview.md) and [upgrading
-tips](/orchestration/flow_config/upgrade.md) for more information.
+Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading](/orchestration/flow_config/upgrade.md) documentation for more information.
 :::
 
 [[toc]]
@@ -19,9 +16,9 @@ _For more information on the Fargate Task Environment visit the relevant [API do
 
 #### Initialization
 
-The `FargateTaskEnvironment` has two groups of keyword arguments: boto3-related arguments and task-related arguments. All of this configuration revolves around how the [boto3]() library communicates with AWS. The design of this Environment is meant to be open to all access methodologies for AWS instead of adhering to a single mode of authentication.
+The `FargateTaskEnvironment` has two groups of keyword arguments: boto3-related arguments and task-related arguments. All of this configuration revolves around how the boto3 library communicates with AWS. The design of this Environment is meant to be open to all access methodologies for AWS instead of adhering to a single mode of authentication.
 
-This Environment accepts similar arguments to how boto3 authenticates with AWS: `aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`, and `region_name`. These arguments are directly passed to the [boto3 client]() which means you should initialize this Environment in the same way you would normally use boto3.
+This Environment accepts similar arguments to how boto3 authenticates with AWS: `aws_access_key_id`, `aws_secret_access_key`, `aws_session_token`, and `region_name`. These arguments are directly passed to the boto3 client which means you should initialize this Environment in the same way you would normally use boto3.
 
 The other group of kwargs are those you would pass into boto3 for [registering](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.register_task_definition) a task definition and [running](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task) that task.
 
