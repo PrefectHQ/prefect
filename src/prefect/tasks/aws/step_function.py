@@ -37,7 +37,7 @@ class StepActivate(Task):
         if execution_name is not None:
             self.logger.warn(
                 f"It's not recommended to set execution_name={execution_name} in the StepActivate "
-                f"constructor, because the name has to be unique across executions in our account "
+                f"constructor, because the name has to be unique across executions in your account "
                 f"and AWS region. Set execution_name when running your task instead."
             )
 
