@@ -166,8 +166,6 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
 
     asyncio does not provided _any_ other way to clean up a resource when the event
     loop is about to close.
-
-    This is notably used for cleaning up SQLAlchemy engines.
     """
 
     async def on_shutdown(key):
