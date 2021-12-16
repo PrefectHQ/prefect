@@ -21,7 +21,7 @@ Async = Literal[True]
 Sync = Literal[False]
 A = TypeVar("A", Async, Sync, covariant=True)
 
-# Global references to garbage collection functions to run on event loop closure
+# Global references to prevent garbage collection for `add_event_loop_shutdown_callback`
 EVENT_LOOP_GC_REFS = {}
 
 
@@ -176,8 +176,11 @@ async def add_event_loop_shutdown_callback(coroutine_fn: Callable[[], Awaitable]
             # Remove self from the garbage collection set
             EVENT_LOOP_GC_REFS.pop(key)
 
-    # Create the iterator and store it in a global variable so it is not cleaned up
-    # when this function scope ends
+    # Create the iterator and store it in a global variable so it is not garbage
+    # collected. If the iterator is garbage collected before the event loop closes, the
+    # callback will not run. Since this function does not know the scope of the event
+    # loop that is calling it, a reference with global scope is necessary to ensure
+    # garbage collection does not occur until after event loop closure.
     key = id(on_shutdown)
     EVENT_LOOP_GC_REFS[key] = on_shutdown(key)
 
