@@ -143,7 +143,7 @@ async def create_then_begin_flow_run(
 
     flow_run = await client.create_flow_run(
         flow,
-        # Serialize the parameters that will be sent to the backend
+        # Send serialized parameters to the backend
         parameters=flow.serialize_parameters(parameters),
         state=Pending(),
         tags=TagsContext.get().current_tags,
@@ -171,14 +171,26 @@ async def retrieve_flow_then_begin_flow_run(
     await client.update_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
-        parameters=flow_run.parameters,
     )
+    try:
+        parameters = flow.validate_parameters(flow_run.parameters)
+    except Exception as exc:
+        state = Failed(
+            message="Flow run received invalid parameters.",
+            data=DataDocument.encode("cloudpickle", exc),
+        )
+        await client.propose_state(
+            state=state,
+            flow_run_id=flow_run_id,
+        )
+        return state
+
     await client.propose_state(Pending(), flow_run_id=flow_run_id)
 
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
-        parameters=flow.validate_parameters(flow_run.parameters),
+        parameters=parameters,
         client=client,
     )
 
