@@ -457,17 +457,18 @@ def enter_task_run_engine(
 
 
 async def collect_task_run_inputs(
-    expr: Any, results: Set = None
+    expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
     This function recurses through an expression to generate a set of any discernable
-    task run inputs it finds in the data structure. It produces a set of all
-    inputs found.
+    task run inputs it finds in the data structure. It produces a set of all inputs
+    found.
     """
+    # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
 
-    async def visit_fn(expr):
+    async def add_futures_and_states_to_inputs(expr):
         if isinstance(expr, PrefectFuture):
             inputs.add(core.TaskRunResult(id=expr.run_id))
 
@@ -475,7 +476,10 @@ async def collect_task_run_inputs(
             if expr.state_details.task_run_id:
                 inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
 
-    await visit_collection(expr, visit_fn=visit_fn, return_data=False)
+    await visit_collection(
+        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
+    )
+
     return inputs
 
 
