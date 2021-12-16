@@ -15,6 +15,7 @@ from prefect.engine import (
     orchestrate_task_run,
     raise_failed_state,
     user_return_value_to_state,
+    retrieve_flow_then_begin_flow_run,
 )
 from prefect.task_runners import SequentialTaskRunner
 from prefect.futures import PrefectFuture
@@ -30,6 +31,7 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.exceptions import ParameterTypeError
 
 if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
@@ -631,3 +633,82 @@ class TestFlowRunCrashes:
         assert (
             "Execution was interrupted by the async runtime" in flow_run.state.message
         )
+
+
+class TestDeploymentFlowRun:
+    async def create_deployment(self, client, flow):
+        flow_id = await client.create_flow(flow)
+        return await client.create_deployment(
+            flow_id,
+            name="test",
+            flow_data=DataDocument.encode("cloudpickle", flow),
+        )
+
+    async def test_completed_run(self, orion_client):
+        @flow
+        def my_flow(x: int):
+            return x
+
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+
+        state = await retrieve_flow_then_begin_flow_run(
+            flow_run.id, client=orion_client
+        )
+        assert state.result() == 1
+
+    async def test_failed_run(self, orion_client):
+        @flow
+        def my_flow(x: int):
+            raise ValueError("test!")
+
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": 1}
+        )
+
+        state = await retrieve_flow_then_begin_flow_run(
+            flow_run.id, client=orion_client
+        )
+        assert state.is_failed()
+        with pytest.raises(ValueError, match="test!"):
+            state.result()
+
+    async def test_parameters_are_cast_to_correct_type(self, orion_client):
+        @flow
+        def my_flow(x: int):
+            return x
+
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": "1"}
+        )
+
+        state = await retrieve_flow_then_begin_flow_run(
+            flow_run.id, client=orion_client
+        )
+        assert state.result() == 1
+
+    async def test_state_is_failed_when_parameters_fail_validation(self, orion_client):
+        @flow
+        def my_flow(x: int):
+            return x
+
+        deployment_id = await self.create_deployment(orion_client, my_flow)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            deployment_id, parameters={"x": "not-an-int"}
+        )
+
+        state = await retrieve_flow_then_begin_flow_run(
+            flow_run.id, client=orion_client
+        )
+        assert state.is_failed()
+        assert state.message == "Flow run received invalid parameters."
+        with pytest.raises(ParameterTypeError, match="value is not a valid integer"):
+            state.result()
