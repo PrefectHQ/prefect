@@ -98,23 +98,20 @@ class OrionAgent:
 
     async def _propose_pending_state(self, flow_run: FlowRun) -> bool:
         state = flow_run.state
-        while state.is_scheduled():
-            try:
-                state = await self.client.propose_state(
-                    Pending(), flow_run_id=flow_run.id
-                )
-            except Abort as exc:
-                self.logger.info(
-                    f"Aborted submission of flow run '{flow_run.id}'. "
-                    f"Server sent an abort signal: {exc}",
-                )
-                return False
-            except Exception as exc:
-                self.logger.error(
-                    f"Failed to update state of flow run '{flow_run.id}'",
-                    exc_info=True,
-                )
-                return False
+        try:
+            state = await self.client.propose_state(Pending(), flow_run_id=flow_run.id)
+        except Abort as exc:
+            self.logger.info(
+                f"Aborted submission of flow run '{flow_run.id}'. "
+                f"Server sent an abort signal: {exc}",
+            )
+            return False
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to update state of flow run '{flow_run.id}'",
+                exc_info=True,
+            )
+            return False
 
         if not state.is_pending():
             self.logger.info(
