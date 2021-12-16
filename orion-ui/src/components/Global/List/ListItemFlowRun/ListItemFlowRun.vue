@@ -33,7 +33,7 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
-      <ButtonRounded class="mr-1">
+      <ButtonRounded class="mr-1" disabled>
         {{ taskRunCount }} task {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
