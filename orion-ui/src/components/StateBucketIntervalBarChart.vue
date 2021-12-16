@@ -63,8 +63,7 @@ const items = computed<IntervalBarChartItem<FlowRunHistory>[]>(() => {
 })
 
 const average = (total: number): string => {
-  const runs = items.value.reduce((runs, item) => runs + item.value, 0)
-  const avg = total / runs
+  const avg = total / items.value.length
 
   return secondsToApproximateString(avg)
 }
