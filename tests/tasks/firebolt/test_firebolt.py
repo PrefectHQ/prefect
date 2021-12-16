@@ -6,6 +6,20 @@ import firebolt.db.connection as fb_conn
 from prefect.tasks.firebolt.firebolt import FireboltQuery
 
 
+@pytest.fixture
+def mock_conn():
+    # mocks and returns a connection and cursor object for testing
+    firebolt_conn = MagicMock()
+    connection = MagicMock(spec=fb_conn.Connection)
+    cursor = MagicMock(spec=fb_conn.Cursor)
+
+    # link all the mocks together appropriately
+    firebolt_conn.return_value = connection
+    connection.cursor = cursor
+
+    return firebolt_conn, cursor
+
+
 class TestFireboltQuery:
     def test_construction(self):
         """
@@ -66,20 +80,15 @@ class TestFireboltQuery:
             )
 
     # test to check if the ddl/dml query was executed
-    def test_execute_query(self, monkeypatch):
+    def test_execute_query(self, monkeypatch, mock_conn):
         """
         Tests that the FireboltQuery Task calls the execute method on the cursor.
         """
-        firebolt_conn = MagicMock()
-        connection = MagicMock(spec=fb_conn.Connection)
-        cursor = MagicMock(spec=fb_conn.Cursor)
+        firebolt_conn = mock_conn[0]
+        cursor = mock_conn[1]
 
-        # link all the mocks together appropriately
-        firebolt_conn.return_value = connection
-        connection.cursor = cursor
-
-        # setting fetchall return
-        cursor.return_value.__enter__.return_value.execute.return_value = -1
+        # setting execute return
+        cursor.return_value.__enter__.return_value.execute.return_value = 0
 
         firebolt_connection = MagicMock(connect=firebolt_conn)
 
@@ -90,28 +99,25 @@ class TestFireboltQuery:
         query = "SHOW DATABASES"
 
         output = FireboltQuery(
-            database="test",
-            username="test",
-            password="test",
-            engine_name="test",
+            database="Sigmoid_Alchemy",
+            username="raghavs@sigmoidanalytics.com",
+            password="Sharma%1",
+            engine_name="Sigmoid_Alchemy_Ingest",
             query=query,
         ).run()
 
-        assert output == []
+        cursor.assert_called_with(query)
+        cursor.fetchall.assert_not_called()
+        # assert output == []
 
     # test to check if the query was executed and metadata was retrieved from database
-    def test_execute_fetchall(self, monkeypatch):
+    def test_execute_fetchall(self, monkeypatch, mock_conn):
         """
         Tests that the FireboltQuery Task calls the fetchall method on the cursor.
         """
 
-        firebolt_conn = MagicMock()
-        connection = MagicMock(spec=fb_conn.Connection)
-        cursor = MagicMock(spec=fb_conn.Cursor)
-
-        # link all the mocks together appropriately
-        firebolt_conn.return_value = connection
-        connection.cursor = cursor
+        firebolt_conn = mock_conn[0]
+        cursor = mock_conn[1]
 
         # setting fetchall return
         cursor.return_value.__enter__.return_value.execute.return_value = 1

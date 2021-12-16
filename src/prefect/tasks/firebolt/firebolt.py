@@ -41,7 +41,7 @@ class FireboltQuery(Task):
         password: str = None,
         engine_name: str = None,
         query: str = None,
-    ):
+    ) -> list[list]:
         """
         Task run method. Executes a query against Firebolt database.
 
@@ -82,16 +82,9 @@ class FireboltQuery(Task):
         conn = firebolt_conn.connect(**conn_config)
         result = []
 
-        # try to execute query
-        try:
-            with conn:
-                with conn.cursor() as cursor:
-                    execute = cursor.execute(query)
-                    if execute > 0:
-                        result = cursor.fetchall()
-            conn.close()
-            return result
-        # pass through error, and ensure connection is closed
-        except Exception as error:
-            conn.close()
-            raise error
+        with conn:
+            with conn.cursor() as cursor:
+                execute = cursor.execute(query)
+                if execute > 0:
+                    result = cursor.fetchall()
+        return result
