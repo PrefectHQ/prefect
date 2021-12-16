@@ -99,10 +99,10 @@ class TestFireboltQuery:
         query = "SHOW DATABASES"
 
         output = FireboltQuery(
-            database="Sigmoid_Alchemy",
-            username="raghavs@sigmoidanalytics.com",
-            password="Sharma%1",
-            engine_name="Sigmoid_Alchemy_Ingest",
+            database="test",
+            username="test",
+            password="test",
+            engine_name="test",
             query=query,
         ).run()
 
