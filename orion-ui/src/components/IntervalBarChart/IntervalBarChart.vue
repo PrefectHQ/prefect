@@ -103,7 +103,7 @@ export default class IntervalBarChart extends mixins(D3Base).with(Props) {
   calculateItemPosition(item: BarChartItem): CSSProperties {
     const height = this.yScale(item.value)
     const top = this.height - this.padding.bottom - height
-    const left = this.xScale(new Date(item.interval_start)) + this.padding.left
+    const left = this.xScale(item.interval_start) + this.padding.left
 
     return {
       height: `${height}px`,
