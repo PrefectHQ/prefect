@@ -128,6 +128,6 @@ class BlobStorageUpload(Task):
 
         client = blob_service.get_blob_client(container=container, blob=blob_name)
 
-        client.upload_blob(data)
+        client.upload_blob(data,overwrite=True)
 
         return blob_name
