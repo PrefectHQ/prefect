@@ -1,4 +1,5 @@
 import firebolt.db.connection as firebolt_conn
+from typing import List
 
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
@@ -41,7 +42,7 @@ class FireboltQuery(Task):
         password: str = None,
         engine_name: str = None,
         query: str = None,
-    ) -> list[list]:
+    ) -> List[List]:
         """
         Task run method. Executes a query against Firebolt database.
 
