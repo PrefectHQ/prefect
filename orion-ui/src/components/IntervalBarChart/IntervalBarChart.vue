@@ -40,7 +40,6 @@ import { CSSProperties } from '@vue/runtime-dom'
 import IntervalBarChartItem from './IntervalBarChartItem.vue'
 
 class Props {
-  intervalSeconds = prop<number>({ required: true })
   intervalStart = prop<Date>({ required: true })
   intervalEnd = prop<Date>({ required: true })
   items = prop<BarChartItem[]>({ required: true })

@@ -14,9 +14,7 @@
     </template>
 
     <div class="px-2 pb-2" :style="{ height }">
-      <IntervalBarChart
-        v-bind="{ items, intervalSeconds, intervalStart, intervalEnd }"
-      >
+      <IntervalBarChart v-bind="{ items, intervalStart, intervalEnd }">
         <template v-slot:popover-header="item">
           <slot name="popover-header" v-bind="{ item, total }" />
         </template>
@@ -46,10 +44,6 @@ const intervalStart = computed(() => {
 
 const intervalEnd = computed(() => {
   return new Date(props.filter.history_end)
-})
-
-const intervalSeconds = computed(() => {
-  return props.filter.history_interval_seconds
 })
 
 const total = computed<number>(() => {
