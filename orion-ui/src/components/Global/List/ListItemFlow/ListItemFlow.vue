@@ -31,15 +31,13 @@
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
       <ButtonRounded class="mr-1">
-        {{ flowRunCount.toLocaleString() }} flow run{{
-          flowRunCount == 1 ? '' : 's'
-        }}
+        {{ flowRunCount.toLocaleString() }} flow
+        {{ toPluralString('run', flowRunCount) }}
       </ButtonRounded>
 
       <ButtonRounded class="mr-1">
-        {{ taskRunCount.toLocaleString() }} task run{{
-          taskRunCount == 1 ? '' : 's'
-        }}
+        {{ taskRunCount.toLocaleString() }} task
+        {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
 
@@ -64,6 +62,7 @@ import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
+import { toPluralString } from '@/utilities/strings'
 
 const store = useStore()
 const props = defineProps<{ item: Flow }>()
