@@ -42,7 +42,7 @@
 
     <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
       <ButtonRounded class="mr-1">
-        {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
+        {{ taskRunCount }} task {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
 
@@ -76,6 +76,7 @@ import { secondsToApproximateString } from '@/util/util'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+import { toPluralString } from '@/utilities/strings'
 
 const store = useStore()
 const props = defineProps<{ item: TaskRun }>()
