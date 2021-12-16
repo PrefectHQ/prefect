@@ -1,6 +1,6 @@
 <template>
   <ListItem class="list-item--deployment d-flex align-start justify-start">
-    <i class="item--icon pi pi-map-pin-line text--grey-40 align-self-start" />
+    <i class="pi pi-map-pin-line text--grey-40 align-self-start" />
     <div
       class="
         item--title
