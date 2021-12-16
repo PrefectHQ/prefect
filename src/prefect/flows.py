@@ -5,7 +5,6 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
-import json
 from functools import update_wrapper, partial
 from typing import (
     Any,
@@ -25,6 +24,7 @@ from typing import (
 import pydantic
 from pydantic.decorator import ValidatedFunction
 from typing_extensions import ParamSpec
+from fastapi.encoders import jsonable_encoder
 
 from prefect import State
 from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
@@ -161,14 +161,19 @@ class Flow(Generic[P, R]):
         }
         return cast_parameters
 
-    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, str]:
+    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Convert parameters to a serializable form.
+
+        Uses FastAPI's `jsonable_encoder` to convert to JSON compatible objects without
+        converting everything directly to a string. This maintains basic types like
+        integers.
+        """
         serialized_parameters = {}
         for key, value in parameters.items():
             try:
-                serialized_parameters[key] = json.dumps(
-                    value, default=pydantic.json.pydantic_encoder
-                )
-            except:
+                serialized_parameters[key] = jsonable_encoder(value)
+            except TypeError:
                 logger.debug(
                     f"Parameter {key!r} for flow {self.name!r} is of unserializable "
                     f"type {type(value).__name__!r} and will not be stored "
