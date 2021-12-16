@@ -1,6 +1,6 @@
 <template>
   <ListItem class="list-item--flow d-flex align-start justify-start">
-    <i class="item--icon pi pi-flow text--grey-40 align-self-start" />
+    <i class="pi pi-flow text--grey-40 align-self-start" />
     <div
       class="
         item--title

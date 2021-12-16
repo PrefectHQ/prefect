@@ -3,10 +3,7 @@
     <!-- For a later date... maybe -->
     <!-- :class="stateType + '-border'" -->
 
-    <i
-      class="item--icon pi text--grey-40 align-self-start"
-      :class="`pi-${stateType}`"
-    />
+    <i class="pi text--grey-40 align-self-start" :class="`pi-${stateType}`" />
     <div
       class="
         item--title
