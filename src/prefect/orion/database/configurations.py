@@ -11,8 +11,10 @@ from sqlalchemy.ext.asyncio import (
 from typing import Hashable, Tuple, Dict, AsyncGenerator
 from abc import ABC, abstractmethod
 from sqlalchemy.ext.asyncio import create_async_engine
+from functools import partial
 
 from prefect import settings
+from prefect.utilities.asyncio import add_event_loop_shutdown_callback
 
 
 class BaseDatabaseConfiguration(ABC):
@@ -72,7 +74,6 @@ class BaseDatabaseConfiguration(ABC):
 class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 
     ENGINES = dict()
-    ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
 
     async def engine(
         self,
@@ -122,18 +123,11 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         """
         Dispose of an engine once the event loop is closing.
 
-        Requires use of `asyncio.run()` which waits for async generator shutdown by
-        default or explicit call of `asyncio.shutdown_asyncgens()`. If the application
-        is entered with `asyncio.run_until_complete()` and the user calls
-        `asyncio.close()` without the generator shutdown call, this will not dispose the
-        engine. As an alternative to suggesting users call `shutdown_asyncgens`
-        (which can interfere with other async generators), `dispose_all_engines` is
-        provided as a cleanup method.
+        See caveats at `add_event_loop_shutdown_callback`.
 
-        asyncio does not provided _any_ other way to clean up a resource when the event
-        loop is about to close. We attempted to lazily clean up old engines when new
-        engines are created, but if the loop the engine is attached to is already closed
-        then the connections cannot be cleaned up properly and warnings are displayed.
+        We attempted to lazily clean up old engines when new engines are created, but
+        if the loop the engine is attached to is already closed then the connections
+        cannot be cleaned up properly and warnings are displayed.
 
         Engine disposal should only be important when running the application
         ephemerally. Notably, this is an issue in our tests where many short-lived event
@@ -143,22 +137,11 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         """
 
         async def dispose_engine(cache_key):
-            try:
-                yield
-            except GeneratorExit:
-                engine = self.ENGINES.pop(cache_key, None)
-                if engine:
-                    await engine.dispose()
+            engine = self.ENGINES.pop(cache_key, None)
+            if engine:
+                await engine.dispose()
 
-                # Drop this iterator from the disposal just to keep things clean
-                self.ENGINE_DISPOSAL_REFS.pop(cache_key, None)
-
-        # Create the iterator and store it in a global variable so it is not cleaned up
-        # when this function scope ends
-        self.ENGINE_DISPOSAL_REFS[cache_key] = dispose_engine(cache_key).__aiter__()
-
-        # Begin iterating so it will be cleaned up as an incomplete generator
-        await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
+        await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
     async def session(self, engine: sa.engine.Engine) -> AsyncSession:
         """
@@ -188,7 +171,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
     ENGINES = dict()
-    ENGINE_DISPOSAL_REFS: Dict[tuple, AsyncGenerator] = dict()
     MIN_SQLITE_VERSION = (3, 24, 0)
 
     async def engine(
@@ -253,18 +235,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         """
         Dispose of an engine once the event loop is closing.
 
-        Requires use of `asyncio.run()` which waits for async generator shutdown by
-        default or explicit call of `asyncio.shutdown_asyncgens()`. If the application
-        is entered with `asyncio.run_until_complete()` and the user calls
-        `asyncio.close()` without the generator shutdown call, this will not dispose the
-        engine. As an alternative to suggesting users call `shutdown_asyncgens`
-        (which can interfere with other async generators), `dispose_all_engines` is
-        provided as a cleanup method.
+        See caveats at `add_event_loop_shutdown_callback`.
 
-        asyncio does not provided _any_ other way to clean up a resource when the event
-        loop is about to close. We attempted to lazily clean up old engines when new
-        engines are created, but if the loop the engine is attached to is already closed
-        then the connections cannot be cleaned up properly and warnings are displayed.
+        We attempted to lazily clean up old engines when new engines are created, but
+        if the loop the engine is attached to is already closed then the connections
+        cannot be cleaned up properly and warnings are displayed.
 
         Engine disposal should only be important when running the application
         ephemerally. Notably, this is an issue in our tests where many short-lived event
@@ -274,22 +249,11 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         """
 
         async def dispose_engine(cache_key):
-            try:
-                yield
-            except GeneratorExit:
-                engine = self.ENGINES.pop(cache_key, None)
-                if engine:
-                    await engine.dispose()
+            engine = self.ENGINES.pop(cache_key, None)
+            if engine:
+                await engine.dispose()
 
-                # Drop this iterator from the disposal just to keep things clean
-                self.ENGINE_DISPOSAL_REFS.pop(cache_key, None)
-
-        # Create the iterator and store it in a global variable so it is not cleaned up
-        # when this function scope ends
-        self.ENGINE_DISPOSAL_REFS[cache_key] = dispose_engine(cache_key).__aiter__()
-
-        # Begin iterating so it will be cleaned up as an incomplete generator
-        await self.ENGINE_DISPOSAL_REFS[cache_key].__anext__()
+        await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
 
     def setup_sqlite(self, conn, named=True):
         """Issue PRAGMA statements to SQLITE on connect. PRAGMAs only last for the
