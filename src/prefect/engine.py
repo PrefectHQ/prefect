@@ -59,10 +59,7 @@ from prefect.utilities.asyncio import (
     run_sync_in_worker_thread,
     sync_compatible,
 )
-from prefect.utilities.callables import (
-    assert_parameters_are_serializable,
-    parameters_to_args_kwargs,
-)
+from prefect.utilities.callables import parameters_to_args_kwargs
 from prefect.utilities.collections import ensure_iterable, visit_collection
 from prefect.utilities.logging import get_logger
 
@@ -140,15 +137,20 @@ async def create_then_begin_flow_run(
     """
     logger.debug(f"Creating run for flow {flow.name!r}...")
 
-    assert_parameters_are_serializable(parameters)
+    # Validate the parameters
+    if flow.should_validate_parameters:
+        parameters = flow.validate_parameters(parameters)
 
     flow_run = await client.create_flow_run(
         flow,
-        parameters=parameters,
+        # Serialize the parameters that will be sent to the backend
+        parameters=flow.serialize_parameters(parameters),
         state=Pending(),
         tags=TagsContext.get().current_tags,
     )
-    return await begin_flow_run(flow=flow, flow_run=flow_run, client=client)
+    return await begin_flow_run(
+        flow=flow, flow_run=flow_run, parameters=parameters, client=client
+    )
 
 
 @inject_client
@@ -176,6 +178,7 @@ async def retrieve_flow_then_begin_flow_run(
     return await begin_flow_run(
         flow=flow,
         flow_run=flow_run,
+        parameters=flow.validate_parameters(flow_run.parameters),
         client=client,
     )
 
@@ -183,6 +186,7 @@ async def retrieve_flow_then_begin_flow_run(
 async def begin_flow_run(
     flow: Flow,
     flow_run: FlowRun,
+    parameters: Dict[str, Any],
     client: OrionClient,
 ) -> State:
     """
@@ -192,6 +196,10 @@ async def begin_flow_run(
     - Orchestrates the flow run (runs the user-function and generates tasks)
     - Waits for tasks to complete / shutsdown the task runner
     - Sets a terminal state for the flow run
+
+    Note that the `flow_run` contains a `parameters` attribute which is the serialized
+    parameters sent to the backend while the `parameters` argument here should be the
+    deserialized and validated dictionary of python objects.
 
     Returns:
         The final state of the run
@@ -207,6 +215,7 @@ async def begin_flow_run(
                 terminal_state = await orchestrate_flow_run(
                     flow,
                     flow_run=flow_run,
+                    parameters=parameters,
                     task_runner=task_runner,
                     client=client,
                     sync_portal=sync_portal,
@@ -265,12 +274,9 @@ async def create_and_begin_subflow_run(
     # Resolve any task futures in the input
     parameters = await resolve_futures_to_data(parameters)
 
-    # Then validate that the parameters are serializable
-    assert_parameters_are_serializable(parameters)
-
     flow_run = await client.create_flow_run(
         flow,
-        parameters=parameters,
+        parameters=flow.serialize_parameters(parameters),
         parent_task_run_id=parent_task_run.id,
         state=Pending(),
         tags=TagsContext.get().current_tags,
@@ -283,6 +289,7 @@ async def create_and_begin_subflow_run(
             terminal_state = await orchestrate_flow_run(
                 flow,
                 flow_run=flow_run,
+                parameters=parameters,
                 task_runner=task_runner,
                 client=client,
                 sync_portal=parent_flow_run_context.sync_portal,
@@ -313,6 +320,7 @@ async def orchestrate_flow_run(
     flow: Flow,
     flow_run: FlowRun,
     task_runner: BaseTaskRunner,
+    parameters: Dict[str, Any],
     client: OrionClient,
     sync_portal: BlockingPortal,
 ) -> State:
@@ -332,9 +340,7 @@ async def orchestrate_flow_run(
         The final state of the run
     """
     if prefect.settings.debug_mode:
-        logger.debug(
-            f"Flow run {flow_run.name!r} received parameters {flow_run.parameters}"
-        )
+        logger.debug(f"Flow run {flow_run.name!r} received parameters {parameters}")
 
     # TODO: Implement state orchestation logic using return values from the API
     await client.propose_state(
@@ -359,11 +365,7 @@ async def orchestrate_flow_run(
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
             ) as flow_run_context:
-                # Validate the parameters before the call; raises an exception if invalid
-                if flow.should_validate_parameters:
-                    flow_run.parameters = flow.validate_parameters(flow_run.parameters)
-
-                args, kwargs = parameters_to_args_kwargs(flow.fn, flow_run.parameters)
+                args, kwargs = parameters_to_args_kwargs(flow.fn, parameters)
                 logger.debug(
                     f"Executing flow {flow.name!r} for flow run {flow_run.name!r}..."
                 )

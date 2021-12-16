@@ -29,18 +29,20 @@ from typing_extensions import ParamSpec
 from prefect import State
 from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.exceptions import ParameterTypeError
-from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import (
     get_call_parameters,
     parameters_to_args_kwargs,
 )
+from prefect.utilities.logging import get_logger
 from prefect.utilities.hashing import file_hash
 
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
+
+logger = get_logger("flows")
 
 
 class Flow(Generic[P, R]):
@@ -158,6 +160,22 @@ class Flow(Generic[P, R]):
             if k in model.__fields_set__ or model.__fields__[k].default_factory
         }
         return cast_parameters
+
+    def serialize_parameters(self, parameters: Dict[str, Any]) -> Dict[str, str]:
+        serialized_parameters = {}
+        for key, value in parameters.items():
+            try:
+                serialized_parameters[key] = json.dumps(
+                    value, default=pydantic.json.pydantic_encoder
+                )
+            except:
+                logger.debug(
+                    f"Parameter {key!r} for flow {self.name!r} is of unserializable "
+                    f"type {type(value).__name__!r} and will not be stored "
+                    "in the backend."
+                )
+                serialized_parameters[key] = f"<{type(value).__name__}>"
+        return serialized_parameters
 
     @overload
     def __call__(
