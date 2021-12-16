@@ -106,9 +106,9 @@ class TestFireboltQuery:
             query=query,
         ).run()
 
-        cursor.assert_called_with(query)
-        cursor.fetchall.assert_not_called()
-        # assert output == []
+        cursor.assert_called_with()
+        cursor.return_value.__enter__.return_value.fetchall.assert_not_called()
+        assert output == []
 
     # test to check if the query was executed and metadata was retrieved from database
     def test_execute_fetchall(self, monkeypatch, mock_conn):
@@ -138,4 +138,7 @@ class TestFireboltQuery:
             engine_name="test",
             query=query,
         ).run()
+
+        cursor.assert_called_with()
+        cursor.return_value.__enter__.return_value.fetchall.assert_called()
         assert output == ["TESTDB"]
