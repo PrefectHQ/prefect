@@ -381,12 +381,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         try:
             docker_client = docker.from_env()
         except docker.errors.DockerException as exc:
-            if "File not found" in str(exc):
-                reason = "Docker Engine is not running."
-            else:
-                reason = str(exc)
-
-            raise RuntimeError(f"Could not connect to Docker: {reason}")
+            raise RuntimeError(f"Could not connect to Docker.") from exc
 
         return docker_client
 
