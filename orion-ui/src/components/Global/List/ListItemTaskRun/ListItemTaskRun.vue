@@ -1,12 +1,12 @@
 <template>
-  <ListItem class="list-item--task-run" :icon="`pi-${stateType}`">
+  <ListItem class="list-item-task-run" :icon="`pi-${stateType}`">
     <!-- For a later date... maybe -->
     <!-- :class="stateType + '-border'" -->
 
     <div class="list-item__title">
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
-      <div class="tag-container nowrap d-flex">
+      <div class="list-item-task-run--tag-container">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
 
         <Tag
@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <div class="font--secondary item--duration ml-auto">
+    <div class="font--secondary list-item-task-run--duration">
       {{ duration }}
     </div>
   </ListItem>
@@ -96,12 +96,15 @@ const crumbs = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-.item--duration {
+.list-item-task-run--duration {
   text-align: right;
   width: 75px;
+  margin-left: auto;
 }
 
-.tag-container {
+.list-item-task-run--tag-container {
   margin-top: 2px;
+  display: flex;
+  white-space: nowrap;
 }
 </style>
