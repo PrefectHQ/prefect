@@ -202,8 +202,9 @@ async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
     agent.get_flow_runner().submit_flow_run.assert_called_once()
 
 
+@pytest.mark.parametrize("return_state", [Scheduled(), Running()])
 async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
-    orion_client, deployment
+    orion_client, deployment, return_state
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
         deployment.id,
@@ -221,14 +222,14 @@ async def test_agent_submit_run_aborts_if_server_returns_non_pending_state(
         agent.submitting_flow_run_ids.add(flow_run.id)
         agent.logger = MagicMock()
 
-        agent.client.propose_state = AsyncMock(return_value=Running())
+        agent.client.propose_state = AsyncMock(return_value=return_state)
         await agent.submit_run(flow_run)
 
     agent.get_flow_runner().submit_flow_run.assert_not_called()
     assert flow_run.id not in agent.submitting_flow_run_ids
     agent.logger.info.assert_called_with(
         f"Aborted submission of flow run '{flow_run.id}': "
-        "Server returned a non-pending state 'RUNNING'"
+        f"Server returned a non-pending state '{return_state.type.value}'"
     )
 
 
