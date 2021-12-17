@@ -387,14 +387,13 @@ class DockerFlowRunner(UniversalFlowRunner):
             )
 
     def _get_development_image_tag(self):
-        version = slugify(
-            prefect.__version__,
+        return slugify(
+            f"prefect:orion-{prefect.__version__}"
             lowercase=False,
             max_length=128,
             # Docker allows these characters for tag names
             regex_pattern=r"[^a-zA-Z0-9_.-]+",
         )
-        return f"prefect:orion-{version}"
 
     def _get_image(self, docker_client):
         """
