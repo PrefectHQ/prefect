@@ -464,13 +464,23 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_environment_variables(self):
         env = self.env.copy()
-        api_host = prefect.settings.orion.api.host.replace(
-            "localhost", "host.docker.internal"
-        ).replace("127.0.0.1", "host.docker.internal")
-        env.setdefault(
-            "PREFECT_ORION_HOST",
-            f"http://{api_host}:{prefect.settings.orion.api.port}/api",
-        )
+
+        # Convert local connections to use the docker host
+
+        if prefect.settings.orion_host:
+            api_url = prefect.settings.orion_host.replace(
+                "localhost", "host.docker.internal"
+            ).replace("127.0.0.1", "host.docker.internal")
+
+            env.setdefault("PREFECT_ORION_HOST", api_url)
+
+        if prefect.settings.orion.database.connection_url:
+            db_url = prefect.settings.orion.database.connection_url.replace(
+                "localhost", "host.docker.internal"
+            ).replace("127.0.0.1", "host.docker.internal")
+
+            env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
+
         return env
 
     def _get_labels(self, flow_run: FlowRun):
