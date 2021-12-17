@@ -66,7 +66,7 @@ flow_run.state.message
 
 ### Getting flow run logs
 
-Get a List of `FlowRunLog` from the flow run using `.get_logs()`
+Get a List of `FlowRunLog` from the flow run using `.get_logs()`:
 
 ```python
 flow_run.get_logs()
@@ -80,7 +80,7 @@ flow_run.get_logs()
 # ]
 ```
 
-Each `FlowRunLog` in the list contains a log message, along with the log level and timestamp
+Each `FlowRunLog` in the list contains a log message, along with the log level and timestamp.
 
 ### Getting flow metadata
 
