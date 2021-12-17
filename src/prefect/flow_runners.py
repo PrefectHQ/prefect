@@ -322,7 +322,6 @@ class DockerFlowRunner(UniversalFlowRunner):
             environment=self._get_environment_variables(),
             auto_remove=self.auto_remove,
             labels=self._get_labels(flow_run),
-            volumes=self._get_volumes(),
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
         )
@@ -450,16 +449,6 @@ class DockerFlowRunner(UniversalFlowRunner):
             "prefect.engine",
             f"{flow_run.id}",
         ]
-
-    def _get_volumes(self) -> Dict[str, Dict[str, str]]:
-        volumes = {}
-        local_install = prefect.settings.dev.repo_path
-        if local_install:
-            self.logger.info(
-                f"Attaching editable install at '{local_install}' to run container..."
-            )
-            volumes[str(local_install)] = {"bind": "/opt/prefect", "mode": "ro"}
-        return volumes
 
     def _get_extra_hosts(self, docker_client) -> Dict[str, str]:
         """
