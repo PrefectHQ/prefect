@@ -73,7 +73,7 @@ flow_run.state.message
 Metadata about the flow that the flow run was created for is accessible using `.get_flow_metadata()`
 
 ```python
-flow_run.get_flow_metdata()
+flow_run.get_flow_metadata()
 # FlowView(
 #   flow_id='8bdcf5b5-7598-49d1-a885-61612ca550de', 
 #   name='hello-world', 
