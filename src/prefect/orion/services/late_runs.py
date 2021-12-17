@@ -46,7 +46,8 @@ class MarkLateRuns(LoopService):
         - Querying for flow runs in a scheduled state that are Scheduled to start in the past
         - For any runs past the "late" threshold, setting the flow run state to a new `Late` state
         """
-        async with self.session_factory() as session:
+        session = await db.session()
+        async with session:
             async with session.begin():
                 last_id = None
                 while True:

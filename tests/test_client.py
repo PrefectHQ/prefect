@@ -401,6 +401,18 @@ class TestResolveDataDoc:
             == "hello"
         )
 
+    async def test_resolves_nested_data_documents_when_inner_is_bytes(
+        self, orion_client
+    ):
+        assert (
+            await orion_client.resolve_datadoc(
+                DataDocument.encode(
+                    "cloudpickle", DataDocument.encode("json", "hello").json().encode()
+                )
+            )
+            == "hello"
+        )
+
     async def test_resolves_persisted_data_documents(self, orion_client):
         async with OrionClient() as client:
             assert (
