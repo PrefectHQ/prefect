@@ -25,7 +25,7 @@ class OrionAgent:
         prefetch_seconds: int = settings.agent.prefetch_seconds,
     ) -> None:
         self.prefetch_seconds = prefetch_seconds
-        self.submitted_flow_run_ids = set()
+        self.submitting_flow_run_ids = set()
         self.started = False
         self.logger = get_logger("agent")
         self.task_group: Optional[TaskGroup] = None
@@ -33,7 +33,7 @@ class OrionAgent:
 
     def flow_run_query_filter(self) -> FlowRunFilter:
         return FlowRunFilter(
-            id=dict(not_any_=self.submitted_flow_run_ids),
+            id=dict(not_any_=self.submitting_flow_run_ids),
             state=dict(type=dict(any_=[StateType.SCHEDULED])),
             next_scheduled_start_time=dict(
                 before_=pendulum.now("utc").add(seconds=self.prefetch_seconds)
@@ -55,7 +55,7 @@ class OrionAgent:
 
         for flow_run in submittable_runs:
             self.logger.info(f"Submitting flow run '{flow_run.id}'")
-            self.submitted_flow_run_ids.add(flow_run.id)
+            self.submitting_flow_run_ids.add(flow_run.id)
             self.task_group.start_soon(
                 self.submit_run,
                 flow_run,
@@ -89,8 +89,7 @@ class OrionAgent:
                 f"Failed to submit flow run '{flow_run.id}'", exc_info=True
             )
 
-            # Only attempt to submit again if submission has failed
-            self.submitted_flow_run_ids.remove(flow_run.id)
+        self.submitting_flow_run_ids.remove(flow_run.id)
 
     # Context management ---------------------------------------------------------------
 
@@ -107,7 +106,7 @@ class OrionAgent:
         await self.client.__aexit__(*exc_info)
         self.task_group = None
         self.client = None
-        self.submitted_flow_run_ids = set()
+        self.submitting_flow_run_ids = set()
 
     async def __aenter__(self):
         await self.start()
