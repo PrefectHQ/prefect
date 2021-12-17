@@ -282,14 +282,6 @@ class DockerFlowRunner(UniversalFlowRunner):
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> Optional[bool]:
-
-        async with OrionClient() as client:
-            if client.is_ephemeral:
-                raise RuntimeError(
-                    "`DockerFlowRunner` cannot be used with an ephemeral server. "
-                    "Set `PREFECT_ORION_HOST` to a running server."
-                )
-
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
         container_id = await run_sync_in_worker_thread(
