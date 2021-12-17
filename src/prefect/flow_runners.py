@@ -402,8 +402,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         if self.image:
             return self.image
 
-        # Check for an image, lock so that we do not try to build it again if another
-        # thread is already doing so
+        # Ensure the development image is built
+        # Lock so that we do not try to build it if another thread is already doing so
         development_image = self._get_development_image_tag()
         with DOCKER_BUILD_LOCK:
             try:
