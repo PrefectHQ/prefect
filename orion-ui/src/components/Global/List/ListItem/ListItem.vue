@@ -22,7 +22,7 @@ export default class ListItem extends Vue.with(Props) {}
   background-color: $white;
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   justify-content: flex-start;
   padding: 9px 16px;
   width: 100%;
