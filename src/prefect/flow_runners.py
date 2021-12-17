@@ -20,6 +20,7 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
+import docker
 import packaging.version
 import sniffio
 from anyio.abc import TaskStatus
@@ -29,12 +30,14 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
+from prefect.client import OrionClient
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
 from prefect.utilities.logging import get_logger
 
 if TYPE_CHECKING:
+    from docker import DockerClient
     from docker.models.containers import Container
 
 
@@ -280,6 +283,13 @@ class DockerFlowRunner(UniversalFlowRunner):
         task_status: TaskStatus,
     ) -> Optional[bool]:
 
+        async with OrionClient() as client:
+            if client.is_ephemeral:
+                raise RuntimeError(
+                    "`DockerFlowRunner` cannot be used with an ephemeral server. "
+                    "Set `PREFECT_ORION_HOST` to a running server."
+                )
+
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
         container_id = await run_sync_in_worker_thread(
@@ -293,41 +303,29 @@ class DockerFlowRunner(UniversalFlowRunner):
         await run_sync_in_worker_thread(self._watch_container, container_id)
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
-        container = self._create_container(flow_run)
 
-        # Start the container
-        container.start()
+        try:
+            docker_client = docker.from_env()
+        except docker.errors.DockerException as exc:
+            if "File not found" in str(exc):
+                reason = "Docker Engine is not running."
+            else:
+                reason = str(exc)
 
-        return container.id
+            raise RuntimeError(f"Could not connect to docker: {reason}")
 
-    def _create_container(self, flow_run: FlowRun) -> "Container":
-        import docker
-
-        docker_client = docker.from_env()
-
-        # Create the container with retries on name conflicts (with an incremented idx)
-        index = 0
-        container = None
-        container_name = original_container_name = self._get_container_name(flow_run)
-        while not container:
-            try:
-                container = docker_client.containers.create(
-                    self._get_image(docker_client),
-                    name=container_name,
-                    network=self.networks[0] if self.networks else None,
-                    command=self._get_start_command(flow_run),
-                    environment=self._get_environment_variables(),
-                    auto_remove=self.auto_remove,
-                    labels=self._get_labels(flow_run),
-                    volumes=self._get_volumes(),
-                    extra_hosts=self._get_extra_hosts(docker_client),
-                )
-            except docker.errors.APIError as exc:
-                if "Conflict" in str(exc) and "container name" in str(exc):
-                    index += 1
-                    container_name = f"{original_container_name}-{index}"
-                else:
-                    raise
+        container = self._create_container(
+            docker_client,
+            image=self._get_image(docker_client),
+            network=self.networks[0] if self.networks else None,
+            command=self._get_start_command(flow_run),
+            environment=self._get_environment_variables(),
+            auto_remove=self.auto_remove,
+            labels=self._get_labels(flow_run),
+            volumes=self._get_volumes(),
+            extra_hosts=self._get_extra_hosts(docker_client),
+            name=self._get_container_name(flow_run),
+        )
 
         # Add additional networks after the container is created; only one network can
         # be attached at creation time
@@ -336,11 +334,35 @@ class DockerFlowRunner(UniversalFlowRunner):
                 network = docker_client.networks.get(network_name)
                 network.connect(container)
 
+        # Start the container
+        container.start()
+
+        return container.id
+
+    def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
+        """
+        Create a docker container with retries on name conflicts.
+
+        If the container already exists with the given name, an incremented index is
+        added.
+        """
+        # Create the container with retries on name conflicts (with an incremented idx)
+        index = 0
+        container = None
+        name = original_name = kwargs.pop("name", "prefect-flow-run")
+        while not container:
+            try:
+                container = docker_client.containers.create(name=name, **kwargs)
+            except docker.errors.APIError as exc:
+                if "Conflict" in str(exc) and "container name" in str(exc):
+                    index += 1
+                    name = f"{original_name}-{index}"
+                else:
+                    raise
+
         return container
 
     def _watch_container(self, container_id: str) -> bool:
-        import docker
-
         docker_client = docker.from_env()
 
         try:
@@ -364,24 +386,36 @@ class DockerFlowRunner(UniversalFlowRunner):
                 f"Flow run container {container.name!r} has status {container.status!r}"
             )
 
+    def _get_development_image_tag(self):
+        version = slugify(
+            prefect.__version__,
+            lowercase=False,
+            max_length=128,
+            # Docker allows these characters for tag names
+            regex_pattern=r"[^a-zA-Z0-9_.-]+",
+        )
+        return f"prefect:orion-{version}"
+
     def _get_image(self, docker_client):
+        """
+        Retrieve the specified image, or build the development image.
+        """
         if self.image:
             return self.image
 
-        import docker
-
         # Check for an image, lock so that we do not try to build it again if another
         # thread is already doing so
+        development_image = self._get_development_image_tag()
         with DOCKER_BUILD_LOCK:
             try:
-                docker_client.images.get()
+                docker_client.images.get(development_image)
             except docker.errors.ImageNotFound:
                 self.logger.info("Orion image not found! Building...")
                 docker_client.images.build(
-                    path=str(prefect.__root_path__), tag="prefect:orion"
+                    path=str(prefect.__root_path__), tag=development_image
                 )
 
-        return "prefect:orion"
+        return development_image
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
@@ -448,9 +482,12 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_environment_variables(self):
         env = self.env.copy()
+        api_host = prefect.settings.orion.api.host.replace(
+            "localhost", "host.docker.internal"
+        ).replace("127.0.0.1", "host.docker.internal")
         env.setdefault(
             "PREFECT_ORION_HOST",
-            f"http://host.docker.internal:{prefect.settings.orion.api.port}/api",
+            f"http://{api_host}:{prefect.settings.orion.api.port}/api",
         )
         return env
 
