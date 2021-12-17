@@ -1,19 +1,6 @@
 <template>
-  <ListItem class="list-item--flow-run d-flex align-start justify-start">
-    <!-- For a later date... maybe -->
-    <!-- :class="stateType + '-border'" -->
-
-    <i class="pi text--grey-40 align-self-start" :class="`pi-${stateType}`" />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+  <ListItem class="list-item--flow-run" :icon="`pi-${stateType}`">
+    <div class="item--title">
       <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
