@@ -1,16 +1,6 @@
 <template>
-  <ListItem class="list-item--deployment d-flex align-start justify-start">
-    <i class="pi pi-map-pin-line text--grey-40 align-self-start" />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+  <ListItem class="list-item--deployment" icon="pi-map-pin-line">
+    <div class="item--title">
       <h2>
         {{ item.name }}
       </h2>
@@ -233,5 +223,27 @@ export default class ListItemDeployment extends Vue.with(Props) {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/list-item--deployment.scss';
+.tag-container {
+  margin-top: 6px;
+
+  > .tag-wrapper {
+    margin-top: -4px;
+  }
+}
+
+.parameters-hr {
+  border: 0;
+  border-bottom: 1px solid;
+  color: $grey-10 !important;
+  width: 100%;
+}
+
+.parameter-type {
+  background-color: $grey-40;
+  border-radius: 4px;
+}
+
+.parameters-container {
+  overflow: auto;
+}
 </style>
