@@ -18,7 +18,7 @@
       </ButtonRounded>
     </div>
 
-    <div v-breakpoints="'md'" class="chart-container">
+    <div v-breakpoints="'md'" class="list-item-flow__chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
         :interval-start="store.getters.start"
@@ -90,7 +90,7 @@ const flowRunHistory = computed((): Buckets => {
 </script>
 
 <style lang="scss" scoped>
-.chart-container {
+.list-item-flow__chart-container {
   height: 52px;
   max-width: 175px;
 }
