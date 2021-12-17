@@ -11,13 +11,14 @@ from anyio.abc import TaskGroup
 
 from prefect import settings
 from prefect.client import OrionClient
+from prefect.exceptions import Abort
 from prefect.flow_runners import FlowRunner
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
+from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
-from prefect.orion.schemas.states import StateType, Pending, State
+from prefect.orion.schemas.states import Failed, Pending, State, StateType
 from prefect.utilities.logging import get_logger
-from prefect.exceptions import Abort
 
 
 class OrionAgent:
@@ -88,11 +89,12 @@ class OrionAgent:
                 # may continue to run in the background after this exits.
                 await self.task_group.start(flow_runner.submit_flow_run, flow_run)
                 self.logger.info(f"Completed submission of flow run '{flow_run.id}'")
-            except Exception:
+            except Exception as exc:
                 self.logger.error(
                     f"Flow runner failed to submit flow run '{flow_run.id}'",
                     exc_info=True,
                 )
+                await self._propose_failed_state(flow_run, exc)
 
         self.submitting_flow_run_ids.remove(flow_run.id)
 
@@ -121,6 +123,25 @@ class OrionAgent:
             return False
 
         return True
+
+    async def _propose_failed_state(self, flow_run: FlowRun, exc: Exception) -> None:
+        try:
+            await self.client.propose_state(
+                Failed(
+                    message="Submission failed.",
+                    data=DataDocument.encode("cloudpickle", exc),
+                ),
+                flow_run_id=flow_run.id,
+            )
+        except Abort:
+            # We've already failed, no need to note the abort but we don't want it to
+            # raise in the agent process
+            pass
+        except Exception:
+            self.logger.error(
+                f"Failed to update state of flow run '{flow_run.id}'",
+                exc_info=True,
+            )
 
     # Context management ---------------------------------------------------------------
 
