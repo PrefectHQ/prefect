@@ -122,6 +122,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         condaenv: An optional name of an anaconda environment to run the flow in.
             A path can be provided instead, similar to `conda --prefix ...`.
         virtualenv: An optional path to a virtualenv environment to run the flow in.
+            This also supports the python builtin `venv` environments.
 
     """
 
