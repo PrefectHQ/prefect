@@ -293,7 +293,7 @@ async def test_agent_submit_run_aborts_without_raising_if_server_raises_abort(
     )
 
 
-async def test_agent_does_not_raise_if_flow_runner_submission_fails(
+async def test_agent_fails_flow_if_flow_runner_submission_fails(
     orion_client, deployment
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
@@ -317,8 +317,14 @@ async def test_agent_does_not_raise_if_flow_runner_submission_fails(
         f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
     )
 
+    state = (await orion_client.read_flow_run(flow_run.id)).state
+    assert state.is_failed()
+    result = await orion_client.resolve_datadoc(state.data)
+    with pytest.raises(ValueError, match="Hello!"):
+        raise result
 
-async def test_agent_does_not_fail_if_flow_runner_does_not_mark_as_started(
+
+async def test_agent_fails_flow_if_flow_runner_does_not_mark_as_started(
     orion_client, deployment
 ):
     flow_run = await orion_client.create_flow_run_from_deployment(
@@ -344,6 +350,14 @@ async def test_agent_does_not_fail_if_flow_runner_does_not_mark_as_started(
     agent.logger.error.assert_called_once_with(
         f"Flow runner failed to submit flow run '{flow_run.id}'", exc_info=True
     )
+
+    state = (await orion_client.read_flow_run(flow_run.id)).state
+    assert state.is_failed()
+    result = await orion_client.resolve_datadoc(state.data)
+    with pytest.raises(
+        RuntimeError, match="Child exited without calling task_status.started"
+    ):
+        raise result
 
 
 async def test_agent_dispatches_null_flow_runner_to_subprocess_runner(orion_client):
