@@ -150,13 +150,13 @@ async def test_agent_submit_run_sets_pending_state(orion_client, deployment):
     async with OrionAgent(prefetch_seconds=10) as agent:
         # Create a mock flow runner
         agent.get_flow_runner = MagicMock()
-        agent.get_flow_runner.submit_flow_run = AsyncMock(side_effect=mark_as_started)
+        agent.get_flow_runner().submit_flow_run = AsyncMock(side_effect=mark_as_started)
         agent.submitting_flow_run_ids.add(flow_run.id)
 
         await agent.submit_run(flow_run)
 
     assert (await orion_client.read_flow_run(flow_run.id)).state.is_pending()
-    agent.get_flow_runner.assert_called_once()
+    agent.get_flow_runner().submit_flow_run.assert_awaited_once()
 
 
 async def test_agent_submit_run_waits_for_scheduled_time_before_submitting(
