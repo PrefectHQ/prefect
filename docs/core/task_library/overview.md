@@ -17,58 +17,58 @@ Tasks marked with the <Badge text="Verified" type="success" vertical="middle"/> 
 
 <table>
   <tr>
-    <td><Badge text="Verified" type="success"/><img src="/logos/airbyte.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/airbyte.html">Airbyte</a></td>
-    <td><img src="/logos/airtable.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/airtable.html">Airtable</a></td>
-    <td><img src="/logos/asana_logo.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/asana.html">Asana</a></td>
-    <td><img src="/logos/aws.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/aws.html">AWS</a></td>
-    <td><img src="/logos/azure.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/azure.html">Azure</a></td>
+    <td><Badge text="Verified" type="success"/><img src="/logos/airbyte.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/airbyte.html">Airbyte</a></td>
+    <td><img src="/logos/airtable.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/airtable.html">Airtable</a></td>
+    <td><img src="/logos/asana_logo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/asana.html">Asana</a></td>
+    <td><img src="/logos/aws.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/aws.html">AWS</a></td>
+    <td><img src="/logos/azure.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/azure.html">Azure</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/azure_ml.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/azureml.html">Azure ML</a></td>
-    <td><img src="/logos/census.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/census.html">Census</a></td>
-    <td><img src="/logos/databricks.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/databricks.html">Databricks</a></td>
-    <td><Badge text="Verified" type="success"/><img src="/logos/dbt.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/dbt.html">dbt</a></td>
-    <td><img src="/logos/docker.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/docker.html">Docker</a></td>
+    <td><img src="/logos/azure_ml.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/azureml.html">Azure ML</a></td>
+    <td><img src="/logos/census.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/census.html">Census</a></td>
+    <td><img src="/logos/databricks.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/databricks.html">Databricks</a></td>
+    <td><Badge text="Verified" type="success"/><img src="/logos/dbt.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/dbt.html">dbt</a></td>
+    <td><img src="/logos/docker.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/docker.html">Docker</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/dremio.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/dremio.html">Dremio</a></td>
-    <td><img src="/logos/dropbox.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/dropbox.html">Dropbox</a></td>
-    <td><img src="/logos/email.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/notifications.html#emailtask">Email</a></td>
-    <td><Badge text="Verified" type="success"/><img src="/logos/fivetran.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/fivetran.html">Fivetran</a></td>
-    <td><img src="/logos/github.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/github.html">GitHub</a></td>
+    <td><img src="/logos/dremio.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/dremio.html">Dremio</a></td>
+    <td><img src="/logos/dropbox.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/dropbox.html">Dropbox</a></td>
+    <td><img src="/logos/email.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/notifications.html#emailtask">Email</a></td>
+    <td><Badge text="Verified" type="success"/><img src="/logos/fivetran.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/fivetran.html">Fivetran</a></td>
+    <td><img src="/logos/github.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/github.html">GitHub</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/google_cloud.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/gcp.html">Google Cloud</a></td>
-    <td><img src="/logos/sheets.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/gsheets.html">Google Sheets</a></td>
-    <td><Badge text="Verified" type="success"/><img src="/logos/ge.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/great_expectations.html">Great Expectations</a></td>
-    <td><img src="/logos/jira.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/jira.html">Jira</a></td>
-    <td><img src="/logos/jupyter.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/jupyter.html">Jupyter</a></td>
+    <td><img src="/logos/google_cloud.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/gcp.html">Google Cloud</a></td>
+    <td><img src="/logos/sheets.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/gsheets.html">Google Sheets</a></td>
+    <td><Badge text="Verified" type="success"/><img src="/logos/ge.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/great_expectations.html">Great Expectations</a></td>
+    <td><img src="/logos/jira.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/jira.html">Jira</a></td>
+    <td><img src="/logos/jupyter.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/jupyter.html">Jupyter</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/kubernetes.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/kubernetes.html">Kubernetes</a></td>
-    <td><img src="/logos/monday.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/monday.html">Monday</a></td>
-    <td><img src="/logos/mysql.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/mysql.html">MySQL</a></td>
-    <td><img src="/logos/postgres.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/postgres.html">PostgreSQL</a></td>
-    <td><img src="/logos/prometheus.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/prometheus.html">Prometheus</a></td>
+    <td><img src="/logos/kubernetes.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/kubernetes.html">Kubernetes</a></td>
+    <td><img src="/logos/monday.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/monday.html">Monday</a></td>
+    <td><img src="/logos/mysql.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/mysql.html">MySQL</a></td>
+    <td><img src="/logos/postgres.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/postgres.html">PostgreSQL</a></td>
+    <td><img src="/logos/prometheus.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/prometheus.html">Prometheus</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/python.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/function.html">Python</a></td>
-    <td><img src="/logos/pushbullet.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/notifications.html#pushbullettask">Pushbullet</a></td>
-    <td><img src="/logos/redis.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/redis.html">Redis</a></td>
-    <td><img src="/logos/rlogo.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/rss.html">RSS</a></td>
-    <td><img src="/logos/sendgrid.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sendgrid.html">SendGrid</a></td>
+    <td><img src="/logos/python.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/function.html">Python</a></td>
+    <td><img src="/logos/pushbullet.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/notifications.html#pushbullettask">Pushbullet</a></td>
+    <td><img src="/logos/redis.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/redis.html">Redis</a></td>
+    <td><img src="/logos/rlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/rss.html">RSS</a></td>
+    <td><img src="/logos/sendgrid.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sendgrid.html">SendGrid</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/shell.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/shell.html">Shell</a></td>
-    <td><img src="/logos/slack.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/notifications.html#slacktask">Slack</a></td>
-    <td><img src="/logos/snowflake.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/snowflake.html">Snowflake</a></td>
-    <td><img src="/logos/spacy.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/spacy.html">spaCy</a></td>
-    <td><img src="/logos/sqlite.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sqlite.html">SQLite</a></td>
+    <td><img src="/logos/shell.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/shell.html">Shell</a></td>
+    <td><img src="/logos/slack.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/notifications.html#slacktask">Slack</a></td>
+    <td><img src="/logos/snowflake.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/snowflake.html">Snowflake</a></td>
+    <td><img src="/logos/spacy.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/spacy.html">spaCy</a></td>
+    <td><img src="/logos/sqlite.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sqlite.html">SQLite</a></td>
   </tr>
   <tr>
-    <td><img src="/logos/sqlserverlogo.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sql_server.html">SQL Server</a></td>
-    <td><img src="/logos/trello.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/trello.html">Trello</a></td>
-    <td><img src="/logos/tlogo.png" height=128 width=128 style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/twitter.html">Twitter</a></td>
+    <td><img src="/logos/sqlserverlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sql_server.html">SQL Server</a></td>
+    <td><img src="/logos/trello.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/trello.html">Trello</a></td>
+    <td><img src="/logos/tlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/twitter.html">Twitter</a></td>
     <td></td>
     <td></td>
   </tr>
@@ -81,6 +81,7 @@ used by importing and adding them to your flow.
 
 :::: tabs
 ::: tab Functional API
+
 ```python
 from prefect import task, Flow
 from prefect.tasks.shell import ShellTask
@@ -95,9 +96,11 @@ with Flow("list_files") as flow:
     ls = ls_task()
     show_output(ls)
 ```
+
 :::
 
 ::: tab Imperative API
+
 ```python
 from prefect import Task, Flow
 from prefect.tasks.shell import ShellTask
@@ -112,6 +115,7 @@ show_output = ShowOutput()
 flow = Flow("list_files")
 show_output.set_upstream(ls_task, key="std_out", flow=flow)
 ```
+
 :::
 ::::
 
@@ -120,6 +124,7 @@ purposed or optionally set and overwritten when defining the flow.
 
 :::: tabs
 ::: tab Functional API
+
 ```python
 from prefect import task, Flow
 from prefect.tasks.shell import ShellTask
@@ -139,9 +144,11 @@ with Flow("count_files") as flow:
     ls_count = ls_task(command="ls | wc -l")
     show_output(ls_count)
 ```
+
 :::
 
 ::: tab Imperative API
+
 ```python
 from prefect import Task, Flow
 from prefect.tasks.shell import ShellTask
@@ -160,6 +167,7 @@ flow = Flow("count_files")
 show_output.set_upstream(ls_task, key="std_out", flow=flow)
 show_output2.set_upstream(ls_count, key="std_out", flow=flow)
 ```
+
 :::
 ::::
 
