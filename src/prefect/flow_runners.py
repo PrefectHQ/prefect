@@ -304,15 +304,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
 
-        try:
-            docker_client = docker.from_env()
-        except docker.errors.DockerException as exc:
-            if "File not found" in str(exc):
-                reason = "Docker Engine is not running."
-            else:
-                reason = str(exc)
-
-            raise RuntimeError(f"Could not connect to docker: {reason}")
+        docker_client = self._get_client()
 
         container = self._create_container(
             docker_client,
@@ -362,7 +354,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         return container
 
     def _watch_container(self, container_id: str) -> bool:
-        docker_client = docker.from_env()
+        docker_client = self._get_client()
 
         try:
             container = docker_client.containers.get(container_id)
@@ -384,6 +376,19 @@ class DockerFlowRunner(UniversalFlowRunner):
             self.logger.info(
                 f"Flow run container {container.name!r} has status {container.status!r}"
             )
+
+    def _get_client(self):
+        try:
+            docker_client = docker.from_env()
+        except docker.errors.DockerException as exc:
+            if "File not found" in str(exc):
+                reason = "Docker Engine is not running."
+            else:
+                reason = str(exc)
+
+            raise RuntimeError(f"Could not connect to Docker: {reason}")
+
+        return docker_client
 
     @staticmethod
     def _get_orion_image_tag():
