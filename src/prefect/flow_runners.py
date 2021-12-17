@@ -274,6 +274,96 @@ class DockerFlowRunner(UniversalFlowRunner):
     auto_remove: bool = False
     stream_output: bool = True
 
+    async def submit_flow_run(
+        self,
+        flow_run: FlowRun,
+        task_status: TaskStatus,
+    ) -> Optional[bool]:
+
+        # The `docker` library uses requests instead of an async http library so it must
+        # be run in a thread to avoid blocking the event loop.
+        container_id = await run_sync_in_worker_thread(
+            self._create_and_start_container, flow_run
+        )
+
+        # Mark as started
+        task_status.started()
+
+        # Monitor the container
+        await run_sync_in_worker_thread(self._watch_container, container_id)
+
+    def _create_and_start_container(self, flow_run: FlowRun) -> str:
+        container = self._create_container(flow_run)
+
+        # Start the container
+        container.start()
+
+        return container.id
+
+    def _create_container(self, flow_run: FlowRun) -> "Container":
+        import docker
+
+        docker_client = docker.from_env()
+
+        # Create the container with retries on name conflicts (with an incremented idx)
+        index = 0
+        container = None
+        container_name = original_container_name = self._get_container_name(flow_run)
+        while not container:
+            try:
+                container = docker_client.containers.create(
+                    self._get_image(docker_client),
+                    name=container_name,
+                    network=self.networks[0] if self.networks else None,
+                    command=self._get_start_command(flow_run),
+                    environment=self._get_environment_variables(),
+                    auto_remove=self.auto_remove,
+                    labels=self._get_labels(flow_run),
+                    volumes=self._get_volumes(),
+                    extra_hosts=self._get_extra_hosts(docker_client),
+                )
+            except docker.errors.APIError as exc:
+                if "Conflict" in str(exc) and "container name" in str(exc):
+                    index += 1
+                    container_name = f"{original_container_name}-{index}"
+                else:
+                    raise
+
+        # Add additional networks after the container is created; only one network can
+        # be attached at creation time
+        if len(self.networks) > 1:
+            for network_name in self.networks[1:]:
+                network = docker_client.networks.get(network_name)
+                network.connect(container)
+
+        return container
+
+    def _watch_container(self, container_id: str) -> bool:
+        import docker
+
+        docker_client = docker.from_env()
+
+        try:
+            container = docker_client.containers.get(container_id)
+        except docker.errors.ImageNotFound:
+            self.logger.error(f"Flow run container {container_id!r} was removed.")
+
+        status = container.status
+        self.logger.info(
+            f"Flow run container {container.name!r} has status {container.status!r}"
+        )
+
+        for log in container.logs(stream=True):
+            log: bytes
+            if self.stream_output:
+                print(log.decode().rstrip())
+
+        container.reload()
+        if container.status != status:
+            self.logger.info(
+                f"Flow run container {container.name!r} has status {container.status!r}"
+            )
+
     def _get_image(self, docker_client):
         if self.image:
             return self.image
@@ -372,93 +462,3 @@ class DockerFlowRunner(UniversalFlowRunner):
             }
         )
         return labels
-
-    def _create_container(self, flow_run: FlowRun) -> "Container":
-        import docker
-
-        docker_client = docker.from_env()
-
-        # Create the container with retries on name conflicts (with an incremented idx)
-        index = 0
-        container = None
-        container_name = original_container_name = self._get_container_name(flow_run)
-        while not container:
-            try:
-                container = docker_client.containers.create(
-                    self._get_image(docker_client),
-                    name=container_name,
-                    network=self.networks[0] if self.networks else None,
-                    command=self._get_start_command(flow_run),
-                    environment=self._get_environment_variables(),
-                    auto_remove=self.auto_remove,
-                    labels=self._get_labels(flow_run),
-                    volumes=self._get_volumes(),
-                    extra_hosts=self._get_extra_hosts(docker_client),
-                )
-            except docker.errors.APIError as exc:
-                if "Conflict" in str(exc) and "container name" in str(exc):
-                    index += 1
-                    container_name = f"{original_container_name}-{index}"
-                else:
-                    raise
-
-        # Add additional networks after the container is created; only one network can
-        # be attached at creation time
-        if len(self.networks) > 1:
-            for network_name in self.networks[1:]:
-                network = docker_client.networks.get(network_name)
-                network.connect(container)
-
-        return container
-
-    def _create_and_start_container(self, flow_run: FlowRun) -> str:
-        container = self._create_container(flow_run)
-
-        # Start the container
-        container.start()
-
-        return container.id
-
-    def _watch_container(self, container_id: str) -> bool:
-        import docker
-
-        docker_client = docker.from_env()
-
-        try:
-            container = docker_client.containers.get(container_id)
-        except docker.errors.ImageNotFound:
-            self.logger.error(f"Flow run container {container_id!r} was removed.")
-
-        status = container.status
-        self.logger.info(
-            f"Flow run container {container.name!r} has status {container.status!r}"
-        )
-
-        for log in container.logs(stream=True):
-            log: bytes
-            if self.stream_output:
-                print(log.decode().rstrip())
-
-        container.reload()
-        if container.status != status:
-            self.logger.info(
-                f"Flow run container {container.name!r} has status {container.status!r}"
-            )
-
-    async def submit_flow_run(
-        self,
-        flow_run: FlowRun,
-        task_status: TaskStatus,
-    ) -> Optional[bool]:
-
-        # The `docker` library uses requests instead of an async http library so it must
-        # be run in a thread to avoid blocking the event loop.
-        container_id = await run_sync_in_worker_thread(
-            self._create_and_start_container, flow_run
-        )
-
-        # Mark as started
-        task_status.started()
-
-        # Monitor the container
-        await run_sync_in_worker_thread(self._watch_container, container_id)
