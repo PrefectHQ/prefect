@@ -1,19 +1,9 @@
 <template>
-  <ListItem class="list-item--task-run d-flex align-start justify-start">
+  <ListItem class="list-item--task-run" :icon="`pi-${stateType}`">
     <!-- For a later date... maybe -->
     <!-- :class="stateType + '-border'" -->
 
-    <i class="pi text--grey-40 align-self-start" :class="`pi-${stateType}`" />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+    <div class="list-item__title">
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
       <div class="tag-container nowrap d-flex">
@@ -106,5 +96,12 @@ const crumbs = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/list-item--task-run.scss';
+.item--duration {
+  text-align: right;
+  width: 75px;
+}
+
+.tag-container {
+  margin-top: 2px;
+}
 </style>
