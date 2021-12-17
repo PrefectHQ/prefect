@@ -386,7 +386,8 @@ class DockerFlowRunner(UniversalFlowRunner):
                 f"Flow run container {container.name!r} has status {container.status!r}"
             )
 
-    def _get_development_image_tag(self):
+    @staticmethod
+    def _get_orion_image_tag():
         return slugify(
             f"prefect:orion-{prefect.__version__}",
             lowercase=False,
@@ -395,26 +396,27 @@ class DockerFlowRunner(UniversalFlowRunner):
             regex_pattern=r"[^a-zA-Z0-9_.-]+",
         )
 
-    def _get_image(self, docker_client):
+    def _get_image(self, docker_client: "DockerClient"):
         """
-        Retrieve the specified image, or build the development image.
+        Retrieve the specified image, or build the orion image.
         """
         if self.image:
             return self.image
 
-        # Ensure the development image is built
+        # Ensure the orion image is built
         # Lock so that we do not try to build it if another thread is already doing so
-        development_image = self._get_development_image_tag()
+        orion_image = self._get_orion_image_tag()
+        self.logger.debug(f"No image provided. Using image {orion_image!r}...")
         with DOCKER_BUILD_LOCK:
             try:
-                docker_client.images.get(development_image)
+                docker_client.images.get(orion_image)
             except docker.errors.ImageNotFound:
-                self.logger.info("Orion image not found! Building...")
+                self.logger.info(f"Orion image {orion_image!r} not found! Building...")
                 docker_client.images.build(
-                    path=str(prefect.__root_path__), tag=development_image
+                    path=str(prefect.__root_path__), tag=orion_image
                 )
 
-        return development_image
+        return orion_image
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
