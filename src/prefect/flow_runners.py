@@ -475,11 +475,21 @@ class DockerFlowRunner(UniversalFlowRunner):
             env.setdefault("PREFECT_ORION_HOST", api_url)
 
         if prefect.settings.orion.database.connection_url:
-            db_url = prefect.settings.orion.database.connection_url.replace(
-                "localhost", "host.docker.internal"
-            ).replace("127.0.0.1", "host.docker.internal")
+            db_url = (
+                prefect.settings.orion.database.connection_url.get_secret_value()
+                .replace("localhost", "host.docker.internal")
+                .replace("127.0.0.1", "host.docker.internal")
+            )
 
             env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
+
+        db_url = env.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
+        if (not db_url or "sqlite" in db_url) and "PREFECT_ORION_HOST" not in env:
+            warnings.warn(
+                "A standalone server has not been configured and the database "
+                "connection url is unconfigured or using SQLite. It is likely that "
+                "your flow run container will not be able to contact the API."
+            )
 
         return env
 
