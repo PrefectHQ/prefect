@@ -11,7 +11,7 @@ import anyio.abc
 import sniffio
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, root_validator
 from typing_extensions import Literal
 
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
@@ -139,6 +139,15 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         ):
             value = Path(value)
         return value
+
+    @root_validator
+    def ensure_only_one_env_was_given(cls, values):
+        if values.get("condaenv") and values.get("virtualenv"):
+            raise ValueError(
+                "Received incompatible settings. You cannot provide both a conda and "
+                "virtualenv to use."
+            )
+        return values
 
     async def submit_flow_run(
         self,

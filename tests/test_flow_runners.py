@@ -467,6 +467,12 @@ class TestFlowRunnerConfigCondaEnv:
         settings = runner.to_settings()
         assert settings.config["condaenv"] == value
 
+    def test_flow_runner_condaenv_cannot_be_provided_with_virtualenv(self, runner_type):
+        with pytest.raises(
+            pydantic.ValidationError, match="cannot provide both a conda and virtualenv"
+        ):
+            runner_type(condaenv="foo", virtualenv="bar")
+
 
 @pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
 class TestFlowRunnerConfigVirtualEnv:
