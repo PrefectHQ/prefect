@@ -10,4 +10,5 @@ pytkdocs
 flake8
 pytest-env
 requests
+virtualenv
 mock; python_version < '3.8'
