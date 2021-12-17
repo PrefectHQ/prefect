@@ -1,6 +1,6 @@
 <template>
   <ListItem class="list-item--deployment" icon="pi-map-pin-line">
-    <div class="item--title">
+    <div class="list-item__title">
       <h2>
         {{ item.name }}
       </h2>
@@ -135,7 +135,7 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
-import { Deployment, IntervalSchedule, CronSchedule } from '@/typings/objects'
+import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
 
 class Props {
