@@ -1,12 +1,8 @@
 <template>
-  <ListItem class="list-item--flow-run d-flex align-start justify-start">
-    <!-- For a later date... maybe -->
-    <!-- :class="state + '-border'" -->
-
-    <i class="pi text--grey-40 align-self-start" :class="`pi-${state}`" />
+  <ListItem class="list-item--flow-run" :icon="`pi-${state}`">
     <div
       class="
-        item--title
+        list-item__title
         ml-2
         d-flex
         flex-column
