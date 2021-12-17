@@ -343,7 +343,7 @@ def format_subheader(obj, level=1, in_table=False):
     class_name = f'<p class="prefect-class">{create_absolute_path(obj)}</p>'
     div_class = "class-sig" if is_class else "method-sig"
     block_id = slugify(create_absolute_path(obj)) or obj.__name__
-    div_tag = f"<div class='{div_class}' id='{'method' + block_id if block_id[0] is '-' else block_id}'>"
+    div_tag = f"<div class='{div_class}' id='{'method' + block_id if block_id[0] == '-' else block_id}'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig
@@ -569,7 +569,7 @@ if __name__ == "__main__":
                 """
 
                 <div align="center" style="margin-bottom:40px;">
-                <img src="/assets/prefect-logo-full-gradient.svg"  width=500 >
+                <img src="/assets/prefect-logo-full-gradient.svg"  width="500" >
                 </div>
 
                 # API Reference
