@@ -6,7 +6,7 @@
     <div class="list-item__title">
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
-      <div class="list-item-task-run--tag-container">
+      <div class="list-item-task-run__tag-container">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
 
         <Tag
@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <div class="font--secondary list-item-task-run--duration">
+    <div class="font--secondary list-item-task-run__duration">
       {{ duration }}
     </div>
   </ListItem>
@@ -96,13 +96,13 @@ const crumbs = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-.list-item-task-run--duration {
+.list-item-task-run__duration {
   text-align: right;
   width: 75px;
   margin-left: auto;
 }
 
-.list-item-task-run--tag-container {
+.list-item-task-run__tag-container {
   margin-top: 2px;
   display: flex;
   white-space: nowrap;
