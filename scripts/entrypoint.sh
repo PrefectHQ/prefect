@@ -9,16 +9,17 @@ fi
 
 if [ -z "$*" ]; then
   echo "\
-            _____  _____  ______ ______ ______ _____ _______
-           |  __ \|  __ \|  ____|  ____|  ____/ ____|__   __|
-           | |__) | |__) | |__  | |__  | |__ | |       | |
-           |  ___/|  _  /|  __| |  __| |  __|| |       | |
-           | |    | | \ \| |____| |    | |___| |____   | |
-           |_|    |_|  \_\______|_|    |______\_____|  |_|
+          ____  _____  _____ ____  _   _ 
+         / __ \|  __ \|_   _/ __ \| \ | |
+        | |  | | |__) | | || |  | |  \| |
+        | |  | |  _  /  | || |  | |     |
+        | |__| | | \ \ _| || |__| | |\  |
+         \____/|_|  \_\_____\____/|_| \_|
+                                  
 
 Thanks for using Prefect!!!
 
-This is the official docker image for Prefect Orion, intended for executing flows.
+This is a development docker image for Prefect Orion.
 "
   exec bash --login
 else
