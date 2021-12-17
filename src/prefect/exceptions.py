@@ -28,6 +28,22 @@ class UnspecifiedFlowError(PrefectException):
     pass
 
 
+class MissingDeploymentError(PrefectException):
+    """
+    Raised when a given deployment name is not found in the expected script.
+    """
+
+    pass
+
+
+class UnspecifiedDeploymentError(PrefectException):
+    """
+    Raised when multiple deployments are found in the expected script and no name is given.
+    """
+
+    pass
+
+
 class FlowScriptError(PrefectException):
     """
     Raised when a script errors during evaluation while attempting to load a flow.

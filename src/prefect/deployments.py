@@ -51,14 +51,20 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, List, Set
+from typing import Any, AnyStr, Dict, List, Set, Tuple, Iterable
 from uuid import UUID
 
 import yaml
 from pydantic import root_validator, validator
 
 from prefect.client import OrionClient, inject_client
-from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
+from prefect.exceptions import (
+    FlowScriptError,
+    MissingFlowError,
+    UnspecifiedFlowError,
+    MissingDeploymentError,
+    UnspecifiedDeploymentError,
+)
 from prefect.flows import Flow
 from prefect.flow_runners import FlowRunner
 from prefect.orion import schemas
@@ -117,6 +123,7 @@ class DeploymentSpec(PrefectBaseModel):
             self.flow = load_flow_from_script(self.flow_location, self.flow_name)
             if not self.flow_name:
                 self.flow_name = self.flow.name
+        return self
 
     @root_validator
     def infer_location_from_flow(cls, values):
@@ -158,6 +165,28 @@ class DeploymentSpec(PrefectBaseModel):
         return hash((self.name, self.flow_name))
 
 
+def load_flows_from_script(script_path: str) -> Set[Flow]:
+    """
+    Load all flow objects from the given python script. All of the code in the file
+    will be executed.
+
+    Returns:
+        A set of flows
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+    """
+    try:
+        variables = runpy.run_path(script_path)
+    except Exception as exc:
+        raise FlowScriptError(
+            user_exc=exc,
+            script_path=script_path,
+        ) from exc
+
+    return set(extract_instances(variables.values(), types=Flow))
+
+
 def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
     """
     Extract a flow object from a script by running all of the code in the file
@@ -173,39 +202,135 @@ def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
         The flow object from the script
 
     Raises:
-        MissingFlowError: If no flows exist in the script
+        See `load_flows_from_script` and `select_flow`
+    """
+    return select_flow(
+        load_flows_from_script(script_path),
+        flow_name=flow_name,
+        from_message=f"in script '{script_path}'",
+    )
+
+
+def select_flow(
+    flows: Iterable[Flow], flow_name: str = None, from_message: str = None
+) -> Flow:
+    """
+    Select the only flow in an iterable or a flow specified by name.
+
+    Returns
+        A single flow object
+
+    Raises:
+        MissingFlowError: If no flows exist in the iterable
         MissingFlowError: If a flow name is provided and that flow does not exist
         UnspecifiedFlowError: If multiple flows exist but no flow name was provided
     """
-    try:
-        variables = runpy.run_path(script_path)
-    except Exception as exc:
-        raise FlowScriptError(
-            user_exc=exc,
-            script_path=script_path,
-        ) from exc
+    # Convert to flows by name
+    flows = {f.name: f for f in flows}
 
-    flows = {f.name: f for f in extract_instances(variables.values(), types=Flow)}
+    # Add a leading space if given, otherwise use an empty string
+    from_message = (" " + from_message) if from_message else ""
 
     if not flows:
-        raise MissingFlowError(f"No flows found at path {script_path!r}")
+        raise MissingFlowError(f"No flows found{from_message}.")
 
     elif flow_name and flow_name not in flows:
         raise MissingFlowError(
-            f"Flow {flow_name!r} not found at path {script_path!r}. "
+            f"Flow {flow_name!r} not found{from_message}. "
             f"Found the following flows: {listrepr(flows.keys())}"
         )
 
     elif not flow_name and len(flows) > 1:
         raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows at {script_path!r}: {listrepr(flows.keys())}. "
-            "Specify a flow name to select a flow to deploy.",
+            f"Found {len(flows)} flows{from_message}: {listrepr(flows.keys())}. "
+            "Specify a flow name to select a flow.",
         )
 
     if flow_name:
         return flows[flow_name]
     else:
         return list(flows.values())[0]
+
+
+def select_deployment(
+    deployments: Iterable[DeploymentSpec],
+    deployment_name: str = None,
+    flow_name: str = None,
+    from_message: str = None,
+) -> Flow:
+    """
+    Select the only deployment in an iterable or a deployment specified by either
+    deployment or flow name.
+
+    Returns
+        A single deployment object
+
+    Raises:
+        MissingDeploymentError: If no deployments exist in the iterable
+        MissingDeploymentError: If a deployment name is provided and that deployment does not exist
+        UnspecifiedDeploymentError: If multiple deployments exist but no deployment name was provided
+    """
+    # Convert to deployments by name and flow name
+    deployments = {d.name: d for d in deployments}
+
+    if flow_name:
+        # If given a lookup by flow name, ensure the deployments have a flow name
+        # resolved
+        for deployment in deployments.values():
+            if not deployment.flow_name:
+                deployment.load_flow()
+        deployments_by_flow = {d.flow_name: d for d in deployments.values()}
+
+    # Add a leading space if given, otherwise use an empty string
+    from_message = (" " + from_message) if from_message else ""
+
+    if not deployments:
+        raise MissingDeploymentError(f"No deployments found{from_message}.")
+
+    elif deployment_name and deployment_name not in deployments:
+        raise MissingDeploymentError(
+            f"Deployment {deployment_name!r} not found{from_message}. "
+            f"Found the following deployments: {listrepr(deployments.keys())}"
+        )
+
+    elif flow_name and flow_name not in deployments_by_flow:
+        raise MissingDeploymentError(
+            f"Deployment for flow {flow_name!r} not found{from_message}. "
+            "Found deployments for the following flows: "
+            f"{listrepr(deployments_by_flow.keys())}"
+        )
+
+    elif not deployment_name and not flow_name and len(deployments) > 1:
+        raise UnspecifiedDeploymentError(
+            f"Found {len(deployments)} deployments{from_message}: {listrepr(deployments.keys())}. "
+            "Specify a deployment or flow name to select a deployment.",
+        )
+
+    if deployment_name:
+        deployment = deployments[deployment_name]
+        if flow_name and deployment.flow_name != flow_name:
+            raise MissingDeploymentError(
+                f"Deployment {deployment_name!r} for flow {flow_name!r} not found. "
+                f"Found deployment {deployment_name!r} but it is for flow "
+                f"{deployment.flow_name!r}."
+            )
+        return deployment
+    elif flow_name:
+        return deployments_by_flow[flow_name]
+    else:
+        return list(deployments.values())[0]
+
+
+def deployment_specs_and_flows_from_script(
+    script_path: str,
+) -> Tuple[Set[DeploymentSpec], Set[Flow]]:
+    """
+    Load deployment specifications and flows from a python script.
+    """
+    with _register_new_specs() as specs:
+        flows = load_flows_from_script(script_path)
+
+    return (specs, flows)
 
 
 @sync_compatible
