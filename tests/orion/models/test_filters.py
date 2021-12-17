@@ -25,8 +25,8 @@ d_3_1_id = uuid4()
 @pytest.fixture(autouse=True, scope="module")
 async def data(database_engine, flow_function, db):
 
-    session_factory = await db.session_factory()
-    async with session_factory() as session:
+    session = await db.session()
+    async with session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
         create_deployment = lambda deployment: models.deployments.create_deployment(

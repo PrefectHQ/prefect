@@ -36,7 +36,7 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
-      <ButtonRounded class="mr-1">
+      <ButtonRounded disabled>
         {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
       </ButtonRounded>
     </div>
