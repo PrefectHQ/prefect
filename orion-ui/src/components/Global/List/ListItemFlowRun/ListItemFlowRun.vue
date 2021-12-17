@@ -1,6 +1,6 @@
 <template>
   <ListItem class="list-item--flow-run" :icon="`pi-${stateType}`">
-    <div class="item--title">
+    <div class="list-item__title">
       <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
