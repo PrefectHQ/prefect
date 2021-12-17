@@ -26,6 +26,32 @@ from prefect.utilities.compat import AsyncMock
 
 
 @pytest.fixture
+def venv_environment_path(tmp_path):
+    """
+    Generates a temporary venv environment with development dependencies installed
+    """
+
+    environment_path = tmp_path / "test"
+
+    # Create the virtual environment
+    subprocess.check_output([sys.executable, "-m", "venv", str(environment_path)])
+
+    # Install prefect within the virtual environment
+    subprocess.check_output(
+        [
+            str(environment_path / "bin" / "python"),
+            "-m",
+            "pip",
+            "install",
+            "-e",
+            f"{prefect.__root_path__}[dev]",
+        ]
+    )
+
+    return environment_path
+
+
+@pytest.fixture
 def virtualenv_environment_path(tmp_path):
     """
     Generates a temporary virtualenv environment with development dependencies installed
@@ -316,6 +342,26 @@ class TestSubprocessFlowRunner:
         state = (await orion_client.read_flow_run(flow_run.id)).state
         runtime_python = await orion_client.resolve_datadoc(state.result())
         assert runtime_python == str(virtualenv_environment_path / "bin" / "python")
+
+    async def test_executes_flow_run_in_venv(
+        self,
+        flow_run,
+        orion_client,
+        venv_environment_path,
+        python_executable_test_deployment,
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            python_executable_test_deployment
+        )
+
+        happy_exit = await SubprocessFlowRunner(
+            virtualenv=venv_environment_path
+        ).submit_flow_run(flow_run, MagicMock(spec=anyio.abc.TaskStatus))
+
+        assert happy_exit
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        runtime_python = await orion_client.resolve_datadoc(state.result())
+        assert runtime_python == str(venv_environment_path / "bin" / "python")
 
     async def test_executes_flow_run_in_conda_environment(
         self,
