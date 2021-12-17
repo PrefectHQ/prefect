@@ -1,16 +1,6 @@
 <template>
-  <ListItem class="list-item--flow d-flex align-start justify-start">
-    <i class="pi pi-flow text--grey-40 align-self-start" />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+  <ListItem class="list-item-flow align-start justify-start" icon="pi-flow">
+    <div class="list-item__title">
       <h2>
         {{ item.name }}
       </h2>
@@ -100,5 +90,8 @@ const flowRunHistory = computed((): Buckets => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/list-item--flow.scss';
+.chart-container {
+  height: 52px;
+  max-width: 175px;
+}
 </style>
