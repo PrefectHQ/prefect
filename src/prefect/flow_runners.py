@@ -181,7 +181,6 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         # Wait for the process to exit
         # - We must the output stream so the buffer does not fill
         # - We can log the success/failure of the process
-
         async with process_context as process:
             async for text in TextReceiveStream(process.stdout):
                 if self.stream_output:
