@@ -26,8 +26,6 @@ class LoopService:
     # flag for whether the service should stop running
     should_stop: bool = False
 
-    session_factory: async_scoped_session = None
-
     def __init__(self, loop_seconds: float = None):
         if loop_seconds:
             self.loop_seconds = loop_seconds
@@ -39,16 +37,13 @@ class LoopService:
         """
         Called prior to running the service
         """
-        # prepare a database engine
-        # this call is cached and shared across services if possible
-        self.session_factory = await db.session_factory()
+        pass
 
     async def shutdown(self) -> None:
         """
         Called after running the service
         """
         self.should_stop = False
-        self.session_factory = None
 
     async def start(self, loops=None) -> None:
         """

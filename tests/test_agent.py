@@ -1,4 +1,3 @@
-import sys
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
 
@@ -11,14 +10,7 @@ from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner, Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.exceptions import Abort
-
-
-if sys.version_info < (3, 8):
-    # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-
-    from mock import AsyncMock
-else:
-    from unittest.mock import AsyncMock
+from prefect.utilities.compat import AsyncMock
 
 
 def mock_flow_runner(runner_type, start_error=None):

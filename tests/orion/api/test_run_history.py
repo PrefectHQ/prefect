@@ -37,8 +37,8 @@ async def clear_db():
 @pytest.fixture(autouse=True, scope="module")
 async def data(db):
 
-    session_factory = await db.session_factory()
-    async with session_factory() as session:
+    session = await db.session()
+    async with session:
 
         create_flow = lambda flow: models.flows.create_flow(session=session, flow=flow)
         create_flow_run = lambda flow_run: models.flow_runs.create_flow_run(
