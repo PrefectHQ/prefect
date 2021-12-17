@@ -16,7 +16,7 @@
     >
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
-      <div class="tag-container nowrap d-flex align-bottom">
+      <div class="tag-container nowrap d-flex">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
 
         <Tag

@@ -16,7 +16,7 @@
     >
       <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
-      <div class="tag-container nowrap d-flex align-bottom">
+      <div class="tag-container nowrap d-flex">
         <span
           class="run-state correct-text caption mr-1"
           :class="state + '-bg'"
