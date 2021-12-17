@@ -1,5 +1,5 @@
 <template>
-  <ListItem class="list-item-flow align-start justify-start" icon="pi-flow">
+  <ListItem class="list-item-flow" icon="pi-flow">
     <div class="list-item__title">
       <h2>
         {{ item.name }}
