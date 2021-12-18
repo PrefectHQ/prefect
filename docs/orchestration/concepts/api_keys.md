@@ -200,11 +200,11 @@ mutation {
 ## Using API keys with older versions of Prefect
 
 ::: warning
-API tokens are no longer supported as an authentication method.
+As of version 1.0.0, API tokens are no longer supported as an authentication method.
 
-If you are running a version of Prefect older than 0.15.0, this section describes how you can use API keys for authentication.
+This section describes how you can use API keys for authentication in place of how you may have previously used tokens.
 
-If you have logged in with an API key, but a token still exists on your machine, the API key will be used and the token will be ignored.
+Note that, if you have logged in with an API key, but a token still exists on your machine, the API key will be used and the token will be ignored.
 :::
 
 If you are running a version of Prefect older than 0.15.0, note that:
@@ -212,7 +212,8 @@ If you are running a version of Prefect older than 0.15.0, note that:
 - The `prefect auth login` CLI command will not work with API keys.
 - The `PREFECT__CLOUD__API_KEY` setting will be ignored. 
 
-Versions prior to Prefect 0.15.0 used _authentication tokens_. You can use API keys in these older versions of Prefect by setting them in the config or the environment in the `PREFECT__CLOUD__AUTH_TOKEN` setting.
+
+In most cases you can use API keys as you previously used tokens. Here are a few examples where API keys are used in place of tokens.
 
 Using an API key as a token for registering flows:
 ```bash
@@ -230,13 +231,11 @@ $ export PREFECT__CLOUD__AGENT__AUTH_TOKEN="<YOUR-KEY>"
 $ prefect agent local start
 ```
 
-`PREFECT__CLOUD__AUTH_TOKEN` is no longer passed through to non-container flow run jobs.
-
-`PREFECT__CLOUD__AUTH_TOKEN` is set to the value of `PREFECT__CLOUD__API_KEY` for containerized flow run jobs, which will allow containers running old versions of Prefect to work with current agents with the caveat that the API key must be used with the default tenant.
-
 ## Removing API tokens
 
-As of version 1.0.0, support for API tokens has been removed. If you used `prefect auth login` with an API token or had set an API token in your config or environment, you would have received warnings starting with version 0.15.0. 
+As of version 1.0.0, API tokens are no longer supported. 
+
+If you used `prefect auth login` with an API token or had set an API token in your config or environment, you would have received warnings starting with version 0.15.0. 
 
 `prefect auth status` will warn about existing authentication tokens and advise on removal.
 
@@ -252,6 +251,4 @@ If you set your token in the environment, you can unset it with `unset PREFECT__
 
 If you set your token in the config, you will have to modify `~/.prefect/config.toml` to remove it.
 
-::: warning 
-If you have logged in with an API key but a token still exists on your machine, the API key will be used and the token will be ignored.
-:::
+If you have logged in with an API key, but a token still exists on your machine, the API key will be used and the token will be ignored.

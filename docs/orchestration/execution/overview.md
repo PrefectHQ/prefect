@@ -12,7 +12,7 @@ Executing flows using the Prefect API is accomplished through two powerful abstr
 
 ## Storage
 
-[Storage](/api/latest/storage.html) objects are pieces of functionality which define how and where a Flow should be stored. Prefect supports storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
+[Storage](/api/latest/storage.html) objects define how and where a Flow should be stored. Prefect supports many [storage types](/orchestration/flow_config/storage.html#storage-types) ranging from local storage to Docker containers, code repositories including GitHub, and cloud storage with AWS, Azure, and Google Cloud.
 
 ### How Storage is Used
 
