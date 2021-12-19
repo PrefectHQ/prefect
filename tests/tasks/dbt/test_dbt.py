@@ -178,6 +178,19 @@ def test_dbt_cloud_run_job_create_task_with_cause():
     assert dbt_run_job_task.token == "xyz"
     assert dbt_run_job_task.job_id == 1234
     assert dbt_run_job_task.cause == "foo"
+    assert dbt_run_job_task.domain == 'cloud.getdbt.com'
+
+
+def test_dbt_cloud_run_job_create_task_with_domain():
+    dbt_run_job_task = DbtCloudRunJob(
+        account_id=1234, token="xyz", job_id=1234, cause="foo", domain="cloud.corp.getdbt.com"
+    )
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause == "foo"
+    assert dbt_run_job_task.domain == "cloud.corp.getdbt.com"
 
 
 def test_dbt_cloud_run_job_create_task_from_default_env_vars(monkeypatch):
@@ -234,6 +247,24 @@ def test_dbt_cloud_run_job_raises_value_error_with_missing_token():
     with pytest.raises(ValueError) as exc:
         run_job.run(cause="foo", account_id=1234, job_id=1234)
     assert "token cannot be None." in str(exc)
+
+
+@responses.activate
+def test_dbt_cloud_run_job_raises_failure():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=123,
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo", account_id=account_id, job_id=job_id, token="foo"
+    )
+    with pytest.raises(TriggerDbtCloudRunFailed):
+        run_job.run()
 
 
 @responses.activate
