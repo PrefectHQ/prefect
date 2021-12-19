@@ -6,24 +6,24 @@ import requests
 
 # dbt Cloud Trigger Job API -> https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun
 __DBT_CLOUD_TRIGGER_JOB_API_ENDPOINT_V2 = (
-    "https://cloud.getdbt.com/api/v2/accounts/{accountId}/jobs/{jobId}/run/"
+    "https://{apiDomain}/api/v2/accounts/{accountId}/jobs/{jobId}/run/"
 )
 
 # dbt Cloud Get Run API -> https://docs.getdbt.com/dbt-cloud/api-v2#operation/getRunById
 __DBT_CLOUD_GET_RUN_API_ENDPOINT_V2 = (
-    "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/"
+    "https://{apiDomain}/api/v2/accounts/{accountId}/runs/{runId}/"
 )
 
 # dbt Cloud List Run Artifacts API ->
 #   https://docs.getdbt.com/dbt-cloud/api-v2#operation/listArtifactsByRunId
 __DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2 = (
-    "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/artifacts/"
+    "https://{apiDomain}/api/v2/accounts/{accountId}/runs/{runId}/artifacts/"
 )
 
 # dbt Cloud Get Run Artifact API ->
 #   https://docs.getdbt.com/dbt-cloud/api-v2#operation/getArtifactsByRunId
 __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2 = (
-    "https://cloud.getdbt.com/api/v2/accounts/{accountId}/runs/{runId}/artifacts/{path}"
+    "https://{apiDomain}/api/v2/accounts/{accountId}/runs/{runId}/artifacts/{path}"
 )
 
 dbt_cloud_artifact_paths = ("manifest.json", "run_results.json", "catalog.json")
@@ -72,7 +72,7 @@ class DbtCloudListArtifactsFailed(DbtCloudBaseException):
 
 
 def trigger_job_run(
-    account_id: int, job_id: int, token: str, cause: str, additional_args: dict
+    account_id: int, job_id: int, token: str, cause: str, domain: str, additional_args: dict
 ) -> dict:
     """
     Trigger a dbt Cloud job run
@@ -82,6 +82,7 @@ def trigger_job_run(
         - job_id (int): dbt Cloud job ID
         - token (str): dbt Cloud token
         - cause (str): the reason describing why the job run is being triggered
+        - domain (str): the domain the function should call, default cloud.getdbt.com
         - additional_args (dict): additional information to pass to the Trigger Job Run API
 
     Returns:
@@ -94,7 +95,7 @@ def trigger_job_run(
     data["cause"] = cause
     trigger_request = requests.post(
         url=__DBT_CLOUD_TRIGGER_JOB_API_ENDPOINT_V2.format(
-            accountId=account_id, jobId=job_id
+            accountId=account_id, jobId=job_id, apiDomain=domain
         ),
         headers={"Authorization": f"Bearer {token}"},
         data=data,
@@ -107,7 +108,7 @@ def trigger_job_run(
 
 
 def wait_for_job_run(
-    account_id: int, token: str, run_id: int, max_wait_time: int = None
+    account_id: int, token: str, run_id: int, max_wait_time: int = None, domain: str = None
 ) -> dict:
     """
     Get a dbt Cloud job run.
@@ -117,7 +118,8 @@ def wait_for_job_run(
         - account_id (int): dbt Cloud account ID
         - token (str): dbt Cloud token
         - run_id (int): dbt Cloud job run ID
-        - max_wait_time: the number od seconds to wait for the job to complete
+        - max_wait_time (int): the number od seconds to wait for the job to complete
+        - domain (str): The domain the function should call, normally cloud.getdbt.com
 
     Returns:
         - The job run result, namely the "data" key in the API response
@@ -132,7 +134,7 @@ def wait_for_job_run(
     while not max_wait_time or elapsed_wait_time <= max_wait_time:
         get_run_request = requests.get(
             url=__DBT_CLOUD_GET_RUN_API_ENDPOINT_V2.format(
-                accountId=account_id, runId=run_id
+                accountId=account_id, runId=run_id, apiDomain=domain
             ),
             headers={"Authorization": f"Bearer {token}"},
         )
@@ -157,7 +159,7 @@ def wait_for_job_run(
 
 
 def list_run_artifact_links(
-    account_id: int, run_id: int, token: str
+    account_id: int, run_id: int, token: str, domain: str = None,
 ) -> List[Tuple[str, str]]:
     """
     Lists URLs that can be used to download artifacts from a dbt run
@@ -166,6 +168,7 @@ def list_run_artifact_links(
         - account_id (int): dbt Cloud account ID
         - run_id (int): dbt Cloud job run ID
         - token (str): dbt Cloud token
+        - domain (str): The domain the function should call, normally cloud.getdbt.com
 
     Returns:
         - List of artifact download URLs
@@ -175,9 +178,12 @@ def list_run_artifact_links(
 
     """
 
+    if domain is None:
+        domain = 'cloud.getdbt.com'
+
     list_run_artifact_response = requests.get(
         url=__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2.format(
-            accountId=account_id, runId=run_id
+            accountId=account_id, runId=run_id, apiDomain=domain
         ),
         headers={"Authorization": f"Bearer {token}"},
     )
@@ -188,7 +194,7 @@ def list_run_artifact_links(
     return [
         (
             __DBT_CLOUD_GET_RUN_ARTIFACT_ENDPOINT_V2.format(
-                accountId=account_id, runId=run_id, path=artifact_path
+                accountId=account_id, runId=run_id, path=artifact_path, apiDomain=domain
             ),
             artifact_path,
         )
