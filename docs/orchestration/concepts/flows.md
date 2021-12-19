@@ -173,7 +173,7 @@ mutation {
 }
 ```
 
-### Toggle Version Locking
+### Toggle Version Locking <Badge text="Cloud"/>
 
 Prefect Cloud's _opt-in_ version locking mechanism enforces the assertion that your work runs once _and only once_. To enable version locking for a flow and its tasks, use the following GraphQL mutation:
 

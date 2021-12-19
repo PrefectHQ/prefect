@@ -21,6 +21,16 @@ class ECSRun(RunConfig):
     merged with any runtime parameters configured on the agent when starting
     the task.
 
+    Note that certain Prefect specific environment variables defined within the
+    `task_definition` will be overwritten by the ECS Agent when a new task is
+    run (see method get_run_task_kwargs of the ECSAgent). For example,
+    although the variable `PREFECT__LOGGING__LEVEL` might be defined within
+    `containerDefinitions` (of the `task_definition`), it will first be
+    ovewritten with the Prefect config and then by `env` (if defined). Therefore,
+    do not set any Prefect specific environment variables within `task_definition`,
+    `task_definition_path` or `task_definition_arn`. Instead, use the top-level
+    `ECSRun.env` setting.
+
     Args:
         - task_definition (dict, optional): An in-memory task definition spec
             to use. The flow will be executed in a container named `flow` - if

@@ -1,18 +1,18 @@
 from marshmallow import fields
 
-from prefect.utilities.serialization import (
-    JSONCompatible,
-    OneOfSchema,
-    ObjectSchema,
-    SortedList,
-)
 from prefect.run_configs import (
-    KubernetesRun,
-    LocalRun,
     DockerRun,
     ECSRun,
-    VertexRun,
+    KubernetesRun,
+    LocalRun,
     UniversalRun,
+    VertexRun,
+)
+from prefect.utilities.serialization import (
+    JSONCompatible,
+    ObjectSchema,
+    OneOfSchema,
+    SortedList,
 )
 
 
@@ -68,6 +68,7 @@ class DockerRunSchema(RunConfigSchemaBase):
     class Meta:
         object_class = DockerRun
 
+    ports = fields.List(fields.Int, allow_none=True)
     image = fields.String(allow_none=True)
     host_config = fields.Dict(keys=fields.String(), allow_none=True)
 

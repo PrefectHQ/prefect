@@ -56,7 +56,7 @@ extras = {
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
-    "ge": ["great_expectations >= 0.11.1"],
+    "ge": ["great_expectations >= 0.13.8, < 0.14", "mistune < 2"],
     "gcp": [
         "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
@@ -91,6 +91,7 @@ extras = {
     "dremio": ["pyarrow >= 5.0.0"],
     "exasol": ["pyexasol >= 0.16.1"],
     "sodasql": ["soda-sql >= 2.0.0b25"],
+    "sodaspark": ["soda-spark >= 0.2.1"],
     "sendgrid": ["sendgrid >= 6.7.0"],
 }
 

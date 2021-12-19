@@ -1,5 +1,6 @@
 import os
 import sys
+from prefect.tasks.dbt.dbt_cloud_utils import TriggerDbtCloudRunFailed
 
 import responses
 import pytest
@@ -249,7 +250,7 @@ def test_dbt_cloud_run_job_raises_failure():
     run_job = DbtCloudRunJob(
         cause="foo", account_id=account_id, job_id=job_id, token="foo"
     )
-    with pytest.raises(FAIL):
+    with pytest.raises(TriggerDbtCloudRunFailed):
         run_job.run()
 
 
@@ -271,3 +272,50 @@ def test_dbt_cloud_run_job_trigger_job():
     r = run_job.run()
 
     assert r == {"foo": "bar"}
+
+
+@responses.activate
+def test_dbt_cloud_run_job_trigger_job_with_wait():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=200,
+        json={"data": {"id": 1}},
+    )
+
+    responses.add(
+        responses.GET,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/",
+        status=200,
+        json={"data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}},
+    )
+
+    responses.add(
+        responses.GET,
+        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
+        status=200,
+        json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo",
+        account_id=account_id,
+        job_id=job_id,
+        token="foo",
+        wait_for_job_run_completion=True,
+    )
+    r = run_job.run()
+
+    assert r == {
+        "id": 1,
+        "status": 10,
+        "finished_at": "2019-08-24T14:15:22Z",
+        "artifact_urls": [
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
+            f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
+        ],
+    }

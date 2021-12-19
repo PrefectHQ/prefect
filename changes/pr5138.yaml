@@ -1,6 +1,0 @@
-
-enhancement:
-  - "Add `end_time` to `FlowRunView.get_logs` - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)"
-  - "`watch_flow_run` streams logs immediately instead of waiting for flow run state changes - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)"
-
-

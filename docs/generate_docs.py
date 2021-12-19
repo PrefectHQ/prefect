@@ -11,6 +11,7 @@ Each entry in `OUTLINE` is a dictionary with the following key/value pairs:
     - "top-level-doc" -> (object, optional): module object that contains the
         docstring that will be displayed at the top of the generated page
     - "experimental" -> (bool = False, optional): whether or not to display the "Experimental" flag at the top of the page
+    - "verified_task" -> (bool = False, optional): whether or not to display the "Verified by Prefect" flag at the top of the page
 
 On a development installation of Prefect, run `python generate_docs.py` from inside the `docs/` folder.
 """
@@ -80,6 +81,7 @@ def load_outline(
                 page=f"{fname}{ext}",
                 title=data.get("title", ""),
                 experimental=data.get("experimental", False),
+                verified_task=data.get("verified_task", False),
             )
             module_name = data["module"]
             page["top-level-doc"] = importlib.import_module(module_name)
@@ -341,7 +343,7 @@ def format_subheader(obj, level=1, in_table=False):
     class_name = f'<p class="prefect-class">{create_absolute_path(obj)}</p>'
     div_class = "class-sig" if is_class else "method-sig"
     block_id = slugify(create_absolute_path(obj)) or obj.__name__
-    div_tag = f"<div class='{div_class}' id='{'method' + block_id if block_id[0] is '-' else block_id}'>"
+    div_tag = f"<div class='{div_class}' id='{'method' + block_id if block_id[0] == '-' else block_id}'>"
 
     call_sig = f" {header} {div_tag}{is_class}{class_name}({class_sig}){get_source(obj)}</div>\n\n"
     return call_sig
@@ -436,7 +438,7 @@ def build_example(path):
             if not f.run_config:
                 f.run_config = UniversalRun()
             f.run_config.labels.add("prefect-examples")
-            flows[f.name] = f.serialize()
+            flows[f.name] = f.serialize(build=True)
 
     source = "\n".join(contents.splitlines()[offset:]).strip()
 
@@ -567,7 +569,7 @@ if __name__ == "__main__":
                 """
 
                 <div align="center" style="margin-bottom:40px;">
-                <img src="/assets/prefect-logo-full-gradient.svg"  width=500 >
+                <img src="/assets/prefect-logo-full-gradient.svg"  width="500" >
                 </div>
 
                 # API Reference
@@ -644,6 +646,25 @@ d="M437.2 403.5L320 215V64h8c13.3 0 24-10.7 24-24V24c0-13.3-10.7-24-24-24H120c-1
 
 <div>
 The functionality here is experimental, and may change between versions without notice. Use at your own risk.
+</div>
+</div>
+:::
+
+---\n
+"""
+                        )
+                    elif page.get("verified_task"):
+                        f.write(
+                            f"""# {title}\n
+::: tip Verified by Prefect
+<div class="verified-task">
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+<circle cx="24" cy="24" r="24" fill="#42b983"/>
+<circle cx="24" cy="24" r="9" stroke="#fff" stroke-width="2"/>
+<path d="M19 24L22.4375 27L29 20.5" stroke="#fff" stroke-width="2"/>
+</svg>
+<div>
+These tasks have been tested and verified by Prefect.
 </div>
 </div>
 :::
