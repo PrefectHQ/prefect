@@ -1458,6 +1458,7 @@ class Client:
         run_config: RunConfig = None,
         labels: List[str] = None,
         scheduled_start_time: datetime.datetime = None,
+        schedule_delay: datetime.timedelta = None,
         idempotency_key: str = None,
         run_name: str = None,
         version_group_id: str = None,
@@ -1476,6 +1477,8 @@ class Client:
             - labels (List[str], optional): a list of labels to apply to the flow run
             - scheduled_start_time (datetime, optional): the time to schedule the execution
                 for; if not provided, defaults to now
+            - schedule_delay (timedelta, optional): period which will be waited for before executing
+                task; if not provided, defaults as 0
             - idempotency_key (str, optional): an idempotency key; if provided, this run will
                 be cached for 24 hours. Any subsequent attempts to create a run with the same
                 idempotency key will return the ID of the originally created run (no new run
@@ -1519,6 +1522,15 @@ class Client:
             inputs["idempotency_key"] = idempotency_key
         if scheduled_start_time is not None:
             inputs["scheduled_start_time"] = scheduled_start_time.isoformat()
+        if schedule_delay is not None:
+            if scheduled_start_time is not None:
+                inputs["scheduled_start_time"] = (scheduled_start_time + schedule_delay).isoformat()
+                warnings.warn(f"Task was scheduled to be executed at {scheduled_start_time.isoformat()}"
+                              f"but because schedule_delay was specified your task"
+                              f"would be executed at {(scheduled_start_time + schedule_delay).isoformat()}"
+                              )
+            else:
+                inputs["scheduled_start_time"] = (pendulum.now("utc") + schedule_delay).isoformat()
         if run_name is not None:
             inputs["flow_run_name"] = run_name
         res = self.graphql(create_mutation, variables=dict(input=inputs))

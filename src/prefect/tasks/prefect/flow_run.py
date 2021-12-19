@@ -70,6 +70,7 @@ def create_flow_run(
     run_name: str = None,
     run_config: Optional[RunConfig] = None,
     scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
+    schedule_delay: Optional[Union[pendulum.Duration, datetime.timedelta]] = None,
     idempotency_key: str = None,
 ) -> str:
     """
@@ -93,6 +94,8 @@ def create_flow_run(
             existing run config settings
         - scheduled_start_time: An optional time in the future to schedule flow run
             execution for. If not provided, the flow run will be scheduled to start now
+        - schedule_delay: An optional time period that will be waited before execute task.
+            If provided the task will wait for specified period before execution.
         - idempotency_key: a unique idempotency key for scheduling the
             flow run. Duplicate flow runs with the same idempotency key will only create
             a single flow run. This is useful for ensuring that only one run is created
@@ -145,6 +148,7 @@ def create_flow_run(
         run_name=run_name,
         run_config=run_config,
         scheduled_start_time=scheduled_start_time,
+        schedule_delay=schedule_delay,
         idempotency_key=idempotency_key,
     )
 
