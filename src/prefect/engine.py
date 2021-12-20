@@ -850,6 +850,7 @@ if __name__ == "__main__":
         exit(1)
 
     try:
+        raise ValueError(prefect.settings.orion.database.connection_url)
         enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
         logger.info(
