@@ -268,18 +268,18 @@ def test_dbt_cloud_run_job_raises_failure():
 
 
 @responses.activate
-def test_dbt_cloud_run_job_raises_failure():
+def test_dbt_cloud_run_corp_job_raises_failure():
     account_id = 1234
     job_id = 1234
 
     responses.add(
         responses.POST,
-        f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
         status=123,
     )
 
     run_job = DbtCloudRunJob(
-        cause="foo", account_id=account_id, job_id=job_id, token="foo"
+        cause="foo", account_id=account_id, job_id=job_id, token="foo", domain="cloud.corp.getdbt.com"
     )
     with pytest.raises(TriggerDbtCloudRunFailed):
         run_job.run()
