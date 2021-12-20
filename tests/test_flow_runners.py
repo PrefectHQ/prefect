@@ -1,19 +1,21 @@
+import os
+import shutil
 import subprocess
 import sys
-import coolname
-import shutil
-from unittest.mock import MagicMock
+from contextlib import contextmanager
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import anyio
 import anyio.abc
+import coolname
 import pydantic
-import os
 import pytest
 from typing_extensions import Literal
 
 import prefect
 from prefect.flow_runners import (
+    DockerFlowRunner,
     FlowRunner,
     SubprocessFlowRunner,
     UniversalFlowRunner,
@@ -23,6 +25,43 @@ from prefect.flow_runners import (
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.compat import AsyncMock
+
+
+@contextmanager
+def temporary_settings(**kwargs):
+    """
+    Temporarily override a setting in `prefect.settings`
+
+    Example:
+        >>> from prefect import settings
+        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
+        >>>    assert settings.orion_host == "foo"
+        >>> assert settings.orion_host is None
+    """
+    old_env = os.environ.copy()
+    for setting in kwargs:
+        os.environ[setting] = kwargs[setting]
+
+    from prefect import settings
+    from prefect.utilities.settings import Settings
+
+    new_settings = Settings()
+    old_settings = settings.copy()
+
+    for field in settings.__fields__:
+        object.__setattr__(settings, field, getattr(new_settings, field))
+
+    try:
+        yield settings
+    finally:
+        for setting in kwargs:
+            if old_env.get(setting):
+                os.environ[setting] = old_env[setting]
+            else:
+                os.environ.pop(setting)
+
+        for field in settings.__fields__:
+            object.__setattr__(settings, field, getattr(old_settings, field))
 
 
 @pytest.fixture
@@ -142,6 +181,31 @@ async def python_executable_test_deployment(orion_client):
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="python_executable_test_deployment",
+        flow_data=flow_data,
+    )
+
+    return deployment_id
+
+
+@pytest.fixture
+async def prefect_settings_test_deployment(orion_client):
+    """
+    A deployment for a flow that returns the current prefect settings object
+    """
+
+    @prefect.flow
+    def my_flow():
+        import prefect
+
+        return prefect.settings
+
+    flow_id = await orion_client.create_flow(my_flow)
+
+    flow_data = DataDocument.encode("cloudpickle", my_flow)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="prefect_settings_test_deployment",
         flow_data=flow_data,
     )
 
@@ -402,6 +466,82 @@ class TestSubprocessFlowRunner:
         else:
             assert "Beginning flow run" in output.out, "Log from the engine is present"
             assert "\n\n" not in output.out, "Line endings are not double terminated"
+
+
+class TestDockerFlowRunner:
+    @pytest.fixture(autouse=True)
+    def skip_if_docker_is_not_installed(self):
+        pytest.importorskip("docker")
+
+    @pytest.fixture
+    def mock_docker_client(self, monkeypatch):
+        docker = pytest.importorskip("docker")
+
+        mock = MagicMock(spec=docker.DockerClient)
+        mock.version.return_value = {"Version": "20.10"}
+
+        monkeypatch.setattr(
+            "prefect.flow_runners.DockerFlowRunner._get_client",
+            MagicMock(return_value=mock),
+        )
+        return mock
+
+    def test_runner_type(self):
+        assert DockerFlowRunner().typename == "docker"
+
+    async def test_creates_container_then_marks_as_started(
+        self, flow_run, mock_docker_client
+    ):
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+        # By raising an exception when started is called we can assert the process
+        # is opened before this time
+        fake_status.started.side_effect = RuntimeError("Started called!")
+
+        with pytest.raises(RuntimeError, match="Started called!"):
+            await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        mock_docker_client.containers.create.assert_called_once()
+
+    async def test_executes_flow_run_with_ephemeral_api(
+        self, flow_run, orion_client, prefect_settings_test_deployment
+    ):
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            prefect_settings_test_deployment
+        )
+
+        assert await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        runtime_settings = await orion_client.resolve_datadoc(state.result())
+        assert not runtime_settings.orion_host
+
+    async def test_executes_flow_run_with_hosted_api(
+        self,
+        flow_run,
+        orion_client,
+        hosted_orion,
+        prefect_settings_test_deployment,
+    ):
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            prefect_settings_test_deployment
+        )
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            assert await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        state = (await orion_client.read_flow_run(flow_run.id)).state
+        runtime_settings = await orion_client.resolve_datadoc(state.result())
+        assert runtime_settings.orion_host == hosted_orion.replace(
+            "127.0.0.1", "host.docker.internal"
+        )
 
 
 # The following tests are for configuration options and can test all relevant types
