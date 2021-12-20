@@ -308,6 +308,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
+            volumes=[f"{prefect.settings.home}:/root"],
         )
 
         # Add additional networks after the container is created; only one network can

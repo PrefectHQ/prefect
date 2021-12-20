@@ -162,6 +162,7 @@ async def retrieve_flow_then_begin_flow_run(
     - Loads the flow object using deployment information
     - Updates the flow run version
     """
+    print(prefect.settings.orion.database.connection_url)
     flow_run = await client.read_flow_run(flow_run_id)
     deployment = await client.read_deployment(flow_run.deployment_id)
     flow = await load_flow_from_deployment(deployment, client=client)
