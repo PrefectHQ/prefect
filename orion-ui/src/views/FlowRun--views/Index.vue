@@ -5,19 +5,9 @@
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
-            <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-
             <span class="d-inline-flex align-center text-truncate">
-              <Tag
-                v-for="tag in tags"
-                :key="tag"
-                color="secondary-pressed"
-                class="font--primary caption font-weight-semibold mr-1"
-                icon="pi-label"
-                flat
-              >
-                {{ tag }}
-              </Tag>
+              <StateLabel :name="state.name" :type="state.type" class="mr-1" />
+              <Tags :tags="tags" class="mr-1" />
               <div
                 class="
                   caption
