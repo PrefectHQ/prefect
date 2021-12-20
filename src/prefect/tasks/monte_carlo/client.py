@@ -7,7 +7,11 @@ from prefect.utilities.logging import get_logger
 
 
 class MonteCarloClient:
-    def __init__(self, api_key_id: str, api_token: str,) -> None:
+    def __init__(
+        self,
+        api_key_id: str,
+        api_token: str,
+    ) -> None:
         self.api_key_id = api_key_id
         self.api_token = api_token
         self.logger = get_logger()
@@ -116,7 +120,11 @@ class MonteCarloClient:
         return response
 
     def create_or_update_lineage_node(
-        self, node_name: str, object_id: str, object_type: str, resource_name: str,
+        self,
+        node_name: str,
+        object_id: str,
+        object_type: str,
+        resource_name: str,
     ):
         response = self.graphql(
             query="""

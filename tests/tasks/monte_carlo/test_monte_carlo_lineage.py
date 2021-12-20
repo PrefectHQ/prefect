@@ -167,17 +167,41 @@ def test_monte_carlo_create_or_update_lineage():
 @pytest.mark.parametrize(
     "source",
     [
-        dict(object_id="test_node", object_type="table", resource_name="test_system",),
-        dict(node_name="test_node", object_type="table", resource_name="test_system",),
-        dict(node_name="test_node", object_id="test_node", object_type="table",),
+        dict(
+            object_id="test_node",
+            object_type="table",
+            resource_name="test_system",
+        ),
+        dict(
+            node_name="test_node",
+            object_type="table",
+            resource_name="test_system",
+        ),
+        dict(
+            node_name="test_node",
+            object_id="test_node",
+            object_type="table",
+        ),
     ],
 )
 @pytest.mark.parametrize(
     "destination",
     [
-        dict(object_id="test_node", object_type="table", resource_name="test_system",),
-        dict(node_name="test_node", object_type="table", resource_name="test_system",),
-        dict(node_name="test_node", object_id="test_node", object_type="table",),
+        dict(
+            object_id="test_node",
+            object_type="table",
+            resource_name="test_system",
+        ),
+        dict(
+            node_name="test_node",
+            object_type="table",
+            resource_name="test_system",
+        ),
+        dict(
+            node_name="test_node",
+            object_id="test_node",
+            object_type="table",
+        ),
     ],
 )
 def test_monte_carlo_create_or_update_lineage_raises_with_missing_attributes(

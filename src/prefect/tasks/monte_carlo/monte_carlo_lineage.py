@@ -364,7 +364,10 @@ class MonteCarloGetResources(Task):
     """
 
     def __init__(
-        self, api_key_id: str = None, api_token: str = None, **kwargs: Any,
+        self,
+        api_key_id: str = None,
+        api_token: str = None,
+        **kwargs: Any,
     ):
         self.api_key_id = api_key_id
         self.api_token = api_token
@@ -373,7 +376,9 @@ class MonteCarloGetResources(Task):
 
     @defaults_from_attrs("api_key_id", "api_token")
     def run(
-        self, api_key_id: str = None, api_token: str = None,
+        self,
+        api_key_id: str = None,
+        api_token: str = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve all Monte Carlo resources.
