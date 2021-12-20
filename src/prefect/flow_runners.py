@@ -23,6 +23,7 @@ import anyio.abc
 import docker
 import packaging.version
 import sniffio
+import sqlalchemy.engine
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field, root_validator, validator
@@ -30,7 +31,6 @@ from slugify import slugify
 from typing_extensions import Literal
 
 import prefect
-from prefect.client import OrionClient
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
@@ -277,6 +277,8 @@ class DockerFlowRunner(UniversalFlowRunner):
     auto_remove: bool = False
     stream_output: bool = True
 
+    _container_sqlite_dir: Path = Path("/opt/sqlite-mount")
+
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
@@ -292,7 +294,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         task_status.started()
 
         # Monitor the container
-        await run_sync_in_worker_thread(self._watch_container, container_id)
+        return await run_sync_in_worker_thread(self._watch_container, container_id)
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
 
@@ -369,6 +371,8 @@ class DockerFlowRunner(UniversalFlowRunner):
             self.logger.info(
                 f"Flow run container {container.name!r} has status {container.status!r}"
             )
+
+        return container.status != "errored"
 
     def _get_client(self):
         try:
@@ -480,28 +484,41 @@ class DockerFlowRunner(UniversalFlowRunner):
                 prefect.settings.orion.database.connection_url.get_secret_value()
                 .replace("localhost", "host.docker.internal")
                 .replace("127.0.0.1", "host.docker.internal")
-                .replace(
-                    # And convert the local home directory to the container home so
-                    # sqlite will work by default
-                    str(prefect.settings.home),
-                    env.get("PREFECT_HOME", "/root/.prefect"),
-                )
             )
+
+            if self._local_sqlite_dir:
+                db_url = db_url.replace(
+                    str(self._local_sqlite_dir), str(self._container_sqlite_dir)
+                )
 
             env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
 
         return env
 
+    @property
+    def _local_sqlite_dir(self) -> Optional[Path]:
+        """
+        Return the resolved path to the directory containing the configured sqlite
+        database. If sqlite is not being used, returns `None`.
+        """
+        # This property is cached to only compute once
+        if "_local_sqlite_dir_cache" in self.__dict__:
+            return self.__dict__["_local_sqlite_dir_cache"]
+
+        db_url = prefect.settings.orion.database.connection_url.get_secret_value()
+        if db_url.startswith("sqlite"):
+            dirpath = Path(sqlalchemy.engine.make_url(db_url).database).resolve().parent
+            self.__dict__["_local_sqlite_dir_cache"] = dirpath
+            return dirpath
+        else:
+            return None
+
     def _get_volumes(self) -> List[str]:
         volumes = []
 
-        # Ensure the home directory is available if it contains the database
-        if (
-            str(prefect.settings.home)
-            in prefect.settings.orion.database.connection_url.get_secret_value()
-        ):
-            container_home = self.env.get("PREFECT_HOME", "/root/.prefect")
-            volumes.append(f"{prefect.settings.home}:{container_home}")
+        # Ensure the sqlite database directory is available
+        if self._local_sqlite_dir:
+            volumes.append(f"{self._local_sqlite_dir}:{self._container_sqlite_dir}")
 
         # Ensure local data locations are accessible if using a container ephemeral api
         if (
