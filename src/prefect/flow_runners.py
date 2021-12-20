@@ -318,8 +318,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         docker_client = self._get_client()
 
-        container = self._create_container(
-            docker_client,
+        container_settings = dict(
             image=self._get_image(docker_client),
             network=self.networks[0] if self.networks else None,
             command=self._get_start_command(flow_run),
@@ -330,6 +329,10 @@ class DockerFlowRunner(UniversalFlowRunner):
             name=self._get_container_name(flow_run),
             volumes=self._get_volumes(),
         )
+        self.logger.info(
+            f"Using container settings for '{flow_run.id}': {container_settings}"
+        )
+        container = self._create_container(docker_client, **container_settings)
 
         # Add additional networks after the container is created; only one network can
         # be attached at creation time
