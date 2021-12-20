@@ -528,7 +528,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         db_url = prefect.settings.orion.database.connection_url.get_secret_value()
         if db_url.startswith("sqlite"):
-            dirpath = Path(sqlalchemy.engine.make_url(db_url).database).resolve().parent
+            dirpath = Path(sqlalchemy.engine.make_url(db_url).database).parent
             self.__dict__["_local_sqlite_dir_cache"] = dirpath
             return dirpath
         else:
@@ -539,7 +539,9 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         # Ensure the sqlite database directory is available
         if self._local_sqlite_dir:
-            volumes.append(f"{self._local_sqlite_dir}:{self._container_sqlite_dir}")
+            volumes.append(
+                f"{self._local_sqlite_dir.resolve()}:{self._container_sqlite_dir}"
+            )
 
         # Ensure local data locations are accessible if using a container ephemeral api
         if (
