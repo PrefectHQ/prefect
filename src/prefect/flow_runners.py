@@ -269,12 +269,30 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
 @register_flow_runner
 class DockerFlowRunner(UniversalFlowRunner):
+    """
+    Executes flow runs in a container.
+
+    Requires a Docker Engine to be connectable.
+
+    Attributes:
+        image: An optional string spceifying the tag of a docker image to use.
+        networks: An optional list of strings specifying Docker networks to connect the
+            container to.
+        labels: An optional dictionary of labels, mapping name to value.
+        auto_remove: If set, the container will be removed on completion. Otherwise,
+            the container will remain after exit for inspection.
+        volumes: An optional list of volume mount strings in the format of
+            "local_path:container_path"
+        stream_output: If set, stream output from the container to local standard output
+    """
+
     typename: Literal["docker"] = "docker"
 
     image: str = None
     networks: List[str] = Field(default_factory=list)
     labels: Dict[str, str] = None
     auto_remove: bool = False
+    volumes: List[str] = Field(default_factory=list)
     stream_output: bool = True
 
     _container_sqlite_dir: Path = Path("/opt/sqlite-mount")
@@ -514,7 +532,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             return None
 
     def _get_volumes(self) -> List[str]:
-        volumes = []
+        volumes = self.volumes.copy()
 
         # Ensure the sqlite database directory is available
         if self._local_sqlite_dir:
