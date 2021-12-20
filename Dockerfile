@@ -15,7 +15,7 @@ RUN apt-get update && \
         tini=0.19.0-1 \
         # The following are required for building the asyncpg wheel
         gcc=4:10.2.1-1 \
-        linux-libc-dev=5.10.70-1 \
+        linux-libc-dev=5.10.84-1 \
         libc6-dev=2.31-13+deb11u2 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
