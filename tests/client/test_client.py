@@ -1243,7 +1243,7 @@ def test_get_flow_run_state(patch_posts, cloud_api):
     assert state.message is None
 
 
-def test_get_flow_run_state_object_not_found(patch_posts, cloud_api, runner_token):
+def test_get_flow_run_state_object_not_found(patch_posts, cloud_api):
     query_resp = {"flow_run_by_pk": {}}
 
     patch_posts([dict(data=query_resp)])

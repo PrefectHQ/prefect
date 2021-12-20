@@ -292,7 +292,6 @@ def test_k8s_agent_generate_deployment_yaml_empty_image_pull_secrets(
     agent = KubernetesAgent()
 
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
         api="test_api",
         namespace="test_namespace",
         image_pull_secrets="",
@@ -322,7 +321,6 @@ def test_k8s_agent_generate_deployment_yaml_env_contains_empty_image_pull_secret
     agent = KubernetesAgent()
 
     deployment = agent.generate_deployment_yaml(
-        token="test_token",
         api="test_api",
         namespace="test_namespace",
     )
