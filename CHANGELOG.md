@@ -26,7 +26,37 @@
 - `prefect auth login` no longer accepts authentication tokens. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 - `prefect auth purge-tokens` has been added to delete the Prefect-managed tokens directory. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
 <!-- config changes -->
-- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)
+- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
+
+
+## 0.15.10 <Badge text="beta" type="success" />
+
+Released on November 30, 2021.
+
+### Enhancements
+
+- Add `end_time` to `FlowRunView.get_logs` - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
+- Update `watch_flow_run` to stream logs immediately instead of waiting for flow run state changes - [#5138](https://github.com/PrefectHQ/prefect/pull/5138)
+- Allow setting container ports for `DockerRun` - [#5130](https://github.com/PrefectHQ/prefect/issues/5130)
+- Clarify `ECSRun` documentation, especially the ambiguities in setting IAM roles - [#5110](https://github.com/PrefectHQ/prefect/issues/5110)
+- Fix deprecated usage of `marshmallow.fields.Dict` in RRule schedules - [#4540](https://github.com/PrefectHQ/prefect/issues/4540), [#4903](https://github.com/PrefectHQ/prefect/pull/4903)
+
+### Fixes
+
+- Fix connection to local server instances when using `DockerAgent` on linux - [#5182](https://github.com/PrefectHQ/prefect/pull/5182)
+
+### Task Library
+
+- Add support for triggering [Airbyte](https://airbyte.io/) connection sync jobs using `AirbyteConnectionTask` - [#5078](https://github.com/PrefectHQ/prefect/pull/5078)
+- Add artifact publishing to `DbtCloudRunJob` task - [#5135](https://github.com/PrefectHQ/prefect/pull/5135)
+- Add support for running data quality checks on Spark DataFrames using `soda-spark` - [#4901](https://github.com/PrefectHQ/prefect/pull/5144)
+
+
+### Contributors
+
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Nicholas Hemley](https://github.com/iamniche-too)
+- [Shahil Mawjee](https://github.com/s-mawjee)
 
 ## 0.15.9 <Badge text="beta" type="success" />
 

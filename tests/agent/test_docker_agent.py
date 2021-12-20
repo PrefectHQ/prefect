@@ -247,6 +247,70 @@ def test_populate_env_vars_from_run_config(api):
     assert env_vars["PREFECT__LOGGING__LEVEL"] == "TEST"
 
 
+def test_api_url_can_be_overridden_at_agent_level(api):
+    agent = DockerAgent(env_vars={"PREFECT__CLOUD__API": "FOO"})
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+            }
+        ),
+        "test-image",
+    )
+    assert env_vars["PREFECT__CLOUD__API"] == "FOO"
+
+
+def test_api_url_can_be_overridden_with_run_config(api):
+    agent = DockerAgent(env_vars={"PREFECT__CLOUD__API": "FOO"})
+
+    run = DockerRun(
+        env={"PREFECT__CLOUD__API": "BAR"},
+    )
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+                "run_config": run.serialize(),
+            }
+        ),
+        "test-image",
+        run_config=run,
+    )
+    assert env_vars["PREFECT__CLOUD__API"] == "BAR"
+
+
+def test_api_url_uses_server_network(api, backend):
+    """
+    If the `prefect-server` network is provided and the backend is 'server' then we
+    will replace the API url with 'apollo' instead of 'host.docker.internal' to make
+    use of the network for connections to the API
+    """
+    agent = DockerAgent(networks=["prefect-server"])
+
+    env_vars = agent.populate_env_vars(
+        GraphQLResult(
+            {
+                "id": "id",
+                "name": "name",
+                "flow": {"id": "foo"},
+                "run_config": {},
+            }
+        ),
+        "test-image",
+    )
+
+    if backend == "server":
+        assert env_vars["PREFECT__CLOUD__API"] == "http://apollo:4200"
+    else:
+        assert env_vars["PREFECT__CLOUD__API"] == "https://api.prefect.io"
+
+
 @pytest.mark.parametrize(
     "config, agent_env_vars, run_config_env_vars, expected_logging_level",
     [

@@ -34,6 +34,7 @@ from prefect.exceptions import (
     AuthorizationError,
     ClientError,
     VersionLockMismatchSignal,
+    ObjectNotFoundError,
 )
 from prefect.run_configs import RunConfig
 from prefect.utilities.graphql import (
@@ -633,7 +634,8 @@ class Client:
             total=retry_total,
             backoff_factor=1,
             status_forcelist=[500, 502, 503, 504],
-            method_whitelist=["DELETE", "GET", "POST"],
+            # typeshed is out of date with urllib3 and missing `allowed_methods`
+            allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
         )
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retries))
         response = self._send_request(
@@ -1333,6 +1335,9 @@ class Client:
         }
 
         flow_run = self.graphql(query).data.flow_run_by_pk
+
+        if not flow_run:
+            raise ObjectNotFoundError(f"Flow run {flow_run_id!r} not found.")
 
         return prefect.engine.state.State.deserialize(flow_run.serialized_state)
 

@@ -1,0 +1,6 @@
+
+enhancement:
+  - "Allow passing of kwargs to Merge constructor via merge() function - [#5233](https://github.com/PrefectHQ/prefect/pull/5233)"
+
+contributor:
+  - "[Connor Martin](https://github.com/cjmartian)"

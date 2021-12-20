@@ -1,0 +1,2 @@
+fix:
+  - "Removing beta1 from Kubernetes agent template - [#5194](https://github.com/PrefectHQ/prefect/pull/5194)"

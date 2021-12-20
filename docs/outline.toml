@@ -331,6 +331,7 @@ classes = ["DatasetCreateFromDelimitedFiles",
 title = "Fivetran Tasks"
 module = "prefect.tasks.fivetran"
 classes = ["FivetranSyncTask"]
+verified_task = true
 
 [pages.tasks.prefect]
 title = "Prefect Tasks"
@@ -390,6 +391,7 @@ classes = [
         "DbtShellTask",
         "DbtCloudRunJob"
         ]
+verified_task = true
 
 [pages.tasks.asana]
 title = "Asana Tasks"
@@ -462,6 +464,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = ["RunGreatExpectationsValidation"]
+verified_task = true
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"
@@ -747,3 +750,4 @@ classes = ["CensusSyncTask"]
 title = "Airbyte Tasks"
 module = "prefect.tasks.airbyte"
 classes = ["AirbyteConnectionTask"]
+verified_task = true

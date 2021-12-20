@@ -52,9 +52,21 @@ Prefect Core ships with an open-source backend and UI that automatically extends
 
 We recommend Prefect Server for local testing and environments with restricted access to cloud services.
 
-Get started by running `prefect server start` and navigate to `http://localhost:8080`.
+To use Prefect Server as the backend, run the following command to configure Prefect for local orchestration:
 
-**Note:** Prefect Server requires both Docker and Docker Compose.
+```bash
+$ prefect backend server
+``` 
+
+Please note the server requires [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/install/) to be running.
+
+To start the server, UI, and all required infrastructure, run:
+
+```bash
+$ prefect server start
+```
+
+When server is running, navigate to [`http://localhost:8080`](http://localhost:8080).
 
 ## Architecture Overview
 
@@ -64,11 +76,11 @@ Prefect's unique [hybrid execution model](https://medium.com/the-prefect-blog/th
     <img src="/prefect_architecture_overview.png" >
 </div>
 
-When you register a [Flow](https://docs.prefect.io/core/concepts/flows.html), your code is securely stored on your infrastructure &mdash; your code never leaves your execution environment and is never sent to Prefect Cloud. Instead, Flow metadata is sent to Prefect Cloud for scheduling and orchestration.
+When you register a [Flow](/core/concepts/flows.html), your code is securely stored on your infrastructure &mdash; your code never leaves your execution environment and is never sent to Prefect Cloud. Instead, Flow metadata is sent to Prefect Cloud for scheduling and orchestration.
 
-Prefect [Agents](https://docs.prefect.io/orchestration/agents/overview.html) run inside a user's architecture, and are responsible for starting and monitoring flow runs. Agents send requests to the Prefect Cloud API to update flow run metadata.
+Prefect [Agents](/orchestration/agents/overview.html) run inside a user's architecture, and are responsible for starting and monitoring flow runs. Agents send requests to the Prefect Cloud API to update flow run metadata.
 
-Prefect Cloud's live updating [UI](https://docs.prefect.io/orchestration/ui/dashboard.html#overview) allows you to monitor flow execution in real time and leverage Prefect Cloud's extensive integration functionality.
+Prefect Cloud's live updating [UI](/orchestration/ui/dashboard.html#overview) allows you to monitor flow execution in real time and leverage Prefect Cloud's extensive integration functionality.
 
 We know one of these solutions will minimize your [negative engineering](https://medium.com/the-prefect-blog/positive-and-negative-data-engineering-a02cb497583d) burden and get you back to the code you really want to write.
 

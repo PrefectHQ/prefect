@@ -67,6 +67,18 @@ class ClientError(PrefectException):
         super().__init__(message)
 
 
+class ObjectNotFoundError(ClientError):
+    """
+    Raised when an object is not found on the Server
+
+    Args:
+        - message: A message with additional information about the error
+    """
+
+    def __init__(self, message: str = "") -> None:
+        super().__init__(message)
+
+
 class AuthorizationError(ClientError):
     """
     Raised when there is an issue authorizing with Prefect Cloud
