@@ -765,3 +765,9 @@ title = "Airbyte Tasks"
 module = "prefect.tasks.airbyte"
 classes = ["AirbyteConnectionTask"]
 verified_task = true
+
+[pages.tasks.monte_carlo]
+title = "Monte Carlo Tasks"
+module = "prefect.tasks.monte_carlo"
+classes = ["MonteCarloCreateOrUpdateLineage", "MonteCarloCreateOrUpdateNodeWithTag", "MonteCarloGetResources"]
+verified_task = true
