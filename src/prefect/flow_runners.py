@@ -308,7 +308,10 @@ class DockerFlowRunner(UniversalFlowRunner):
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
-            volumes=[f"{prefect.settings.home}:/root"],
+            volumes=[
+                f"{prefect.settings.home}:/root/.prefect",
+                f"{prefect.settings.orion.data.base_path}:{prefect.settings.orion.data.base_path}",
+            ],
         )
 
         # Add additional networks after the container is created; only one network can
@@ -480,6 +483,12 @@ class DockerFlowRunner(UniversalFlowRunner):
                 prefect.settings.orion.database.connection_url.get_secret_value()
                 .replace("localhost", "host.docker.internal")
                 .replace("127.0.0.1", "host.docker.internal")
+                .replace(
+                    # And convert the local home directory to the container home so
+                    # sqlite will work by default
+                    str(prefect.settings.home),
+                    env.get("PREFECT_HOME", "/root/.prefect"),
+                )
             )
 
             env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
