@@ -308,10 +308,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
-            volumes=[
-                f"{prefect.settings.home}:/root/.prefect",
-                f"{prefect.settings.orion.data.base_path}:{prefect.settings.orion.data.base_path}",
-            ],
+            volumes=self._get_volumes(),
         )
 
         # Add additional networks after the container is created; only one network can
@@ -493,15 +490,30 @@ class DockerFlowRunner(UniversalFlowRunner):
 
             env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
 
-        db_url = env.get("PREFECT_ORION_DATABASE_CONNECTION_URL")
-        if (not db_url or "sqlite" in db_url) and "PREFECT_ORION_HOST" not in env:
-            warnings.warn(
-                "A standalone server has not been configured and the database "
-                "connection url is unconfigured or using SQLite. It is likely that "
-                "your flow run container will not be able to contact the API."
+        return env
+
+    def _get_volumes(self) -> List[str]:
+        volumes = []
+
+        # Ensure the home directory is available if it contains the database
+        if (
+            str(prefect.settings.home)
+            in prefect.settings.orion.database.connection_url.get_secret_value()
+        ):
+            container_home = self.env.get("PREFECT_HOME", "/root/.prefect")
+            volumes.append(f"{prefect.settings.home}:{container_home}")
+
+        # Ensure local data locations are accessible if using a container ephemeral api
+        if (
+            prefect.settings.orion.data.scheme == "file"
+            and not prefect.settings.orion_host
+            and not self.env.get("PREFECT_ORION_HOST")
+        ):
+            volumes.append(
+                f"{prefect.settings.orion.data.base_path}:{prefect.settings.orion.data.base_path}"
             )
 
-        return env
+        return volumes
 
     def _get_labels(self, flow_run: FlowRun):
         labels = self.labels.copy() if self.labels else {}
