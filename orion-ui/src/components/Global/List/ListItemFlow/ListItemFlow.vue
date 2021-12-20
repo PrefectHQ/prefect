@@ -30,13 +30,13 @@
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto nowrap">
-      <ButtonRounded class="mr-1">
+      <ButtonRounded class="mr-1" disabled>
         {{ flowRunCount.toLocaleString() }} flow run{{
           flowRunCount == 1 ? '' : 's'
         }}
       </ButtonRounded>
 
-      <ButtonRounded class="mr-1">
+      <ButtonRounded disabled>
         {{ taskRunCount.toLocaleString() }} task run{{
           taskRunCount == 1 ? '' : 's'
         }}
