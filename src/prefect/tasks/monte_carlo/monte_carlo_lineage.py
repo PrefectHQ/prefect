@@ -17,31 +17,32 @@ class MonteCarloCreateOrUpdateLineage(Task):
         Example:
         ```python
         source = dict(
-            node_name="example_table_name",  # this may be a shorter version of object_id - display name
+            node_name="example_table_name",  # this may be a shorter version of object_id
             object_id="example_table_name",
-            object_type="table",  # "table" is recommended, but it's an arbitrary string, so you can use e.g. "csv_file"
+            object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
             resource_name="name_your_source_system",
             metadata_key="your_key_name",
             metadata_value="your_abitrary_value",
         )
         ```
         - destination (dict, optional): a destination node configuration. Expected to include the following keys:
-        `node_name`, `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key` and `metadata_value`.
+        `node_name`, `object_id`, `object_type`, `resource_name`, 
+        and optionally also `metadata_key` and `metadata_value`.
         Example:
         ```python
         destination = dict(
             node_name="db_name:schema_name.table_name",  # here it shows a full name of a data warehouse table
             object_id="db_name:schema_name.table_name",
-            object_type="table",  # "table" is recommended, but it's an arbitrary string, so you can use e.g. "csv_file"
+            object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
             resource_name="your_dwh_resource_name",
             metadata_key="your_optional_key_name",
             metadata_value="your_optional_abitrary_value",
         )
         ```
-        - api_key_id (string, optional): in order to use this task, you need to pass the Monte Carlo API credentials.
+        - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
         Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
         in plain text, you can leverage PrefectSecret task in your flow.
-        - api_token (string, optional): the API token - when creating the API key, you'll get the key ID and API token.
+        - api_token (string, optional): the API token.
          To avoid passing the credentials in plain text, you can leverage PrefectSecret task in your flow.
         - prefect_context_tag (bool, optional): whether to automatically add a tag with Prefect context.
         - expire_at (string, optional): it's possible to expire specific lineage nodes. If this value is set, the
@@ -87,43 +88,46 @@ class MonteCarloCreateOrUpdateLineage(Task):
         expire_at: str = None,
     ) -> Dict[str, Any]:
         """
-        Creates or updates a lineage node for the given source and destination, and creates a lineage edge between them.
+        Creates or updates a lineage node for the given source and destination, 
+        and creates a lineage edge between them.
         If the `metadata_key` and `metadata_value` are set for either source or destination (or both),
         the task adds those as tags to the source and/or destination nodes. If no key-value pair is set, the task
         creates a node without custom tags. Additionally, if the `prefect_context_tag` flag is set to True (default),
         the task creates a tag with the Prefect context dictionary for debugging data downtime issues.
 
         Args:
-            - source (dict, optional): a source node configuration. Expected to include the following keys: `node_name`,
+            - source (dict, optional): a source node configuration. 
+            Expected to include the following keys: `node_name`,
             `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key` and `metadata_value`.
             Example:
             ```python
             source = dict(
-                node_name="example_table_name",  # this may be a shorter version of object_id - display name
+                node_name="example_table_name",  # this may be a shorter version of object_id
                 object_id="example_table_name",
-                object_type="table",  # "table" is recommended, but it's an arbitrary string, so you can use e.g. "csv_file"
+                object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
                 resource_name="name_your_source_system",
                 metadata_key="your_key_name",
                 metadata_value="your_abitrary_value",
             )
             ```
             - destination (dict, optional): a destination node configuration. Expected to include the following keys:
-            `node_name`, `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key` and `metadata_value`.
+            `node_name`, `object_id`, `object_type`, `resource_name`, 
+            and optionally also `metadata_key` and `metadata_value`.
             Example:
             ```python
             destination = dict(
-                node_name="db_name:schema_name.table_name",  # this may be a shorter version of object_id - display name
+                node_name="db_name:schema_name.table_name",  # this may be a shorter version of object_id
                 object_id="db_name:schema_name.table_name",
-                object_type="table",  # "table" is recommended, but it's an arbitrary string, so you can use e.g. "csv_file"
-                resource_name="your_dwh_resource_name",  # can be found in: https://getmontecarlo.com/settings/integrations
+                object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
+                resource_name="your_dwh_resource_name", 
                 metadata_key="your_optional_key_name",
                 metadata_value="your_optional_abitrary_value",
             )
             ```
-            - api_key_id (string, optional): in order to use this task, you need to pass the Monte Carlo API credentials.
+            - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
             Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
             in plain text, you can leverage PrefectSecret task in your flow.
-            - api_token (string, optional): the API token - when creating the API key, you'll get the key ID and API token.
+            - api_token (string, optional): the API token.
              To avoid passing the credentials in plain text, you can leverage PrefectSecret task in your flow.
             - prefect_context_tag (bool, optional): whether to automatically add a tag with Prefect context.
             - expire_at (string, optional): it's possible to expire specific lineage nodes. If this value is set, the
@@ -209,7 +213,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
 
         response = mc.create_or_update_lineage_edge(source, destination, expire_at)
         self.logger.debug("Lineage edge response: %s", response)
-        if self.prefect_context_tag:
+        if prefect_context_tag:
             self.logger.info("Setting Prefect context tags on the lineage nodes...")
             mc.create_or_update_tags_for_mcon(
                 mcon=source_node_mcon,
@@ -237,10 +241,10 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         retrieved via a separate task
         - metadata_key (string, optional): the metadata tag name
         - metadata_value (string, optional): the value of a metadata tag
-        - api_key_id (string, optional): in order to use this task, you need to pass the Monte Carlo API credentials.
+        - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
         Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
         in plain text, you can leverage PrefectSecret task in your flow.
-        - api_token (string, optional): the API token - when creating the API key, you'll get the key ID and API token.
+        - api_token (string, optional): the API token.
          To avoid passing the credentials in plain text, you can leverage PrefectSecret task in your flow.
         - prefect_context_tag (bool, optional): whether to automatically add a tag with Prefect context.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
@@ -296,18 +300,18 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
     ) -> str:
         """
         Creates or updates metadata tags for a given lineage node in the Monte Carlo Catalog.
-        If the `prefect_context_tag` flag is set to True (default), the task additionally creates a tag with the Prefect
-        context dictionary for debugging data downtime issues.
+        If the `prefect_context_tag` flag is set to True (default), the task additionally creates
+        a tag with the Prefect context dictionary for debugging data downtime issues.
 
         Args:
             - object_id (string, optional): the object ID of a lineage node.
             - object_type (string, optional): the object type of a lineage node - usually, either "table" or "view"
             - metadata_key (string, optional): the metadata tag name
             - metadata_value (string, optional): the value of a metadata tag
-            - api_key_id (string, optional): in order to use this task, you need to pass the Monte Carlo API credentials.
+            - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
             Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
             in plain text, you can leverage PrefectSecret task in your flow.
-            - api_token (string, optional): the API token - when creating the API key, you'll get the key ID and API token.
+            - api_token (string, optional): the API token.
              To avoid passing the credentials in plain text, you can leverage PrefectSecret task in your flow.
             - prefect_context_tag (bool, optional): whether to automatically add a tag with Prefect context.
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
@@ -341,7 +345,7 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
             metadata_key,
             metadata_value,
         )
-        if self.prefect_context_tag:
+        if prefect_context_tag:
             self.logger.info("Setting Prefect context tags on the lineage nodes...")
             mc.create_or_update_tags_for_mcon(
                 mcon=node_mcon, key="prefect_context", value=get_prefect_context()
@@ -355,10 +359,10 @@ class MonteCarloGetResources(Task):
     data warehouse or other resource and use it as `resource_name` in other Monte Carlo tasks.
 
     Args:
-        - api_key_id (string, optional): in order to use this task, you need to pass the Monte Carlo API credentials.
+        - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
         Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
         in plain text, you can leverage PrefectSecret task in your flow.
-        - api_token (string, optional): the API token - when creating the API key, you'll get the key ID and API token.
+        - api_token (string, optional): the API token.
          To avoid passing the credentials in plain text, you can leverage PrefectSecret task in your flow.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
     """
@@ -384,10 +388,10 @@ class MonteCarloGetResources(Task):
         Retrieve all Monte Carlo resources.
 
         Args:
-            - api_key_id (string, optional): in order to use this task, you need to pass the Monte Carlo API credentials.
+            - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
             Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
             in plain text, you can leverage PrefectSecret task in your flow.
-            - api_token (string, optional): the API token - when creating the API key, you'll get the key ID and API token.
+            - api_token (string, optional): the API token.
              To avoid passing the credentials in plain text, you can leverage PrefectSecret task in your flow.
             - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
 

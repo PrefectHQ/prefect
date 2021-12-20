@@ -1,7 +1,7 @@
 import pytest
 import requests
 import responses
-from prefect.tasks.monte_carlo_lineage import (
+from prefect.tasks.monte_carlo.monte_carlo_lineage import (
     MonteCarloCreateOrUpdateNodeWithTag,
     MonteCarloGetResources,
     MonteCarloCreateOrUpdateLineage,
