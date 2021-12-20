@@ -1,6 +1,6 @@
 import json
 from typing import Any, Dict, List
-from client import MonteCarloClient
+from prefect.tasks.monte_carlo.client import MonteCarloClient
 
 import prefect
 from prefect import Task
@@ -26,7 +26,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
         )
         ```
         - destination (dict, optional): a destination node configuration. Expected to include the following keys:
-        `node_name`, `object_id`, `object_type`, `resource_name`, 
+        `node_name`, `object_id`, `object_type`, `resource_name`,
         and optionally also `metadata_key` and `metadata_value`.
         Example:
         ```python
@@ -88,7 +88,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
         expire_at: str = None,
     ) -> Dict[str, Any]:
         """
-        Creates or updates a lineage node for the given source and destination, 
+        Creates or updates a lineage node for the given source and destination,
         and creates a lineage edge between them.
         If the `metadata_key` and `metadata_value` are set for either source or destination (or both),
         the task adds those as tags to the source and/or destination nodes. If no key-value pair is set, the task
@@ -96,7 +96,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
         the task creates a tag with the Prefect context dictionary for debugging data downtime issues.
 
         Args:
-            - source (dict, optional): a source node configuration. 
+            - source (dict, optional): a source node configuration.
             Expected to include the following keys: `node_name`,
             `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key` and `metadata_value`.
             Example:
@@ -111,7 +111,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
             )
             ```
             - destination (dict, optional): a destination node configuration. Expected to include the following keys:
-            `node_name`, `object_id`, `object_type`, `resource_name`, 
+            `node_name`, `object_id`, `object_type`, `resource_name`,
             and optionally also `metadata_key` and `metadata_value`.
             Example:
             ```python
@@ -119,7 +119,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 node_name="db_name:schema_name.table_name",  # this may be a shorter version of object_id
                 object_id="db_name:schema_name.table_name",
                 object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
-                resource_name="your_dwh_resource_name", 
+                resource_name="your_dwh_resource_name",
                 metadata_key="your_optional_key_name",
                 metadata_value="your_optional_abitrary_value",
             )
@@ -235,6 +235,7 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
     context dictionary for debugging data downtime issues.
 
     Args:
+        - node_name (string, optional): the display name of a lineage node.
         - object_id (string, optional): the object ID of a lineage node.
         - object_type (string, optional): the object type of a lineage node - usually, either "table" or "view"
         - resource_name (string, optional): name of the data warehouse or custom resource. All resources can be
@@ -304,6 +305,7 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         a tag with the Prefect context dictionary for debugging data downtime issues.
 
         Args:
+            - node_name (string, optional): the display name of a lineage node.
             - object_id (string, optional): the object ID of a lineage node.
             - object_type (string, optional): the object type of a lineage node - usually, either "table" or "view"
             - metadata_key (string, optional): the metadata tag name
@@ -368,21 +370,15 @@ class MonteCarloGetResources(Task):
     """
 
     def __init__(
-        self,
-        api_key_id: str = None,
-        api_token: str = None,
-        **kwargs: Any,
+        self, api_key_id: str = None, api_token: str = None, **kwargs: Any,
     ):
         self.api_key_id = api_key_id
         self.api_token = api_token
-        self._api_url = "https://api.getmontecarlo.com/graphql"
         super().__init__(**kwargs)
 
     @defaults_from_attrs("api_key_id", "api_token")
     def run(
-        self,
-        api_key_id: str = None,
-        api_token: str = None,
+        self, api_key_id: str = None, api_token: str = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve all Monte Carlo resources.
