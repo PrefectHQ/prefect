@@ -543,6 +543,93 @@ class TestDockerFlowRunner:
             "127.0.0.1", "host.docker.internal"
         )
 
+    async def test_image_is_used(self, mock_docker_client, flow_run):
+        await DockerFlowRunner(image="foo").submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_image = mock_docker_client.containers.create.call_args[1].get("image")
+        assert call_image == "foo"
+
+    async def test_volumes_are_used(self, mock_docker_client, flow_run):
+        await DockerFlowRunner(volumes=["a:b", "c:d"]).submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert "a:b" in call_volumes
+        assert "c:d" in call_volumes
+
+    @pytest.mark.parametrize("local_path", ["/fake/orion.db", "./orion.db"])
+    async def test_local_sqlite_is_auto_included_in_volumes(
+        self, mock_docker_client, flow_run, local_path
+    ):
+        fake_db_url = f"sqlite+aiosqlite:///{local_path}"
+        with temporary_settings(PREFECT_ORION_DATABASE_CONNECTION_URL=fake_db_url):
+            runner = DockerFlowRunner()
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert (
+            f"{Path(local_path).parent.resolve()}:{runner._container_sqlite_dir}"
+            in call_volumes
+        )
+
+    @pytest.mark.skip("`_` prefixed settings are private")
+    async def test_sqlite_volume_can_be_disabled(self, mock_docker_client, flow_run):
+        fake_db_url = f"sqlite+aiosqlite:////tmp/test"
+        with temporary_settings(PREFECT_ORION_DATABASE_CONNECTION_URL=fake_db_url):
+            runner = DockerFlowRunner(_container_sqlite_dir=None)
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert not call_volumes
+
+    async def test_local_data_location_is_auto_included_in_volumes(
+        self, mock_docker_client, flow_run
+    ):
+        fake_base_path = "/tmp/foo"
+        with temporary_settings(
+            PREFECT_ORION_DATA_SCHEME="file",
+            PREFECT_ORION_DATA_BASE_PATH=fake_base_path,
+        ):
+            runner = DockerFlowRunner()
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert f"{fake_base_path}:{runner._container_dataloc_dir}" in call_volumes
+
+    async def test_nonlocal_data_location_is_not_included_in_volumes(
+        self, mock_docker_client, flow_run
+    ):
+        with temporary_settings(
+            PREFECT_ORION_DATA_SCHEME="s3",
+            PREFECT_ORION_DATA_BASE_PATH="/tmp/foo",
+        ):
+            runner = DockerFlowRunner()
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert f"/tmp/foo:{runner._container_dataloc_dir}" not in call_volumes
+
+    @pytest.mark.parametrize("local_path", ["/fake/orion.db", "./orion.db"])
+    async def test_local_sqlite_is_auto_included_in_environment_variables(
+        self, mock_docker_client, flow_run, local_path
+    ):
+        fake_db_url = f"sqlite+aiosqlite:///{local_path}"
+        with temporary_settings(PREFECT_ORION_DATABASE_CONNECTION_URL=fake_db_url):
+            runner = DockerFlowRunner()
+            await runner.submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert "PREFECT_ORION_DATABASE_CONNECTION_URL" in call_env
+        assert call_env["PREFECT_ORION_DATABASE_CONNECTION_URL"] == (
+            f"sqlite+aiosqlite:///{runner._container_sqlite_dir / Path(local_path).name}"
+        )
+
 
 # The following tests are for configuration options and can test all relevant types
 
