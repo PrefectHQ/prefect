@@ -69,6 +69,8 @@ class MonteCarloCreateOrUpdateLineage(Task):
 
     """
 
+    catalog_url = "https://getmontecarlo.com/catalog"
+
     def __init__(
         self,
         source: Dict[str, str] = None,
@@ -85,7 +87,6 @@ class MonteCarloCreateOrUpdateLineage(Task):
         self.api_token = api_token
         self.prefect_context_tag = prefect_context_tag
         self.expire_at = expire_at
-        self._catalog_url = "https://getmontecarlo.com/catalog"
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -190,7 +191,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 source["metadata_key"],
                 source["metadata_value"],
             )
-        source_node_url = f"{self._catalog_url}/{source_node_mcon}/table"
+        source_node_url = f"{self.catalog_url}/{source_node_mcon}/table"
         self.logger.info("Created or updated a source lineage node %s", source_node_url)
 
         if (
@@ -212,13 +213,13 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 destination["metadata_key"],
                 destination["metadata_value"],
             )
-        destination_node_url = f"{self._catalog_url}/{destination_node_mcon}/table"
+        destination_node_url = f"{self.catalog_url}/{destination_node_mcon}/table"
         self.logger.info(
             "Created or updated a destination lineage node %s", destination_node_url
         )
 
-        response = mc.create_or_update_lineage_edge(source, destination, expire_at)
-        self.logger.debug("Lineage edge response: %s", response)
+        edge_id = mc.create_or_update_lineage_edge(source, destination, expire_at)
+        self.logger.debug("Lineage edge response: %s", edge_id)
         if prefect_context_tag:
             self.logger.info("Setting Prefect context tags on the lineage nodes...")
             mc.create_or_update_tags_for_mcon(
@@ -231,7 +232,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 key="prefect_context",
                 value=get_prefect_context(),
             )
-        return response
+        return edge_id
 
 
 class MonteCarloCreateOrUpdateNodeWithTag(Task):

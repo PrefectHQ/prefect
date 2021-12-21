@@ -1,4 +1,3 @@
-import json
 import pendulum
 import requests
 from typing import Any, Dict, List
@@ -17,7 +16,9 @@ class MonteCarloClient:
         self.logger = get_logger()
         self._api_url = "https://api.getmontecarlo.com/graphql"
 
-    def graphql(self, query: str, variables: dict = None) -> Dict[str, Any]:
+    def _send_graphql_request(
+        self, query: str, variables: dict = None
+    ) -> Dict[str, Any]:
         response = requests.post(
             url=self._api_url,
             json=dict(query=query, variables=variables),
@@ -28,31 +29,12 @@ class MonteCarloClient:
             },
         )
         response.raise_for_status()
-        response = json.loads(response.text)
+        response = response.json()
         self.logger.info("Response: %s", response)
         return response
 
-    def get_warehouse_id_by_name(self, warehouse_name: str) -> str:
-        response = self.graphql(
-            query="""
-                    {
-                        getUser {
-                            account {
-                                warehouses {
-                                    name
-                                    uuid
-                                }
-                            }
-                        }
-                    }
-                    """
-        )
-        warehouses = response["data"]["getUser"]["account"]["warehouses"]
-        id_ = [w for w in warehouses if w["name"] == warehouse_name][0].get("uuid")
-        return id_
-
     def get_resources(self) -> List[Dict[str, Any]]:
-        response = self.graphql(
+        response = self._send_graphql_request(
             query="""
                     query {
                         getResources {
@@ -68,43 +50,10 @@ class MonteCarloClient:
         )
         return response["data"]["getResources"]
 
-    def get_table_mcon(self, full_table_id: str, warehouse_name: str) -> str:
-        response = self.graphql(
-            query="""
-                    query($dwh_id: UUID!, $full_table_id: String!) {
-                        getTable(dwId: $dwh_id,
-                            fullTableId: $full_table_id) {
-                            mcon
-                        }
-                    }
-                    """,
-            variables=dict(
-                dwh_id=self.get_warehouse_id_by_name(warehouse_name),
-                full_table_id=full_table_id,
-            ),
-        )
-        return response["data"]["getTable"]["mcon"]
-
-    def get_node_mcon(self, object_id: str, object_type: str) -> str:
-        response = self.graphql(
-            query="""
-                    query($object_id: String!, $object_type: String!) {
-                        getLineageNode(objectId: $object_id,
-                            objectType: $object_type) {
-                            mcon
-                        }
-                    }
-                    """,
-            variables=dict(object_id=object_id, object_type=object_type),
-        )
-        mcon = response["data"]["getLineageNode"]["mcon"]
-        self.logger.info("Object_id %s has the following MCON: %s", object_id, mcon)
-        return mcon
-
     def create_or_update_tags_for_mcon(
         self, key: str, value: str, mcon: str
     ) -> Dict[str, Any]:
-        response = self.graphql(
+        response = self._send_graphql_request(
             query="""
                 mutation($mcon_id: String!, $key: String!, $value: String!) {
                     createOrUpdateObjectProperty(mconId: $mcon_id,
@@ -117,7 +66,7 @@ class MonteCarloClient:
                 """,
             variables=dict(mcon_id=mcon, key=key, value=value),
         )
-        return response
+        return response["data"]["createOrUpdateObjectProperty"]["objectProperty"]["id"]
 
     def create_or_update_lineage_node(
         self,
@@ -126,7 +75,7 @@ class MonteCarloClient:
         object_type: str,
         resource_name: str,
     ):
-        response = self.graphql(
+        response = self._send_graphql_request(
             query="""
             mutation($node_name: String!, $object_id: String!, $object_type: String!,
             $resource_name: String! ) {
@@ -161,7 +110,7 @@ class MonteCarloClient:
         metadata_key: str,
         metadata_value: str,
     ) -> str:
-        response = self.graphql(
+        response = self._send_graphql_request(
             query="""
             mutation($node_name: String!, $object_id: String!, $object_type: String!,
             $resource_name: String!, $metadata_key: String!, $metadata_value: String!
@@ -192,7 +141,7 @@ class MonteCarloClient:
         return response["data"]["createOrUpdateLineageNode"]["node"]["mcon"]
 
     def create_or_update_resource(self, resource_name: str, resource_type: str):
-        response = self.graphql(
+        response = self._send_graphql_request(
             query="""
             mutation($resource_name: String!, $resource_type: String!) {
               createOrUpdateResource(
@@ -216,7 +165,7 @@ class MonteCarloClient:
         if expire_at is None:
             expire_at = pendulum.now().add(days=1).isoformat()
 
-        response = self.graphql(
+        response = self._send_graphql_request(
             query="""
                 mutation($destination_object_id: String!,
                 $destination_object_type: String!,
@@ -253,4 +202,4 @@ class MonteCarloClient:
             ),
         )
         self.logger.info("Response of createOrUpdateLineageEdge %s", response)
-        return response
+        return response["data"]["createOrUpdateLineageEdge"]["edge"]["edgeId"]

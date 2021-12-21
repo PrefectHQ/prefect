@@ -97,6 +97,7 @@ def test_monte_carlo_create_or_update_node_with_tag():
         metadata_value,
         api_key_id,
         api_token,
+        prefect_context_tag=False,
     ).run()
     assert result == "MCON++123456789"
 
@@ -153,15 +154,7 @@ def test_monte_carlo_create_or_update_lineage():
     result = MonteCarloCreateOrUpdateLineage(
         source, destination, api_key_id, api_token, prefect_context_tag=False
     ).run()
-    assert result == {
-        "data": {
-            "createOrUpdateLineageEdge": {
-                "edge": {
-                    "edgeId": "f556899cfd39993517d7fc262f3d22d759fe94bd54324c5d89f4be48333dcab7",
-                }
-            }
-        }
-    }
+    assert result == "f556899cfd39993517d7fc262f3d22d759fe94bd54324c5d89f4be48333dcab7"
 
 
 @pytest.mark.parametrize(
