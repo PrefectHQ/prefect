@@ -32,13 +32,6 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_runtest_setup(item):
-    envnames = [mark.args[0] for mark in item.iter_markers(name="env")]
-    if envnames:
-        if item.config.getoption("-E") not in envnames:
-            pytest.skip("test requires env in {!r}".format(envnames))
-
-
 def pytest_collection_modifyitems(session, config, items):
     """
     Modify all tests to automatically and transparently support asyncio
@@ -61,8 +54,8 @@ def pytest_collection_modifyitems(session, config, items):
         if missing_services:
             item.add_marker(
                 pytest.mark.skip(
-                    f"Requires services: {', '.join(missing_services)}. "
-                    "Use '--service NAME' to include test."
+                    f"Requires service {', '.join(repr(s) for s in missing_services)}. "
+                    "Use '--service NAME' to include."
                 )
             )
 
