@@ -560,7 +560,7 @@ class TestDockerFlowRunner:
             ):
                 await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-    async def test_sqlite_and_hosted_api_does_not_raise(
+    async def test_sqlite_and_hosted_api_does_not_raise_on_submission(
         self, mock_docker_client, flow_run, hosted_orion
     ):
         with temporary_settings(
@@ -578,7 +578,7 @@ class TestDockerFlowRunner:
         ):
             with pytest.raises(
                 RuntimeError,
-                match="cannot be used with an ephemeral server and a local file system data location",
+                match="cannot be used with an ephemeral server and a local data location",
             ):
                 await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
