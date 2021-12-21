@@ -1526,7 +1526,7 @@ class Client:
             if scheduled_start_time is not None:
                 inputs["scheduled_start_time"] = (scheduled_start_time + schedule_delay).isoformat()
                 warnings.warn(f"Task was scheduled to be executed at {scheduled_start_time.isoformat()}"
-                              f"but because schedule_delay was specified your task"
+                              f"but because schedule_delay was specified your task "
                               f"would be executed at {(scheduled_start_time + schedule_delay).isoformat()}"
                               )
             else:
