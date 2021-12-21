@@ -17,7 +17,7 @@ def test_monte_carlo_fails_with_invalid_api_key():
         MONTE_CARLO_API_URL,
         status=403,
         json={
-            "Message": "User is not authorized to access this resource with an explicit deny"
+            "Message": "User is not authorized to access this resource with an explicit deny."
         },
     )
     response = requests.post(
@@ -30,7 +30,7 @@ def test_monte_carlo_fails_with_invalid_api_key():
         },
     )
     assert response.json() == {
-        "Message": "User is not authorized to access this resource with an explicit deny"
+        "Message": "User is not authorized to access this resource with an explicit deny."
     }
 
 
