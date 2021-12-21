@@ -462,6 +462,49 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:core
+  build_release_candidate_docker_image:
+    docker:
+      - image: docker
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PW
+    parameters:
+      python_version:
+        type: string
+      extras:
+        type: string
+    environment:
+      PYTHON_VERSION: << parameters.python_version >>
+      EXTRAS: << parameters.extras >>
+    steps:
+      - checkout
+      - run:
+          name: 1.0.0rc branch check
+          command: |
+            apk add git
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.0.0rc | grep 1.0.0rc | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.0.0rc branch"
+              exit 1
+            fi
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build image
+          command: |
+            set -u
+            docker build \
+              --build-arg GIT_SHA=$CIRCLE_SHA1 \
+              --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
+              --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
+              --build-arg PYTHON_VERSION=$PYTHON_VERSION \
+              --build-arg EXTRAS=$EXTRAS \
+              -t prefecthq/prefect:1.0.0rc \
+              .
+      - run:
+          name: Push 1.0.0rc tag
+          command: |
+            docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
+            docker push prefecthq/prefect:1.0.0rc
   promote_server_artifacts:
     docker:
       - image: docker
@@ -546,6 +589,13 @@ workflows:
           filters:
             branches:
               only: master
+
+      - build_release_candidate_docker_image:
+          python_version: '3.7'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              only: 1.0.0rc
 
   'Build and publish release artifacts':
     jobs:
