@@ -421,6 +421,11 @@ class ORMFlowRun(ORMRun):
             foreign_keys=lambda: [cls.parent_task_run_id],
         )
 
+    @declared_attr
+    def logs(cls):
+        return sa.orm.relationship("Log", back_populates="flow_run", lazy="raise")
+
+
 
 @declarative_mixin
 class ORMTaskRun(ORMRun):
@@ -527,6 +532,10 @@ class ORMTaskRun(ORMRun):
             uselist=False,
         )
 
+    @declared_attr
+    def logs(cls):
+        return sa.orm.relationship("Log", back_populates="task_run", lazy="raise")
+
 
 @declarative_mixin
 class ORMDeployment:
@@ -560,6 +569,36 @@ class ORMDeployment:
     @declared_attr
     def flow(cls):
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
+
+
+@declarative_mixin
+class ORMLog:
+    """SQLAlchemy model of a logging statement."""
+
+    name = sa.Column(sa.String, nullable=False, index=True)
+    level = sa.Column(sa.String, nullable=False, index=True)
+    message = sa.Column(sa.Text, nullable=False)
+
+    # The client-side timestamp of this logged statement, distinct from the created
+    # timestamp of the database record representing the logged statement.
+    timestamp = sa.Column(Timestamp(), nullable=False, index=True)
+
+    @declared_attr
+    def flow_run_id(cls):
+        return sa.Column(UUID, sa.ForeignKey("flow_run.id"), nullable=False, index=True)
+
+    @declared_attr
+    def task_run_id(cls):
+        return sa.Column(UUID, sa.ForeignKey("task_run.id"), nullable=True, index=True)
+
+    @declared_attr
+    def flow_run(cls):
+        return sa.orm.relationship("FlowRun", back_populates="logs", lazy="raise")
+
+    @declared_attr
+    def task_run(cls):
+        return sa.orm.relationship("TaskRun", back_populates="logs", lazy="raise")
+
 
 
 @declarative_mixin
@@ -663,6 +702,9 @@ class BaseORMConfiguration(ABC):
         class SavedSearch(ORMSavedSearch, self.Base):
             pass
 
+        class Log(ORMLog, self.Base):
+            pass
+
         # TODO - move these to proper migrations
         sa.Index(
             "uq_flow_run_state__flow_run_id_timestamp_desc",
@@ -756,6 +798,7 @@ class BaseORMConfiguration(ABC):
         self.TaskRun = TaskRun
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
+        self.Log = Log
 
     @abstractmethod
     def run_migrations(self):

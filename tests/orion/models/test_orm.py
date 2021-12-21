@@ -2,6 +2,8 @@ import datetime
 import pendulum
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.orm import selectinload
 
 from prefect.orion import models, schemas
 
@@ -79,6 +81,14 @@ async def many_task_run_states(flow_run, session, db):
         session.add_all(states)
 
     await session.commit()
+
+
+@pytest.fixture
+async def flow_run(session, flow):
+    yield await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version=1),
+    )
 
 
 class TestFlowRun:
@@ -682,3 +692,25 @@ class TestExpectedStartTimeDelta:
             sa.select(db.FlowRun.estimated_start_time_delta).filter_by(id=fr.id)
         )
         assert result.scalar() == pendulum.duration(seconds=0)
+
+
+async def get_flow_run_with_logs(session, db, flow_run):
+    query = (
+        sa.select(db.FlowRun)
+        .where(db.FlowRun.id == flow_run.id)
+        .join(db.FlowRun.logs, isouter=True)
+        .limit(1)
+        .execution_options(populate_existing=True)
+        .options(selectinload(db.FlowRun.logs))
+    )
+    result = await session.execute(query)
+    return result.scalar()
+
+
+class TestFlowLogs:
+    async def test_no_logs_exist(self, session, db, flow_run):
+        flow_run_with_logs = await get_flow_run_with_logs(session, db, flow_run)
+        assert flow_run_with_logs.logs == []
+
+    async def test_logs_exist(self, flow, session, db):
+        pass
