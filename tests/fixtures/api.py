@@ -43,7 +43,7 @@ async def hosted_orion():
             "uvicorn",
             "prefect.orion.api.server:app",
             "--host",
-            "0.0.0.0",
+            "0.0.0.0",  # required for access across networked docker containers in CI
             "--port",
             "2222",
             "--log-level",
