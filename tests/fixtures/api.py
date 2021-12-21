@@ -38,7 +38,7 @@ async def hosted_orion():
 
     # Will connect to the same database as normal test clients
 
-    async with await anyio.open_process(
+    process = await anyio.open_process(
         command=[
             "uvicorn",
             "prefect.orion.api.server:app",
@@ -50,28 +50,29 @@ async def hosted_orion():
             "error",
         ],
         env=env,
-    ) as process:
-        api_url = "http://localhost:2222/api"
+    )
+    api_url = "http://localhost:2222/api"
 
-        # Wait for the server to be ready
-        async with httpx.AsyncClient() as client:
-            attempts = 0
-            response = None
-            while attempts < 20:  # Wait for 2 seconds maximum
-                attempts += 1
-                try:
-                    response = await client.get(api_url + "/admin/hello")
-                except httpx.ConnectError:
-                    pass
-                else:
-                    if response.status_code == 200:
-                        break
-                await anyio.sleep(0.1)
-            if response:
-                response.raise_for_status()
+    # Wait for the server to be ready
+    async with httpx.AsyncClient() as client:
+        attempts = 0
+        response = None
+        while attempts < 20:  # Wait for 2 seconds maximum
+            attempts += 1
+            try:
+                response = await client.get(api_url + "/admin/hello")
+            except httpx.ConnectError:
+                pass
+            else:
+                if response.status_code == 200:
+                    break
+            await anyio.sleep(0.1)
+        if response:
+            response.raise_for_status()
 
+    try:
         yield api_url
-
+    finally:
         # Terminate the server
         if process.returncode is None:
             process.terminate()
