@@ -21,8 +21,11 @@ else:
 
 if sys.version_info < (3, 8):
     # https://docs.python.org/3/library/unittest.mock.html#unittest.mock.AsyncMock
-
-    from mock import AsyncMock
+    try:
+        from mock import AsyncMock
+    except ImportError:
+        # This utility is only a `dev` requirement and may not be available
+        AsyncMock = None
 else:
     from unittest.mock import AsyncMock
 
