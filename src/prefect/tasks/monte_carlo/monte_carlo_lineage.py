@@ -333,8 +333,6 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
              you can leverage PrefectSecret task in your flow.
             - prefect_context_tag (bool, optional): whether to automatically add a tag
             with Prefect context.
-            - **kwargs (dict, optional): additional keyword arguments to pass
-            to the Task constructor
 
         Returns:
             - string: MCON - a Monte Carlo's internal ID of the node
@@ -421,8 +419,6 @@ class MonteCarloGetResources(Task):
             - api_token (string, optional): the API token.
              To avoid passing the credentials in plain text, you can leverage PrefectSecret
              task in your flow.
-            - **kwargs (dict, optional): additional keyword arguments to pass to
-            the Task constructor
 
         Returns:
             - list: Monte Carlo resources, incl. all existing data warehouses and custom resources
