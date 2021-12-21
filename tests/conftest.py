@@ -32,13 +32,6 @@ def pytest_addoption(parser):
     )
 
 
-def pytest_runtest_setup(item):
-    envnames = [mark.args[0] for mark in item.iter_markers(name="env")]
-    if envnames:
-        if item.config.getoption("-E") not in envnames:
-            pytest.skip("test requires env in {!r}".format(envnames))
-
-
 def pytest_collection_modifyitems(session, config, items):
     """
     Modify all tests to automatically and transparently support asyncio
