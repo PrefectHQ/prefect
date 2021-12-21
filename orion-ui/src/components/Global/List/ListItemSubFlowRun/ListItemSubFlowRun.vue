@@ -1,11 +1,11 @@
 <template>
   <ListItem class="list-item--flow-run d-flex align-start justify-start">
     <!-- For a later date... maybe -->
-    <!-- :class="state + '-border'" -->
+    <!-- :class="stateType + '-border'" -->
 
     <i
       class="item--icon pi text--grey-40 align-self-start"
-      :class="`pi-${state}`"
+      :class="`pi-${stateType}`"
     />
     <div
       class="
@@ -20,23 +20,8 @@
       <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
-        <span
-          class="run-state correct-text caption mr-1"
-          :class="state + '-bg'"
-        >
-          {{ state }}
-        </span>
-
-        <Tag
-          v-for="tag in tags"
-          :key="tag"
-          color="secondary-pressed"
-          class="font--primary caption font-weight-semibold mr-1"
-          icon="pi-label"
-          flat
-        >
-          {{ tag }}
-        </Tag>
+        <StateLabel :name="state.name" :type="state.type" class="mr-1" />
+        <Tags :tags="tags" class="caption" />
       </div>
     </div>
 
@@ -76,6 +61,7 @@ import { secondsToApproximateString } from '@/util/util'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
+import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
 const store = useStore()
 const props = defineProps<{ item: TaskRun }>()
@@ -136,6 +122,10 @@ const queries: { [key: string]: Query } = {
 }
 
 const state = computed(() => {
+  return props.item.state
+})
+
+const stateType = computed(() => {
   return props.item.state.type.toLowerCase()
 })
 
@@ -160,7 +150,7 @@ const taskRunHistory = computed((): Buckets => {
 })
 
 const duration = computed(() => {
-  return state.value == 'pending' || state.value == 'scheduled'
+  return stateType.value == 'pending' || stateType.value == 'scheduled'
     ? '--'
     : props.item.total_run_time
     ? secondsToApproximateString(props.item.total_run_time)
