@@ -48,7 +48,7 @@
           </span>
         </span>
 
-        <span class="mr-1 text-truncate">
+        <span class="mr-1 text-truncate caption">
           <Tags :tags="tags" />
         </span>
       </div>
