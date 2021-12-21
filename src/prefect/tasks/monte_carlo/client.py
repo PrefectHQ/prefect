@@ -128,8 +128,8 @@ class MonteCarloClient:
     ):
         response = self.graphql(
             query="""
-            mutation($node_name: String!, $object_id: String!, $object_type: String!, $resource_name: String!
-            ) {
+            mutation($node_name: String!, $object_id: String!, $object_type: String!,
+            $resource_name: String! ) {
               createOrUpdateLineageNode(
                 name: $node_name,
                 objectId: $object_id,
@@ -163,7 +163,8 @@ class MonteCarloClient:
     ) -> str:
         response = self.graphql(
             query="""
-            mutation($node_name: String!, $object_id: String!, $object_type: String!, $resource_name: String!, $metadata_key: String!, $metadata_value: String!
+            mutation($node_name: String!, $object_id: String!, $object_type: String!,
+            $resource_name: String!, $metadata_key: String!, $metadata_value: String!
             ) {
               createOrUpdateLineageNode(
                 name: $node_name,
@@ -217,8 +218,10 @@ class MonteCarloClient:
 
         response = self.graphql(
             query="""
-                mutation($destination_object_id: String!, $destination_object_type: String!, 
-                $destination_resource_name: String!, $source_object_id: String!, $source_object_type: String!,
+                mutation($destination_object_id: String!,
+                $destination_object_type: String!,
+                $destination_resource_name: String!,
+                $source_object_id: String!, $source_object_type: String!,
                  $source_resource_name: String!, $expire_at: DateTime) {
                   createOrUpdateLineageEdge(
                     destination: {
