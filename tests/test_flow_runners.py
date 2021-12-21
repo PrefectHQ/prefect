@@ -508,6 +508,36 @@ class TestDockerFlowRunner:
         mock_docker_client.containers.create.assert_called_once()
 
     @pytest.mark.service("docker")
+    async def test_executes_flow_run_with_ephemeral_api_and_postgres(
+        self,
+        flow_run,
+        orion_client,
+        prefect_settings_test_deployment,
+    ):
+        database_url = prefect.settings.orion.database.connection_url.get_secret_value()
+        if "sqlite" in database_url:
+            pytest.skip("Test is running against sqlite but requires postgres")
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            prefect_settings_test_deployment
+        )
+
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+        datapath = prefect.settings.orion.data.base_path
+        # Mount the data location or flow run results will be irretrievable
+        assert await DockerFlowRunner(
+            volumes=[f"{datapath}:{datapath}"]
+        ).submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
+        assert (
+            runtime_settings.orion.database.connection_url.get_secret_value()
+            == database_url.replace("localhost", "host.docker.internal")
+        )
+
+    @pytest.mark.service("docker")
     async def test_executes_flow_run_with_hosted_api(
         self,
         flow_run,

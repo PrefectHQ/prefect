@@ -346,7 +346,15 @@ class DockerFlowRunner(UniversalFlowRunner):
             "PREFECT_ORION_DATA_SCHEME", prefect.settings.orion.data.scheme
         )
 
-        if data_scheme == "file" and not orion_host:
+        if (
+            data_scheme == "file"
+            and not orion_host
+            and not (
+                # Technically, this will work if mapped 1:1 into the container
+                f"{prefect.settings.orion.data.base_path}:{prefect.settings.orion.data.base_path}"
+                in self.volumes
+            )
+        ):
             raise RuntimeError(
                 "The docker flow runner cannot be used with an ephemeral server and "
                 "a local data location. Provide `PREFECT_ORION_HOST` to connect to an "
