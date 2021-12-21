@@ -17,7 +17,8 @@ async def client():
         yield async_client
 
 
-@pytest.fixture(scope="session")
+# Note: Without autouse pytest will throw cleanup errors due to the session scope
+@pytest.fixture(scope="session", autouse=True)
 async def hosted_orion():
     """
     Runs an instance of the Orion API at a dedicated URL instead of the ephemeral
@@ -25,7 +26,7 @@ async def hosted_orion():
 
     Uses the same database as the rest of the tests.
 
-    If built, the UI will be accessible during tests at http://127.0.0.1:2222/
+    If built, the UI will be accessible during tests at http://localhost:2222/
 
     Yields:
         The connection string
@@ -37,40 +38,40 @@ async def hosted_orion():
 
     # Will connect to the same database as normal test clients
 
-    process = await anyio.open_process(
+    async with await anyio.open_process(
         command=[
             "uvicorn",
             "prefect.orion.api.server:app",
             "--host",
-            "127.0.0.1",
+            "0.0.0.0",
             "--port",
             "2222",
             "--log-level",
             "error",
         ],
         env=env,
-    )
-    api_url = "http://127.0.0.1:2222/api"
+    ) as process:
+        api_url = "http://localhost:2222/api"
 
-    # Wait for the server to be ready
-    async with httpx.AsyncClient() as client:
-        attempts = 0
-        response = None
-        while attempts < 20:  # Wait for 2 seconds maximum
-            attempts += 1
-            try:
-                response = await client.get(api_url + "/admin/hello")
-            except httpx.ConnectError:
-                pass
-            else:
-                if response.status_code == 200:
-                    break
-            await anyio.sleep(0.1)
-        if response:
-            response.raise_for_status()
+        # Wait for the server to be ready
+        async with httpx.AsyncClient() as client:
+            attempts = 0
+            response = None
+            while attempts < 20:  # Wait for 2 seconds maximum
+                attempts += 1
+                try:
+                    response = await client.get(api_url + "/admin/hello")
+                except httpx.ConnectError:
+                    pass
+                else:
+                    if response.status_code == 200:
+                        break
+                await anyio.sleep(0.1)
+            if response:
+                response.raise_for_status()
 
-    yield api_url
+        yield api_url
 
-    # Terminate the server
-    if process.returncode is None:
-        process.terminate()
+        # Terminate the server
+        if process.returncode is None:
+            process.terminate()
