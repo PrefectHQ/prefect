@@ -9,36 +9,15 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 class MonteCarloCreateOrUpdateLineage(Task):
     """
-    Task for creating or updating a lineage node for the given source, destination, and to create a lineage edge
+    Task for creating or updating a lineage node for the given source and destination nodes,
+    as well as for creating a lineage edge between those nodes.
 
     Args:
         - source (dict, optional): a source node configuration. Expected to include the following keys: `node_name`,
         `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key` and `metadata_value`.
-        Example:
-        ```python
-        source = dict(
-            node_name="example_table_name",  # this may be a shorter version of object_id
-            object_id="example_table_name",
-            object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
-            resource_name="name_your_source_system",
-            metadata_key="your_key_name",
-            metadata_value="your_abitrary_value",
-        )
-        ```
         - destination (dict, optional): a destination node configuration. Expected to include the following keys:
-        `node_name`, `object_id`, `object_type`, `resource_name`,
-        and optionally also `metadata_key` and `metadata_value`.
-        Example:
-        ```python
-        destination = dict(
-            node_name="db_name:schema_name.table_name",  # here it shows a full name of a data warehouse table
-            object_id="db_name:schema_name.table_name",
-            object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
-            resource_name="your_dwh_resource_name",
-            metadata_key="your_optional_key_name",
-            metadata_value="your_optional_abitrary_value",
-        )
-        ```
+        `node_name`, `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key`
+        and `metadata_value`.
         - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
         Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
         in plain text, you can leverage PrefectSecret task in your flow.
@@ -49,6 +28,33 @@ class MonteCarloCreateOrUpdateLineage(Task):
         edge between a source and destination nodes will expire on a given date.
         Expected format: "YYYY-MM-DDTHH:mm:ss.SSS" e.g. "2042-01-01T00:00:00.000"
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+
+        Example source:
+
+        ```python
+        source = dict(
+            node_name="example_table_name",  # this may be a shorter version of object_id
+            object_id="example_table_name",
+            object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
+            resource_name="name_your_source_system",
+            metadata_key="your_key_name",
+            metadata_value="your_abitrary_value",
+        )
+        ```
+
+        Example destination:
+
+        ```python
+        destination = dict(
+            node_name="db_name:schema_name.table_name",  # here it shows a full name of a data warehouse table
+            object_id="db_name:schema_name.table_name",
+            object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
+            resource_name="your_dwh_resource_name",
+            metadata_key="your_optional_key_name",
+            metadata_value="your_optional_abitrary_value",
+        )
+        ```
+
     """
 
     def __init__(
@@ -99,31 +105,9 @@ class MonteCarloCreateOrUpdateLineage(Task):
             - source (dict, optional): a source node configuration.
             Expected to include the following keys: `node_name`,
             `object_id`, `object_type`, `resource_name`, and optionally also `metadata_key` and `metadata_value`.
-            Example:
-            ```python
-            source = dict(
-                node_name="example_table_name",  # this may be a shorter version of object_id
-                object_id="example_table_name",
-                object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
-                resource_name="name_your_source_system",
-                metadata_key="your_key_name",
-                metadata_value="your_abitrary_value",
-            )
-            ```
             - destination (dict, optional): a destination node configuration. Expected to include the following keys:
             `node_name`, `object_id`, `object_type`, `resource_name`,
             and optionally also `metadata_key` and `metadata_value`.
-            Example:
-            ```python
-            destination = dict(
-                node_name="db_name:schema_name.table_name",  # this may be a shorter version of object_id
-                object_id="db_name:schema_name.table_name",
-                object_type="table",  # "table" is recommended, but you can use any string, e.g. "csv_file"
-                resource_name="your_dwh_resource_name",
-                metadata_key="your_optional_key_name",
-                metadata_value="your_optional_abitrary_value",
-            )
-            ```
             - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
             Those can be created using https://getmontecarlo.com/settings/api. To avoid passing the credentials
             in plain text, you can leverage PrefectSecret task in your flow.
@@ -273,7 +257,6 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         self.api_key_id = api_key_id
         self.api_token = api_token
         self.prefect_context_tag = prefect_context_tag
-        self._api_url = "https://api.getmontecarlo.com/graphql"
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -358,7 +341,7 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
 class MonteCarloGetResources(Task):
     """
     Task for querying resources using the Monte Carlo API. You can use this task to find out what is the name of your
-    data warehouse or other resource and use it as `resource_name` in other Monte Carlo tasks.
+    data warehouse or other resource, and use it as `resource_name` in other Monte Carlo tasks.
 
     Args:
         - api_key_id (string, optional): to use this task, you need to pass the Monte Carlo API credentials.
@@ -370,7 +353,10 @@ class MonteCarloGetResources(Task):
     """
 
     def __init__(
-        self, api_key_id: str = None, api_token: str = None, **kwargs: Any,
+        self,
+        api_key_id: str = None,
+        api_token: str = None,
+        **kwargs: Any,
     ):
         self.api_key_id = api_key_id
         self.api_token = api_token
@@ -378,7 +364,9 @@ class MonteCarloGetResources(Task):
 
     @defaults_from_attrs("api_key_id", "api_token")
     def run(
-        self, api_key_id: str = None, api_token: str = None,
+        self,
+        api_key_id: str = None,
+        api_token: str = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve all Monte Carlo resources.
@@ -403,6 +391,11 @@ class MonteCarloGetResources(Task):
 
 
 def get_prefect_context() -> str:
+    """
+    Helper function used to generate Prefect context tag when `prefect_context_tag` is set to True.
+    Returns:
+        - string: a JSON string with task's context
+    """
     return json.dumps(
         dict(
             flow_id=prefect.context.get("flow_id"),
