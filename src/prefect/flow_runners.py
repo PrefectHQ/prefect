@@ -329,7 +329,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             volumes=self._get_volumes(),
         )
         self.logger.info(
-            f"Using container settings for '{flow_run.id}': {container_settings}"
+            f"Flow run {flow_run.name!r} has container settings = {container_settings}"
         )
         container = self._create_container(docker_client, **container_settings)
 
