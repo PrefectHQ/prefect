@@ -189,10 +189,10 @@ class AirbyteConnectionTask(Task):
     )
     def run(
         self,
-        airbyte_server_host: str,
-        airbyte_server_port: int,
-        airbyte_api_version: str,
-        connection_id: str,
+        airbyte_server_host: str = None,
+        airbyte_server_port: int = None,
+        airbyte_api_version: str = None,
+        connection_id: str = None,
         poll_interval_s: int = 15,
     ) -> dict:
         """
