@@ -349,9 +349,9 @@ class DockerFlowRunner(UniversalFlowRunner):
         if data_scheme == "file" and not orion_host:
             raise RuntimeError(
                 "The docker flow runner cannot be used with an ephemeral server and "
-                "a local file system data location. Provide `PREFECT_ORION_HOST` to "
-                "connect to an orion server or `PREFECT_ORION_DATA_SCHEME` with a "
-                "non-local data location."
+                "a local data location. Provide `PREFECT_ORION_HOST` to connect to an "
+                "orion server or `PREFECT_ORION_DATA_SCHEME` with a non-local data "
+                "location."
             )
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
