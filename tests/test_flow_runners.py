@@ -503,6 +503,7 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         mock_docker_client.containers.create.assert_called_once()
 
+    @pytest.mark.service("docker")
     async def test_executes_flow_run_with_ephemeral_api(
         self, flow_run, orion_client, prefect_settings_test_deployment
     ):
@@ -519,6 +520,7 @@ class TestDockerFlowRunner:
         runtime_settings = await orion_client.resolve_datadoc(state.result())
         assert not runtime_settings.orion_host
 
+    @pytest.mark.service("docker")
     async def test_executes_flow_run_with_hosted_api(
         self,
         flow_run,
@@ -598,7 +600,7 @@ class TestDockerFlowRunner:
 
         mock_docker_client.containers.create.assert_called_once()
         call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
-        assert f"{fake_base_path}:{runner._container_dataloc_dir}" in call_volumes
+        assert f"{fake_base_path}:{fake_base_path}" in call_volumes
 
     async def test_nonlocal_data_location_is_not_included_in_volumes(
         self, mock_docker_client, flow_run
@@ -612,7 +614,7 @@ class TestDockerFlowRunner:
 
         mock_docker_client.containers.create.assert_called_once()
         call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
-        assert f"/tmp/foo:{runner._container_dataloc_dir}" not in call_volumes
+        assert f"/tmp/foo:/tmp/foo" not in call_volumes
 
     @pytest.mark.parametrize("local_path", ["/fake/orion.db", "./orion.db"])
     async def test_local_sqlite_is_auto_included_in_environment_variables(
