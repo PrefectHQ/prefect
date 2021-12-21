@@ -294,13 +294,14 @@ class DockerFlowRunner(UniversalFlowRunner):
     volumes: List[str] = Field(default_factory=list)
     stream_output: bool = True
 
-    _container_sqlite_dir: Path = Path("/opt/prefect/sqlite-mount")
-
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
         task_status: TaskStatus,
     ) -> Optional[bool]:
+        # Throw an error immediately if the flow run won't be able to contact the API
+        self._assert_orion_settings_are_compatible()
+
         # The `docker` library uses requests instead of an async http library so it must
         # be run in a thread to avoid blocking the event loop.
         container_id = await run_sync_in_worker_thread(
@@ -313,20 +314,62 @@ class DockerFlowRunner(UniversalFlowRunner):
         # Monitor the container
         return await run_sync_in_worker_thread(self._watch_container, container_id)
 
+    def _assert_orion_settings_are_compatible(self):
+        """
+        If using the ephemeral server and sqlite, the flow run in the container will
+        spin up an ephemeral server that uses a container-local database instead of
+        the one the user expects. This will result in failure as the flow run will not
+        exist. If the local sqlite database is mounted into the container, it will work
+        but concurrent access will cause database corruption as the WAL mode requires
+        shared memory file locks which are not available across the boundary of the
+        docker virtual machine.
+
+        Additionally, if using an ephemeral server (with postgresql) and a local file
+        system data location, the persisted data will point to a path that does not
+        exist once the container exits.
+        """
+        orion_host = self.env.get("PREFECT_ORION_HOST", prefect.settings.orion_host)
+        db_url = self.env.get(
+            "PREFECT_ORION_DATABASE_CONNECTION_URL",
+            prefect.settings.orion.database.connection_url.get_secret_value(),
+        )
+
+        if not orion_host and "sqlite" in db_url:
+            raise RuntimeError(
+                "The docker flow runner cannot be used with an ephemeral server and "
+                "a sqlite database. Provide `PREFECT_ORION_HOST` to connect to an "
+                "orion server or `PREFECT_ORION_DATABASE_CONNECTION_URL` with a "
+                "postgresql connection string."
+            )
+
+        data_scheme = self.env.get(
+            "PREFECT_ORION_DATA_SCHEME", prefect.settings.orion.data.scheme
+        )
+
+        if data_scheme == "file" and not orion_host:
+            raise RuntimeError(
+                "The docker flow runner cannot be used with an ephemeral server and "
+                "a local file system data location. Provide `PREFECT_ORION_HOST` to "
+                "connect to an orion server or `PREFECT_ORION_DATA_SCHEME` with a "
+                "non-local data location."
+            )
+
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
 
         docker_client = self._get_client()
+
+        extra_hosts = self._get_extra_hosts(docker_client)
 
         container_settings = dict(
             image=self._get_image(docker_client),
             network=self.networks[0] if self.networks else None,
             command=self._get_start_command(flow_run),
-            environment=self._get_environment_variables(),
+            environment=self._get_environment_variables(extra_hosts),
             auto_remove=self.auto_remove,
             labels=self._get_labels(flow_run),
-            extra_hosts=self._get_extra_hosts(docker_client),
+            extra_hosts=extra_hosts,
             name=self._get_container_name(flow_run),
-            volumes=self._get_volumes(),
+            volumes=self.volumes,
         )
         self.logger.info(
             f"Flow run {flow_run.name!r} has container settings = {container_settings}"
@@ -478,7 +521,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         if user_version < required_version:
             warnings.warn(
                 "`host.docker.internal` could not be automatically resolved to your "
-                "local host. This feature is not supported on Docker Engine "
+                "local ip address. This feature is not supported on Docker Engine "
                 f"v{user_version}, upgrade to v{required_version}+ if you "
                 "encounter issues."
             )
@@ -487,89 +530,32 @@ class DockerFlowRunner(UniversalFlowRunner):
             # Only supported by Docker v20.10.0+ which is our minimum recommend version
             return {"host.docker.internal": "host-gateway"}
 
-    def _get_environment_variables(self):
+    def _get_environment_variables(self, extra_hosts: Dict[str, str]):
         env = self.env.copy()
 
-        if prefect.settings.orion_host:
-            # Update local connections to use the docker host
+        # Update local connections to use the docker host if available
 
+        if prefect.settings.orion_host and "host.docker.internal" in extra_hosts:
             api_url = prefect.settings.orion_host.replace(
                 "localhost", "host.docker.internal"
             ).replace("127.0.0.1", "host.docker.internal")
 
             env.setdefault("PREFECT_ORION_HOST", api_url)
 
-        if prefect.settings.orion.database.connection_url:
-
-            if self._local_sqlite_path and self._container_sqlite_dir:
-                # Map the database url to the mounted volume
-                db_url = (
-                    "sqlite+aiosqlite:///"
-                    f"{self._container_sqlite_dir / self._local_sqlite_path.name}"
-                )
-            else:
-                # Update local connections to the docker host
-                db_url = (
-                    prefect.settings.orion.database.connection_url.get_secret_value()
-                    .replace("localhost", "host.docker.internal")
-                    .replace("127.0.0.1", "host.docker.internal")
-                )
+        if (
+            prefect.settings.orion.database.connection_url
+            and not env.get("PREFECT_ORION_HOST", prefect.settings.orion_host)
+            and "host.docker.internal" in extra_hosts
+        ):
+            db_url = (
+                prefect.settings.orion.database.connection_url.get_secret_value()
+                .replace("localhost", "host.docker.internal")
+                .replace("127.0.0.1", "host.docker.internal")
+            )
 
             env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
 
-        if (
-            prefect.settings.orion.data.scheme == "file"
-            and not prefect.settings.orion_host
-            and not self.env.get("PREFECT_ORION_HOST")
-        ):
-            # Update the local data location base path to match in the container
-            # This path must match the path outside the container or results will not
-            # be retrievable afterwards
-
-            env.setdefault(
-                "PREFECT_ORION_DATA_BASE_PATH", prefect.settings.orion.data.base_path
-            )
-
         return env
-
-    @property
-    def _local_sqlite_path(self) -> Optional[Path]:
-        """
-        Return the resolved path to the directory containing the configured sqlite
-        database. If sqlite is not being used, returns `None`.
-        """
-        # This property is cached to only compute once
-        if "_local_sqlite_path_cache" in self.__dict__:
-            return self.__dict__["_local_sqlite_path_cache"]
-
-        db_url = prefect.settings.orion.database.connection_url.get_secret_value()
-        if db_url.startswith("sqlite"):
-            path = Path(sqlalchemy.engine.make_url(db_url).database)
-            self.__dict__["_local_sqlite_path_cache"] = path
-            return path
-        else:
-            return None
-
-    def _get_volumes(self) -> List[str]:
-        volumes = self.volumes.copy()
-
-        # Ensure the sqlite database directory is available
-        if self._local_sqlite_path and self._container_sqlite_dir:
-            volumes.append(
-                f"{self._local_sqlite_path.parent.resolve()}:{self._container_sqlite_dir}"
-            )
-
-        # Ensure local data locations are accessible if using a container ephemeral api
-        if (
-            prefect.settings.orion.data.scheme == "file"
-            and not prefect.settings.orion_host
-            and not self.env.get("PREFECT_ORION_HOST")
-        ):
-            # Must match inside/outside container
-            base_path = prefect.settings.orion.data.base_path
-            volumes.append(f"{base_path}:{base_path}")
-
-        return volumes
 
     def _get_labels(self, flow_run: FlowRun):
         labels = self.labels.copy() if self.labels else {}
