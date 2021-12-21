@@ -95,6 +95,8 @@ class AirbyteConnectionTask(Task):
             )
             self.logger.info(response.json())
 
+            response.raise_for_status()
+
             # check whether a schedule exists ...
             schedule = response.json()["schedule"]
             if schedule:
