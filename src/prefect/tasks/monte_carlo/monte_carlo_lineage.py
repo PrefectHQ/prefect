@@ -243,8 +243,8 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
     Args:
         - node_name (string, optional): the display name of a lineage node.
         - object_id (string, optional): the object ID of a lineage node.
-        - object_type (string, optional): the object type of a lineage node
-        - usually, either "table" or "view"
+        - object_type (string, optional): the object type of a lineage node - usually,
+        either "table" or "view"
         - resource_name (string, optional): name of the data warehouse or custom resource.
         All resources can be retrieved via a separate task
         - metadata_key (string, optional): the metadata tag name
@@ -317,8 +317,8 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         Args:
             - node_name (string, optional): the display name of a lineage node.
             - object_id (string, optional): the object ID of a lineage node.
-            - object_type (string, optional): the object type of a lineage node
-            - usually, either "table" or "view"
+            - object_type (string, optional): the object type of a lineage node - usually,
+            either "table" or "view"
             - resource_name (string, optional): name of the data warehouse or custom resource.
             All resources can be retrieved via a separate task
             - metadata_key (string, optional): the metadata tag name
@@ -394,10 +394,7 @@ class MonteCarloGetResources(Task):
     """
 
     def __init__(
-        self,
-        api_key_id: str = None,
-        api_token: str = None,
-        **kwargs: Any,
+        self, api_key_id: str = None, api_token: str = None, **kwargs: Any,
     ):
         self.api_key_id = api_key_id
         self.api_token = api_token
@@ -405,9 +402,7 @@ class MonteCarloGetResources(Task):
 
     @defaults_from_attrs("api_key_id", "api_token")
     def run(
-        self,
-        api_key_id: str = None,
-        api_token: str = None,
+        self, api_key_id: str = None, api_token: str = None,
     ) -> List[Dict[str, Any]]:
         """
         Retrieve all Monte Carlo resources.
