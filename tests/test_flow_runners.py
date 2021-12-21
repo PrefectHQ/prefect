@@ -545,7 +545,7 @@ class TestDockerFlowRunner:
         state = (await orion_client.read_flow_run(flow_run.id)).state
         runtime_settings = await orion_client.resolve_datadoc(state.result())
         assert runtime_settings.orion_host == hosted_orion.replace(
-            "127.0.0.1", "host.docker.internal"
+            "localhost", "host.docker.internal"
         )
 
     async def test_image_is_used(self, mock_docker_client, flow_run):
