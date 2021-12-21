@@ -7,7 +7,7 @@
           <div class="flex-grow-0 flex-shrink-1">
             <span class="d-inline-flex align-center text-truncate">
               <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-              <Tags :tags="tags" class="mr-1" />
+              <Tags :tags="tags" class="mr-1 caption" />
               <div
                 class="
                   caption
