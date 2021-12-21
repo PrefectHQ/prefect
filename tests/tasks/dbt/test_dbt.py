@@ -306,6 +306,28 @@ def test_dbt_cloud_run_job_trigger_job():
 
 
 @responses.activate
+def test_dbt_cloud_run_job_trigger_job_custom_domain():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=200,
+        json={"data": {"foo": "bar"}},
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo", account_id=account_id, job_id=job_id, token="foo",
+        domain='cloud.corp.getdbt.com'
+    )
+    r = run_job.run()
+
+    assert r == {"foo": "bar"}
+
+
+
+@responses.activate
 def test_dbt_cloud_run_job_trigger_job_with_wait():
     account_id = 1234
     job_id = 1234
