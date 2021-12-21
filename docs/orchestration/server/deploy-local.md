@@ -51,7 +51,7 @@ By default the UI will attempt to communicate with the Apollo endpoint at
 different location (e.g. if you're running Prefect Server behind a proxy), you'll need to configure the UI
 to look at a different URL.
 
-You can set this directly from the browser. First click **Menu > Home**. In the **Connecting your Infrastructure** block, select the **Prefect Server** tab. Then you'll see this configuration option under **Connect the UI**: 
+You can set this directly from the browser. First click the **?** icon in the nav bar to access the help menu and then click **Getting Started**. In the **Connecting your Infrastructure** block, select the **Prefect Server** tab. Then you'll see this configuration option under **Connect the UI**: 
 
 ![UI Endpoint Setting](/orchestration/server/server-endpoint.png)
 
