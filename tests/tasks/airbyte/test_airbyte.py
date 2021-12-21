@@ -21,6 +21,13 @@ class TestAirbyte:
         with pytest.raises(ValueError):
             task.run()
 
+    def test_optional_params_are_optional(self):
+        task = AirbyteConnectionTask(
+            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
+        )
+        with pytest.raises(AirbyteServerNotHealthyException):
+            task.run()
+
     def test_invalid_connection_id(self):
         task = AirbyteConnectionTask()
         with pytest.raises(ValueError):
