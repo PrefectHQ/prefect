@@ -216,6 +216,32 @@ def test_monte_carlo_create_or_update_lineage_raises_with_missing_attributes(
     assert "in both source and destination" in str(exc)
 
 
+@pytest.mark.parametrize("node_name", [None, "node_name"])
+@pytest.mark.parametrize("object_id", [None, "object_id"])
+@pytest.mark.parametrize("object_type", [None, "table"])
+@pytest.mark.parametrize("resource_name", [None, "resource_name"])
+@pytest.mark.parametrize("metadata_key", [None, "metadata_key"])
+@pytest.mark.parametrize("metadata_value", [None])
+def test_monte_carlo_create_or_update_node_with_tag_raises_with_missing_attributes(
+    node_name, object_id, object_type, resource_name, metadata_key, metadata_value
+):
+    api_key_id = "your_api_key_id"
+    api_token = "your_api_token"
+    with pytest.raises(ValueError) as exc:
+        MonteCarloCreateOrUpdateNodeWithTag(
+            node_name,
+            object_id,
+            object_type,
+            resource_name,
+            metadata_key,
+            metadata_value,
+            api_key_id,
+            api_token,
+            prefect_context_tag=False,
+        ).run()
+    assert "must be provided" in str(exc)
+
+
 @responses.activate
 def test_monte_carlo_get_resources():
     api_key_id = "your_api_key_id"
