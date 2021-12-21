@@ -46,6 +46,9 @@ FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
 
 
 DOCKER_BUILD_LOCK = threading.Lock()
+PYTHON_VERSION_STRING = (
+    f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+)
 
 
 class FlowRunner(BaseModel):
@@ -456,7 +459,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     @staticmethod
     def _get_orion_image_tag():
         return slugify(
-            f"prefect:orion-{prefect.__version__}",
+            f"prefect:orion-{PYTHON_VERSION_STRING}-{prefect.__version__}",
             lowercase=False,
             max_length=128,
             # Docker allows these characters for tag names
@@ -480,7 +483,12 @@ class DockerFlowRunner(UniversalFlowRunner):
             except docker.errors.ImageNotFound:
                 self.logger.info(f"Orion image {orion_image!r} not found! Building...")
                 docker_client.images.build(
-                    path=str(prefect.__root_path__), tag=orion_image
+                    path=str(prefect.__root_path__),
+                    tag=orion_image,
+                    buildargs={
+                        # Match python version to ensure compatibility
+                        "PYTHON_VERSION": PYTHON_VERSION_STRING
+                    },
                 )
 
         return orion_image
