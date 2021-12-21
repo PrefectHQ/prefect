@@ -296,7 +296,6 @@ class DockerFlowRunner(UniversalFlowRunner):
     stream_output: bool = True
 
     _container_sqlite_dir: Path = Path("/opt/prefect/sqlite-mount")
-    _container_dataloc_dir: Path = Path("/opt/prefect/dataloc-mount")
 
     async def submit_flow_run(
         self,
@@ -523,11 +522,14 @@ class DockerFlowRunner(UniversalFlowRunner):
             prefect.settings.orion.data.scheme == "file"
             and not prefect.settings.orion_host
             and not self.env.get("PREFECT_ORION_HOST")
-            and self._container_dataloc_dir
         ):
-            # Update the local data location base path to the mounted volume
+            # Update the local data location base path to match in the container
+            # This path must match the path outside the container or results will not
+            # be retrievable afterwards
 
-            env.setdefault("PREFECT_ORION_DATA_BASE_PATH", self._container_dataloc_dir)
+            env.setdefault(
+                "PREFECT_ORION_DATA_BASE_PATH", prefect.settings.orion.data.base_path
+            )
 
         return env
 
@@ -563,11 +565,10 @@ class DockerFlowRunner(UniversalFlowRunner):
             prefect.settings.orion.data.scheme == "file"
             and not prefect.settings.orion_host
             and not self.env.get("PREFECT_ORION_HOST")
-            and self._container_dataloc_dir
         ):
-            volumes.append(
-                f"{prefect.settings.orion.data.base_path}:{self._container_dataloc_dir}"
-            )
+            # Must match inside/outside container
+            base_path = prefect.settings.orion.data.base_path
+            volumes.append(f"{base_path}:{base_path}")
 
         return volumes
 
