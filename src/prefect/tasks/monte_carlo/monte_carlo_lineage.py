@@ -29,7 +29,8 @@ class MonteCarloCreateOrUpdateLineage(Task):
          you can leverage PrefectSecret task in your flow.
         - prefect_context_tag (bool, optional): whether to automatically add
         a tag with Prefect context.
-        - expire_at (string, optional): date and time indicating when to expire a source-destination edge. You can expire specific lineage nodes.
+        - expire_at (string, optional): date and time indicating when to expire
+        a source-destination edge. You can expire specific lineage nodes.
         If this value is set, the
         edge between a source and destination nodes will expire on a given date.
         Expected format: "YYYY-MM-DDTHH:mm:ss.SSS". For example, "2042-01-01T00:00:00.000".
@@ -133,7 +134,8 @@ class MonteCarloCreateOrUpdateLineage(Task):
              you can leverage PrefectSecret task in your flow.
             - prefect_context_tag (bool, optional): whether to automatically add
             a tag with Prefect context.
-            - expire_at (string, optional): date and time indicating when to expire a source-destination edge. You can expire specific lineage nodes.
+            - expire_at (string, optional): date and time indicating when to expire
+            a source-destination edge. You can expire specific lineage nodes.
             If this value is set, the
             edge between a source and destination nodes will expire on a given date.
             Expected format: "YYYY-MM-DDTHH:mm:ss.SSS". For example, "2042-01-01T00:00:00.000".
