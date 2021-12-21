@@ -61,8 +61,8 @@ def pytest_collection_modifyitems(session, config, items):
         if missing_services:
             item.add_marker(
                 pytest.mark.skip(
-                    f"Requires services: {', '.join(missing_services)}. "
-                    "Use '--service NAME' to include test."
+                    f"Requires service {', '.join(repr(s) for s in missing_services)}. "
+                    "Use '--service NAME' to include."
                 )
             )
 
