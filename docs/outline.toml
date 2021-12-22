@@ -17,6 +17,17 @@ functions = [
     "some_successful",
 ]
 
+[pages.backend.artifacts]
+title = "Artifacts"
+module = "prefect.backend.artifacts"
+functions = [
+    "create_link_artifact",
+    "update_link_artifact",
+    "create_markdown_artifact",
+    "update_markdown_artifact",
+    "delete_artifact"
+]
+
 [pages.backend.flow]
 title = "Flow"
 module = "prefect.backend.flow"
@@ -329,6 +340,7 @@ classes = ["DatasetCreateFromDelimitedFiles",
 title = "Fivetran Tasks"
 module = "prefect.tasks.fivetran"
 classes = ["FivetranSyncTask"]
+verified_task = true
 
 [pages.tasks.prefect]
 title = "Prefect Tasks"
@@ -388,6 +400,7 @@ classes = [
         "DbtShellTask",
         "DbtCloudRunJob"
         ]
+verified_task = true
 
 [pages.tasks.asana]
 title = "Asana Tasks"
@@ -433,6 +446,7 @@ title = "File and Filesystem Tasks"
 module = "prefect.tasks.files"
 classes = [
         "Copy",
+        "Glob",
         "Move",
         "Remove",
         "Unzip",
@@ -464,6 +478,7 @@ classes = [
 title = "Great Expectations Task"
 module = "prefect.tasks.great_expectations"
 classes = ["RunGreatExpectationsValidation"]
+verified_task = true
 
 [pages.tasks.gsheets]
 title = "Google Sheets Tasks"
@@ -550,6 +565,11 @@ classes = ["SnowflakeQuery"]
 title = "SodaSQL Tasks"
 module = "prefect.tasks.sodasql"
 classes = ["SodaSQLScan"]
+
+[pages.tasks.sodaspark]
+title = "SodaSpark Tasks"
+module = "prefect.tasks.sodaspark"
+classes = ["SodaSparkScan"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
@@ -660,18 +680,6 @@ title = "Vertex Agent"
 module = "prefect.agent.vertex"
 classes = {VertexAgent = ["start"]}
 
-[pages.artifacts.artifacts]
-title = "Artifacts"
-module = "prefect.artifacts"
-functions = [
-    "create_link",
-    "update_link",
-    "create_markdown",
-    "update_markdown",
-    "delete_artifact"
-]
-experimental = true
-
 [pages.utilities.collections]
 title = "Collections"
 module = "prefect.utilities.collections"
@@ -756,3 +764,9 @@ classes = ["SendEmail"]
 title = "Census Tasks"
 module = "prefect.tasks.census"
 classes = ["CensusSyncTask"]
+
+[pages.tasks.airbyte]
+title = "Airbyte Tasks"
+module = "prefect.tasks.airbyte"
+classes = ["AirbyteConnectionTask"]
+verified_task = true
