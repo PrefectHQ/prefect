@@ -23,7 +23,6 @@ import anyio.abc
 import docker
 import packaging.version
 import sniffio
-import sqlalchemy.engine
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
 from pydantic import BaseModel, Field, root_validator, validator
@@ -541,6 +540,7 @@ class DockerFlowRunner(UniversalFlowRunner):
                 f"v{user_version}, upgrade to v{required_version}+ if you "
                 "encounter issues."
             )
+            return {}
         else:
             # Compatibility for linux -- https://github.com/docker/cli/issues/2290
             # Only supported by Docker v20.10.0+ which is our minimum recommend version

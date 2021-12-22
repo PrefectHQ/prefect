@@ -21,6 +21,7 @@ from prefect.flow_runners import (
     UniversalFlowRunner,
     lookup_flow_runner,
     register_flow_runner,
+    PYTHON_VERSION_STRING,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
@@ -181,6 +182,32 @@ async def python_executable_test_deployment(orion_client):
     deployment_id = await orion_client.create_deployment(
         flow_id=flow_id,
         name="python_executable_test_deployment",
+        flow_data=flow_data,
+    )
+
+    return deployment_id
+
+
+@pytest.fixture
+async def os_environ_test_deployment(orion_client):
+    """
+    A deployment for a flow that returns the current environment variables for testing
+    that flows are run with environment variables populated.
+    """
+
+    @prefect.flow
+    def my_flow():
+        import os
+
+        return os.environ
+
+    flow_id = await orion_client.create_flow(my_flow)
+
+    flow_data = DataDocument.encode("cloudpickle", my_flow)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="os_environ_test_deployment",
         flow_data=flow_data,
     )
 
@@ -507,6 +534,282 @@ class TestDockerFlowRunner:
         fake_status.started.assert_called_once()
         mock_docker_client.containers.create.assert_called_once()
 
+    async def test_container_name_matches_flow_run_name(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        flow_run.name = "hello-flow-run"
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_name = mock_docker_client.containers.create.call_args[1].get("name")
+        assert call_name == "hello-flow-run"
+
+    @pytest.mark.parametrize(
+        "run_name,container_name",
+        [
+            ("_flow_run", "flow_run"),
+            ("...flow_run", "flow_run"),
+            ("._-flow_run", "flow_run"),
+            ("9flow-run", "9flow-run"),
+            ("-flow.run", "flow.run"),
+            ("flow*run", "flow-run"),
+            ("flow9.-foo_bar^x", "flow9.-foo_bar-x"),
+        ],
+    )
+    async def test_container_name_creates_valid_name(
+        self, mock_docker_client, flow_run, hosted_orion, run_name, container_name
+    ):
+        flow_run.name = run_name
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_name = mock_docker_client.containers.create.call_args[1].get("name")
+        assert call_name == container_name
+
+    async def test_container_name_falls_back_to_id(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        flow_run.name = "--__...."  # All invalid characters
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_name = mock_docker_client.containers.create.call_args[1].get("name")
+        assert call_name == flow_run.id
+
+    @pytest.mark.parametrize("collision_count", (0, 1, 5))
+    async def test_container_name_includes_index_on_conflict(
+        self, mock_docker_client, flow_run, hosted_orion, collision_count
+    ):
+        import docker.errors
+
+        flow_run.name = "flow-run-name"
+
+        if collision_count:
+            # Add the basic name first
+            existing_names = [f"{flow_run.name}"]
+            for i in range(1, collision_count):
+                existing_names.append(f"{flow_run.name}-{i}")
+        else:
+            existing_names = []
+
+        def fail_if_name_exists(*args, **kwargs):
+            if kwargs.get("name") in existing_names:
+                raise docker.errors.APIError(
+                    "Conflict. The container name 'foobar' is already in use"
+                )
+            return MagicMock()  # A container
+
+        mock_docker_client.containers.create.side_effect = fail_if_name_exists
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        assert mock_docker_client.containers.create.call_count == collision_count + 1
+        call_name = mock_docker_client.containers.create.call_args[1].get("name")
+        expected_name = (
+            f"{flow_run.name}"
+            if not collision_count
+            else f"{flow_run.name}-{collision_count}"
+        )
+        assert call_name == expected_name
+
+    async def test_container_creation_failure_reraises_if_not_name_conflict(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        import docker.errors
+
+        mock_docker_client.containers.create.side_effect = docker.errors.APIError(
+            "test error"
+        )
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            with pytest.raises(docker.errors.APIError, match="test error"):
+                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_builds_development_image_if_none_specified_and_does_not_exist(
+        self, flow_run, mock_docker_client, hosted_orion, monkeypatch
+    ):
+        import docker.errors
+
+        monkeypatch.setattr(
+            "prefect.flow_runners.DockerFlowRunner._get_orion_image_tag",
+            MagicMock(return_value="dev-image-tag"),
+        )
+
+        mock_docker_client.images.get = MagicMock(
+            side_effect=docker.errors.ImageNotFound("")
+        )
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.images.get.assert_called_once_with("dev-image-tag")
+        mock_docker_client.images.build.assert_called_once_with(
+            path=str(prefect.__root_path__),
+            tag="dev-image-tag",
+            buildargs={"PYTHON_VERSION": PYTHON_VERSION_STRING},
+        )
+
+    async def test_skips_image_build_if_exists_already(
+        self, flow_run, mock_docker_client, hosted_orion, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "prefect.flow_runners.DockerFlowRunner._get_orion_image_tag",
+            MagicMock(return_value="dev-image-tag"),
+        )
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.images.get.assert_called_once_with("dev-image-tag")
+        mock_docker_client.images.build.assert_not_called()
+        call_image = mock_docker_client.containers.create.call_args[1].get("image")
+        assert call_image == "dev-image-tag"
+
+    async def test_skips_image_build_if_exists_already(
+        self, flow_run, mock_docker_client, hosted_orion, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "prefect.flow_runners.DockerFlowRunner._get_orion_image_tag",
+            MagicMock(return_value="dev-image-tag"),
+        )
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.images.get.assert_called_once_with("dev-image-tag")
+        mock_docker_client.images.build.assert_not_called()
+        _, kwargs = mock_docker_client.containers.create.call_args
+        assert kwargs["image"] == "dev-image-tag"
+
+    async def test_uses_image_setting(self, mock_docker_client, flow_run, hosted_orion):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner(image="foo").submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_image = mock_docker_client.containers.create.call_args[1].get("image")
+        assert call_image == "foo"
+
+    async def test_uses_volumes_setting(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner(volumes=["a:b", "c:d"]).submit_flow_run(
+                flow_run, MagicMock()
+            )
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert "a:b" in call_volumes
+        assert "c:d" in call_volumes
+
+    async def test_includes_prefect_labels(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_labels = mock_docker_client.containers.create.call_args[1].get("labels")
+        assert call_labels == {
+            "io.prefect.flow-run-id": str(flow_run.id),
+        }
+
+    async def test_uses_label_setting(self, mock_docker_client, flow_run, hosted_orion):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner(labels={"foo": "FOO", "bar": "BAR"}).submit_flow_run(
+                flow_run, MagicMock()
+            )
+        mock_docker_client.containers.create.assert_called_once()
+        call_labels = mock_docker_client.containers.create.call_args[1].get("labels")
+        assert "foo" in call_labels and "bar" in call_labels
+        assert call_labels["foo"] == "FOO"
+        assert call_labels["bar"] == "BAR"
+        assert "io.prefect.flow-run-id" in call_labels, "prefect labels still included"
+
+    async def test_adds_docker_host_gateway(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+            "extra_hosts"
+        )
+        assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
+
+    @pytest.mark.parametrize("docker_engine_version", ["0.25.10", "19.1.1"])
+    async def test_warns_if_docker_version_does_not_support_host_gateway(
+        self, mock_docker_client, flow_run, hosted_orion, docker_engine_version
+    ):
+        mock_docker_client.version.return_value = {"Version": docker_engine_version}
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            with pytest.warns(
+                UserWarning,
+                match=(
+                    "`host.docker.internal` could not be automatically resolved.*"
+                    f"feature is not supported on Docker Engine v{docker_engine_version}"
+                ),
+            ):
+                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+            "extra_hosts"
+        )
+        assert not call_extra_hosts
+
+    async def test_raises_on_submission_with_sqlite_and_ephemeral_api(
+        self, mock_docker_client, flow_run
+    ):
+        with temporary_settings(
+            PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///foo/"
+        ):
+            with pytest.raises(
+                RuntimeError,
+                match="cannot be used with an ephemeral server and a sqlite database",
+            ):
+                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_no_raise_on_submission_with_sqlite_and_hosted_api(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(
+            PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///foo/",
+            PREFECT_ORION_HOST=hosted_orion,
+        ):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_raises_on_submission_with_local_data_location_and_ephemeral_api(
+        self, mock_docker_client, flow_run
+    ):
+        with temporary_settings(
+            PREFECT_ORION_DATA_SCHEME="file",
+            PREFECT_ORION_DATABASE_CONNECTION_URL="postgres:///...",
+        ):
+            with pytest.raises(
+                RuntimeError,
+                match="cannot be used with an ephemeral server and a local data location",
+            ):
+                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_no_raise_on_submission_with_nonlocal_data_location(
+        self, mock_docker_client, flow_run
+    ):
+        with temporary_settings(
+            PREFECT_ORION_DATA_SCHEME="s3",
+            PREFECT_ORION_DATABASE_CONNECTION_URL="postgres:///...",
+        ):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+    async def test_no_raise_on_submission_with_local_data_location_and_hosted_api(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(
+            PREFECT_ORION_DATA_SCHEME="file",
+            PREFECT_ORION_HOST=hosted_orion,
+        ):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
     @pytest.mark.service("docker")
     async def test_executes_flow_run_with_ephemeral_api_and_postgres(
         self,
@@ -561,74 +864,73 @@ class TestDockerFlowRunner:
             "localhost", "host.docker.internal"
         )
 
-    async def test_image_is_used(self, mock_docker_client, flow_run, hosted_orion):
+    @pytest.mark.service("docker")
+    async def test_executing_flow_run_has_rw_access_to_volumes(
+        self,
+        flow_run,
+        orion_client,
+        hosted_orion,
+        tmp_path,
+    ):
+        @prefect.flow
+        def my_flow():
+            Path("/root/mount/writefile").resolve().write_text("bar")
+            return Path("/root/mount/readfile").resolve().read_text()
+
+        flow_id = await orion_client.create_flow(my_flow)
+
+        flow_data = DataDocument.encode("cloudpickle", my_flow)
+
+        deployment_id = await orion_client.create_deployment(
+            flow_id=flow_id,
+            name="prefect_file_test_deployment",
+            flow_data=flow_data,
+        )
+
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment_id)
+
+        # Write to a file that the flow will read from
+        (tmp_path / "readfile").write_text("foo")
+
         with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
-            await DockerFlowRunner(image="foo").submit_flow_run(flow_run, MagicMock())
-        mock_docker_client.containers.create.assert_called_once()
-        call_image = mock_docker_client.containers.create.call_args[1].get("image")
-        assert call_image == "foo"
+            assert await DockerFlowRunner(
+                volumes=[f"{tmp_path}:/root/mount"]
+            ).submit_flow_run(flow_run, fake_status)
 
-    async def test_volumes_are_used(self, mock_docker_client, flow_run, hosted_orion):
+        fake_status.started.assert_called_once()
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        file_contents = await orion_client.resolve_datadoc(flow_run.state.result())
+        assert file_contents == "foo"
+
+        assert (tmp_path / "writefile").read_text() == "bar"
+
+    @pytest.mark.service("docker")
+    async def test_executing_flow_run_has_environment_variables(
+        self,
+        flow_run,
+        orion_client,
+        hosted_orion,
+        os_environ_test_deployment,
+    ):
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            os_environ_test_deployment
+        )
+
         with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
-            await DockerFlowRunner(volumes=["a:b", "c:d"]).submit_flow_run(
-                flow_run, MagicMock()
-            )
-        mock_docker_client.containers.create.assert_called_once()
-        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
-        assert "a:b" in call_volumes
-        assert "c:d" in call_volumes
+            assert await DockerFlowRunner(
+                env={"TEST_FOO": "foo", "TEST_BAR": "bar"}
+            ).submit_flow_run(flow_run, fake_status)
 
-    async def test_sqlite_and_ephemeral_api_raises_on_submission(
-        self, mock_docker_client, flow_run
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///foo/"
-        ):
-            with pytest.raises(
-                RuntimeError,
-                match="cannot be used with an ephemeral server and a sqlite database",
-            ):
-                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_sqlite_and_hosted_api_does_not_raise_on_submission(
-        self, mock_docker_client, flow_run, hosted_orion
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///foo/",
-            PREFECT_ORION_HOST=hosted_orion,
-        ):
-            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_local_data_location_and_ephemeral_api_raises_on_submission(
-        self, mock_docker_client, flow_run
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATA_SCHEME="file",
-            PREFECT_ORION_DATABASE_CONNECTION_URL="postgres:///...",
-        ):
-            with pytest.raises(
-                RuntimeError,
-                match="cannot be used with an ephemeral server and a local data location",
-            ):
-                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_nonlocal_data_location_and_ephemeral_api_does_not_raise_on_submission(
-        self, mock_docker_client, flow_run
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATA_SCHEME="s3",
-            PREFECT_ORION_DATABASE_CONNECTION_URL="postgres:///...",
-        ):
-            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_local_data_location_and_hosted_api_does_not_raise(
-        self, mock_docker_client, flow_run, hosted_orion
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATA_SCHEME="file",
-            PREFECT_ORION_HOST=hosted_orion,
-        ):
-            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        fake_status.started.assert_called_once()
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        flow_run_environ = await orion_client.resolve_datadoc(flow_run.state.result())
+        assert "TEST_FOO" in flow_run_environ and "TEST_BAR" in flow_run_environ
+        assert flow_run_environ["TEST_FOO"] == "foo"
+        assert flow_run_environ["TEST_BAR"] == "bar"
 
 
 # The following tests are for configuration options and can test all relevant types
