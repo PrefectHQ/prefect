@@ -42,7 +42,8 @@ class Scheduler(LoopService):
         now = pendulum.now("UTC")
         total_inserted_runs = 0
 
-        async with self.session_factory() as session:
+        session = await db.session()
+        async with session:
             async with session.begin():
                 last_id = None
                 while True:
