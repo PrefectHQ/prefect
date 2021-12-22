@@ -22,7 +22,7 @@
       @keyup.enter="emitEnter"
     />
     <div
-      v-breakpoints="'xs'"
+      v-if="media.xs"
       class="
         ml-auto
         d-flex
@@ -40,6 +40,7 @@
 
 <script lang="ts" setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
+import media from '@/utilities/media'
 
 const emit = defineEmits(['input', 'keyup.enter', 'focused'])
 const searchInput = ref()
