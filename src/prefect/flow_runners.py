@@ -301,7 +301,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         for volume in volumes:
             if not ":" in volume:
                 raise ValueError(
-                    "Invalid volume specificiation. "
+                    "Invalid volume specification. "
                     f"Expected format 'path:container_path', but got {volume!r}"
                 )
 

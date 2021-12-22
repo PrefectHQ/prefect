@@ -1067,11 +1067,97 @@ class TestFlowRunnerConfigVolumes:
     def test_flow_runner_volumes_config_does_not_expand_paths(self, runner_type):
         assert runner_type(volumes=["~/a:b"]).volumes == ["~/a:b"]
 
+    def test_flow_runner_volumes_config_casts_to_list(self, runner_type):
+        assert type(runner_type(volumes={"a:b", "c:d"}).volumes) == list
+
     def test_flow_runner_volumes_config_errors_if_invalid_format(self, runner_type):
-        with pytest.raises(pydantic.ValidationError):
+        with pytest.raises(
+            pydantic.ValidationError, match="Invalid volume specification"
+        ):
             runner_type(volumes=["a"])
+
+    def test_flow_runner_volumes_config_errors_if_invalid_type(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(volumes={"a": "b"})
 
     def test_flow_runner_volumes_to_settings(self, runner_type):
         runner = runner_type(volumes=["a:b", "c:d"])
         settings = runner.to_settings()
         assert settings.config["volumes"] == ["a:b", "c:d"]
+
+
+@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
+class TestFlowRunnerConfigNetworks:
+    def test_flow_runner_networks_config(self, runner_type):
+        networks = ["a", "b"]
+        assert runner_type(networks=networks).networks == networks
+
+    def test_flow_runner_networks_config_casts_to_list(self, runner_type):
+        assert type(runner_type(networks={"a", "b"}).networks) == list
+
+    def test_flow_runner_networks_config_errors_if_invalid_type(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(volumes={"foo": "bar"})
+
+    def test_flow_runner_networks_to_settings(self, runner_type):
+        runner = runner_type(networks=["a", "b"])
+        settings = runner.to_settings()
+        assert settings.config["networks"] == ["a", "b"]
+
+
+@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
+class TestFlowRunnerConfigAutoRemove:
+    def test_flow_runner_auto_remove_config(self, runner_type):
+        assert runner_type(auto_remove=True).auto_remove == True
+
+    def test_flow_runner_auto_remove_config_casts_to_bool(self, runner_type):
+        assert runner_type(auto_remove=1).auto_remove == True
+
+    def test_flow_runner_auto_remove_config_errors_if_not_castable(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(auto_remove=object())
+
+    @pytest.mark.parametrize("value", [True, False])
+    def test_flow_runner_auto_remove_to_settings(self, runner_type, value):
+        runner = runner_type(auto_remove=value)
+        settings = runner.to_settings()
+        assert settings.config["auto_remove"] == value
+
+
+@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
+class TestFlowRunnerConfigImage:
+    def test_flow_runner_image_config(self, runner_type):
+        value = "foo"
+        assert runner_type(image=value).image == value
+
+    def test_flow_runner_image_config_casts_to_string(self, runner_type):
+        assert runner_type(image=1).image == "1"
+
+    def test_flow_runner_image_config_errors_if_not_castable(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(image=object())
+
+    def test_flow_runner_image_to_settings(self, runner_type):
+        runner = runner_type(image="test")
+        settings = runner.to_settings()
+        assert settings.config["image"] == "test"
+
+
+@pytest.mark.parametrize(
+    "runner_type", [DockerFlowRunner]
+)
+class TestFlowRunnerConfigLabels:
+    def test_flow_runner_labels_config(self, runner_type):
+        assert runner_type(labels={"foo": "bar"}).labels == {"foo": "bar"}
+
+    def test_flow_runner_labels_config_casts_to_strings(self, runner_type):
+        assert runner_type(labels={"foo": 1}).labels == {"foo": "1"}
+
+    def test_flow_runner_labels_config_errors_if_not_castable(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(labels={"foo": object()})
+
+    def test_flow_runner_labels_to_settings(self, runner_type):
+        runner = runner_type(labels={"foo": "bar"})
+        settings = runner.to_settings()
+        assert settings.config["labels"] == runner.labels
