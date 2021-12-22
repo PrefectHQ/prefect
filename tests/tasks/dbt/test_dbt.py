@@ -383,6 +383,7 @@ def test_dbt_cloud_run_job_trigger_job_with_wait():
         ],
     }
 
+
 @responses.activate
 def test_dbt_cloud_run_job_trigger_job_with_wait_custom():
     account_id = 1234
@@ -415,7 +416,7 @@ def test_dbt_cloud_run_job_trigger_job_with_wait_custom():
         job_id=job_id,
         token="foo",
         wait_for_job_run_completion=True,
-        domain='cloud.corp.getdbt.com'
+        domain="cloud.corp.getdbt.com",
     )
     r = run_job.run()
 
