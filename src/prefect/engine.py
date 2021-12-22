@@ -171,7 +171,6 @@ async def retrieve_flow_then_begin_flow_run(
         flow_version=flow.version,
         parameters=flow_run.parameters,
     )
-    await client.propose_state(Pending(), flow_run_id=flow_run_id)
 
     return await begin_flow_run(
         flow=flow,
@@ -457,25 +456,34 @@ def enter_task_run_engine(
 
 
 async def collect_task_run_inputs(
-    expr: Any, results: Set = None
+    expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
     This function recurses through an expression to generate a set of any discernable
-    task run inputs it finds in the data structure. It produces a set of all
-    inputs found.
+    task run inputs it finds in the data structure. It produces a set of all inputs
+    found.
+
+    Example:
+        >>> task_inputs = {
+        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        >>> }
     """
+    # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
 
-    async def visit_fn(expr):
-        if isinstance(expr, PrefectFuture):
-            inputs.add(core.TaskRunResult(id=expr.run_id))
+    async def add_futures_and_states_to_inputs(obj):
+        if isinstance(obj, PrefectFuture):
+            inputs.add(core.TaskRunResult(id=obj.run_id))
 
-        if isinstance(expr, State):
-            if expr.state_details.task_run_id:
-                inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
+        if isinstance(obj, State):
+            if obj.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=obj.state_details.task_run_id))
 
-    await visit_collection(expr, visit_fn=visit_fn, return_data=False)
+    await visit_collection(
+        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
+    )
+
     return inputs
 
 

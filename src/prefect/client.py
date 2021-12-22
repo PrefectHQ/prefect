@@ -1017,20 +1017,24 @@ class OrionClient:
             raise TypeError(
                 f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
             )
-        result = datadoc
-        while isinstance(result, DataDocument):
-            if result.encoding == "orion":
-                inner_doc_bytes = await self.retrieve_data(result)
+
+        async def resolve_inner(data):
+            if isinstance(data, bytes):
                 try:
-                    result = DataDocument.parse_raw(inner_doc_bytes)
-                except pydantic.ValidationError as exc:
-                    raise ValueError(
-                        "Expected `orion` encoded document to contain another data "
-                        "document but it could not be parsed."
-                    ) from exc
-            else:
-                result = result.decode()
-        return result
+                    data = DataDocument.parse_raw(data)
+                except pydantic.ValidationError:
+                    return data
+
+            if isinstance(data, DataDocument):
+                if data.encoding == "orion":
+                    data = await self.retrieve_data(data)
+                else:
+                    data = data.decode()
+                return await resolve_inner(data)
+
+            return data
+
+        return await resolve_inner(datadoc)
 
     async def __aenter__(self):
         await self._client.__aenter__()

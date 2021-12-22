@@ -40,8 +40,12 @@ async def open_process_and_stream_output(
         if task_status is not None:
             task_status.started()
 
-        async for text in TextReceiveStream(process.stdout):
-            print(text, end="")  # Output is already new-line terminated
+        try:
+            async for text in TextReceiveStream(process.stdout):
+                print(text, end="")  # Output is already new-line terminated
+        except BaseException:
+            process.terminate()
+            raise
 
 
 @orion_app.command()
