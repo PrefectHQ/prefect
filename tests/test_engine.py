@@ -438,6 +438,7 @@ class TestOrchestrateFlowRun:
         state = await orchestrate_flow_run(
             flow=foo,
             flow_run=flow_run,
+            parameters={},
             task_runner=SequentialTaskRunner(),
             sync_portal=None,
             client=orion_client,
@@ -470,6 +471,7 @@ class TestOrchestrateFlowRun:
             state = await orchestrate_flow_run(
                 flow=foo,
                 flow_run=flow_run,
+                parameters={},
                 task_runner=SequentialTaskRunner(),
                 sync_portal=None,
                 client=orion_client,
@@ -510,6 +512,7 @@ class TestFlowRunCrashes:
                         begin_flow_run,
                         flow=my_flow,
                         flow_run=flow_run,
+                        parameters={},
                         client=orion_client,
                     )
                 )
@@ -539,6 +542,7 @@ class TestFlowRunCrashes:
                     partial(
                         begin_flow_run,
                         flow=parent_flow,
+                        parameters={},
                         flow_run=flow_run,
                         client=orion_client,
                     )
@@ -567,7 +571,9 @@ class TestFlowRunCrashes:
             raise KeyboardInterrupt()
 
         with pytest.raises(KeyboardInterrupt):
-            await begin_flow_run(flow=my_flow, flow_run=flow_run, client=orion_client)
+            await begin_flow_run(
+                flow=my_flow, flow_run=flow_run, parameters={}, client=orion_client
+            )
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_failed()
@@ -586,6 +592,7 @@ class TestFlowRunCrashes:
 
         await begin_flow_run(
             flow=my_flow,
+            parameters={},
             flow_run=flow_run,
             client=orion_client,
         )
@@ -611,6 +618,7 @@ class TestFlowRunCrashes:
                 tg.start_soon(
                     partial(
                         begin_flow_run,
+                        parameters={},
                         flow=my_flow,
                         flow_run=flow_run,
                         client=orion_client,
