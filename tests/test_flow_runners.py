@@ -936,7 +936,9 @@ class TestDockerFlowRunner:
 # The following tests are for configuration options and can test all relevant types
 
 
-@pytest.mark.parametrize("runner_type", [UniversalFlowRunner, SubprocessFlowRunner])
+@pytest.mark.parametrize(
+    "runner_type", [UniversalFlowRunner, SubprocessFlowRunner, DockerFlowRunner]
+)
 class TestFlowRunnerConfigEnv:
     def test_flow_runner_env_config(self, runner_type):
         assert runner_type(env={"foo": "bar"}).env == {"foo": "bar"}
