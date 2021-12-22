@@ -141,6 +141,7 @@ class SnowflakeQuery(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
+            # required to track task's usage in the Snowflake Partner Network Portal
             "application": f"Prefect_{self.__class__.__name__}",
         }
 
@@ -299,6 +300,7 @@ class SnowflakeQueriesFromFile(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
+            # required to track task's usage in the Snowflake Partner Network Portal
             "application": f"Prefect_{self.__class__.__name__}",
         }
 
