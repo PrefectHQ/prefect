@@ -533,6 +533,8 @@ class TestDockerFlowRunner:
 
         fake_status.started.assert_called_once()
         mock_docker_client.containers.create.assert_called_once()
+        # The returned container is started
+        mock_docker_client.containers.create().start.assert_called_once()
 
     async def test_container_name_matches_flow_run_name(
         self, mock_docker_client, flow_run, hosted_orion
@@ -700,6 +702,35 @@ class TestDockerFlowRunner:
         call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
         assert "a:b" in call_volumes
         assert "c:d" in call_volumes
+
+    @pytest.mark.parametrize("networks", [[], ["a"], ["a", "b"]])
+    async def test_uses_network_setting(
+        self, mock_docker_client, flow_run, hosted_orion, networks
+    ):
+
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner(networks=networks).submit_flow_run(
+                flow_run, MagicMock()
+            )
+        mock_docker_client.containers.create.assert_called_once()
+        call_network = mock_docker_client.containers.create.call_args[1].get("network")
+
+        if not networks:
+            assert not call_network
+        else:
+            assert call_network == networks[0]
+
+        # Additional networks must be added after
+        if len(networks) <= 1:
+            mock_docker_client.networks.get.assert_not_called()
+        else:
+            for network_name in networks[1:]:
+                mock_docker_client.networks.get.assert_called_with(network_name)
+
+            # network.connect called with the created container
+            mock_docker_client.networks.get().connect.assert_called_with(
+                mock_docker_client.containers.create()
+            )
 
     async def test_includes_prefect_labels(
         self, mock_docker_client, flow_run, hosted_orion
