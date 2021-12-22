@@ -621,6 +621,13 @@ workflows:
             branches:
               only: master
 
+      - build_release_candidate_docker_image:
+          python_version: '3.7'
+          extras: 'all_orchestration_extras'
+          filters:
+            branches:
+              only: 1.0.0rc
+
   'Build and publish release artifacts':
     jobs:
       - build_docker_image:
