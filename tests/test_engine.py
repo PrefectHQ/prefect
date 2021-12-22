@@ -1,23 +1,21 @@
-import sys
+from contextlib import contextmanager
 from functools import partial
 from unittest.mock import MagicMock
-from contextlib import contextmanager
 
 import anyio
 import pendulum
 import pytest
 
 from prefect import flow, task
-from prefect.client import OrionClient
 from prefect.engine import (
     begin_flow_run,
     orchestrate_flow_run,
     orchestrate_task_run,
     raise_failed_state,
-    user_return_value_to_state,
     retrieve_flow_then_begin_flow_run,
+    user_return_value_to_state,
 )
-from prefect.task_runners import SequentialTaskRunner
+from prefect.exceptions import ParameterTypeError
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
@@ -31,6 +29,7 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.task_runners import SequentialTaskRunner
 from prefect.utilities.compat import AsyncMock
 
 
