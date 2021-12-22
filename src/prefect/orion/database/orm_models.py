@@ -578,11 +578,6 @@ class ORMLog:
       he client-specified timestamp as the meaningful time
       dimension of logs.
 
-    - On Postgres, we index timestamp using a BRIN index, which
-      performs better than b-tree for range queries and data that
-      are inserted in order, like logs, and won't be deleted in
-      random order or updated.
-
     - Our table schema stores log name, level, and message as
       columns, with b-tree indexes on name and level to allow
       clients to filter by those attributes.
@@ -599,7 +594,7 @@ class ORMLog:
     message = sa.Column(sa.Text, nullable=False)
 
     # The client-side timestamp of this logged statement.
-    timestamp = sa.Column(Timestamp(), nullable=False)
+    timestamp = sa.Column(Timestamp(), nullable=False, index=True)
 
     # Any additional attributes for logs should exist in this
     # JSON object. For example, flow run IDs and task run IDs.
@@ -610,10 +605,6 @@ class ORMLog:
     )
 
     __mapper_args__ = {"eager_defaults": True}
-
-    __table_args__ = (
-        sa.Index("ix_log_timestamp", "timestamp", postgresql_using="brin"),
-    )
 
     @declared_attr
     def __tablename__(cls):
