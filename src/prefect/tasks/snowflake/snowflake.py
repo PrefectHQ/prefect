@@ -47,7 +47,7 @@ class SnowflakeQuery(Task):
         data: tuple = None,
         autocommit: bool = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        **kwargs
+        **kwargs,
     ):
         self.account = account
         self.user = user
@@ -141,6 +141,7 @@ class SnowflakeQuery(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
+            "application": f"Prefect_{self.__class__.__name__}",
         }
 
         # filter out unset values
@@ -208,7 +209,7 @@ class SnowflakeQueriesFromFile(Task):
         file_path: str = None,
         autocommit: bool = None,
         cursor_type: SnowflakeCursor = SnowflakeCursor,
-        **kwargs
+        **kwargs,
     ):
         self.account = account
         self.user = user
@@ -298,6 +299,7 @@ class SnowflakeQueriesFromFile(Task):
             "role": role,
             "warehouse": warehouse,
             "autocommit": autocommit,
+            "application": f"Prefect_{self.__class__.__name__}",
         }
 
         # filter out unset values
