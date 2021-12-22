@@ -418,7 +418,7 @@ class DbtCloudRunJob(Task):
             artifact_links = []
             try:
                 artifact_links = list_run_artifact_links(
-                    account_id=account_id, run_id=run["id"], token=token
+                    account_id=account_id, run_id=run["id"], token=token, domain=domain
                 )
 
                 markdown = f"Artifacts for dbt Cloud run {run['id']} of job {job_id}\n"

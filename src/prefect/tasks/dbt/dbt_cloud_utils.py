@@ -190,8 +190,6 @@ def list_run_artifact_links(
 
     """
 
-    if domain is None:
-        domain = "cloud.getdbt.com"
 
     list_run_artifact_response = requests.get(
         url=__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2.format(
