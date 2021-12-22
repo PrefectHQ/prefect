@@ -14,22 +14,21 @@
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
       <template v-if="route.fullPath.includes('/radar')">
-        <div v-breakpoints="'sm'" class="text-truncate">
+        <div v-breakpoints="'sm'" class="text-truncate d-flex align-center">
           <span class="ml-5">
             Flow Version:
             <span class="font-weight-semibold">
               {{ version }}
             </span>
           </span>
-
-          <button
+          <CopyButton
             v-breakpoints="'md'"
-            class="copy-link ml-1"
-            @click="copyRunId"
+            class="ml-1"
+            :value="id"
+            toast="Run ID was copied to clipboard"
           >
-            <i class="pi pi-file-copy-line pi-xs" />
             Copy Run ID
-          </button>
+          </CopyButton>
         </div>
       </template>
     </div>
@@ -41,15 +40,8 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, Flow } from '@/typings/objects'
-import {
-  computed,
-  onBeforeUnmount,
-  onBeforeMount,
-  ref,
-  Ref,
-  watch,
-  getCurrentInstance
-} from 'vue'
+import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
+import CopyButton from '@/components/Global/CopyButton.vue'
 
 import { useRoute } from 'vue-router'
 
@@ -118,16 +110,6 @@ const crumbs = computed(() => {
   return arr
 })
 
-const instance = getCurrentInstance()
-
-const copyRunId = () => {
-  navigator.clipboard.writeText(id.value)
-  instance?.appContext.config.globalProperties.$toast.add({
-    type: 'success',
-    content: 'Run ID was copied to clipboard'
-  })
-}
-
 // This cleanup is necessary since the initial flow run query isn't
 // wrapped in the queries object
 onBeforeUnmount(() => {
@@ -145,29 +127,6 @@ watch(id, () => {
 </script>
 
 <style lang="scss" scoped>
-.copy-link {
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  color: $primary !important;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px;
-  text-decoration: none;
-  transition: all 50ms;
-  user-select: none;
-
-  &:hover,
-  &:focus {
-    color: $white !important;
-    background-color: $grey-20;
-  }
-
-  &:active {
-    background-color: $grey-40;
-  }
-}
-
 .blur {
   backdrop-filter: blur(1px);
   background-color: rgba(244, 245, 247, 0.8);
