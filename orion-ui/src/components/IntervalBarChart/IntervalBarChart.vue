@@ -40,7 +40,6 @@ import { CSSProperties } from '@vue/runtime-dom'
 import IntervalBarChartItem from './IntervalBarChartItem.vue'
 
 class Props {
-  intervalSeconds = prop<number>({ required: true })
   intervalStart = prop<Date>({ required: true })
   intervalEnd = prop<Date>({ required: true })
   items = prop<BarChartItem[]>({ required: true })
@@ -104,7 +103,7 @@ export default class IntervalBarChart extends mixins(D3Base).with(Props) {
   calculateItemPosition(item: BarChartItem): CSSProperties {
     const height = this.yScale(item.value)
     const top = this.height - this.padding.bottom - height
-    const left = this.xScale(new Date(item.interval_start)) + this.padding.left
+    const left = this.xScale(item.interval_start) + this.padding.left
 
     return {
       height: `${height}px`,
