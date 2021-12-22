@@ -22,6 +22,7 @@ const backgroundClass = computed(() => {
   display: inline-block;
   font-family: barlow;
   font-size: 13px;
+  font-weight: 600;
   height: 20px;
   border-radius: 4px;
   padding: 0 8px;
