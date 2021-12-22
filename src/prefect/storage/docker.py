@@ -189,6 +189,16 @@ class Docker(Storage):
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
+            elif self.prefect_version.startswith("1.0rc0"):
+                # Development release candidate
+                self.base_image = "prefecthq/prefect:1.0rc0"
+            elif (
+                re.match(r"^[0-9]+\.[0-9]+rc[0-9]+$", self.prefect_version) is not None
+            ):
+                # Actual release candidate
+                self.base_image = "prefecthq/prefect:{}-python{}".format(
+                    self.prefect_version, python_version
+                )
             else:
                 # create an image from python:*-slim directly
                 self.base_image = "python:{}-slim".format(python_version)

@@ -122,6 +122,23 @@ def test_empty_docker_storage_on_tagged_commit(
     assert not storage.local_image
 
 
+@pytest.mark.parametrize("dev_version", ["1.0rc0", "1.0rc0+c2394823"])
+def test_base_image_release_candidate_dev_image(monkeypatch, dev_version):
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=7))
+    monkeypatch.setattr(prefect, "__version__", dev_version)
+
+    storage = Docker()
+    assert storage.base_image == "prefecthq/prefect:1.0rc0"
+
+
+def test_base_image_release_candidate(monkeypatch):
+    monkeypatch.setattr(sys, "version_info", MagicMock(major=3, minor=7))
+    monkeypatch.setattr(prefect, "__version__", "1.0rc1")
+
+    storage = Docker()
+    assert storage.base_image == "prefecthq/prefect:1.0rc1-python3.7"
+
+
 @pytest.mark.parametrize("version_info", [(3, 5), (3, 6), (3, 7)])
 def test_docker_init_responds_to_python_version(monkeypatch, version_info):
     version_mock = MagicMock(major=version_info[0], minor=version_info[1])
