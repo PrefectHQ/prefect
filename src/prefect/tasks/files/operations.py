@@ -219,4 +219,4 @@ class Glob(Task):
         globpath = Path(path).joinpath(pattern)
         self.logger.debug(f"Glob path: {globpath}")
 
-        return list(globpath.glob(pattern))
+        return list(Path(path).glob(pattern))
