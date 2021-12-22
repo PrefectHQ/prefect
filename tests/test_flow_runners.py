@@ -789,87 +789,22 @@ class TestDockerFlowRunner:
         )
         assert not call_extra_hosts
 
-    async def test_raises_on_submission_with_sqlite_and_ephemeral_api(
+    async def test_raises_on_submission_with_ephemeral_api(
         self, mock_docker_client, flow_run
     ):
-        with temporary_settings(
-            PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///foo/"
+        with pytest.raises(
+            RuntimeError,
+            match="cannot be used with an ephemeral server",
         ):
-            with pytest.raises(
-                RuntimeError,
-                match="cannot be used with an ephemeral server and a sqlite database",
-            ):
-                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-    async def test_no_raise_on_submission_with_sqlite_and_hosted_api(
+    async def test_no_raise_on_submission_with_hosted_api(
         self, mock_docker_client, flow_run, hosted_orion
     ):
         with temporary_settings(
-            PREFECT_ORION_DATABASE_CONNECTION_URL="sqlite+aiosqlite:///foo/",
             PREFECT_ORION_HOST=hosted_orion,
         ):
             await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_raises_on_submission_with_local_data_location_and_ephemeral_api(
-        self, mock_docker_client, flow_run
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATA_SCHEME="file",
-            PREFECT_ORION_DATABASE_CONNECTION_URL="postgres:///...",
-        ):
-            with pytest.raises(
-                RuntimeError,
-                match="cannot be used with an ephemeral server and a local data location",
-            ):
-                await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_no_raise_on_submission_with_nonlocal_data_location(
-        self, mock_docker_client, flow_run
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATA_SCHEME="s3",
-            PREFECT_ORION_DATABASE_CONNECTION_URL="postgres:///...",
-        ):
-            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    async def test_no_raise_on_submission_with_local_data_location_and_hosted_api(
-        self, mock_docker_client, flow_run, hosted_orion
-    ):
-        with temporary_settings(
-            PREFECT_ORION_DATA_SCHEME="file",
-            PREFECT_ORION_HOST=hosted_orion,
-        ):
-            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-    @pytest.mark.service("docker")
-    async def test_executes_flow_run_with_ephemeral_api_and_postgres(
-        self,
-        flow_run,
-        orion_client,
-        prefect_settings_test_deployment,
-    ):
-        database_url = prefect.settings.orion.database.connection_url.get_secret_value()
-        if "sqlite" in database_url:
-            pytest.skip("Test is running against sqlite but requires postgres")
-
-        flow_run = await orion_client.create_flow_run_from_deployment(
-            prefect_settings_test_deployment
-        )
-
-        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
-        datapath = prefect.settings.orion.data.base_path
-        # Mount the data location or flow run results will be irretrievable
-        assert await DockerFlowRunner(
-            volumes=[f"{datapath}:{datapath}"]
-        ).submit_flow_run(flow_run, fake_status)
-
-        fake_status.started.assert_called_once()
-        flow_run = await orion_client.read_flow_run(flow_run.id)
-        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert (
-            runtime_settings.orion.database.connection_url.get_secret_value()
-            == database_url.replace("localhost", "host.docker.internal")
-        )
 
     @pytest.mark.service("docker")
     async def test_executes_flow_run_with_hosted_api(
@@ -1143,9 +1078,7 @@ class TestFlowRunnerConfigImage:
         assert settings.config["image"] == "test"
 
 
-@pytest.mark.parametrize(
-    "runner_type", [DockerFlowRunner]
-)
+@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
 class TestFlowRunnerConfigLabels:
     def test_flow_runner_labels_config(self, runner_type):
         assert runner_type(labels={"foo": "bar"}).labels == {"foo": "bar"}
