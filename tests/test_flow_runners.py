@@ -954,7 +954,7 @@ class TestFlowRunnerConfigEnv:
         assert settings.config["env"] == runner.env
 
 
-@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner])
+@pytest.mark.parametrize("runner_type", [SubprocessFlowRunner, DockerFlowRunner])
 class TestFlowRunnerConfigStreamOutput:
     def test_flow_runner_stream_output_config(self, runner_type):
         assert runner_type(stream_output=True).stream_output == True
