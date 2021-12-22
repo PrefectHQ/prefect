@@ -16,19 +16,19 @@ router = OrionRouter(prefix="/admin", tags=["Admin"])
 
 
 @router.get("/hello")
-def hello():
+async def hello():
     """Say hello!"""
     return "👋"
 
 
 @router.get("/settings")
-def read_settings() -> prefect.utilities.settings.Settings:
+async def read_settings() -> prefect.utilities.settings.Settings:
     """Get the current Orion settings"""
     return prefect.settings
 
 
 @router.get("/version")
-def read_version() -> str:
+async def read_version() -> str:
     """Returns the Prefect version number"""
     return prefect.__version__
 

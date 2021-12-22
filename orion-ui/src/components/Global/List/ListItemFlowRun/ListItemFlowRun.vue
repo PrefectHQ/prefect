@@ -21,22 +21,12 @@
 
       <div class="tag-container nowrap d-flex align-bottom">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-
-        <Tag
-          v-for="tag in tags"
-          :key="tag"
-          color="secondary-pressed"
-          class="font--primary caption font-weight-semibold mr-1"
-          icon="pi-label"
-          flat
-        >
-          {{ tag }}
-        </Tag>
+        <Tags :tags="tags" class="caption" />
       </div>
     </div>
 
     <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
-      <ButtonRounded class="mr-1">
+      <ButtonRounded disabled>
         {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
       </ButtonRounded>
     </div>
