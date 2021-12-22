@@ -57,7 +57,11 @@ export default ({ Vue, router }) => {
 }
 
 function scrollToHash(to, Vue) {
-  if (Vue.$vuepress.$get('disableScrollBehavior')) {
+  if (
+    Vue.$vuepress.$get('disableScrollBehavior') ||
+    typeof window == 'undefined' ||
+    !document
+  ) {
     return false
   }
 
