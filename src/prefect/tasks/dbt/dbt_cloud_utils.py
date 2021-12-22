@@ -190,7 +190,6 @@ def list_run_artifact_links(
 
     """
 
-
     list_run_artifact_response = requests.get(
         url=__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2.format(
             accountId=account_id, runId=run_id, apiDomain=domain
