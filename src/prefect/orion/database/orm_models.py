@@ -611,9 +611,9 @@ class ORMLog:
 
     __mapper_args__ = {"eager_defaults": True}
 
-    # __table_args__ = (
-    #     sa.Index('ix_logs_timestamp', timestamp, postgresql_using="brin"),
-    # )
+    __table_args__ = (
+        sa.Index("ix_log_timestamp", "timestamp", postgresql_using="brin"),
+    )
 
     @declared_attr
     def __tablename__(cls):
