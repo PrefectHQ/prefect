@@ -177,7 +177,12 @@ class Docker(Storage):
 
         version = prefect.__version__.split("+")
         if prefect_version is None:
-            self.prefect_version = "master" if len(version) > 1 else version[0]
+            self.prefect_version = (
+                "master"
+                # The release candidate is a special development version
+                if len(version) > 1 and not version[0].endswith("rc0")
+                else version[0]
+            )
         else:
             self.prefect_version = prefect_version
 
@@ -189,9 +194,9 @@ class Docker(Storage):
                 self.base_image = "prefecthq/prefect:{}-python{}".format(
                     self.prefect_version, python_version
                 )
-            elif self.prefect_version.startswith("1.0rc0"):
+            elif self.prefect_version.endswith("rc0"):
                 # Development release candidate
-                self.base_image = "prefecthq/prefect:1.0rc0"
+                self.base_image = f"prefecthq/prefect:{self.prefect_version}"
             elif (
                 re.match(r"^[0-9]+\.[0-9]+rc[0-9]+$", self.prefect_version) is not None
             ):
