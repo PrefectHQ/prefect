@@ -155,11 +155,11 @@ def slack_message_formatter(
 
         if isinstance(tracked_obj, prefect.Flow):
             url = prefect.client.Client().get_cloud_url(
-                "flow-run", prefect.context["flow_run_id"], as_user=False
+                "flow-run", prefect.context["flow_run_id"]
             )
         elif isinstance(tracked_obj, prefect.Task):
             url = prefect.client.Client().get_cloud_url(
-                "task-run", prefect.context.get("task_run_id", ""), as_user=False
+                "task-run", prefect.context.get("task_run_id", "")
             )
 
         if url:

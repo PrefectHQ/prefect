@@ -7,10 +7,8 @@ from prefect.utilities.plugins import API as api, PLUGINS as plugins, MODELS as 
 from prefect.client import Client
 import prefect.schedules
 import prefect.triggers
-import prefect.environments
 import prefect.storage
 import prefect.executors
-import prefect.engine.executors  # deprecated
 
 from prefect.core import Task, Flow, Parameter
 import prefect.engine

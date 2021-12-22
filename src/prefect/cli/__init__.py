@@ -42,7 +42,7 @@ def cli():
         agent       Manage agents
         create      Create objects
         delete      Delete objects
-        execute     Execute a flow's environment
+        execute     Execute a flow run
         run         Run a flow
         register    Register flows with an API
         heartbeat   Send heartbeats for a run

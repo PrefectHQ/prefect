@@ -148,7 +148,7 @@ def create_flow_run(
         idempotency_key=idempotency_key,
     )
 
-    run_url = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+    run_url = client.get_cloud_url("flow-run", flow_run_id)
     logger.info(f"Created flow run {run_name_dsp!r}: {run_url}")
 
     return flow_run_id
@@ -452,7 +452,7 @@ class StartFlowRun(Task):
         self.logger.debug(f"Flow Run {flow_run_id} created.")
 
         self.logger.debug(f"Creating link artifact for Flow Run {flow_run_id}.")
-        run_link = client.get_cloud_url("flow-run", flow_run_id, as_user=False)
+        run_link = client.get_cloud_url("flow-run", flow_run_id)
         create_link_artifact(urlparse(run_link).path)
         self.logger.info(f"Flow Run: {run_link}")
 

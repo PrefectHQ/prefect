@@ -87,21 +87,17 @@ def test_cloud_handler_emit_noop_if_cloud_logging_disabled(logger, log_manager):
     assert log_manager.thread is None
 
 
-def test_cloud_handler_emit_noop_if_cloud_logging_disabled_deprecated(
-    logger, log_manager
-):
-    with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
-        logger.info("testing")
-    assert not log_manager.enqueue.called
-    assert log_manager.client is None
-    assert log_manager.thread is None
-
-
 def test_cloud_handler_emit_noop_if_below_log_level(logger, log_manager):
     logger.debug("testing")
     assert not log_manager.enqueue.called
     assert log_manager.client is None
     assert log_manager.thread is None
+
+
+def test_cloud_handler_emit_ignores_removed_log_to_cloud_setting(logger, log_manager):
+    with utilities.configuration.set_temporary_config({"logging.log_to_cloud": False}):
+        logger.info("testing")
+    assert log_manager.enqueue.called
 
 
 def test_cloud_handler_emit_noop_if_below_log_level_in_context(logger, log_manager):

@@ -213,16 +213,9 @@ class VertexAgent(Agent):
             {
                 "PREFECT__BACKEND": config.backend,
                 "PREFECT__CLOUD__API": config.cloud.api,
-                "PREFECT__CLOUD__AUTH_TOKEN": (
-                    # Pull an auth token if it exists but fall back to an API key so
-                    # flows in pre-0.15.0 containers still authenticate correctly
-                    config.cloud.agent.get("auth_token")
-                    or self.flow_run_api_key
-                    or ""
-                ),
                 "PREFECT__CLOUD__API_KEY": self.flow_run_api_key or "",
                 "PREFECT__CLOUD__TENANT_ID": (
-                    # Providing a tenant id is only necessary for API keys (not tokens)
+                    # Providing a tenant id is only necessary when authenticating
                     self.client.tenant_id
                     if self.flow_run_api_key
                     else ""
@@ -236,6 +229,8 @@ class VertexAgent(Agent):
                 "PREFECT__ENGINE__TASK_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudTaskRunner",
                 # Backwards compatibility variable for containers on Prefect <0.15.0
                 "PREFECT__LOGGING__LOG_TO_CLOUD": str(self.log_to_cloud).lower(),
+                # Backwards compatibility variable for containers on Prefect <1.0.0
+                "PREFECT__CLOUD__AUTH_TOKEN": self.flow_run_api_key or "",
             }
         )
         return env

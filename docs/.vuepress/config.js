@@ -130,11 +130,6 @@ module.exports = {
           children: getChildren('docs/api/latest', 'engine')
         },
         {
-          title: 'prefect.environments',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'environments')
-        },
-        {
           title: 'prefect.executors',
           collapsable: true,
           children: ['executors.md']
@@ -238,7 +233,6 @@ module.exports = {
             'agents/kubernetes',
             'agents/vertex',
             'agents/ecs',
-            'agents/fargate'
           ]
         },
         {

@@ -23,8 +23,6 @@ class FlowView:
     This object is designed to be an immutable view of the data stored in the Prefect
     backend API at the time it is created
 
-    EXPERIMENTAL: This interface is experimental and subject to change
-
     Args:
         - flow_id: The uuid of the flow
         - settings: A dict of flow settings
