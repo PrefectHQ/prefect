@@ -756,6 +756,40 @@ class TestDockerFlowRunner:
         assert call_labels["bar"] == "BAR"
         assert "io.prefect.flow-run-id" in call_labels, "prefect labels still included"
 
+    async def test_uses_env_setting(self, mock_docker_client, flow_run, hosted_orion):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner(env={"foo": "FOO", "bar": "BAR"}).submit_flow_run(
+                flow_run, MagicMock()
+            )
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert "foo" in call_env and "bar" in call_env
+        assert call_env["foo"] == "FOO"
+        assert call_env["bar"] == "BAR"
+
+    async def test_replaces_localhost_with_dockerhost_in_env(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert "PREFECT_ORION_HOST" in call_env
+        assert call_env["PREFECT_ORION_HOST"] == hosted_orion.replace(
+            "localhost", "host.docker.internal"
+        )
+
+    async def test_does_not_override_user_provided_host(
+        self, mock_docker_client, flow_run, hosted_orion
+    ):
+        with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
+            await DockerFlowRunner(
+                env={"PREFECT_ORION_HOST": "http://localhost/api"}
+            ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.containers.create.assert_called_once()
+        call_env = mock_docker_client.containers.create.call_args[1].get("environment")
+        assert call_env.get("PREFECT_ORION_HOST") == "http://localhost/api"
+
     async def test_adds_docker_host_gateway(
         self, mock_docker_client, flow_run, hosted_orion
     ):
