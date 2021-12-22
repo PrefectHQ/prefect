@@ -68,7 +68,7 @@ itself remains safe and secure on your infrastructure.
 
 For more information on flow registration, see the [registration docs](/orchestration/concepts/flows.md#registration).
 
-Running the above should output some details about your flow:
+Assuming you saved the code shown above to a file called `hello_flow.py` (or edited the file created in a [previous step](/orchestration/getting-started/basic-core-flow.html)), running it in a terminal session should output some details about your flow:
 
 ```bash
 $ python hello_flow.py
@@ -109,7 +109,7 @@ machine.
 In a new terminal session, run the following to start a local Agent.
 
 ```bash
-prefect agent local start
+$ prefect agent local start
 ```
 
 This should output some initial logs, then sit idle waiting for scheduled flow

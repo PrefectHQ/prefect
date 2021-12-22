@@ -3,7 +3,7 @@ const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -257,9 +257,7 @@ module.exports = {
         {
           title: 'RBAC',
           collapsable: true,
-          children: [
-            'rbac/overview'
-          ]
+          children: ['rbac/overview']
         },
         {
           title: 'Server',
@@ -269,7 +267,7 @@ module.exports = {
             'server/architecture',
             'server/deploy-local',
             'server/telemetry',
-            'server/troubleshooting',
+            'server/troubleshooting'
           ]
         },
         {
@@ -286,9 +284,7 @@ module.exports = {
         {
           title: 'Integrations',
           collapsable: true,
-          children: [
-            'integrations/pagerduty'
-          ]
+          children: ['integrations/pagerduty']
         },
         {
           title: 'FAQ',
