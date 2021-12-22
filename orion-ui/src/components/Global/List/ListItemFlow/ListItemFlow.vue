@@ -29,7 +29,7 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto nowrap">
+    <div v-if="media.sm" class="ml-auto nowrap">
       <ButtonRounded class="mr-1" disabled>
         {{ flowRunCount.toLocaleString() }} flow run{{
           flowRunCount == 1 ? '' : 's'
@@ -43,7 +43,7 @@
       </ButtonRounded>
     </div>
 
-    <div v-breakpoints="'md'" class="chart-container">
+    <div v-if="media.md" class="chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
         :interval-start="store.getters.start"
@@ -64,6 +64,7 @@ import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
+import media from '@/utilities/media'
 
 const store = useStore()
 const props = defineProps<{ item: Flow }>()
