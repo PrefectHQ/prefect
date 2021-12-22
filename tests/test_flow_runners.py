@@ -1056,3 +1056,22 @@ class TestFlowRunnerConfigVirtualEnv:
         runner = runner_type(virtualenv=Path("~/test"))
         settings = runner.to_settings()
         assert settings.config["virtualenv"] == Path("~/test")
+
+
+@pytest.mark.parametrize("runner_type", [DockerFlowRunner])
+class TestFlowRunnerConfigVolumes:
+    def test_flow_runner_volumes_config(self, runner_type):
+        volumes = ["a:b", "c:d"]
+        assert runner_type(volumes=volumes).volumes == volumes
+
+    def test_flow_runner_volumes_config_does_not_expand_paths(self, runner_type):
+        assert runner_type(volumes=["~/a:b"]).volumes == ["~/a:b"]
+
+    def test_flow_runner_volumes_config_errors_if_invalid_format(self, runner_type):
+        with pytest.raises(pydantic.ValidationError):
+            runner_type(volumes=["a"])
+
+    def test_flow_runner_volumes_to_settings(self, runner_type):
+        runner = runner_type(volumes=["a:b", "c:d"])
+        settings = runner.to_settings()
+        assert settings.config["volumes"] == ["a:b", "c:d"]

@@ -296,6 +296,17 @@ class DockerFlowRunner(UniversalFlowRunner):
     volumes: List[str] = Field(default_factory=list)
     stream_output: bool = True
 
+    @validator("volumes")
+    def check_volume_format(cls, volumes):
+        for volume in volumes:
+            if not ":" in volume:
+                raise ValueError(
+                    "Invalid volume specificiation. "
+                    f"Expected format 'path:container_path', but got {volume!r}"
+                )
+
+        return volumes
+
     async def submit_flow_run(
         self,
         flow_run: FlowRun,
