@@ -421,11 +421,6 @@ class ORMFlowRun(ORMRun):
             foreign_keys=lambda: [cls.parent_task_run_id],
         )
 
-    @declared_attr
-    def logs(cls):
-        return sa.orm.relationship("Log", back_populates="flow_run", lazy="raise")
-
-
 
 @declarative_mixin
 class ORMTaskRun(ORMRun):
@@ -532,10 +527,6 @@ class ORMTaskRun(ORMRun):
             uselist=False,
         )
 
-    @declared_attr
-    def logs(cls):
-        return sa.orm.relationship("Log", back_populates="task_run", lazy="raise")
-
 
 @declarative_mixin
 class ORMDeployment:
@@ -573,32 +564,65 @@ class ORMDeployment:
 
 @declarative_mixin
 class ORMLog:
-    """SQLAlchemy model of a logging statement."""
+    """
+    SQLAlchemy model of a logging statement.
+
+    This model is designed for fast insert performance and queries
+    based on time ranges:
+
+    - We don't give individual log records a unique ID. Logs
+      are treated as time series data queried by range, rather
+      than individual records.
+
+    - We don't track the server creation or update times, using
+      he client-specified timestamp as the meaningful time
+      dimension of logs.
+
+    - On Postgres, we index timestamp using a BRIN index, which
+      performs better than b-tree for range queries and data that
+      are inserted in order, like logs, and won't be deleted in
+      random order or updated.
+
+    - Our table schema stores log name, level, and message as
+      columns, with b-tree indexes on name and level to allow
+      clients to filter by those attributes.
+
+    - We don't store relationships to other objects as foreign
+      keys to avoid lookups during inserts, but instead store
+      a denormalized "extra_attributes" JSON object that
+      contains any IDs or filterable attributes that an agent
+      chooses to store.
+    """
 
     name = sa.Column(sa.String, nullable=False, index=True)
-    level = sa.Column(sa.String, nullable=False, index=True)
+    level = sa.Column(sa.SmallInteger, nullable=False, index=True)
     message = sa.Column(sa.Text, nullable=False)
 
-    # The client-side timestamp of this logged statement, distinct from the created
-    # timestamp of the database record representing the logged statement.
-    timestamp = sa.Column(Timestamp(), nullable=False, index=True)
+    # The client-side timestamp of this logged statement.
+    timestamp = sa.Column(Timestamp(), nullable=False)
+
+    # Any additional attributes for logs should exist in this
+    # JSON object. For example, flow run IDs and task run IDs.
+    extra_attributes = sa.Column(
+        JSON,
+        default=dict,
+        nullable=True,
+    )
+
+    __mapper_args__ = {"eager_defaults": True}
+
+    # __table_args__ = (
+    #     sa.Index('ix_logs_timestamp', timestamp, postgresql_using="brin"),
+    # )
 
     @declared_attr
-    def flow_run_id(cls):
-        return sa.Column(UUID, sa.ForeignKey("flow_run.id"), nullable=False, index=True)
-
-    @declared_attr
-    def task_run_id(cls):
-        return sa.Column(UUID, sa.ForeignKey("task_run.id"), nullable=True, index=True)
-
-    @declared_attr
-    def flow_run(cls):
-        return sa.orm.relationship("FlowRun", back_populates="logs", lazy="raise")
-
-    @declared_attr
-    def task_run(cls):
-        return sa.orm.relationship("TaskRun", back_populates="logs", lazy="raise")
-
+    def __tablename__(cls):
+        """
+        By default, turn the model's camel-case class name
+        into a snake-case table name. Override by providing
+        an explicit `__tablename__` class property.
+        """
+        return camel_to_snake.sub("_", cls.__name__).lower()
 
 
 @declarative_mixin
