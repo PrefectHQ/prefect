@@ -6,6 +6,18 @@ from prefect.utilities.tasks import defaults_from_attrs
 
 
 class FireboltQuery(Task):
+    """
+    Task for executing a query against a Firebolt database.
+
+    Args:
+        - database (str): name of the database to use.
+        - username (str): username used to authenticate.
+        - password (str): password used to authenticate.
+        - engine_name (str): name of the engine to use.
+        - query (str): query to execute against database.
+        - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
+    """
+
     def __init__(
         self,
         database: str = None,
@@ -15,17 +27,6 @@ class FireboltQuery(Task):
         query: str = None,
         **kwargs
     ):
-        """
-        Task for executing a query against a Firebolt database.
-
-        Args:
-            - database (str): name of the database to use.
-            - username (str): username used to authenticate.
-            - password (str): password used to authenticate.
-            - engine name (str): name of the engine to use.
-            - query (str): query to execute against database.
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
-        """
 
         self.database = database
         self.username = username
@@ -50,7 +51,7 @@ class FireboltQuery(Task):
             - database (str): name of the database to use.
             - username (str): username used to authenticate.
             - password (str): password used to authenticate.
-            - engine name (str): name of the engine to use.
+            - engine_name (str): name of the engine to use.
             - query (str): query to execute against database.
 
         Returns:
