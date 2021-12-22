@@ -323,6 +323,7 @@ class TestSubprocessFlowRunner:
         runtime_python = await orion_client.resolve_datadoc(state.result())
         assert runtime_python == sys.executable
 
+    @pytest.mark.service("environment")
     async def test_executes_flow_run_in_virtualenv(
         self,
         flow_run,
@@ -343,6 +344,7 @@ class TestSubprocessFlowRunner:
         runtime_python = await orion_client.resolve_datadoc(state.result())
         assert runtime_python == str(virtualenv_environment_path / "bin" / "python")
 
+    @pytest.mark.service("environment")
     async def test_executes_flow_run_in_venv(
         self,
         flow_run,
@@ -363,6 +365,7 @@ class TestSubprocessFlowRunner:
         runtime_python = await orion_client.resolve_datadoc(state.result())
         assert runtime_python == str(venv_environment_path / "bin" / "python")
 
+    @pytest.mark.service("environment")
     async def test_executes_flow_run_in_conda_environment(
         self,
         flow_run,
