@@ -19,12 +19,12 @@ class FireboltQuery(Task):
         Task for executing a query against a Firebolt database.
 
         Args:
-            - database (str): name of the database to use
-            - username (str): username used to authenticate
-            - password (str): password used to authenticate
-            - engine name (str): name of the engine to use
-            - query (str): query to execute against database
-            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor
+            - database (str): name of the database to use.
+            - username (str): username used to authenticate.
+            - password (str): password used to authenticate.
+            - engine name (str): name of the engine to use.
+            - query (str): query to execute against database.
+            - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
         """
 
         self.database = database
@@ -47,11 +47,11 @@ class FireboltQuery(Task):
         Task run method. Executes a query against Firebolt database.
 
         Args:
-            - database (str): name of the database to use
-            - username (str): username used to authenticate
-            - password (str): password used to authenticate
-            - engine name (str): name of the engine to use
-            - query (str): query to execute against database
+            - database (str): name of the database to use.
+            - username (str): username used to authenticate.
+            - password (str): password used to authenticate.
+            - engine name (str): name of the engine to use.
+            - query (str): query to execute against database.
 
         Returns:
             - List[List]: output of cursor.fetchall() if cursor.rowcount > 0 else an empty list
