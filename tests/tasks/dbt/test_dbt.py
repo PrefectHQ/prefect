@@ -178,12 +178,16 @@ def test_dbt_cloud_run_job_create_task_with_cause():
     assert dbt_run_job_task.token == "xyz"
     assert dbt_run_job_task.job_id == 1234
     assert dbt_run_job_task.cause == "foo"
-    assert dbt_run_job_task.domain == 'cloud.getdbt.com'
+    assert dbt_run_job_task.domain == "cloud.getdbt.com"
 
 
 def test_dbt_cloud_run_job_create_task_with_domain():
     dbt_run_job_task = DbtCloudRunJob(
-        account_id=1234, token="xyz", job_id=1234, cause="foo", domain="cloud.corp.getdbt.com"
+        account_id=1234,
+        token="xyz",
+        job_id=1234,
+        cause="foo",
+        domain="cloud.corp.getdbt.com",
     )
 
     assert dbt_run_job_task.account_id == 1234
@@ -279,7 +283,11 @@ def test_dbt_cloud_run_corp_job_raises_failure():
     )
 
     run_job = DbtCloudRunJob(
-        cause="foo", account_id=account_id, job_id=job_id, token="foo", domain="cloud.corp.getdbt.com"
+        cause="foo",
+        account_id=account_id,
+        job_id=job_id,
+        token="foo",
+        domain="cloud.corp.getdbt.com",
     )
     with pytest.raises(TriggerDbtCloudRunFailed):
         run_job.run()
@@ -318,13 +326,15 @@ def test_dbt_cloud_run_job_trigger_job_custom_domain():
     )
 
     run_job = DbtCloudRunJob(
-        cause="foo", account_id=account_id, job_id=job_id, token="foo",
-        domain='cloud.corp.getdbt.com'
+        cause="foo",
+        account_id=account_id,
+        job_id=job_id,
+        token="foo",
+        domain="cloud.corp.getdbt.com",
     )
     r = run_job.run()
 
     assert r == {"foo": "bar"}
-
 
 
 @responses.activate

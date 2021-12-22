@@ -72,7 +72,12 @@ class DbtCloudListArtifactsFailed(DbtCloudBaseException):
 
 
 def trigger_job_run(
-    account_id: int, job_id: int, token: str, cause: str, domain: str, additional_args: dict
+    account_id: int,
+    job_id: int,
+    token: str,
+    cause: str,
+    domain: str,
+    additional_args: dict,
 ) -> dict:
     """
     Trigger a dbt Cloud job run
@@ -108,7 +113,11 @@ def trigger_job_run(
 
 
 def wait_for_job_run(
-    account_id: int, token: str, run_id: int, max_wait_time: int = None, domain: str = None
+    account_id: int,
+    token: str,
+    run_id: int,
+    max_wait_time: int = None,
+    domain: str = None,
 ) -> dict:
     """
     Get a dbt Cloud job run.
@@ -159,7 +168,10 @@ def wait_for_job_run(
 
 
 def list_run_artifact_links(
-    account_id: int, run_id: int, token: str, domain: str = None,
+    account_id: int,
+    run_id: int,
+    token: str,
+    domain: str = None,
 ) -> List[Tuple[str, str]]:
     """
     Lists URLs that can be used to download artifacts from a dbt run
@@ -179,7 +191,7 @@ def list_run_artifact_links(
     """
 
     if domain is None:
-        domain = 'cloud.getdbt.com'
+        domain = "cloud.getdbt.com"
 
     list_run_artifact_response = requests.get(
         url=__DBT_CLOUD_LIST_RUN_ARTIFACTS_ENDPOINT_V2.format(

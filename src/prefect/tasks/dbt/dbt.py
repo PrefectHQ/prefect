@@ -231,6 +231,7 @@ class DbtCloudRunJob(Task):
         - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
             job to finish.
             Used only if wait_for_job_run_completion = True.
+        - domain (str, optional): Custom domain for API call.
 
     Returns:
         - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
@@ -276,7 +277,7 @@ class DbtCloudRunJob(Task):
         self.additional_args = additional_args
         self.wait_for_job_run_completion = wait_for_job_run_completion
         self.max_wait_time = max_wait_time
-        self.domain = domain or 'cloud.getdbt.com'
+        self.domain = domain or "cloud.getdbt.com"
 
     @defaults_from_attrs(
         "cause",
@@ -333,7 +334,7 @@ class DbtCloudRunJob(Task):
             - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
                 job to finish.
                 Used only if wait_for_job_run_completion = True.
-            - domain (str, optional): Custom domain for API call
+            - domain (str, optional): Custom domain for API call.
 
         Returns:
             - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
@@ -384,7 +385,7 @@ class DbtCloudRunJob(Task):
             )
 
         if domain is None:
-            domain = 'cloud.getdbt.com'
+            domain = "cloud.getdbt.com"
 
         if token is None and token_env_var_name in os.environ:
             token = os.environ.get(token_env_var_name)
