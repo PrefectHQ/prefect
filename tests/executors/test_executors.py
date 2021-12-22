@@ -217,7 +217,7 @@ class TestLocalDaskExecutor:
     def test_captures_prefect_signals(self):
         e = LocalDaskExecutor()
 
-        @prefect.task(timeout=1)
+        @prefect.task(timeout=2)
         def succeed():
             raise SUCCESS()
 

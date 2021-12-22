@@ -1,0 +1,5 @@
+enhancement:
+  - "Allow passing of proxies argument to slack_notifier - [#5237](https://github.com/PrefectHQ/prefect/pull/5237)"
+
+contributor:
+  - "[Vincent Chéry](https://github.com/VincentAntoine)"

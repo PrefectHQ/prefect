@@ -1,0 +1,2 @@
+fix:
+  - "Fixing serialized example in docs - [#5220](https://github.com/PrefectHQ/prefect/pull/5220)"

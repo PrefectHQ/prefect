@@ -35,6 +35,8 @@ class Azure(Storage):
             `AZURE_STORAGE_CONNECTION_STRING` will be used
         - blob_name (str, optional): a unique key to use for uploading this Flow to Azure. This
             is only useful when storing a single Flow using this storage object.
+        - overwrite (bool, optional): if set, an existing blob with the same name will be overwritten.
+            By default, an error will be thrown if the blob already exists.
         - stored_as_script (bool, optional): boolean for specifying if the flow has been stored
             as a `.py` file. Defaults to `False`
         - **kwargs (Any, optional): any additional `Storage` initialization options
@@ -45,12 +47,14 @@ class Azure(Storage):
         container: str,
         connection_string_secret: str = None,
         blob_name: str = None,
+        overwrite: bool = False,
         stored_as_script: bool = False,
         **kwargs: Any
     ) -> None:
         self.container = container
         self.connection_string_secret = connection_string_secret
         self.blob_name = blob_name
+        self.overwrite = overwrite
 
         result = AzureResult(
             connection_string_secret=self.connection_string_secret,
@@ -148,7 +152,7 @@ class Azure(Storage):
                 "Uploading {} to {}".format(self.flows[flow_name], self.container)
             )
 
-            client.upload_blob(data)
+            client.upload_blob(data, overwrite=self.overwrite)
 
         return self
 

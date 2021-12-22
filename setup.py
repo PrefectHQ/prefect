@@ -56,16 +56,17 @@ extras = {
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
-    "ge": ["great_expectations >= 0.11.1"],
+    "firebolt": ["firebolt-sdk >= 0.2.1"],
+    "ge": ["great_expectations >= 0.13.8, < 0.14", "mistune < 2"],
     "gcp": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "git": orchestration_extras["git"],
     "github": orchestration_extras["github"],
     "gitlab": orchestration_extras["gitlab"],
     "google": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
@@ -91,6 +92,7 @@ extras = {
     "dremio": ["pyarrow >= 5.0.0"],
     "exasol": ["pyexasol >= 0.16.1"],
     "sodasql": ["soda-sql >= 2.0.0b25"],
+    "sodaspark": ["soda-spark >= 0.2.1"],
     "sendgrid": ["sendgrid >= 6.7.0"],
 }
 

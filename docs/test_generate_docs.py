@@ -493,4 +493,7 @@ def test_section_headers_are_properly_formatted(obj):
 
 @pytest.mark.parametrize("path", glob.glob(os.path.join(ROOT, "examples", "*.py")))
 def test_example(path):
-    build_example(path)
+    rendered, flows = build_example(path)
+    for f in flows.keys():
+        # Assert there is a serialized Flow in storage
+        assert len(flows[f]["storage"]["flows"]) > 0

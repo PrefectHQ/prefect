@@ -153,7 +153,7 @@ class RRuleClockSchema(ObjectSchema):
     start_date = DateTimeTZ(allow_none=True)
     end_date = DateTimeTZ(allow_none=True)
     parameter_defaults = fields.Dict(
-        key=fields.Str(), values=JSONCompatible(), allow_none=True
+        keys=fields.Str(), values=JSONCompatible(), allow_none=True
     )
     labels = fields.List(fields.Str(), allow_none=True)
 
