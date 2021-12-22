@@ -1,14 +1,17 @@
+import asyncio
+import os
 import subprocess
 import sys
-import sniffio
-import asyncio
-from typing import Dict, TypeVar, Type, Optional
+from pathlib import Path
+from typing import Dict, Optional, Sequence, Tuple, Type, TypeVar, Union
+from uuid import UUID
 
 import anyio
 import anyio.abc
+import sniffio
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator, root_validator
 from typing_extensions import Literal
 
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
@@ -105,7 +108,7 @@ class UniversalFlowRunner(FlowRunner):
         raise RuntimeError(
             "The universal flow runner cannot be used to submit flow runs. If a flow "
             "run has a universal flow runner, it should be updated to the default "
-            "runner type."
+            "runner type by the agent or user."
         )
 
 
@@ -116,10 +119,36 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
     Attributes:
         stream_output: Stream output from the subprocess to local standard output
+        condaenv: An optional name of an anaconda environment to run the flow in.
+            A path can be provided instead, similar to `conda --prefix ...`.
+        virtualenv: An optional path to a virtualenv environment to run the flow in.
+            This also supports the python builtin `venv` environments.
+
     """
 
     typename: Literal["subprocess"] = "subprocess"
     stream_output: bool = False
+    condaenv: Union[str, Path] = None
+    virtualenv: Path = None
+
+    @validator("condaenv")
+    def coerce_pathlike_string_to_path(cls, value):
+        if (
+            not isinstance(value, Path)
+            and value is not None
+            and (value.startswith(os.sep) or value.startswith("~"))
+        ):
+            value = Path(value)
+        return value
+
+    @root_validator
+    def ensure_only_one_env_was_given(cls, values):
+        if values.get("condaenv") and values.get("virtualenv"):
+            raise ValueError(
+                "Received incompatible settings. You cannot provide both a conda and "
+                "virtualenv to use."
+            )
+        return values
 
     async def submit_flow_run(
         self,
@@ -135,9 +164,15 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
         # Open a subprocess to execute the flow run
         self.logger.info(f"Opening subprocess for flow run '{flow_run.id}'...")
+
+        command, env = self._generate_command_and_environment(flow_run.id)
+
+        self.logger.debug(f"Using command: {' '.join(command)}")
+
         process_context = await anyio.open_process(
-            ["python", "-m", "prefect.engine", flow_run.id.hex],
+            command,
             stderr=subprocess.STDOUT,
+            env=env,
         )
 
         # Mark this submission as successful
@@ -146,7 +181,6 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         # Wait for the process to exit
         # - We must the output stream so the buffer does not fill
         # - We can log the success/failure of the process
-
         async with process_context as process:
             async for text in TextReceiveStream(process.stdout):
                 if self.stream_output:
@@ -161,3 +195,46 @@ class SubprocessFlowRunner(UniversalFlowRunner):
             self.logger.info(f"Subprocess for flow run '{flow_run.id}' exited cleanly.")
 
         return not process.returncode
+
+    def _generate_command_and_environment(
+        self, flow_run_id: UUID
+    ) -> Tuple[Sequence[str], Dict[str, str]]:
+        # Copy the base environment
+        env = os.environ.copy()
+
+        # Set up defaults
+        command = []
+        python_executable = sys.executable
+
+        if self.condaenv:
+            command += ["conda", "run"]
+            if isinstance(self.condaenv, Path):
+                command += ["--prefix", str(self.condaenv.expanduser().resolve())]
+            else:
+                command += ["--name", self.condaenv]
+
+            python_executable = "python"
+
+        elif self.virtualenv:
+            # This reproduces the relevant behavior of virtualenv's activation script
+            # https://github.com/pypa/virtualenv/blob/main/src/virtualenv/activation/bash/activate.sh
+
+            virtualenv_path = self.virtualenv.expanduser().resolve()
+            python_executable = str(virtualenv_path / "bin" / "python")
+            # Update the path to include the bin
+            env["PATH"] = str(virtualenv_path / "bin") + os.pathsep + env["PATH"]
+            env.pop("PYTHONHOME", None)
+            env["VIRTUAL_ENV"] = str(virtualenv_path)
+
+        # Add `prefect.engine` call
+        command += [
+            python_executable,
+            "-m",
+            "prefect.engine",
+            flow_run_id.hex,
+        ]
+
+        # Override with any user-provided variables
+        env.update(self.env)
+
+        return command, env

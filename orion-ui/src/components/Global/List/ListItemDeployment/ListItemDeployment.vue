@@ -38,17 +38,8 @@
           </span>
         </span>
 
-        <span class="mr-1 caption text-truncate d-flex align-center">
-          <Tag
-            v-for="tag in tags"
-            :key="tag"
-            color="secondary-pressed"
-            class="font--primary mr-1"
-            icon="pi-label"
-            flat
-          >
-            {{ tag }}
-          </Tag>
+        <span class="mr-1 text-truncate caption">
+          <Tags :tags="tags" />
         </span>
       </div>
     </div>
