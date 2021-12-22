@@ -167,7 +167,7 @@ class Flow(Generic[P, R]):
 
         Uses FastAPI's `jsonable_encoder` to convert to JSON compatible objects without
         converting everything directly to a string. This maintains basic types like
-        integers.
+        integers during API roundtrips.
         """
         serialized_parameters = {}
         for key, value in parameters.items():
