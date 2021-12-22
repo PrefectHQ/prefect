@@ -337,42 +337,15 @@ class DockerFlowRunner(UniversalFlowRunner):
         shared memory file locks which are not available across the boundary of the
         docker virtual machine.
 
-        Additionally, if using an ephemeral server (with postgresql) and a local file
-        system data location, the persisted data will point to a path that does not
-        exist once the container exits.
+        We could support an ephemeral server with postgresql, but then we would need to
+        sync all of the server settings to the container's ephemeral server.
         """
         orion_host = self.env.get("PREFECT_ORION_HOST", prefect.settings.orion_host)
-        db_url = self.env.get(
-            "PREFECT_ORION_DATABASE_CONNECTION_URL",
-            prefect.settings.orion.database.connection_url.get_secret_value(),
-        )
 
-        if not orion_host and "sqlite" in db_url:
+        if not orion_host:
             raise RuntimeError(
-                "The docker flow runner cannot be used with an ephemeral server and "
-                "a sqlite database. Provide `PREFECT_ORION_HOST` to connect to an "
-                "orion server or `PREFECT_ORION_DATABASE_CONNECTION_URL` with a "
-                "postgresql connection string."
-            )
-
-        data_scheme = self.env.get(
-            "PREFECT_ORION_DATA_SCHEME", prefect.settings.orion.data.scheme
-        )
-
-        if (
-            data_scheme == "file"
-            and not orion_host
-            and not (
-                # Technically, this will work if mapped 1:1 into the container
-                f"{prefect.settings.orion.data.base_path}:{prefect.settings.orion.data.base_path}"
-                in self.volumes
-            )
-        ):
-            raise RuntimeError(
-                "The docker flow runner cannot be used with an ephemeral server and "
-                "a local data location. Provide `PREFECT_ORION_HOST` to connect to an "
-                "orion server or `PREFECT_ORION_DATA_SCHEME` with a non-local data "
-                "location."
+                "The docker flow runner cannot be used with an ephemeral server. "
+                "Provide `PREFECT_ORION_HOST` to connect to an Orion server."
             )
 
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
@@ -568,19 +541,6 @@ class DockerFlowRunner(UniversalFlowRunner):
             ).replace("127.0.0.1", "host.docker.internal")
 
             env.setdefault("PREFECT_ORION_HOST", api_url)
-
-        if (
-            prefect.settings.orion.database.connection_url
-            and not env.get("PREFECT_ORION_HOST", prefect.settings.orion_host)
-            and "host.docker.internal" in extra_hosts
-        ):
-            db_url = (
-                prefect.settings.orion.database.connection_url.get_secret_value()
-                .replace("localhost", "host.docker.internal")
-                .replace("127.0.0.1", "host.docker.internal")
-            )
-
-            env.setdefault("PREFECT_ORION_DATABASE_CONNECTION_URL", db_url)
 
         return env
 
