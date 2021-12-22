@@ -492,6 +492,7 @@ jobs:
                 command: |
                   docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
                   docker push prefecthq/prefect:core
+                  
   build_release_candidate_docker_image:
     docker:
       - image: docker
@@ -626,7 +627,7 @@ workflows:
           extras: 'all_orchestration_extras'
           filters:
             branches:
-              only: 1.0.0rc
+              only: 1.0rc
 
   'Build and publish release artifacts':
     jobs:
