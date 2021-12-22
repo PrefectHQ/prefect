@@ -13,26 +13,25 @@
       :class="{ blur: route.fullPath.includes('/radar') }"
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
-      <div
-        v-breakpoints="'sm'"
-        class="text-truncate"
-        v-show="route.fullPath.includes('/radar')"
-      >
-        <span v-breakpoints="'sm'" class="ml-5">
-          Flow Version:
-          <span class="font-weight-semibold" v-if="!flowRun.flow_version">
-            --
+      <template v-if="route.fullPath.includes('/radar')">
+        <div v-breakpoints="'sm'" class="text-truncate">
+          <span class="ml-5">
+            Flow Version:
+            <span class="font-weight-semibold">
+              {{ version }}
+            </span>
           </span>
-          <span class="font-weight-semibold" v-else>
-            {{ flowRun.flow_version }}
-          </span>
-        </span>
 
-        <button v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
-          <i class="pi pi-link pi-xs" />
-          Copy Run ID
-        </button>
-      </div>
+          <button
+            v-breakpoints="'md'"
+            class="copy-link ml-1"
+            @click="copyRunId"
+          >
+            <i class="pi pi-file-copy-line pi-xs" />
+            Copy Run ID
+          </button>
+        </div>
+      </template>
     </div>
 
     <router-view />
@@ -60,6 +59,10 @@ const resultsTab: Ref<string | null> = ref(null)
 
 const id = computed<string>(() => {
   return route?.params.id as string
+})
+
+const version = computed<string>(() => {
+  return flowRun.value.flow_version ?? '--'
 })
 
 const flowRunBaseBody = computed(() => {
@@ -142,5 +145,32 @@ watch(id, () => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/views/flow-run.scss';
+.copy-link {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: $primary !important;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  text-decoration: none;
+  transition: all 50ms;
+  user-select: none;
+
+  &:hover,
+  &:focus {
+    color: $white !important;
+    background-color: $grey-20;
+  }
+
+  &:active {
+    background-color: $grey-40;
+  }
+}
+
+.blur {
+  backdrop-filter: blur(1px);
+  background-color: rgba(244, 245, 247, 0.8);
+  border-radius: 8px;
+}
 </style>
