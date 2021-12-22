@@ -1,5 +1,0 @@
-task:
-  - "Add 'Firebolt' to Prefect Task Library  - [#4901](https://github.com/PrefectHQ/prefect/pull/5263)"
-
-contributor:
-  - "[Raghav Sharma](https://github.com/raghavSharmaSigmoid)"
