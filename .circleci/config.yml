@@ -479,11 +479,11 @@ jobs:
     steps:
       - checkout
       - run:
-          name: 1.0.0rc branch check
+          name: 1.0rc branch check
           command: |
             apk add git
-            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.0.0rc | grep 1.0.0rc | wc -l) -ne 1 ]]; then
-              echo "commit $CIRCLE_SHA1 is not a member of the 1.0.0rc branch"
+            if [[ $(git branch --contains $CIRCLE_SHA1 --points-at 1.0rc | grep 1.0rc | wc -l) -ne 1 ]]; then
+              echo "commit $CIRCLE_SHA1 is not a member of the 1.0rc branch"
               exit 1
             fi
       - setup_remote_docker:
@@ -498,13 +498,13 @@ jobs:
               --build-arg PREFECT_VERSION=$CIRCLE_SHA1 \
               --build-arg PYTHON_VERSION=$PYTHON_VERSION \
               --build-arg EXTRAS=$EXTRAS \
-              -t prefecthq/prefect:1.0.0rc \
+              -t prefecthq/prefect:1.0rc-dev \
               .
       - run:
-          name: Push 1.0.0rc tag
+          name: Push 1.0rc-dev tag
           command: |
             docker login --username  $DOCKER_HUB_USER --password $DOCKER_HUB_PW
-            docker push prefecthq/prefect:1.0.0rc
+            docker push prefecthq/prefect:1.0rc-dev
   promote_server_artifacts:
     docker:
       - image: docker
