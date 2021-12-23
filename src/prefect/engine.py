@@ -292,6 +292,20 @@ async def create_and_begin_subflow_run(
         tags=TagsContext.get().current_tags,
     )
 
+    if flow.should_validate_parameters:
+        try:
+            parameters = flow.validate_parameters(parameters)
+        except Exception as exc:
+            state = Failed(
+                message="Flow run received invalid parameters.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+            await client.propose_state(
+                state=state,
+                flow_run_id=flow_run.id,
+            )
+            return state
+
     logger.info(f"Beginning subflow run {flow_run.name!r} for flow {flow.name!r}...")
 
     async with detect_crashes(flow_run=flow_run):
