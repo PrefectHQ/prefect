@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from prefect.orion.api.server import app
+from prefect.utilities.settings import temporary_settings
 
 
 @pytest.fixture
@@ -19,7 +20,7 @@ async def client():
 
 
 @pytest.fixture(scope="session")
-async def hosted_orion():
+async def hosted_orion_api():
     """
     Runs an instance of the Orion API at a dedicated URL instead of the ephemeral
     application. Requires port 2222 to be available.
@@ -77,3 +78,13 @@ async def hosted_orion():
         finally:
             if not process.returncode:
                 process.terminate()
+
+
+@pytest.fixture
+def use_hosted_orion(hosted_orion_api):
+    """
+    Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the session hosted
+    API endpoint.
+    """
+    with temporary_settings(PREFECT_ORION_HOST=hosted_orion_api):
+        yield hosted_orion_api
