@@ -434,6 +434,42 @@ class TestSubflowRuns:
         child_state = parent_state.result()
         assert child_state.result().result() == 6
 
+    async def test_subflow_with_invalid_parameters_is_failed(self, orion_client):
+        @flow
+        def child(x: int):
+            return x
+
+        @flow
+        def parent(x):
+            subflow_state = child(x)
+            return subflow_state
+
+        parent_state = parent("foo")
+
+        with pytest.raises(ParameterTypeError, match="not a valid integer"):
+            parent_state.result()
+
+        child_state = parent_state.result(raise_on_failure=False)
+        flow_run = await orion_client.read_flow_run(
+            child_state.state_details.flow_run_id
+        )
+        assert flow_run.state.is_failed()
+        assert "invalid parameters" in flow_run.state.message
+
+    async def test_subflow_with_invalid_parameters_is_not_failed_without_validation(
+        self, orion_client
+    ):
+        @flow(validate_parameters=False)
+        def child(x: int):
+            return x
+
+        @flow
+        def parent(x):
+            subflow_state = child(x)
+            return subflow_state
+
+        assert parent("foo").result().result() == "foo"
+
     async def test_subflow_relationship_tracking(self, orion_client):
         @flow()
         def child(x, y):
