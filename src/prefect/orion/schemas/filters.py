@@ -860,12 +860,13 @@ class LogFilterTimestamp(PrefectFilterBaseModel):
         return filters
 
 
-class LogFilterExtraAttributes(PrefectFilterBaseModel):
-    """Filter by `Log.extra_attributes`."""
+class LogFilterLevel(PrefectFilterBaseModel):
+    """Filter by `Log.level`."""
 
-    eq_: Dict[str, str] = Field(
+    any_: List[int] = Field(
         None,
-        description="Key-value pairs that must match in extra_attributes",
+        description="A list of log levels to include",
+        example=[20, 50],
     )
 
     @inject_db
@@ -874,9 +875,40 @@ class LogFilterExtraAttributes(PrefectFilterBaseModel):
         db: OrionDBInterface,
     ) -> List:
         filters = []
-        if self.eq_ is not None:
-            for key, value in self.eq_.values():
-                filters.append(db.Log.extra_attributes[key] == value)
+        if self.any_ is not None:
+            filters.append(db.Log.level.in_(self.any_))
+        return filters
+
+
+class LogFilterFlowId(PrefectFilterBaseModel):
+    """Filter by `Log.flow_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of flow IDs to include")
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.flow_id.in_(self.any_))
+        return filters
+
+
+class LogFilterTaskId(PrefectFilterBaseModel):
+    """Filter by `Log.task_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of task IDs to include")
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.task_id.in_(self.any_))
         return filters
 
 
@@ -892,8 +924,11 @@ class LogFilter(PrefectFilterBaseModel):
     timestamp: Optional[LogFilterTimestamp] = Field(
         None, description="Filter criteria for `Log.timestamp`"
     )
-    extra_attributes: Optional[LogFilterExtraAttributes] = Field(
-        None, description="Filter criteria for `Log.extra_attributes`"
+    flow_id: Optional[LogFilterFlowId] = Field(
+        None, description="Filter criteria for `Log.flow_id`"
+    )
+    task_id: Optional[LogFilterTaskId] = Field(
+        None, description="Filter criteria for `Log.task_id`"
     )
 
     @inject_db
@@ -909,8 +944,10 @@ class LogFilter(PrefectFilterBaseModel):
             filters.append(self.level.as_sql_filter())
         if self.timestamp is not None:
             filters.append(self.name.as_sql_filter())
-        if self.extra_attributes is not None:
-            filters.append(self.extra_attributes.as_sql_filter())
+        if self.flow_id is not None:
+            filters.append(self.flow_id.as_sql_filter())
+        if self.task_id is not None:
+            filters.append(self.task_id.as_sql_filter())
 
         return filters
 

@@ -326,25 +326,26 @@ class SavedSearch(ORMBaseModel):
 class Log(ORMBaseModel):
     """An ORM representation of log data."""
 
-    name: str = Field(..., description="The logger name")
-    level: int = Field(..., description="The log level")
-    message: str = Field(..., description="The log message")
-    timestamp: datetime.datetime = Field(..., description="The log timestamp")
-    extra_attributes: Optional[Dict[str, Any]] = Field(
-        None, description="Extra attributes"
+    name: str = Field(..., description="The logger name.")
+    level: int = Field(..., description="The log level.")
+    message: str = Field(..., description="The log message.")
+    timestamp: datetime.datetime = Field(..., description="The log timestamp.")
+    flow_id: UUID = Field(..., description="The flow ID associated with the log.")
+    task_id: Optional[UUID] = Field(
+        None, description="The task ID associated with the log."
     )
 
 
 class Logs(PrefectBaseModel):
     """A list of ORM representation of logs."""
 
-    logs: List[Log] = Field(..., description="The logs")
+    logs: List[Log] = Field(..., description="The logs.")
 
 
 class LogsCreated(PrefectBaseModel):
     """The number of logs created."""
 
-    created: int = Field(..., description="The number of log records created")
+    created: int = Field(..., description="The number of log records created.")
 
 
 Flow.update_forward_refs()
