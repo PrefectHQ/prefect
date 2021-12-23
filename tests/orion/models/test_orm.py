@@ -2,7 +2,6 @@ import datetime
 import pendulum
 import pytest
 import sqlalchemy as sa
-from sqlalchemy.orm import selectinload
 
 from prefect.orion import models, schemas
 
@@ -80,14 +79,6 @@ async def many_task_run_states(flow_run, session, db):
         session.add_all(states)
 
     await session.commit()
-
-
-@pytest.fixture
-async def flow_run(session, flow):
-    yield await models.flow_runs.create_flow_run(
-        session=session,
-        flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version=1),
-    )
 
 
 class TestFlowRun:
