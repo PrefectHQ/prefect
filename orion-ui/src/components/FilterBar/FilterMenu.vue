@@ -44,7 +44,7 @@
           <i class="filter-menu__section-header-icon pi-filter-3-line" />Tags
         </div>
 
-        <div class="py-1 px-2" :class="{ 'd-flex': !!media.md }">
+        <div class="py-1 px-2" :class="{ 'd-flex': !media.md }">
           <Form-Tags
             v-model="filters.flows.tags"
             title="Flows"
@@ -81,9 +81,9 @@
           :is="!media.md ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'filter-menu__flex-card': !!media.md,
+            'filter-menu__flex-card': !media.md,
             'mb-1': !media.lg,
-            'mr-1': !!media.lg
+            'mr-1': !media.lg
           }"
           title="States"
           icon="pi-filter-3-line"
@@ -112,8 +112,8 @@
           :is="!media.md ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'filter-menu__flex-card': !!media.md,
-            'mb-1': !media.lg && !!media.md
+            'filter-menu__flex-card': !media.md,
+            'mb-1': !media.lg && !media.md
           }"
           title="Timeframes"
           icon="pi-filter-3-line"
@@ -147,7 +147,7 @@
         class="pa-2 filter-menu__actions d-flex align-center justify-end"
       >
         <Button
-          v-if="!!media.md"
+          v-if="!media.md"
           flat
           height="35px"
           class="ml-auto mr-1"
