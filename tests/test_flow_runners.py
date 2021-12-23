@@ -11,6 +11,7 @@ import coolname
 import pydantic
 import pytest
 from typing_extensions import Literal
+from typing import NamedTuple
 
 import prefect
 from prefect.flow_runners import (
@@ -20,11 +21,30 @@ from prefect.flow_runners import (
     UniversalFlowRunner,
     lookup_flow_runner,
     register_flow_runner,
-    PYTHON_VERSION_STRING,
+    python_version_micro,
+    python_version_minor,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.compat import AsyncMock
+
+
+class VersionInfo(NamedTuple):
+    major: int
+    minor: int
+    micro: int
+    releaselevel: str
+    serial: int
+
+
+def fake_python_version(
+    major=sys.version_info.major,
+    minor=sys.version_info.minor,
+    micro=sys.version_info.micro,
+    releaselevel=sys.version_info.releaselevel,
+    serial=sys.version_info.serial,
+):
+    return VersionInfo(major, minor, micro, releaselevel, serial)
 
 
 @pytest.fixture
@@ -594,8 +614,8 @@ class TestDockerFlowRunner:
         import docker.errors
 
         monkeypatch.setattr(
-            "prefect.flow_runners.DockerFlowRunner._get_orion_image_tag",
-            MagicMock(return_value="dev-image-tag"),
+            "prefect.flow_runners.DockerFlowRunner._get_orion_image_name",
+            MagicMock(return_value="orion:tag"),
         )
 
         mock_docker_client.images.get = MagicMock(
@@ -604,42 +624,50 @@ class TestDockerFlowRunner:
 
         await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        mock_docker_client.images.get.assert_called_once_with("dev-image-tag")
+        mock_docker_client.images.get.assert_called_once_with("orion:tag")
         mock_docker_client.images.build.assert_called_once_with(
             path=str(prefect.__root_path__),
-            tag="dev-image-tag",
-            buildargs={"PYTHON_VERSION": PYTHON_VERSION_STRING},
+            tag="orion:tag",
+            # Note here we build with the local micro version but it will be tagged
+            # with the minor version
+            buildargs={"PYTHON_VERSION": python_version_micro()},
         )
 
     async def test_skips_image_build_if_exists_already(
         self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
     ):
         monkeypatch.setattr(
-            "prefect.flow_runners.DockerFlowRunner._get_orion_image_tag",
-            MagicMock(return_value="dev-image-tag"),
+            "prefect.flow_runners.DockerFlowRunner._get_orion_image_name",
+            MagicMock(return_value="orion:tag"),
         )
 
         await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        mock_docker_client.images.get.assert_called_once_with("dev-image-tag")
+        mock_docker_client.images.get.assert_called_once_with("orion:tag")
         mock_docker_client.images.build.assert_not_called()
         call_image = mock_docker_client.containers.create.call_args[1].get("image")
-        assert call_image == "dev-image-tag"
+        assert call_image == "orion:tag"
 
-    async def test_skips_image_build_if_exists_already(
+    async def test_default_image_tag_includes_python_minor_version(
         self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
     ):
-        monkeypatch.setattr(
-            "prefect.flow_runners.DockerFlowRunner._get_orion_image_tag",
-            MagicMock(return_value="dev-image-tag"),
-        )
-
+        monkeypatch.setattr("prefect.__version__", "2.0.0")
         await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        mock_docker_client.images.get.assert_called_once_with("dev-image-tag")
-        mock_docker_client.images.build.assert_not_called()
-        _, kwargs = mock_docker_client.containers.create.call_args
-        assert kwargs["image"] == "dev-image-tag"
+        mock_docker_client.images.get.assert_called_once_with(
+            f"orion:2.0.0-python{python_version_minor()}"
+        )
+
+    async def test_default_image_tag_detects_development(
+        self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
+    ):
+        monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
+        monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
+        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.images.get.assert_called_once_with(
+            f"orion:2.0.0dev-python3.10"
+        )
 
     async def test_uses_image_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
@@ -649,6 +677,35 @@ class TestDockerFlowRunner:
         mock_docker_client.containers.create.assert_called_once()
         call_image = mock_docker_client.containers.create.call_args[1].get("image")
         assert call_image == "foo"
+
+    async def test_mounts_local_code_when_code_is_ahead_of_tag(
+        self, mock_docker_client, flow_run, use_hosted_orion, monkeypatch
+    ):
+
+        monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
+
+        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert f"{prefect.__root_path__}:/opt/prefect" in call_volumes
+
+    @pytest.mark.parametrize(
+        # Checks support for alpha, beta, and release candidates as well
+        "tag",
+        ["2.0.0a5dev", "2.0.0bdev", "2.0.0rc1dev", "2.0dev", "2dev"],
+    )
+    async def test_mounts_local_code_when_dev_image_is_requested(
+        self, mock_docker_client, flow_run, use_hosted_orion, tag
+    ):
+
+        await DockerFlowRunner(image=f"orion:{tag}").submit_flow_run(
+            flow_run, MagicMock()
+        )
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert f"{prefect.__root_path__}:/opt/prefect" in call_volumes
 
     async def test_uses_volumes_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
