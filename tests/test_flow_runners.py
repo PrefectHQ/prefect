@@ -942,6 +942,26 @@ class TestDockerFlowRunner:
         assert (tmp_path / "writefile").read_text() == "bar"
 
     @pytest.mark.service("docker")
+    @pytest.mark.parametrize("stream_output", [True, False])
+    async def test_stream_output_controls_local_printing(
+        self, deployment, capsys, orion_client, stream_output, use_hosted_orion
+    ):
+        flow_run = await orion_client.create_flow_run_from_deployment(deployment.id)
+
+        assert await DockerFlowRunner(stream_output=stream_output).submit_flow_run(
+            flow_run, MagicMock(spec=anyio.abc.TaskStatus)
+        )
+
+        output = capsys.readouterr()
+        assert output.err == "", "stderr is never populated"
+
+        if not stream_output:
+            assert output.out == ""
+        else:
+            assert "Beginning flow run" in output.out, "Log from the engine is present"
+            assert "\n\n" not in output.out, "Line endings are not double terminated"
+
+    @pytest.mark.service("docker")
     async def test_executing_flow_run_has_environment_variables(
         self,
         flow_run,
