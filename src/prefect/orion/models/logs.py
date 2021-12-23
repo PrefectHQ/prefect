@@ -36,9 +36,7 @@ async def read_logs(
         List[db.Log]: the matching logs
     """
     query = (
-        select(db.Log)
-        .order_by(sort.as_sql_sort())
-        .where(log_filter.as_sql_filter())
+        select(db.Log).order_by(sort.as_sql_sort()).where(log_filter.as_sql_filter())
     )
 
     if offset is not None:
@@ -67,10 +65,7 @@ async def create_logs(
     """
 
     for log in logs.logs:
-        insert_stmt = (
-            (await db.insert(db.Log))
-            .values(**log.dict(exclude_unset=True))
-        )
+        insert_stmt = (await db.insert(db.Log)).values(**log.dict(exclude_unset=True))
         await session.execute(insert_stmt)
     session.flush()
 
