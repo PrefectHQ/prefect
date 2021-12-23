@@ -331,7 +331,7 @@ class Log(ORMBaseModel):
     message: str = Field(..., description="The log message")
     timestamp: datetime.datetime = Field(..., description="The log timestamp")
     extra_attributes: Optional[Dict[str, Any]] = Field(
-        ..., description="Extra attributes"
+        None, description="Extra attributes"
     )
 
 
