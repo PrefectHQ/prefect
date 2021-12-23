@@ -76,4 +76,4 @@ class TestCreateLogs:
             assert log.timestamp == pendulum.from_timestamp(
                 log_data["logs"][i]["timestamp"]
             ).astimezone(pendulum.timezone("UTC"))
-            assert log.extra_attributes == {}
+            assert log.extra_attributes == None
