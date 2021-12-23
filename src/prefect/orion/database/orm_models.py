@@ -566,27 +566,16 @@ class ORMDeployment:
 class ORMLog:
     """
     SQLAlchemy model of a logging statement.
-
-    To speed up insert performance, we don't store relationships to other
-    objects as foreign keys, but instead store an "extra_attributes" JSON
-    object that contains filterable attributes, such as flow_run_id,
-    task_run_id, etc.
     """
 
     name = sa.Column(sa.String, nullable=False, index=True)
     level = sa.Column(sa.SmallInteger, nullable=False, index=True)
+    flow_id = sa.Column(UUID(), nullable=False, index=True)
+    task_id = sa.Column(UUID(), nullable=True, index=True)
     message = sa.Column(sa.Text, nullable=False)
 
     # The client-side timestamp of this logged statement.
     timestamp = sa.Column(Timestamp(), nullable=False, index=True)
-
-    # Any additional attributes for logs should exist in this
-    # JSON object. For example, flow run IDs and task run IDs.
-    extra_attributes = sa.Column(
-        JSON,
-        default=dict,
-        nullable=True,
-    )
 
 
 @declarative_mixin
