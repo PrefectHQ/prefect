@@ -481,6 +481,17 @@ class TestSubprocessFlowRunner:
             assert "\n\n" not in output.out, "Line endings are not double terminated"
 
 
+class TestGetOrionImageName:
+    async def test_tag_includes_python_minor_version(self, monkeypatch):
+        monkeypatch.setattr("prefect.__version__", "2.0.0")
+        assert get_orion_image_name() == f"orion:2.0.0-python{python_version_minor()}"
+
+    async def test_tag_detects_development(self, monkeypatch):
+        monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
+        monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
+        assert get_orion_image_name() == "orion:2.0.0dev-python3.10"
+
+
 class TestDockerFlowRunner:
     @pytest.fixture(autouse=True)
     def skip_if_docker_is_not_installed(self):
@@ -641,30 +652,6 @@ class TestDockerFlowRunner:
         mock_docker_client.images.build.assert_not_called()
         call_image = mock_docker_client.containers.create.call_args[1].get("image")
         assert call_image == default_tag
-
-    async def test_default_image_tag_is_set_at_creation_time(self):
-        assert DockerFlowRunner().image == get_orion_image_name()
-
-    async def test_default_image_tag_includes_python_minor_version(
-        self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
-    ):
-        monkeypatch.setattr("prefect.__version__", "2.0.0")
-        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-        mock_docker_client.images.get.assert_called_once_with(
-            f"orion:2.0.0-python{python_version_minor()}"
-        )
-
-    async def test_default_image_tag_detects_development(
-        self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
-    ):
-        monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
-        monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
-        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-
-        mock_docker_client.images.get.assert_called_once_with(
-            f"orion:2.0.0dev-python3.10"
-        )
 
     async def test_uses_image_setting(
         self, mock_docker_client, flow_run, use_hosted_orion
@@ -1203,6 +1190,9 @@ class TestFlowRunnerConfigAutoRemove:
 
 @pytest.mark.parametrize("runner_type", [DockerFlowRunner])
 class TestFlowRunnerConfigImage:
+    def test_flow_runner_image_config_defaults_to_orion_image(self, runner_type):
+        assert runner_type().image == get_orion_image_name()
+
     def test_flow_runner_image_config(self, runner_type):
         value = "foo"
         assert runner_type(image=value).image == value
