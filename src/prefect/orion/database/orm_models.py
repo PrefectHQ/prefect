@@ -568,7 +568,7 @@ class ORMLog:
     SQLAlchemy model of a logging statement.
     """
 
-    name = sa.Column(sa.String, nullable=False, index=True)
+    name = sa.Column(sa.String, nullable=False)
     level = sa.Column(sa.SmallInteger, nullable=False, index=True)
     flow_id = sa.Column(UUID(), nullable=False, index=True)
     task_id = sa.Column(UUID(), nullable=True, index=True)
