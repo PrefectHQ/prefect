@@ -4,6 +4,7 @@ import subprocess
 import sys
 import threading
 import warnings
+import re
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -513,7 +514,15 @@ class DockerFlowRunner(UniversalFlowRunner):
         with the API on Linux machines. Docker Desktop on macOS will automatically
         already have this mapping.
         """
-        if sys.platform == "linux":
+        if sys.platform == "linux" and (
+            # Do not warn if the user has specified a host manually that does not use
+            # a local address
+            "PREFECT_ORION_HOST" not in self.env
+            or re.search(
+                ".*(localhost)|(127.0.0.1)|(host.docker.internal).*",
+                self.env["PREFECT_ORION_HOST"],
+            )
+        ):
             user_version = packaging.version.parse(docker_client.version()["Version"])
             required_version = packaging.version.parse("20.10.0")
 
