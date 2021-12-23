@@ -352,16 +352,14 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         docker_client = self._get_client()
 
-        extra_hosts = self._get_extra_hosts(docker_client)
-
         container_settings = dict(
             image=self._get_image(docker_client),
             network=self.networks[0] if self.networks else None,
             command=self._get_start_command(flow_run),
-            environment=self._get_environment_variables(extra_hosts),
+            environment=self._get_environment_variables(),
             auto_remove=self.auto_remove,
             labels=self._get_labels(flow_run),
-            extra_hosts=extra_hosts,
+            extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
             volumes=self.volumes,
         )
@@ -512,30 +510,32 @@ class DockerFlowRunner(UniversalFlowRunner):
     def _get_extra_hosts(self, docker_client) -> Dict[str, str]:
         """
         A host.docker.internal -> host-gateway mapping is necessary for communicating
-        with the API on Linux machines
+        with the API on Linux machines. Docker Desktop on macOS will automatically
+        already have this mapping.
         """
-        user_version = packaging.version.parse(docker_client.version()["Version"])
-        required_version = packaging.version.parse("20.10.0")
+        if sys.platform == "linux":
+            user_version = packaging.version.parse(docker_client.version()["Version"])
+            required_version = packaging.version.parse("20.10.0")
 
-        if user_version < required_version:
-            warnings.warn(
-                "`host.docker.internal` could not be automatically resolved to your "
-                "local ip address. This feature is not supported on Docker Engine "
-                f"v{user_version}, upgrade to v{required_version}+ if you "
-                "encounter issues."
-            )
-            return {}
-        else:
-            # Compatibility for linux -- https://github.com/docker/cli/issues/2290
-            # Only supported by Docker v20.10.0+ which is our minimum recommend version
-            return {"host.docker.internal": "host-gateway"}
+            if user_version < required_version:
+                warnings.warn(
+                    "`host.docker.internal` could not be automatically resolved to your "
+                    "local ip address. This feature is not supported on Docker Engine "
+                    f"v{user_version}, upgrade to v{required_version}+ if you "
+                    "encounter issues."
+                )
+                return {}
+            else:
+                # Compatibility for linux -- https://github.com/docker/cli/issues/2290
+                # Only supported by Docker v20.10.0+ which is our minimum recommend version
+                return {"host.docker.internal": "host-gateway"}
 
-    def _get_environment_variables(self, extra_hosts: Dict[str, str]):
+    def _get_environment_variables(self):
         env = self.env.copy()
 
-        # Update local connections to use the docker host if available
+        # Update local connections to use the docker host
 
-        if prefect.settings.orion_host and "host.docker.internal" in extra_hosts:
+        if prefect.settings.orion_host:
             api_url = prefect.settings.orion_host.replace(
                 "localhost", "host.docker.internal"
             ).replace("127.0.0.1", "host.docker.internal")

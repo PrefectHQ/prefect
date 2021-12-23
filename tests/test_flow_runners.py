@@ -2,7 +2,6 @@ import os
 import shutil
 import subprocess
 import sys
-from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -26,43 +25,7 @@ from prefect.flow_runners import (
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.compat import AsyncMock
-
-
-@contextmanager
-def temporary_settings(**kwargs):
-    """
-    Temporarily override a setting in `prefect.settings`
-
-    Example:
-        >>> from prefect import settings
-        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
-        >>>    assert settings.orion_host == "foo"
-        >>> assert settings.orion_host is None
-    """
-    old_env = os.environ.copy()
-    for setting in kwargs:
-        os.environ[setting] = kwargs[setting]
-
-    from prefect import settings
-    from prefect.utilities.settings import Settings
-
-    new_settings = Settings()
-    old_settings = settings.copy()
-
-    for field in settings.__fields__:
-        object.__setattr__(settings, field, getattr(new_settings, field))
-
-    try:
-        yield settings
-    finally:
-        for setting in kwargs:
-            if old_env.get(setting):
-                os.environ[setting] = old_env[setting]
-            else:
-                os.environ.pop(setting)
-
-        for field in settings.__fields__:
-            object.__setattr__(settings, field, getattr(old_settings, field))
+from prefect.utilities.settings import temporary_settings
 
 
 @pytest.fixture
@@ -790,9 +753,11 @@ class TestDockerFlowRunner:
         call_env = mock_docker_client.containers.create.call_args[1].get("environment")
         assert call_env.get("PREFECT_ORION_HOST") == "http://localhost/api"
 
-    async def test_adds_docker_host_gateway(
-        self, mock_docker_client, flow_run, hosted_orion
+    async def test_adds_docker_host_gateway_on_linux(
+        self, mock_docker_client, flow_run, hosted_orion, monkeypatch
     ):
+        monkeypatch.setattr("sys.platform", "linux")
+
         with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
             await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
@@ -803,9 +768,16 @@ class TestDockerFlowRunner:
         assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
 
     @pytest.mark.parametrize("docker_engine_version", ["0.25.10", "19.1.1"])
-    async def test_warns_if_docker_version_does_not_support_host_gateway(
-        self, mock_docker_client, flow_run, hosted_orion, docker_engine_version
+    async def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
+        self,
+        mock_docker_client,
+        flow_run,
+        hosted_orion,
+        docker_engine_version,
+        monkeypatch,
     ):
+        monkeypatch.setattr("sys.platform", "linux")
+
         mock_docker_client.version.return_value = {"Version": docker_engine_version}
         with temporary_settings(PREFECT_ORION_HOST=hosted_orion):
             with pytest.warns(
