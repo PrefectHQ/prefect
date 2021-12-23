@@ -441,7 +441,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     @staticmethod
     def _get_orion_image_tag():
         return slugify(
-            f"prefect:orion-{PYTHON_VERSION_STRING}-{prefect.__version__}",
+            f"prefect:orion-{prefect.__version__}-python{PYTHON_VERSION_STRING}",
             lowercase=False,
             max_length=128,
             # Docker allows these characters for tag names
