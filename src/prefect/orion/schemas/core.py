@@ -3,7 +3,7 @@ Full schemas of Orion API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 from uuid import UUID
 
 from pydantic import Field, validator
@@ -321,6 +321,26 @@ class SavedSearch(ORMBaseModel):
     filters: dict = Field(
         default_factory=dict, description="The filter set for the saved search."
     )
+
+
+class Log(ORMBaseModel):
+    """An ORM representation of log data."""
+
+    name: str = Field(..., description="The logger name")
+    level: int = Field(..., description="The log level")
+    message: str = Field(..., description="The log message")
+    timestamp: datetime.datetime = Field(..., description="The log timestamp")
+    extra_attributes: Optional[Dict[str, Any]] = Field(..., description="Extra attributes")
+
+
+class Logs(PrefectBaseModel):
+    """A list of ORM representation of logs."""
+    logs: List[Log] = Field(..., description="The logs")
+
+
+class LogsCreated(PrefectBaseModel):
+    """The number of logs created."""
+    created: int = Field(..., description="The number of log records created")
 
 
 Flow.update_forward_refs()

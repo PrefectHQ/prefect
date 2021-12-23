@@ -567,26 +567,11 @@ class ORMLog:
     """
     SQLAlchemy model of a logging statement.
 
-    This model is designed for fast insert performance and queries
-    based on time ranges:
-
-    - We don't give individual log records a unique ID. Logs
-      are treated as time series data queried by range, rather
-      than individual records.
-
-    - We don't track the server creation or update times, using
-      he client-specified timestamp as the meaningful time
-      dimension of logs.
-
-    - Our table schema stores log name, level, and message as
-      columns, with b-tree indexes on name and level to allow
-      clients to filter by those attributes.
-
-    - We don't store relationships to other objects as foreign
-      keys to avoid lookups during inserts, but instead store
-      a denormalized "extra_attributes" JSON object that
-      contains any IDs or filterable attributes that an agent
-      chooses to store.
+    To speed up insert performance, we don't store relationships to other
+    objects as foreign keys, but instead store an "extra_attributes" JSON
+    object that contains any filterable attributes that an agent chooses to
+    store. These attributes can be IDs, such as flow_run_id, task_run_id,
+    etc.
     """
 
     name = sa.Column(sa.String, nullable=False, index=True)
@@ -603,17 +588,6 @@ class ORMLog:
         default=dict,
         nullable=True,
     )
-
-    __mapper_args__ = {"eager_defaults": True}
-
-    @declared_attr
-    def __tablename__(cls):
-        """
-        By default, turn the model's camel-case class name
-        into a snake-case table name. Override by providing
-        an explicit `__tablename__` class property.
-        """
-        return camel_to_snake.sub("_", cls.__name__).lower()
 
 
 @declarative_mixin
@@ -665,7 +639,7 @@ class BaseORMConfiguration(ABC):
         )
         self.base_model_mixins = base_model_mixins or []
 
-        self._create_base_model()
+        self._create_base_models()
         self._create_orm_models()
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -674,9 +648,9 @@ class BaseORMConfiguration(ABC):
         """
         return (self.__class__, self.base_metadata, tuple(self.base_model_mixins))
 
-    def _create_base_model(self):
+    def _create_base_models(self):
         """
-        Defines the base ORM model and binds it to `self`. The base model will be
+        Defines the base ORM models and binds it to `self`. The base model will be
         extended by mixins specified in the database configuration. This method only
         runs on instantiation.
         """
