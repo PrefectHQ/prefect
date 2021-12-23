@@ -478,7 +478,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
-        Generatse a container name to match the flow run name, ensuring it is docker
+        Generates a container name to match the flow run name, ensuring it is docker
         compatible and unique.
         """
         # Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
