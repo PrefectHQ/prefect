@@ -569,9 +569,8 @@ class ORMLog:
 
     To speed up insert performance, we don't store relationships to other
     objects as foreign keys, but instead store an "extra_attributes" JSON
-    object that contains any filterable attributes that an agent chooses to
-    store. These attributes can be IDs, such as flow_run_id, task_run_id,
-    etc.
+    object that contains filterable attributes, such as flow_run_id,
+    task_run_id, etc.
     """
 
     name = sa.Column(sa.String, nullable=False, index=True)
