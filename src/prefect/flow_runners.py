@@ -56,6 +56,24 @@ def python_version_micro() -> str:
     return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
 
+def get_orion_image_name():
+    parsed_version = prefect.__version__.split("+")
+    prefect_version = parsed_version[0]
+
+    if len(parsed_version) > 1:
+        prefect_version += "dev"
+
+    tag = slugify(
+        f"{prefect_version}-python{python_version_minor()}",
+        lowercase=False,
+        max_length=128,
+        # Docker allows these characters for tag names
+        regex_pattern=r"[^a-zA-Z0-9_.-]+",
+    )
+
+    return f"orion:{tag}"
+
+
 class FlowRunner(BaseModel):
     """
     Flow runners are responsible for creating infrastructure for flow runs and starting
@@ -295,7 +313,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     typename: Literal["docker"] = "docker"
 
-    image: str = None
+    image: str = Field(default_factory=get_orion_image_name)
     networks: List[str] = Field(default_factory=list)
     labels: Dict[str, str] = None
     auto_remove: bool = False
@@ -357,10 +375,12 @@ class DockerFlowRunner(UniversalFlowRunner):
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
 
         docker_client = self._get_client()
-        image = self._get_image(docker_client)
+
+        if self.image.startswith("orion:"):
+            self._build_orion_image(docker_client, tag=self.image)
 
         container_settings = dict(
-            image=image,
+            image=self.image,
             network=self.networks[0] if self.networks else None,
             command=self._get_start_command(flow_run),
             environment=self._get_environment_variables(),
@@ -368,7 +388,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
-            volumes=self._get_volumes(image),
+            volumes=self._get_volumes(),
         )
         self.logger.info(
             f"Flow run {flow_run.name!r} has container settings = {container_settings}"
@@ -444,57 +464,35 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         return docker_client
 
-    @staticmethod
-    def _get_orion_image_name():
-        parsed_version = prefect.__version__.split("+")
-        prefect_version = parsed_version[0]
-
-        if len(parsed_version) > 1:
-            prefect_version += "dev"
-
-        tag = slugify(
-            f"{prefect_version}-python{python_version_minor()}",
-            lowercase=False,
-            max_length=128,
-            # Docker allows these characters for tag names
-            regex_pattern=r"[^a-zA-Z0-9_.-]+",
-        )
-
-        return f"orion:{tag}"
-
-    def _get_image(self, docker_client: "DockerClient"):
+    def _build_orion_image(self, docker_client: "DockerClient", tag: str):
         """
-        Retrieve the specified image, or build the orion image.
+        Check for the given Orion image tag and build it if it does not exist already
         """
-        if self.image:
-            return self.image
+        assert tag.startswith(
+            "orion:"
+        ), "Only the Orion image tag should be built locally"
 
-        # Ensure the local image is built
         # Lock so that we do not try to build it if another thread is already doing so
-        orion_image = self._get_orion_image_name()
-        self.logger.debug(f"No image provided. Using image {orion_image!r}...")
         with DOCKER_BUILD_LOCK:
             try:
-                docker_client.images.get(orion_image)
+                docker_client.images.get(tag)
             except docker.errors.ImageNotFound:
-                self.logger.info(f"Orion image {orion_image!r} not found! Building...")
+                self.logger.info(f"Orion image {tag!r} not found! Building...")
                 docker_client.images.build(
                     path=str(prefect.__root_path__),
-                    tag=orion_image,
+                    tag=tag,
                     buildargs={
                         # Match python version to ensure compatibility
                         "PYTHON_VERSION": python_version_micro()
                     },
                 )
 
-        return orion_image
-
-    def _get_volumes(self, image: str) -> List[str]:
+    def _get_volumes(self) -> List[str]:
         volumes = self.volumes.copy()
 
         # If requesting an orion development image; mount the local code into the image
         # detects semver followed by 'dev' with support for alpha, beta, and rc
-        if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?dev", image):
+        if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?dev", self.image):
             volumes.append(f"{prefect.__root_path__}:/opt/prefect")
 
         return volumes
