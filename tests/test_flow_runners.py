@@ -621,7 +621,7 @@ class TestDockerFlowRunner:
             await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
     async def test_builds_development_image_if_none_specified_and_does_not_exist(
-        self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
+        self, flow_run, mock_docker_client, use_hosted_orion
     ):
         import docker.errors
 
@@ -642,7 +642,7 @@ class TestDockerFlowRunner:
         )
 
     async def test_skips_image_build_if_exists_already(
-        self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
+        self, flow_run, mock_docker_client, use_hosted_orion
     ):
         default_tag = get_orion_image_name()
 
