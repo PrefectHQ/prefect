@@ -14,7 +14,7 @@ async def test_create_log_with_extras(session, db):
         level=logging.INFO,
         message="Ahoy, captain",
         timestamp=now,
-        extra_attributes={"flow_id": 1}
+        extra_attributes={"flow_id": 1},
     )
 
     session.add(log)
@@ -38,7 +38,7 @@ async def test_create_log_without_extras(session, db):
         name="prefect.flow_run",
         level=logging.WARNING,
         message="Black flag ahead, captain!",
-        timestamp=now
+        timestamp=now,
     )
 
     session.add(log)

@@ -330,16 +330,20 @@ class Log(ORMBaseModel):
     level: int = Field(..., description="The log level")
     message: str = Field(..., description="The log message")
     timestamp: datetime.datetime = Field(..., description="The log timestamp")
-    extra_attributes: Optional[Dict[str, Any]] = Field(..., description="Extra attributes")
+    extra_attributes: Optional[Dict[str, Any]] = Field(
+        ..., description="Extra attributes"
+    )
 
 
 class Logs(PrefectBaseModel):
     """A list of ORM representation of logs."""
+
     logs: List[Log] = Field(..., description="The logs")
 
 
 class LogsCreated(PrefectBaseModel):
     """The number of logs created."""
+
     created: int = Field(..., description="The number of log records created")
 
 
