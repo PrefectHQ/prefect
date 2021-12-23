@@ -23,6 +23,7 @@ from prefect.flow_runners import (
     register_flow_runner,
     python_version_micro,
     python_version_minor,
+    get_orion_image_name,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
@@ -613,21 +614,17 @@ class TestDockerFlowRunner:
     ):
         import docker.errors
 
-        monkeypatch.setattr(
-            "prefect.flow_runners.DockerFlowRunner._get_orion_image_name",
-            MagicMock(return_value="orion:tag"),
-        )
-
         mock_docker_client.images.get = MagicMock(
             side_effect=docker.errors.ImageNotFound("")
         )
+        default_tag = get_orion_image_name()
 
         await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        mock_docker_client.images.get.assert_called_once_with("orion:tag")
+        mock_docker_client.images.get.assert_called_once_with(default_tag)
         mock_docker_client.images.build.assert_called_once_with(
             path=str(prefect.__root_path__),
-            tag="orion:tag",
+            tag=default_tag,
             # Note here we build with the local micro version but it will be tagged
             # with the minor version
             buildargs={"PYTHON_VERSION": python_version_micro()},
@@ -636,17 +633,17 @@ class TestDockerFlowRunner:
     async def test_skips_image_build_if_exists_already(
         self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
     ):
-        monkeypatch.setattr(
-            "prefect.flow_runners.DockerFlowRunner._get_orion_image_name",
-            MagicMock(return_value="orion:tag"),
-        )
+        default_tag = get_orion_image_name()
 
         await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
-        mock_docker_client.images.get.assert_called_once_with("orion:tag")
+        mock_docker_client.images.get.assert_called_once_with(default_tag)
         mock_docker_client.images.build.assert_not_called()
         call_image = mock_docker_client.containers.create.call_args[1].get("image")
-        assert call_image == "orion:tag"
+        assert call_image == default_tag
+
+    async def test_default_image_tag_is_set_at_creation_time(self):
+        assert DockerFlowRunner().image == get_orion_image_name()
 
     async def test_default_image_tag_includes_python_minor_version(
         self, flow_run, mock_docker_client, use_hosted_orion, monkeypatch
