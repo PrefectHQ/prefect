@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -11,6 +12,7 @@ from prefect.orion.schemas.sorting import LogSort
 @pytest.fixture
 def log_data():
     now = pendulum.now("UTC")
+    flow_id = str(uuid4())
     log_data = {
         "logs": [
             {
@@ -18,14 +20,14 @@ def log_data():
                 "level": 20,
                 "message": "Ahoy, captain",
                 "timestamp": now.timestamp(),
-                "extra_attributes": {"flow_id": 1},
+                "flow_id": str(flow_id),
             },
             {
                 "name": "prefect.flow_run",
                 "level": 50,
                 "message": "Black flag ahead, captain!",
                 "timestamp": now.timestamp(),
-                "extra_attributes": {"flow_id": 1},
+                "flow_id": flow_id,
             },
         ]
     }
@@ -33,7 +35,20 @@ def log_data():
 
 
 class TestCreateLogs:
-    async def test_create_logs_with_extra_attributes(self, session, client, log_data):
+    @staticmethod
+    def assert_is_same_log(model, api_data):
+        assert model.name == api_data["name"]
+        assert model.level == api_data["level"]
+        assert model.message == api_data["message"]
+        assert model.timestamp == pendulum.from_timestamp(
+            api_data["timestamp"]
+        ).astimezone(pendulum.timezone("UTC"))
+        assert str(model.flow_id) == api_data["flow_id"]
+
+        if model.task_id:
+            assert str(model.task_id) == api_data["task_id"]
+
+    async def test_create_logs_with_flow_id(self, session, client, log_data):
         response = await client.post("/logs/", json=log_data)
         assert response.status_code == 201
         assert response.json() == {"created": 2}
@@ -45,20 +60,9 @@ class TestCreateLogs:
         assert len(logs) == 2
 
         for i, log in enumerate(logs):
-            assert log.name == log_data["logs"][i]["name"]
-            assert log.level == log_data["logs"][i]["level"]
-            assert log.message == log_data["logs"][i]["message"]
-            assert log.timestamp == pendulum.from_timestamp(
-                log_data["logs"][i]["timestamp"]
-            ).astimezone(pendulum.timezone("UTC"))
-            assert log.extra_attributes == log_data["logs"][i]["extra_attributes"]
+            self.assert_is_same_log(log, log_data["logs"][i])
 
-    async def test_create_logs_without_extra_attributes(
-        self, session, client, log_data
-    ):
-        log_data["logs"][0].pop("extra_attributes")
-        log_data["logs"][1].pop("extra_attributes")
-
+    async def test_create_logs_with_task_id(self, session, client, log_data):
         response = await client.post("/logs/", json=log_data)
         assert response.status_code == 201
         assert response.json() == {"created": 2}
@@ -70,10 +74,4 @@ class TestCreateLogs:
         assert len(logs) == 2
 
         for i, log in enumerate(logs):
-            assert log.name == log_data["logs"][i]["name"]
-            assert log.level == log_data["logs"][i]["level"]
-            assert log.message == log_data["logs"][i]["message"]
-            assert log.timestamp == pendulum.from_timestamp(
-                log_data["logs"][i]["timestamp"]
-            ).astimezone(pendulum.timezone("UTC"))
-            assert log.extra_attributes == None
+            self.assert_is_same_log(log, log_data["logs"][i])
