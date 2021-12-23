@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 from prefect.tasks.mixpanel.mixpanel_tasks import MixpanelExportTask
 
+from prefect.engine.signals import FAIL
+
 
 class TestMixpanelTasks:
     def test_construction_mixpanel_export_task(self):
@@ -87,3 +89,63 @@ class TestMixpanelTasks:
         mx_export_task.run(api_secret_env_var="foo")
 
         assert "Got secret from env var passed from `api_secret_env_var`" in caplog.text
+
+    @responses.activate
+    def test_run_empty_result_without_parse(self):
+        today = date.today().strftime("%Y-%m-%d")
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        responses.add(responses.GET, url, status=200, body="")
+
+        mx_export_task = MixpanelExportTask()
+        ret = mx_export_task.run(api_secret="foo")
+
+        assert ret is None
+
+    @responses.activate
+    def test_run_empty_result_with_parse(self):
+        today = date.today().strftime("%Y-%m-%d")
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        responses.add(responses.GET, url, status=200, body="")
+
+        mx_export_task = MixpanelExportTask()
+        ret = mx_export_task.run(api_secret="foo", parse_response=True)
+
+        assert ret is None
+
+    @responses.activate
+    def test_run_without_parse(self):
+        today = date.today().strftime("%Y-%m-%d")
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        responses.add(
+            responses.GET, url, status=200, body='{"foo": "bar"}\n{"alice": "bob"}'
+        )
+
+        mx_export_task = MixpanelExportTask()
+        ret = mx_export_task.run(api_secret="foo")
+
+        assert ret == '{"foo": "bar"}\n{"alice": "bob"}'
+
+    @responses.activate
+    def test_run_with_parse(self):
+        today = date.today().strftime("%Y-%m-%d")
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        responses.add(
+            responses.GET, url, status=200, body='{"foo": "bar"}\n{"alice": "bob"}'
+        )
+
+        mx_export_task = MixpanelExportTask()
+        ret = mx_export_task.run(api_secret="foo", parse_response=True)
+
+        assert ret == [{"foo": "bar"}, {"alice": "bob"}]
+
+    @responses.activate
+    def test_run_raises_fail(self):
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=abc&to_date=abc"
+        responses.add(responses.GET, url, status=123, body="mixpanel error")
+
+        mx_export_task = MixpanelExportTask()
+
+        with pytest.raises(FAIL) as exc:
+            mx_export_task.run(api_secret="foo", from_date="abc", to_date="abc")
+
+        assert "Mixpanel export API returned error: mixpanel error" in str(exc)

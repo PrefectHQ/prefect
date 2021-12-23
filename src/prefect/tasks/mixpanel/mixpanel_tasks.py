@@ -1,6 +1,6 @@
 from datetime import date
 from prefect import Task
-import prefect
+from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
 
 import json
@@ -54,7 +54,7 @@ class MixpanelExportTask(Task):
         where: str = None,
         parse_response: bool = False,
         use_eu_server: bool = False,
-        **kwargs
+        **kwargs,
     ):
         self.api_secret = api_secret
         self.api_secret_env_var = api_secret_env_var
@@ -124,8 +124,9 @@ class MixpanelExportTask(Task):
                 else a JSON array obtained by parsing the raw response.
 
         Raises:
-            - ValueError if both `api_secret` and `api_secret_env_var` are missing.
-            - ValueError if `api_secret` is missing and `api_secret_env_var` is not found.
+            - `ValueError` if both `api_secret` and `api_secret_env_var` are missing.
+            - `ValueError` if `api_secret` is missing and `api_secret_env_var` is not found.
+            - `prefect.engine.signals.FAIL` if the Mixpanel API returns an error
 
         """
         if not api_secret and not api_secret_env_var:
@@ -164,6 +165,9 @@ class MixpanelExportTask(Task):
             headers={"Accept": "application/json"},
             params=params,
         )
+
+        if response.status_code != 200:
+            raise FAIL(message=f"Mixpanel export API returned error: {response.text}")
 
         events = response.text
 
