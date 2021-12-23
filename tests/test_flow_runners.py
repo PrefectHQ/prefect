@@ -763,6 +763,20 @@ class TestDockerFlowRunner:
         )
         assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
 
+    @pytest.mark.parametrize("platform", ["win32", "darwin"])
+    async def test_does_not_add_docker_host_gateway_on_other_platforms(
+        self, mock_docker_client, flow_run, use_hosted_orion, monkeypatch, platform
+    ):
+        monkeypatch.setattr("sys.platform", platform)
+
+        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+            "extra_hosts"
+        )
+        assert not call_extra_hosts
+
     @pytest.mark.parametrize(
         "explicit_orion_host",
         [
@@ -803,7 +817,7 @@ class TestDockerFlowRunner:
         )
         assert not call_extra_hosts
 
-    async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_orion_hpost(
+    async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_orion_host(
         self,
         mock_docker_client,
         flow_run,
@@ -817,6 +831,29 @@ class TestDockerFlowRunner:
             await DockerFlowRunner(
                 env={"PREFECT_ORION_HOST": "http://my-domain.test/api"}
             ).submit_flow_run(flow_run, MagicMock())
+
+        assert len(warnings) == 0, "No warning should be raised"
+        mock_docker_client.containers.create.assert_called_once()
+        call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+            "extra_hosts"
+        )
+        assert not call_extra_hosts
+
+    @pytest.mark.parametrize("platform", ["win32", "darwin"])
+    async def test_does_not_warn_about_gateway_if_not_using_linux(
+        self,
+        mock_docker_client,
+        flow_run,
+        platform,
+        monkeypatch,
+        use_hosted_orion,
+    ):
+        monkeypatch.setattr("sys.platform", platform)
+        mock_docker_client.version.return_value = {"Version": "19.1.1"}
+
+        # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
+        with pytest.warns(None) as warnings:
+            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
 
         assert len(warnings) == 0, "No warning should be raised"
         mock_docker_client.containers.create.assert_called_once()
