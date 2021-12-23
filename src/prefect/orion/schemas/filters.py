@@ -5,7 +5,7 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 """
 
 import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -793,6 +793,124 @@ class DeploymentFilter(PrefectFilterBaseModel):
             filters.append(self.is_schedule_active.as_sql_filter())
         if self.tags is not None:
             filters.append(self.tags.as_sql_filter())
+
+        return filters
+
+
+class LogFilterName(PrefectFilterBaseModel):
+    """Filter by `Log.name`."""
+
+    any_: List[str] = Field(
+        None,
+        description="A list of log names to include",
+        example=["prefect.logger.flow_runs", "prefect.logger.task_runs"],
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.name.in_(self.any_))
+        return filters
+
+
+class LogFilterLevel(PrefectFilterBaseModel):
+    """Filter by `Log.level`."""
+
+    any_: List[int] = Field(
+        None,
+        description="A list of log levels to include",
+        example=[20, 50],
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.level.in_(self.any_))
+        return filters
+
+
+class LogFilterTimestamp(PrefectFilterBaseModel):
+    """Filter by `Log.timestamp`."""
+
+    before_: datetime.datetime = Field(
+        None, description="Only include logs with a timestamp at or before this time"
+    )
+    after_: datetime.datetime = Field(
+        None, description="Only include logs with a timestamp at or after this time"
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.before_ is not None:
+            filters.append(db.Log.timestamp <= self.before_)
+        if self.after_ is not None:
+            filters.append(db.Log.timestamp >= self.after_)
+        return filters
+
+
+class LogFilterExtraAttributes(PrefectFilterBaseModel):
+    """Filter by `Log.extra_attributes`."""
+
+    eq_: Dict[str, str] = Field(
+        None,
+        description="Key-value pairs that must match in extra_attributes",
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.eq_ is not None:
+            for key, value in self.eq_.values():
+                filters.append(db.Log.extra_attributes[key] == value)
+        return filters
+
+
+class LogFilter(PrefectFilterBaseModel):
+    """Filter logs. Only logs matching all criteria will be returned"""
+
+    name: Optional[LogFilterName] = Field(
+        None, description="Filter criteria for `Log.name`"
+    )
+    level: Optional[LogFilterLevel] = Field(
+        None, description="Filter criteria for `Log.level`"
+    )
+    timestamp: Optional[LogFilterTimestamp] = Field(
+        None, description="Filter criteria for `Log.timestamp`"
+    )
+    extra_attributes: Optional[LogFilterExtraAttributes] = Field(
+        None, description="Filter criteria for `Log.extra_attributes`"
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+
+        if self.name is not None:
+            filters.append(self.name.as_sql_filter())
+        if self.level is not None:
+            filters.append(self.level.as_sql_filter())
+        if self.timestamp is not None:
+            filters.append(self.name.as_sql_filter())
+        if self.extra_attributes is not None:
+            filters.append(self.extra_attributes.as_sql_filter())
 
         return filters
 

@@ -57,3 +57,26 @@ class TaskRunSort(AutoEnum):
             "END_TIME_DESC": db.TaskRun.end_time.desc(),
         }
         return sort_mapping[self.value]
+
+
+class LogSort(AutoEnum):
+    """Defines log sorting options."""
+
+    TIMESTAMP_ASC = AutoEnum.auto()
+    TIMESTAMP_DESC = AutoEnum.auto()
+    LEVEL_ASC = AutoEnum.auto()
+    LEVEL_DESC = AutoEnum.auto()
+
+    @inject_db
+    def as_sql_sort(
+        self,
+        db: OrionDBInterface,
+    ) -> ColumnElement:
+        """Return an expression used to sort task runs"""
+        sort_mapping = {
+            "TIMESTAMP_ASC": db.Log.timestamp.asc(),
+            "TIMESTAMP_DESC": db.Log.timestamp.desc(),
+            "LEVEL_ASC": db.Log.level.asc(),
+            "LEVEL_DESC": db.Log.level.desc(),
+        }
+        return sort_mapping[self.value]
