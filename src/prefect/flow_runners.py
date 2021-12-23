@@ -456,7 +456,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         if self.image:
             return self.image
 
-        # Ensure the orion image is built
+        # Ensure the local image is built
         # Lock so that we do not try to build it if another thread is already doing so
         orion_image = self._get_orion_image_tag()
         self.logger.debug(f"No image provided. Using image {orion_image!r}...")
