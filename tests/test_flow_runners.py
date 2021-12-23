@@ -763,28 +763,62 @@ class TestDockerFlowRunner:
         )
         assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
 
-    @pytest.mark.parametrize("docker_engine_version", ["0.25.10", "19.1.1"])
+    @pytest.mark.parametrize(
+        "explicit_orion_host",
+        [
+            None,
+            "http://localhost/api",
+            "http://127.0.0.1:2222/api",
+            "http://host.docker.internal:10/foo/api",
+        ],
+    )
     async def test_warns_if_docker_version_does_not_support_host_gateway_on_linux(
         self,
         mock_docker_client,
         flow_run,
         use_hosted_orion,
-        docker_engine_version,
+        explicit_orion_host,
         monkeypatch,
     ):
         monkeypatch.setattr("sys.platform", "linux")
 
-        mock_docker_client.version.return_value = {"Version": docker_engine_version}
+        mock_docker_client.version.return_value = {"Version": "19.1.1"}
 
         with pytest.warns(
             UserWarning,
             match=(
                 "`host.docker.internal` could not be automatically resolved.*"
-                f"feature is not supported on Docker Engine v{docker_engine_version}"
+                f"feature is not supported on Docker Engine v19.1.1"
             ),
         ):
-            await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+            await DockerFlowRunner(
+                env={"PREFECT_ORION_HOST": explicit_orion_host}
+                if explicit_orion_host
+                else {}
+            ).submit_flow_run(flow_run, MagicMock())
 
+        mock_docker_client.containers.create.assert_called_once()
+        call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
+            "extra_hosts"
+        )
+        assert not call_extra_hosts
+
+    async def test_does_not_warn_about_gateway_if_user_has_provided_nonlocal_orion_hpost(
+        self,
+        mock_docker_client,
+        flow_run,
+        monkeypatch,
+    ):
+        monkeypatch.setattr("sys.platform", "linux")
+        mock_docker_client.version.return_value = {"Version": "19.1.1"}
+
+        # TODO: When pytest 7.0 is released, this can be `with pytest.does_not_warn()`
+        with pytest.warns(None) as warnings:
+            await DockerFlowRunner(
+                env={"PREFECT_ORION_HOST": "http://my-domain.test/api"}
+            ).submit_flow_run(flow_run, MagicMock())
+
+        assert len(warnings) == 0, "No warning should be raised"
         mock_docker_client.containers.create.assert_called_once()
         call_extra_hosts = mock_docker_client.containers.create.call_args[1].get(
             "extra_hosts"
