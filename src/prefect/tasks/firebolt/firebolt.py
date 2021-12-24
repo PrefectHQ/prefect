@@ -53,7 +53,8 @@ class FireboltQuery(Task):
             - query (str): query to execute against database.
 
         Returns:
-            - List[List]: output of 'cursor.fetchall()' if 'cursor.execute(query)' > 0, else an empty list
+            - List[List]: output of 'cursor.fetchall()' if 'cursor.execute(query)' > 0,
+                else an empty list
 
         Raises:
             - ValueError: if a required parameter is not supplied.
