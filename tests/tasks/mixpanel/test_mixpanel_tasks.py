@@ -14,7 +14,7 @@ class TestMixpanelTasks:
     def test_construction_mixpanel_export_task(self):
         expected_api_secret = "foo_secret"
         expected_api_secret_env_var = "foo_env_var_secret"
-        expected_from_date = "1900-01-01"
+        expected_from_date = "2011-07-10"
         expected_to_date = date.today().strftime("%Y-%m-%d")
         expected_limit = 1
         expected_event = ["foo_event"]
@@ -68,7 +68,7 @@ class TestMixpanelTasks:
         caplog.set_level(logging.DEBUG)
 
         today = date.today().strftime("%Y-%m-%d")
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(responses.GET, url, status=200)
 
         mx_export_task = MixpanelExportTask()
@@ -82,7 +82,7 @@ class TestMixpanelTasks:
         caplog.set_level(logging.DEBUG)
 
         today = date.today().strftime("%Y-%m-%d")
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(responses.GET, url, status=200)
 
         mx_export_task = MixpanelExportTask()
@@ -93,7 +93,7 @@ class TestMixpanelTasks:
     @responses.activate
     def test_run_empty_result_without_parse(self):
         today = date.today().strftime("%Y-%m-%d")
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(responses.GET, url, status=200, body="")
 
         mx_export_task = MixpanelExportTask()
@@ -104,7 +104,7 @@ class TestMixpanelTasks:
     @responses.activate
     def test_run_empty_result_with_parse(self):
         today = date.today().strftime("%Y-%m-%d")
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(responses.GET, url, status=200, body="")
 
         mx_export_task = MixpanelExportTask()
@@ -115,7 +115,7 @@ class TestMixpanelTasks:
     @responses.activate
     def test_run_without_parse(self):
         today = date.today().strftime("%Y-%m-%d")
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(
             responses.GET, url, status=200, body='{"foo": "bar"}\n{"alice": "bob"}'
         )
@@ -128,7 +128,7 @@ class TestMixpanelTasks:
     @responses.activate
     def test_run_with_parse(self):
         today = date.today().strftime("%Y-%m-%d")
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=1900-01-01&to_date={today}"
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(
             responses.GET, url, status=200, body='{"foo": "bar"}\n{"alice": "bob"}'
         )
@@ -148,4 +148,4 @@ class TestMixpanelTasks:
         with pytest.raises(FAIL) as exc:
             mx_export_task.run(api_secret="foo", from_date="abc", to_date="abc")
 
-        assert "Mixpanel export API returned error: mixpanel error" in str(exc)
+        assert "Mixpanel export API error." in str(exc)

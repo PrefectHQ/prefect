@@ -24,7 +24,7 @@ class MixpanelExportTask(Task):
             `api_secret` takes precedence over `api_secret_env_var`.
         - from_date (str, optional): Start date of the export request.
             If provided as a string, it should be in the format `YYYY-MM-DD`
-            Default value is `1900-01-01`. This date is inclusive.
+            Default value is `2011-07-10`. This date is inclusive.
         - to_date (str, optional): End date of the export request.
             If provided as a string, it should be in the format `YYYY-MM-DD`
             Default value is `prefect.context.today`. This date is inclusive
@@ -47,7 +47,7 @@ class MixpanelExportTask(Task):
         self,
         api_secret: str = None,
         api_secret_env_var: str = None,
-        from_date: str = "1900-01-01",
+        from_date: str = "2011-07-10",  # The earliest date Mixpanel allows
         to_date: str = date.today().strftime("%Y-%m-%d"),
         limit: int = None,
         event: Union[str, List[str]] = None,
@@ -101,7 +101,7 @@ class MixpanelExportTask(Task):
                 `api_secret` takes precedence over `api_secret_env_var`.
             - from_date (str, optional): Start date of the export request.
                 If provided as a string, it should be in the format `YYYY-MM-DD`
-                Default value is `1900-01-01`. This date is inclusive.
+                Default value is `2011-07-10`. This date is inclusive.
             - to_date (str, optional): End date of the export request.
                 If provided as a string, it should be in the format `YYYY-MM-DD`
                 Default value is `prefect.context.today`. This date is inclusive
@@ -119,9 +119,9 @@ class MixpanelExportTask(Task):
                 Default to `False`
 
         Returns:
-            - if `parse_response` is `False` then returns the string response pulled
+            - if `parse_response` is `False` then returns a `str` response pulled
                 from the Export API, (which is basically a JSONL string)
-                else a JSON array obtained by parsing the raw response.
+                else a `list` of JSON objects obtained by parsing the response.
 
         Raises:
             - `ValueError` if both `api_secret` and `api_secret_env_var` are missing.
@@ -167,7 +167,8 @@ class MixpanelExportTask(Task):
         )
 
         if response.status_code != 200:
-            raise FAIL(message=f"Mixpanel export API returned error: {response.text}")
+            msg = f"Mixpanel export API error.\nStatus code: {response.status_code}\nReason: {response.reason}\nText: {response.text}"
+            raise FAIL(message=msg)
 
         events = response.text
 
