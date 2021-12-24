@@ -167,7 +167,12 @@ class MixpanelExportTask(Task):
         )
 
         if response.status_code != 200:
-            msg = f"Mixpanel export API error.\nStatus code: {response.status_code}\nReason: {response.reason}\nText: {response.text}"
+            msg = f"""
+            Mixpanel export API error.
+            Status code: {response.status_code}
+            Reason: {response.reason}
+            Text: {response.text}
+            """
             raise FAIL(message=msg)
 
         events = response.text
