@@ -121,7 +121,7 @@ class APISettings(BaseSettings):
     """Settings related to the Orion API. To change these settings via
     environment variable, set `PREFECT_ORION_API_{SETTING}=X`.
     """
-    
+
     class Config:
         env_prefix = "PREFECT_ORION_API_"
         frozen = True
