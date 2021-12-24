@@ -1,6 +1,6 @@
 """
-This module contains a collection of tasks for interacting with firebolt databases via
-the firebolt-sdk-python library.
+This module contains a collection of tasks for interacting with Firebolt databases via
+the firebolt-python-sdk library.
 """
 
 try:

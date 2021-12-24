@@ -1,13 +1,12 @@
 from unittest.mock import MagicMock
-
 import pytest
 import firebolt.db.connection as fb_conn
-
 from prefect.tasks.firebolt.firebolt import FireboltQuery
 
 
 @pytest.fixture
 def mock_conn(monkeypatch):
+
     # returns a mocked cursor for testing
     firebolt_conn = MagicMock()
     connection = MagicMock(spec=fb_conn.Connection)
@@ -20,7 +19,8 @@ def mock_conn(monkeypatch):
     monkeypatch.setattr(
         "prefect.tasks.firebolt.firebolt.firebolt_conn", firebolt_connection
     )
-    return cursor
+
+    return firebolt_connection, cursor
 
 
 class TestFireboltQuery:
@@ -35,7 +35,11 @@ class TestFireboltQuery:
             engine_name="test",
             query="test",
         )
-        assert task.database is not None
+        assert task.database == "test"
+        assert task.username == "test"
+        assert task.password == "test"
+        assert task.engine_name == "test"
+        assert task.query == "test"
 
     def test_required_params(self):
         """
@@ -91,9 +95,11 @@ class TestFireboltQuery:
         """
         Tests that the FireboltQuery Task calls the execute method on the cursor.
         """
+        connection = mock_conn[0]
+        cursor = mock_conn[1]
 
         # setting execute return
-        mock_conn.return_value.__enter__.return_value.execute.return_value = 0
+        cursor.return_value.__enter__.return_value.execute.return_value = 0
         query = "SHOW DATABASES"
         output = FireboltQuery(
             database="test",
@@ -102,11 +108,18 @@ class TestFireboltQuery:
             engine_name="test",
             query=query,
         ).run()
-        mock_conn.assert_called_with()
-        mock_conn.return_value.__enter__.return_value.execute.assert_called_once_with(
+        conn_config = {
+            "database": "test",
+            "username": "test",
+            "password": "test",
+            "engine_name": "test",
+        }
+        connection.connect.assert_called_once_with(**conn_config)
+        cursor.assert_called_with()
+        cursor.return_value.__enter__.return_value.execute.assert_called_once_with(
             query
         )
-        mock_conn.return_value.__enter__.return_value.fetchall.assert_not_called()
+        cursor.return_value.__enter__.return_value.fetchall.assert_not_called()
         assert output == []
 
     # test to check if the query was executed and metadata was retrieved from database
@@ -114,10 +127,14 @@ class TestFireboltQuery:
         """
         Tests that the FireboltQuery Task calls the fetchall method on the cursor.
         """
+        connection = mock_conn[0]
+        cursor = mock_conn[1]
+
+        # setting execute return
+        cursor.return_value.__enter__.return_value.execute.return_value = 1
 
         # setting fetchall return
-        mock_conn.return_value.__enter__.return_value.execute.return_value = 1
-        mock_conn.return_value.__enter__.return_value.fetchall.return_value = ["TESTDB"]
+        cursor.return_value.__enter__.return_value.fetchall.return_value = ["TESTDB"]
         query = "SHOW DATABASES"
         output = FireboltQuery(
             database="test",
@@ -126,9 +143,16 @@ class TestFireboltQuery:
             engine_name="test",
             query=query,
         ).run()
-        mock_conn.assert_called_with()
-        mock_conn.return_value.__enter__.return_value.execute.assert_called_once_with(
+        conn_config = {
+            "database": "test",
+            "username": "test",
+            "password": "test",
+            "engine_name": "test",
+        }
+        connection.connect.assert_called_once_with(**conn_config)
+        cursor.assert_called_with()
+        cursor.return_value.__enter__.return_value.execute.assert_called_once_with(
             query
         )
-        mock_conn.return_value.__enter__.return_value.fetchall.assert_called()
+        cursor.return_value.__enter__.return_value.fetchall.assert_called()
         assert output == ["TESTDB"]

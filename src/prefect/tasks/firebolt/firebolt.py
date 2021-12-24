@@ -1,6 +1,5 @@
 import firebolt.db.connection as firebolt_conn
 from typing import List
-
 from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
@@ -54,13 +53,12 @@ class FireboltQuery(Task):
             - query (str): query to execute against database.
 
         Returns:
-            - List[List]: output of cursor.fetchall() if cursor.rowcount > 0 else an empty list
+            - List[List]: output of 'cursor.fetchall()' if 'cursor.execute(query)' > 0, else an empty list
 
         Raises:
-            - ValueError: if a required parameter is not supplied
-            - DatabaseError: if exception occurs when executing the query
+            - ValueError: if a required parameter is not supplied.
+            - DatabaseError: if exception occurs when executing the query.
         """
-
         if not database:
             raise ValueError("A database name must be provided")
         if not username:
@@ -87,7 +85,6 @@ class FireboltQuery(Task):
         # execute query
         with conn:
             with conn.cursor() as cursor:
-                execute = cursor.execute(query)
-                if execute > 0:
+                if cursor.execute(query) > 0:
                     result = cursor.fetchall()
         return result
