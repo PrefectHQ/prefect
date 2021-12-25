@@ -45,7 +45,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
         api_token_env_var: str = None,
         start_time: Union[int, datetime] = None,
         cursor: str = None,
-        exclude_deleted: bool = None,
+        exclude_deleted: bool = False,
         include_entities: List[str] = None,
         **kwargs,
     ):
@@ -159,6 +159,8 @@ class ZendeskTicketsIncrementalExportTask(Task):
 
         end_of_stream = False
 
+        tickets = []
+
         while not end_of_stream:
             with session.get(export_url) as response:
                 self.logger.debug(f"Export URL is: {export_url}")
@@ -176,17 +178,19 @@ class ZendeskTicketsIncrementalExportTask(Task):
 
                 elif response.status_code != 200:
                     msg = f"""
-                    Zendesk API call failed!.
+                    Zendesk API call failed!
                     Status: {response.status_code}
                     Reason: {response.reason}
                     """
                     raise FAIL(message=msg)
 
-                tickets = response.json()
+                content = response.json()
 
-                end_of_stream = tickets["end_of_stream"]
-                export_url = tickets["after_url"]
-                cursor = tickets["after_cursor"]
+                tickets.extend(content["tickets"])
+
+                end_of_stream = content["end_of_stream"]
+                export_url = content["after_url"]
+                cursor = content["after_cursor"]
 
             if not end_of_stream:
                 # Try to avoid the rate limit: 10 requests per minute
