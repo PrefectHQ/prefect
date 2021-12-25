@@ -5,7 +5,7 @@ import pytest
 import responses
 from unittest.mock import patch
 
-from prefect.tasks.mixpanel.mixpanel_tasks import MixpanelExportTask
+from prefect.tasks.mixpanel import MixpanelExportTask
 
 from prefect.engine.signals import FAIL
 
