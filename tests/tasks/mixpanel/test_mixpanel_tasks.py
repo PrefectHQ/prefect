@@ -139,8 +139,25 @@ class TestMixpanelTasks:
         assert ret == [{"foo": "bar"}, {"alice": "bob"}]
 
     @responses.activate
+    def test_run_with_parse_and_group(self):
+        today = date.today().strftime("%Y-%m-%d")
+        url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
+        event1 = '{"event": "alice", "properties": {"p1": "v1"}}'
+        event2 = '{"event": "bob", "properties": {"p1": "v1"}}'
+        event3 = '{"event": "bob", "properties": {"p2": "v2"}}'
+        body = "\n".join([event1, event2, event3])
+        responses.add(responses.GET, url, status=200, body=body)
+
+        mx_export_task = MixpanelExportTask()
+        ret = mx_export_task.run(
+            api_secret="foo", parse_response=True, group_events=True
+        )
+
+        assert ret == {"alice": [{"p1": "v1"}], "bob": [{"p1": "v1"}, {"p2": "v2"}]}
+
+    @responses.activate
     def test_run_raises_fail(self):
-        url = f"https://data.mixpanel.com/api/2.0/export?from_date=abc&to_date=abc"
+        url = "https://data.mixpanel.com/api/2.0/export?from_date=abc&to_date=abc"
         responses.add(responses.GET, url, status=123, body="mixpanel error")
 
         mx_export_task = MixpanelExportTask()

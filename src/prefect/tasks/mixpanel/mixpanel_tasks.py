@@ -2,6 +2,7 @@ from datetime import date
 from prefect import Task
 from prefect.engine.signals import FAIL
 from prefect.utilities.tasks import defaults_from_attrs
+from collections import defaultdict
 
 import json
 import os
@@ -39,6 +40,8 @@ class MixpanelExportTask(Task):
         - use_eu_server (bool, optional): Whether to use the Mixpanel EU server to retrieve data.
             More info at https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU
             Default to `False`
+        - group_events: Whetner to group events with the same name.
+            This is taken into account only if `parse_response is True`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
             Task constructor
     """
@@ -54,6 +57,7 @@ class MixpanelExportTask(Task):
         where: str = None,
         parse_response: bool = False,
         use_eu_server: bool = False,
+        group_events: bool = False,
         **kwargs,
     ):
         self.api_secret = api_secret
@@ -65,6 +69,7 @@ class MixpanelExportTask(Task):
         self.where = where
         self.parse_response = parse_response
         self.use_eu_server = use_eu_server
+        self.group_events = group_events
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -77,6 +82,7 @@ class MixpanelExportTask(Task):
         "where",
         "parse_response",
         "use_eu_server",
+        "group_events",
     )
     def run(
         self,
@@ -89,6 +95,7 @@ class MixpanelExportTask(Task):
         where: str = None,
         parse_response: bool = False,
         use_eu_server: bool = False,
+        group_events: bool = False,
     ):
         """
         Task run method to request a data export to Mixpanel using Export API
@@ -117,11 +124,16 @@ class MixpanelExportTask(Task):
                 More info at
                 https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU
                 Default to `False`
+            - group_events: Whetner to group events with the same name.
+                This is taken into account only if `parse_response is True`.
 
         Returns:
-            - if `parse_response` is `False` then returns a `str` response pulled
+            - if `parse_response is False` then returns a `str` response pulled
                 from the Export API, (which is basically a JSONL string)
-                else a `list` of JSON objects obtained by parsing the response.
+            - if `parse_response is True and group_events is True` then returns a `dict` where each key
+                contains homogeneous events.
+            - if `parse_response is True and group_events is False` then returns
+                a `list` of JSON objects obtained by parsing the response.
 
         Raises:
             - `ValueError` if both `api_secret` and `api_secret_env_var` are missing.
@@ -177,11 +189,21 @@ class MixpanelExportTask(Task):
 
         events = response.text
 
-        ret = None
-        if parse_response:
-            if events:
-                ret = [json.loads(event) for event in events.splitlines()]
-        else:
-            ret = events if events else None
+        ret = events if events else None
+
+        if ret:
+
+            if parse_response:
+                received_events = [json.loads(event) for event in events.splitlines()]
+
+                if group_events:
+                    grouped_events = defaultdict(list)
+                    for received_event in received_events:
+                        grouped_events[received_event["event"]].append(
+                            received_event["properties"]
+                        )
+                    return dict(grouped_events)
+
+                return received_events
 
         return ret
