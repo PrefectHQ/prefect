@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 import os
 
@@ -104,10 +105,11 @@ class ZendeskTicketsIncrementalExportTask(Task):
             - `ValueError` if `subdomain` is missing.
             - `ValueError` if `email_address` is missing.
             - `ValueError` if both `start_time` and `cursor` are missing.
-            - `prefect.engine.signals.FAIL` if the Zendesk API call fails
+            - `prefect.engine.signals.FAIL` if the Zendesk API call fails.
 
         Returns:
-            - a `list` of JSON objects, where each object contains information about a ticket.
+            - a `dict` containing the list of tickets and, optionally, the included
+              entities.
         """
         if not api_token and not api_token_env_var:
             raise ValueError("Both `api_token` and `api_token_env_var` are missing.")
@@ -152,14 +154,14 @@ class ZendeskTicketsIncrementalExportTask(Task):
             export_url = f"{export_url}&exclude_deleted=true"
 
         if include_entities:
-            export_url = f"{export_url}&include={','.join(include_entities)}"
+            export_url = f"{export_url}&include={','.join(list(set(include_entities)))}"
 
         session = requests.Session()
         session.auth = f"{email_address}/token", token
 
         end_of_stream = False
 
-        tickets = []
+        tickets = defaultdict(list)
 
         while not end_of_stream:
             with session.get(export_url) as response:
@@ -186,7 +188,11 @@ class ZendeskTicketsIncrementalExportTask(Task):
 
                 content = response.json()
 
-                tickets.extend(content["tickets"])
+                tickets["tickets"].extend(content["tickets"])
+
+                if include_entities:
+                    for include_entity in list(set(include_entities)):
+                        tickets[include_entity].extend(content[include_entity])
 
                 end_of_stream = content["end_of_stream"]
                 export_url = content["after_url"]

@@ -216,5 +216,40 @@ class TestZendeskTasks:
             start_time=123,
         )
 
-        assert isinstance(tickets, list)
-        assert {"ticket_id": 1, "ticket_desc": "bar"} in tickets
+        assert isinstance(tickets["tickets"], list)
+        assert {"ticket_id": 1, "ticket_desc": "bar"} in tickets["tickets"]
+    
+    @responses.activate
+    def test_run_success_with_include_entities(self):
+        zendesk_task = ZendeskTicketsIncrementalExportTask()
+        responses.add(
+            responses.GET,
+            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123&include=bar,foo",
+            json={
+                "end_of_stream": True,
+                "after_url": "foo",
+                "after_cursor": "foo",
+                "tickets": [{"ticket_id": 1, "ticket_desc": "bar"}],
+                "foo": [{"key": "value"}],
+                "bar": [{"key": "value"}]
+            },
+            headers={"retry-after": "1"},
+            status=200,
+        )
+
+        tickets = zendesk_task.run(
+            subdomain="test",
+            email_address="foo@bar.com",
+            api_token="abc",
+            start_time=123,
+            include_entities=["foo", "foo", "bar"]
+        )
+
+        assert isinstance(tickets["tickets"], list)
+        assert {"ticket_id": 1, "ticket_desc": "bar"} in tickets["tickets"]
+
+        assert isinstance(tickets["foo"], list)
+        assert {"key": "value"} in tickets["foo"]
+
+        assert isinstance(tickets["bar"], list)
+        assert {"key": "value"} in tickets["bar"]
