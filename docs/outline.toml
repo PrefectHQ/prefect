@@ -768,5 +768,5 @@ verified_task = true
 
 [pages.tasks.zendesk]
 title = "Zendesk Tasks"
-module = "prfect.tasks.zendesk"
+module = "prefect.tasks.zendesk"
 classes = ["ZendeskTicketsIncrementalExportTask"]
