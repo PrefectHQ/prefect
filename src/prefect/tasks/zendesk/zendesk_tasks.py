@@ -29,7 +29,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
         - cursor (str, optional): The cursor to use to export tickets.
             If passed, it will take precedence over `start_time`.
         - exclude_deleted: (bool, optional): Whether to exclude deleted tickets or not.
-        - include_entities: (list, optional): Optional list of entities to side load.
+        - include_entities: (str, list, optional): Optional list of entities to side load.
           More info at
           https://developer.zendesk.com/documentation/ticketing/using-the-zendesk-api/side_loading/
         - **kwargs (dict, optional): additional keyword arguments to pass to the
@@ -95,7 +95,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
             - cursor (str, optional): The cursor to use to export tickets.
                 If passed, it will take precedence over `start_time`.
             - exclude_deleted: (bool, optional): Whether to exclude deleted tickets or not.
-            - include_entities: (list, optional): Optional list of entities to side load.
+            - include_entities: (str, list, optional): Optional list of entities to side load.
                 More info at
                 https://developer.zendesk.com/documentation/ticketing/using-the-zendesk-api/side_loading/
 
@@ -154,7 +154,12 @@ class ZendeskTicketsIncrementalExportTask(Task):
             export_url = f"{export_url}&exclude_deleted=true"
 
         if include_entities:
-            export_url = f"{export_url}&include={','.join(list(set(include_entities)))}"
+            if isinstance(include_entities, str):
+                include_entities_str = include_entities
+            elif isinstance(include_entities, list):
+                include_entities_str = ','.join(list(set(include_entities)))
+            
+            export_url = f"{export_url}&include={include_entities_str}"
 
         session = requests.Session()
         session.auth = f"{email_address}/token", token
