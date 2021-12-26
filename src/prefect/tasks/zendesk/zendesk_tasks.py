@@ -157,8 +157,8 @@ class ZendeskTicketsIncrementalExportTask(Task):
             if isinstance(include_entities, str):
                 include_entities_str = include_entities
             elif isinstance(include_entities, list):
-                include_entities_str = ','.join(list(set(include_entities)))
-            
+                include_entities_str = ",".join(list(set(include_entities)))
+
             export_url = f"{export_url}&include={include_entities_str}"
 
         session = requests.Session()

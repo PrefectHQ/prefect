@@ -1,5 +1,4 @@
 import logging
-from re import sub
 
 import pytest
 from prefect.engine.signals import FAIL
@@ -218,19 +217,20 @@ class TestZendeskTasks:
 
         assert isinstance(tickets["tickets"], list)
         assert {"ticket_id": 1, "ticket_desc": "bar"} in tickets["tickets"]
-    
+
     @responses.activate
     def test_run_success_with_include_entities(self):
         zendesk_task = ZendeskTicketsIncrementalExportTask()
+        url = "https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=1&include=foo"
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123&include=foo",
+            url=url,
             json={
                 "end_of_stream": True,
                 "after_url": "foo",
                 "after_cursor": "foo",
                 "tickets": [{"ticket_id": 1, "ticket_desc": "bar"}],
-                "foo": [{"key": "value"}]
+                "foo": [{"key": "value"}],
             },
             headers={"retry-after": "1"},
             status=200,
@@ -240,8 +240,8 @@ class TestZendeskTasks:
             subdomain="test",
             email_address="foo@bar.com",
             api_token="abc",
-            start_time=123,
-            include_entities=["foo"]
+            start_time=1,
+            include_entities=["foo"],
         )
 
         assert isinstance(tickets["tickets"], list)
