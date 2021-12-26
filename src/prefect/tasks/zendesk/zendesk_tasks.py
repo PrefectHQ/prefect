@@ -135,7 +135,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
             raise ValueError("Both `start_time` and `cursor` are missing.")
 
         base_url = self._ZENDESK_API_BASE_URL.format(subdomain=subdomain)
-        export_url = f"{base_url}/cursor.json"
+        export_url = f"{base_url}/incremental/tickets/cursor.json"
 
         if cursor:
             self.logger.debug("Got cursor")
@@ -165,7 +165,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
 
         while not end_of_stream:
             with session.get(export_url) as response:
-                self.logger.debug(f"Export URL is: {export_url}")
+                self.logger.info(f"Export URL is: {export_url}")
 
                 if response.status_code == 429:
                     retry_after_seconds = int(response.headers["retry-after"])

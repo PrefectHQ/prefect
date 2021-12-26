@@ -85,7 +85,7 @@ class TestZendeskTasks:
         zendesk_task = ZendeskTicketsIncrementalExportTask()
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?cursor=xyz",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?cursor=xyz",
             json={
                 "end_of_stream": True,
                 "after_url": "foo",
@@ -108,7 +108,7 @@ class TestZendeskTasks:
         zendesk_task = ZendeskTicketsIncrementalExportTask()
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
             json={
                 "end_of_stream": True,
                 "after_url": "foo",
@@ -134,7 +134,7 @@ class TestZendeskTasks:
         zendesk_task = ZendeskTicketsIncrementalExportTask()
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
             json={
                 "end_of_stream": False,
                 "after_url": "foo",
@@ -147,7 +147,7 @@ class TestZendeskTasks:
 
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
             json={
                 "end_of_stream": True,
                 "after_url": "foo",
@@ -172,7 +172,7 @@ class TestZendeskTasks:
         zendesk_task = ZendeskTicketsIncrementalExportTask()
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
             json={
                 "end_of_stream": False,
                 "after_url": "foo",
@@ -198,7 +198,7 @@ class TestZendeskTasks:
         zendesk_task = ZendeskTicketsIncrementalExportTask()
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
             json={
                 "end_of_stream": True,
                 "after_url": "foo",
@@ -224,14 +224,13 @@ class TestZendeskTasks:
         zendesk_task = ZendeskTicketsIncrementalExportTask()
         responses.add(
             responses.GET,
-            url="https://test.zendesk.com/api/v2/cursor.json?start_time=123&include=bar,foo",
+            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123&include=foo",
             json={
                 "end_of_stream": True,
                 "after_url": "foo",
                 "after_cursor": "foo",
                 "tickets": [{"ticket_id": 1, "ticket_desc": "bar"}],
-                "foo": [{"key": "value"}],
-                "bar": [{"key": "value"}]
+                "foo": [{"key": "value"}]
             },
             headers={"retry-after": "1"},
             status=200,
@@ -242,7 +241,7 @@ class TestZendeskTasks:
             email_address="foo@bar.com",
             api_token="abc",
             start_time=123,
-            include_entities=["foo", "foo", "bar"]
+            include_entities=["foo"]
         )
 
         assert isinstance(tickets["tickets"], list)
@@ -250,6 +249,3 @@ class TestZendeskTasks:
 
         assert isinstance(tickets["foo"], list)
         assert {"key": "value"} in tickets["foo"]
-
-        assert isinstance(tickets["bar"], list)
-        assert {"key": "value"} in tickets["bar"]
