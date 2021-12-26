@@ -170,7 +170,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
 
         while not end_of_stream:
             with session.get(export_url) as response:
-                self.logger.info(f"Export URL is: {export_url}")
+                self.logger.debug(f"Export URL is: {export_url}")
 
                 if response.status_code == 429:
                     retry_after_seconds = int(response.headers["retry-after"])
@@ -197,7 +197,8 @@ class ZendeskTicketsIncrementalExportTask(Task):
 
                 if include_entities:
                     for include_entity in list(set(include_entities)):
-                        tickets[include_entity].extend(content[include_entity])
+                        if include_entity in content.keys():
+                            tickets[include_entity].extend(content[include_entity])
 
                 end_of_stream = content["end_of_stream"]
                 export_url = content["after_url"]
