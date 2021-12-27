@@ -28,7 +28,7 @@ class MixpanelExportTask(Task):
             Default value is `2011-07-10`. This date is inclusive.
         - to_date (str, optional): End date of the export request.
             If provided as a string, it should be in the format `YYYY-MM-DD`.
-            Default value is `prefect.context.today`. This date is inclusive
+            Default value is `prefect.context.today`. This date is inclusive.
         - limit (int, optional): The max number of events to return.
         - event (str, list, optional): The event, or events, that you wish
             to get the data for.
