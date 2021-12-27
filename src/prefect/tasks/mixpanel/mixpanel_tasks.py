@@ -98,7 +98,7 @@ class MixpanelExportTask(Task):
         group_events: bool = False,
     ):
         """
-        Task run method to request a data export to Mixpanel using Export API
+        Task run method to request a data export from Mixpanel using the Export API.
 
         Args:
             - api_secret (str, optional): the API secret key to use to authenticate
