@@ -8,4 +8,3 @@ except ImportError as err:
     raise ImportError(
         'prefect.tasks.cubejs` requires Prefect to be installed with the "cubejs" extra.'
     ) from err
-
