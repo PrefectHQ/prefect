@@ -14,7 +14,7 @@ from typing import Union, List
 
 class MixpanelExportTask(Task):
     """
-    Task for performing an export using Mixpanel Export API
+    Task for performing an export using the Mixpanel Export API.
     More info about the API can be found at https://developer.mixpanel.com/reference/raw-event-export
 
     Args:
