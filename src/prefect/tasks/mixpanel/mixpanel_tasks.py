@@ -43,7 +43,7 @@ class MixpanelExportTask(Task):
         - group_events: Whetner to group events with the same name.
             This is taken into account only if `parse_response` is True.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+            Task constructor.
     """
 
     def __init__(
