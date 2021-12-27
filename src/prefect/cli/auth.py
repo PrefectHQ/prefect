@@ -1,8 +1,10 @@
 import click
 import os
+import shutil
 import pendulum
 from click.exceptions import Abort
 from tabulate import tabulate
+from pathlib import Path
 
 from prefect import Client, config
 from prefect.exceptions import AuthorizationError, ClientError
@@ -10,7 +12,12 @@ from prefect.cli.build_register import handle_terminal_error, TerminalError
 from prefect.backend import TenantView
 
 
+# For deleting authentication tokens which have been replaced with API keys
+AUTH_TOKEN_SETTINGS_PATH = Path(f"{config.home_dir}/client").expanduser()
+
+
 def check_override_auth_token():
+    # Exists for purging old tokens only
     if config.cloud.get("auth_token"):
         if os.environ.get("PREFECT__CLOUD__AUTH_TOKEN"):
             click.secho(
@@ -171,45 +178,34 @@ def logout(token):
 
         click.secho("Logged out of Prefect Cloud", fg="green")
 
-    elif client._api_token:
-
-        check_override_auth_token()
-        tenant_id = client.active_tenant_id
-
-        if not tenant_id:
-            click.confirm(
-                "Are you sure you want to log out of Prefect Cloud? "
-                "This will remove your API token from this machine.",
-                default=False,
-                abort=True,
-            )
-
-            # Remove the token from local storage by writing blank settings
-            client._save_local_settings({})
-            click.secho("Logged out of Prefect Cloud", fg="green")
-
-        else:
-            # Log out of the current tenant (dropping the access token) while retaining
-            # the API token. This is backwards compatible behavior. Running the logout
-            # command twice will remove the token from storage entirely
-            click.confirm(
-                "Are you sure you want to log out of your current Prefect Cloud tenant?",
-                default=False,
-                abort=True,
-            )
-
-            client.logout_from_tenant()
-
-            click.secho(
-                f"Logged out from tenant {tenant_id}. Run `prefect auth logout` again "
-                "to delete your API token.",
-                fg="green",
-            )
     else:
         raise TerminalError(
             "You are not logged in to Prefect Cloud. "
             "Use `prefect auth login` to log in first."
         )
+
+
+@auth.command()
+def purge_tokens():
+    check_override_auth_token()
+
+    if not AUTH_TOKEN_SETTINGS_PATH.exists():
+        click.secho(
+            "The deprecated authentication tokens settings path "
+            f"'{AUTH_TOKEN_SETTINGS_PATH}' has already been removed."
+        )
+
+    else:
+        confirm = click.confirm(
+            "Are you sure you want to delete the deprecated authentication token "
+            f"settings folder '{AUTH_TOKEN_SETTINGS_PATH}'?"
+        )
+        if not confirm:
+            print("Aborted!")
+            return
+
+        shutil.rmtree(AUTH_TOKEN_SETTINGS_PATH)
+        print("Removed!")
 
 
 @auth.command(hidden=True)
@@ -293,16 +289,13 @@ def switch_tenants(id, slug, default):
         )
         return
 
-    login_success = client.login_to_tenant(tenant_slug=slug, tenant_id=id)
-    if not login_success:
-        raise TerminalError("Unable to switch tenant!")
+    try:
+        tenant_id = client.switch_tenant(tenant_slug=slug, tenant_id=id)
+    except AuthorizationError:
+        raise TerminalError("Unauthorized. Your API key is not valid for that tenant.")
 
-    # `login_to_tenant` will write to disk if using an API token, if using an API key
-    # we will write to disk manually here
-    if client.api_key:
-        client.save_auth_to_disk()
-
-    click.secho(f"Tenant switched to {client.tenant_id}", fg="green")
+    client.save_auth_to_disk()
+    click.secho(f"Tenant switched to {tenant_id}", fg="green")
 
 
 @auth.command(hidden=True)
@@ -477,17 +470,32 @@ def status():
         except Exception as exc:
             click.echo(f"Your authentication is not working: {exc}")
 
-    if client._api_token:
+    if AUTH_TOKEN_SETTINGS_PATH.exists():
         click.secho(
-            "You are logged in with an API token. These have been deprecated in favor "
-            "of API keys."
-            + (
-                " Since you have set an API key as well, this will be ignored."
-                if client.api_key
-                else ""
-            ),
+            "The authentication tokens settings path still exists. These have been "
+            "removed in favor of API keys. We recommend purging old tokens with "
+            "`prefect auth purge-tokens`",
             fg="yellow",
         )
 
-    if not client._api_token and not client.api_key:
-        click.secho("You are not logged in!", fg="yellow")
+    if config.cloud.get("auth_token"):
+        if os.environ.get("PREFECT__CLOUD__AUTH_TOKEN"):
+            click.secho(
+                "An authentication token is set via environment variable. "
+                "These have been removed in favor of API keys and the variable will be "
+                "ignored. We recommend unsetting the 'PREFECT__CLOUD__AUTH_TOKEN' key",
+                fg="yellow",
+            )
+        else:
+            click.secho(
+                "An authentication token is set via the prefect config file. "
+                "These have been removed in favor of API keys and the setting will be "
+                "ignored. We recommend removing the 'prefect.cloud.auth_token' key",
+                fg="yellow",
+            )
+
+    if not client.api_key:
+        click.secho(
+            "You are not logged in! Use `prefect auth login` to login with an API key.",
+            fg="yellow",
+        )

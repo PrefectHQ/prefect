@@ -90,6 +90,9 @@ tenant_id = ""
     # Internal address for agent health checks, etc...
     agent_address = ""
 
+    # Enable keep-alive packages for the kubernetes agent
+    kubernetes_keep_alive = false
+
         [cloud.agent.resource_manager]
         # Separate loop interval for resource managers
         loop_interval = 60

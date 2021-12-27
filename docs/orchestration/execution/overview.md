@@ -1,10 +1,9 @@
-# Execution Overview
+# Environments Overview
 
 ::: warning
-Flows configured with environments are being no longer supported - we recommend users
-transition to using "Run Configs" instead. See [flow
-configuration](/orchestration/flow_config/overview.md) and [upgrading
-tips](/orchestration/flow_config/upgrade.md) for more information.
+Flows configured with environments are no longer supported. We recommend users transition to using [RunConfig](/orchestration/flow_config/run_configs.html) instead. See the [Flow Configuration](/orchestration/flow_config/overview.md) and [Upgrading](/orchestration/flow_config/upgrade.md) documentation for more information.
+
+See [Storage](/orchestration/flow_config/storage.html) for current Flow definition storage capabilities.
 :::
 
 Executing flows using the Prefect API is accomplished through two powerful abstractions — storage and environments. By combining these two abstractions, flows can be saved, shared, and executed across various platforms.
@@ -13,7 +12,7 @@ Executing flows using the Prefect API is accomplished through two powerful abstr
 
 ## Storage
 
-[Storage](https://docs.prefect.io/api/latest/storage.html) objects are pieces of functionality which define how and where a Flow should be stored. Prefect supports storage options ranging from ephemeral in-memory storage to Docker images which can be stored in registries.
+[Storage](/api/latest/storage.html) objects define how and where a Flow should be stored. Prefect supports many [storage types](/orchestration/flow_config/storage.html#storage-types) ranging from local storage to Docker containers, code repositories including GitHub, and cloud storage with AWS, Azure, and Google Cloud.
 
 ### How Storage is Used
 
@@ -25,7 +24,7 @@ from prefect.storage import Docker
 f = Flow("example-storage", storage=Docker(registry_url="prefecthq/storage-example"))
 ```
 
-or assign it directly:
+Or assign it directly:
 
 ```python
 from prefect.storage import Docker
@@ -67,7 +66,7 @@ f.register("My First Project", build=False)
 
 ## Environments
 
-While Storage objects provide a way to save and retrieve Flows, [Environments](https://docs.prefect.io/api/latest/environments/execution.html) specify _how your Flow should be run_ e.g., which executor to use and whether there are any auxiliary infrastructure requirements for your Flow's execution. For example, if you want to run your Flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
+While Storage objects provide a way to save and retrieve Flows, [Environments](/api/latest/environments/execution.html) specify _how your Flow should be run_ e.g., which executor to use and whether there are any auxiliary infrastructure requirements for your Flow's execution. For example, if you want to run your Flow on Kubernetes using an auto-scaling Dask cluster then you're going to want to use an environment for that!
 
 ### How Environments are Used
 
@@ -94,7 +93,7 @@ f.environment = LocalEnvironment(executor=DaskExecutor())
 
 ### Setup & Execute
 
-The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the Flow is executed e.g., spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the Flow where and how it needs to run e.g., running the Flow in process, as per the [`LocalEnvironment`](https://docs.prefect.io/api/latest/environments/execution.html##localenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](https://docs.prefect.io/api/latest/environments/execution.html#fargatetaskenvironment).
+The two main environment functions are `setup` and `execute`. The `setup` function is responsible for creating or prepping any infrastructure requirements before the Flow is executed e.g., spinning up a Dask cluster or checking available platform resources. The `execute` function is responsible for actually telling the Flow where and how it needs to run e.g., running the Flow in process, as per the [`LocalEnvironment`](/api/latest/environments/execution.html##localenvironment), or registering a new Fargate task, as per the [`FargateTaskEnvironment`](/api/latest/environments/execution.html#fargatetaskenvironment).
 
 ### Environment Callbacks
 

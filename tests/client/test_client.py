@@ -18,8 +18,12 @@ from prefect.engine.state import Pending, Running, State
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.exceptions import ClientError, AuthorizationError
+from prefect.exceptions import ClientError, AuthorizationError, ObjectNotFoundError
 from prefect.utilities.graphql import decompress
+
+# Note: Because we're running tests in parallel this must be a hard-coded instead of
+# dynamically generating a new UUID
+TEST_TENANT_ID = "b6b350a8-cd8f-4f45-a211-b80469497052"
 
 
 class TestClientAuthentication:
@@ -59,72 +63,80 @@ class TestClientAuthentication:
         # 1. Directly passed
         # 2. From the config
         # 3. From the disk
+        disk_tenant = str(uuid.uuid4())
+        config_tenant = str(uuid.uuid4())
+        direct_tenant = str(uuid.uuid4())
 
         # No key should be present yet
         client = Client()
         assert client._tenant_id is None
 
         # Save to disk (and set an API key so we don't enter API token logic)
-        client = Client(api_key="KEY", tenant_id="DISK_TENANT")
+        client = Client(api_key="KEY", tenant_id=disk_tenant)
         client.save_auth_to_disk()
 
         # Set in config
-        with set_temporary_config({"cloud.tenant_id": "CONFIG_TENANT"}):
+        with set_temporary_config({"cloud.tenant_id": config_tenant}):
 
             # Should ignore config/disk
-            client = Client(tenant_id="DIRECT_TENANT")
-            assert client._tenant_id == "DIRECT_TENANT"
+            client = Client(tenant_id=direct_tenant)
+            assert client._tenant_id == direct_tenant
 
             # Should load from config
             client = Client()
-            assert client._tenant_id == "CONFIG_TENANT"
+            assert client._tenant_id == config_tenant
 
         # Should load from disk
         client = Client()
-        assert client._tenant_id == "DISK_TENANT"
+        assert client._tenant_id == disk_tenant
 
     def test_client_save_auth_to_disk(self):
 
         # Ensure saving is robust to a missing directory
         Path(prefect.context.config.home_dir).rmdir()
 
-        client = Client(api_key="KEY", tenant_id="ID")
+        client = Client(api_key="KEY", tenant_id=TEST_TENANT_ID)
         client.save_auth_to_disk()
 
         data = toml.loads(client._auth_file.read_text())
         assert set(data.keys()) == {client._api_server_slug}
-        assert data[client._api_server_slug] == dict(api_key="KEY", tenant_id="ID")
+        assert data[client._api_server_slug] == dict(
+            api_key="KEY", tenant_id=TEST_TENANT_ID
+        )
 
         old_key = client._api_server_slug
         client.api_server = "foo"
         client.api_key = "NEW_KEY"
-        client.tenant_id = "NEW_ID"
+        new_tenant_id = str(uuid.uuid4())
+        client.tenant_id = new_tenant_id
         client.save_auth_to_disk()
 
         data = toml.loads(client._auth_file.read_text())
         assert set(data.keys()) == {client._api_server_slug, old_key}
         assert data[client._api_server_slug] == dict(
-            api_key="NEW_KEY", tenant_id="NEW_ID"
+            api_key="NEW_KEY", tenant_id=new_tenant_id
         )
 
         # Old data is unchanged
-        assert data[old_key] == dict(api_key="KEY", tenant_id="ID")
+        assert data[old_key] == dict(api_key="KEY", tenant_id=TEST_TENANT_ID)
 
     def test_client_load_auth_from_disk(self):
-        client = Client(api_key="KEY", tenant_id="ID")
+        client = Client(api_key="KEY", tenant_id=TEST_TENANT_ID)
         client.save_auth_to_disk()
 
         client = Client()
 
         assert client.api_key == "KEY"
-        assert client.tenant_id == "ID"
+        assert client.tenant_id == TEST_TENANT_ID
+
+        new_tenant_id = str(uuid.uuid4())
 
         client._auth_file.write_text(
             toml.dumps(
                 {
                     client._api_server_slug: {
                         "api_key": "NEW_KEY",
-                        "tenant_id": "NEW_ID",
+                        "tenant_id": new_tenant_id,
                     }
                 }
             )
@@ -133,10 +145,10 @@ class TestClientAuthentication:
 
         # Does not mutate the client!
         assert client.api_key == "KEY"
-        assert client.tenant_id == "ID"
+        assert client.tenant_id == TEST_TENANT_ID
 
         assert data["api_key"] == "NEW_KEY"
-        assert data["tenant_id"] == "NEW_ID"
+        assert data["tenant_id"] == new_tenant_id
 
     def test_client_sets_api_key_in_header(self, monkeypatch):
         Session = MagicMock()
@@ -156,45 +168,27 @@ class TestClientAuthentication:
         Session = MagicMock()
         monkeypatch.setattr("requests.Session", Session)
 
-        client = Client(api_key="foo", tenant_id="bar")
+        client = Client(api_key="foo", tenant_id=TEST_TENANT_ID)
         client.get("path")
 
         headers = Session().get.call_args[1]["headers"]
         assert "Authorization" in headers
         assert headers["Authorization"] == "Bearer foo"
         assert "X-PREFECT-TENANT-ID" in headers
-        assert headers["X-PREFECT-TENANT-ID"] == "bar"
+        assert headers["X-PREFECT-TENANT-ID"] == TEST_TENANT_ID
 
-    def test_client_does_not_set_tenant_id_in_header_when_using_api_token(
-        self, monkeypatch
-    ):
-        Session = MagicMock()
-        monkeypatch.setattr("requests.Session", Session)
-
-        client = Client(api_token="foo", tenant_id="bar")
-        client.get("path")
-
-        headers = Session().get.call_args[1]["headers"]
-        assert "X-PREFECT-TENANT-ID" not in headers
-
-    @pytest.mark.parametrize("tenant_id", [None, "id"])
+    @pytest.mark.parametrize("tenant_id", [None, TEST_TENANT_ID])
     def test_client_tenant_id_returns_set_tenant_or_queries(self, tenant_id):
 
         client = Client(api_key="foo", tenant_id=tenant_id)
-        client._get_auth_tenant = MagicMock(return_value="id")
+        client._get_auth_tenant = MagicMock(return_value=TEST_TENANT_ID)
 
-        assert client.tenant_id == "id"
+        assert client.tenant_id == TEST_TENANT_ID
 
         if not tenant_id:
             client._get_auth_tenant.assert_called_once()
         else:
             client._get_auth_tenant.assert_not_called()
-
-    def test_client_tenant_id_backwards_compat_for_api_tokens(self, monkeypatch):
-        client = Client(api_token="foo")
-        client._init_tenant = MagicMock()
-        client.tenant_id
-        client._init_tenant.assert_called_once()
 
     def test_client_tenant_id_gets_default_tenant_for_server(self):
         with set_temporary_config({"backend": "server"}):
@@ -252,13 +246,34 @@ class TestClientAuthentication:
                 client._get_default_server_tenant()
 
 
+def test_client_requests_use_retries(monkeypatch):
+    Session, HTTPAdapter, Retry = MagicMock(), MagicMock(), MagicMock()
+    monkeypatch.setattr("requests.Session", Session)
+    monkeypatch.setattr("requests.adapters.HTTPAdapter", HTTPAdapter)
+    monkeypatch.setattr("urllib3.util.retry.Retry", Retry)
+
+    client = Client()
+    client.post("/foo/bar")
+
+    # These don't implement equality checks so we can't just assert `mount` was called
+    # correctly and need to check each object individually
+    Retry.assert_called_once_with(
+        total=6,
+        backoff_factor=1,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
+    )
+    HTTPAdapter.assert_called_once_with(max_retries=Retry())
+    Session().mount.assert_called_once_with("https://", HTTPAdapter())
+
+
 def test_client_posts_to_api_server(patch_post):
     post = patch_post(dict(success=True))
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.api_key": "key",
             "backend": "cloud",
             "backend": "cloud",
         }
@@ -278,7 +293,7 @@ def test_version_header(monkeypatch):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -297,7 +312,7 @@ def test_version_header_cant_be_overridden(monkeypatch):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -313,7 +328,9 @@ def test_client_attached_headers(monkeypatch, cloud_api):
     session = MagicMock()
     session.return_value.get = get
     monkeypatch.setattr("requests.Session", session)
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
         assert client._attached_headers == {}
 
@@ -329,8 +346,8 @@ def test_client_posts_graphql_to_api_server(patch_post):
 
     with set_temporary_config(
         {
-            "cloud.graphql": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api": "http://my-cloud.foo",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -348,7 +365,7 @@ def test_graphql_errors_get_raised(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -370,7 +387,7 @@ class TestClientGraphQLErrorHandling:
         with set_temporary_config(
             {
                 "cloud.api": "http://my-cloud.foo",
-                "cloud.auth_token": "secret_token",
+                "cloud.api_key": "key",
                 "backend": "cloud",
             }
         ):
@@ -424,7 +441,7 @@ def test_client_register_raises_if_required_param_isnt_scheduled(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -482,7 +499,7 @@ def test_client_register_doesnt_raise_for_scheduled_params(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -536,7 +553,7 @@ def test_client_register(patch_post, compressed, monkeypatch, tmpdir):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -583,7 +600,7 @@ def test_client_register_raises_for_keyed_flows_with_no_result(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -627,7 +644,7 @@ def test_client_register_doesnt_raise_if_no_keyed_edges(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -667,7 +684,7 @@ def test_client_register_builds_flow(patch_post, compressed, monkeypatch, tmpdir
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -720,7 +737,7 @@ def test_client_register_docker_image_name(patch_post, compressed, monkeypatch, 
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -779,7 +796,7 @@ def test_client_register_optionally_avoids_building_flow(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -817,7 +834,9 @@ def test_client_register_with_bad_proj_name(patch_post, monkeypatch, cloud_api):
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
     flow = prefect.Flow(name="test")
     flow.result = Result()
@@ -845,7 +864,9 @@ def test_client_create_project_that_already_exists(patch_posts, monkeypatch):
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
     project_id = client.create_project(project_name="my-default-project")
     assert project_id == "proj-id"
@@ -860,7 +881,9 @@ def test_client_delete_project(patch_post, monkeypatch):
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
     result = client.delete_project(project_name="my-default-project")
     assert result is True
@@ -881,7 +904,9 @@ def test_client_delete_project_error(patch_post, monkeypatch):
         "prefect.client.Client.get_default_tenant_slug", MagicMock(return_value="tslug")
     )
 
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
 
     with pytest.raises(ValueError, match="Project {} not found".format(project_name)):
@@ -898,7 +923,7 @@ def test_client_register_with_flow_that_cant_be_deserialized(patch_post, monkeyp
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -952,7 +977,7 @@ def test_client_register_flow_id_output(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1002,7 +1027,7 @@ def test_client_register_flow_id_no_output(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1090,7 +1115,7 @@ def test_get_flow_run_info(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1155,7 +1180,7 @@ def test_get_flow_run_info_with_nontrivial_payloads(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1184,7 +1209,7 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1193,7 +1218,7 @@ def test_get_flow_run_info_raises_informative_error(patch_post):
         client.get_flow_run_info(flow_run_id="74-salt")
 
 
-def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
+def test_get_flow_run_state(patch_posts, cloud_api):
     query_resp = {
         "flow_run_by_pk": {
             "serialized_state": {
@@ -1218,6 +1243,16 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
     assert state.message is None
 
 
+def test_get_flow_run_state_object_not_found(patch_posts, cloud_api):
+    query_resp = {"flow_run_by_pk": {}}
+
+    patch_posts([dict(data=query_resp)])
+
+    client = Client()
+    with pytest.raises(ObjectNotFoundError):
+        client.get_flow_run_state(flow_run_id="72-salt")
+
+
 def test_set_flow_run_state(patch_post):
     response = {
         "data": {
@@ -1231,7 +1266,7 @@ def test_set_flow_run_state(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1255,7 +1290,7 @@ def test_set_flow_run_state_gets_queued(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1284,7 +1319,7 @@ def test_set_flow_run_state_uses_config_queue_interval(
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
             "cloud.queue_interval": interval_seconds,
         }
@@ -1314,7 +1349,7 @@ def test_set_flow_run_state_with_error(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1345,7 +1380,7 @@ def test_get_task_run_info(patch_posts):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1371,7 +1406,7 @@ def test_get_task_run_info_with_error(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1394,7 +1429,7 @@ def test_set_task_run_name(patch_posts, cloud_api):
     assert result is True
 
 
-def test_get_task_run_state(patch_posts, cloud_api, runner_token):
+def test_get_task_run_state(patch_posts, cloud_api):
     query_resp = {
         "get_task_run_info": {
             "serialized_state": {
@@ -1427,7 +1462,7 @@ def test_set_task_run_state(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1445,7 +1480,7 @@ def test_set_task_run_state_responds_to_status(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1470,7 +1505,7 @@ def test_set_task_run_state_responds_to_config_when_queued(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
             "cloud.queue_interval": 750,
         }
@@ -1496,7 +1531,7 @@ def test_set_task_run_state_with_error(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1510,7 +1545,7 @@ def test_create_flow_run_requires_flow_id_or_version_group_id():
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1533,7 +1568,7 @@ def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
             "backend": "cloud",
         }
     ):
@@ -1571,31 +1606,11 @@ def test_create_flow_run_with_input(patch_post, use_flow_id, use_extra_args):
     assert variables["input"] == expected
 
 
-def test_get_default_tenant_slug_as_user(patch_post):
-    response = {
-        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
-    }
-
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-        slug = client.get_default_tenant_slug(as_user=True)
-
-        assert slug == "tslug"
-
-
-def test_get_default_tenant_slug_not_as_user(patch_post):
+def test_get_default_tenant_slug(patch_post):
     response = {
         "data": {
             "tenant": [
-                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "tslug", "id": TEST_TENANT_ID},
                 {"slug": "wrongslug", "id": "foo"},
             ]
         }
@@ -1606,72 +1621,22 @@ def test_get_default_tenant_slug_not_as_user(patch_post):
     with set_temporary_config(
         {
             "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "cloud.tenant_id": "tenant-id",
+            "cloud.api_key": "key",
+            "cloud.tenant_id": TEST_TENANT_ID,
             "backend": "cloud",
         }
     ):
         client = Client()
-        slug = client.get_default_tenant_slug(as_user=False)
+        slug = client.get_default_tenant_slug()
 
         assert slug == "tslug"
 
 
-def test_get_default_tenant_slug_not_as_user_with_no_tenant_id(patch_post):
-    # Generally, this would occur when using a RUNNER API token
+def test_get_cloud_url(patch_post, cloud_api):
     response = {
         "data": {
             "tenant": [
-                {"slug": "firstslug", "id": "tenant-id"},
-                {"slug": "wrongslug", "id": "foo"},
-            ]
-        }
-    }
-
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://my-cloud.foo",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-        client._tenant_id = None  # Ensure tenant id is not set
-        slug = client.get_default_tenant_slug(as_user=False)
-
-        assert slug == "firstslug"
-
-
-def test_get_cloud_url_as_user(patch_post, cloud_api):
-    response = {
-        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
-    }
-
-    patch_post(response)
-
-    with set_temporary_config(
-        {
-            "cloud.api": "http://api.prefect.io",
-            "cloud.auth_token": "secret_token",
-            "backend": "cloud",
-        }
-    ):
-        client = Client()
-
-        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=True)
-        assert url == "http://cloud.prefect.io/tslug/flow/id"
-
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=True)
-        assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
-
-
-def test_get_cloud_url_not_as_user(patch_post, cloud_api):
-    response = {
-        "data": {
-            "tenant": [
-                {"slug": "tslug", "id": "tenant-id"},
+                {"slug": "tslug", "id": TEST_TENANT_ID},
                 {"slug": "wrongslug", "id": "foo"},
             ]
         }
@@ -1682,22 +1647,27 @@ def test_get_cloud_url_not_as_user(patch_post, cloud_api):
     with set_temporary_config(
         {
             "cloud.api": "http://api.prefect.io",
+            "cloud.tenant_id": TEST_TENANT_ID,
             "backend": "cloud",
         }
     ):
         client = Client()
-        client._tenant_id = "tenant-id"
 
-        url = client.get_cloud_url(subdirectory="flow", id="id", as_user=False)
+        url = client.get_cloud_url(subdirectory="flow", id="id")
         assert url == "http://cloud.prefect.io/tslug/flow/id"
 
-        url = client.get_cloud_url(subdirectory="flow-run", id="id2", as_user=False)
+        url = client.get_cloud_url(subdirectory="flow-run", id="id2")
         assert url == "http://cloud.prefect.io/tslug/flow-run/id2"
 
 
 def test_get_cloud_url_different_regex(patch_post, cloud_api):
     response = {
-        "data": {"user": [{"default_membership": {"tenant": {"slug": "tslug"}}}]}
+        "data": {
+            "tenant": [
+                {"slug": "tslug", "id": TEST_TENANT_ID},
+                {"slug": "wrongslug", "id": "foo"},
+            ]
+        }
     }
 
     patch_post(response)
@@ -1705,7 +1675,8 @@ def test_get_cloud_url_different_regex(patch_post, cloud_api):
     with set_temporary_config(
         {
             "cloud.api": "http://api-hello.prefect.io",
-            "cloud.auth_token": "secret_token",
+            "cloud.api_key": "key",
+            "cloud.tenant_id": TEST_TENANT_ID,
             "backend": "cloud",
         }
     ):
@@ -1726,7 +1697,7 @@ def test_register_agent(cloud_api):
                 {
                     "data": {
                         "register_agent": {"id": "AGENT-ID"},
-                        "auth_info": {"tenant_id": "TENANT-ID"},
+                        "auth_info": {"tenant_id": TEST_TENANT_ID},
                     }
                 }
             )
@@ -1747,7 +1718,7 @@ def test_register_agent(cloud_api):
                 "type": "type",
                 "name": "name",
                 "labels": ["1", "2"],
-                "tenant_id": "TENANT-ID",
+                "tenant_id": TEST_TENANT_ID,
                 "agent_config_id": "asdf",
             }
         },
@@ -1760,7 +1731,9 @@ def test_register_agent_raises_error(patch_post, cloud_api):
 
     patch_post(response)
 
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
 
         with pytest.raises(ValueError):
@@ -1772,7 +1745,9 @@ def test_get_agent_config(patch_post, cloud_api):
 
     patch_post(response)
 
-    with set_temporary_config({"cloud.auth_token": "secret_token", "backend": "cloud"}):
+    with set_temporary_config(
+        {"cloud.api_key": "key", "cloud.tenant_id": TEST_TENANT_ID, "backend": "cloud"}
+    ):
         client = Client()
 
         agent_config = client.get_agent_config(agent_config_id="id")

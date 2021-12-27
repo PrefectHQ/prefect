@@ -155,7 +155,7 @@ query {
   flow(where: { name: { _ilike: "%train" } }) {
     id
     name
-    flow_run(order_by: { start_time: desc }, limit: 1) {
+    flow_runs(order_by: { start_time: desc }, limit: 1) {
       id
       state
     }

@@ -1,5 +1,6 @@
 import itertools
 from datetime import time, timedelta
+from dateutil import rrule
 
 import pendulum
 import pytest
@@ -717,3 +718,72 @@ class TestDatesClock:
 
         clock = clocks.DatesClock(dates=[dt.add(days=1), dt.add(days=2), dt])
         assert islice(clock.events(), 3) == [dt, dt.add(days=1), dt.add(days=2)]
+
+
+class TestRRuleClock:
+    def test_rrule_clock_creation(self):
+        c = clocks.RRuleClock(rrule.rrule(freq=rrule.DAILY))
+        assert c.parameter_defaults == dict()
+        assert c.labels is None
+        assert c.start_date is None
+        assert c.end_date is None
+
+    def test_rrule_create_without_rrule(self):
+        with pytest.raises(TypeError):
+            clocks.RRuleClock(42)
+
+    @pytest.mark.parametrize("params", [dict(), dict(x=1)])
+    @pytest.mark.parametrize("labels", [[], ["dev"]])
+    def test_rrule_clock_events(self, params, labels):
+        start = pendulum.now().replace(microsecond=0)
+        c = clocks.RRuleClock(
+            rrule.rrule(freq=rrule.DAILY, dtstart=start),
+            parameter_defaults=params,
+            labels=labels,
+        )
+
+        output = islice(c.events(), 3)
+        assert all(isinstance(e, clocks.ClockEvent) for e in output)
+        assert all(e.parameter_defaults == params for e in output)
+        assert all(e.labels == labels for e in output)
+        assert output == [
+            start.add(days=1),
+            start.add(days=2),
+            start.add(days=3),
+        ]
+
+    def test_rrule_clock_events_with_after_argument(self):
+        start_date = pendulum.datetime(2018, 1, 1, microsecond=0)
+        after = pendulum.datetime(2025, 1, 5)
+        c = clocks.RRuleClock(rrule.rrule(freq=rrule.HOURLY, dtstart=start_date))
+        assert islice(c.events(after=after), 3) == [
+            after.add(hours=1),
+            after.add(hours=2),
+            after.add(hours=3),
+        ]
+
+    def test_rrule_clock_doesnt_compute_dates_before_start_date(self):
+        dtstart = pendulum.datetime(2018, 1, 1, microsecond=0)
+        start_date = pendulum.datetime(2020, 1, 1, microsecond=0)
+        c = clocks.RRuleClock(
+            rrule.rrule(freq=rrule.HOURLY, dtstart=dtstart), start_date=start_date
+        )
+        assert islice(c.events(after=pendulum.datetime(2000, 1, 1)), 3) == [
+            start_date,
+            start_date.add(hours=1),
+            start_date.add(hours=2),
+        ]
+
+    def test_rrule_clock_doesnt_compute_dates_after_end_date(self):
+        dtstart = pendulum.datetime(2018, 1, 1, microsecond=0)
+        end_date = pendulum.datetime(2020, 1, 1, microsecond=0)
+        c = clocks.RRuleClock(
+            rrule.rrule(freq=rrule.DAILY, dtstart=dtstart), end_date=end_date
+        )
+        assert islice(c.events(after=end_date), 3) == []
+
+        after = end_date.subtract(days=2)
+        assert islice(c.events(after=after), 3) == [
+            after.add(days=1),
+            after.add(days=2),
+        ]

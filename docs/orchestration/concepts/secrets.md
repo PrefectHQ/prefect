@@ -77,7 +77,7 @@ $ export PREFECT__CONTEXT__SECRETS__MYSECRET="MY SECRET VALUE"
 
 Note that this configuration only affects the environment in which it's
 configured. So if you set values locally, they'll affect flows run locally or
-via a [local agent](/orchetration/agents/local.md), but _not_ flows deployed
+via a [local agent](/orchestration/agents/local.md), but _not_ flows deployed
 via other agents (since those flow runs happen in a different environment). To
 set local secrets on flow runs deployed by an agent, you can use the `--env`
 flag to forward environment variables into the flow run environment.

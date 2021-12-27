@@ -109,7 +109,7 @@ schedule = Schedule(
 schedule.next(2)
 ```
 
-#### Varying Parameter Values <Badge text="0.9.2+"/>
+#### Varying Parameter Values
 
 All clocks support an optional `parameter_defaults` argument that allows users to specify varying `Parameter` values for each flow run generated from this clock.  For example, suppose we have the following flow that logs the value of the `Parameter` that is passed to it:
 

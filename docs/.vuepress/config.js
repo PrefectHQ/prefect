@@ -3,7 +3,7 @@ const sidebar1422 = require('../api/0.14.22/sidebar')
 const glob = require('glob')
 
 // function for loading all MD files in a directory
-const getChildren = function (parent_path, dir) {
+const getChildren = function(parent_path, dir) {
   return glob
     .sync(parent_path + '/' + dir + '/**/*.md')
     .map(path => {
@@ -79,7 +79,7 @@ module.exports = {
       {
         text: 'API Reference',
         items: [
-          { text: 'Latest (0.15.7)', link: '/api/latest/' },
+          { text: 'Latest (0.15.9)', link: '/api/latest/' },
           { text: '0.14.22', link: '/api/0.14.22/' },
           { text: '0.13.19', link: '/api/0.13.19/' },
           { text: 'Legacy', link: 'https://docs-legacy.prefect.io' }
@@ -160,11 +160,6 @@ module.exports = {
           children: getChildren('docs/api/latest', 'agent')
         },
         {
-          title: 'prefect.artifacts',
-          collapsable: true,
-          children: getChildren('docs/api/latest', 'artifacts')
-        },
-        {
           title: 'prefect.utilities',
           collapsable: true,
           children: getChildren('docs/api/latest', 'utilities')
@@ -199,7 +194,8 @@ module.exports = {
             'concepts/secrets',
             'concepts/automations',
             'concepts/cloud_hooks',
-            'concepts/services'
+            'concepts/services',
+            'concepts/artifacts'
           ]
         },
         {
@@ -247,6 +243,7 @@ module.exports = {
             'ui/flow',
             'ui/flow-run',
             'ui/task-run',
+            'ui/automations',
             'ui/interactive-api',
             'ui/team-settings'
           ]
@@ -254,9 +251,7 @@ module.exports = {
         {
           title: 'RBAC',
           collapsable: true,
-          children: [
-            'rbac/overview'
-          ]
+          children: ['rbac/overview']
         },
         {
           title: 'Server',
@@ -265,7 +260,8 @@ module.exports = {
             'server/overview',
             'server/architecture',
             'server/deploy-local',
-            'server/telemetry'
+            'server/telemetry',
+            'server/troubleshooting'
           ]
         },
         {
@@ -282,15 +278,27 @@ module.exports = {
         {
           title: 'Integrations',
           collapsable: true,
-          children: [
-            'integrations/pagerduty'
-          ]
+          children: ['integrations/pagerduty']
         },
         {
           title: 'FAQ',
           collapsable: true,
           children: getChildren('docs/orchestration', 'faq')
         },
+        {
+          title: 'Legacy Environments',
+          collapsable: true,
+          children: [
+            'execution/overview',
+            'execution/storage_options',
+            'execution/local_environment',
+            'execution/dask_cloud_provider_environment',
+            'execution/dask_k8s_environment',
+            'execution/k8s_job_environment',
+            'execution/fargate_task_environment',
+            'execution/custom_environment'
+          ]
+        }
       ],
       '/core/': [
         '/core/',
