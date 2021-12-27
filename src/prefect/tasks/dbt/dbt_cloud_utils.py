@@ -180,7 +180,7 @@ def list_run_artifact_links(
         - account_id (int): dbt Cloud account ID
         - run_id (int): dbt Cloud job run ID
         - token (str): dbt Cloud token
-        - domain (str): The domain the function should call, normally cloud.getdbt.com
+        - domain (str): The domain the function should call (e.g. `cloud.getdbt.com`).
 
     Returns:
         - List of artifact download URLs
