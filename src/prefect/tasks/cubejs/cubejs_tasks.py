@@ -11,8 +11,6 @@ from typing import Dict, List, Union
 
 class CubeJSQueryTask(Task):
 
-    __CUBEJS_CLOUD_BASE_URL = "https://{subdomain}.cubecloud.dev"
-
     """
     This task calls CuebJS Quuery API and returns the result
     as a JSON object.
@@ -45,6 +43,8 @@ class CubeJSQueryTask(Task):
             standard Task initalization
 
     """
+
+    __CUBEJS_CLOUD_BASE_URL = "https://{subdomain}.cubecloud.dev"
 
     def __init__(
         self,
