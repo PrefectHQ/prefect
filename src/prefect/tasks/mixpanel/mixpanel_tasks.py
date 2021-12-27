@@ -24,7 +24,7 @@ class MixpanelExportTask(Task):
             the API secret key to use to authenticate to Mixpanel.
             `api_secret` takes precedence over `api_secret_env_var`.
         - from_date (str, optional): Start date of the export request.
-            If provided as a string, it should be in the format `YYYY-MM-DD`
+            If provided as a string, it should be in the format `YYYY-MM-DD`.
             Default value is `2011-07-10`. This date is inclusive.
         - to_date (str, optional): End date of the export request.
             If provided as a string, it should be in the format `YYYY-MM-DD`
