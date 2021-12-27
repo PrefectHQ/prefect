@@ -19,7 +19,7 @@ pip install -U "prefect>=2.0.0a"
 If you'd like to test with the most up-to-date code, you can install directly off the `orion` branch on GitHub:
 
 ```bash
-pip install https://github.com/PrefectHQ/prefect@orion
+pip install git+https://github.com/PrefectHQ/prefect@orion
 ```
 
 !!! warning "`orion` may not be stable"
