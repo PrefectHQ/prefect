@@ -18,7 +18,7 @@ class MixpanelExportTask(Task):
     More info about the API can be found at https://developer.mixpanel.com/reference/raw-event-export.
 
     Args:
-        - api_secret (str, optional): the API secret key to use to authenticate
+        - api_secret (str, optional): The API secret key to use to authenticate
             to Mixpanel. Can be provided also via env var.
         - api_secret_env_var (str, optional): The name of the env var that contains
             the API secret key to use to authenticate to Mixpanel.
