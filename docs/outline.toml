@@ -765,3 +765,8 @@ title = "Airbyte Tasks"
 module = "prefect.tasks.airbyte"
 classes = ["AirbyteConnectionTask"]
 verified_task = true
+
+[pages.tasks.cubejs]
+title = "CubeJS Tasks"
+module = "prefect.tasks.cubejs"
+classes = "CubeJSQueryTask"
