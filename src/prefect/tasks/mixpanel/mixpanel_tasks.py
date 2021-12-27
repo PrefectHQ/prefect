@@ -15,7 +15,7 @@ from typing import Union, List
 class MixpanelExportTask(Task):
     """
     Task for performing an export using the Mixpanel Export API.
-    More info about the API can be found at https://developer.mixpanel.com/reference/raw-event-export
+    More info about the API can be found at https://developer.mixpanel.com/reference/raw-event-export.
 
     Args:
         - api_secret (str, optional): the API secret key to use to authenticate
