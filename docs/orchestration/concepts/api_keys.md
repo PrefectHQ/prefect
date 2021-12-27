@@ -94,7 +94,7 @@ $ prefect agent local start --key "<YOUR-KEY>"
 
 ## Querying for API key metadata
 
-Your API key metadata can be viewed in serveral ways. Note that we _do not store_ your API keys and you will not be able to view the value of the key after creation. When querying for keys, you will only be able to see metadata for keys created by your user or, if the you are a tenant admin, metadata for the all service account API keys in the tenant. 
+Your API key metadata can be viewed in several ways. Note that we _do not store_ your API keys and you will not be able to view the value of the key after creation. When querying for keys, you will only be able to see metadata for keys created by your user or, if the you are a tenant admin, metadata for the all service account API keys in the tenant.
 
 :::: tabs
 

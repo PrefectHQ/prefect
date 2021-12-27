@@ -87,7 +87,7 @@ storage = Docker(registry_url="gcr.io/dev/",
 
 ### Including other Python scripts
 
-Another common situation is when your Flow imports objects or functions from other Python files that are not included in a publicly available Python package.  Unsurprisingly, your Flow will need to be able to make the same imports within your Docker image.  In order to accomodate this, you generally have two options:
+Another common situation is when your Flow imports objects or functions from other Python files that are not included in a publicly available Python package.  Unsurprisingly, your Flow will need to be able to make the same imports within your Docker image.  In order to accommodate this, you generally have two options:
 
 1. Package your scripts up into a true [Python package](https://realpython.com/python-modules-packages/).  You will most likely need to use the `COPY` instruction to put your package into the image, and then the `RUN` instruction to install it.  This pattern will generally require using an intermediate base image so that you have full control over your [docker build context](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/).
 2. Use the `files` keyword argument to Prefect's Docker storage object to copy individual files into your image, and then add these files to your image's `PYTHONPATH` environment variable (either through the `env_vars` keyword argument or by building a base image and using the `ENV` docker instruction).  This ensures these scripts can be imported from regardless of the present working directory of your Flow.

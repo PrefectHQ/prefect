@@ -61,7 +61,7 @@ task_run = TaskRunView.from_task_run_id("c8751f34-9d5e-4ea7-aead-8b50978dabb7")
 
 #### Task run results
 
-Results from task runs are persisted to the location you've specified in the task's `result` attribute. The `Result` type allows you to store task results in many locations on your own infrastrucuture. See the [results documentation](/core/concepts/results.md) for more details on configuring results.
+Results from task runs are persisted to the location you've specified in the task's `result` attribute. The `Result` type allows you to store task results in many locations on your own infrastructure. See the [results documentation](/core/concepts/results.md) for more details on configuring results.
 
 `TaskRunView` provides a `get_result` method which will load and cache the return value of your task from the result location. 
 
