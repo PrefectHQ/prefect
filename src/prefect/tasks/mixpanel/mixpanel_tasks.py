@@ -39,7 +39,7 @@ class MixpanelExportTask(Task):
             Default value is `False`.
         - use_eu_server (bool, optional): Whether to use the Mixpanel EU server to retrieve data.
             More info at https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU.
-            Default to `False`
+            Default is `False`.
         - group_events: Whetner to group events with the same name.
             This is taken into account only if `parse_response is True`.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
