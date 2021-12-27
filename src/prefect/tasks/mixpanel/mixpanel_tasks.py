@@ -35,7 +35,7 @@ class MixpanelExportTask(Task):
         - where (str, optional): An expression to filter events by.
             More info on expression sequence structure can be found
             at https://developer.mixpanel.com/reference/segmentation-expressions.
-        - parse_response (bool, optional): Whether to parse the response into a JSON object
+        - parse_response (bool, optional): Whether to parse the response into a JSON object.
             Default value is `False`.
         - use_eu_server (bool, optional): Whether to use the Mixpanel EU server to retrieve data.
             More info at https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU
