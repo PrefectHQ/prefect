@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.15.11 <Badge text="beta" type="success" />
+
+Released on December 22, 2021.
+
+### Enhancements
+
+- Allow passing kwargs to `Merge` task constructor via `merge()` function - [#5233](https://github.com/PrefectHQ/prefect/pull/5233)
+- Allow passing proxies to `slack_notifier` - [#5237](https://github.com/PrefectHQ/prefect/pull/5237)
+
+### Fixes
+
+- Update `RunGreatExpectationsValidation` task to work with latest version of `great_expectations` - [#5172](https://github.com/PrefectHQ/prefect/issues/5172)
+- Allow unsetting kubernetes `imagePullSecrets` with an empty string - [#5001](https://github.com/PrefectHQ/prefect/pull/5001)
+- Improve agent handling of kubernetes jobs for flow runs that have been deleted - [#5190](https://github.com/PrefectHQ/prefect/pull/5190)
+- Remove `beta1` from kubernetes agent template - [#5194](https://github.com/PrefectHQ/prefect/pull/5194)
+- Documentation improvements - [#5220](https://github.com/PrefectHQ/prefect/pull/5220), [#5232](https://github.com/PrefectHQ/prefect/pull/5232), [#5288](https://github.com/PrefectHQ/prefect/pull/5288)
+
+### Contributors
+
+- [Connor Martin](https://github.com/cjmartian)
+- [Farley Farley](https://github.com/AndrewFarley)
+- [Vincent Chéry](https://github.com/VincentAntoine)
+
 ## 0.15.10 <Badge text="beta" type="success" />
 
 Released on November 30, 2021.
