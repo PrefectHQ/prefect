@@ -124,7 +124,7 @@ class MixpanelExportTask(Task):
                 More info at
                 https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU.
                 Default is `False`.
-            - group_events: Whetner to group events with the same name.
+            - group_events: Whether to group events with the same name.
                 This is taken into account only if `parse_response is True`.
 
         Returns:
