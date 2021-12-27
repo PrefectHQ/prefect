@@ -1,0 +1,5 @@
+feature:
+  - "Added CubeJS Query Task - [#5280](https://github.com/PrefectHQ/prefect/pull/5280)"
+
+contributor:
+  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
