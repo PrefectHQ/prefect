@@ -138,7 +138,7 @@ class MixpanelExportTask(Task):
         Raises:
             - `ValueError` if both `api_secret` and `api_secret_env_var` are missing.
             - `ValueError` if `api_secret` is missing and `api_secret_env_var` is not found.
-            - `prefect.engine.signals.FAIL` if the Mixpanel API returns an error
+            - `prefect.engine.signals.FAIL` if the Mixpanel API returns an error.
 
         """
         if not api_secret and not api_secret_env_var:
