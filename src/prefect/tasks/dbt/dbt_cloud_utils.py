@@ -87,7 +87,7 @@ def trigger_job_run(
         - job_id (int): dbt Cloud job ID
         - token (str): dbt Cloud token
         - cause (str): the reason describing why the job run is being triggered
-        - domain (str): the domain the function should call, default cloud.getdbt.com
+        - domain (str): The domain the function should call (e.g. `cloud.getdbt.com`).
         - additional_args (dict): additional information to pass to the Trigger Job Run API
 
     Returns:
