@@ -334,7 +334,7 @@ class DbtCloudRunJob(Task):
             - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
                 job to finish.
                 Used only if wait_for_job_run_completion = True.
-            - domain (str, optional): Custom domain for API call.
+        - domain (str, optional): Custom domain for API call. Defaults to `cloud.getdbt.com`.
 
         Returns:
             - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
