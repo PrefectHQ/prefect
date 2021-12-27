@@ -769,4 +769,4 @@ verified_task = true
 [pages.tasks.cubejs]
 title = "CubeJS Tasks"
 module = "prefect.tasks.cubejs"
-classes = "CubeJSQueryTask"
+classes = ["CubeJSQueryTask"]
