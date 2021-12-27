@@ -128,7 +128,7 @@ def wait_for_job_run(
         - token (str): dbt Cloud token
         - run_id (int): dbt Cloud job run ID
         - max_wait_time (int): the number od seconds to wait for the job to complete
-        - domain (str): The domain the function should call, normally cloud.getdbt.com
+        - domain (str): The domain the function should call (e.g. `cloud.getdbt.com`).
 
     Returns:
         - The job run result, namely the "data" key in the API response
