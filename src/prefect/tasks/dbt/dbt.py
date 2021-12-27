@@ -263,7 +263,7 @@ class DbtCloudRunJob(Task):
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
         max_wait_time: int = None,
-        domain: str = None,
+        domain: str = "cloud.getdbt.com",
     ):
         super().__init__()
         self.token = token if token else os.environ.get(token_env_var_name, None)
