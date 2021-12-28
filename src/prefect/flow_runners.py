@@ -356,8 +356,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         If using the ephemeral server and sqlite, the flow run in the container will
         spin up an ephemeral server that uses a container-local database instead of
         the one the user expects. This will result in failure as the flow run will not
-        exist. 
-        
+        exist.
+
         If the local sqlite database is mounted into the container, it will work,
         but concurrent access will cause database corruption as the WAL mode requires
         shared memory file locks, which are not available across the boundary of the
