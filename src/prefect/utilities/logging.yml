@@ -15,8 +15,13 @@ formatters:
         format: "%(asctime)s.%(msecs)03d | %(message)s"
         datefmt: "%H:%M:%S"
 
-    flow_run:
-        format: "%(asctime)s - %(flow_run_id)s - %(levelname)s - %(message)s"
+    flow_runs:
+        format: "%(asctime)s.%(msecs)03d | %(name)s: %(message)s"
+        datefmt: "%H:%M:%S"
+
+    task_runs:
+        format: "%(asctime)s.%(msecs)03d | %(name)s: %(message)s"
+        datefmt: "%H:%M:%S"
 
     json:
         class: prefect.utilities.logging.JsonFormatter
@@ -32,14 +37,21 @@ filters:
 handlers:
     console:
         class: logging.StreamHandler
-        # take the level from the global logging settings
         level: "{{default_level}}"
         formatter: simple
-        stream: ext://sys.stdout
+
+    console_flow_runs:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: flow_runs
+
+    console_task_runs:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: task_runs
 
     orion:
         class: prefect.utilities.logging.OrionHandler
-        # take the level from the global logging settings
         level: "{{default_level}}"
         formatter: json
 
@@ -49,13 +61,18 @@ loggers:
         handlers: [console]
         propagate: no
 
-    # Only flow run logs are sent to Orion by default
-    prefect.flow_run:
+    prefect.flow_runs:
         level: DEBUG
-        handlers: [orion]
+        handlers: [orion, console_flow_runs]
         filters: [run_context]
-        propogate: yes
+        propogate: no
     
+    prefect.task_runs:
+        level: DEBUG
+        handlers: [orion, console_task_runs]
+        filters: [run_context]
+        propogate: no
+
     root:
         level: INFO
         handlers: [console]

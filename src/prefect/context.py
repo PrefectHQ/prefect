@@ -71,6 +71,7 @@ class FlowRunContext(RunContext):
     Attributes:
         flow: The flow instance associated with the flow run
         flow_run_id: The unique id identifying the flow run
+        name: The name of the flow run
         client: The Orion client instance being used for API communication
         task_runner: The task_runner instance being used for the flow run
         task_run_futures: A list of futures for task runs created within this flow run
@@ -81,6 +82,7 @@ class FlowRunContext(RunContext):
 
     flow: Flow
     flow_run_id: UUID
+    name: str
     client: OrionClient
     task_runner: BaseTaskRunner
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)

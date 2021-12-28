@@ -353,6 +353,7 @@ async def orchestrate_flow_run(
             with FlowRunContext(
                 flow_run_id=flow_run.id,
                 flow=flow,
+                name=flow_run.name,
                 client=client,
                 task_runner=task_runner,
                 sync_portal=sync_portal,
