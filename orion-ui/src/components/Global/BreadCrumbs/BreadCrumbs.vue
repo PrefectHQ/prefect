@@ -1,13 +1,18 @@
 <template>
-  <div class="bread-crumbs">
+  <component :is="props.tag || 'h1'" class="d-flex align-center">
     <i v-if="icon" class="pi text--grey-40 mr-2" :class="props.icon" />
-    <div class="bread-crumbs__first">
-      <BreadCrumb :crumbs="firstCrumbs" :slash="true" :tag="tagSizeOption" />
+    <div class="bread-crumbs">
+      <div class="bread-crumbs__first">
+        <template v-for="(crumb, i) in firstCrumbs" :key="crumb.text">
+          <BreadCrumb :crumb="crumb" />
+          {{ i !== firstCrumbs - 1 ? '&nbsp;/&nbsp;' : '' }}
+        </template>
+      </div>
+      <div class="bread-crumbs__last">
+        <BreadCrumb :crumb="lastCrumb" />
+      </div>
     </div>
-    <div class="bread-crumbs__last">
-      <BreadCrumb :crumbs="lastCrumb" :tag="props.tag" />
-    </div>
-  </div>
+  </component>
 </template>
 
 <script lang="ts" setup>
@@ -34,17 +39,11 @@ const firstCrumbs = computed(() => {
 })
 
 const lastCrumb = computed(() => {
-  return props.crumbs.slice(-1)
-})
-
-const tagSizeOption = computed(() => {
-  return window.innerWidth < 640 ? 'span' : props.tag
+  return props.crumbs.slice(-1)[0]
 })
 </script>
 
 <style lang="scss" scoped>
-@use 'sass:map';
-
 .bread-crumbs {
   min-height: 30px;
   display: flex;
