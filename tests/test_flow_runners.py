@@ -200,7 +200,7 @@ async def os_environ_test_deployment(orion_client):
 @pytest.fixture
 async def prefect_settings_test_deployment(orion_client):
     """
-    A deployment for a flow that returns the current prefect settings object
+    A deployment for a flow that returns the current Prefect settings object.
     """
 
     @prefect.flow
