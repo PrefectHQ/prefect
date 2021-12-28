@@ -15,10 +15,7 @@
 </template>
 
 <script lang="ts" setup>
-type Crumb = {
-  text: string
-  to?: string
-}
+import { Crumb } from '../utils'
 
 defineProps<{ crumb: Crumb }>()
 </script>
@@ -28,7 +25,7 @@ a {
   text-decoration: none;
 
   &:hover {
-    color: $primary !important;
+    color: $primary;
     text-decoration: underline;
   }
 
