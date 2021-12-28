@@ -15,11 +15,11 @@ class ZendeskTicketsIncrementalExportTask(Task):
     """
     This task can be used to perform an incremental export of tickets from Zendesk.
     More info at
-    https://developer.zendesk.com/api-reference/ticketing/ticket-management/incremental_exports/#incremental-ticket-export
+    https://developer.zendesk.com/api-reference/ticketing/ticket-management/incremental_exports/#incremental-ticket-export.
 
     Args:
         - subdomain (str, optional): The Zendesk subdomain to use to export tickets.
-        - email_address (str, optional): The email address to use to authenticate on Zendesk
+        - email_address (str, optional): The email address to use to authenticate on Zendesk.
         - api_token (str, optional): The API token to use to athenticate on Zendesk
             If passed, it will take precedence over `api_token_env_var`.
         - api_token_env_var (str, optional): The name of the env var which contains the
@@ -29,11 +29,12 @@ class ZendeskTicketsIncrementalExportTask(Task):
         - cursor (str, optional): The cursor to use to export tickets.
             If passed, it will take precedence over `start_time`.
         - exclude_deleted: (bool, optional): Whether to exclude deleted tickets or not.
+            Default to `False`.
         - include_entities: (str, list, optional): Optional list of entities to side load.
           More info at
-          https://developer.zendesk.com/documentation/ticketing/using-the-zendesk-api/side_loading/
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
-            Task constructor
+          https://developer.zendesk.com/documentation/ticketing/using-the-zendesk-api/side_loading/.
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
+            Task constructor.
     """
 
     _ZENDESK_API_BASE_URL = "https://{subdomain}.zendesk.com/api/v2"
@@ -85,7 +86,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
         Task run method to perform an incremental export of tickets from Zendesk.
         Args:
             - subdomain (str, optional): The Zendesk subdomain to use to export tickets.
-            - email_address (str, optional): The email address to use to authenticate on Zendesk
+            - email_address (str, optional): The email address to use to authenticate on Zendesk.
             - api_token (str, optional): The API token to use to athenticate on Zendesk
                 If passed, it will take precedence over `api_token_env_var`.
             - api_token_env_var (str, optional): The name of the env var which contains the
@@ -95,9 +96,10 @@ class ZendeskTicketsIncrementalExportTask(Task):
             - cursor (str, optional): The cursor to use to export tickets.
                 If passed, it will take precedence over `start_time`.
             - exclude_deleted: (bool, optional): Whether to exclude deleted tickets or not.
+                Default to `False`.
             - include_entities: (str, list, optional): Optional list of entities to side load.
                 More info at
-                https://developer.zendesk.com/documentation/ticketing/using-the-zendesk-api/side_loading/
+                https://developer.zendesk.com/documentation/ticketing/using-the-zendesk-api/side_loading/.
 
         Raises:
             - `ValueError` if both `api_token` and `api_token_env_var` are missing.
@@ -108,7 +110,7 @@ class ZendeskTicketsIncrementalExportTask(Task):
             - `prefect.engine.signals.FAIL` if the Zendesk API call fails.
 
         Returns:
-            - a `dict` containing the list of tickets and, optionally, the included
+            - A `dict` containing the list of tickets and, optionally, the included
               entities.
         """
         if not api_token and not api_token_env_var:
