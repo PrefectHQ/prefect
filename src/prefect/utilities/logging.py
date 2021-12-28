@@ -6,6 +6,7 @@ from functools import partial, lru_cache
 from pathlib import Path
 import yaml
 
+import prefect
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.settings import LoggingSettings, Settings
 
@@ -79,7 +80,15 @@ def get_logger(name: str = None) -> logging.Logger:
     logger = logging.getLogger("prefect")
     if name:
         logger = logger.getChild(name)
+    logger.addFilter(RunContextInjector())
     return logger
+
+
+class PrefectRunLogAdapter
+
+
+def get_run_logger():
+    return PrefectRunLogAdapter()
 
 
 class OrionHandler(logging.Handler):
@@ -103,6 +112,20 @@ class JsonFormatter(logging.Formatter):
 
 class RunContextInjector(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        # TODO: Inject real information about the run into log records
-        record.flow_run_id = "flow-run-id"
+        task_run_ctx = prefect.context.TaskRunContext.get()
+        flow_run_ctx = prefect.context.FlowRunContext.get()
+
+        # Not from a task or flow run
+        if not task_run_ctx and not flow_run_ctx:
+            return True
+
+        if task_run_ctx:
+            record.task_name = task_run_ctx.task.name
+            record.task_run_id = task_run_ctx.task_run_id
+
+        if flow_run_ctx:
+            record.flow_name = flow_run_ctx.flow.name
+            record.flow_run_name = flow_run_ctx.name
+            record.flow_run_id = flow_run_ctx.flow_run_id
+
         return True
