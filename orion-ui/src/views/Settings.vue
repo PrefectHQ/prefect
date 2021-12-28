@@ -57,14 +57,14 @@
       </div>
       <Button
         v-if="!showResetSection"
-        color="primary"
+        color="delete"
         height="36px"
         width="100px"
         class="mt-1"
         @click="showResetSection = true"
         miter
       >
-        Show
+        Reset
       </Button>
 
       <section v-if="showResetSection">
@@ -83,7 +83,7 @@
 
         <div>
           <Button
-            color="primary"
+            color="delete"
             height="36px"
             :disabled="resetDatabaseConfirmation !== 'CONFIRM'"
             miter
