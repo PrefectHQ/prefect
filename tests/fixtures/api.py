@@ -27,7 +27,7 @@ async def hosted_orion_api():
 
     Uses the same database as the rest of the tests.
 
-    If built, the UI will be accessible during tests at http://localhost:2222/
+    If built, the UI will be accessible during tests at http://localhost:2222/.
 
     Yields:
         The connection string
@@ -83,8 +83,8 @@ async def hosted_orion_api():
 @pytest.fixture
 def use_hosted_orion(hosted_orion_api):
     """
-    Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the session hosted
-    API endpoint.
+    Sets `PREFECT_ORION_HOST` and `prefect.settings.orion_host` to the test session's
+    hosted API endpoint.
     """
     with temporary_settings(PREFECT_ORION_HOST=hosted_orion_api):
         yield hosted_orion_api

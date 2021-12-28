@@ -300,15 +300,15 @@ class DockerFlowRunner(UniversalFlowRunner):
     Requires a Docker Engine to be connectable.
 
     Attributes:
-        image: An optional string specifying the tag of a docker image to use.
+        image: An optional string specifying the tag of a Docker image to use.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
         labels: An optional dictionary of labels, mapping name to value.
         auto_remove: If set, the container will be removed on completion. Otherwise,
             the container will remain after exit for inspection.
         volumes: An optional list of volume mount strings in the format of
-            "local_path:container_path"
-        stream_output: If set, stream output from the container to local standard output
+            "local_path:container_path".
+        stream_output: If set, stream output from the container to local standard output.
     """
 
     typename: Literal["docker"] = "docker"
