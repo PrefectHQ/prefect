@@ -356,10 +356,12 @@ class DockerFlowRunner(UniversalFlowRunner):
         If using the ephemeral server and sqlite, the flow run in the container will
         spin up an ephemeral server that uses a container-local database instead of
         the one the user expects. This will result in failure as the flow run will not
-        exist. If the local sqlite database is mounted into the container, it will work
+        exist. 
+        
+        If the local sqlite database is mounted into the container, it will work,
         but concurrent access will cause database corruption as the WAL mode requires
-        shared memory file locks which are not available across the boundary of the
-        docker virtual machine.
+        shared memory file locks, which are not available across the boundary of the
+        Docker virtual machine.
 
         We could support an ephemeral server with postgresql, but then we would need to
         sync all of the server settings to the container's ephemeral server.
@@ -466,7 +468,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _build_orion_image(self, docker_client: "DockerClient", tag: str):
         """
-        Check for the given Orion image tag and build it if it does not exist already
+        Check for the given Orion image tag and build it if it does not exist already.
         """
         assert tag.startswith(
             "orion:"
@@ -499,7 +501,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
-        Generates a container name to match the flow run name, ensuring it is docker
+        Generates a container name to match the flow run name, ensuring it is Docker
         compatible and unique.
         """
         # Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+` in the end
