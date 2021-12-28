@@ -1,11 +1,11 @@
 <template>
   <component :is="props.tag || 'h1'" class="d-flex align-center">
-    <i v-if="icon" class="pi text--grey-40 mr-2" :class="props.icon" />
+    <i v-if="props.icon" class="pi text--grey-40 mr-2" :class="props.icon" />
     <div class="bread-crumbs">
       <div class="bread-crumbs__first">
         <template v-for="(crumb, i) in firstCrumbs" :key="crumb.text">
           <BreadCrumb :crumb="crumb" />
-          {{ i !== firstCrumbs - 1 ? '&nbsp;/&nbsp;' : '' }}
+          {{ i !== firstCrumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
         </template>
       </div>
       <div class="bread-crumbs__last">
