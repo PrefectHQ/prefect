@@ -17,12 +17,8 @@
 
 <script lang="ts" setup>
 import { withDefaults, computed } from 'vue'
+import { Crumb } from '../utils'
 import BreadCrumb from '@/components/Global/BreadCrumb/BreadCrumb.vue'
-
-type Crumb = {
-  text: string
-  to?: string
-}
 
 interface Props {
   crumbs: Crumb[]
