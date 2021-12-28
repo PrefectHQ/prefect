@@ -9,13 +9,13 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
+    <div v-if="media.sm" class="ml-auto mr-1 nowrap">
       <ButtonRounded class="mr-1" disabled>
         {{ taskRunCount }} task {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
 
-    <div v-breakpoints="'md'" class="chart-container mr-2">
+    <div v-if="media.md" class="chart-container mr-2">
       <RunHistoryChart
         :items="taskRunHistory"
         :interval-start="start"
@@ -52,6 +52,7 @@ import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
 
 const store = useStore()
