@@ -1,14 +1,14 @@
 <template>
-  <component :is="props.tag || 'h1'" class="d-flex align-center">
+  <component :is="props.tag" class="bread-crumbs">
     <i v-if="props.icon" class="pi text--grey-40 mr-2" :class="props.icon" />
-    <div class="bread-crumbs">
-      <div class="bread-crumbs__first">
-        <template v-for="(crumb, i) in firstCrumbs" :key="crumb.text">
+    <div class="bread-crumbs__crumbs">
+      <div class="bread-crumbs__crumbs--first">
+        <template v-for="crumb in firstCrumbs" :key="crumb.text">
           <BreadCrumb :crumb="crumb" />
-          {{ i !== firstCrumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
         </template>
       </div>
-      <div class="bread-crumbs__last">
+      <span v-breakpoints="'sm'">&nbsp;/&nbsp;</span>
+      <div class="bread-crumbs__crumbs--last">
         <BreadCrumb :crumb="lastCrumb" />
       </div>
     </div>
@@ -45,24 +45,31 @@ const lastCrumb = computed(() => {
 
 <style lang="scss" scoped>
 .bread-crumbs {
-  min-height: 30px;
   display: flex;
   align-items: center;
+
+  &__crumbs {
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+  }
 }
 
 @media (max-width: 640px) {
   .bread-crumbs {
-    display: flex;
-    justify-content: center;
-    align-items: baseline;
-    flex-direction: column;
+    &__crumbs {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      flex-direction: column;
 
-    &__first {
-      font-size: 14px !important;
-    }
+      &--first {
+        font-size: 14px !important;
+      }
 
-    &__last {
-      margin: -6px 0 2px;
+      &--last {
+        margin: -6px 0 2px;
+      }
     }
   }
 }
