@@ -300,7 +300,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     Requires a Docker Engine to be connectable.
 
     Attributes:
-        image: An optional string spceifying the tag of a docker image to use.
+        image: An optional string specifying the tag of a docker image to use.
         networks: An optional list of strings specifying Docker networks to connect the
             container to.
         labels: An optional dictionary of labels, mapping name to value.
