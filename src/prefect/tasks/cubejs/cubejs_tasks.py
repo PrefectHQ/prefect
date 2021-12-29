@@ -183,8 +183,10 @@ class CubeJSQueryTask(Task):
                     data = response.json()
 
                     if "error" in data.keys() and "Continue wait" in data["error"]:
-                        msg = ("Cube.js load API still running."
-                               "Waiting {wait_time_between_api_calls} seconds before retrying")
+                        msg = (
+                            "Cube.js load API still running."
+                            "Waiting {wait_time_between_api_calls} seconds before retrying"
+                        )
                         self.logger.warning(msg)
                         time.sleep(wait_time_between_api_calls)
                         elapsed_wait_time += wait_time_between_api_calls
