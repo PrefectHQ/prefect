@@ -40,6 +40,9 @@ class CubeJSQueryTask(Task):
             If the security context does not contain an expiration period,
             then a 7-day expiration period is added automatically.
             More info at: https://cube.dev/docs/security/context.
+        - wait_time_between_api_calls (int, optional): The number of seconds to
+            wait between API calls.
+            Default to 10.
         - max_wait_time (int, optional): The number of seconds to wait for the
             Cube.js load API to return a response.
         - **kwargs (optional): Additional keyword arguments to pass to the
@@ -57,6 +60,7 @@ class CubeJSQueryTask(Task):
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         query: Union[Dict, List[Dict]] = None,
         security_context: Union[str, Dict] = None,
+        wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
         **kwargs,
     ):
@@ -66,6 +70,7 @@ class CubeJSQueryTask(Task):
         self.api_secret_env_var = api_secret_env_var
         self.query = query
         self.security_context = security_context
+        self.wait_time_between_api_calls = wait_time_between_api_calls
         self.max_wait_time = max_wait_time
         super().__init__(**kwargs)
 
@@ -76,6 +81,7 @@ class CubeJSQueryTask(Task):
         "api_secret_env_var",
         "query",
         "security_context",
+        "wait_time_between_api_calls",
         "max_wait_time",
     )
     def run(
@@ -86,6 +92,7 @@ class CubeJSQueryTask(Task):
         api_secret_env_var: str = "CUBEJS_API_SECRET",
         query: Union[Dict, List[Dict]] = None,
         security_context: Union[str, Dict] = None,
+        wait_time_between_api_calls: int = 10,
         max_wait_time: int = None,
     ):
         """
@@ -114,6 +121,9 @@ class CubeJSQueryTask(Task):
                 If the security context does not contain an expiration period,
                 then a 7-day expiration period is added automatically.
                 More info at https://cube.dev/docs/security/context.
+            - wait_time_between_api_calls (int, optional): The number of seconds to
+                wait between API calls.
+                Default to 10.
             - max_wait_time (int, optional): The number of seconds to wait for the
                 Cube.js load API to return a response.
 
@@ -154,7 +164,7 @@ class CubeJSQueryTask(Task):
 
             extended_context = security_context
             if "exp" not in security_context and "expiresIn" not in security_context:
-                extended_context["epxiresIn"] = "7d"
+                extended_context["expiresIn"] = "7d"
             api_token = jwt.encode(
                 payload=extended_context, key=secret, algorithm="HS256"
             )
@@ -172,7 +182,9 @@ class CubeJSQueryTask(Task):
 
         params = {"query": json.dumps(query)}
 
-        wait_time_between_api_calls = 10
+        wait_api_call_secs = (
+            wait_time_between_api_calls if wait_time_between_api_calls > 0 else 10
+        )
         elapsed_wait_time = 0
         while not max_wait_time or elapsed_wait_time <= max_wait_time:
 
@@ -185,11 +197,11 @@ class CubeJSQueryTask(Task):
                     if "error" in data.keys() and "Continue wait" in data["error"]:
                         msg = (
                             "Cube.js load API still running."
-                            "Waiting {wait_time_between_api_calls} seconds before retrying"
+                            "Waiting {wait_api_call_secs} seconds before retrying"
                         )
-                        self.logger.warning(msg)
-                        time.sleep(wait_time_between_api_calls)
-                        elapsed_wait_time += wait_time_between_api_calls
+                        self.logger.info(msg)
+                        time.sleep(wait_api_call_secs)
+                        elapsed_wait_time += wait_api_call_secs
                         continue
 
                     else:
@@ -197,7 +209,9 @@ class CubeJSQueryTask(Task):
 
                 else:
                     raise FAIL(
-                        message=f"Cube.js load API failed!. Error is: {response.reason}"
+                        message=f"Cube.js load API failed! Error is: {response.reason}"
                     )
 
-        raise FAIL(message="Cube.js load API took too long to provide a response.")
+        raise FAIL(
+            message=f"Cube.js load API took longer than {max_wait_time} seconds to provide a response."
+        )

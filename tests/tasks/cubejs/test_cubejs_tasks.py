@@ -1,4 +1,5 @@
 import logging
+import jwt
 import pytest
 from prefect.engine.signals import FAIL
 from prefect.tasks.cubejs import CubeJSQueryTask
@@ -65,7 +66,7 @@ class TestCubeJSQueryTask:
         with pytest.raises(FAIL) as exc:
             cubejs_task.run(subdomain="test", api_secret="foo", query="query")
 
-        assert "Cube.js load API failed!." in str(exc)
+        assert "Cube.js load API failed!" in str(exc)
 
     @responses.activate
     def test_run_with_continue_waiting(self, caplog):
@@ -110,7 +111,12 @@ class TestCubeJSQueryTask:
             security_context={"foo": "bar"},
         )
 
-        assert "JWT token generated with security context." in caplog.text
+        expected_jwt = jwt.encode(
+            payload={"foo": "bar", "expiresIn": "7d"}, key="foo", algorithm="HS256"
+        )
+
+        # assert "JWT token generated with security context." in caplog.text
+        assert responses.calls[0].request.headers["Authorization"] == expected_jwt
 
     @responses.activate
     def test_run_with_max_wait_time_raises(self):
@@ -129,7 +135,11 @@ class TestCubeJSQueryTask:
                 api_secret="foo",
                 query="query",
                 security_context={"foo": "bar"},
-                max_wait_time=15,
+                wait_time_between_api_calls=1,
+                max_wait_time=3,
             )
 
-        assert "Cube.js load API took too long to provide a response." in str(exc)
+        assert (
+            "Cube.js load API took longer than 3 seconds to provide a response."
+            in str(exc)
+        )
