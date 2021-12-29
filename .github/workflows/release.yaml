@@ -54,7 +54,7 @@ jobs:
           name: built-package
           path: './dist'
 
-  generate-image-metadata:
+  build-docker-images:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -63,8 +63,19 @@ jobs:
           - 3.8
           - 3.9
       max-parallel: 1
+
     steps:
-      - name: Generate image metadata
+
+      # Not needed until we want multiarchecture builds
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v1
+
+      # - name: Set up Docker Buildx
+      #   uses: docker/setup-buildx-action@v1
+      
+      # This should match the image metadata generation in `publish-images`
+      # allowing a preview of the tags and labels before publish
+      - name: Preview image metadata
         id: metadata
         uses: docker/metadata-action@v3
         with:
@@ -77,6 +88,27 @@ jobs:
           flavor: |
             latest=false
             suffix=-python${{ matrix.python-version }}
+
+      - name: Build image
+        uses: docker/build-push-action@v2
+        with:
+          build-args:
+            PYTHON_VERSION=${{ matrix.python-version }}
+          context: .
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          outputs: type=docker,dest=/tmp/image-${{ matrix.python-version }}.tar
+          
+      - name: Test docker image
+        run: |
+          docker load --input /tmp/image-${{ matrix.python-version }}.tar
+          docker run --rm prefecthq/prefect:ci prefect --version
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: built-image-${{ matrix.python-version }}
+          path: /tmp/image-${{ matrix.python-version }}.tar
 
   publish-docs:
     name: Open PR to docs branch
@@ -190,38 +222,36 @@ jobs:
 
           name: ci
 
-  publish-images:
-    strategy:
-      matrix:
-        python-version:
-          - 3.7
-          - 3.8
-          - 3.9
-      max-parallel: 1
+  publish-docker-images:
+    needs: [publish-release, build-docker-images]
+    environment: 'prod'
 
     runs-on: ubuntu-latest
     steps:
 
-      # Not needed until we want multiarchecture builds
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v1
-
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v1
-
-      - name: Generate image metadata
-        id: metadata
-        uses: docker/metadata-action@v3
+      - name: Download image artifacts for Python 3.7
+        uses: actions/download-artifact@v2
         with:
-          images: prefecthq/prefect
-          tags: |
-            type=pep440,pattern={{version}}
-            type=pep440,pattern={{major}}.{{minor}}
-            type=pep440,pattern={{major}}
-            type=sha
-          flavor: |
-            latest=false
-            suffix=-python${{ matrix.python-version }}
+          name: built-image-3.7
+          path: /tmp
+
+      - name: Download image artifacts for Python 3.8
+        uses: actions/download-artifact@v2
+        with:
+          name: built-image-3.8
+          path: /tmp
+
+      - name: Download image artifacts for Python 3.9
+        uses: actions/download-artifact@v2
+        with:
+          name: built-image-3.9
+          path: /tmp
+
+      - name: Load images
+        run: |
+          docker load --input /tmp/image-3.7.tar
+          docker load --input /tmp/image-3.8.tar
+          docker load --input /tmp/image-3.9.tar
 
       - name: Login to DockerHub
         uses: docker/login-action@v1 
@@ -229,11 +259,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push images
-        uses: docker/build-push-action@v2
-        with:
-          build-args:
-            PYTHON_VERSION=${{ matrix.python-version }}
-          context: .
-          tags: ${{ steps.metadata.outputs.tags }}
-          labels: ${{ steps.metadata.outputs.labels }}
+      - name: Push images
+        run: |
+          docker image push --all-tags prefecthq/prefect
