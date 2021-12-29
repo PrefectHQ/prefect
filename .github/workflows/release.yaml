@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-release:
-    name: Build Release
+    name: Build release
 
     runs-on: ubuntu-latest
 
@@ -33,7 +33,7 @@ jobs:
           path: ${{ env.pythonLocation }}
           # Load installed python packages from the cache
           key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
-          
+
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
@@ -41,7 +41,7 @@ jobs:
 
       - name: Build UI
         run: |
-          prefect dev build-ui 
+          prefect dev build-ui
 
       - name: Build a binary wheel and a source tarball
         run: |
@@ -55,6 +55,7 @@ jobs:
           path: './dist'
 
   build-docker-images:
+    name: Build Docker images
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -102,7 +103,7 @@ jobs:
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image-${{ matrix.python-version }}.tar
-          
+
       - name: Test docker image
         run: |
           docker load --input /tmp/image-${{ matrix.python-version }}.tar
@@ -152,7 +153,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-test-release:
-    name: Publish Release to Test PyPI
+    name: Publish release to Test PyPI
     needs: [build-release]
     runs-on: ubuntu-latest
 
@@ -170,7 +171,7 @@ jobs:
           repository_url: https://test.pypi.org/legacy/
 
   publish-code:
-    name: Open PR to OS Prefect repo
+    name: Open PR to prefecthq/prefect repo
     environment: 'prod'
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
@@ -207,7 +208,7 @@ jobs:
             --base orion --repo prefecthq/prefect
 
   publish-release:
-    name: Publish Release to PyPI
+    name: Publish release to PyPI
     environment: 'prod'
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
@@ -227,6 +228,7 @@ jobs:
           name: ci
 
   publish-docker-images:
+    name: Publish Docker images
     needs: [publish-release, build-docker-images]
     environment: 'prod'
 
@@ -258,7 +260,7 @@ jobs:
           docker load --input /tmp/image-3.9.tar
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
