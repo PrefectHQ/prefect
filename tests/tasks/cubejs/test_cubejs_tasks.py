@@ -65,7 +65,7 @@ class TestCubeJSQueryTask:
         with pytest.raises(FAIL) as exc:
             cubejs_task.run(subdomain="test", api_secret="foo", query="query")
 
-        assert "CubeJS Query API failed!." in str(exc)
+        assert "Cube.js load API failed!." in str(exc)
 
     @responses.activate
     def test_run_with_continue_waiting(self, caplog):
@@ -88,7 +88,7 @@ class TestCubeJSQueryTask:
 
         data = cubejs_task.run(subdomain="test", api_secret="foo", query="query")
 
-        assert "CubeJS Query still running. Waiting" in caplog.text
+        assert "Cube.js load API is still running. Waiting" in caplog.text
         assert isinstance(data, dict)
 
     @responses.activate
@@ -111,3 +111,25 @@ class TestCubeJSQueryTask:
         )
 
         assert "JWT token generated with security context." in caplog.text
+
+    @responses.activate
+    def test_run_with_max_wait_time_raises(self):
+        cubejs_task = CubeJSQueryTask()
+
+        responses.add(
+            responses.GET,
+            "https://test.cubecloud.dev/cubejs-api/v1/load",
+            status=200,
+            json={"error": "Continue wait"},
+        )
+
+        with pytest.raises(FAIL) as exc:
+            cubejs_task.run(
+                subdomain="test",
+                api_secret="foo",
+                query="query",
+                security_context={"foo": "bar"},
+                max_wait_time=15,
+            )
+
+        assert "Cube.js load API took too long to provide a response." in str(exc)

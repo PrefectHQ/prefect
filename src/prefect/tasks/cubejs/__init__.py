@@ -1,5 +1,5 @@
 """
-This is a collection of tasks to interact with a CubeJS/Cube Cloud environment.
+This is a collection of tasks to interact with a Cube.js or Cube Cloud environment.
 """
 
 try:
