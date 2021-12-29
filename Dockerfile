@@ -12,15 +12,15 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        tini=0.19.0-1 \
+        tini=0.19.* \
         # The following are required for building the asyncpg wheel
-        gcc=4:10.2.1-1 \
-        linux-libc-dev=5.10.84-1 \
-        libc6-dev=2.31-13+deb11u2 \
+        gcc=4:10.* \
+        linux-libc-dev=5.10.* \
+        libc6-dev=2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
-RUN python -m pip install pip==21.3.1
+RUN python -m pip install --no-cache-dir pip==21.3.1
 
 # Copy the repository into the image
 COPY . /opt/prefect
