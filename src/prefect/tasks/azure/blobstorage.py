@@ -96,6 +96,7 @@ class BlobStorageUpload(Task):
         blob_name: str = None,
         azure_credentials_secret: str = "AZ_CONNECTION_STRING",
         container: str = None,
+        overwrite: bool = False,
     ) -> str:
         """
         Task run method.
@@ -107,6 +108,8 @@ class BlobStorageUpload(Task):
             - azure_credentials_secret (str, optional): the name of the Prefect Secret
             that stores your Azure credentials; this Secret must be an Azure connection string
             - container (str, optional): the name of the Blob Storage container to upload to
+            - overwrite (bool, optional): overwrite Blob Storage container data if it already 
+            exists
 
         Returns:
             - str: the name of the blob the data payload was uploaded to
@@ -128,6 +131,6 @@ class BlobStorageUpload(Task):
 
         client = blob_service.get_blob_client(container=container, blob=blob_name)
 
-        client.upload_blob(data)
+        client.upload_blob(data, overwrite=overwrite)
 
         return blob_name
