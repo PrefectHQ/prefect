@@ -99,7 +99,7 @@ jobs:
       - name: Test docker image
         run: |
           docker load --input /tmp/image-${{ matrix.python-version }}.tar
-          docker run --rm prefecthq/prefect:sha-${GITHUB_SHA::7}-python${{ matrix.python-version }} prefect --version
+          docker run --rm prefecthq/prefect:sha-${GITHUB_SHA::7}-python${{ matrix.python-version }} prefect version
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v2
