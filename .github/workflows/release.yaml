@@ -72,8 +72,8 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
-        
-      - name: Preview image metadata
+
+      - name: Generate image metadata
         id: metadata
         uses: docker/metadata-action@v3
         with:
@@ -92,7 +92,6 @@ jobs:
         with:
           build-args:
             PYTHON_VERSION=${{ matrix.python-version }}
-          context: .
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
           outputs: type=docker,dest=/tmp/image-${{ matrix.python-version }}.tar
