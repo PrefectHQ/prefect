@@ -4,7 +4,7 @@
 
 ### Flow Runners
 On the heels of the recent rename of Onion's `Executor` to `TaskRunner`, this release introduces `FlowRunner`, an analogous concept that specifies the infrastructure that a flow runs on. Just as a Task Runner can be specified for a flow, which encapsulates tasks, a Flow Runner can be specified for a deployment, which encapsulates a flow. When a Prefect Agent is ready to run a flow, it instantiates a Flow Runner. This Flow Runner instance is used to configure and launch infrastructure for the flow run. This release includes two Flow Runners, which we expect to be the most commonly used:
-- **Subprocess Flow Runner** - The subprocess flow runner is the default Flow Runner for local flow runs and Agents. It allows for specification of both virtual environments and conda environments.
+- **SubprocessFlowRunner** - The subprocess flow runner is the default flow runner. It allows for specification of a runtime Python environment with `virtualenv` and `conda` support.
 - **Docker Flow Runner** - The docker flow runner creates and starts a Docker container with the same name as the flow run. It monitors the created container for the purpose of logging, but does not otherwise manage a container once it is created.
 
 Future releases will introduce flow runners specific to Kubernetes and major cloud platforms compute services (e.g. AWS EC2, GCP Vertex)
