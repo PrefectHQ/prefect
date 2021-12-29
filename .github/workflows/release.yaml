@@ -104,7 +104,7 @@ jobs:
       - name: Upload image artifact
         uses: actions/upload-artifact@v2
         with:
-          name: built-image-${{ matrix.python-version }}
+          name: image-${{ github.sha }}-${{ matrix.python-version }}
           path: /tmp/image-${{ matrix.python-version }}.tar
 
   publish-docs:
@@ -229,19 +229,19 @@ jobs:
       - name: Download image artifacts for Python 3.7
         uses: actions/download-artifact@v2
         with:
-          name: built-image-3.7
+          name: image-${{ github.sha }}-3.7
           path: /tmp
 
       - name: Download image artifacts for Python 3.8
         uses: actions/download-artifact@v2
         with:
-          name: built-image-3.8
+          name: image-${{ github.sha }}-3.8
           path: /tmp
 
       - name: Download image artifacts for Python 3.9
         uses: actions/download-artifact@v2
         with:
-          name: built-image-3.9
+          name: image-${{ github.sha }}-3.9
           path: /tmp
 
       - name: Load images
