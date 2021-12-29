@@ -63,7 +63,6 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
-      max-parallel: 1
 
     steps:
 
