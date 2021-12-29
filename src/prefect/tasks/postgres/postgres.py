@@ -57,7 +57,7 @@ class PostgresExecute(Task):
         """
         Task run method. Executes a query against Postgres database.
 
-        Args:        
+        Args:
             - db_name (str): name of Postgres database
             - user (str): user name used to authenticate
             - host (str): database host address
@@ -258,7 +258,17 @@ class PostgresFetch(Task):
         self.commit = commit
         super().__init__(**kwargs)
 
-    @defaults_from_attrs("db_name", "user", "host", "port", "fetch", "fetch_count", "query", "data", "commit")
+    @defaults_from_attrs(
+        "db_name",
+        "user",
+        "host",
+        "port",
+        "fetch",
+        "fetch_count",
+        "query",
+        "data",
+        "commit",
+    )
     def run(
         self,
         db_name: str = None,
