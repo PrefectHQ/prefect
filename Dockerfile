@@ -27,7 +27,7 @@ COPY . /opt/prefect
 
 # Create an editable install
 # In the future, we may want to install directly from git given a tag,
-# but here we are optimizing for development.
+# but here we are optimizing for development
 RUN pip install --no-cache-dir -e /opt/prefect
 
 ENTRYPOINT ["tini", "-g", "--", "/opt/prefect/scripts/entrypoint.sh"]
