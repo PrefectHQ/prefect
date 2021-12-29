@@ -1,7 +1,7 @@
 ARG PYTHON_VERSION=${PYTHON_VERSION:-3.8}
 
-# Build the distributable which requires `git` and generates a static version file.
-# Without this build step, versioneer cannot infer the version without `git`
+# Build the distributable which generates a static version file.
+# Without this build step, versioneer cannot infer the version without git
 # see https://github.com/python-versioneer/python-versioneer/issues/215
 FROM python:3.8-slim AS builder
 RUN apt-get update && \
