@@ -99,7 +99,7 @@ class TestFireboltQuery:
         cursor = mock_conn[1]
 
         # setting execute return
-        cursor.return_value.__enter__.return_value.execute.return_value = 0
+        cursor().__enter__().execute.return_value = 0
         query = "SHOW DATABASES"
         output = FireboltQuery(
             database="test",
@@ -116,10 +116,8 @@ class TestFireboltQuery:
         }
         connection.connect.assert_called_once_with(**conn_config)
         cursor.assert_called_with()
-        cursor.return_value.__enter__.return_value.execute.assert_called_once_with(
-            query
-        )
-        cursor.return_value.__enter__.return_value.fetchall.assert_not_called()
+        cursor().__enter__().execute.assert_called_once_with(query)
+        cursor().__enter__().fetchall.assert_not_called()
         assert output == []
 
     # test to check if the query was executed and metadata was retrieved from database
@@ -131,10 +129,10 @@ class TestFireboltQuery:
         cursor = mock_conn[1]
 
         # setting execute return
-        cursor.return_value.__enter__.return_value.execute.return_value = 1
+        cursor().__enter__().execute.return_value = 1
 
         # setting fetchall return
-        cursor.return_value.__enter__.return_value.fetchall.return_value = ["TESTDB"]
+        cursor().__enter__().fetchall.return_value = ["TESTDB"]
         query = "SHOW DATABASES"
         output = FireboltQuery(
             database="test",
@@ -151,8 +149,6 @@ class TestFireboltQuery:
         }
         connection.connect.assert_called_once_with(**conn_config)
         cursor.assert_called_with()
-        cursor.return_value.__enter__.return_value.execute.assert_called_once_with(
-            query
-        )
-        cursor.return_value.__enter__.return_value.fetchall.assert_called()
+        cursor().__enter__().execute.assert_called_once_with(query)
+        cursor().__enter__().fetchall.assert_called()
         assert output == ["TESTDB"]
