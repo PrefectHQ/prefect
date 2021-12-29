@@ -7,7 +7,7 @@ On the heels of the recent rename of Onion's `Executor` to `TaskRunner`, this re
 - **SubprocessFlowRunner** - The subprocess flow runner is the default flow runner. It allows for specification of a runtime Python environment with `virtualenv` and `conda` support.
 - **DockerFlowRunner** - Executes the flow run in a Docker container. The image, volumes, labels, and networks can be customized. From this release on, Docker images for use with this flow runner will be published with each release.
 
-Future releases will introduce runners for executing flows on Kubernetes and major cloud platform's container compute services (e.g. AWS ECS, Google Cloud Run)
+Future releases will introduce runners for executing flows on Kubernetes and major cloud platform's container compute services (e.g. AWS ECS, Google Cloud Run).
 
 ### Other enhancements
 In addition to flow runners, we added several other enhancements and resolved a few issues, including:
