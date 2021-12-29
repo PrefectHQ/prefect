@@ -1,4 +1,4 @@
-<p align="center"><img src="https://github.com/PrefectHQ/orion/raw/main/docs/img/logos/prefect-orion-constellation-banner-light.png" width=1000></p>
+<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/4lgiSBlqqp7GH72CXvipnL/46e0fb4dabeb28e302427b6f6b95b4e7/prefect-orion-constellation-banner-light.png" width=1000></p>
 
 # Orion
 
