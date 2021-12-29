@@ -437,8 +437,9 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         try:
             container = docker_client.containers.get(container_id)
-        except docker.errors.ImageNotFound:
+        except docker.errors.NotFound:
             self.logger.error(f"Flow run container {container_id!r} was removed.")
+            return
 
         status = container.status
         self.logger.info(
