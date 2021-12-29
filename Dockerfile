@@ -12,6 +12,7 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
+        git=1:2.* \
         tini=0.19.* \
         # The following are required for building the asyncpg wheel
         gcc=4:10.* \
