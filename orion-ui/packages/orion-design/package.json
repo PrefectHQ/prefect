@@ -3,40 +3,41 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-      "build": "vite build & tsc src/index.ts --declaration --emitDeclarationOnly --outDir dist"
+        "build": "vite build & tsc src/index.ts --declaration --emitDeclarationOnly --outDir dist",
+        "build:vue": "vite build & vue-tsc src/index.ts --declaration --emitDeclarationOnly --out dist/index.d.ts"
     },
     "main": "./dist/orion-design.umd.js",
     "module": "./dist/orion-design.es.js",
     "exports": {
-      ".": {
-        "import": "./dist/orion-design.es.js",
-        "require": "./dist/orion-design.umd.js"
-      },
-      "./dist/style.css": "./dist/style.css"
+        ".": {
+            "import": "./dist/orion-design.es.js",
+            "require": "./dist/orion-design.umd.js"
+        },
+        "./dist/style.css": "./dist/style.css"
     },
     "files": [
-      "dist"
+        "dist"
     ],
     "types": "./dist/index.d.ts",
     "dependencies": {
-      "@prefecthq/miter-design": "0.1.15",
-      "@prefecthq/vue-compositions": "0.1.8",
-      "core-js": "^3.6.5",
-      "d3": "^7.0.0",
-      "vue": "^3.0.5",
-      "vuex": "^4.0.2"
+        "@prefecthq/miter-design": "0.1.15",
+        "@prefecthq/vue-compositions": "0.1.8",
+        "core-js": "^3.6.5",
+        "d3": "^7.0.0",
+        "vue": "^3.0.5",
+        "vuex": "^4.0.2"
     },
     "devDependencies": {
-      "@babel/helper-compilation-targets": "^7.16.3",
-      "@babel/runtime": "^7.16.3",
-      "@types/d3": "^7.0.0",
-      "@types/node": "^15.14.1",
-      "@vitejs/plugin-vue": "^1.2.5",
-      "date-fns": "^2.25.0",
-      "sass": "^1.35.2",
-      "typescript": "^4.1.6",
-      "vite": "^2.4.2",
-      "vue-class-component": "^8.0.0-0"
+        "@babel/helper-compilation-targets": "^7.16.3",
+        "@babel/runtime": "^7.16.3",
+        "@types/d3": "^7.0.0",
+        "@types/node": "^15.14.1",
+        "@vitejs/plugin-vue": "^1.2.5",
+        "date-fns": "^2.25.0",
+        "sass": "^1.35.2",
+        "typescript": "^4.1.6",
+        "vite": "^2.4.2",
+        "vue-class-component": "^8.0.0-0",
+        "vue-tsc": "^0.30.1"
     }
-  }
-  
+}
