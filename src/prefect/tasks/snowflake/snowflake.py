@@ -56,7 +56,7 @@ class SnowflakeQuery(Task):
         cursor_type: SnowflakeCursor = SnowflakeCursor,
         authenticator: str = None,
         token: str = None,
-        **kwargs
+        **kwargs,
     ):
         self.account = account
         self.user = user
@@ -165,6 +165,8 @@ class SnowflakeQuery(Task):
             "autocommit": autocommit,
             "authenticator": authenticator,
             "token": token,
+            # required to track task's usage in the Snowflake Partner Network Portal
+            "application": f"Prefect_{self.__class__.__name__}",
         }
 
         # filter out unset values
@@ -241,7 +243,7 @@ class SnowflakeQueriesFromFile(Task):
         cursor_type: SnowflakeCursor = SnowflakeCursor,
         authenticator: str = None,
         token: str = None,
-        **kwargs
+        **kwargs,
     ):
         self.account = account
         self.user = user
@@ -346,6 +348,8 @@ class SnowflakeQueriesFromFile(Task):
             "autocommit": autocommit,
             "authenticator": authenticator,
             "token": token,
+            # required to track task's usage in the Snowflake Partner Network Portal
+            "application": f"Prefect_{self.__class__.__name__}",
         }
 
         # filter out unset values

@@ -1,2 +1,0 @@
-fix:
-  - "Improve handling of kubernetes jobs for flow runs that have been deleted - [#5190](https://github.com/PrefectHQ/prefect/pull/5190)"

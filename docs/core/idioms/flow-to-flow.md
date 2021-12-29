@@ -21,8 +21,6 @@ with the appropriate parameter values.  Prefect makes this pattern easy to autom
 and `wait_for_flow_run`:
 
 
-:::: tabs
-::: tab Functional API
 ```python
 from prefect import task, Flow
 from prefect.tasks.prefect import create_flow_run
@@ -30,36 +28,15 @@ from prefect.tasks.prefect import create_flow_run
 
 @task
 def extract_some_data():
-    return {"param-key": "some-random-piece-of-data"}
-
-
-# assumes you have registered a flow named "example" in a project named "examples"
-flow_run = create_flow_run(flow_name="example", project_name="examples")
+    return "some-random-piece-of-data"
 
 with Flow("parent-flow") as flow:
-    flow_run(parameters=extract_some_data)
+    data = extract_some_data()
+    # assumes you have registered a flow named "example" in a project named "examples"
+    flow_run = create_flow_run(flow_name="example", 
+                               project_name="examples", 
+                               parameters={"param-key": data})
 ```
-:::
-::: tab Imperative API
-```python
-from prefect import Task, Flow
-from prefect.tasks.prefect import create_flow_run
-
-
-class ExtractSomeData(Task):
-    def run(self):
-        return {"param-key": "some-random-piece-of-data"}
-
-extract_some_data = ExtractSomeData(name="extract_some_data")
-
-# assumes you have registered a flow named "example" in a project named "examples"
-flow_run = create_flow_run(flow_name="example", project_name="examples")
-
-with Flow("parent-flow") as flow:
-    flow_run.set_upstream(extract_some_data, key="parameters")
-```
-:::
-::::
 
 ## Scheduling a Flow-of-Flows
 
@@ -72,8 +49,6 @@ The following example creates the following Flow-of-Flows that runs every weekda
 
 ![Flow of Flows](/idioms/flow-of-flows.png)
 
-:::: tabs
-::: tab Functional API
 ```python
 from prefect import Flow
 from prefect.schedules import CronSchedule
@@ -100,42 +75,8 @@ with Flow("parent-flow", schedule=weekday_schedule) as flow:
     flow_d = create_flow_run(flow_name="D", project_name="examples")
     wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
     
-    b = wait_for_flow_b(upstream_tasks=[wait_for_flow_a])
-    c = wait_for_flow_c(upstream_tasks=[wait_for_flow_a])
-    d = wait_for_flow_d(upstream_tasks=[b, c])
+    flow_b.set_upstream(wait_for_flow_a)
+    flow_c.set_upstream(wait_for_flow_a)
+    flow_d.set_upstream(wait_for_flow_b)
+    flow_d.set_upstream(wait_for_flow_c)
 ```
-:::
-
-::: tab Imperative API
-```python
-from prefect import Flow
-from prefect.schedules import CronSchedule
-from prefect.tasks.prefect import create_flow_run, wait_for_flow_run
-
-
-weekday_schedule = CronSchedule(
-    "30 9 * * 1-5", start_date=pendulum.now(tz="US/Eastern")
-)
-
-with Flow("parent-flow", schedule=weekday_schedule) as flow:
-    
-    # assumes you have registered the following flows in a project named "examples"
-    flow_a = create_flow_run(flow_name="A", project_name="examples") 
-    wait_for_flow_a = wait_for_flow_run(flow_a, raise_final_state=True)
-    
-    flow_b = create_flow_run(flow_name="B", project_name="examples")
-    wait_for_flow_b = wait_for_flow_run(flow_b, raise_final_state=True)
-    
-    flow_c = create_flow_run(flow_name="C", project_name="examples")
-    wait_for_flow_c = wait_for_flow_run(flow_c, raise_final_state=True)
-    
-    flow_d = create_flow_run(flow_name="D", project_name="examples")
-    wait_for_flow_d = wait_for_flow_run(flow_d, raise_final_state=True)
-    
-    wait_for_flow_b.set_upstream(wait_for_flow_a)
-    wait_for_flow_c.set_upstream(wait_for_flow_a)
-    wait_for_flow_d.set_upstream(wait_for_flow_b)
-    wait_for_flow_d.set_upstream(wait_for_flow_c)
-```
-:::
-::::

@@ -24,12 +24,23 @@ flow.run()
 You should see the following logs after running `flow.run()` :
 
 ```
-[2020-01-08 23:49:00,239] INFO - prefect.FlowRunner | Beginning Flow run for 'hello-flow'
-[2020-01-08 23:49:00,242] INFO - prefect.FlowRunner | Starting flow run.
-[2020-01-08 23:49:00,249] INFO - prefect.TaskRunner | Task 'hello_task': Starting task run...
-[2020-01-08 23:49:00,249] INFO - prefect.Task: hello_task | Hello world!
-[2020-01-08 23:49:00,251] INFO - prefect.TaskRunner | Task 'hello_task': finished task run for task with final state: 'Success'
-[2020-01-08 23:49:00,252] INFO - prefect.FlowRunner | Flow run SUCCESS: all reference tasks succeeded
+[2021-12-17 14:55:05-0500] INFO - prefect.FlowRunner | Beginning Flow run for 'hello-flow'
+[2021-12-17 14:55:05-0500] INFO - prefect.TaskRunner | Task 'hello_task': Starting task run...
+[2021-12-17 14:55:05-0500] INFO - prefect.hello_task | Hello world!
+[2021-12-17 14:55:05-0500] INFO - prefect.TaskRunner | Task 'hello_task': Finished task run for task with final state: 'Success'
+[2021-12-17 14:55:05-0500] INFO - prefect.FlowRunner | Flow run SUCCESS: all reference tasks succeeded
+<Success: "All reference tasks succeeded.">
+```
+
+You can also save this code to a file called `hello_flow.py` and run it from a terminal session:
+
+```
+$ python hello_flow.py
+[2021-12-17 14:52:24-0500] INFO - prefect.FlowRunner | Beginning Flow run for 'hello-flow'
+[2021-12-17 14:52:24-0500] INFO - prefect.TaskRunner | Task 'hello_task': Starting task run...
+[2021-12-17 14:52:24-0500] INFO - prefect.hello_task | Hello world!
+[2021-12-17 14:52:24-0500] INFO - prefect.TaskRunner | Task 'hello_task': Finished task run for task with final state: 'Success'
+[2021-12-17 14:52:24-0500] INFO - prefect.FlowRunner | Flow run SUCCESS: all reference tasks succeeded
 ```
 
 If you're running into issues, check that your Python environment is properly set up to run Prefect. Refer to the [Prefect Core Installation](/core/getting_started/install.html) documentation for further details.
