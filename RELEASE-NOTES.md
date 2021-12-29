@@ -14,7 +14,7 @@ In addition to flow runners, we added several other enhancements and resolved a 
 - Corrected git installation command in docs
 - Refined UI through color, spacing, and alignment updates
 - Resolved memory leak issues associated with the cache of session factories
-- Resolved a flow run double submission issue by transitioning responsibility for the Scheduled to Pending state transition from the engine to the agent
+- Improved agent locking of double submitted flow runs and handling for failed flow run submission
 
 ## 2.0a6
 
