@@ -1,6 +1,5 @@
 import base64
 from datetime import date
-import logging
 import os
 import pytest
 import responses
@@ -54,14 +53,14 @@ class TestMixpanelTasks:
 
     def test_run_missing_both_api_secret_and_env_var_raises(self):
         msg_match = "Missing both `api_secret` and `api_secret_env_var`."
-        with pytest.raises(ValueError, match=msg_match) as exc:
+        with pytest.raises(ValueError, match=msg_match):
             MixpanelExportTask().run()
 
         # assert "Missing both `api_secret` and `api_secret_env_var`." in str(exc)
 
     def test_run_missing_api_secret_not_found_env_var_raises(self):
         msg_match = "Missing `api_secret` and `api_secret_env_var` not found."
-        with pytest.raises(ValueError, match=msg_match) as exc:
+        with pytest.raises(ValueError, match=msg_match):
             MixpanelExportTask().run(api_secret_env_var="foo")
 
         # assert "Missing `api_secret` and `api_secret_env_var` not found." in str(exc)
@@ -76,10 +75,10 @@ class TestMixpanelTasks:
 
         secret = "foo"
         mx_export_task.run(api_secret=secret)
-        
-        secret_bytes = f"{secret}:".encode('ascii')
+
+        secret_bytes = f"{secret}:".encode("ascii")
         secret_b64_bytes = base64.b64encode(secret_bytes)
-        secret_message = secret_b64_bytes.decode('ascii')
+        secret_message = secret_b64_bytes.decode("ascii")
         authorization = f"Basic {secret_message}"
 
         assert responses.calls[0].request.headers["Authorization"] == authorization
@@ -98,9 +97,9 @@ class TestMixpanelTasks:
         mx_export_task.run(api_secret_env_var=secret_env_var)
         secret = os.environ[secret_env_var]
 
-        secret_bytes = f"{secret}:".encode('ascii')
+        secret_bytes = f"{secret}:".encode("ascii")
         secret_b64_bytes = base64.b64encode(secret_bytes)
-        secret_message = secret_b64_bytes.decode('ascii')
+        secret_message = secret_b64_bytes.decode("ascii")
         authorization = f"Basic {secret_message}"
 
         assert responses.calls[0].request.headers["Authorization"] == authorization
@@ -177,5 +176,5 @@ class TestMixpanelTasks:
 
         mx_export_task = MixpanelExportTask()
 
-        with pytest.raises(FAIL, match="Mixpanel export API error.") as exc:
+        with pytest.raises(FAIL, match="Mixpanel export API error."):
             mx_export_task.run(api_secret="foo", from_date="abc", to_date="abc")
