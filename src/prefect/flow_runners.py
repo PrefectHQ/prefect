@@ -61,7 +61,7 @@ def get_orion_image_name():
     prefect_version = parsed_version[0]
 
     if len(parsed_version) > 1:
-        prefect_version += "dev"
+        prefect_version += ".dev"
 
     tag = slugify(
         f"{prefect_version}-python{python_version_minor()}",
@@ -494,8 +494,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         volumes = self.volumes.copy()
 
         # If requesting an orion development image; mount the local code into the image
-        # detects semver followed by 'dev' with support for alpha, beta, and rc
-        if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?dev", self.image):
+        # Tag matches https://www.python.org/dev/peps/pep-0440/#developmental-releases
+        if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?\.dev", self.image):
             volumes.append(f"{prefect.__root_path__}:/opt/prefect")
 
         return volumes

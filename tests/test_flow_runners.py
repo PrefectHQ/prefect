@@ -489,7 +489,7 @@ class TestGetOrionImageName:
     async def test_tag_detects_development(self, monkeypatch):
         monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
         monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
-        assert get_orion_image_name() == "orion:2.0.0dev-python3.10"
+        assert get_orion_image_name() == "orion:2.0.0.dev-python3.10"
 
 
 class TestDockerFlowRunner:
@@ -677,7 +677,7 @@ class TestDockerFlowRunner:
     @pytest.mark.parametrize(
         # Checks support for alpha, beta, and release candidates as well
         "tag",
-        ["2.0.0a5dev", "2.0.0bdev", "2.0.0rc1dev", "2.0dev", "2dev"],
+        ["2.0.0a5.dev", "2.0.0b.dev", "2.0.0rc1.dev", "2.0.dev", "2.dev"],
     )
     async def test_mounts_local_code_when_dev_image_is_requested(
         self, mock_docker_client, flow_run, use_hosted_orion, tag
