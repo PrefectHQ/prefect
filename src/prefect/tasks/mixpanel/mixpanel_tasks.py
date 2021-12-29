@@ -130,7 +130,7 @@ class MixpanelExportTask(Task):
         Returns:
             - if `parse_response` is False, then returns a `str` response pulled
                 from the Export API, (which is basically a JSONL string).
-            - if `parse_response` is True and `group_events` is True, 
+            - if `parse_response` is True and `group_events` is True,
                 then returns a `dict` where each key contains homogeneous events.
             - if `parse_response` is True and `group_events` is False, then returns
                 a `list` of JSON objects obtained by parsing the response.
