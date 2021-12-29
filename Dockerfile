@@ -23,8 +23,8 @@ RUN apt-get update && \
 # Pin the pip version
 RUN python -m pip install --no-cache-dir pip==21.3.1
 
-# Copy the repository into the image
-COPY . /opt/prefect
+# Copy build distribution
+COPY dist/ /opt/prefect
 
 # Create an editable install
 # In the future, we may want to install directly from git given a tag,
