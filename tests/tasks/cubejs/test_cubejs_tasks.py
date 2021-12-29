@@ -88,7 +88,7 @@ class TestCubeJSQueryTask:
 
         data = cubejs_task.run(subdomain="test", api_secret="foo", query="query")
 
-        assert "Cube.js load API is still running. Waiting" in caplog.text
+        assert "Cube.js load API still running." in caplog.text
         assert isinstance(data, dict)
 
     @responses.activate
