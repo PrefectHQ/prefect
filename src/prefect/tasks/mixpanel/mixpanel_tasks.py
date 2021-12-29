@@ -189,21 +189,17 @@ class MixpanelExportTask(Task):
 
         events = response.text
 
-        ret = events if events else None
-
-        if ret:
-
-            if parse_response:
-                received_events = [json.loads(event) for event in events.splitlines()]
-
-                if group_events:
-                    grouped_events = defaultdict(list)
-                    for received_event in received_events:
-                        grouped_events[received_event["event"]].append(
-                            received_event["properties"]
-                        )
-                    return dict(grouped_events)
-
-                return received_events
-
-        return ret
+        if not events:
+            return None
+        elif parse_response:
+            received_events = [json.loads(event) for event in events.splitlines()]
+            if group_events:
+                grouped_events = defaultdict(list)
+                for received_event in received_events:
+                    grouped_events[received_event["event"]].append(
+                        received_event["properties"]
+                    )
+                return dict(grouped_events)
+            return received_events
+        else:
+            return events
