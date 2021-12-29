@@ -54,6 +54,30 @@ jobs:
           name: built-package
           path: './dist'
 
+  generate-image-metadata:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.9
+      max-parallel: 1
+    steps:
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v3
+        with:
+          images: prefecthq/prefect
+          tags: |
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}}
+            type=pep440,pattern={{major}}
+            type=sha
+          flavor: |
+            latest=false
+            suffix=-python${{ matrix.python-version }}
+
   publish-docs:
     name: Open PR to docs branch
     needs: [build-release, publish-test-release]
