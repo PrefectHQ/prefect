@@ -122,6 +122,10 @@ class APISettings(BaseSettings):
     environment variable, set `PREFECT_ORION_API_{SETTING}=X`.
     """
 
+    class Config:
+        env_prefix = "PREFECT_ORION_API_"
+        frozen = True
+
     # a default limit for queries
     default_limit: int = Field(
         200,
