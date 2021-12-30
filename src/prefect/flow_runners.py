@@ -56,7 +56,7 @@ def python_version_micro() -> str:
     return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
 
-def get_orion_image_name():
+def get_prefect_image_name():
     parsed_version = prefect.__version__.split("+")
     prefect_version = parsed_version[0]
 
@@ -71,7 +71,7 @@ def get_orion_image_name():
         regex_pattern=r"[^a-zA-Z0-9_.-]+",
     )
 
-    return f"orion:{tag}"
+    return f"prefecthq/prefect:{tag}"
 
 
 class FlowRunner(BaseModel):
@@ -313,7 +313,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     typename: Literal["docker"] = "docker"
 
-    image: str = Field(default_factory=get_orion_image_name)
+    image: str = Field(default_factory=get_prefect_image_name)
     networks: List[str] = Field(default_factory=list)
     labels: Dict[str, str] = None
     auto_remove: bool = False
@@ -377,9 +377,6 @@ class DockerFlowRunner(UniversalFlowRunner):
     def _create_and_start_container(self, flow_run: FlowRun) -> str:
 
         docker_client = self._get_client()
-
-        if self.image.startswith("orion:"):
-            self._build_orion_image(docker_client, tag=self.image)
 
         container_settings = dict(
             image=self.image,
@@ -467,36 +464,14 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         return docker_client
 
-    def _build_orion_image(self, docker_client: "DockerClient", tag: str):
-        """
-        Check for the given Orion image tag and build it if it does not exist already.
-        """
-        assert tag.startswith(
-            "orion:"
-        ), "Only the Orion image tag should be built locally"
-
-        # Lock so that we do not try to build it if another thread is already doing so
-        with DOCKER_BUILD_LOCK:
-            try:
-                docker_client.images.get(tag)
-            except docker.errors.ImageNotFound:
-                self.logger.info(f"Orion image {tag!r} not found! Building...")
-                docker_client.images.build(
-                    path=str(prefect.__root_path__),
-                    tag=tag,
-                    buildargs={
-                        # Match python version to ensure compatibility
-                        "PYTHON_VERSION": python_version_micro()
-                    },
-                )
-
     def _get_volumes(self) -> List[str]:
         volumes = self.volumes.copy()
 
+        # TOOD: Disabled because the images do not have editable installations anymore
         # If requesting an orion development image; mount the local code into the image
         # Tag matches https://www.python.org/dev/peps/pep-0440/#developmental-releases
-        if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?\.dev", self.image):
-            volumes.append(f"{prefect.__root_path__}:/opt/prefect")
+        # if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?\.dev", self.image):
+        #     volumes.append(f"{prefect.__root_path__}:/opt/prefect")
 
         return volumes
 
