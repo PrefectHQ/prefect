@@ -2,6 +2,9 @@ name: Python tests
 
 on: [pull_request]
 
+env:
+  MINIMUM_PYTHON_VERSION: 3.7
+
 jobs:
   build-test-docker-images:
     name: Build test Docker images
@@ -168,10 +171,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python 3.7
+      - name: Set up Python ${{ env.MINIMUM_PYTHON_VERSION }}
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: ${{ env.MINIMUM_PYTHON_VERSION }}
 
       - name: Generate lower bound python requirements
         # Creates lower bound files then replaces the input files so we can do a normal install
@@ -189,7 +192,7 @@ jobs:
       - name: Download Docker image artifact
         uses: actions/download-artifact@v2
         with:
-          name: image-${{ github.sha }}-${{ matrix.python-version }}
+          name: image-${{ github.sha }}-${{ env.MINIMUM_PYTHON_VERSION }}
           path: /tmp
 
       - name: Load Docker image
