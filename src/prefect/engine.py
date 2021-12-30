@@ -172,6 +172,8 @@ async def retrieve_flow_then_begin_flow_run(
         flow_run_id=flow_run_id,
         flow_version=flow.version,
     )
+
+    if flow.should_validate_parameters:
     try:
         parameters = flow.validate_parameters(flow_run.parameters)
     except Exception as exc:
@@ -184,6 +186,8 @@ async def retrieve_flow_then_begin_flow_run(
             flow_run_id=flow_run_id,
         )
         return state
+    else:
+        parameters = flow_run.parameters
 
     return await begin_flow_run(
         flow=flow,
