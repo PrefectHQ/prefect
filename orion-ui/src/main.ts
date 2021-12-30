@@ -5,6 +5,12 @@ import router from './router'
 import store from './store'
 import api from './plugins/api'
 
+if (import.meta.env.VITE_PREFECT_USE_MIRAGEJS ?? false) {
+  const { startServer } = await import('./server')
+
+  startServer()
+}
+
 // Global components
 import ButtonCard from '@/components/Global/ButtonCard/ButtonCard.vue'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'

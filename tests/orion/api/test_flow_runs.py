@@ -35,6 +35,24 @@ class TestCreateFlowRun:
         )
         assert flow_run.flow_id == flow.id
 
+    @pytest.mark.parametrize("with_config", [True, False])
+    async def test_create_flow_run_with_flow_runner(
+        self, flow, client, session, with_config
+    ):
+        response = await client.post(
+            "/flow_runs/",
+            json=actions.FlowRunCreate(
+                flow_id=flow.id,
+                flow_runner=core.FlowRunnerSettings(
+                    type="test", config={"foo": "bar"} if with_config else None
+                ),
+            ).dict(json_compatible=True),
+        )
+        assert response.json()["flow_runner"] == {
+            "type": "test",
+            "config": {"foo": "bar"} if with_config else None,
+        }
+
     async def test_create_flow_run_with_state_sets_timestamp_on_server(
         self, flow, client, session
     ):
@@ -192,7 +210,9 @@ class TestUpdateFlowRun:
         response = await client.patch(
             f"flow_runs/{flow_run.id}",
             json=actions.FlowRunUpdate(
-                flow_version="The next one", name="not yellow salamander"
+                flow_version="The next one",
+                name="not yellow salamander",
+                flow_runner=core.FlowRunnerSettings(type="test", config={"foo": "bar"}),
             ).dict(json_compatible=True),
         )
         assert response.status_code == 204
@@ -202,6 +222,9 @@ class TestUpdateFlowRun:
         assert updated_flow_run.flow_version == "The next one"
         assert updated_flow_run.name == "not yellow salamander"
         assert updated_flow_run.updated > now
+        assert updated_flow_run.flow_runner == core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"}
+        )
 
     async def test_update_flow_run_does_not_update_if_fields_not_set(
         self, flow, session, client

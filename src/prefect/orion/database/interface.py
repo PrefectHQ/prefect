@@ -84,9 +84,12 @@ class OrionDBInterface(metaclass=DBSingleton):
 
         return engine
 
-    async def session_factory(self):
+    async def session(self):
+        """
+        Provides a SQLAlchemy session
+        """
         engine = await self.engine()
-        return await self.database_config.session_factory(engine)
+        return await self.database_config.session(engine)
 
     @property
     def Base(self):

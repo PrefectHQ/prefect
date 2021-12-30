@@ -12,7 +12,7 @@
     </header>
 
     <section class="mt-4">
-      <h3 class="font-weight-semibold">Color theme</h3>
+      <h3 class="font-weight-semibold my-1">Color theme</h3>
       <StateColorModeSelector />
     </section>
 
@@ -46,7 +46,7 @@
       </section>
     </section>
 
-    <section class="mt-4">
+    <section class="my-4">
       <h3 class="font-weight-semibold">Reset database</h3>
       <div class="d-flex align-end my-1 text--error">
         <i class="pi pi-error-warning-line pi-lg" />
@@ -57,14 +57,14 @@
       </div>
       <Button
         v-if="!showResetSection"
-        color="primary"
+        color="delete"
         height="36px"
         width="100px"
         class="mt-1"
         @click="showResetSection = true"
         miter
       >
-        Show
+        Reset
       </Button>
 
       <section v-if="showResetSection">
@@ -83,7 +83,7 @@
 
         <div>
           <Button
-            color="primary"
+            color="delete"
             height="36px"
             :disabled="resetDatabaseConfirmation !== 'CONFIRM'"
             miter

@@ -12,10 +12,8 @@
           @click="openFilterMenu"
           @remove="removeFilter"
         />
-
         <a
-          v-breakpoints="'sm'"
-          v-if="filtersApplied && filters.length"
+          v-if="media.sm && filtersApplied && filters.length"
           class="
             text--primary text-decoration-none
             font--secondary
@@ -46,7 +44,7 @@
           @click="showFilterMenu ? closeFilterMenu() : openFilterMenu()"
         >
           <i class="pi pi-filter-3-line" />
-          <span v-breakpoints="'sm'" class="ml-1">Filters</span>
+          <span v-if="media.sm" class="ml-1">Filters</span>
         </button>
       </div>
 
@@ -95,6 +93,7 @@ import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
 import { generateInitialGlobalFilterState } from '@/store'
 import TagGroup from './TagGroup.vue'
+import media from '@/utilities/media'
 
 const initialGlobalFilterStateString = JSON.stringify(
   generateInitialGlobalFilterState()
