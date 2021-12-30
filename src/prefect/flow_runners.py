@@ -447,7 +447,8 @@ class DockerFlowRunner(UniversalFlowRunner):
                 f"Flow run container {container.name!r} has status {container.status!r}"
             )
 
-        return container.status != "errored"
+        result = container.wait()
+        return result.get("StatusCode") == 0
 
     def _get_client(self):
         try:
