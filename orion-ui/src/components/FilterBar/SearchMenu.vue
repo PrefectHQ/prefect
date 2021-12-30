@@ -1,6 +1,6 @@
 <template>
   <Card class="menu font--primary" tabindex="0">
-    <template v-if="smAndDown" v-slot:header>
+    <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3 class="d-flex align-center font--secondary ml-auto">
           <i class="pi pi-search-line mr-1" />
@@ -74,7 +74,7 @@
               }"
               tabindex="0"
               @click.self="
-                mdAndUp ? selectAndApply(search) : selectSearch(search)
+                media.md ? selectAndApply(search) : selectSearch(search)
               "
             >
               <div>{{ search.name }}</div>
@@ -91,12 +91,12 @@
       </transition>
     </div>
 
-    <template v-if="smAndDown" v-slot:actions>
+    <template v-if="!media.md" v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
         <Button
           color="primary"
           height="35px"
-          :width="smAndDown ? '100%' : 'auto'"
+          :width="!media.md ? '100%' : 'auto'"
           @click="applyFilter"
         >
           Apply
@@ -107,15 +107,10 @@
 </template>
 
 <script lang="ts" setup>
-import {
-  computed,
-  ref,
-  getCurrentInstance,
-  onBeforeMount,
-  onBeforeUnmount
-} from 'vue'
+import { ref, getCurrentInstance, onBeforeMount, onBeforeUnmount } from 'vue'
 import { Api, Endpoints } from '@/plugins/api'
 import { useStore } from 'vuex'
+import media from '@/utilities/media'
 
 const store = useStore()
 const instance = getCurrentInstance()
@@ -246,16 +241,6 @@ const remove = async (id: string) => {
   await getSavedSearches()
   loadingIds.value.splice(loadingIds.value.indexOf(id), 1)
 }
-
-const smAndDown = computed(() => {
-  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
-  return !breakpoints.md
-})
-
-const mdAndUp = computed(() => {
-  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
-  return breakpoints.md
-})
 </script>
 
 <style lang="scss" scoped>
