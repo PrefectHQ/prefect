@@ -22,13 +22,13 @@ from prefect.flow_runners import (
     UniversalFlowRunner,
     lookup_flow_runner,
     register_flow_runner,
-    python_version_micro,
     python_version_minor,
     get_prefect_image_name,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.compat import AsyncMock
+from prefect.utilities.settings import temporary_settings
 
 
 class VersionInfo(NamedTuple):
@@ -976,6 +976,29 @@ class TestDockerFlowRunner:
         assert "TEST_FOO" in flow_run_environ and "TEST_BAR" in flow_run_environ
         assert flow_run_environ["TEST_FOO"] == "foo"
         assert flow_run_environ["TEST_BAR"] == "bar"
+
+    @pytest.mark.service("docker")
+    async def test_failure_to_connect_returns_bad_exit_code(
+        self,
+        flow_run,
+        orion_client,
+        prefect_settings_test_deployment,
+    ):
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            prefect_settings_test_deployment
+        )
+
+        with temporary_settings(PREFECT_ORION_HOST="http://fail.test"):
+            assert not await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        # The flow _cannot_ be failed by the flow run engine because it cannot talk to
+        # the API. Something else will need to be responsible for failing the run.
+        assert not flow_run.state.is_final()
 
     @pytest.mark.service("docker")
     def test_check_for_required_development_image(self):
