@@ -6,8 +6,8 @@ env:
   MINIMUM_PYTHON_VERSION: 3.7
 
 jobs:
-  build-test-docker-images:
-    name: Build test Docker images
+  build-test-images:
+    name: Build test images
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -47,7 +47,7 @@ jobs:
 
   run-tests-sqlite:
     name: Test with SQLite
-    needs: [build-test-docker-images]
+    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -99,7 +99,7 @@ jobs:
 
   run-tests-postgres:
     name: Test with Postgres
-    needs: [build-test-docker-images]
+    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -162,7 +162,7 @@ jobs:
 
   run-tests-lower-bounds:
     name: Test with lower requirements
-    needs: [build-test-docker-images]
+    needs: [build-test-images]
     # We cannot test on Ubuntu LTS because the sqlite version is not new enough
     runs-on: ubuntu-latest
 
