@@ -14,7 +14,7 @@ from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
 from prefect.orion.utilities.server import OrionRouter
 
-router = OrionRouter(prefix="/saved_searches", tags=["SavedSearchs"])
+router = OrionRouter(prefix="/saved_searches", tags=["SavedSearches"])
 
 
 @router.put("/")
