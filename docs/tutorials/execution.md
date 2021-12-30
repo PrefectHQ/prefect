@@ -67,7 +67,7 @@ async def async_flow():
     await print_values([1, 2]) # runs immediately
     coros = [] 
     coros.append(print_values("abcd"))
-    coros.append(print_values("6789", "\n"))
+    coros.append(print_values("6789"))
 
     # asynchronously gather the tasks
     await asyncio.gather(*coros)
