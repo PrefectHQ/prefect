@@ -41,12 +41,13 @@ RUN apt-get update && \
 # Pin the pip version
 RUN python -m pip install --no-cache-dir pip==21.3.1
 
-# Copy the sdist and entrypoint
+# Copy the sdist
 WORKDIR /opt/prefect
 COPY --from=builder /opt/prefect/dist ./
-COPY scripts/entrypoint.sh ./entrypoint.sh
 
 # Install prefect
 RUN pip install --no-cache-dir ./*.tar.gz
 
+# Setup entrypoint
+COPY scripts/entrypoint.sh ./entrypoint.sh
 ENTRYPOINT ["tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
