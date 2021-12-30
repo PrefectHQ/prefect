@@ -23,11 +23,12 @@ By default, when you use a `DaskTaskRunner` it creates a temporary local Dask
 cluster.
 
 ```python
+from prefect import flow
 from prefect.task_runners import DaskTaskRunner
 
 # By default this will use a temporary local Dask cluster
-@flow
-def my_flow(task_runner=DaskTaskRunner()):
+@flow(task_runner=DaskTaskRunner())
+def my_flow():
     pass
 ```
 
