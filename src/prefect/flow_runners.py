@@ -2,7 +2,6 @@ import asyncio
 import os
 import subprocess
 import sys
-import threading
 import warnings
 import re
 from pathlib import Path
@@ -43,9 +42,6 @@ if TYPE_CHECKING:
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
-
-
-DOCKER_BUILD_LOCK = threading.Lock()
 
 
 def python_version_minor() -> str:
