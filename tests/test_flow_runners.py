@@ -1002,9 +1002,10 @@ class TestDockerFlowRunner:
             # We are in a CI test run with a shallow clone
             # assert the commits are the same because CI should _always_ have a
             # development image that is built for the test run.
-            assert (
-                container_version.split(".")[-1] == test_run_version.split(".")[-1]
-            ), f"{container_version!r} should equal {test_run_version!r}"
+            assert container_version.split(".")[-1].startswith(
+                # A versioneer bug causes the test run version to have 1 less SHA char
+                test_run_version.split(".")[-1]
+            ), f"{container_version!r} should match {test_run_version!r}"
 
         elif container_version != test_run_version:
             # We are in a local run, just warn if the versions do not match
