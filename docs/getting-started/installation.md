@@ -63,7 +63,7 @@ Running this command should print a familiar looking version string to your cons
 
 ## External requirements
 
-While Prefect Orion works with many of your favorite tools and Python modules, Orion has a few external dependencies
+While Prefect Orion works with many of your favorite tools and Python modules, Orion has a few external dependencies.
 
 ### SQLite
 
