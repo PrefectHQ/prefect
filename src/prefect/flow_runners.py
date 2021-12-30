@@ -384,7 +384,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             labels=self._get_labels(flow_run),
             extra_hosts=self._get_extra_hosts(docker_client),
             name=self._get_container_name(flow_run),
-            volumes=self._get_volumes(),
+            volumes=self.volumes,
         )
         self.logger.info(
             f"Flow run {flow_run.name!r} has container settings = {container_settings}"
@@ -460,17 +460,6 @@ class DockerFlowRunner(UniversalFlowRunner):
             raise RuntimeError(f"Could not connect to Docker.") from exc
 
         return docker_client
-
-    def _get_volumes(self) -> List[str]:
-        volumes = self.volumes.copy()
-
-        # TOOD: Disabled because the images do not have editable installations anymore
-        # If requesting an orion development image; mount the local code into the image
-        # Tag matches https://www.python.org/dev/peps/pep-0440/#developmental-releases
-        # if re.match(r"orion:([0-9]+\.?)+([(a|b|rc)[0-9]*)?\.dev", self.image):
-        #     volumes.append(f"{prefect.__root_path__}:/opt/prefect")
-
-        return volumes
 
     def _get_container_name(self, flow_run: FlowRun) -> str:
         """
