@@ -1,5 +1,3 @@
-import logging
-
 import pytest
 from prefect.engine.signals import FAIL
 from prefect.tasks.zendesk import ZendeskTicketsIncrementalExportTask
@@ -43,128 +41,127 @@ class TestZendeskTasks:
 
     def test_run_without_api_token_and_api_token_env_var_raises(self):
         zendesk_task = ZendeskTicketsIncrementalExportTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Both `api_token` and `api_token_env_var` are missing."
+        with pytest.raises(ValueError, match=msg_match):
             zendesk_task.run()
-
-        assert "Both `api_token` and `api_token_env_var` are missing." in str(exc)
 
     def test_run_without_api_token_and_missing_api_token_env_var_raises(self):
         zendesk_task = ZendeskTicketsIncrementalExportTask(api_token_env_var="abc")
-        with pytest.raises(ValueError) as exc:
+        msg_match = "`api_token` is missing and `api_token_env_var` not found."
+        with pytest.raises(ValueError, match=msg_match):
             zendesk_task.run()
-
-        assert "`api_token` is missing and `api_token_env_var` not found." in str(exc)
 
     def test_run_without_subdomain_raises(self):
         zendesk_task = ZendeskTicketsIncrementalExportTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "`subdomain` is missing."
+        with pytest.raises(ValueError, match=msg_match):
             zendesk_task.run(api_token="abc")
-
-        assert "`subdomain` is missing." in str(exc)
 
     def test_run_without_email_address_raises(self):
         zendesk_task = ZendeskTicketsIncrementalExportTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "`email_address` is missing."
+        with pytest.raises(ValueError, match=msg_match):
             zendesk_task.run(api_token="abc", subdomain="foo")
-
-        assert "`email_address` is missing." in str(exc)
 
     def test_run_without_start_time_and_cursor_raises(self):
         zendesk_task = ZendeskTicketsIncrementalExportTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Both `start_time` and `cursor` are missing."
+        with pytest.raises(ValueError, match=msg_match):
             zendesk_task.run(
                 api_token="abc", subdomain="foo", email_address="foo@bar.com"
             )
 
-        assert "Both `start_time` and `cursor` are missing." in str(exc)
-
     @responses.activate
     def test_run_with_cursor(self, caplog):
-        caplog.set_level(logging.DEBUG)
-        zendesk_task = ZendeskTicketsIncrementalExportTask()
-        responses.add(
-            responses.GET,
-            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?cursor=xyz",
-            json={
-                "end_of_stream": True,
-                "after_url": "foo",
-                "after_cursor": "foo",
-                "tickets": [],
-            },
-            headers={"retry-after": "1"},
-            status=200,
-        )
+        zendesk_task = ZendeskTicketsIncrementalExportTask(cursor="xyz")
+        with responses.RequestsMock() as rsps:
+            rsps.add(
+                responses.GET,
+                url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?cursor=xyz",
+                json={
+                    "end_of_stream": True,
+                    "after_url": "foo",
+                    "after_cursor": "foo",
+                    "tickets": [],
+                },
+                headers={"retry-after": "1"},
+                status=200,
+            )
 
-        zendesk_task.run(
-            subdomain="test", email_address="foo@bar.com", api_token="abc", cursor="xyz"
-        )
+            assert zendesk_task.cursor == "xyz"
 
-        assert "Got cursor" in caplog.text
+            zendesk_task.run(
+                subdomain="test", email_address="foo@bar.com", api_token="abc"
+            )
 
     @responses.activate
     def test_run_with_start_time(self, caplog):
-        caplog.set_level(logging.DEBUG)
-        zendesk_task = ZendeskTicketsIncrementalExportTask()
-        responses.add(
-            responses.GET,
-            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
-            json={
-                "end_of_stream": True,
-                "after_url": "foo",
-                "after_cursor": "foo",
-                "tickets": [],
-            },
-            headers={"retry-after": "1"},
-            status=200,
+        zendesk_task = ZendeskTicketsIncrementalExportTask(
+            api_token="abc", start_time=123
         )
+        with responses.RequestsMock() as rsps:
+            rsps.add(
+                responses.GET,
+                url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
+                json={
+                    "end_of_stream": True,
+                    "after_url": "foo",
+                    "after_cursor": "foo",
+                    "tickets": [],
+                },
+                headers={"retry-after": "1"},
+                status=200,
+            )
 
-        zendesk_task.run(
-            subdomain="test",
-            email_address="foo@bar.com",
-            api_token="abc",
-            start_time=123,
-        )
+            assert zendesk_task.api_token == "abc"
+            assert zendesk_task.start_time == 123
 
-        assert "Got start_time" in caplog.text
+            zendesk_task.run(
+                subdomain="test",
+                email_address="foo@bar.com",
+            )
 
     @responses.activate
     def test_run_retry_after(self, caplog):
-        caplog.set_level(logging.DEBUG)
-        zendesk_task = ZendeskTicketsIncrementalExportTask()
-        responses.add(
-            responses.GET,
-            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
-            json={
-                "end_of_stream": False,
-                "after_url": "foo",
-                "after_cursor": "foo",
-                "tickets": [],
-            },
-            headers={"retry-after": "1"},
-            status=429,
+        zendesk_task = ZendeskTicketsIncrementalExportTask(
+            api_token="abc", start_time=123
         )
+        with responses.RequestsMock() as rsps:
+            rsps.add(
+                responses.GET,
+                url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
+                json={
+                    "end_of_stream": False,
+                    "after_url": "foo",
+                    "after_cursor": "foo",
+                    "tickets": [],
+                },
+                headers={"retry-after": "1"},
+                status=429,
+            )
 
-        responses.add(
-            responses.GET,
-            url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
-            json={
-                "end_of_stream": True,
-                "after_url": "foo",
-                "after_cursor": "foo",
-                "tickets": [],
-            },
-            headers={"retry-after": "1"},
-            status=200,
-        )
+            rsps.add(
+                responses.GET,
+                url="https://test.zendesk.com/api/v2/incremental/tickets/cursor.json?start_time=123",
+                json={
+                    "end_of_stream": True,
+                    "after_url": "foo",
+                    "after_cursor": "foo",
+                    "tickets": [],
+                },
+                headers={"retry-after": "1"},
+                status=200,
+            )
 
-        zendesk_task.run(
-            subdomain="test",
-            email_address="foo@bar.com",
-            api_token="abc",
-            start_time=123,
-        )
+            assert zendesk_task.api_token == "abc"
+            assert zendesk_task.start_time == 123
 
-        assert "API rate limit reached!" in caplog.text
+            zendesk_task.run(
+                subdomain="test",
+                email_address="foo@bar.com",
+                api_token="abc",
+                start_time=123,
+            )
 
     @responses.activate
     def test_run_api_call_fail_raises(self):
@@ -182,15 +179,14 @@ class TestZendeskTasks:
             status=123,
         )
 
-        with pytest.raises(FAIL) as exc:
+        msg_match = "Zendesk API call failed!"
+        with pytest.raises(FAIL, match=msg_match):
             zendesk_task.run(
                 subdomain="test",
                 email_address="foo@bar.com",
                 api_token="abc",
                 start_time=123,
             )
-
-        assert "Zendesk API call failed!" in str(exc)
 
     @responses.activate
     def test_run_success(self):
