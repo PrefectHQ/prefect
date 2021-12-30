@@ -137,17 +137,27 @@ async def create_then_begin_flow_run(
     """
     logger.debug(f"Creating run for flow {flow.name!r}...")
 
-    # Validate the parameters
+    state = Pending()
     if flow.should_validate_parameters:
-        parameters = flow.validate_parameters(parameters)
+        try:
+            parameters = flow.validate_parameters(parameters)
+        except Exception as exc:
+            state = Failed(
+                message="Flow run received invalid parameters.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
 
     flow_run = await client.create_flow_run(
         flow,
         # Send serialized parameters to the backend
         parameters=flow.serialize_parameters(parameters),
-        state=Pending(),
+        state=state,
         tags=TagsContext.get().current_tags,
     )
+
+    if state.is_failed():
+        return state
+
     return await begin_flow_run(
         flow=flow, flow_run=flow_run, parameters=parameters, client=client
     )
@@ -174,18 +184,18 @@ async def retrieve_flow_then_begin_flow_run(
     )
 
     if flow.should_validate_parameters:
-    try:
-        parameters = flow.validate_parameters(flow_run.parameters)
-    except Exception as exc:
-        state = Failed(
-            message="Flow run received invalid parameters.",
-            data=DataDocument.encode("cloudpickle", exc),
-        )
-        await client.propose_state(
-            state=state,
-            flow_run_id=flow_run_id,
-        )
-        return state
+        try:
+            parameters = flow.validate_parameters(flow_run.parameters)
+        except Exception as exc:
+            state = Failed(
+                message="Flow run received invalid parameters.",
+                data=DataDocument.encode("cloudpickle", exc),
+            )
+            await client.propose_state(
+                state=state,
+                flow_run_id=flow_run_id,
+            )
+            return state
     else:
         parameters = flow_run.parameters
 

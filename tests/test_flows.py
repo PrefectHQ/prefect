@@ -154,16 +154,18 @@ class TestFlowCall:
 
         assert test_flow(1, 2, x=3, y=4, z=5).result() == (1, 2, dict(x=3, y=4, z=5))
 
-    def test_call_raises_on_incompatible_parameter_types(self):
+    def test_fails_but_does_not_raise_on_incompatible_parameter_types(self):
         @flow(version="test")
         def foo(x: int):
             pass
+
+        state = foo(x="foo")
 
         with pytest.raises(
             ParameterTypeError,
             match="value is not a valid integer",
         ):
-            foo(x="foo")
+            state.result()
 
     def test_call_ignores_incompatible_parameter_types_if_asked(self):
         @flow(version="test", validate_parameters=False)
