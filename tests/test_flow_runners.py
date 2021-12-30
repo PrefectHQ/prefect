@@ -996,11 +996,20 @@ class TestDockerFlowRunner:
 
         output = client.containers.run(tag, "prefect version")
         container_version = output.decode().strip()
-        if container_version != prefect.__version__:
+        test_run_version = prefect.__version
+
+        if test_run_version.startswith("0+untagged"):
+            # We are in a CI test run with a shallow clone
+            # assert the commits are the same because CI should _always_ have a
+            # development image that is built for the test run.
+            assert container_version.split(".")[-1] == test_run_version.split(".")[-1]
+
+        elif container_version != test_run_version:
+            # We are in a local run, just warn if the versions do not match
             warnings.warn(
                 f"The development Docker image with tag {tag!r} has version "
                 f"{container_version!r} but tests were run with version "
-                f"{prefect.__version__!r}. You may safely ignore this warning if you "
+                f"{test_run_version!r}. You may safely ignore this warning if you "
                 "have intentionally not built a new test image. Rebuild the image "
                 "with " + build_cmd
             )
