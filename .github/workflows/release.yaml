@@ -100,19 +100,19 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
-          outputs: type=docker,dest=/tmp/image-${{ matrix.python-version }}.tar
+          outputs: type=docker,dest=/tmp/image.tar
 
       - name: Test docker image
         run: |
-          docker load --input /tmp/image-${{ matrix.python-version }}.tar
+          docker load --input /tmp/image.tar
           docker run --rm prefecthq/prefect:sha-${GITHUB_SHA::7}-python${{ matrix.python-version }} prefect version
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v2
-        # Images have not been published yet; they will be pushed after approval
+        # Images are built but not published unless this commit is for a tagged release
         with:
           name: image-${{ github.sha }}-${{ matrix.python-version }}
-          path: /tmp/image-${{ matrix.python-version }}.tar
+          path: /tmp/image.tar
 
   publish-docs:
     name: Open PR to docs branch
@@ -238,25 +238,25 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: image-${{ github.sha }}-3.7
-          path: /tmp
+          path: /tmp/3.7/
 
       - name: Download image artifacts for Python 3.8
         uses: actions/download-artifact@v2
         with:
           name: image-${{ github.sha }}-3.8
-          path: /tmp
+          path: /tmp/3.8/
 
       - name: Download image artifacts for Python 3.9
         uses: actions/download-artifact@v2
         with:
           name: image-${{ github.sha }}-3.9
-          path: /tmp
+          path: /tmp/3.9/
 
       - name: Load images
         run: |
-          docker load --input /tmp/image-3.7.tar
-          docker load --input /tmp/image-3.8.tar
-          docker load --input /tmp/image-3.9.tar
+          docker load --input /tmp/3.7/image.tar
+          docker load --input /tmp/3.8/image.tar
+          docker load --input /tmp/3.9/image.tar
 
       - name: Login to DockerHub
         uses: docker/login-action@v1
