@@ -3,8 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "build": "vite build & tsc src/index.ts --declaration --emitDeclarationOnly --outDir dist",
-        "build:vue": "vite build & vue-tsc src/index.ts --declaration --emitDeclarationOnly --out dist/index.d.ts"
+        "build": "vite build & vue-tsc --emitDeclarationOnly --out dist/index.d.ts"
     },
     "main": "./dist/orion-design.umd.js",
     "module": "./dist/orion-design.es.js",
