@@ -494,15 +494,14 @@ class TestFlowRunCrashes:
             # prevent the test from failing before we can assert things are 'Crashed'
             pass
         except anyio.get_cancelled_exc_class() as exc:
-            raise RuntimeError(
-                "The cancellation error was not caught. This indicates a regression "
-                "or that the flow run has not begun and we did not reach the "
-                "cancellation capturing code — increasing the sleep may resolve this."
-            ) from exc
+            raise RuntimeError("The cancellation error was not caught.") from exc
 
     async def test_anyio_cancellation_crashes_flow(self, flow_run, orion_client):
+        started = anyio.Event()
+
         @flow
         async def my_flow():
+            started.set()
             await anyio.sleep_forever()
 
         with self.capture_cancellation():
@@ -516,7 +515,7 @@ class TestFlowRunCrashes:
                         client=orion_client,
                     )
                 )
-                await anyio.sleep(0.5)  # Give the flow time to start
+                await started.wait()
                 tg.cancel_scope.cancel()
 
         flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -528,8 +527,11 @@ class TestFlowRunCrashes:
         )
 
     async def test_anyio_cancellation_crashes_subflow(self, flow_run, orion_client):
+        started = anyio.Event()
+
         @flow
         async def child_flow():
+            started.set()
             await anyio.sleep_forever()
 
         @flow
@@ -547,7 +549,7 @@ class TestFlowRunCrashes:
                         client=orion_client,
                     )
                 )
-                await anyio.sleep(0.5)  # Give the subflow time to start
+                await started.wait()
                 tg.cancel_scope.cancel()
 
         parent_flow_run = await orion_client.read_flow_run(flow_run.id)
@@ -608,9 +610,11 @@ class TestFlowRunCrashes:
         still ends up in a 'Crashed' state if it is cancelled independently from our
         timeout cancellation.
         """
+        started = anyio.Event()
 
         @flow(timeout_seconds=100)
         async def my_flow():
+            started.set()
             await anyio.sleep_forever()
 
         with self.capture_cancellation():
@@ -624,7 +628,7 @@ class TestFlowRunCrashes:
                         client=orion_client,
                     )
                 )
-                await anyio.sleep(0.5)  # Give the flow time to start
+                await started.wait()
                 tg.cancel_scope.cancel()
 
         flow_run = await orion_client.read_flow_run(flow_run.id)

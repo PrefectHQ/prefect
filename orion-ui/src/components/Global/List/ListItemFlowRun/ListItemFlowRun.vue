@@ -1,22 +1,6 @@
 <template>
-  <ListItem class="list-item--flow-run d-flex align-start justify-start">
-    <!-- For a later date... maybe -->
-    <!-- :class="stateType + '-border'" -->
-
-    <i
-      class="item--icon pi text--grey-40 align-self-start"
-      :class="`pi-${stateType}`"
-    />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+  <ListItem class="list-item--flow-run" :icon="`pi-${stateType}`">
+    <div class="list-item__title">
       <BreadCrumbs class="flex-grow-1" tag="h2" :crumbs="crumbs" />
 
       <div class="tag-container nowrap d-flex align-bottom">
@@ -25,13 +9,13 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto mr-1 nowrap">
-      <ButtonRounded disabled>
-        {{ taskRunCount }} task run{{ taskRunCount == 1 ? '' : 's' }}
+    <div v-if="media.sm" class="ml-auto mr-1 nowrap">
+      <ButtonRounded class="mr-1" disabled>
+        {{ taskRunCount }} task {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
 
-    <div v-breakpoints="'md'" class="chart-container mr-2">
+    <div v-if="media.md" class="chart-container mr-2">
       <RunHistoryChart
         :items="taskRunHistory"
         :interval-start="start"
@@ -68,6 +52,8 @@ import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import media from '@/utilities/media'
+import { toPluralString } from '@/utilities/strings'
 
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()

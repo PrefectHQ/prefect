@@ -1,9 +1,9 @@
 <template>
   <Card class="filter-menu font--primary" height="100%" tabindex="0">
-    <template v-if="smAndDown" v-slot:header>
+    <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <a
-          v-breakpoints="'xs'"
+          v-if="media.xs"
           class="
             text--primary text-decoration-none
             font--secondary
@@ -35,35 +35,35 @@
 
     <div class="filter-menu__content pa-2">
       <component
-        :is="smAndDown ? FilterAccordion : 'Card'"
+        :is="!media.md ? FilterAccordion : 'Card'"
         class="shadow-sm mb-1"
         title="Tags"
         icon="pi-filter-3-line"
       >
-        <div v-breakpoints="'md'" class="filter-menu__section-header">
+        <div v-if="media.md" class="filter-menu__section-header">
           <i class="filter-menu__section-header-icon pi-filter-3-line" />Tags
         </div>
 
-        <div class="py-1 px-2" :class="{ 'd-flex': !smAndDown }">
-          <Form-Tags
+        <div class="py-1 px-2" :class="{ 'd-flex': media.md }">
+          <FormTags
             v-model="filters.flows.tags"
             title="Flows"
             icon="pi-flow"
             class="mb-2"
           />
-          <Form-Tags
+          <FormTags
             v-model="filters.deployments.tags"
             title="Deployments"
             icon="pi-map-pin-line"
             class="mb-2"
           />
-          <Form-Tags
+          <FormTags
             v-model="filters.flow_runs.tags"
             title="Flow runs"
             icon="pi-flow-run"
             class="mb-2"
           />
-          <Form-Tags
+          <FormTags
             v-model="filters.task_runs.tags"
             title="Task runs"
             icon="pi-task"
@@ -73,34 +73,34 @@
       </component>
 
       <component
-        :is="smAndDown ? 'template' : 'div'"
+        :is="!media.md ? 'template' : 'div'"
         class="d-flex align-stretch"
-        :class="{ 'flex-column': mdAndDown }"
+        :class="{ 'flex-column': !media.lg }"
       >
         <component
-          :is="smAndDown ? FilterAccordion : 'Card'"
+          :is="!media.md ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'filter-menu__flex-card': !smAndDown,
-            'mb-1': mdAndDown,
-            'mr-1': !mdAndDown
+            'filter-menu__flex-card': media.md,
+            'mb-1': !media.lg,
+            'mr-1': media.lg
           }"
           title="States"
           icon="pi-filter-3-line"
           width="100%"
         >
-          <div v-breakpoints="'md'" class="filter-menu__section-header">
+          <div v-if="media.md" class="filter-menu__section-header">
             <i class="filter-menu__section-header-icon pi-filter-3-line" />
             States
           </div>
 
           <div class="d-flex py-1 px-2">
-            <Form-States
+            <FormStates
               v-model="filters.flow_runs.states"
               title="Flow runs"
               icon="pi-flow-run"
             />
-            <Form-States
+            <FormStates
               v-model="filters.task_runs.states"
               title="Task runs"
               icon="pi-task"
@@ -109,30 +109,30 @@
         </component>
 
         <component
-          :is="smAndDown ? FilterAccordion : 'Card'"
+          :is="!media.md ? FilterAccordion : 'Card'"
           class="shadow-sm"
           :class="{
-            'filter-menu__flex-card': !smAndDown,
-            'mb-1': mdAndDown && !smAndDown
+            'filter-menu__flex-card': media.md,
+            'mb-1': !media.lg && media.md
           }"
           title="Timeframes"
           icon="pi-filter-3-line"
           width="100%"
         >
-          <div v-breakpoints="'md'" class="filter-menu__section-header">
+          <div v-if="media.md" class="filter-menu__section-header">
             <i
               class="filter-menu__section-header-icon pi-filter-3-line"
             />Timeframes
           </div>
 
-          <div class="d-flex py-1 px-2" :class="smAndDown ? 'flex-column' : ''">
-            <Form-DateTime
+          <div class="d-flex py-1 px-2" :class="!media.md ? 'flex-column' : ''">
+            <FormDateTime
               v-model="filters.flow_runs.timeframe"
               class="mr-1"
               title="Flow runs"
               icon="pi-flow-run"
             />
-            <Form-DateTime
+            <FormDateTime
               v-model="filters.task_runs.timeframe"
               title="Task runs"
               icon="pi-task"
@@ -147,7 +147,7 @@
         class="pa-2 filter-menu__actions d-flex align-center justify-end"
       >
         <Button
-          v-if="!smAndDown"
+          v-if="media.md"
           flat
           height="35px"
           class="ml-auto mr-1"
@@ -158,7 +158,7 @@
         <Button
           color="primary"
           height="35px"
-          :width="smAndDown ? '100%' : 'auto'"
+          :width="!media.md ? '100%' : 'auto'"
           @click="apply"
         >
           Apply
@@ -169,16 +169,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, getCurrentInstance, readonly } from 'vue'
+import { ref, readonly } from 'vue'
 import { useStore } from 'vuex'
-
 import FilterAccordion from './FilterAccordion.vue'
-
 import FormTags from './composables/Form--Tags.vue'
 import FormStates from './composables/Form--States.vue'
 import FormDateTime from './composables/Form--DateTime.vue'
+import media from '@/utilities/media'
 
-const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const store = useStore()
 
@@ -222,16 +220,6 @@ const defaultFilters = {
 }
 
 const filters = ref({ ...defaultFilters })
-
-const smAndDown = computed(() => {
-  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
-  return !breakpoints.md
-})
-
-const mdAndDown = computed(() => {
-  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
-  return !breakpoints.lg
-})
 
 const apply = () => {
   store.commit('globalFilter', { ...filters.value })
