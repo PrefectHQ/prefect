@@ -1,4 +1,23 @@
 ARG PYTHON_VERSION=${PYTHON_VERSION:-3.8}
+
+# Build the distributable which generates a static version file.
+# Without this build step, versioneer cannot infer the version without git
+# see https://github.com/python-versioneer/python-versioneer/issues/215
+FROM python:3.8-slim AS builder
+RUN apt-get update && \
+    apt-get install --no-install-recommends -y \
+        git=1:2.* \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+WORKDIR /opt/prefect
+
+# Copy the repository in; requires deep history for versions to generate correctly
+COPY . ./
+
+# Create a source distributable archive; ensuring existing dists are removed first
+RUN rm -rf dist && python setup.py sdist
+
+
+# Install into the requested Python version image
 FROM python:${PYTHON_VERSION}-slim
 
 ENV LC_ALL C.UTF-8
@@ -12,22 +31,22 @@ LABEL org.label-schema.url="https://www.prefect.io/"
 
 RUN apt-get update && \
     apt-get install --no-install-recommends -y \
-        tini=0.19.0-1 \
+        tini=0.19.* \
         # The following are required for building the asyncpg wheel
-        gcc=4:10.2.1-1 \
-        linux-libc-dev=5.10.84-1 \
-        libc6-dev=2.31-13+deb11u2 \
+        gcc=4:10.* \
+        linux-libc-dev=5.10.* \
+        libc6-dev=2.* \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Pin the pip version
-RUN python -m pip install pip==21.3.1
+RUN python -m pip install --no-cache-dir pip==21.3.1
 
-# Copy the repository into the image
-COPY . /opt/prefect
+# Copy the sdist and entrypoint
+WORKDIR /opt/prefect
+COPY --from=builder /opt/prefect/dist ./
+COPY scripts/entrypoint.sh ./entrypoint.sh
 
-# Create an editable install
-# In the future, we may want to install directly from git given a tag,
-# but here we are optimizing for development.
-RUN pip install --no-cache-dir -e /opt/prefect
+# Install prefect
+RUN pip install --no-cache-dir ./*.tar.gz
 
-ENTRYPOINT ["tini", "-g", "--", "/opt/prefect/scripts/entrypoint.sh"]
+ENTRYPOINT ["tini", "-g", "--", "/opt/prefect/entrypoint.sh"]
