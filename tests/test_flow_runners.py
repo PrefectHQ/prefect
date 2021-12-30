@@ -499,7 +499,7 @@ class TestGetPrefectImageName:
         )
 
     async def test_tag_detects_development(self, monkeypatch):
-        monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
+        monkeypatch.setattr("prefect.__version__", "2.0.0+5.g6fcc2b9a")
         monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
         assert get_prefect_image_name() == "prefecthq/prefect:dev-python3.10"
 
