@@ -1,4 +1,4 @@
-task/enhancement:
+task:
   - "Allow all Postgres task parameters to be configured at runtime as well as init - [#4377](https://github.com/PrefectHQ/prefect/pull/5016)"
 
 contributor:
