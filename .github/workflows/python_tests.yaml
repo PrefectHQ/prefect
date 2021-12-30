@@ -28,7 +28,7 @@ jobs:
           context: .
           build-args:
             PYTHON_VERSION=${{ matrix.python-version }}
-          tags: dev-python${{ matrix.python-version }}
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
           outputs: type=docker,dest=/tmp/image.tar
 
       - name: Test docker image
