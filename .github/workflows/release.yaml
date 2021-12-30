@@ -109,7 +109,7 @@ jobs:
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v2
-        # Images are built but not published unless this commit is for a tagged release
+        # Images are stashed for publish after approval is given
         with:
           name: release-image-${{ github.sha }}-${{ matrix.python-version }}
           path: /tmp/image.tar
