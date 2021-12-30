@@ -84,7 +84,7 @@ class TestReadSavedSearch:
         assert response.status_code == 404
 
 
-class TestReadSavedSearchs:
+class TestReadSavedSearches:
     @pytest.fixture
     async def saved_searches(self, session, flow, flow_function):
         await models.saved_searches.create_saved_search(

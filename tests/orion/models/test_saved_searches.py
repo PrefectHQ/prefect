@@ -63,7 +63,7 @@ class TestReadSavedSearch:
         )
 
 
-class TestReadSavedSearchs:
+class TestReadSavedSearches:
     @pytest.fixture
     async def saved_searches(self, session):
 
