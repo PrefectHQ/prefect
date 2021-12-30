@@ -5,7 +5,7 @@
       :key="key"
       :item="item"
       :is="props.component"
-      :ref="(el) => createItemRef(key, el)"
+      :ref="(el) => createItemRef(key, el as ComponentPublicInstance)"
     />
 
     <Observer @intersection="fetchMore" />
