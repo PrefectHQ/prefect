@@ -46,7 +46,7 @@ WORKDIR /opt/prefect
 COPY --from=builder /opt/prefect/dist ./
 
 # Install prefect
-RUN pip install --no-cache-dir ./*.tar.gz
+RUN pip install --no-cache-dir ./prefect*.tar.gz
 
 # Setup entrypoint
 COPY scripts/entrypoint.sh ./entrypoint.sh

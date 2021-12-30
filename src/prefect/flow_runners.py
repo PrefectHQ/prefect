@@ -58,10 +58,7 @@ def python_version_micro() -> str:
 
 def get_prefect_image_name():
     parsed_version = prefect.__version__.split("+")
-    prefect_version = parsed_version[0]
-
-    if len(parsed_version) > 1:
-        prefect_version += ".dev"
+    prefect_version = parsed_version[0] if len(parsed_version) == 1 else "dev"
 
     tag = slugify(
         f"{prefect_version}-python{python_version_minor()}",
