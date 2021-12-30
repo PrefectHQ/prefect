@@ -1,49 +1,24 @@
 <template>
-  <ListItem class="list-item--flow d-flex align-start justify-start">
-    <i class="item--icon pi pi-flow text--grey-40 align-self-start" />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+  <ListItem class="list-item-flow" icon="pi-flow">
+    <div class="list-item__title">
       <h2>
         {{ item.name }}
       </h2>
-
-      <div class="nowrap tag-container d-flex align-bottom">
-        <Tag
-          v-for="tag in item.tags"
-          :key="tag"
-          color="secondary-pressed"
-          class="caption font-weight-semibold mr-1"
-          icon="pi-label"
-          flat
-        >
-          {{ tag }}
-        </Tag>
-      </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto nowrap">
-      <ButtonRounded class="mr-1">
-        {{ flowRunCount.toLocaleString() }} flow run{{
-          flowRunCount == 1 ? '' : 's'
-        }}
+    <div v-if="media.sm" class="ml-auto nowrap">
+      <ButtonRounded class="mr-1" disabled>
+        {{ flowRunCount.toLocaleString() }} flow
+        {{ toPluralString('run', flowRunCount) }}
       </ButtonRounded>
 
-      <ButtonRounded class="mr-1">
-        {{ taskRunCount.toLocaleString() }} task run{{
-          taskRunCount == 1 ? '' : 's'
-        }}
+      <ButtonRounded class="mr-1" disabled>
+        {{ taskRunCount.toLocaleString() }} task
+        {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
 
-    <div v-breakpoints="'md'" class="chart-container">
+    <div v-if="media.md" class="list-item-flow__chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
         :interval-start="store.getters.start"
@@ -64,6 +39,8 @@ import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
+import media from '@/utilities/media'
+import { toPluralString } from '@/utilities/strings'
 
 const store = useStore()
 const props = defineProps<{ item: Flow }>()
@@ -114,5 +91,8 @@ const flowRunHistory = computed((): Buckets => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/list-item--flow.scss';
+.list-item-flow__chart-container {
+  height: 52px;
+  max-width: 175px;
+}
 </style>

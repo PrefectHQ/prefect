@@ -1,46 +1,18 @@
 <template>
-  <ListItem class="list-item--task-run d-flex align-start justify-start">
+  <ListItem class="list-item-task-run" :icon="`pi-${stateType}`">
     <!-- For a later date... maybe -->
-    <!-- :class="state + '-border'" -->
+    <!-- :class="stateType + '-border'" -->
 
-    <i
-      class="item--icon pi text--grey-40 align-self-start"
-      :class="`pi-${state}`"
-    />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+    <div class="list-item__title">
       <BreadCrumbs class="flex-grow-1" :crumbs="crumbs" tag="h2" />
 
-      <div class="tag-container nowrap d-flex align-bottom">
-        <span
-          class="run-state correct-text caption mr-1"
-          :class="state + '-bg'"
-        >
-          {{ state }}
-        </span>
-
-        <Tag
-          v-for="tag in tags"
-          :key="tag"
-          color="secondary-pressed"
-          class="font--primary caption font-weight-semibold mr-1"
-          icon="pi-label"
-          flat
-        >
-          {{ tag }}
-        </Tag>
+      <div class="list-item-task-run__tag-container">
+        <StateLabel :name="state.name" :type="state.type" class="mr-1" />
+        <Tags :tags="tags" class="caption" />
       </div>
     </div>
 
-    <div class="font--secondary item--duration ml-auto">
+    <div class="font--secondary list-item-task-run__duration">
       {{ duration }}
     </div>
   </ListItem>
@@ -51,6 +23,7 @@ import { computed } from 'vue'
 import { Api, Query, Endpoints, TaskRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
+import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
@@ -76,6 +49,10 @@ const queries: { [key: string]: Query } = {
 }
 
 const state = computed(() => {
+  return props.item.state
+})
+
+const stateType = computed(() => {
   return props.item.state.type.toLowerCase()
 })
 
@@ -92,7 +69,7 @@ const flow = computed(() => {
 })
 
 const duration = computed(() => {
-  return state.value == 'pending' || state.value == 'scheduled'
+  return stateType.value == 'pending' || stateType.value == 'scheduled'
     ? '--'
     : props.item.total_run_time
     ? secondsToApproximateString(props.item.total_run_time)
@@ -109,5 +86,15 @@ const crumbs = computed(() => {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/list-item--task-run.scss';
+.list-item-task-run__duration {
+  text-align: right;
+  width: 75px;
+  margin-left: auto;
+}
+
+.list-item-task-run__tag-container {
+  margin-top: 2px;
+  display: flex;
+  white-space: nowrap;
+}
 </style>

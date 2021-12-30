@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import StateColorModeSelector from './StateColorModeSelector.vue'
+import StateColorModeSelector from '@/components/Settings/StateColorModeSelector.vue'
 
 const colorModes = [
   'Default',

@@ -68,8 +68,8 @@ async def clear_db(database_engine, db):
 
 @pytest.fixture
 async def session(db) -> AsyncSession:
-    session_factory = await db.session_factory()
-    async with session_factory() as session:
+    session = await db.session()
+    async with session:
         yield session
 
 
@@ -183,6 +183,9 @@ async def deployment(session, flow, flow_function):
             flow_data=DataDocument.encode("cloudpickle", flow_function),
             schedule=schemas.schedules.IntervalSchedule(
                 interval=datetime.timedelta(days=1)
+            ),
+            flow_runner=schemas.core.FlowRunnerSettings(
+                type="subprocess", config={"env": {"TEST_VARIABLE": "1"}}
             ),
         ),
     )

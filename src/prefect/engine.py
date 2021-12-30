@@ -15,33 +15,31 @@ Engine process overview
 - The run is orchestrated through states, calling the user's function as necessary.
     See `orchestrate_flow_run`, `orchestrate_task_run`
 """
-import pendulum
+import logging
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from functools import partial
-from typing import Any, Awaitable, Dict, Set, TypeVar, Union, Iterable, Optional
+from typing import Any, Awaitable, Dict, Iterable, Optional, Set, TypeVar, Union
 from uuid import UUID, uuid4
 
-import pendulum
-import logging
 import anyio
+import pendulum
 from anyio import start_blocking_portal
 from anyio.abc import BlockingPortal
-from prefect.exceptions import UpstreamTaskError
 
 import prefect
-from prefect.utilities.collections import visit_collection
 from prefect.client import OrionClient, inject_client
 from prefect.context import FlowRunContext, TagsContext, TaskRunContext
 from prefect.deployments import load_flow_from_deployment
-from prefect.task_runners import BaseTaskRunner
+from prefect.exceptions import Abort, UpstreamTaskError
 from prefect.flows import Flow
 from prefect.futures import (
     PrefectFuture,
+    call_repr,
     resolve_futures_to_data,
     resolve_futures_to_states,
-    call_repr,
 )
 from prefect.orion.schemas import core
+from prefect.orion.schemas.core import FlowRun, TaskRun
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import (
     Completed,
@@ -52,20 +50,20 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.orion.schemas.core import TaskRun, FlowRun
 from prefect.orion.states import StateSet, is_state, is_state_iterable
+from prefect.task_runners import BaseTaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncio import (
+    in_async_main_thread,
     run_async_from_worker_thread,
     run_sync_in_worker_thread,
     sync_compatible,
-    in_async_main_thread,
 )
 from prefect.utilities.callables import (
     assert_parameters_are_serializable,
     parameters_to_args_kwargs,
 )
-from prefect.utilities.collections import ensure_iterable
+from prefect.utilities.collections import ensure_iterable, visit_collection
 from prefect.utilities.logging import get_logger
 
 
@@ -173,7 +171,6 @@ async def retrieve_flow_then_begin_flow_run(
         flow_version=flow.version,
         parameters=flow_run.parameters,
     )
-    await client.propose_state(Pending(), flow_run_id=flow_run_id)
 
     return await begin_flow_run(
         flow=flow,
@@ -459,25 +456,34 @@ def enter_task_run_engine(
 
 
 async def collect_task_run_inputs(
-    expr: Any, results: Set = None
+    expr: Any,
 ) -> Set[Union[core.TaskRunResult, core.Parameter, core.Constant]]:
     """
     This function recurses through an expression to generate a set of any discernable
-    task run inputs it finds in the data structure. It produces a set of all
-    inputs found.
+    task run inputs it finds in the data structure. It produces a set of all inputs
+    found.
+
+    Example:
+        >>> task_inputs = {
+        >>>    k: await collect_task_run_inputs(v) for k, v in parameters.items()
+        >>> }
     """
+    # TODO: This function needs to be updated to detect parameters and constants
 
     inputs = set()
 
-    async def visit_fn(expr):
-        if isinstance(expr, PrefectFuture):
-            inputs.add(core.TaskRunResult(id=expr.run_id))
+    async def add_futures_and_states_to_inputs(obj):
+        if isinstance(obj, PrefectFuture):
+            inputs.add(core.TaskRunResult(id=obj.run_id))
 
-        if isinstance(expr, State):
-            if expr.state_details.task_run_id:
-                inputs.add(core.TaskRunResult(id=expr.state_details.task_run_id))
+        if isinstance(obj, State):
+            if obj.state_details.task_run_id:
+                inputs.add(core.TaskRunResult(id=obj.state_details.task_run_id))
 
-    await visit_collection(expr, visit_fn=visit_fn, return_data=False)
+    await visit_collection(
+        expr, visit_fn=add_futures_and_states_to_inputs, return_data=False
+    )
+
     return inputs
 
 
@@ -839,58 +845,36 @@ async def resolve_upstream_task_futures(
     )
 
 
-@contextmanager
-def tags(*new_tags: str) -> Set[str]:
-    """
-    Context manager to add tags to flow and task run calls.
+if __name__ == "__main__":
+    import sys
 
-    Tags are always combined with any existing tags.
+    try:
+        flow_run_id = UUID(sys.argv[1])
+    except Exception:
+        logger.error(
+            f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
+        )
+        exit(1)
 
-    Yields:
-        The current set of tags
-
-    Examples:
-        >>> from prefect import tags, task, flow
-        >>> @task
-        >>> def my_task():
-        >>>     pass
-
-        Run a task with tags
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("a", "b"):
-        >>>         my_task()  # has tags: a, b
-
-        Run a flow with tags
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     pass
-        >>> with tags("a", b"):
-        >>>     my_flow()  # has tags: a, b
-
-        Run a task with nested tag contexts
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("a", "b"):
-        >>>         with tags("c", "d"):
-        >>>             my_task()  # has tags: a, b, c, d
-        >>>         my_task()  # has tags: a, b
-
-        Inspect the current tags
-
-        >>> @flow
-        >>> def my_flow():
-        >>>     with tags("c", "d"):
-        >>>         with tags("e", "f") as current_tags:
-        >>>              print(current_tags)
-        >>> with tags("a", b"):
-        >>>     my_flow()
-        {"a", "b", "c", "d", "e", "f"}
-    """
-    current_tags = TagsContext.get().current_tags
-    new_tags = current_tags.union(new_tags)
-    with TagsContext(current_tags=new_tags):
-        yield new_tags
+    try:
+        enter_flow_run_engine_from_subprocess(flow_run_id)
+    except Abort as exc:
+        logger.info(
+            f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
+        )
+        exit(0)
+    except Exception:
+        logger.error(
+            f"Engine execution of flow run '{flow_run_id}' exited with unexpected "
+            "exception",
+            exc_info=True,
+        )
+        exit(1)
+    except BaseException:
+        logger.error(
+            f"Engine execution of flow run '{flow_run_id}' interrupted by base "
+            "exception",
+            exc_info=True,
+        )
+        # Let the exit code be determined by the base exception type
+        raise

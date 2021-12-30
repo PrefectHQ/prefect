@@ -37,6 +37,7 @@ from prefect.utilities.logging import get_logger
 if TYPE_CHECKING:
     from prefect.flows import Flow
     from prefect.tasks import Task
+    from prefect.flow_runners import FlowRunner
 
 
 def inject_client(fn):
@@ -273,11 +274,12 @@ class OrionClient:
 
     async def create_flow_run_from_deployment(
         self,
-        deployment: schemas.core.Deployment,
+        deployment_id: UUID,
         *,
         parameters: Dict[str, Any] = None,
         context: dict = None,
         state: schemas.states.State = None,
+        flow_runner: "FlowRunner" = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a deployment.
@@ -289,6 +291,7 @@ class OrionClient:
             context: Optional run context data
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            flow_runner: An optional flow runnner to use to execute this flow run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -304,10 +307,11 @@ class OrionClient:
             parameters=parameters,
             context=context,
             state=state,
+            flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
         response = await self.post(
-            f"/deployments/{deployment.id}/create_flow_run",
+            f"/deployments/{deployment_id}/create_flow_run",
             json=flow_run_create.dict(json_compatible=True),
         )
         return schemas.core.FlowRun.parse_obj(response.json())
@@ -321,6 +325,7 @@ class OrionClient:
         tags: Iterable[str] = None,
         parent_task_run_id: UUID = None,
         state: schemas.states.State = None,
+        flow_runner: "FlowRunner" = None,
     ) -> schemas.core.FlowRun:
         """
         Create a flow run for a flow.
@@ -335,6 +340,7 @@ class OrionClient:
                 of the parent flow
             state: The initial state for the run. If not provided, defaults to
                 `Scheduled` for now. Should always be a `Scheduled` type.
+            flow_runner: An optional flow runnner to use to execute this flow run.
 
         Raises:
             httpx.RequestError: if Orion does not successfully create a run for any reason
@@ -360,10 +366,10 @@ class OrionClient:
             tags=list(tags or []),
             parent_task_run_id=parent_task_run_id,
             state=state,
+            flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
         flow_run_create_json = flow_run_create.dict(json_compatible=True)
-
         response = await self.post("/flow_runs/", json=flow_run_create_json)
         flow_run = schemas.core.FlowRun.parse_obj(response.json())
 
@@ -407,6 +413,7 @@ class OrionClient:
         schedule: schemas.schedules.SCHEDULE_TYPES = None,
         parameters: Dict[str, Any] = None,
         tags: List[str] = None,
+        flow_runner: "FlowRunner" = None,
     ) -> UUID:
         """
         Create a flow deployment in Orion.
@@ -417,6 +424,7 @@ class OrionClient:
             flow_data: a data document that can be resolved into a flow object or script
             schedule: an optional schedule to apply to the deployment
             tags: an optional list of tags to apply to the deployment
+            flow_runner: an optional flow runner to specify for this deployment
 
         Raises:
             httpx.RequestError: if the deployment was not created for any reason
@@ -431,6 +439,7 @@ class OrionClient:
             flow_data=flow_data,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            flow_runner=flow_runner.to_settings() if flow_runner else None,
         )
 
         response = await self.post(
@@ -1008,20 +1017,24 @@ class OrionClient:
             raise TypeError(
                 f"`resolve_datadoc` received invalid type {type(datadoc).__name__}"
             )
-        result = datadoc
-        while isinstance(result, DataDocument):
-            if result.encoding == "orion":
-                inner_doc_bytes = await self.retrieve_data(result)
+
+        async def resolve_inner(data):
+            if isinstance(data, bytes):
                 try:
-                    result = DataDocument.parse_raw(inner_doc_bytes)
-                except pydantic.ValidationError as exc:
-                    raise ValueError(
-                        "Expected `orion` encoded document to contain another data "
-                        "document but it could not be parsed."
-                    ) from exc
-            else:
-                result = result.decode()
-        return result
+                    data = DataDocument.parse_raw(data)
+                except pydantic.ValidationError:
+                    return data
+
+            if isinstance(data, DataDocument):
+                if data.encoding == "orion":
+                    data = await self.retrieve_data(data)
+                else:
+                    data = data.decode()
+                return await resolve_inner(data)
+
+            return data
+
+        return await resolve_inner(datadoc)
 
     async def __aenter__(self):
         await self._client.__aenter__()
