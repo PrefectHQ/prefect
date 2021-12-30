@@ -97,7 +97,7 @@ jobs:
 
       - name: Load Docker image
         run:
-          docker load /tmp/image.tar
+          docker load --input /tmp/image.tar
 
       - name: Run tests
         env:
