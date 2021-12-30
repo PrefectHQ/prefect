@@ -44,7 +44,7 @@
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto d-flex align-middle nowrap">
+    <div v-if="media.sm" class="ml-auto d-flex align-middle nowrap">
       <Toggle v-if="false" v-model="scheduleActive" />
 
       <Button
@@ -128,6 +128,7 @@ import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
 import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
+import media from '@/utilities/media'
 
 class Props {
   item = prop<Deployment>({ required: true })
@@ -153,6 +154,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
   search: string = ''
   scheduleActive: boolean = this.item.is_schedule_active
   creatingRun: boolean = false
+  media = media
 
   async createRun(): Promise<void> {
     this.creatingRun = true
