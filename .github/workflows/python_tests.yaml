@@ -3,8 +3,8 @@ name: Python tests
 on: [pull_request]
 
 jobs:
-  build-docker-images:
-    name: Build Docker test images
+  build-test-docker-images:
+    name: Build test Docker images
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -57,7 +57,7 @@ jobs:
 
   run-tests-sqlite:
     name: SQLite
-    needs: [build-docker-images]
+    needs: [build-test-docker-images]
 
     strategy:
       matrix:
@@ -109,7 +109,7 @@ jobs:
 
   run-tests-postgres:
     name: Postgres
-    needs: [build-docker-images]
+    needs: [build-test-docker-images]
 
     strategy:
       matrix:
@@ -172,7 +172,7 @@ jobs:
 
   run-tests-lower-bounds:
     name: Lower bound requirements
-    needs: [build-docker-images]
+    needs: [build-test-docker-images]
     # We cannot test on Ubuntu LTS because the sqlite version is not new enough
     runs-on: ubuntu-latest
 
