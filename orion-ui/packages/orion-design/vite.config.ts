@@ -8,7 +8,7 @@ export default defineConfig({
     alias: [
       {
         find: '@',
-        replacement: resolve(__dirname, '../src')
+        replacement: resolve(__dirname, '../../src')
       }
     ]
   },
@@ -26,6 +26,15 @@ export default defineConfig({
         globals: {
           vue: 'Vue'
         }
+      }
+    }
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: `
+        @use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+        `
       }
     }
   }

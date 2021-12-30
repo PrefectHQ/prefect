@@ -2,12 +2,11 @@
     "extends": "../../tsconfig.json",
     "include": [
         "src",
-        "../../src/typings/index.d.ts"
+        "../../src/typings"
     ],
     "exclude": ["node_modules"],
     "compilerOptions": {
         "emitDeclarationOnly": true,
         "outFile": "dist/index.d.ts",
-        "baseUrl": "."
     }
 }
