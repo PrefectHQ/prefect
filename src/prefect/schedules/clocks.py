@@ -391,10 +391,10 @@ class RRuleClock(Clock):
 
     See below links for helpful info:
 
-    IETF iCalendar specification RFC5545: 
+    IETF iCalendar specification RFC5545:
     https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html
 
-    dateutil rrule module, an implementation of the iCal specification recurrence rules: 
+    dateutil rrule module, an implementation of the iCal specification recurrence rules:
     https://dateutil.readthedocs.io/en/stable/rrule.html
 
     Args:
