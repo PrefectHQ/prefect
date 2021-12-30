@@ -25,7 +25,7 @@ which covers in greater detail how to write Prefect Flows.
 Before starting the tutorial, you'll need a working install of the core Prefect
 library.
 
-You can find installation instructions [here](/core/getting_started/installation.html).
+You can find installation instructions [here](/core/getting_started/install.html).
 
 ## Select an Orchestration Backend
 

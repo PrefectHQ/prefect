@@ -51,7 +51,12 @@ class TestSnowflakeQuery:
         assert output == ["TESTDB"]
         for call in snowflake_module_connect_method.call_args_list:
             args, kwargs = call
-            assert kwargs == dict(account="test", user="test", password="test")
+            assert kwargs == dict(
+                account="test",
+                user="test",
+                password="test",
+                application="Prefect_SnowflakeQuery",
+            )
 
     def test_required_parameters(self):
         # missing account
@@ -210,7 +215,12 @@ class TestSnowflakeQueriesFromFile:
         assert output == ["TESTDB"]
         for call in snowflake_module_connect_method.call_args_list:
             args, kwargs = call
-            assert kwargs == dict(account="test", user="test", password="test")
+            assert kwargs == dict(
+                account="test",
+                user="test",
+                password="test",
+                application="Prefect_SnowflakeQueriesFromFile",
+            )
 
     def test_required_parameters(self):
         # missing account

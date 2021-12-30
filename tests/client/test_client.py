@@ -19,7 +19,7 @@ from prefect.environments.execution import LocalEnvironment
 from prefect.storage import Local
 from prefect.run_configs import LocalRun
 from prefect.utilities.configuration import set_temporary_config
-from prefect.exceptions import ClientError, AuthorizationError
+from prefect.exceptions import ClientError, AuthorizationError, ObjectNotFoundError
 from prefect.utilities.graphql import decompress
 
 
@@ -251,6 +251,27 @@ class TestClientAuthentication:
 
             with pytest.raises(ClientError, match="no tenant"):
                 client._get_default_server_tenant()
+
+
+def test_client_requests_use_retries(monkeypatch):
+    Session, HTTPAdapter, Retry = MagicMock(), MagicMock(), MagicMock()
+    monkeypatch.setattr("requests.Session", Session)
+    monkeypatch.setattr("requests.adapters.HTTPAdapter", HTTPAdapter)
+    monkeypatch.setattr("urllib3.util.retry.Retry", Retry)
+
+    client = Client()
+    client.post("/foo/bar")
+
+    # These don't implement equality checks so we can't just assert `mount` was called
+    # correctly and need to check each object individually
+    Retry.assert_called_once_with(
+        total=6,
+        backoff_factor=1,
+        status_forcelist=[500, 502, 503, 504],
+        allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
+    )
+    HTTPAdapter.assert_called_once_with(max_retries=Retry())
+    Session().mount.assert_called_once_with("https://", HTTPAdapter())
 
 
 def test_client_posts_to_api_server(patch_post):
@@ -1286,6 +1307,16 @@ def test_get_flow_run_state(patch_posts, cloud_api, runner_token):
     assert isinstance(state, Pending)
     assert state._result.location == "42"
     assert state.message is None
+
+
+def test_get_flow_run_state_object_not_found(patch_posts, cloud_api, runner_token):
+    query_resp = {"flow_run_by_pk": {}}
+
+    patch_posts([dict(data=query_resp)])
+
+    client = Client()
+    with pytest.raises(ObjectNotFoundError):
+        client.get_flow_run_state(flow_run_id="72-salt")
 
 
 def test_set_flow_run_state(patch_post):

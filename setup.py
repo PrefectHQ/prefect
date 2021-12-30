@@ -35,6 +35,8 @@ orchestration_extras = {
     "gcp": [
         "google-cloud-secret-manager >= 2.4.0",
         "google-cloud-storage >= 1.13, < 2.0",
+        "google-cloud-aiplatform >= 1.4.0, < 2.0",
+        "google-auth >= 2.0, < 3.0",
     ],
     "git": ["dulwich >= 0.19.7"],
     "github": ["PyGithub >= 1.51, < 2.0"],
@@ -54,16 +56,17 @@ extras = {
     "dask_cloudprovider": ["dask_cloudprovider[aws] >= 0.2.0"],
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
-    "ge": ["great_expectations >= 0.11.1"],
+    "firebolt": ["firebolt-sdk >= 0.2.1"],
+    "ge": ["great_expectations >= 0.13.8, < 0.14", "mistune < 2"],
     "gcp": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "git": orchestration_extras["git"],
     "github": orchestration_extras["github"],
     "gitlab": orchestration_extras["gitlab"],
     "google": [
-        "google-cloud-bigquery >= 1.6.0, < 2.0",
+        "google-cloud-bigquery >= 1.6.0, < 3.0",
     ]
     + orchestration_extras["gcp"],
     "gsheets": ["gspread >= 3.6.0"],
@@ -81,7 +84,7 @@ extras = {
     "rss": ["feedparser >= 5.0.1, < 6.0"],
     "snowflake": ["snowflake-connector-python >= 1.8.2, < 2.5"],
     "spacy": ["spacy >= 2.0.0, < 3.0.0"],
-    "templates": ["jinja2 >= 2.0, < 3.0"],
+    "templates": ["jinja2 >= 2.0, < 4.0"],
     "test": test_requires,
     "vault": ["hvac >= 0.10"],
     "viz": ["graphviz >= 0.8.3"],
@@ -89,6 +92,7 @@ extras = {
     "dremio": ["pyarrow >= 5.0.0"],
     "exasol": ["pyexasol >= 0.16.1"],
     "sodasql": ["soda-sql >= 2.0.0b25"],
+    "sodaspark": ["soda-spark >= 0.2.1"],
     "sendgrid": ["sendgrid >= 6.7.0"],
 }
 

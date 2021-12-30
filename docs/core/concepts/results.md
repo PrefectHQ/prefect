@@ -79,7 +79,7 @@ from prefect.engine.results import S3Result
 
 @task
 def my_task():
-    s3_result = S3Result(bucket='bucket_o_models')
+    s3_result = S3Result(bucket='bucket_of_models')
     my_saved_model_result = s3_result.read(location='model.pickle')
     my_model = my_saved_model_result.value
     # ...

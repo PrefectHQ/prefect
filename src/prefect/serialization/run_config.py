@@ -1,12 +1,19 @@
 from marshmallow import fields
 
+from prefect.run_configs import (
+    DockerRun,
+    ECSRun,
+    KubernetesRun,
+    LocalRun,
+    UniversalRun,
+    VertexRun,
+)
 from prefect.utilities.serialization import (
     JSONCompatible,
-    OneOfSchema,
     ObjectSchema,
+    OneOfSchema,
     SortedList,
 )
-from prefect.run_configs import KubernetesRun, LocalRun, DockerRun, ECSRun, UniversalRun
 
 
 class RunConfigSchemaBase(ObjectSchema):
@@ -61,8 +68,23 @@ class DockerRunSchema(RunConfigSchemaBase):
     class Meta:
         object_class = DockerRun
 
+    ports = fields.List(fields.Int, allow_none=True)
     image = fields.String(allow_none=True)
     host_config = fields.Dict(keys=fields.String(), allow_none=True)
+
+
+class VertexRunSchema(RunConfigSchemaBase):
+    class Meta:
+        object_class = VertexRun
+
+    image = fields.String(allow_none=True)
+    machine_type = fields.String(allow_none=True)
+    scheduling = fields.Dict(keys=fields.String(), allow_none=True)
+    service_account = fields.String(allow_none=True)
+    network = fields.String(allow_none=True)
+    worker_pool_specs = fields.List(
+        fields.Dict(keys=fields.String(), allow_none=True), allow_none=True
+    )
 
 
 class RunConfigSchema(OneOfSchema):
@@ -72,4 +94,5 @@ class RunConfigSchema(OneOfSchema):
         "LocalRun": LocalRunSchema,
         "DockerRun": DockerRunSchema,
         "UniversalRun": UniversalRunSchema,
+        "VertexRun": VertexRunSchema,
     }

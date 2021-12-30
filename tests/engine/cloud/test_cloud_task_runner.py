@@ -999,11 +999,15 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     runner = CloudTaskRunner(task=task)
     runner.task_run_id = "id"
 
-    runner.set_task_run_name(task_inputs={})
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
 
-    assert client.set_task_run_name.called
-    assert client.set_task_run_name.call_args[1]["name"] == "asdf"
-    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        runner.set_task_run_name(task_inputs={})
+
+        assert client.set_task_run_name.called
+        assert client.set_task_run_name.call_args[1]["name"] == "asdf"
+        assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        assert prefect.context.get("task_run_name") == "asdf"
 
     task = Task(name="test", task_run_name="{map_index}")
     runner = CloudTaskRunner(task=task)
@@ -1012,21 +1016,29 @@ def test_task_runner_sets_task_name(monkeypatch, cloud_settings):
     class Temp:
         value = 100
 
-    runner.set_task_run_name(task_inputs={"map_index": Temp()})
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
 
-    assert client.set_task_run_name.called
-    assert client.set_task_run_name.call_args[1]["name"] == "100"
-    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        runner.set_task_run_name(task_inputs={"map_index": Temp()})
+
+        assert client.set_task_run_name.called
+        assert client.set_task_run_name.call_args[1]["name"] == "100"
+        assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        assert prefect.context.get("task_run_name") == "100"
 
     task = Task(name="test", task_run_name=lambda **kwargs: "name")
     runner = CloudTaskRunner(task=task)
     runner.task_run_id = "id"
 
-    runner.set_task_run_name(task_inputs={})
+    with prefect.context():
+        assert prefect.context.get("task_run_name") is None
 
-    assert client.set_task_run_name.called
-    assert client.set_task_run_name.call_args[1]["name"] == "name"
-    assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        runner.set_task_run_name(task_inputs={})
+
+        assert client.set_task_run_name.called
+        assert client.set_task_run_name.call_args[1]["name"] == "name"
+        assert client.set_task_run_name.call_args[1]["task_run_id"] == "id"
+        assert prefect.context.get("task_run_name") == "name"
 
 
 def test_task_runner_set_task_name_same_as_prefect_context(client):

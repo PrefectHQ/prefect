@@ -157,7 +157,7 @@ Unlike GitHub or GitLab, Bitbucket organizes repositories in Projects and each r
 [CodeCommit Storage](/api/latest/storage.html#codecommit) is a storage option that uploads flows to a CodeCommit repository as `.py` files.
 
 :::tip AWS Credentials
-S3 Storage uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
+CodeCommit uses AWS credentials the same way as [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html) which means both upload (build) and download (local agent) times need to have proper AWS credential configuration.
 :::
 
 ## Docker

@@ -235,7 +235,7 @@ print('\n'.join([f'{s.result[0]}: {s}' for s in dialogue_state.map_states[:5]]))
     Squeeze - 1X02: Success("Task run succeeded.")
     Conduit - 1X03: Success("Task run succeeded.")
 
-Great - 5 minutes isn't so bad! An astute reader might notice that each mapped task is ["embarrassingly parallel"](https://en.wikipedia.org/wiki/Embarrassingly_parallel). When running locally, Prefect will default to synchronous execution (with the `Synchronous` executor), so this property was not taken advantage of during execution.
+Great - 5 minutes isn't so bad! An astute reader might notice that each mapped task is ["embarrassingly parallel"](https://en.wikipedia.org/wiki/Embarrassingly_parallel). When running locally, Prefect will default to synchronous execution (with the `LocalExecutor`), so this property was not taken advantage of during execution.
 
 In order to allow for parallel execution of tasks, we don't need to "recompile"
 our flow: we provide an executor which can handle parallelism in our call to

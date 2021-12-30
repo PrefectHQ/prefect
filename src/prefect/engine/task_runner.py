@@ -685,13 +685,30 @@ class TaskRunner(Runner):
 
     def set_task_run_name(self, task_inputs: Dict[str, Result]) -> None:
         """
-        Sets the name for this task run.
+        Sets the name for this task run and adds to `prefect.context`
 
         Args:
             - task_inputs (Dict[str, Result]): a dictionary of inputs whose keys correspond
                 to the task's `run()` arguments.
+
         """
-        pass
+
+        task_run_name = self.task.task_run_name
+
+        if task_run_name:
+            raw_inputs = {k: r.value for k, r in task_inputs.items()}
+            formatting_kwargs = {
+                **prefect.context.get("parameters", {}),
+                **prefect.context,
+                **raw_inputs,
+            }
+
+            if not isinstance(task_run_name, str):
+                task_run_name = task_run_name(**formatting_kwargs)
+            else:
+                task_run_name = task_run_name.format(**formatting_kwargs)
+
+            prefect.context.update({"task_run_name": task_run_name})
 
     @call_state_handlers
     def check_target(self, state: State, inputs: Dict[str, Result]) -> State:

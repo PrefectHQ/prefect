@@ -6,6 +6,8 @@ import weakref
 from contextlib import contextmanager
 from typing import Any, Callable, Iterator, TYPE_CHECKING, Union, Optional, Dict
 
+from prefect.utilities.compatibility import nullcontext
+
 from prefect import context
 from prefect.executors.base import Executor
 from prefect.utilities.importtools import import_object
@@ -96,6 +98,8 @@ class DaskExecutor(Executor):
             `debug=True` will increase dask's logging level, providing
             potentially useful debug info. Defaults to the `debug` value in
             your Prefect configuration.
+        - performance_report_path (str, optional): An optional path for the [dask performance
+            report](https://distributed.dask.org/en/latest/api.html#distributed.performance_report).
 
     Examples:
 
@@ -134,6 +138,7 @@ class DaskExecutor(Executor):
         adapt_kwargs: dict = None,
         client_kwargs: dict = None,
         debug: bool = None,
+        performance_report_path: str = None,
     ):
         if address is None:
             address = context.config.engine.executor.dask.address or None
@@ -186,6 +191,8 @@ class DaskExecutor(Executor):
         # A ref to a background task subscribing to dask cluster events
         self._watch_dask_events_task = None  # type: Optional[concurrent.futures.Future]
 
+        self.performance_report_path = performance_report_path
+
         super().__init__()
 
     @contextmanager
@@ -198,7 +205,13 @@ class DaskExecutor(Executor):
         if sys.platform != "win32":
             # Fix for https://github.com/dask/distributed/issues/4168
             import multiprocessing.popen_spawn_posix  # noqa
-        from distributed import Client
+        from distributed import Client, performance_report
+
+        performance_report_context = (
+            performance_report(self.performance_report_path)
+            if self.performance_report_path
+            else nullcontext()
+        )
 
         try:
             if self.address is not None:
@@ -206,12 +219,14 @@ class DaskExecutor(Executor):
                     "Connecting to an existing Dask cluster at %s", self.address
                 )
                 with Client(self.address, **self.client_kwargs) as client:
-                    self.client = client
-                    try:
-                        self._pre_start_yield()
-                        yield
-                    finally:
-                        self._post_start_yield()
+
+                    with performance_report_context:
+                        self.client = client
+                        try:
+                            self._pre_start_yield()
+                            yield
+                        finally:
+                            self._post_start_yield()
             else:
                 assert callable(self.cluster_class)  # mypy
                 assert isinstance(self.cluster_kwargs, dict)  # mypy
@@ -229,12 +244,13 @@ class DaskExecutor(Executor):
                     if self.adapt_kwargs:
                         cluster.adapt(**self.adapt_kwargs)
                     with Client(cluster, **self.client_kwargs) as client:
-                        self.client = client
-                        try:
-                            self._pre_start_yield()
-                            yield
-                        finally:
-                            self._post_start_yield()
+                        with performance_report_context:
+                            self.client = client
+                            try:
+                                self._pre_start_yield()
+                                yield
+                            finally:
+                                self._post_start_yield()
         finally:
             self.client = None
 
@@ -422,6 +438,27 @@ class DaskExecutor(Executor):
             raise ValueError("This executor has not been started.")
 
         return self.client.gather(futures)
+
+    @property
+    def performance_report(self) -> str:
+        """The performance report html string."""
+        if self.performance_report_path is None:
+            self.logger.warning(
+                "Executor was not configured to generate performance report"
+            )
+            return ""
+        self.logger.debug(
+            f"Retreiving dask performance report from {self.performance_report_path!r}"
+        )
+        try:
+            with open(self.performance_report_path, "r", encoding="utf-8") as f:
+                report = f.read()
+                return report
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to get dask performance report with exception {exc}"
+            )
+            return ""
 
 
 def _multiprocessing_pool_initializer() -> None:

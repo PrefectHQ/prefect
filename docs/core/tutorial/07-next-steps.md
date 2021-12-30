@@ -60,7 +60,7 @@ In this tutorial we could have gone one step further and asked for fetching all 
 
 ::: tip More about Control Structures
 - [Mapping](/core/concepts/mapping.html#mapping)
-- [Task Looping](/core/advanced_tutorials/task_looping.html)
+- [Task Looping](/core/advanced_tutorials/task-looping.html)
 - [Signaling](/core/concepts/execution.html#state-signals)
 :::
 

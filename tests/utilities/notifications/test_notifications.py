@@ -260,6 +260,16 @@ def test_slack_notifier_is_curried_and_uses_only_states(monkeypatch, state):
     assert ok.called is isinstance(state, TriggerFailed)
 
 
+def test_slack_notifier_uses_proxies(monkeypatch):
+    post = MagicMock(ok=True)
+    monkeypatch.setattr(requests, "post", post)
+    state = Failed(message="1", result=0)
+    with set_temporary_config({"cloud.use_local_secrets": True}):
+        with prefect.context(secrets=dict(SLACK_WEBHOOK_URL="")):
+            slack_notifier(Task(), "", state, proxies={"http": "some.proxy.I.P"})
+    assert post.call_args[1]["proxies"] == {"http": "some.proxy.I.P"}
+
+
 def test_gmail_notifier_sends_simple_email(monkeypatch):
     smtp = MagicMock()
     sendmail = MagicMock()

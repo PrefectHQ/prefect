@@ -66,14 +66,28 @@ flow_run.state.message
 
 ### Getting flow run logs
 
-<!-- TODO after CLI merged -->
+Get a List of `FlowRunLog` from the flow run using `.get_logs()`:
+
+```python
+flow_run.get_logs()
+# [
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 30, 00, 000000, tzinfo=Timezone('+00:00')), level=20, message='Submitted for execution: Task XXXXXXX'),
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 30, 01, 123456, tzinfo=Timezone('+00:00')), level=20, message="Beginning Flow run for 'radio_show'"),
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 30, 02, 234567, tzinfo=Timezone('+00:00')), level=20, message="Task 'series_one': Starting task run..."),
+#   FlowRunLog(timestamp=DateTime(1978, 03, 08, 22, 42, 42, 424242, tzinfo=Timezone('+00:00')), level=20, message='It feels like I just had my brains smashed out by a slice of lemon wrapped round a large gold brick.'),
+#   FlowRunLog(timestamp=DateTime(1978, 04, 12, 22, 59, 59, 987654, tzinfo=Timezone('+00:00')), level=20, message="Task 'series_one': Finished task run for task with final state: 'Success'"),
+#   FlowRunLog(timestamp=DateTime(1978, 04, 12, 23, 00, 00, 000000, tzinfo=Timezone('+00:00')), level=20, message='Flow run SUCCESS: all reference tasks succeeded')
+# ]
+```
+
+Each `FlowRunLog` in the list contains a log message, along with the log level and timestamp.
 
 ### Getting flow metadata
 
 Metadata about the flow that the flow run was created for is accessible using `.get_flow_metadata()`
 
 ```python
-flow_run.get_flow_metdata()
+flow_run.get_flow_metadata()
 # FlowView(
 #   flow_id='8bdcf5b5-7598-49d1-a885-61612ca550de', 
 #   name='hello-world', 
