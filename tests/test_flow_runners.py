@@ -996,7 +996,7 @@ class TestDockerFlowRunner:
 
         output = client.containers.run(tag, "prefect version")
         container_version = output.decode().strip()
-        test_run_version = prefect.__version
+        test_run_version = prefect.__version__
 
         if test_run_version.startswith("0+untagged"):
             # We are in a CI test run with a shallow clone
