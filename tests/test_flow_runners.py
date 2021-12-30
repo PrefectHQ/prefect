@@ -975,16 +975,14 @@ class TestDockerFlowRunner:
 
         client = docker.client.from_env()
         tag = get_prefect_image_name()
-        build_message = (
-            f"Build the image with `docker build {prefect.__root_path__} -t {tag!r}`"
-        )
+        build_cmd = f"`docker build {prefect.__root_path__} -t {tag!r}`"
 
         try:
             client.images.get(tag)
         except docker.errors.NotFound as exc:
             raise RuntimeError(
                 "Docker service tests require the development image tag to be "
-                "available. " + build_message
+                "available. Build the image with " + build_cmd
             )
 
         output = client.containers.run(tag, "prefect version")
@@ -994,7 +992,8 @@ class TestDockerFlowRunner:
                 f"The development Docker image with tag {tag!r} has version "
                 f"{container_version!r} but tests were run with version "
                 f"{prefect.__version__!r}. You may safely ignore this warning if you "
-                "have intentionally not built a new test image."
+                "have intentionally not built a new test image. Rebuild the image "
+                "with " + build_cmd
             )
 
 
