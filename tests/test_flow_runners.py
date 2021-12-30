@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -491,7 +492,7 @@ class TestGetPrefectImageName:
     async def test_tag_detects_development(self, monkeypatch):
         monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
         monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
-        assert get_prefect_image_name() == "prefect:2.0.0.dev-python3.10"
+        assert get_prefect_image_name() == "prefect:dev-python3.10"
 
 
 class TestDockerFlowRunner:
@@ -973,13 +974,27 @@ class TestDockerFlowRunner:
         import docker.errors
 
         client = docker.client.from_env()
-        image = get_prefect_image_name()
+        tag = get_prefect_image_name()
+        build_message = (
+            f"Build the image with `docker build {prefect.__root_path__} -t {tag!r}`"
+        )
+
         try:
-            client.images.get(image)
+            client.images.get(tag)
         except docker.errors.NotFound as exc:
             raise RuntimeError(
-                "Docker service tests require the dev image tag to be available."
-                f"Build the image with `docker build . -t {image!r}`"
+                "Docker service tests require the development image tag to be "
+                "available. " + build_message
+            )
+
+        output = client.containers.run(tag, "prefect version")
+        container_version = output.decode().strip()
+        if container_version != prefect.__version__:
+            warnings.warn(
+                f"The development Docker image with tag {tag!r} has version "
+                f"{container_version!r} but tests were run with version "
+                f"{prefect.__version__!r}. You may safely ignore this warning if you "
+                "have intentionally not built a new test image."
             )
 
 
