@@ -45,25 +45,25 @@
         </div>
 
         <div class="py-1 px-2" :class="{ 'd-flex': media.md }">
-          <Form-Tags
+          <FormTags
             v-model="filters.flows.tags"
             title="Flows"
             icon="pi-flow"
             class="mb-2"
           />
-          <Form-Tags
+          <FormTags
             v-model="filters.deployments.tags"
             title="Deployments"
             icon="pi-map-pin-line"
             class="mb-2"
           />
-          <Form-Tags
+          <FormTags
             v-model="filters.flow_runs.tags"
             title="Flow runs"
             icon="pi-flow-run"
             class="mb-2"
           />
-          <Form-Tags
+          <FormTags
             v-model="filters.task_runs.tags"
             title="Task runs"
             icon="pi-task"
@@ -95,12 +95,12 @@
           </div>
 
           <div class="d-flex py-1 px-2">
-            <Form-States
+            <FormStates
               v-model="filters.flow_runs.states"
               title="Flow runs"
               icon="pi-flow-run"
             />
-            <Form-States
+            <FormStates
               v-model="filters.task_runs.states"
               title="Task runs"
               icon="pi-task"
@@ -126,13 +126,13 @@
           </div>
 
           <div class="d-flex py-1 px-2" :class="!media.md ? 'flex-column' : ''">
-            <Form-DateTime
+            <FormDateTime
               v-model="filters.flow_runs.timeframe"
               class="mr-1"
               title="Flow runs"
               icon="pi-flow-run"
             />
-            <Form-DateTime
+            <FormDateTime
               v-model="filters.task_runs.timeframe"
               title="Task runs"
               icon="pi-task"
@@ -172,6 +172,9 @@
 import { ref, readonly } from 'vue'
 import { useStore } from 'vuex'
 import FilterAccordion from './FilterAccordion.vue'
+import FormTags from './composables/Form--Tags.vue'
+import FormStates from './composables/Form--States.vue'
+import FormDateTime from './composables/Form--DateTime.vue'
 import media from '@/utilities/media'
 
 const emit = defineEmits(['close'])
