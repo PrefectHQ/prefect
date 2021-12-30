@@ -486,13 +486,22 @@ class TestGetPrefectImageName:
     async def test_tag_includes_python_minor_version(self, monkeypatch):
         monkeypatch.setattr("prefect.__version__", "2.0.0")
         assert (
-            get_prefect_image_name() == f"prefect:2.0.0-python{python_version_minor()}"
+            get_prefect_image_name()
+            == f"prefecthq/prefect:2.0.0-python{python_version_minor()}"
+        )
+
+    @pytest.mark.parametrize("prerelease", ["a", "a5", "b1", "rc2"])
+    async def test_tag_includes_prereleases(self, monkeypatch, prerelease):
+        monkeypatch.setattr("prefect.__version__", "2.0.0" + prerelease)
+        assert (
+            get_prefect_image_name()
+            == f"prefecthq/prefect:2.0.0{prerelease}-python{python_version_minor()}"
         )
 
     async def test_tag_detects_development(self, monkeypatch):
         monkeypatch.setattr("prefect.__version__", "2.0.0+nfasoi")
         monkeypatch.setattr("sys.version_info", fake_python_version(major=3, minor=10))
-        assert get_prefect_image_name() == "prefect:dev-python3.10"
+        assert get_prefect_image_name() == "prefecthq/prefect:dev-python3.10"
 
 
 class TestDockerFlowRunner:
