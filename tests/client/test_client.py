@@ -265,7 +265,7 @@ def test_client_requests_use_retries(monkeypatch):
     # These don't implement equality checks so we can't just assert `mount` was called
     # correctly and need to check each object individually
     Retry.assert_called_once_with(
-        total=6,
+        total=12,
         backoff_factor=1,
         status_forcelist=[500, 502, 503, 504],
         allowed_methods=["DELETE", "GET", "POST"],  # type: ignore
