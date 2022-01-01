@@ -8,4 +8,4 @@ except ImportError as exc:
         'Using `prefect.tasks.sendgrid` requires Prefect to be installed with the "sendgrid" extra.'
     ) from exc
 
-__all__ = ['SendEmail']
+__all__ = ["SendEmail"]

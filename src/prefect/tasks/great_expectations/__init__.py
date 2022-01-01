@@ -13,4 +13,4 @@ except ImportError as err:
         'Using `prefect.tasks.great_expectations` requires Prefect to be installed with the "ge" extra.'
     ) from err
 
-__all__ = ['RunGreatExpectationsValidation']
+__all__ = ["RunGreatExpectationsValidation"]

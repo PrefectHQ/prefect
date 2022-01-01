@@ -9,4 +9,4 @@ except ImportError as err:
         "Using `prefect.tasks.dbt` requires dbt to be installed."
     ) from err
 
-__all__ = ['DbtShellTask', 'DbtCloudRunJob']
+__all__ = ["DbtShellTask", "DbtCloudRunJob"]

@@ -11,4 +11,4 @@ except ImportError as err:
         'Using `prefect.tasks.gsheets` requires Prefect to be installed with the "gsheets" extra.'
     ) from err
 
-__all__ = ['ReadGsheetRow', 'WriteGsheetRow']
+__all__ = ["ReadGsheetRow", "WriteGsheetRow"]

@@ -8,4 +8,4 @@ except ImportError as err:
         'Using `prefect.tasks.airtable` requires Prefect to be installed with the "airtable" extra.'
     ) from err
 
-__all__ = ['ReadAirtableRow', 'WriteAirtableRow']
+__all__ = ["ReadAirtableRow", "WriteAirtableRow"]

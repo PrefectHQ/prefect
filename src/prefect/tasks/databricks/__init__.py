@@ -5,4 +5,4 @@ This module contains a collection of tasks for interacting with Databricks resou
 from prefect.tasks.databricks.databricks_submitjob import DatabricksSubmitRun
 from prefect.tasks.databricks.databricks_submitjob import DatabricksRunNow
 
-__all__ = ['DatabricksRunNow', 'DatabricksSubmitRun']
+__all__ = ["DatabricksRunNow", "DatabricksSubmitRun"]

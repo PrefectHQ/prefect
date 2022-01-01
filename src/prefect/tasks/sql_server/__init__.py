@@ -14,4 +14,4 @@ except ImportError as err:
         'Using `prefect.tasks.sql_server` requires Prefect to be installed with the "sql_server" extra.'
     ) from err
 
-__all__ = ['SqlServerExecute', 'SqlServerExecuteMany', 'SqlServerFetch']
+__all__ = ["SqlServerExecute", "SqlServerExecuteMany", "SqlServerFetch"]

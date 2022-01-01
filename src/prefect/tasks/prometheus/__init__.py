@@ -11,4 +11,4 @@ except ImportError as err:
         'Using `prefect.tasks.prometheus` requires Prefect to be installed with the "prometheus" extra.'
     ) from err
 
-__all__ = ['PushAddGaugeToGateway', 'PushGaugeToGateway']
+__all__ = ["PushAddGaugeToGateway", "PushGaugeToGateway"]

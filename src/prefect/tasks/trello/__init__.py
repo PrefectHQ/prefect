@@ -7,4 +7,4 @@ and '"TRELLO_SERVER_TOKEN"' (click the 'Token' link on https://trello.com/app-ke
 
 from prefect.tasks.trello.trello import CreateCard
 
-__all__ = ['CreateCard']
+__all__ = ["CreateCard"]

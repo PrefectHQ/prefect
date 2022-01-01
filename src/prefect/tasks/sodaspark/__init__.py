@@ -9,4 +9,4 @@ except ImportError as err:
         'Using `prefect.tasks.sodaspark` requires Prefect to be installed with the "sodaspark" extra.'
     ) from err
 
-__all__ = ['SodaSparkScan']
+__all__ = ["SodaSparkScan"]

@@ -14,4 +14,10 @@ except ImportError as err:
         'Using `prefect.tasks.azure` requires Prefect to be installed with the "azure" extra.'
     ) from err
 
-__all__ = ['BlobStorageDownload', 'BlobStorageUpload', 'CosmosDBCreateItem', 'CosmosDBQueryItems', 'CosmosDBReadItems']
+__all__ = [
+    "BlobStorageDownload",
+    "BlobStorageUpload",
+    "CosmosDBCreateItem",
+    "CosmosDBQueryItems",
+    "CosmosDBReadItems",
+]

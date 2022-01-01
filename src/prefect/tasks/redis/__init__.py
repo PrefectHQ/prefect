@@ -10,4 +10,4 @@ except ImportError as err:
         'Using `prefect.tasks.redis` requires Prefect to be installed with the "redis" extra.'
     ) from err
 
-__all__ = ['RedisExecute', 'RedisGet', 'RedisSet']
+__all__ = ["RedisExecute", "RedisGet", "RedisSet"]

@@ -9,4 +9,4 @@ except ImportError as err:
         'Using `prefect.tasks.sodasql` requires Prefect to be installed with the "sodasql" extra.'
     ) from err
 
-__all__ = ['SodaSQLScan']
+__all__ = ["SodaSQLScan"]

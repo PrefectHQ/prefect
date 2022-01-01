@@ -9,4 +9,4 @@ except ImportError as import_error:
         'Using `prefect.tasks.mysql` requires Prefect to be installed with the "mysql" extra.'
     ) from import_error
 
-__all__ = ['MySQLExecute', 'MySQLFetch']
+__all__ = ["MySQLExecute", "MySQLFetch"]

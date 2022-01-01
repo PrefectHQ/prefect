@@ -3,4 +3,4 @@ This module contains a task for triggering [Airbyte](https://airbyte.io/) connec
 """
 from .airbyte import AirbyteConnectionTask
 
-__all__ = ['AirbyteConnectionTask']
+__all__ = ["AirbyteConnectionTask"]

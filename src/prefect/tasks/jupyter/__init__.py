@@ -8,4 +8,4 @@ except ImportError as import_error:
         'Using `prefect.tasks.jupyter` requires Prefect to be installed with the "jupyter" extra.'
     ) from import_error
 
-__all__ = ['ExecuteNotebook']
+__all__ = ["ExecuteNotebook"]

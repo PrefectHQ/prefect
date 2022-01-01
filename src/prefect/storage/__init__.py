@@ -43,4 +43,19 @@ def get_default_storage_class() -> type:
     else:
         return config_value
 
-__all__ = ['Azure', 'Bitbucket', 'CodeCommit', 'Docker', 'GCS', 'Git', 'GitHub', 'GitLab', 'Local', 'Module', 'S3', 'Storage', 'Webhook']
+
+__all__ = [
+    "Azure",
+    "Bitbucket",
+    "CodeCommit",
+    "Docker",
+    "GCS",
+    "Git",
+    "GitHub",
+    "GitLab",
+    "Local",
+    "Module",
+    "S3",
+    "Storage",
+    "Webhook",
+]

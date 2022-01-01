@@ -24,4 +24,15 @@ except ImportError as err:
         'Using `prefect.tasks.gcp` requires Prefect to be installed with the "gcp" extra.'
     ) from err
 
-__all__ = ['BigQueryLoadFile', 'BigQueryLoadGoogleCloudStorage', 'BigQueryStreamingInsert', 'BigQueryTask', 'CreateBigQueryTable', 'GCPSecret', 'GCSBlobExists', 'GCSCopy', 'GCSDownload', 'GCSUpload']
+__all__ = [
+    "BigQueryLoadFile",
+    "BigQueryLoadGoogleCloudStorage",
+    "BigQueryStreamingInsert",
+    "BigQueryTask",
+    "CreateBigQueryTable",
+    "GCPSecret",
+    "GCSBlobExists",
+    "GCSCopy",
+    "GCSDownload",
+    "GCSUpload",
+]

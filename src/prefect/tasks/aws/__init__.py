@@ -20,4 +20,16 @@ except ImportError as err:
         'Using `prefect.tasks.aws` requires Prefect to be installed with the "aws" extra.'
     ) from err
 
-__all__ = ['AWSClientWait', 'AWSSecretsManager', 'BatchSubmit', 'LambdaCreate', 'LambdaDelete', 'LambdaInvoke', 'LambdaList', 'S3Download', 'S3List', 'S3Upload', 'StepActivate']
+__all__ = [
+    "AWSClientWait",
+    "AWSSecretsManager",
+    "BatchSubmit",
+    "LambdaCreate",
+    "LambdaDelete",
+    "LambdaInvoke",
+    "LambdaList",
+    "S3Download",
+    "S3List",
+    "S3Upload",
+    "StepActivate",
+]

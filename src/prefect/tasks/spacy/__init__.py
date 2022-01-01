@@ -14,4 +14,4 @@ except ImportError as exc:
         'Using `prefect.tasks.spacy` requires Prefect to be installed with the "spacy" extra.'
     ) from exc
 
-__all__ = ['SpacyComponent', 'SpacyNER', 'SpacyNLP', 'SpacyParser', 'SpacyTagger']
+__all__ = ["SpacyComponent", "SpacyNER", "SpacyNLP", "SpacyParser", "SpacyTagger"]

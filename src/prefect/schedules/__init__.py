@@ -9,4 +9,4 @@ from prefect.schedules.schedules import (
     RRuleSchedule,
 )
 
-__all__ = ['CronSchedule', 'IntervalSchedule', 'RRuleSchedule', 'Schedule']
+__all__ = ["CronSchedule", "IntervalSchedule", "RRuleSchedule", "Schedule"]

@@ -12,4 +12,4 @@ import prefect.tasks.notifications
 import prefect.tasks.secrets
 import prefect.tasks.shell
 
-__all__ = ['Task']
+__all__ = ["Task"]

@@ -8,4 +8,4 @@ except ImportError as exc:
         'Using `prefect.tasks.twitter` requires Prefect to be installed with the "twitter" extra.'
     ) from exc
 
-__all__ = ['LoadTweetReplies']
+__all__ = ["LoadTweetReplies"]

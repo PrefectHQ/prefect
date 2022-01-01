@@ -3,4 +3,4 @@ This module contains a task for starting and monitoring [Census](https://getcens
 """
 from .census import CensusSyncTask
 
-__all__ = ['CensusSyncTask']
+__all__ = ["CensusSyncTask"]

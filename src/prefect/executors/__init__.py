@@ -20,4 +20,4 @@ from .base import Executor
 from .dask import DaskExecutor, LocalDaskExecutor
 from .local import LocalExecutor
 
-__all__ = ['DaskExecutor', 'Executor', 'LocalDaskExecutor', 'LocalExecutor']
+__all__ = ["DaskExecutor", "Executor", "LocalDaskExecutor", "LocalExecutor"]

@@ -40,4 +40,12 @@ from prefect.engine.results.azure_result import AzureResult
 from prefect.engine.results.s3_result import S3Result
 from prefect.engine.results.secret_result import SecretResult
 
-__all__ = ['AzureResult', 'ConstantResult', 'GCSResult', 'LocalResult', 'PrefectResult', 'S3Result', 'SecretResult']
+__all__ = [
+    "AzureResult",
+    "ConstantResult",
+    "GCSResult",
+    "LocalResult",
+    "PrefectResult",
+    "S3Result",
+    "SecretResult",
+]

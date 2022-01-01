@@ -3,4 +3,4 @@ This module contains a task for starting and monitoring [Fivetran](https://fivet
 """
 from .fivetran import FivetranSyncTask
 
-__all__ = ['FivetranSyncTask']
+__all__ = ["FivetranSyncTask"]

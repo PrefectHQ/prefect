@@ -5,4 +5,4 @@ try:
 except ImportError:
     pass
 
-__all__ = ['JinjaTemplate', 'StringFormatter']
+__all__ = ["JinjaTemplate", "StringFormatter"]
