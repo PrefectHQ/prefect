@@ -24,10 +24,10 @@ import prefect.agent
 import prefect.backend
 import prefect.artifacts
 
-from ._version import get_versions
+from ._version import get_versions as _get_versions
 
-__version__ = get_versions()["version"]  # type: ignore
-del get_versions
+__version__ = _get_versions()["version"]  # type: ignore
+del _get_versions
 
 try:
     import signal as _signal
