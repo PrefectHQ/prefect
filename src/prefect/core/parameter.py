@@ -128,7 +128,10 @@ class DateTimeParameter(Parameter):
     """
 
     def __init__(
-        self, name: str, required: bool = True, tags: Iterable[str] = None,
+        self,
+        name: str,
+        required: bool = True,
+        tags: Iterable[str] = None,
     ) -> None:
         default = no_default if required else None
         super().__init__(name=name, default=default, required=required, tags=tags)

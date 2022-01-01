@@ -124,7 +124,10 @@ class DaskCloudProviderEnvironment(Environment):
         self.cluster = None
 
         super().__init__(
-            labels=labels, on_start=on_start, on_exit=on_exit, metadata=metadata,
+            labels=labels,
+            on_start=on_start,
+            on_exit=on_exit,
+            metadata=metadata,
         )
 
     @property

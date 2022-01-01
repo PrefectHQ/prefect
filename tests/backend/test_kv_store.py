@@ -19,7 +19,9 @@ class TestSetKeyValue:
     ):
         Client = MagicMock()
         Client().graphql.return_value = GraphQLResult(
-            data=dict(set_key_value=GraphQLResult({"id": "123"}),)
+            data=dict(
+                set_key_value=GraphQLResult({"id": "123"}),
+            )
         )
         monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
@@ -54,7 +56,9 @@ class TestGetKeyValue:
     def test_get_key_value_calls_client_query_correctly(self, monkeypatch, cloud_api):
         Client = MagicMock()
         Client().graphql.return_value = GraphQLResult(
-            data=dict(key_value=[GraphQLResult({"value": "bar"})],)
+            data=dict(
+                key_value=[GraphQLResult({"value": "bar"})],
+            )
         )
         monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
@@ -84,10 +88,14 @@ class TestDeleteKeyValue:
 
     def test_get_key_value_calls_client_query_correctly(self, monkeypatch, cloud_api):
         key_value_id_gql_return = GraphQLResult(
-            data=dict(key_value=[GraphQLResult({"id": "123"})],)
+            data=dict(
+                key_value=[GraphQLResult({"id": "123"})],
+            )
         )
         delete_key_value_gql_return = GraphQLResult(
-            data=dict(delete_key_value=GraphQLResult({"success": True}),)
+            data=dict(
+                delete_key_value=GraphQLResult({"success": True}),
+            )
         )
 
         # helper function to return key value id
@@ -121,7 +129,11 @@ class TestDeleteKeyValue:
 
     def test_delete_key_value_raises_if_key_not_found(self, monkeypatch, cloud_api):
         Client = MagicMock()
-        Client().graphql.return_value = GraphQLResult(data=dict(key_value=[],))
+        Client().graphql.return_value = GraphQLResult(
+            data=dict(
+                key_value=[],
+            )
+        )
         monkeypatch.setattr("prefect.backend.kv_store.Client", Client)
 
         with pytest.raises(ValueError):

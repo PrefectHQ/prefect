@@ -277,7 +277,14 @@ def flow_runs(limit, flow, project, started):
     click.echo(
         tabulate(
             output,
-            headers=["NAME", "FLOW NAME", "STATE", "AGE", "START TIME", "ID",],
+            headers=[
+                "NAME",
+                "FLOW NAME",
+                "STATE",
+                "AGE",
+                "START TIME",
+                "ID",
+            ],
             tablefmt="plain",
             numalign="left",
             stralign="left",

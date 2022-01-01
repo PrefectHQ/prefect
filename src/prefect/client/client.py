@@ -1174,7 +1174,9 @@ class Client:
             inputs.update(idempotency_key=idempotency_key)
 
         res = self.graphql(
-            create_mutation, variables=dict(input=inputs), retry_on_api_error=False,
+            create_mutation,
+            variables=dict(input=inputs),
+            retry_on_api_error=False,
         )  # type: Any
 
         flow_id = (
@@ -1202,9 +1204,13 @@ class Client:
 
         while start <= len(serialized_tasks):
             task_batch = serialized_tasks[start:stop]
-            inputs = dict(flow_id=flow_id, serialized_tasks=task_batch,)
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_tasks=task_batch,
+            )
             self.graphql(
-                task_mutation, variables=dict(input=inputs),
+                task_mutation,
+                variables=dict(input=inputs),
             )
             start = stop
             stop += batch_size
@@ -1216,9 +1222,13 @@ class Client:
 
         while start <= len(serialized_edges):
             edge_batch = serialized_edges[start:stop]
-            inputs = dict(flow_id=flow_id, serialized_edges=edge_batch,)
+            inputs = dict(
+                flow_id=flow_id,
+                serialized_edges=edge_batch,
+            )
             self.graphql(
-                edge_mutation, variables=dict(input=inputs),
+                edge_mutation,
+                variables=dict(input=inputs),
             )
             start = stop
             stop += batch_size
@@ -1232,7 +1242,8 @@ class Client:
             }
             inputs = dict(flow_id=flow_id)
             self.graphql(
-                schedule_mutation, variables=dict(input=inputs),
+                schedule_mutation,
+                variables=dict(input=inputs),
             )
 
         if not no_url:
@@ -1617,7 +1628,9 @@ class Client:
         """
         mutation = {
             "mutation($input: set_flow_run_name_input!)": {
-                "set_flow_run_name(input: $input)": {"success": True,}
+                "set_flow_run_name(input: $input)": {
+                    "success": True,
+                }
             }
         }
 
@@ -1816,7 +1829,9 @@ class Client:
         """
         mutation = {
             "mutation($input: set_task_run_name_input!)": {
-                "set_task_run_name(input: $input)": {"success": True,}
+                "set_task_run_name(input: $input)": {
+                    "success": True,
+                }
             }
         }
 
@@ -1838,7 +1853,9 @@ class Client:
         """
         mutation = {
             "mutation($input: cancel_flow_run_input!)": {
-                "cancel_flow_run(input: $input)": {"state": True,}
+                "cancel_flow_run(input: $input)": {
+                    "state": True,
+                }
             }
         }
         result = self.graphql(

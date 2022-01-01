@@ -121,7 +121,8 @@ def test_get_flow_codecommit(monkeypatch):
 
     extract_flow_from_file = MagicMock(return_value=f)
     monkeypatch.setattr(
-        "prefect.storage.codecommit.extract_flow_from_file", extract_flow_from_file,
+        "prefect.storage.codecommit.extract_flow_from_file",
+        extract_flow_from_file,
     )
 
     storage = CodeCommit(repo="test/repo", path="flow", commit="master")

@@ -482,7 +482,9 @@ def test_extra_dockerfile_commands():
     with tempfile.TemporaryDirectory() as directory:
 
         storage = Docker(
-            extra_dockerfile_commands=['RUN echo "I\'m a little tea pot"',],
+            extra_dockerfile_commands=[
+                'RUN echo "I\'m a little tea pot"',
+            ],
         )
         storage.add_flow(Flow("foo"))
         dpath = storage.create_dockerfile_object(directory=directory)
@@ -504,7 +506,9 @@ def test_dockerfile_env_vars(tmpdir):
             ("STR_WITH_SINGLE_QUOTES", "'foo'"),
         ]
     )
-    storage = Docker(env_vars=env_vars,)
+    storage = Docker(
+        env_vars=env_vars,
+    )
     storage.add_flow(Flow("foo"))
     dpath = storage.create_dockerfile_object(directory=str(tmpdir))
 
@@ -845,14 +849,19 @@ def test_docker_storage_name():
             {"errorDetail": {"message": "hello"}}, "hello\n", id="errorDetail key"
         ),
         pytest.param(
-            {"errorDetail": {"unknown": "hello"}}, "", id="errorDetail unknown key",
+            {"errorDetail": {"unknown": "hello"}},
+            "",
+            id="errorDetail unknown key",
         ),
         pytest.param({"unknown": "hello"}, "", id="unknown key"),
         pytest.param([], "", id="empty generator"),
         pytest.param([{}, {}], "", id="empty dicts"),
         pytest.param(["", ""], "", id="empty strings"),
         pytest.param(
-            [{"stream": "hello"}, {"stream": "world"},],
+            [
+                {"stream": "hello"},
+                {"stream": "world"},
+            ],
             "hello\nworld\n",
             id="multiple items",
         ),

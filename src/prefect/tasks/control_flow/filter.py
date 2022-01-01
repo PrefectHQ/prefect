@@ -54,7 +54,10 @@ class FilterTask(Task):
     """
 
     def __init__(
-        self, filter_func: Callable = None, log_func: Callable = None, **kwargs,
+        self,
+        filter_func: Callable = None,
+        log_func: Callable = None,
+        **kwargs,
     ) -> None:
         kwargs.setdefault("skip_on_upstream_skip", False)
         kwargs.setdefault("trigger", all_finished)

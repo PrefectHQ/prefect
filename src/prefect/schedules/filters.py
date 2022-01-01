@@ -183,7 +183,9 @@ def is_weekend(dt: datetime) -> bool:
     return pendulum.instance(dt).weekday() > 4
 
 
-def is_day_of_week(day_of_week: int,) -> Callable[[datetime], bool]:
+def is_day_of_week(
+    day_of_week: int,
+) -> Callable[[datetime], bool]:
     """
     Filter that only matches on a specific day of the week.
 

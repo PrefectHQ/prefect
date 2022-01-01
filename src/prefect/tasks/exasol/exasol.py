@@ -103,7 +103,11 @@ class ExasolExecute(Task):
             password = Secret(self.password_secret).get()
 
         con = pyexasol.connect(
-            dsn=dsn, user=user, password=password, autocommit=autocommit, **kwargs,
+            dsn=dsn,
+            user=user,
+            password=password,
+            autocommit=autocommit,
+            **kwargs,
         )
 
         # try to execute query
@@ -223,7 +227,12 @@ class ExasolFetch(Task):
         if not password and self.password_secret:
             password = Secret(self.password_secret).get()
 
-        con = pyexasol.connect(dsn=dsn, user=user, password=password, **kwargs,)
+        con = pyexasol.connect(
+            dsn=dsn,
+            user=user,
+            password=password,
+            **kwargs,
+        )
         # try to execute query
         # context manager automatically rolls back failed transactions
         with con as db:
@@ -360,7 +369,11 @@ class ExasolImportFromIterable(Task):
             target = (target_schema, target_table)
 
         con = pyexasol.connect(
-            dsn=dsn, user=user, password=password, autocommit=autocommit, **kwargs,
+            dsn=dsn,
+            user=user,
+            password=password,
+            autocommit=autocommit,
+            **kwargs,
         )
 
         # try to execute query
@@ -423,7 +436,11 @@ class ExasolExportToFile(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
-        "dsn", "destination", "query_or_table", "query_params", "export_params",
+        "dsn",
+        "destination",
+        "query_or_table",
+        "query_params",
+        "export_params",
     )
     def run(
         self,
@@ -482,13 +499,21 @@ class ExasolExportToFile(Task):
         if not password and self.password_secret:
             password = Secret(self.password_secret).get()
 
-        con = pyexasol.connect(dsn=dsn, user=user, password=password, **kwargs,)
+        con = pyexasol.connect(
+            dsn=dsn,
+            user=user,
+            password=password,
+            **kwargs,
+        )
 
         # try to execute query
         # context manager automatically rolls back failed transactions
         with con as db:
             db.export_to_file(
-                destination, query_or_table, query_params, export_params,
+                destination,
+                query_or_table,
+                query_params,
+                export_params,
             )
 
         return

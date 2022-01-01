@@ -559,7 +559,8 @@ def test_run_cloud_creates_flow_run(
         cloud_kwargs["labels"] = labels + ["agentless-run-00000000"]
 
     cloud_mocks.Client().create_flow_run.assert_called_once_with(
-        flow_id=TEST_FLOW_VIEW.flow_id, **cloud_kwargs,
+        flow_id=TEST_FLOW_VIEW.flow_id,
+        **cloud_kwargs,
     )
 
     if not execute_flag:

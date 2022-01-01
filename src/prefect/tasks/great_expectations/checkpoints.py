@@ -262,8 +262,10 @@ class RunGreatExpectationsValidation(Task):
 
         # Generate artifact markdown
         if not disable_markdown_artifact:
-            validation_results_page_renderer = ge.render.renderer.ValidationResultsPageRenderer(
-                run_info_at_end=run_info_at_end
+            validation_results_page_renderer = (
+                ge.render.renderer.ValidationResultsPageRenderer(
+                    run_info_at_end=run_info_at_end
+                )
             )
             rendered_content_list = validation_results_page_renderer.render_validation_operator_result(
                 # This also works with a CheckpointResult because of duck typing.

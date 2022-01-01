@@ -108,7 +108,8 @@ class VertexAgent(Agent):
         parent = f"projects/{self.project}/locations/{self.region_name}"
 
         self.logger.debug(
-            "Created task definition for flow %s", flow_run.flow.id,
+            "Created task definition for flow %s",
+            flow_run.flow.id,
         )
 
         resp = self.vertex_client.create_custom_job(parent=parent, custom_job=taskdef)

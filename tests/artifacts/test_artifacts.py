@@ -33,7 +33,8 @@ def test_old_create_link(client, running_with_backend):
 
 def test_old_update_link(client, running_with_backend):
     with pytest.warns(
-        UserWarning, match="has been moved to `prefect.backend.update_link_artifact`",
+        UserWarning,
+        match="has been moved to `prefect.backend.update_link_artifact`",
     ):
         artifacts.update_link(task_run_artifact_id="trid", link="link_here")
 
@@ -75,7 +76,8 @@ def test_old_update_markdown(client, running_with_backend):
 
 def test_old_delete_artifact(client, running_with_backend):
     with pytest.warns(
-        UserWarning, match="has been moved to `prefect.backend.delete_artifact`",
+        UserWarning,
+        match="has been moved to `prefect.backend.delete_artifact`",
     ):
         artifacts.delete_artifact(task_run_artifact_id="trid")
     assert client.delete_task_run_artifact.called

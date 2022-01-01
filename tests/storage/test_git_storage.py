@@ -78,7 +78,9 @@ def test_create_git_storage_with_git_clone_url_secret_name_and_other_repo_params
     caplog,
 ):
     storage = Git(
-        flow_path="flow.py", repo="test/repo", git_clone_url_secret_name="MY_SECRET",
+        flow_path="flow.py",
+        repo="test/repo",
+        git_clone_url_secret_name="MY_SECRET",
     )
 
     assert (

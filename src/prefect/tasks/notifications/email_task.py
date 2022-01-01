@@ -161,7 +161,8 @@ class EmailTask(Task):
             encoders.encode_base64(part)
             filename = os.path.basename(filepath)
             part.add_header(
-                "Content-Disposition", f"attachment; filename= {filename}",
+                "Content-Disposition",
+                f"attachment; filename= {filename}",
             )
             message.attach(part)
 

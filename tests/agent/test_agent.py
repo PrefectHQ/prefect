@@ -266,7 +266,12 @@ def test_get_flow_run_metadata(monkeypatch, cloud_api):
                                 }
                             }
                         },
-                    ): {"serialized_state", "version", "id", "task_id",},
+                    ): {
+                        "serialized_state",
+                        "version",
+                        "id",
+                        "task_id",
+                    },
                 }
             }
         }

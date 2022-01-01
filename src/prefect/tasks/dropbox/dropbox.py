@@ -19,7 +19,11 @@ class DropboxDownload(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs("path")
-    def run(self, path: str = None, access_token: str = None,) -> bytes:
+    def run(
+        self,
+        path: str = None,
+        access_token: str = None,
+    ) -> bytes:
         """
         Run method for this Task.  Invoked by _calling_ this Task within a Flow context, after
         initialization.

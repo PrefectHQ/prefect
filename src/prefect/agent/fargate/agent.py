@@ -609,7 +609,10 @@ class FargateAgent(Agent):
                 "image": image,
                 "command": ["/bin/sh", "-c", flow_run_command],
                 "environment": [
-                    {"name": "PREFECT__BACKEND", "value": config.backend,},
+                    {
+                        "name": "PREFECT__BACKEND",
+                        "value": config.backend,
+                    },
                     {
                         "name": "PREFECT__CLOUD__API",
                         "value": config.cloud.api or "https://api.prefect.io",

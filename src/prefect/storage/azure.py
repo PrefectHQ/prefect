@@ -57,7 +57,8 @@ class Azure(Storage):
         self.overwrite = overwrite
 
         result = AzureResult(
-            connection_string_secret=self.connection_string_secret, container=container,
+            connection_string_secret=self.connection_string_secret,
+            container=container,
         )
         super().__init__(result=result, stored_as_script=stored_as_script, **kwargs)
 

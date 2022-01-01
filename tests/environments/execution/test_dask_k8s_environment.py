@@ -200,7 +200,10 @@ def test_environment_run(monkeypatch):
 
     flow = prefect.Flow("my-flow")
     flow.environment = DaskKubernetesEnvironment(
-        on_start=start_func, on_exit=exit_func, min_workers=3, max_workers=5,
+        on_start=start_func,
+        on_exit=exit_func,
+        min_workers=3,
+        max_workers=5,
     )
 
     flow_runner = MagicMock()
@@ -543,9 +546,18 @@ def test_populate_custom_yaml_specs_with_logging_vars(log_flag):
     file_path = os.path.dirname(prefect.environments.execution.dask.k8s.__file__)
 
     log_vars = [
-        {"name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS", "value": "YES",},
-        {"name": "PREFECT__LOGGING__LEVEL", "value": "NO",},
-        {"name": "PREFECT__LOGGING__EXTRA_LOGGERS", "value": "MAYBE",},
+        {
+            "name": "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS",
+            "value": "YES",
+        },
+        {
+            "name": "PREFECT__LOGGING__LEVEL",
+            "value": "NO",
+        },
+        {
+            "name": "PREFECT__LOGGING__EXTRA_LOGGERS",
+            "value": "MAYBE",
+        },
     ]
 
     with open(path.join(file_path, "job.yaml")) as job_file:

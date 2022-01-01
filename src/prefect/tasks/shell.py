@@ -162,7 +162,8 @@ class ShellTask(prefect.Task):
                         self.logger.error("\n".join(lines) if self.return_all else line)
 
                     raise prefect.engine.signals.FAIL(
-                        msg, result=lines if self.return_all else line,
+                        msg,
+                        result=lines if self.return_all else line,
                     )
 
         return lines if self.return_all else line

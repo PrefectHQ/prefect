@@ -130,7 +130,9 @@ class TestIntervalClock:
 
     def test_create_interval_clock_with_labels(self):
         c = clocks.IntervalClock(
-            start_date=pendulum.now("UTC"), interval=timedelta(days=1), labels=["foo"],
+            start_date=pendulum.now("UTC"),
+            interval=timedelta(days=1),
+            labels=["foo"],
         )
         assert c.labels == ["foo"]
 

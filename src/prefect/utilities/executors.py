@@ -184,17 +184,21 @@ def send_heartbeat(
         client.update_flow_run_heartbeat(flow_run_id)
     except Exception as exc:
         logger.error(
-            f"Failed to send heartbeat with exception: {exc!r}", exc_info=True,
+            f"Failed to send heartbeat with exception: {exc!r}",
+            exc_info=True,
         )
 
 
 @contextmanager
-def log_heartbeat_failure(logger: "logging.Logger",) -> Iterator[None]:
+def log_heartbeat_failure(
+    logger: "logging.Logger",
+) -> Iterator[None]:
     try:
         yield
     except BaseException as exc:
         logger.error(
-            f"Heartbeat process encountered terminal exception: {exc!r}", exc_info=True,
+            f"Heartbeat process encountered terminal exception: {exc!r}",
+            exc_info=True,
         )
         raise
 
@@ -253,7 +257,8 @@ def run_with_thread_timeout(
 
 
 def multiprocessing_safe_run_and_retrieve(
-    queue: multiprocessing.Queue, payload: bytes,
+    queue: multiprocessing.Queue,
+    payload: bytes,
 ) -> None:
     """
     Gets the return value from a function and puts it in a multiprocessing-safe
@@ -330,7 +335,8 @@ def multiprocessing_safe_run_and_retrieve(
         queue.put(pickled_val)
     except Exception:
         logger.error(
-            f"{name}: Failed to put result in queue to main process!", exc_info=True,
+            f"{name}: Failed to put result in queue to main process!",
+            exc_info=True,
         )
         raise
 
@@ -393,7 +399,8 @@ def run_with_multiprocess_timeout(
     payload = cloudpickle.dumps(request)
 
     run_process = spawn_mp.Process(
-        target=multiprocessing_safe_run_and_retrieve, args=(queue, payload),
+        target=multiprocessing_safe_run_and_retrieve,
+        args=(queue, payload),
     )
     logger.debug(f"{name}: Sending execution to a new process...")
     run_process.start()
@@ -418,7 +425,10 @@ def run_with_multiprocess_timeout(
 
 
 def run_task_with_timeout(
-    task: "Task", args: Sequence = (), kwargs: Mapping = None, logger: Logger = None,
+    task: "Task",
+    args: Sequence = (),
+    kwargs: Mapping = None,
+    logger: Logger = None,
 ) -> Any:
     """
     Helper function for implementing timeouts on task executions.
@@ -711,7 +721,8 @@ def flatten_upstream_state(upstream_state: "State") -> "State":
 
 
 def flatten_mapped_children(
-    mapped_children: List["State"], executor: "prefect.executors.Executor",
+    mapped_children: List["State"],
+    executor: "prefect.executors.Executor",
 ) -> List["State"]:
     counts = executor.wait(
         [executor.submit(lambda c: len(c._result.value), c) for c in mapped_children]

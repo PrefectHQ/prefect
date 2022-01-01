@@ -20,7 +20,10 @@ class Test_parse_path:
     @pytest.mark.skipif(os.name != "nt", reason="Windows only test")
     @pytest.mark.parametrize(
         "path",
-        ["c:/path/to/file.txt", "c:\\path\\to\\file.txt" "\\path\\to\\file.txt",],
+        [
+            "c:/path/to/file.txt",
+            "c:\\path\\to\\file.txt" "\\path\\to\\file.txt",
+        ],
     )
     def test_windows_local_paths(self, path):
         parsed = parse_path(path)

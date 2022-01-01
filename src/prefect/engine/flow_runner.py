@@ -565,11 +565,13 @@ class FlowRunner(Runner):
 
                     # either way, we should now have enough resolved states to restructure
                     # the upstream states into a list of upstream state dictionaries to iterate over
-                    list_of_upstream_states = executors.prepare_upstream_states_for_mapping(
-                        task_states[task],
-                        upstream_states,
-                        mapped_children,
-                        executor=executor,
+                    list_of_upstream_states = (
+                        executors.prepare_upstream_states_for_mapping(
+                            task_states[task],
+                            upstream_states,
+                            mapped_children,
+                            executor=executor,
+                        )
                     )
 
                     submitted_states = []
