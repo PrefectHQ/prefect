@@ -92,8 +92,7 @@ class TestExecuteFlowRunInSubprocess:
 
         # Calls the correct command w/ environment variables
         mocks.subprocess.run.assert_called_once_with(
-            [sys.executable, "-m", "prefect", "execute", "flow-run"],
-            env=expected_env,
+            [sys.executable, "-m", "prefect", "execute", "flow-run"], env=expected_env,
         )
 
         # Return code is checked
@@ -147,8 +146,8 @@ class TestExecuteFlowRunInSubprocess:
 
     def test_handles_bad_subprocess_result(self, cloud_mocks, mocks):
         cloud_mocks.FlowRunView.from_flow_run_id().state = Scheduled()
-        mocks.subprocess.run.return_value.check_returncode.side_effect = (
-            CalledProcessError(cmd="foo", returncode=1)
+        mocks.subprocess.run.return_value.check_returncode.side_effect = CalledProcessError(
+            cmd="foo", returncode=1
         )
 
         # Re-raised as `RuntmeError`
@@ -272,8 +271,8 @@ class TestWaitForFlowRunStartTime:
         timing_mocks.sleep.assert_not_called()
 
     def test_flow_run_is_scheduled_in_the_future(self, timing_mocks):
-        timing_mocks.get_flow_run_scheduled_start_time.return_value = (
-            timing_mocks.now().add(seconds=10)
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = timing_mocks.now().add(
+            seconds=10
         )
         timing_mocks.get_next_task_run_start_time.return_value = None
 
@@ -294,8 +293,8 @@ class TestWaitForFlowRunStartTime:
         timing_mocks.sleep.assert_called_once_with(10)
 
     def test_flow_and_task_run_are_scheduled_in_the_future(self, timing_mocks):
-        timing_mocks.get_flow_run_scheduled_start_time.return_value = (
-            timing_mocks.now().add(seconds=10)
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = timing_mocks.now().add(
+            seconds=10
         )
         timing_mocks.get_next_task_run_start_time.return_value = timing_mocks.now().add(
             seconds=20
@@ -307,8 +306,8 @@ class TestWaitForFlowRunStartTime:
         timing_mocks.sleep.assert_has_calls([call(10), call(20)])
 
     def test_flow_run_is_scheduled_in_the_past(self, timing_mocks):
-        timing_mocks.get_flow_run_scheduled_start_time.return_value = (
-            timing_mocks.now().subtract(seconds=10)
+        timing_mocks.get_flow_run_scheduled_start_time.return_value = timing_mocks.now().subtract(
+            seconds=10
         )
         timing_mocks.get_next_task_run_start_time.return_value = None
 
@@ -319,8 +318,8 @@ class TestWaitForFlowRunStartTime:
 
     def test_task_run_is_scheduled_in_the_past(self, timing_mocks):
         timing_mocks.get_flow_run_scheduled_start_time.return_value = None
-        timing_mocks.get_next_task_run_start_time.return_value = (
-            timing_mocks.now().subtract(seconds=10)
+        timing_mocks.get_next_task_run_start_time.return_value = timing_mocks.now().subtract(
+            seconds=10
         )
 
         _wait_for_flow_run_start_time("flow-run-id")
@@ -428,10 +427,7 @@ def test_get_flow_run_scheduled_start_time_from_flow_run_scheduled_time(
         {
             "data": {
                 "flow_run": [
-                    {
-                        "scheduled_start_time": start_time.isoformat(),
-                        "states": states,
-                    }
+                    {"scheduled_start_time": start_time.isoformat(), "states": states,}
                 ]
             }
         }
@@ -496,8 +492,7 @@ def test_fail_flow_run_on_exception(monkeypatch, cloud_mocks, is_finished, caplo
         prefect.backend.execution._fail_flow_run.assert_not_called()
     else:
         prefect.backend.execution._fail_flow_run.assert_called_once_with(
-            "flow-run-id",
-            message=f"fail message: {ValueError('Exception message')!r}",
+            "flow-run-id", message=f"fail message: {ValueError('Exception message')!r}",
         )
 
     # Logs locally

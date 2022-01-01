@@ -404,8 +404,7 @@ def task(
     """
     if fn is None:
         return lambda fn: prefect.tasks.core.function.FunctionTask(
-            fn=fn,
-            **task_init_kwargs,
+            fn=fn, **task_init_kwargs,
         )
     return prefect.tasks.core.function.FunctionTask(fn=fn, **task_init_kwargs)
 

@@ -102,8 +102,7 @@ def echo_with_log_color(log_level: int, message: str, **kwargs: Any):
         kwargs.setdefault("fg", "white")
 
     click.secho(
-        message,
-        **kwargs,
+        message, **kwargs,
     )
 
 
@@ -196,9 +195,7 @@ def get_flow_from_path_or_module(
 
 
 def get_flow_view(
-    flow_or_group_id: str = None,
-    project: str = None,
-    name: str = None,
+    flow_or_group_id: str = None, project: str = None, name: str = None,
 ) -> "FlowView":
     if flow_or_group_id:
         # Lookup by flow id then flow group id if that fails
@@ -358,18 +355,13 @@ See `prefect run --help` for more details on the options.
     ),
 )
 @click.option(
-    "--project",
-    help="The name of the Prefect project containing the flow to run.",
+    "--project", help="The name of the Prefect project containing the flow to run.",
 )
 @click.option(
-    "--path",
-    "-p",
-    help="The path to a file containing the flow to run.",
+    "--path", "-p", help="The path to a file containing the flow to run.",
 )
 @click.option(
-    "--module",
-    "-m",
-    help="The python module name containing the flow to run.",
+    "--module", "-m", help="The python module name containing the flow to run.",
 )
 @click.option(
     "--name",
@@ -637,9 +629,7 @@ def run(
     # backend
     with try_error_done("Looking up flow metadata...", quiet_echo):
         flow_view = get_flow_view(
-            flow_or_group_id=flow_or_group_id,
-            project=project,
-            name=name,
+            flow_or_group_id=flow_or_group_id, project=project, name=name,
         )
 
     if log_level:
@@ -735,8 +725,7 @@ def run(
         try:
             quiet_echo("Watching flow run execution...")
             for log in watch_flow_run(
-                flow_run_id=flow_run_id,
-                stream_logs=not no_logs,
+                flow_run_id=flow_run_id, stream_logs=not no_logs,
             ):
                 level_name = logging.getLevelName(log.level)
                 timestamp = log.timestamp.in_tz(tz="local")

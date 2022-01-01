@@ -89,11 +89,7 @@ def test_get_flow_image_run_config_default(run_config, version, default):
     flow_run = GraphQLResult(
         {
             "flow": GraphQLResult(
-                {
-                    "core_version": version,
-                    "storage": Local().serialize(),
-                    "id": "id",
-                }
+                {"core_version": version, "storage": Local().serialize(), "id": "id",}
             ),
             "run_config": run_config.serialize() if run_config else None,
             "id": "id",
@@ -112,12 +108,7 @@ def test_get_flow_image_run_config_default(run_config, version, default):
 def test_get_flow_image_run_config_image_on_RunConfig():
     flow_run = GraphQLResult(
         {
-            "flow": GraphQLResult(
-                {
-                    "storage": Local().serialize(),
-                    "id": "id",
-                }
-            ),
+            "flow": GraphQLResult({"storage": Local().serialize(), "id": "id",}),
             "run_config": KubernetesRun(image="myfancyimage").serialize(),
             "id": "id",
         }

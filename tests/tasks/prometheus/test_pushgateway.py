@@ -13,9 +13,7 @@ from prefect.tasks.prometheus.pushgateway import (
 def use_gateway_mock(monkeypatch):
     pushaddgateway = MagicMock()
     monkeypatch.setattr(
-        prometheus_client.exposition,
-        "_use_gateway",
-        pushaddgateway,
+        prometheus_client.exposition, "_use_gateway", pushaddgateway,
     )
     return pushaddgateway
 
@@ -24,9 +22,7 @@ def use_gateway_mock(monkeypatch):
 def push_mock(monkeypatch):
     push = MagicMock()
     monkeypatch.setattr(
-        _GaugeToGatewayBase,
-        "_push",
-        push,
+        _GaugeToGatewayBase, "_push", push,
     )
     return push
 
@@ -168,9 +164,7 @@ class TestPushAddGaugeToGateway:
         counter_name = "flow_grid_rows"
         job_name = "table_check"
         task = PushAddGaugeToGateway(
-            pushgateway_url=url,
-            counter_name=counter_name,
-            job_name=job_name,
+            pushgateway_url=url, counter_name=counter_name, job_name=job_name,
         )
         task.run(values=[1], labels=[{"collection": "table1"}])
         assert use_gateway_mock.call_count == 1

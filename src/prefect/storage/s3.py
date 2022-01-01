@@ -64,9 +64,7 @@ class S3(Storage):
 
         result = S3Result(bucket=bucket, boto3_kwargs=client_options)
         super().__init__(
-            result=result,
-            stored_as_script=stored_as_script,
-            **kwargs,
+            result=result, stored_as_script=stored_as_script, **kwargs,
         )
 
     def get_flow(self, flow_name: str) -> "Flow":

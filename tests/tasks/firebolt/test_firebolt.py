@@ -49,45 +49,30 @@ class TestFireboltQuery:
         # raises Value error if engine name is not provided
         with pytest.raises(ValueError, match="An engine name must be provided"):
             FireboltQuery().run(
-                database="test",
-                username="test",
-                password="test",
-                query="test",
+                database="test", username="test", password="test", query="test",
             )
 
         # raises Value error if database name is not provided
         with pytest.raises(ValueError, match="A database name must be provided"):
             FireboltQuery().run(
-                username="test",
-                password="test",
-                engine_name="test",
-                query="test",
+                username="test", password="test", engine_name="test", query="test",
             )
         # raises Value error if username is not provided
         with pytest.raises(ValueError, match="User name must be provided"):
             FireboltQuery().run(
-                database="test",
-                password="test",
-                engine_name="test",
-                query="test",
+                database="test", password="test", engine_name="test", query="test",
             )
 
         # raises Value error if password is not provided
         with pytest.raises(ValueError, match="A password must be provided"):
             FireboltQuery().run(
-                database="test",
-                username="test",
-                engine_name="test",
-                query="test",
+                database="test", username="test", engine_name="test", query="test",
             )
 
         # raises Value error if query is not provided
         with pytest.raises(ValueError, match="A query string must be provided"):
             FireboltQuery().run(
-                database="test",
-                username="test",
-                password="test",
-                engine_name="test",
+                database="test", username="test", password="test", engine_name="test",
             )
 
     # test to check if the ddl/dml query was executed

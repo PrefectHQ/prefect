@@ -358,9 +358,7 @@ class TestApplyMap:
         }
         assert res == sol
 
-    def test_apply_map_can_be_used_on_apply_map_result(
-        self,
-    ):
+    def test_apply_map_can_be_used_on_apply_map_result(self,):
         # Prior to commit 4b0df740de99a1fad3182c01f4b182ba83445bcc this would introduce
         # a cycle
         @task

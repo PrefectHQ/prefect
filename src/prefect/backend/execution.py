@@ -89,8 +89,7 @@ def execute_flow_run_in_subprocess(
         except Exception as exc:
             message = "Flow run encountered unexpected exception during execution"
             _fail_flow_run(
-                flow_run_id=flow_run_id,
-                message=f"{message}: {exc!r}",
+                flow_run_id=flow_run_id, message=f"{message}: {exc!r}",
             )
             raise RuntimeError(message) from exc
 
@@ -195,8 +194,7 @@ def execute_flow_run(
     )
     with prefect.context(flow_run_id=flow_run_id):
         with _fail_flow_run_on_exception(
-            flow_run_id=flow_run_id,
-            message="Failed to execute flow: {exc}",
+            flow_run_id=flow_run_id, message="Failed to execute flow: {exc}",
         ):
             if flow_metadata.run_config is not None:
                 runner_cls(flow=flow).run(**run_kwargs)
@@ -260,8 +258,7 @@ def generate_flow_run_environ(
     # Update with config options that cannot be overriden by the run config
     env.update(
         to_environment_variables(
-            prefect.config,
-            include={"backend", "cloud.api", "cloud.tenant_id"},
+            prefect.config, include={"backend", "cloud.api", "cloud.tenant_id"},
         )
     )
 
@@ -460,10 +457,7 @@ def _get_flow_run_scheduled_start_time(flow_run_id: str) -> Optional[pendulum.Da
 
 
 @contextmanager
-def _fail_flow_run_on_exception(
-    flow_run_id: str,
-    message: str = None,
-) -> Any:
+def _fail_flow_run_on_exception(flow_run_id: str, message: str = None,) -> Any:
     """
     A utility context manager to set the state of the given flow run to 'Failed' if
     an exception occurs. A custom message can be provided for more details and will

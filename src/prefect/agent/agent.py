@@ -345,10 +345,7 @@ class Agent:
 
         return flow_runs
 
-    def _deploy_flow_run(
-        self,
-        flow_run: "GraphQLResult",
-    ) -> None:
+    def _deploy_flow_run(self, flow_run: "GraphQLResult",) -> None:
         """
         Deploy a flow run and update Cloud with the resulting deployment info.
         If any errors occur when submitting the flow run, capture the error and log to
@@ -419,9 +416,7 @@ class Agent:
             )
 
             self._safe_write_run_log(
-                flow_run,
-                message=str(exc),
-                level="ERROR",
+                flow_run, message=str(exc), level="ERROR",
             )
             self._mark_flow_as_failed(flow_run=flow_run, message=str(exc))
 
@@ -605,8 +600,7 @@ class Agent:
         return target_flow_run_ids
 
     def _get_flow_run_metadata(
-        self,
-        flow_run_ids: Iterable[str],
+        self, flow_run_ids: Iterable[str],
     ) -> List["GraphQLResult"]:
         """
         Get metadata about a collection of flow run ids that the agent is preparing
@@ -747,9 +741,7 @@ class Agent:
             - exc (Exception): An exception that was raised to use as the `Failed`
                 message
         """
-        self.logger.error(
-            f"Updating flow run {flow_run.id} state to Failed...",
-        )
+        self.logger.error(f"Updating flow run {flow_run.id} state to Failed...",)
         self.client.set_flow_run_state(
             flow_run_id=flow_run.id,
             version=flow_run.version,

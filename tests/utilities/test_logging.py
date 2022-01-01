@@ -437,9 +437,7 @@ def test_redirect_to_log_is_textwriter(caplog):
 
 def test_temporary_config_sets_and_resets(caplog):
     with temporary_logger_config(
-        level=logging.CRITICAL,
-        stream_fmt="%(message)s",
-        stream_datefmt="%H:%M:%S",
+        level=logging.CRITICAL, stream_fmt="%(message)s", stream_datefmt="%H:%M:%S",
     ):
         logger = get_logger()
         assert logger.level == logging.CRITICAL
@@ -473,18 +471,14 @@ def test_temporary_config_does_not_require_all_args(
     caplog, level, stream_fmt, stream_datefmt
 ):
     with temporary_logger_config(
-        level=level,
-        stream_fmt=stream_fmt,
-        stream_datefmt=stream_datefmt,
+        level=level, stream_fmt=stream_fmt, stream_datefmt=stream_datefmt,
     ):
         pass
 
 
 def test_temporary_config_resets_on_exception(caplog):
     with pytest.raises(ValueError):
-        with temporary_logger_config(
-            level=logging.CRITICAL,
-        ):
+        with temporary_logger_config(level=logging.CRITICAL,):
             raise ValueError()
 
     logger = get_logger()

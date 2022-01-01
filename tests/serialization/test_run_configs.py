@@ -74,11 +74,7 @@ def test_serialize_kubernetes_run(config):
     "config",
     [
         LocalRun(),
-        LocalRun(
-            env={"test": "foo"},
-            working_dir="/path/to/dir",
-            labels=["a", "b"],
-        ),
+        LocalRun(env={"test": "foo"}, working_dir="/path/to/dir", labels=["a", "b"],),
     ],
 )
 def test_serialize_local_run(config):

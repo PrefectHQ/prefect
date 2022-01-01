@@ -231,9 +231,7 @@ def test_populate_env_vars_sets_log_to_cloud(flag, api, config_with_token):
 def test_populate_env_vars_from_run_config(api):
     agent = DockerAgent(env_vars={"KEY1": "VAL1", "KEY2": "VAL2"})
 
-    run = DockerRun(
-        env={"KEY2": "OVERRIDE", "PREFECT__LOGGING__LEVEL": "TEST"},
-    )
+    run = DockerRun(env={"KEY2": "OVERRIDE", "PREFECT__LOGGING__LEVEL": "TEST"},)
 
     env_vars = agent.populate_env_vars(
         GraphQLResult(
@@ -256,13 +254,7 @@ def test_api_url_can_be_overridden_at_agent_level(api):
     agent = DockerAgent(env_vars={"PREFECT__CLOUD__API": "FOO"})
 
     env_vars = agent.populate_env_vars(
-        GraphQLResult(
-            {
-                "id": "id",
-                "name": "name",
-                "flow": {"id": "foo"},
-            }
-        ),
+        GraphQLResult({"id": "id", "name": "name", "flow": {"id": "foo"},}),
         "test-image",
     )
     assert env_vars["PREFECT__CLOUD__API"] == "FOO"
@@ -271,9 +263,7 @@ def test_api_url_can_be_overridden_at_agent_level(api):
 def test_api_url_can_be_overridden_with_run_config(api):
     agent = DockerAgent(env_vars={"PREFECT__CLOUD__API": "FOO"})
 
-    run = DockerRun(
-        env={"PREFECT__CLOUD__API": "BAR"},
-    )
+    run = DockerRun(env={"PREFECT__CLOUD__API": "BAR"},)
 
     env_vars = agent.populate_env_vars(
         GraphQLResult(
@@ -300,12 +290,7 @@ def test_api_url_uses_server_network(api, backend):
 
     env_vars = agent.populate_env_vars(
         GraphQLResult(
-            {
-                "id": "id",
-                "name": "name",
-                "flow": {"id": "foo"},
-                "run_config": {},
-            }
+            {"id": "id", "name": "name", "flow": {"id": "foo"}, "run_config": {},}
         ),
         "test-image",
     )

@@ -74,10 +74,7 @@ class TestKafkaBatchProduce:
 
         mock_confluent_kafka.Producer.return_value = mock_producer
         task.run(
-            topic=topic,
-            messages=[
-                message,
-            ],
+            topic=topic, messages=[message,],
         )
         mock_producer.produce.assert_called_with(
             topic=topic, key=message["key"], value=message["value"], callback=None

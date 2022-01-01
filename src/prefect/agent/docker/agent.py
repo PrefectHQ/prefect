@@ -184,9 +184,7 @@ class DockerAgent(Agent):
         import docker
 
         return docker.APIClient(
-            base_url=self.base_url,
-            version="auto",
-            timeout=self.docker_client_timeout,
+            base_url=self.base_url, version="auto", timeout=self.docker_client_timeout,
         )
 
     def heartbeat(self) -> None:

@@ -38,8 +38,7 @@ def api_client(monkeypatch):
 def stream(monkeypatch):
     stream = MagicMock(return_value=["msg"])
     monkeypatch.setattr(
-        "kubernetes.watch.watch.Watch.stream",
-        stream,
+        "kubernetes.watch.watch.Watch.stream", stream,
     )
 
     return stream

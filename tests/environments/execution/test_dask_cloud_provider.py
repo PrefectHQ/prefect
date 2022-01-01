@@ -94,9 +94,7 @@ def test_roundtrip_cloudpickle():
             file.write("job")
 
         environment = DaskCloudProviderEnvironment(
-            provider_class=FargateCluster,
-            cluster="test",
-            skip_cleanup=False,
+            provider_class=FargateCluster, cluster="test", skip_cleanup=False,
         )
 
         assert environment._provider_kwargs == {

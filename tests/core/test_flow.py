@@ -1823,11 +1823,7 @@ class TestGetTasks:
 
 class TestSerialize:
     def test_serialization(self):
-        (
-            p1,
-            t2,
-            t3,
-        ) = (Parameter("1"), Task("2"), Task("3"))
+        (p1, t2, t3,) = (Parameter("1"), Task("2"), Task("3"))
 
         f = Flow(name="test", tasks=[p1, t2, t3])
         f.add_edge(p1, t2)
@@ -1838,11 +1834,7 @@ class TestSerialize:
         assert len(serialized["tasks"]) == len(f.tasks)
 
     def test_deserialization(self):
-        (
-            p1,
-            t2,
-            t3,
-        ) = (Parameter("1"), Task("2"), Task("3"))
+        (p1, t2, t3,) = (Parameter("1"), Task("2"), Task("3"))
 
         f = Flow(
             name="hi",
@@ -2720,8 +2712,7 @@ class TestFlowDiagnostics:
 
 class TestFlowRegister:
     @pytest.mark.parametrize(
-        "storage",
-        ["prefect.storage.Docker", "prefect.storage.Local"],
+        "storage", ["prefect.storage.Docker", "prefect.storage.Local"],
     )
     def test_flow_register_uses_default_storage(self, monkeypatch, storage):
         monkeypatch.setattr("prefect.Client", MagicMock())
@@ -3323,9 +3314,7 @@ class TestSlugGeneration:
 class TestTerminalStateHandler:
     def test_terminal_state_handler_determines_final_state(self):
         def fake_terminal_state_handler(
-            flow: Flow,
-            state: State,
-            reference_task_states: Set[State],
+            flow: Flow, state: State, reference_task_states: Set[State],
         ) -> Optional[State]:
             for task_state in reference_task_states:
                 if task_state.is_successful():
@@ -3356,9 +3345,7 @@ class TestTerminalStateHandler:
         self,
     ):
         def fake_terminal_state_handler(
-            flow: Flow,
-            state: State,
-            reference_task_states: Set[State],
+            flow: Flow, state: State, reference_task_states: Set[State],
         ) -> Optional[State]:
             return None
 
@@ -3372,9 +3359,7 @@ class TestTerminalStateHandler:
 
     def test_terminal_state_handler_example_from_docs(self):
         def custom_terminal_state_handler(
-            flow: Flow,
-            state: State,
-            reference_task_states: Set[State],
+            flow: Flow, state: State, reference_task_states: Set[State],
         ) -> Optional[State]:
             failed = False
             # iterate through reference task states looking for failures
