@@ -7,3 +7,5 @@ except ImportError as err:
     raise ImportError(
         'Using `prefect.tasks.rss` requires Prefect to be installed with the "rss" extra.'
     ) from err
+
+__all__ = ['ParseRSSFeed']

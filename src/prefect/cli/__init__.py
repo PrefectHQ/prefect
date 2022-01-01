@@ -130,3 +130,5 @@ def backend(api):
 
     backend_util.save_backend(api)
     click.secho("Backend switched to {}".format(api), fg="green")
+
+__all__ = ['backend_util']

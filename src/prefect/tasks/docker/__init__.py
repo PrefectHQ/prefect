@@ -33,3 +33,5 @@ from prefect.tasks.docker.containers import (
     RemoveContainer,
     WaitOnContainer,
 )
+
+__all__ = ['BuildImage', 'CreateContainer', 'GetContainerLogs', 'ListContainers', 'ListImages', 'PullImage', 'PushImage', 'RemoveContainer', 'RemoveImage', 'StartContainer', 'StopContainer', 'TagImage', 'WaitOnContainer']

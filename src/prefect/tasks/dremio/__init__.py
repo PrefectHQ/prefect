@@ -8,3 +8,5 @@ except ImportError as import_error:
     raise ImportError(
         'Using `prefect.tasks.dremio` requires Prefect to be installed with the "dremio" extra.'
     ) from import_error
+
+__all__ = ['DremioFetch']

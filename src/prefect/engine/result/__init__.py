@@ -5,3 +5,5 @@ If you are looking for the API docs for the result subclasses you can use to ena
 """
 import prefect
 from prefect.engine.result.base import Result, NoResult, NoResultType
+
+__all__ = ['NoResult', 'NoResultType', 'Result']

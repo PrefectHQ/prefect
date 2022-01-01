@@ -37,4 +37,4 @@ try:
 except:
     pass
 
-__all__ = ['config', 'context', 'Client', 'Task', 'Flow', 'Parameter', 'case', 'resource_manager', 'task', 'tags', 'apply_map', 'mapped', 'unmapped', 'flatten']
+__all__ = ['Client', 'Flow', 'Parameter', 'Task', 'api', 'apply_map', 'case', 'config', 'context', 'flatten', 'mapped', 'models', 'plugins', 'resource_manager', 'tags', 'task', 'unmapped']

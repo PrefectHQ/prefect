@@ -12,3 +12,5 @@ except ImportError:
     raise ImportError(
         'Using `prefect.tasks.snowflake` requires Prefect to be installed with the "snowflake" extra.'
     ) from err
+
+__all__ = ['SnowflakeQueriesFromFile', 'SnowflakeQuery']
