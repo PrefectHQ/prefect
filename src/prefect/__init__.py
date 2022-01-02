@@ -16,14 +16,12 @@ del _pathlib
 
 # Prepare settings and logging first
 from prefect.utilities.settings import settings
-from prefect.utilities.logging import setup_logging, get_run_logger
+from prefect.utilities.logging import setup_logging, run_logger
 
 if not _os.path.exists(settings.home):
     _os.makedirs(settings.home, exist_ok=True)
 
 setup_logging(settings)
-
-logger = get_run_logger()
 
 # Import the serializers so they are registered
 import prefect.serializers
