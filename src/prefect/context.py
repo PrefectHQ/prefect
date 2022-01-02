@@ -3,9 +3,10 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
+from logging import Logger
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Optional, Type, TypeVar, Union, List, Set
+from typing import Optional, Type, TypeVar, Union, List, Set, Dict
 from uuid import UUID
 
 import pendulum
@@ -19,6 +20,7 @@ from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.tasks import Task
 from prefect.orion.schemas.states import State
+from prefect.orion.schemas.core import TaskRun, FlowRun
 
 T = TypeVar("T")
 
@@ -62,6 +64,9 @@ class RunContext(ContextModel):
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
 
+    def templatable_metadata(self) -> Dict[str, str]:
+        return {"start_time": self.start_time}
+
 
 class FlowRunContext(RunContext):
     """
@@ -81,16 +86,30 @@ class FlowRunContext(RunContext):
     """
 
     flow: Flow
-    flow_run_id: UUID
-    name: str
+    flow_run: FlowRun
     client: OrionClient
+
     task_runner: BaseTaskRunner
+
+    # Tracking created objects
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
+
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
     sync_portal: Optional[BlockingPortal] = None
     timeout_scope: Optional[CancelScope] = None
+
+    def templatable_metadata(self) -> Dict[str, str]:
+        return {
+            **super().templatable_metadata(),
+            **{
+                "flow_name": self.flow.name,
+                "flow_run_id": self.flow_run.id,
+                "flow_run_name": self.flow_run.name,
+                "task_runner_type": type(self.task_runner).__name__,
+            },
+        }
 
     __var__ = ContextVar("flow_run")
 
@@ -108,9 +127,19 @@ class TaskRunContext(RunContext):
     """
 
     task: Task
-    task_run_id: UUID
-    flow_run_id: UUID
+    task_run: TaskRun
     client: OrionClient
+
+    def templatable_metadata(self) -> Dict[str, str]:
+        return {
+            **super().templatable_metadata(),
+            **{
+                "task_name": self.task.name,
+                "task_run_id": self.task_run.id,
+                "flow_run_id": self.task_run.flow_run_id,
+                "task_run_name": self.task_run.name,
+            },
+        }
 
     __var__ = ContextVar("task_run")
 
