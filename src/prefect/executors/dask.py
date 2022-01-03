@@ -512,7 +512,7 @@ class LocalDaskExecutor(Executor):
             return
 
         # Shutdown the pool
-        self._pool.shutdown(wait=False)
+        self._pool.shutdown(wait=False, cancel_futures=True)
 
         if self.scheduler == "threads":
             # `ThreadPoolExecutor.shutdown()` doesn't stop running tasks, only
