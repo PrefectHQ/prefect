@@ -25,8 +25,6 @@ class TestStepActivate:
 
         called_method = client.mock_calls[1]
         assert called_method[0] == "().start_execution"
-        assert called_method[2] == {
-            "stateMachineArn": "arn",
-            "name": "name",
-            "input": "{}",
-        }
+        client().start_execution.assert_called_once_with(
+            stateMachineArn="arn", name="name", input="{}"
+        )
