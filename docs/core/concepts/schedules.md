@@ -115,7 +115,7 @@ schedule.next(2)
 
 #### Recurrence Rule Clocks
 
-The Prefect [`RRuleClock`](/api/latest/schedules/clocks.html#rruleclock) clock provides support for [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) (RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from yearly down to every second. 
+The Prefect [`RRuleClock`](/api/latest/schedules/clocks.html#rruleclock) supports [iCal recurrence rules](https://icalendar.org/iCalendar-RFC-5545/3-8-5-3-recurrence-rule.html) (RRules), which provide convenient syntax for creating repetitive schedules. Schedules can repeat on a frequency from yearly down to every minute. 
 
 `RRuleClock` uses the [dateutil rrule module](https://dateutil.readthedocs.io/en/stable/rrule.html) to specify iCal recurrence rules.
 
