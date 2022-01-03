@@ -593,7 +593,7 @@ class LocalDaskExecutor(Executor):
                     if exiting_early:
                         self._interrupt_pool()
                     else:
-                        self._pool.shutdown(wait=False)
+                        self._pool.shutdown(wait=True)
                     self._pool = None
 
     def submit(
