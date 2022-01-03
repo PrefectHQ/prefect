@@ -71,4 +71,3 @@ async def read_logs(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
-

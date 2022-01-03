@@ -97,7 +97,9 @@ class TestReadLogs:
         response = await client.post(READ_LOGS_URL)
         assert len(response.json()["logs"]) == 2
 
-    async def test_read_logs_applies_log_filter(self, logs, log_data, client, task_run_id):
+    async def test_read_logs_applies_log_filter(
+        self, logs, log_data, client, task_run_id
+    ):
         log_filter = {"logs": {"task_run_id": {"any_": [task_run_id]}}}
         response = await client.post(READ_LOGS_URL, json=log_filter)
         data = response.json()
