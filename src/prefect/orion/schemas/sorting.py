@@ -78,9 +78,9 @@ class LogSort(AutoEnum):
             "TIMESTAMP_DESC": db.Log.timestamp.desc(),
             "LEVEL_ASC": db.Log.level.asc(),
             "LEVEL_DESC": db.Log.level.desc(),
-            "FLOW_ID_ASC": db.Log.flow_id.asc(),
-            "FLOW_ID_DESC": db.Log.flow_id.desc(),
-            "TASK_ID_ASC": db.Log.task_id.asc(),
-            "TASK_ID_DESC": db.Log.task_id.desc(),
+            "FLOW_RUN_ID_ASC": db.Log.flow_run_id.asc(),
+            "FLOW_RUN_ID_DESC": db.Log.flow_run_id.desc(),
+            "TASK_RUN_ID_ASC": db.Log.task_run_id.asc(),
+            "TASK_RUN_ID_DESC": db.Log.task_run_id.desc(),
         }
         return sort_mapping[self.value]

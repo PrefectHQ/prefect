@@ -3,7 +3,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 
-from prefect.orion import models, schemas
+from prefect.orion import models
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.sorting import LogSort
 
@@ -95,17 +95,12 @@ class TestReadLogs:
 
     async def test_read_logs(self, client, logs):
         response = await client.post(READ_LOGS_URL)
-        assert len(response.json()) == 2
+        assert len(response.json()["logs"]) == 2
 
-    async def test_read_logs2(self, client, logs):
-        response = await client.post(READ_LOGS_URL)
-        assert response.status_code == 200
-        assert len(response.json()) == 2
-
-    async def test_read_logs_applies_log_filter(self, logs, log_data, client, flow_run_id):
-        log_filter = {"logs": {"flow_run_id": {"any_": [flow_run_id]}}}
+    async def test_read_logs_applies_log_filter(self, logs, log_data, client, task_run_id):
+        log_filter = {"logs": {"task_run_id": {"any_": [task_run_id]}}}
         response = await client.post(READ_LOGS_URL, json=log_filter)
         data = response.json()
-        assert len(data["logs"]) == 2
+        assert len(data["logs"]) == 1
         for log in data["logs"]:
-            assert log["flow_run_id"] == flow_run_id
+            assert log["task_run_id"] == task_run_id
