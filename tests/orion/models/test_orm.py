@@ -688,7 +688,7 @@ class TestExpectedStartTimeDelta:
 
 
 class TestLog:
-    async def test_create_log_with_flow_id_and_task_id(self, session, db):
+    async def test_create_log_with_flow_run_id_and_task_run_id(self, session, db):
         now = pendulum.now("UTC")
         fifteen_mins_ago = now - datetime.timedelta(minutes=15)
 
@@ -697,8 +697,8 @@ class TestLog:
             level=logging.INFO,
             message="Ahoy, captain",
             timestamp=now,
-            flow_id=uuid4(),
-            task_id=uuid4(),
+            flow_run_id=uuid4(),
+            task_run_id=uuid4(),
         )
 
         session.add(log)
@@ -713,7 +713,7 @@ class TestLog:
         result = await session.execute(query)
         assert result.scalar() == log
 
-    async def test_create_log_without_task_id(self, session, db):
+    async def test_create_log_without_task_run_id(self, session, db):
         now = pendulum.now("UTC")
         fifteen_mins_ago = now - datetime.timedelta(minutes=15)
 
@@ -721,7 +721,7 @@ class TestLog:
             name="prefect.flow_run",
             level=logging.WARNING,
             message="Black flag ahead, captain!",
-            flow_id=uuid4(),
+            flow_run_id=uuid4(),
             timestamp=now,
         )
 
