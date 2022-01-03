@@ -37,36 +37,32 @@ class TestCubeJSQueryTask:
 
     def test_run_with_no_values_raises(self):
         cubejs_task = CubeJSQueryTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Missing both `subdomain` and `url`."
+        with pytest.raises(ValueError, match=msg_match):
             cubejs_task.run()
-
-        assert "Missing both `subdomain` and `url`." in str(exc)
 
     def test_run_without_api_secret_api_secret_env_var(self):
         cubejs_task = CubeJSQueryTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Missing `api_secret` and `api_secret_env_var` not found."
+        with pytest.raises(ValueError, match=msg_match):
             cubejs_task.run(subdomain="foo")
-
-        assert "Missing `api_secret` and `api_secret_env_var` not found." in str(exc)
 
     def test_run_without_query_raises(self):
         cubejs_task = CubeJSQueryTask()
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Missing `query`."
+        with pytest.raises(ValueError, match=msg_match):
             cubejs_task.run(subdomain="foo", api_secret="bar")
-
-        assert "Missing `query`." in str(exc)
 
     @responses.activate
     def test_run_with_failing_api_raises(self):
         cubejs_task = CubeJSQueryTask()
+        msg_match = "Cube.js load API failed!"
         responses.add(
             responses.GET, "https://test.cubecloud.dev/cubejs-api/v1/load", status=123
         )
 
-        with pytest.raises(FAIL) as exc:
+        with pytest.raises(FAIL, match=msg_match):
             cubejs_task.run(subdomain="test", api_secret="foo", query="query")
-
-        assert "Cube.js load API failed!" in str(exc)
 
     @responses.activate
     def test_run_with_continue_waiting(self, caplog):
@@ -121,7 +117,7 @@ class TestCubeJSQueryTask:
     @responses.activate
     def test_run_with_max_wait_time_raises(self):
         cubejs_task = CubeJSQueryTask()
-
+        msg_match = "Cube.js load API took longer than 3 seconds to provide a response."
         responses.add(
             responses.GET,
             "https://test.cubecloud.dev/cubejs-api/v1/load",
@@ -129,17 +125,12 @@ class TestCubeJSQueryTask:
             json={"error": "Continue wait"},
         )
 
-        with pytest.raises(FAIL) as exc:
+        with pytest.raises(FAIL, match=msg_match):
             cubejs_task.run(
                 subdomain="test",
                 api_secret="foo",
                 query="query",
                 security_context={"foo": "bar"},
                 wait_time_between_api_calls=1,
-                max_wait_time=3,
+                max_wait_time=3
             )
-
-        assert (
-            "Cube.js load API took longer than 3 seconds to provide a response."
-            in str(exc)
-        )
