@@ -132,5 +132,5 @@ class TestCubeJSQueryTask:
                 query="query",
                 security_context={"foo": "bar"},
                 wait_time_between_api_calls=1,
-                max_wait_time=3
+                max_wait_time=3,
             )
