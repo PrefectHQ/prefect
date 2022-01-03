@@ -138,7 +138,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     @property
     def Log(self):
-        """A saved search orm model"""
+        """A log orm model"""
         return self.orm.Log
 
     @property
