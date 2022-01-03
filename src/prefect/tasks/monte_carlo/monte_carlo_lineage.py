@@ -179,14 +179,24 @@ class MonteCarloCreateOrUpdateLineage(Task):
             )
 
         mc = MonteCarloClient(api_key_id, api_token)
-        if source.get("tags") is None:
+
+        # source node
+        if source.get("tags") is None and prefect_context_tags is False:
             source_node_mcon = mc.create_or_update_lineage_node(
                 source["node_name"],
                 source["object_id"],
                 source["object_type"],
                 source["resource_name"],
             )
-        else:
+        elif source.get("tags") is None and prefect_context_tags is True:
+            source_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                source["node_name"],
+                source["object_id"],
+                source["object_type"],
+                source["resource_name"],
+                tags=get_prefect_context_tags(),
+            )
+        elif source.get("tags") is not None and prefect_context_tags is False:
             source_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
                 source["node_name"],
                 source["object_id"],
@@ -194,17 +204,35 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 source["resource_name"],
                 source["tags"],
             )
+        else:
+            lineage_tags = [*source["tags"], *get_prefect_context_tags()]
+            source_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                source["node_name"],
+                source["object_id"],
+                source["object_type"],
+                source["resource_name"],
+                lineage_tags,
+            )
         source_node_url = f"{self.catalog_url}/{source_node_mcon}/table"
         self.logger.info("Created or updated a source lineage node %s", source_node_url)
 
-        if destination.get("tags") is None:
+        # destination node
+        if destination.get("tags") is None and prefect_context_tags is False:
             destination_node_mcon = mc.create_or_update_lineage_node(
                 destination["node_name"],
                 destination["object_id"],
                 destination["object_type"],
                 destination["resource_name"],
             )
-        else:
+        elif destination.get("tags") is None and prefect_context_tags is True:
+            destination_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                destination["node_name"],
+                destination["object_id"],
+                destination["object_type"],
+                destination["resource_name"],
+                tags=get_prefect_context_tags(),
+            )
+        elif destination.get("tags") is not None and prefect_context_tags is False:
             destination_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
                 destination["node_name"],
                 destination["object_id"],
@@ -212,29 +240,23 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 destination["resource_name"],
                 destination["tags"],
             )
+        else:
+            lineage_tags = [*destination["tags"], *get_prefect_context_tags()]
+            destination_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                destination["node_name"],
+                destination["object_id"],
+                destination["object_type"],
+                destination["resource_name"],
+                lineage_tags,
+            )
         destination_node_url = f"{self.catalog_url}/{destination_node_mcon}/table"
         self.logger.info(
             "Created or updated a destination lineage node %s", destination_node_url
         )
 
+        # edge between source and destination nodes
         edge_id = mc.create_or_update_lineage_edge(source, destination, expire_at)
-        self.logger.debug("Lineage edge response: %s", edge_id)
-        if prefect_context_tags:
-            self.logger.info("Setting Prefect context tags on the lineage nodes...")
-            mc.create_or_update_lineage_node_with_multiple_tags(
-                source["node_name"],
-                source["object_id"],
-                source["object_type"],
-                source["resource_name"],
-                tags=get_prefect_context_tags(),
-            )
-            mc.create_or_update_lineage_node_with_multiple_tags(
-                destination["node_name"],
-                destination["object_id"],
-                destination["object_type"],
-                destination["resource_name"],
-                tags=get_prefect_context_tags(),
-            )
+        self.logger.info("Created or updated a destination lineage edge %s", edge_id)
         return edge_id
 
 
@@ -359,7 +381,7 @@ class MonteCarloCreateOrUpdateNodeWithTags(Task):
             raise ValueError("Value for `api_token` must be provided.")
 
         mc = MonteCarloClient(api_key_id, api_token)
-        if lineage_tags is None:
+        if lineage_tags is None and prefect_context_tags is False:
             node_mcon = mc.create_or_update_lineage_node(
                 node_name,
                 object_id,
@@ -375,22 +397,19 @@ class MonteCarloCreateOrUpdateNodeWithTags(Task):
                         "You provided: ",
                         tag,
                     )
-            node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
-                node_name,
-                object_id,
-                object_type,
-                resource_name,
-                lineage_tags,
-            )
-        if prefect_context_tags:
-            self.logger.info("Setting Prefect context tags on the lineage nodes...")
-            mc.create_or_update_lineage_node_with_multiple_tags(
-                node_name,
-                object_id,
-                object_type,
-                resource_name,
-                tags=get_prefect_context_tags(),
-            )
+            if prefect_context_tags is False:
+                node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                    node_name,
+                    object_id,
+                    object_type,
+                    resource_name,
+                    lineage_tags,
+                )
+            else:
+                final_tags = [*lineage_tags, *get_prefect_context_tags()]
+                node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                    node_name, object_id, object_type, resource_name, tags=final_tags
+                )
         return node_mcon
 
 
