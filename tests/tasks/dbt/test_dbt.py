@@ -178,6 +178,23 @@ def test_dbt_cloud_run_job_create_task_with_cause():
     assert dbt_run_job_task.token == "xyz"
     assert dbt_run_job_task.job_id == 1234
     assert dbt_run_job_task.cause == "foo"
+    assert dbt_run_job_task.domain == "cloud.getdbt.com"
+
+
+def test_dbt_cloud_run_job_create_task_with_domain():
+    dbt_run_job_task = DbtCloudRunJob(
+        account_id=1234,
+        token="xyz",
+        job_id=1234,
+        cause="foo",
+        domain="cloud.corp.getdbt.com",
+    )
+
+    assert dbt_run_job_task.account_id == 1234
+    assert dbt_run_job_task.token == "xyz"
+    assert dbt_run_job_task.job_id == 1234
+    assert dbt_run_job_task.cause == "foo"
+    assert dbt_run_job_task.domain == "cloud.corp.getdbt.com"
 
 
 def test_dbt_cloud_run_job_create_task_from_default_env_vars(monkeypatch):
@@ -255,6 +272,28 @@ def test_dbt_cloud_run_job_raises_failure():
 
 
 @responses.activate
+def test_dbt_cloud_run_corp_job_raises_failure():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=123,
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo",
+        account_id=account_id,
+        job_id=job_id,
+        token="foo",
+        domain="cloud.corp.getdbt.com",
+    )
+    with pytest.raises(TriggerDbtCloudRunFailed):
+        run_job.run()
+
+
+@responses.activate
 def test_dbt_cloud_run_job_trigger_job():
     account_id = 1234
     job_id = 1234
@@ -268,6 +307,30 @@ def test_dbt_cloud_run_job_trigger_job():
 
     run_job = DbtCloudRunJob(
         cause="foo", account_id=account_id, job_id=job_id, token="foo"
+    )
+    r = run_job.run()
+
+    assert r == {"foo": "bar"}
+
+
+@responses.activate
+def test_dbt_cloud_run_job_trigger_job_custom_domain():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=200,
+        json={"data": {"foo": "bar"}},
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo",
+        account_id=account_id,
+        job_id=job_id,
+        token="foo",
+        domain="cloud.corp.getdbt.com",
     )
     r = run_job.run()
 
@@ -317,5 +380,53 @@ def test_dbt_cloud_run_job_trigger_job_with_wait():
             f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
             f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
             f"https://cloud.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
+        ],
+    }
+
+
+@responses.activate
+def test_dbt_cloud_run_job_trigger_job_with_wait_custom():
+    account_id = 1234
+    job_id = 1234
+
+    responses.add(
+        responses.POST,
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/jobs/{job_id}/run/",
+        status=200,
+        json={"data": {"id": 1}},
+    )
+
+    responses.add(
+        responses.GET,
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/",
+        status=200,
+        json={"data": {"id": 1, "status": 10, "finished_at": "2019-08-24T14:15:22Z"}},
+    )
+
+    responses.add(
+        responses.GET,
+        f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/",
+        status=200,
+        json={"data": ["manifest.json", "run_results.json", "catalog.json"]},
+    )
+
+    run_job = DbtCloudRunJob(
+        cause="foo",
+        account_id=account_id,
+        job_id=job_id,
+        token="foo",
+        wait_for_job_run_completion=True,
+        domain="cloud.corp.getdbt.com",
+    )
+    r = run_job.run()
+
+    assert r == {
+        "id": 1,
+        "status": 10,
+        "finished_at": "2019-08-24T14:15:22Z",
+        "artifact_urls": [
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/manifest.json",
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/run_results.json",
+            f"https://cloud.corp.getdbt.com/api/v2/accounts/{account_id}/runs/1/artifacts/catalog.json",
         ],
     }
