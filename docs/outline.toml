@@ -453,6 +453,11 @@ classes = [
         "Zip",
         ]
 
+[pages.tasks.firebolt]
+title = "Firebolt Tasks"
+module = "prefect.tasks.firebolt"
+classes = ["FireboltQuery"]
+
 [pages.tasks.gcp]
 title = "Google Cloud Tasks"
 module = "prefect.tasks.gcp"
@@ -565,6 +570,11 @@ classes = ["SodaSQLScan"]
 title = "SodaSpark Tasks"
 module = "prefect.tasks.sodaspark"
 classes = ["SodaSparkScan"]
+
+[pages.tasks.mixpanel]
+title = "Mixpanel Tasks"
+module = "prefect.tasks.mixpanel"
+classes = ["MixpanelExportTask"]
 
 [pages.tasks.databricks]
 title = "Databricks Tasks"
