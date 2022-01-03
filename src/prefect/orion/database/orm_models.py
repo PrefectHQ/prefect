@@ -627,7 +627,7 @@ class BaseORMConfiguration(ABC):
         )
         self.base_model_mixins = base_model_mixins or []
 
-        self._create_base_models()
+        self._create_base_model()
         self._create_orm_models()
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
@@ -636,9 +636,9 @@ class BaseORMConfiguration(ABC):
         """
         return (self.__class__, self.base_metadata, tuple(self.base_model_mixins))
 
-    def _create_base_models(self):
+    def _create_base_model(self):
         """
-        Defines the base ORM models and binds it to `self`. The base model will be
+        Defines the base ORM model and binds it to `self`. The base model will be
         extended by mixins specified in the database configuration. This method only
         runs on instantiation.
         """

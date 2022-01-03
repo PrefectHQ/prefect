@@ -860,26 +860,6 @@ class LogFilterTimestamp(PrefectFilterBaseModel):
         return filters
 
 
-class LogFilterLevel(PrefectFilterBaseModel):
-    """Filter by `Log.level`."""
-
-    any_: List[int] = Field(
-        None,
-        description="A list of log levels to include",
-        example=[20, 50],
-    )
-
-    @inject_db
-    def _get_filter_list(
-        self,
-        db: OrionDBInterface,
-    ) -> List:
-        filters = []
-        if self.any_ is not None:
-            filters.append(db.Log.level.in_(self.any_))
-        return filters
-
-
 class LogFilterFlowId(PrefectFilterBaseModel):
     """Filter by `Log.flow_id`."""
 
@@ -915,9 +895,6 @@ class LogFilterTaskId(PrefectFilterBaseModel):
 class LogFilter(PrefectFilterBaseModel):
     """Filter logs. Only logs matching all criteria will be returned"""
 
-    name: Optional[LogFilterName] = Field(
-        None, description="Filter criteria for `Log.name`"
-    )
     level: Optional[LogFilterLevel] = Field(
         None, description="Filter criteria for `Log.level`"
     )
@@ -938,12 +915,10 @@ class LogFilter(PrefectFilterBaseModel):
     ) -> List:
         filters = []
 
-        if self.name is not None:
-            filters.append(self.name.as_sql_filter())
         if self.level is not None:
             filters.append(self.level.as_sql_filter())
         if self.timestamp is not None:
-            filters.append(self.name.as_sql_filter())
+            filters.append(self.timestamp.as_sql_filter())
         if self.flow_id is not None:
             filters.append(self.flow_id.as_sql_filter())
         if self.task_id is not None:
