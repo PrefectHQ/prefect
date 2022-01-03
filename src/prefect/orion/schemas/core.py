@@ -330,8 +330,8 @@ class Log(ORMBaseModel):
     level: int = Field(..., description="The log level.")
     message: str = Field(..., description="The log message.")
     timestamp: datetime.datetime = Field(..., description="The log timestamp.")
-    flow_id: UUID = Field(..., description="The flow ID associated with the log.")
-    task_id: Optional[UUID] = Field(
+    flow_run_id: UUID = Field(..., description="The flow ID associated with the log.")
+    task_run_id: Optional[UUID] = Field(
         None, description="The task ID associated with the log."
     )
 
