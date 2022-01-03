@@ -6,6 +6,12 @@ from prefect import Task
 from prefect.utilities.tasks import defaults_from_attrs
 
 
+class MonteCarloIncorrectTagsFormat(Exception):
+    """Exception for incorrect tags format"""
+
+    pass
+
+
 class MonteCarloCreateOrUpdateLineage(Task):
     """
     Task for creating or updating a lineage node for the given source and destination nodes,
@@ -262,11 +268,10 @@ class MonteCarloCreateOrUpdateNodeWithTags(Task):
 
         The expected format for `lineage_tags`:
 
-        ````python
+        ```python
         [{"propertyName": "tag_name", "propertyValue": "your_tag_value"},
         {"propertyName": "another_tag_name", "propertyValue": "your_tag_value"}]
         ```
-
     """
 
     def __init__(
@@ -389,12 +394,6 @@ class MonteCarloCreateOrUpdateNodeWithTags(Task):
         return node_mcon
 
 
-class MonteCarloIncorrectTagsFormat(Exception):
-    """Exception for incorrect tags format"""
-
-    pass
-
-
 class MonteCarloGetResources(Task):
     """
     Task for querying resources using the Monte Carlo API.
@@ -459,6 +458,7 @@ def get_prefect_context_tags() -> List[Dict[str, Any]]:
     """
     Helper function to generate a list of Prefect context tags
     when `prefect_context_tags` is set to True.
+
     Returns:
         - list: a list of dictionaries with the task's context.
     """

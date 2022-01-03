@@ -123,44 +123,6 @@ class MonteCarloClient:
         )
         return response["data"]["createOrUpdateLineageNode"]["node"]["mcon"]
 
-    def create_or_update_lineage_node_with_tag(
-        self,
-        node_name: str,
-        object_id: str,
-        object_type: str,
-        resource_name: str,
-        metadata_key: str,
-        metadata_value: str,
-    ) -> str:
-        response = self._send_graphql_request(
-            query="""
-            mutation($node_name: String!, $object_id: String!, $object_type: String!,
-            $resource_name: String!, $metadata_key: String!, $metadata_value: String!
-            ) {
-              createOrUpdateLineageNode(
-                name: $node_name,
-                objectId: $object_id,
-                objectType: $object_type,
-                resourceName: $resource_name,
-                properties: [{propertyName: $metadata_key, propertyValue: $metadata_value}]
-              ){
-                node{
-                  mcon
-                }
-              }
-            }
-            """,
-            variables=dict(
-                node_name=node_name,
-                object_id=object_id,
-                object_type=object_type,
-                resource_name=resource_name,
-                metadata_key=metadata_key,
-                metadata_value=metadata_value,
-            ),
-        )
-        return response["data"]["createOrUpdateLineageNode"]["node"]["mcon"]
-
     def create_or_update_lineage_node_with_multiple_tags(
         self,
         node_name: str,
