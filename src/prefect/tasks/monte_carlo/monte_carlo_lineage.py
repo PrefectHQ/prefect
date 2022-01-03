@@ -1,4 +1,3 @@
-import json
 from typing import Any, Dict, List
 from prefect.tasks.monte_carlo.client import MonteCarloClient
 
@@ -14,28 +13,28 @@ class MonteCarloCreateOrUpdateLineage(Task):
 
     Args:
         - source (dict, optional): a source node configuration. Expected to include the following
-        keys: `node_name`, `object_id`, `object_type`, `resource_name`, and optionally also
-        `metadata_key` and `metadata_value`.
+            keys: `node_name`, `object_id`, `object_type`, `resource_name`, and optionally also
+            a list of `tags`.
         - destination (dict, optional): a destination node configuration. Expected to include
-        the following keys: `node_name`, `object_id`, `object_type`, `resource_name`,
-        and optionally also `metadata_key` and `metadata_value`.
+            the following keys: `node_name`, `object_id`, `object_type`, `resource_name`,
+            and optionally also a list of `tags`.
         - api_key_id (string, optional): to use this task,
-        you need to pass the Monte Carlo API credentials.
-        Those can be created using https://getmontecarlo.com/settings/api.
-        To avoid passing the credentials
-        in plain text, you can leverage the PrefectSecret task in your flow.
+            you need to pass the Monte Carlo API credentials.
+            Those can be created using https://getmontecarlo.com/settings/api.
+            To avoid passing the credentials
+            in plain text, you can leverage the PrefectSecret task in your flow.
         - api_token (string, optional): the API token.
-         To avoid passing the credentials in plain text,
-         you can leverage PrefectSecret task in your flow.
-        - prefect_context_tag (bool, optional): whether to automatically add
-        a tag with Prefect context.
+             To avoid passing the credentials in plain text,
+             you can leverage PrefectSecret task in your flow.
+        - prefect_context_tags (bool, optional): whether to automatically add
+            tags with Prefect context.
         - expire_at (string, optional): date and time indicating when to expire
-        a source-destination edge. You can expire specific lineage nodes.
-        If this value is set, the
-        edge between a source and destination nodes will expire on a given date.
-        Expected format: "YYYY-MM-DDTHH:mm:ss.SSS". For example, "2042-01-01T00:00:00.000".
+            a source-destination edge. You can expire specific lineage nodes.
+            If this value is set, the
+            edge between a source and destination nodes will expire on a given date.
+            Expected format: "YYYY-MM-DDTHH:mm:ss.SSS". For example, "2042-01-01T00:00:00.000".
         - **kwargs (dict, optional): additional keyword arguments to pass
-        to the Task constructor.
+            to the Task constructor.
 
         Example source:
 
@@ -47,8 +46,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
             # "table" is recommended, but you can use any string, e.g. "csv_file"
             object_type="table",
             resource_name="name_your_source_system",
-            metadata_key="your_key_name",
-            metadata_value="your_abitrary_value",
+            tags=[{"propertyName": "prefect_test_key", "propertyValue": "prefect_test_value"}]
         )
         ```
 
@@ -62,8 +60,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
             # "table" is recommended, but you can use any string, e.g. "csv_file"
             object_type="table",
             resource_name="your_dwh_resource_name",
-            metadata_key="your_optional_key_name",
-            metadata_value="your_optional_abitrary_value",
+            tags=[{"propertyName": "prefect_test_key", "propertyValue": "prefect_test_value"}]
         )
         ```
 
@@ -77,7 +74,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
         destination: Dict[str, str] = None,
         api_key_id: str = None,
         api_token: str = None,
-        prefect_context_tag: bool = True,
+        prefect_context_tags: bool = True,
         expire_at: str = None,
         **kwargs: Any,
     ):
@@ -85,7 +82,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
         self.destination = destination
         self.api_key_id = api_key_id
         self.api_token = api_token
-        self.prefect_context_tag = prefect_context_tag
+        self.prefect_context_tags = prefect_context_tags
         self.expire_at = expire_at
         super().__init__(**kwargs)
 
@@ -94,52 +91,53 @@ class MonteCarloCreateOrUpdateLineage(Task):
         "destination",
         "api_key_id",
         "api_token",
-        "prefect_context_tag",
+        "prefect_context_tags",
         "expire_at",
     )
     def run(
         self,
-        source: Dict[str, str] = None,
-        destination: Dict[str, str] = None,
+        source: Dict[str, Any] = None,
+        destination: Dict[str, Any] = None,
         api_key_id: str = None,
         api_token: str = None,
-        prefect_context_tag: bool = True,
+        prefect_context_tags: bool = True,
         expire_at: str = None,
     ) -> Dict[str, Any]:
         """
         Creates or updates a lineage node for the given source and destination,
         and creates a lineage edge between them.
-        If the `metadata_key` and `metadata_value` are set for either source or destination (or both),
-        the task adds those as tags to the source and/or destination nodes.
-        If no key-value pair is set, the task
+        If a list of `tags` is set for either source or destination (or both),
+        the task adds those to the source and/or destination nodes.
+        If no `tags` are set, the task
         creates a node without custom tags. Additionally,
-        if the `prefect_context_tag` flag is set to True (default),
-        the task creates a tag with the Prefect context dictionary for debugging data downtime issues.
+        if the `prefect_context_tags` flag is set to True (default),
+        the task creates tags with information from Prefect context
+        for debugging data downtime issues.
 
         Args:
             - source (dict, optional): a source node configuration.
-            Expected to include the following keys: `node_name`,
-            `object_id`, `object_type`, `resource_name`, and optionally also
-            `metadata_key` and `metadata_value`.
+                Expected to include the following keys: `node_name`,
+                `object_id`, `object_type`, `resource_name`, and optionally also
+                a list of `tags`.
             - destination (dict, optional): a destination node configuration.
-            Expected to include the following keys:
-            `node_name`, `object_id`, `object_type`, `resource_name`,
-            and optionally also `metadata_key` and `metadata_value`.
+                Expected to include the following keys:
+                `node_name`, `object_id`, `object_type`, `resource_name`,
+                and optionally also a list of `tags`.
             - api_key_id (string, optional): to use this task, you need to pass
-            the Monte Carlo API credentials.
-            Those can be created using https://getmontecarlo.com/settings/api.
-            To avoid passing the credentials
-            in plain text, you can leverage the PrefectSecret task in your flow.
+                the Monte Carlo API credentials.
+                Those can be created using https://getmontecarlo.com/settings/api.
+                To avoid passing the credentials
+                in plain text, you can leverage the PrefectSecret task in your flow.
             - api_token (string, optional): the API token.
-             To avoid passing the credentials in plain text,
-             you can leverage PrefectSecret task in your flow.
-            - prefect_context_tag (bool, optional): whether to automatically add
-            a tag with Prefect context.
+                 To avoid passing the credentials in plain text,
+                 you can leverage PrefectSecret task in your flow.
+            - prefect_context_tags (bool, optional): whether to automatically add
+                tags with Prefect context.
             - expire_at (string, optional): date and time indicating when to expire
-            a source-destination edge. You can expire specific lineage nodes.
-            If this value is set, the
-            edge between a source and destination nodes will expire on a given date.
-            Expected format: "YYYY-MM-DDTHH:mm:ss.SSS". For example, "2042-01-01T00:00:00.000".
+                a source-destination edge. You can expire specific lineage nodes.
+                If this value is set, the
+                edge between a source and destination nodes will expire on a given date.
+                Expected format: "YYYY-MM-DDTHH:mm:ss.SSS". For example, "2042-01-01T00:00:00.000".
 
         Returns:
             - dict: a GraphQL response dictionary with the edge ID.
@@ -175,7 +173,7 @@ class MonteCarloCreateOrUpdateLineage(Task):
             )
 
         mc = MonteCarloClient(api_key_id, api_token)
-        if source.get("metadata_key") is None or source.get("metadata_value") is None:
+        if source.get("tags") is None:
             source_node_mcon = mc.create_or_update_lineage_node(
                 source["node_name"],
                 source["object_id"],
@@ -183,21 +181,17 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 source["resource_name"],
             )
         else:
-            source_node_mcon = mc.create_or_update_lineage_node_with_tag(
+            source_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
                 source["node_name"],
                 source["object_id"],
                 source["object_type"],
                 source["resource_name"],
-                source["metadata_key"],
-                source["metadata_value"],
+                source["tags"],
             )
         source_node_url = f"{self.catalog_url}/{source_node_mcon}/table"
         self.logger.info("Created or updated a source lineage node %s", source_node_url)
 
-        if (
-            destination.get("metadata_key") is None
-            or destination.get("metadata_value") is None
-        ):
+        if destination.get("tags") is None:
             destination_node_mcon = mc.create_or_update_lineage_node(
                 destination["node_name"],
                 destination["object_id"],
@@ -205,13 +199,12 @@ class MonteCarloCreateOrUpdateLineage(Task):
                 destination["resource_name"],
             )
         else:
-            destination_node_mcon = mc.create_or_update_lineage_node_with_tag(
+            destination_node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
                 destination["node_name"],
                 destination["object_id"],
                 destination["object_type"],
                 destination["resource_name"],
-                destination["metadata_key"],
-                destination["metadata_value"],
+                destination["tags"],
             )
         destination_node_url = f"{self.catalog_url}/{destination_node_mcon}/table"
         self.logger.info(
@@ -220,49 +213,60 @@ class MonteCarloCreateOrUpdateLineage(Task):
 
         edge_id = mc.create_or_update_lineage_edge(source, destination, expire_at)
         self.logger.debug("Lineage edge response: %s", edge_id)
-        if prefect_context_tag:
+        if prefect_context_tags:
             self.logger.info("Setting Prefect context tags on the lineage nodes...")
-            mc.create_or_update_tags_for_mcon(
-                mcon=source_node_mcon,
-                key="prefect_context",
-                value=get_prefect_context(),
+            mc.create_or_update_lineage_node_with_multiple_tags(
+                source["node_name"],
+                source["object_id"],
+                source["object_type"],
+                source["resource_name"],
+                tags=get_prefect_context_tags(),
             )
-            mc.create_or_update_tags_for_mcon(
-                mcon=destination_node_mcon,
-                key="prefect_context",
-                value=get_prefect_context(),
+            mc.create_or_update_lineage_node_with_multiple_tags(
+                destination["node_name"],
+                destination["object_id"],
+                destination["object_type"],
+                destination["resource_name"],
+                tags=get_prefect_context_tags(),
             )
         return edge_id
 
 
-class MonteCarloCreateOrUpdateNodeWithTag(Task):
+class MonteCarloCreateOrUpdateNodeWithTags(Task):
     """
     Task for creating or updating a lineage node in the Monte Carlo Catalog
-    and enriching it with metadata tags.
-    If the `prefect_context_tag` flag is set to True (default),
-    the task additionally creates a tag with the Prefect
-    context dictionary for debugging data downtime issues.
+    and enriching it with multiple metadata tags.
+    If the `prefect_context_tags` flag is set to True (default),
+    the task additionally creates tags with Prefect
+    context for debugging data downtime issues.
 
     Args:
         - node_name (string, optional): the display name of a lineage node.
         - object_id (string, optional): the object ID of a lineage node.
         - object_type (string, optional): the object type of a lineage node - usually,
-        either "table" or "view".
+            either "table" or "view".
         - resource_name (string, optional): name of the data warehouse or custom resource.
-        All resources can be retrieved via a separate task.
-        - metadata_key (string, optional): the metadata tag name.
-        - metadata_value (string, optional): the value of a metadata tag.
+            All resources can be retrieved via a separate task.
+        - lineage_tags (list, optional): a list of dictionaries where each dictionary is a single tag.
         - api_key_id (string, optional): to use this task, you need to pass
-        the Monte Carlo API credentials.
-        Those can be created using https://getmontecarlo.com/settings/api.
-        To avoid passing the credentials
-        in plain text, you can leverage the PrefectSecret task in your flow.
+            the Monte Carlo API credentials.
+            Those can be created using https://getmontecarlo.com/settings/api.
+            To avoid passing the credentials
+            in plain text, you can leverage the PrefectSecret task in your flow.
         - api_token (string, optional): the API token.
-         To avoid passing the credentials in plain text,
-         you can leverage the PrefectSecret task in your flow.
-        - prefect_context_tag (bool, optional): whether to automatically add
-        a tag with Prefect context.
+             To avoid passing the credentials in plain text,
+             you can leverage the PrefectSecret task in your flow.
+        - prefect_context_tags (bool, optional): whether to automatically add
+            tags with Prefect context.
         - **kwargs (dict, optional): additional keyword arguments to pass to the Task constructor.
+
+        The expected format for `lineage_tags`:
+
+        ````python
+        [{"propertyName": "tag_name", "propertyValue": "your_tag_value"},
+        {"propertyName": "another_tag_name", "propertyValue": "your_tag_value"}]
+        ```
+
     """
 
     def __init__(
@@ -271,22 +275,20 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         object_id: str = None,
         object_type: str = None,
         resource_name: str = None,
-        metadata_key: str = None,
-        metadata_value: str = None,
+        lineage_tags: List[Dict[str, str]] = None,
         api_key_id: str = None,
         api_token: str = None,
-        prefect_context_tag: bool = True,
+        prefect_context_tags: bool = True,
         **kwargs: Any,
     ):
         self.node_name = node_name
         self.object_id = object_id
         self.object_type = object_type
         self.resource_name = resource_name
-        self.metadata_key = metadata_key
-        self.metadata_value = metadata_value
+        self.lineage_tags = lineage_tags
         self.api_key_id = api_key_id
         self.api_token = api_token
-        self.prefect_context_tag = prefect_context_tag
+        self.prefect_context_tags = prefect_context_tags
         super().__init__(**kwargs)
 
     @defaults_from_attrs(
@@ -294,11 +296,10 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         "object_id",
         "object_type",
         "resource_name",
-        "metadata_key",
-        "metadata_value",
+        "lineage_tags",
         "api_key_id",
         "api_token",
-        "prefect_context_tag",
+        "prefect_context_tags",
     )
     def run(
         self,
@@ -306,36 +307,35 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
         object_id: str = None,
         object_type: str = None,
         resource_name: str = None,
-        metadata_key: str = None,
-        metadata_value: str = None,
+        lineage_tags: List[Dict[str, str]] = None,
         api_key_id: str = None,
         api_token: str = None,
-        prefect_context_tag: bool = True,
+        prefect_context_tags: bool = True,
     ) -> str:
         """
-        Creates or updates metadata tags for a given lineage node in the Monte Carlo Catalog.
-        If the `prefect_context_tag` flag is set to True (default), the task additionally creates
+        Creates or updates multiple metadata tags for a given lineage node in the Monte Carlo Catalog.
+        If the `prefect_context_tags` flag is set to True (default), the task additionally creates
         a tag with the Prefect context dictionary for debugging data downtime issues.
 
         Args:
             - node_name (string, optional): the display name of a lineage node.
             - object_id (string, optional): the object ID of a lineage node.
             - object_type (string, optional): the object type of a lineage node - usually,
-            either "table" or "view".
+                either "table" or "view".
             - resource_name (string, optional): name of the data warehouse or custom resource.
-            All resources can be retrieved via a separate task.
-            - metadata_key (string, optional): the metadata tag name.
-            - metadata_value (string, optional): the value of a metadata tag.
+                All resources can be retrieved via a separate task.
+            - lineage_tags (list, optional): a list of dictionaries
+                where each dictionary is a single tag.
             - api_key_id (string, optional): to use this task,
-            you need to pass the Monte Carlo API credentials.
-            Those can be created using https://getmontecarlo.com/settings/api.
-            To avoid passing the credentials
-            in plain text, you can leverage the PrefectSecret task in your flow.
+                you need to pass the Monte Carlo API credentials.
+                Those can be created using https://getmontecarlo.com/settings/api.
+                To avoid passing the credentials
+                in plain text, you can leverage the PrefectSecret task in your flow.
             - api_token (string, optional): the API token.
-             To avoid passing the credentials in plain text,
-             you can leverage the PrefectSecret task in your flow.
-            - prefect_context_tag (bool, optional): whether to automatically add a tag
-            with Prefect context.
+                 To avoid passing the credentials in plain text,
+                 you can leverage the PrefectSecret task in your flow.
+            - prefect_context_tags (bool, optional): whether to automatically add a tag
+                with Prefect context.
 
         Returns:
             - string: MCON - a Monte Carlo internal ID of the node.
@@ -348,30 +348,51 @@ class MonteCarloCreateOrUpdateNodeWithTag(Task):
             raise ValueError("Value for `object_type` must be provided.")
         if resource_name is None:
             raise ValueError("Value for `resource_name` must be provided.")
-        if metadata_key is None:
-            raise ValueError("Value for `metadata_key` must be provided.")
-        if metadata_value is None:
-            raise ValueError("Value for `metadata_value` must be provided.")
         if api_key_id is None:
             raise ValueError("Value for `api_key_id` must be provided.")
         if api_token is None:
             raise ValueError("Value for `api_token` must be provided.")
 
         mc = MonteCarloClient(api_key_id, api_token)
-        node_mcon = mc.create_or_update_lineage_node_with_tag(
-            node_name,
-            object_id,
-            object_type,
-            resource_name,
-            metadata_key,
-            metadata_value,
-        )
-        if prefect_context_tag:
+        if lineage_tags is None:
+            node_mcon = mc.create_or_update_lineage_node(
+                node_name,
+                object_id,
+                object_type,
+                resource_name,
+            )
+        else:
+            for tag in lineage_tags:
+                if sorted(tag.keys()) != ["propertyName", "propertyValue"]:
+                    raise MonteCarloIncorrectTagsFormat(
+                        "Must provide tags in the format "
+                        '[{"propertyName": "tag_name", "propertyValue": "tag_value"}].',
+                        "You provided: ",
+                        tag,
+                    )
+            node_mcon = mc.create_or_update_lineage_node_with_multiple_tags(
+                node_name,
+                object_id,
+                object_type,
+                resource_name,
+                lineage_tags,
+            )
+        if prefect_context_tags:
             self.logger.info("Setting Prefect context tags on the lineage nodes...")
-            mc.create_or_update_tags_for_mcon(
-                mcon=node_mcon, key="prefect_context", value=get_prefect_context()
+            mc.create_or_update_lineage_node_with_multiple_tags(
+                node_name,
+                object_id,
+                object_type,
+                resource_name,
+                tags=get_prefect_context_tags(),
             )
         return node_mcon
+
+
+class MonteCarloIncorrectTagsFormat(Exception):
+    """Exception for incorrect tags format"""
+
+    pass
 
 
 class MonteCarloGetResources(Task):
@@ -383,15 +404,15 @@ class MonteCarloGetResources(Task):
 
     Args:
         - api_key_id (string, optional): to use this task, you need to pass
-        the Monte Carlo API credentials.
-        Those can be created using https://getmontecarlo.com/settings/api.
-        To avoid passing the credentials
-        in plain text, you can leverage the PrefectSecret task in your flow.
+            the Monte Carlo API credentials.
+            Those can be created using https://getmontecarlo.com/settings/api.
+            To avoid passing the credentials
+            in plain text, you can leverage the PrefectSecret task in your flow.
         - api_token (string, optional): the API token.
-         To avoid passing the credentials in plain text, you can leverage the PrefectSecret task
-         in your flow.
+             To avoid passing the credentials in plain text, you can leverage the PrefectSecret task
+             in your flow.
         - **kwargs (dict, optional): additional keyword arguments to pass to the
-        Task constructor.
+            Task constructor.
     """
 
     def __init__(
@@ -415,13 +436,13 @@ class MonteCarloGetResources(Task):
 
         Args:
             - api_key_id (string, optional): to use this task,
-            you need to pass the Monte Carlo API credentials.
-            Those can be created using https://getmontecarlo.com/settings/api.
-            To avoid passing the credentials
-            in plain text, you can leverage the PrefectSecret task in your flow.
+                you need to pass the Monte Carlo API credentials.
+                Those can be created using https://getmontecarlo.com/settings/api.
+                To avoid passing the credentials
+                in plain text, you can leverage the PrefectSecret task in your flow.
             - api_token (string, optional): the API token.
-             To avoid passing the credentials in plain text, you can leverage the PrefectSecret
-             task in your flow.
+                 To avoid passing the credentials in plain text, you can leverage the PrefectSecret
+                 task in your flow.
 
         Returns:
             - list: Monte Carlo resources, including all existing data warehouses and custom resources.
@@ -434,36 +455,82 @@ class MonteCarloGetResources(Task):
         return mc.get_resources()
 
 
-def get_prefect_context() -> str:
+def get_prefect_context_tags() -> List[Dict[str, Any]]:
     """
-    Helper function used to generate Prefect context tag
-    when `prefect_context_tag` is set to True.
+    Helper function to generate a list of Prefect context tags
+    when `prefect_context_tags` is set to True.
     Returns:
-        - string: a JSON string with the task's context.
+        - list: a list of dictionaries with the task's context.
     """
-    return json.dumps(
+    return [
+        dict(propertyName="flow_id", propertyValue=str(prefect.context.get("flow_id"))),
         dict(
-            flow_id=prefect.context.get("flow_id"),
-            flow_name=prefect.context.get("flow_name"),
-            flow_run_id=prefect.context.get("flow_run_id"),
-            flow_run_name=prefect.context.get("flow_run_name"),
-            flow_run_version=prefect.context.get("flow_run_version"),
-            project_id=prefect.context.get("project_id"),
-            project_name=prefect.context.get("project_name"),
-            scheduled_start_time=str(prefect.context.get("scheduled_start_time")),
-            execution_start_time=str(prefect.context.get("date")),
-            task_id=prefect.context.get("task_id"),
-            task_run_id=prefect.context.get("task_run_id"),
-            task_run_name=prefect.context.get("task_run_name"),
-            task_slug=prefect.context.get("task_slug"),
-            task_name=prefect.context.get("task_name"),
-            task_full_name=prefect.context.get("task_full_name"),
-            task_run_count=prefect.context.get("task_run_count"),
-            map_index=prefect.context.get("map_index"),
-            parameters=prefect.context.get("parameters"),
-            running_with_backend=prefect.context.get("running_with_backend"),
+            propertyName="flow_name",
+            propertyValue=str(prefect.context.get("flow_name")),
         ),
-        indent=4,
-        sort_keys=True,
-        default=str,
-    )
+        dict(
+            propertyName="flow_run_id",
+            propertyValue=str(prefect.context.get("flow_run_id")),
+        ),
+        dict(
+            propertyName="flow_run_name",
+            propertyValue=str(prefect.context.get("flow_run_name")),
+        ),
+        dict(
+            propertyName="flow_run_version",
+            propertyValue=str(prefect.context.get("flow_run_version")),
+        ),
+        dict(
+            propertyName="project_id",
+            propertyValue=str(prefect.context.get("project_id")),
+        ),
+        dict(
+            propertyName="project_name",
+            propertyValue=str(prefect.context.get("project_name")),
+        ),
+        dict(
+            propertyName="scheduled_start_time",
+            propertyValue=str(prefect.context.get("scheduled_start_time")),
+        ),
+        dict(
+            propertyName="execution_start_time",
+            propertyValue=str(prefect.context.get("date")),
+        ),
+        dict(propertyName="task_id", propertyValue=str(prefect.context.get("task_id"))),
+        dict(
+            propertyName="task_run_id",
+            propertyValue=str(prefect.context.get("task_run_id")),
+        ),
+        dict(
+            propertyName="task_run_name",
+            propertyValue=str(prefect.context.get("task_run_name")),
+        ),
+        dict(
+            propertyName="task_slug",
+            propertyValue=str(prefect.context.get("task_slug")),
+        ),
+        dict(
+            propertyName="task_name",
+            propertyValue=str(prefect.context.get("task_name")),
+        ),
+        dict(
+            propertyName="task_full_name",
+            propertyValue=str(prefect.context.get("task_full_name")),
+        ),
+        dict(
+            propertyName="task_run_count",
+            propertyValue=str(prefect.context.get("task_run_count")),
+        ),
+        dict(
+            propertyName="map_index",
+            propertyValue=str(prefect.context.get("map_index")),
+        ),
+        dict(
+            propertyName="parameters",
+            propertyValue=str(prefect.context.get("parameters")),
+        ),
+        dict(
+            propertyName="running_with_backend",
+            propertyValue=str(prefect.context.get("running_with_backend")),
+        ),
+    ]

@@ -3,6 +3,8 @@ import requests
 from typing import Any, Dict, List
 
 from prefect.utilities.logging import get_logger
+from prefect.utilities.graphql import format_graphql_request_error
+from prefect.exceptions import ClientError
 
 
 class MonteCarloClient:
@@ -28,9 +30,29 @@ class MonteCarloClient:
                 "Content-Type": "application/json",
             },
         )
-        response.raise_for_status()
+        # Check if request returned a successful status
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            if response.status_code == 400:
+                # Create a custom-formatted err message for graphql errors which always
+                # return a 400 status code and have "query" in the parameter dict
+                try:
+                    graphql_msg = format_graphql_request_error(response)
+                except Exception:
+                    # Fallback to a general message
+                    graphql_msg = (
+                        "This is likely caused by a poorly formatted GraphQL query or "
+                        "mutation but the response could not be parsed for more details"
+                    )
+                raise ClientError(f"{exc}\n{graphql_msg}") from exc
+
+            # Server-side and non-graphql errors will be raised without modification
+            raise
         response = response.json()
-        self.logger.info("Response: %s", response)
+        self.logger.debug(
+            "Response: %s for request %s with variables %s", response, query, variables
+        )
         return response
 
     def get_resources(self) -> List[Dict[str, Any]]:
@@ -123,7 +145,6 @@ class MonteCarloClient:
                 properties: [{propertyName: $metadata_key, propertyValue: $metadata_value}]
               ){
                 node{
-                  nodeId
                   mcon
                 }
               }
@@ -136,6 +157,42 @@ class MonteCarloClient:
                 resource_name=resource_name,
                 metadata_key=metadata_key,
                 metadata_value=metadata_value,
+            ),
+        )
+        return response["data"]["createOrUpdateLineageNode"]["node"]["mcon"]
+
+    def create_or_update_lineage_node_with_multiple_tags(
+        self,
+        node_name: str,
+        object_id: str,
+        object_type: str,
+        resource_name: str,
+        tags: List[Dict[str, str]],
+    ) -> str:
+        response = self._send_graphql_request(
+            query="""
+                mutation($node_name: String!, $object_id: String!, $object_type: String!,
+                $resource_name: String!, $tags: [ObjectPropertyInput]
+                ) {
+                  createOrUpdateLineageNode(
+                    name: $node_name,
+                    objectId: $object_id,
+                    objectType: $object_type,
+                    resourceName: $resource_name,
+                    properties: $tags
+                  ){
+                    node{
+                      mcon
+                    }
+                  }
+                }
+                """,
+            variables=dict(
+                node_name=node_name,
+                object_id=object_id,
+                object_type=object_type,
+                resource_name=resource_name,
+                tags=tags,
             ),
         )
         return response["data"]["createOrUpdateLineageNode"]["node"]["mcon"]
@@ -201,5 +258,4 @@ class MonteCarloClient:
                 expire_at=expire_at,
             ),
         )
-        self.logger.info("Response of createOrUpdateLineageEdge %s", response)
         return response["data"]["createOrUpdateLineageEdge"]["edge"]["edgeId"]

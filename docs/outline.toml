@@ -769,5 +769,5 @@ verified_task = true
 [pages.tasks.monte_carlo]
 title = "Monte Carlo Tasks"
 module = "prefect.tasks.monte_carlo"
-classes = ["MonteCarloCreateOrUpdateLineage", "MonteCarloCreateOrUpdateNodeWithTag", "MonteCarloGetResources"]
+classes = ["MonteCarloCreateOrUpdateLineage", "MonteCarloCreateOrUpdateNodeWithTags", "MonteCarloGetResources"]
 verified_task = true
