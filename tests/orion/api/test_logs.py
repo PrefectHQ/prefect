@@ -106,3 +106,13 @@ class TestReadLogs:
         assert len(data["logs"]) == 1
         for log in data["logs"]:
             assert log["task_run_id"] == task_run_id
+
+    async def test_read_logs_offset(self, client, logs):
+        response = await client.post(READ_LOGS_URL, json={"offset": 1, "limit": 1})
+        data = response.json()
+        assert len(data["logs"]) == 1
+
+    async def test_read_logs_returns_empty_list(self, client):
+        response = await client.post(READ_LOGS_URL)
+        data = response.json()
+        assert data["logs"] == []
