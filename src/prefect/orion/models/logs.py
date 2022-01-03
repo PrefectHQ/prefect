@@ -67,6 +67,6 @@ async def create_logs(
     for log in logs.logs:
         insert_stmt = (await db.insert(db.Log)).values(**log.dict(exclude_unset=True))
         await session.execute(insert_stmt)
-    session.flush()
+    await session.flush()
 
     return len(logs.logs)

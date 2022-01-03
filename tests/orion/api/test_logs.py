@@ -1,4 +1,3 @@
-from datetime import datetime
 from uuid import uuid4
 
 import pendulum
@@ -10,9 +9,13 @@ from prefect.orion.schemas.sorting import LogSort
 
 
 @pytest.fixture
-def log_data():
+def flow_id():
+    yield str(uuid4())
+    
+
+@pytest.fixture
+def log_data(flow_id):
     now = pendulum.now("UTC")
-    flow_id = str(uuid4())
     log_data = {
         "logs": [
             {
@@ -48,12 +51,12 @@ class TestCreateLogs:
         if model.task_id:
             assert str(model.task_id) == api_data["task_id"]
 
-    async def test_create_logs_with_flow_id(self, session, client, log_data):
+    async def test_create_logs_with_flow_id(self, session, client, log_data, flow_id):
         response = await client.post("/logs/", json=log_data)
         assert response.status_code == 201
         assert response.json() == {"created": 2}
 
-        log_filter = LogFilter(**{"name": {"any_": ["prefect.flow_run"]}})
+        log_filter = LogFilter(**{"flow_id": {"any_": [flow_id]}})
         logs = await models.logs.read_logs(
             session=session, log_filter=log_filter, sort=LogSort.TIMESTAMP_ASC
         )
@@ -67,11 +70,10 @@ class TestCreateLogs:
         assert response.status_code == 201
         assert response.json() == {"created": 2}
 
-        log_filter = LogFilter(**{"name": {"any_": ["prefect.flow_run"]}})
+        log_filter = LogFilter(**{"level": {"any_": [20]}})
         logs = await models.logs.read_logs(
             session=session, log_filter=log_filter, sort=LogSort.TIMESTAMP_ASC
         )
-        assert len(logs) == 2
+        assert len(logs) == 1
 
-        for i, log in enumerate(logs):
-            self.assert_is_same_log(log, log_data["logs"][i])
+        self.assert_is_same_log(logs[0], log_data["logs"][0])
