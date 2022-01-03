@@ -56,14 +56,10 @@ class TestMixpanelTasks:
         with pytest.raises(ValueError, match=msg_match):
             MixpanelExportTask().run()
 
-        # assert "Missing both `api_secret` and `api_secret_env_var`." in str(exc)
-
     def test_run_missing_api_secret_not_found_env_var_raises(self):
         msg_match = "Missing `api_secret` and `api_secret_env_var` not found."
         with pytest.raises(ValueError, match=msg_match):
             MixpanelExportTask().run(api_secret_env_var="foo")
-
-        # assert "Missing `api_secret` and `api_secret_env_var` not found." in str(exc)
 
     @responses.activate
     def test_run_secret_from_api_secret(self, caplog):
