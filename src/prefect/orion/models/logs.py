@@ -13,6 +13,29 @@ from prefect.orion.database.interface import OrionDBInterface
 
 
 @inject_db
+async def create_logs(
+    session: sa.orm.Session, db: OrionDBInterface, logs: schemas.core.Logs
+):
+    """
+    Creates new logs.
+
+    Args:
+        session: a database session
+        logs: a list of log schemas
+
+    Returns:
+        int: count of logs created
+    """
+
+    for log in logs.logs:
+        insert_stmt = (await db.insert(db.Log)).values(**log.dict(exclude_unset=True))
+        await session.execute(insert_stmt)
+    await session.flush()
+
+    return len(logs.logs)
+
+
+@inject_db
 async def read_logs(
     session: sa.orm.Session,
     db: OrionDBInterface,
@@ -35,9 +58,10 @@ async def read_logs(
     Returns:
         List[db.Log]: the matching logs
     """
-    query = (
-        select(db.Log).order_by(sort.as_sql_sort()).where(log_filter.as_sql_filter())
-    )
+    query = select(db.Log).order_by(sort.as_sql_sort())
+
+    if log_filter:
+        query = query.where(log_filter.as_sql_filter())
 
     if offset is not None:
         query = query.offset(offset)
@@ -48,25 +72,3 @@ async def read_logs(
     result = await session.execute(query)
     return result.scalars().unique().all()
 
-
-@inject_db
-async def create_logs(
-    session: sa.orm.Session, db: OrionDBInterface, logs: schemas.core.Logs
-):
-    """
-    Creates new logs.
-
-    Args:
-        session: a database session
-        logs: a list of log schemas
-
-    Returns:
-        int: count of logs created
-    """
-
-    for log in logs.logs:
-        insert_stmt = (await db.insert(db.Log)).values(**log.dict(exclude_unset=True))
-        await session.execute(insert_stmt)
-    await session.flush()
-
-    return len(logs.logs)
