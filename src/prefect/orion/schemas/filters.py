@@ -860,10 +860,10 @@ class LogFilterTimestamp(PrefectFilterBaseModel):
         return filters
 
 
-class LogFilterFlowId(PrefectFilterBaseModel):
-    """Filter by `Log.flow_id`."""
+class LogFilterFlowRunId(PrefectFilterBaseModel):
+    """Filter by `Log.flow_run_id`."""
 
-    any_: List[UUID] = Field(None, description="A list of flow IDs to include")
+    any_: List[UUID] = Field(None, description="A list of flow run IDs to include")
 
     @inject_db
     def _get_filter_list(
@@ -872,14 +872,14 @@ class LogFilterFlowId(PrefectFilterBaseModel):
     ) -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.Log.flow_id.in_(self.any_))
+            filters.append(db.Log.flow_run_id.in_(self.any_))
         return filters
 
 
-class LogFilterTaskId(PrefectFilterBaseModel):
-    """Filter by `Log.task_id`."""
+class LogFilterTaskRunId(PrefectFilterBaseModel):
+    """Filter by `Log.task_run_id`."""
 
-    any_: List[UUID] = Field(None, description="A list of task IDs to include")
+    any_: List[UUID] = Field(None, description="A list of task run IDs to include")
 
     @inject_db
     def _get_filter_list(
@@ -888,7 +888,7 @@ class LogFilterTaskId(PrefectFilterBaseModel):
     ) -> List:
         filters = []
         if self.any_ is not None:
-            filters.append(db.Log.task_id.in_(self.any_))
+            filters.append(db.Log.task_run_id.in_(self.any_))
         return filters
 
 
@@ -901,11 +901,11 @@ class LogFilter(PrefectFilterBaseModel):
     timestamp: Optional[LogFilterTimestamp] = Field(
         None, description="Filter criteria for `Log.timestamp`"
     )
-    flow_id: Optional[LogFilterFlowId] = Field(
-        None, description="Filter criteria for `Log.flow_id`"
+    flow_run_id: Optional[LogFilterFlowRunId] = Field(
+        None, description="Filter criteria for `Log.flow_run_id`"
     )
-    task_id: Optional[LogFilterTaskId] = Field(
-        None, description="Filter criteria for `Log.task_id`"
+    task_run_id: Optional[LogFilterTaskRunId] = Field(
+        None, description="Filter criteria for `Log.task_run_id`"
     )
 
     @inject_db
@@ -919,10 +919,10 @@ class LogFilter(PrefectFilterBaseModel):
             filters.append(self.level.as_sql_filter())
         if self.timestamp is not None:
             filters.append(self.timestamp.as_sql_filter())
-        if self.flow_id is not None:
-            filters.append(self.flow_id.as_sql_filter())
-        if self.task_id is not None:
-            filters.append(self.task_id.as_sql_filter())
+        if self.flow_run_id is not None:
+            filters.append(self.flow_run_id.as_sql_filter())
+        if self.task_run_id is not None:
+            filters.append(self.task_run_id.as_sql_filter())
 
         return filters
 
