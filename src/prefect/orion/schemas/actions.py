@@ -143,7 +143,7 @@ class SavedSearchCreate(
 class LogCreate(
     schemas.core.Log.subclass(
         name="LogCreate",
-        include_fields=["name", "level", "message", "timestamp", "flow_id", "task_id"],
+        include_fields=["name", "level", "message", "timestamp", "flow_run_id", "task_run_id"],
     )
 ):
     """Data used by the Orion API to create a log."""
