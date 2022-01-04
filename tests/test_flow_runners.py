@@ -478,7 +478,7 @@ class TestSubprocessFlowRunner:
         if not stream_output:
             assert output.out == ""
         else:
-            assert "Beginning flow run" in output.out, "Log from the engine is present"
+            assert "Created flow run" in output.out, "Log from the engine is present"
             assert "\n\n" not in output.out, "Line endings are not double terminated"
 
 
@@ -949,7 +949,7 @@ class TestDockerFlowRunner:
         if not stream_output:
             assert output.out == ""
         else:
-            assert "Beginning flow run" in output.out, "Log from the engine is present"
+            assert "Created flow run" in output.out, "Log from the engine is present"
             assert "\n\n" not in output.out, "Line endings are not double terminated"
 
     @pytest.mark.service("docker")

@@ -359,7 +359,7 @@ class TestTaskCaching:
 
     def test_cache_key_fn_context(self):
         def stringed_context(context, args):
-            return str(context.flow_run_id)
+            return str(context.flow_run.id)
 
         @task(cache_key_fn=stringed_context)
         def foo(x):
