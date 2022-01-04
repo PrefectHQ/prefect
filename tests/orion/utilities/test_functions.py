@@ -14,7 +14,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "properties": {},
             "title": "Parameters",
             "type": "object",
@@ -25,7 +25,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x"}},
@@ -37,7 +37,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42}},
@@ -48,7 +48,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "type": "integer"}},
@@ -59,7 +59,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -78,7 +78,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -109,7 +109,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -139,7 +139,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -180,7 +180,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = functions.parameter_schema(method)
-            assert schema == {
+            assert schema.dict() == {
                 "properties": {},
                 "title": "Parameters",
                 "type": "object",
@@ -206,7 +206,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = functions.parameter_schema(method)
-            assert schema == {
+            assert schema.dict() == {
                 "title": "Parameters",
                 "type": "object",
                 "properties": {
@@ -240,7 +240,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = functions.parameter_schema(method)
-            assert schema == {
+            assert schema.dict() == {
                 "title": "Parameters",
                 "type": "object",
                 "properties": {
