@@ -5,7 +5,7 @@ Each filter schema includes logic for transforming itself into a SQL `where` cla
 """
 
 import datetime
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
