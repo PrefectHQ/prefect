@@ -563,6 +563,22 @@ class ORMDeployment:
 
 
 @declarative_mixin
+class ORMLog:
+    """
+    SQLAlchemy model of a logging statement.
+    """
+
+    name = sa.Column(sa.String, nullable=False)
+    level = sa.Column(sa.SmallInteger, nullable=False, index=True)
+    flow_run_id = sa.Column(UUID(), nullable=False, index=True)
+    task_run_id = sa.Column(UUID(), nullable=True, index=True)
+    message = sa.Column(sa.Text, nullable=False)
+
+    # The client-side timestamp of this logged statement.
+    timestamp = sa.Column(Timestamp(), nullable=False, index=True)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -663,6 +679,9 @@ class BaseORMConfiguration(ABC):
         class SavedSearch(ORMSavedSearch, self.Base):
             pass
 
+        class Log(ORMLog, self.Base):
+            pass
+
         # TODO - move these to proper migrations
         sa.Index(
             "uq_flow_run_state__flow_run_id_timestamp_desc",
@@ -756,6 +775,7 @@ class BaseORMConfiguration(ABC):
         self.TaskRun = TaskRun
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
+        self.Log = Log
 
     @abstractmethod
     def run_migrations(self):
