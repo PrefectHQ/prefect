@@ -103,18 +103,21 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+def run_logger(context: "RunContext" = None, /, **kwargs: str) -> logging.Logger:
     """
     Get a Prefect logger for the current task run or flow run.
 
     The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
     Contextual data about the run will be attached to the log records.
 
-    Additional keyword arguments can be provided to attach custom data to the log
-    records.
+    Arguments:
+        context: A specific context may be provided as an override. By default, the
+            context is inferred from global state and this should not be needed.
+        **kwargs: Keyword arguments will be attached to the log records in
+            addition to the run metadata
 
     Raises:
-        RuntimeError: If called outside of a task or flow run context
+        RuntimeError: If no context can be found
     """
     # Check for existing contexts
     task_run_context = prefect.context.TaskRunContext.get()
@@ -173,7 +176,7 @@ def task_run_logger(
     task: "Task" = None,
     flow_run: "FlowRun" = None,
     flow: "Flow" = None,
-    **kwargs: str
+    **kwargs: str,
 ):
     """
     Create a task run logger with the run's metadata attached.
