@@ -126,11 +126,6 @@ class Flow(Generic[P, R]):
                     "Disable validation or change the argument names."
                 ) from exc
 
-        self.logger = logging.LoggerAdapter(
-            get_logger("flows"),
-            {"flow_name": self.name, "flow_version": self.version},
-        )
-
     def validate_parameters(self, parameters: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate parameters for compatibility with the flow by attempting to cast the inputs to the

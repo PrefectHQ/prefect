@@ -236,7 +236,7 @@ async def begin_flow_run(
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"state_message": True},
+        extra={"send_to_orion": False},
     )
 
     return terminal_state
@@ -313,7 +313,7 @@ async def create_and_begin_subflow_run(
     logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"state_message": True},
+        extra={"send_to_orion": False},
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
@@ -655,13 +655,13 @@ async def orchestrate_task_run(
         if state.type != terminal_state.type and prefect.settings.debug_mode:
             logger.debug(
                 f"Received new state {state} when proposing final state {terminal_state}",
-                extra={"state_message": True},
+                extra={"send_to_orion": False},
             )
 
         if not state.is_final():
             logger.info(
                 f"Received non-final state {state.name!r} when proposing final state {terminal_state.name!r} and will attempt to run again...",
-                extra={"state_message": True},
+                extra={"send_to_orion": False},
             )
             # Attempt to enter a running state again
             state = await client.propose_state(Running(), task_run_id=task_run.id)
@@ -672,7 +672,7 @@ async def orchestrate_task_run(
     logger.log(
         level=logging.INFO if state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
-        extra={"state_message": True},
+        extra={"send_to_orion": False},
     )
 
     return state

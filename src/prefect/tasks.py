@@ -145,11 +145,6 @@ class Task(Generic[P, R]):
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
-        self.logger = logging.LoggerAdapter(
-            get_logger("tasks"),
-            {"task_name": self.name, "task_key": self.task_key},
-        )
-
     @overload
     def __call__(
         self: "Task[P, NoReturn]",
