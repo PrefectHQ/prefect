@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Any, Dict, List, Tuple, Union
 
 import pendulum
+from packaging.version import Version
+import pydantic.version
 
 from prefect.orion.utilities import functions
 
@@ -14,7 +16,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "properties": {},
             "title": "Parameters",
             "type": "object",
@@ -25,7 +27,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x"}},
@@ -37,7 +39,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42}},
@@ -48,7 +50,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {"x": {"title": "x", "default": 42, "type": "integer"}},
@@ -59,7 +61,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -78,7 +80,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -109,7 +111,7 @@ class TestFunctionToSchema:
             pass
 
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -138,8 +140,18 @@ class TestFunctionToSchema:
         ):
             pass
 
+        # pydantic 1.9.0 adds min and max item counts to the parameter schema
+        min_max_items = (
+            {
+                "minItems": 2,
+                "maxItems": 2,
+            }
+            if Version(pydantic.version.VERSION) >= Version("1.9.0")
+            else {}
+        )
+
         schema = functions.parameter_schema(f)
-        assert schema == {
+        assert schema.dict() == {
             "title": "Parameters",
             "type": "object",
             "properties": {
@@ -150,6 +162,7 @@ class TestFunctionToSchema:
                     "title": "d",
                     "type": "array",
                     "items": [{"type": "integer"}, {"type": "number"}],
+                    **min_max_items,
                 },
                 "e": {
                     "title": "e",
@@ -180,7 +193,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = functions.parameter_schema(method)
-            assert schema == {
+            assert schema.dict() == {
                 "properties": {},
                 "title": "Parameters",
                 "type": "object",
@@ -206,7 +219,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = functions.parameter_schema(method)
-            assert schema == {
+            assert schema.dict() == {
                 "title": "Parameters",
                 "type": "object",
                 "properties": {
@@ -240,7 +253,7 @@ class TestMethodToSchema:
 
         for method in [Foo().f, Foo.g, Foo.h]:
             schema = functions.parameter_schema(method)
-            assert schema == {
+            assert schema.dict() == {
                 "title": "Parameters",
                 "type": "object",
                 "properties": {
