@@ -7,3 +7,5 @@ import prefect.agent.kubernetes
 import prefect.agent.local
 import prefect.agent.ecs
 import prefect.agent.vertex
+
+__all__ = ["Agent"]
