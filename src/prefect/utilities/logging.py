@@ -2,19 +2,20 @@ import logging
 import logging.config
 import os
 import re
-import warnings
-from functools import partial, lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
+from pprint import pformat
 from typing import TYPE_CHECKING, Mapping
+
 import yaml
+from fastapi.encoders import jsonable_encoder
 
 import prefect
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.settings import LoggingSettings, Settings
-from contextlib import nullcontext
 
 if TYPE_CHECKING:
-    from prefect.context import RunContext, FlowRunContext, TaskRunContext
+    from prefect.context import FlowRunContext, RunContext, TaskRunContext
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
@@ -204,89 +205,6 @@ class OrionHandler(logging.Handler):
         #       queue to batch messages but we may want to use the stdlib
         #       `MemoryHandler` as a base which implements queueing already
         #       https://docs.python.org/3/howto/logging-cookbook.html#buffering-logging-messages-and-outputting-them-conditionally
-        # print(f"Sending {record.msg}")
-
-
-from rich import get_console
-from rich.text import Text
-from rich.logging import RichHandler
-
-
-class PrefectConsoleHandler(logging.Handler):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.console = get_console()
-
-    def emit(self, record: logging.LogRecord):
-        from rich.containers import Renderables
-        from rich.table import Table
-
-        message = self.format(record)
-        parts = message.split("|")
-        details = parts[:-1]
-        message_renderable = Text(parts[-1])
-
-        output = Table.grid(padding=(0, 1), expand=True)
-        output.expand = True
-        for _ in details[:-1]:
-            output.add_column()
-        output.add_column(width=40)
-
-        output.add_column(ratio=1, overflow="fold")
-        output.add_row(*details, message_renderable)
-        # if self.show_level:
-        #     output.add_column(style="log.level", width=8)
-
-        try:
-            self.console.print(output)
-        except Exception:
-            self.handleError(record)
-
-        # def render(
-        #     self,
-        #     *,
-        #     record: logging.LogRecord,
-        #     traceback: Optional[Traceback],
-        #     message_renderable: "ConsoleRenderable",
-        # ) -> "ConsoleRenderable":
-        #     """Render log for display.
-
-        #     Args:
-        #         record (logging.LogRecord): logging Record.
-        #         traceback (Optional[Traceback]): Traceback instance or None for no Traceback.
-        #         message_renderable (ConsoleRenderable): Renderable (typically Text) containing log message contents.
-
-        #     Returns:
-        #         ConsoleRenderable: Renderable to display log.
-        #     """
-
-        #     output.add_column(ratio=1, style="log.message", overflow="fold")
-        #     if self.show_path and path:
-        #         output.add_column(style="log.path")
-        #     row: List["RenderableType"] = []
-        #     if self.show_time:
-        #         log_time = log_time or console.get_datetime()
-        #         time_format = time_format or self.time_format
-        #         if callable(time_format):
-        #             log_time_display = time_format(log_time)
-        #         else:
-        #             log_time_display = Text(log_time.strftime(time_format))
-        #         if log_time_display == self._last_time and self.omit_repeated_times:
-        #             row.append(Text(" " * len(log_time_display)))
-        #         else:
-        #             row.append(log_time_display)
-        #             self._last_time = log_time_display
-        #     if self.show_level:
-        #         row.append(level)
-
-        #     row.append(message_renderable))
-        #     output.add_row(*row)
-        # return output
-
-
-from fastapi.encoders import jsonable_encoder
-
-from pprint import pformat
 
 
 def safe_jsonable(obj):
@@ -307,11 +225,3 @@ class JsonFormatter(logging.Formatter):
         return format_fn(
             {key: safe_jsonable(val) for key, val in record.__dict__.items()}
         )
-
-
-def exclude_engine_logs(record: logging.LogRecord):
-    print(record)
-    return False
-    print(record.module)
-    raise ValueError()
-    return record.module != "engine"

@@ -73,7 +73,7 @@ from prefect.utilities.logging import (
 
 
 R = TypeVar("R")
-logger = get_logger("engine")
+engine_logger = get_logger("engine")
 
 
 def enter_flow_run_engine_from_flow_call(
@@ -153,7 +153,7 @@ async def create_then_begin_flow_run(
         tags=TagsContext.get().current_tags,
     )
 
-    flow.logger.info(f"Created flow run {flow_run.name!r}")
+    engine_logger.info(f"Created flow run {flow_run.name!r} for flow {flow.name!r}")
 
     return await begin_flow_run(flow=flow, flow_run=flow_run, client=client)
 
@@ -209,6 +209,9 @@ async def begin_flow_run(
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
+        flow_run_logger(flow_run, flow).info(
+            f"Using task runner {type(flow.task_runner).__name__!r}"
+        )
         async with flow.task_runner.start() as task_runner:
             with portal_context as sync_portal:
                 terminal_state = await orchestrate_flow_run(
@@ -233,6 +236,7 @@ async def begin_flow_run(
     flow_run_logger(flow_run, flow).log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
+        extra={"state_message": True},
     )
 
     return terminal_state
@@ -310,6 +314,7 @@ async def create_and_begin_subflow_run(
     flow_run_logger(flow_run, flow).log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
+        extra={"state_message": True},
     )
 
     # Track the subflow state so the parent flow can use it to determine its final state
@@ -365,17 +370,17 @@ async def orchestrate_flow_run(
                 sync_portal=sync_portal,
                 timeout_scope=timeout_scope,
             ) as flow_run_context:
-                if prefect.settings.debug_mode:
-                    logger.debug(f"Received parameters {flow_run.parameters}")
-
                 # Validate the parameters before the call; raises an exception if invalid
                 if flow.should_validate_parameters:
                     flow_run.parameters = flow.validate_parameters(flow_run.parameters)
 
                 args, kwargs = parameters_to_args_kwargs(flow.fn, flow_run.parameters)
-                logger.debug(f"Beginning execution...")
                 if prefect.settings.debug_mode:
                     logger.debug(f"Executing {call_repr(flow.fn, *args, **kwargs)}")
+                else:
+                    logger.debug(
+                        f"Beginning execution...", extra={"state_message": True}
+                    )
 
                 flow_call = partial(flow.fn, *args, **kwargs)
 
@@ -589,9 +594,6 @@ async def orchestrate_task_run(
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
-    if prefect.settings.debug_mode:
-        logger.debug(f"Received parameters: {parameters}")
-
     try:
         # Resolve futures in parameters into data
         resolved_parameters = await resolve_upstream_task_futures(parameters)
@@ -616,12 +618,12 @@ async def orchestrate_task_run(
             with context:
                 args, kwargs = parameters_to_args_kwargs(task.fn, resolved_parameters)
 
-                logger.debug(
-                    f"Beginning execution...",
-                    extra={"state_message": True},
-                )
                 if prefect.settings.debug_mode:
                     logger.debug(f"Executing {call_repr(task.fn, *args, **kwargs)}")
+                else:
+                    logger.debug(
+                        f"Beginning execution...", extra={"state_message": True}
+                    )
 
                 result = task.fn(*args, **kwargs)
                 if task.isasync:

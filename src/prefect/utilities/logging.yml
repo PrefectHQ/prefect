@@ -46,10 +46,7 @@ formatters:
         class: prefect.utilities.logging.JsonFormatter
         format: "pretty"
 
-filters:
-    exclude_engine_logs:
-        class: prefect.utilities.logging.exclude_engine_logs
-
+# filters:
     # Define any custom filters to drops records containing
     # sensitive information
     # my_filter:
@@ -85,12 +82,11 @@ handlers:
     orion:
         class: prefect.utilities.logging.OrionHandler
         level: "{{default_level}}"
-        filters: [exclude_engine_logs]
         formatter: json
 
 loggers:
     prefect:
-        level: WARNING
+        level: DEBUG
         handlers: [console]
         propagate: no
 
