@@ -276,11 +276,12 @@ async def test_update_flow_run(orion_client):
 
     # Fields updated when set
     await orion_client.update_flow_run(
-        flow_run.id, flow_version="foo", parameters={"foo": "bar"}
+        flow_run.id, flow_version="foo", parameters={"foo": "bar"}, name="test"
     )
     updated_flow_run = await orion_client.read_flow_run(flow_run.id)
     assert updated_flow_run.flow_version == "foo"
     assert updated_flow_run.parameters == {"foo": "bar"}
+    assert updated_flow_run.name == "test"
 
 
 async def test_create_then_read_task_run(orion_client):
