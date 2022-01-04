@@ -12,7 +12,7 @@ disable_existing_loggers: False
 
 formatters:
     simple:
-        format: "%(asctime)s.%(msecs)03d | %(name)s - %(message)s"
+        format: "%(asctime)s.%(msecs)03d | %(message)s"
         datefmt: "%H:%M:%S"
 
     standard:
