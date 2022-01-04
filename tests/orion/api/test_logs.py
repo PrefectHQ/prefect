@@ -1,11 +1,12 @@
-from uuid import uuid4
+from datetime import timedelta
+from uuid import uuid1, UUID
 
 import pendulum
 import pytest
 
 from prefect.orion import models
+from prefect.orion.schemas.core import Log
 from prefect.orion.schemas.filters import LogFilter
-from prefect.orion.schemas.sorting import LogSort
 
 
 NOW = pendulum.now("UTC")
@@ -15,12 +16,14 @@ READ_LOGS_URL = "/logs/filter"
 
 @pytest.fixture
 def flow_run_id():
-    yield str(uuid4())
+    # Use uuid1 for these tests because it has a consistent order.
+    yield str(uuid1())
 
 
 @pytest.fixture
 def task_run_id():
-    yield str(uuid4())
+    # Use uuid1 for these tests because it has a consistent order.
+    yield str(uuid1())
 
 
 @pytest.fixture
@@ -37,7 +40,7 @@ def log_data(client, flow_run_id, task_run_id):
             "name": "prefect.task_run",
             "level": 50,
             "message": "Black flag ahead, captain!",
-            "timestamp": NOW.timestamp(),
+            "timestamp": (NOW + timedelta(hours=1)).timestamp(),
             "flow_run_id": flow_run_id,
             "task_run_id": task_run_id,
         },
@@ -91,6 +94,35 @@ class TestReadLogs:
     async def logs(self, client, log_data):
         await client.post(CREATE_LOGS_URL, json=log_data)
 
+    @pytest.fixture()
+    async def single_flow_run_log(self, client):
+        flow_run_logs = [
+            {
+                "name": "prefect.flow_run",
+                "level": 80,
+                "message": "Full speed ahead!",
+                "timestamp": NOW.timestamp(),
+                "flow_run_id": str(uuid1()),
+            }
+        ]
+        await client.post(CREATE_LOGS_URL, json=flow_run_logs)
+        yield flow_run_logs[0]
+
+    @pytest.fixture()
+    async def single_task_run_log(self, client):
+        flow_run_logs = [
+            {
+                "name": "prefect.flow_run",
+                "level": 80,
+                "message": "Full speed ahead!",
+                "timestamp": NOW.timestamp(),
+                "flow_run_id": str(uuid1()),
+                "task_run_id": str(uuid1()),
+            }
+        ]
+        await client.post(CREATE_LOGS_URL, json=flow_run_logs)
+        yield flow_run_logs[0]
+
     async def test_read_logs(self, client, logs):
         response = await client.post(READ_LOGS_URL)
         assert len(response.json()) == 2
@@ -114,3 +146,80 @@ class TestReadLogs:
         response = await client.post(READ_LOGS_URL)
         data = response.json()
         assert data == []
+
+    async def test_read_logs_sort_by_timestamp_asc(self, client, logs):
+        response = await client.post(READ_LOGS_URL, params={"sort": "TIMESTAMP_ASC"})
+        api_logs = [Log(**log_data) for log_data in response.json()]
+        assert api_logs[0].timestamp < api_logs[1].timestamp
+        assert api_logs[0].message == "Ahoy, captain"
+
+    async def test_read_logs_sort_by_timestamp_desc(self, client, logs):
+        response = await client.post(READ_LOGS_URL, params={"sort": "TIMESTAMP_DESC"})
+        api_logs = [Log(**log_data) for log_data in response.json()]
+        assert api_logs[0].timestamp > api_logs[1].timestamp
+        assert api_logs[0].message == "Black flag ahead, captain!"
+
+    async def test_read_logs_sort_by_level_asc(self, client, logs):
+        response = await client.post(READ_LOGS_URL, params={"sort": "LEVEL_ASC"})
+        data = response.json()
+        assert data[0]["level"] < data[1]["level"]
+        assert data[0]["message"] == "Ahoy, captain"
+
+    async def test_read_logs_sort_by_level_desc(self, client, logs):
+        response = await client.post(READ_LOGS_URL, params={"sort": "LEVEL_DESC"})
+        data = response.json()
+        assert data[0]["level"] > data[1]["level"]
+        assert data[0]["message"] == "Black flag ahead, captain!"
+
+    async def test_read_logs_sort_by_flow_run_id_asc(
+        self, client, logs, flow_run_id, single_flow_run_log
+    ):
+        response = await client.post(READ_LOGS_URL, params={"sort": "FLOW_RUN_ID_ASC"})
+        api_logs = [Log(**log_data) for log_data in response.json()]
+        assert api_logs[0].flow_run_id == UUID(flow_run_id)
+        assert api_logs[-1].flow_run_id == UUID(single_flow_run_log["flow_run_id"])
+        assert api_logs[0].flow_run_id < api_logs[-1].flow_run_id
+
+    async def test_read_logs_sort_by_flow_run_id_desc(
+        self, client, logs, flow_run_id, single_flow_run_log
+    ):
+        response = await client.post(READ_LOGS_URL, params={"sort": "FLOW_RUN_ID_DESC"})
+        api_logs = [Log(**log_data) for log_data in response.json()]
+        assert api_logs[0].flow_run_id == UUID(single_flow_run_log["flow_run_id"])
+        assert api_logs[-1].flow_run_id == UUID(flow_run_id)
+        assert api_logs[0].flow_run_id > api_logs[-1].flow_run_id
+
+    async def test_read_logs_sort_by_task_run_id_asc(
+        self, client, logs, task_run_id, single_task_run_log
+    ):
+        log_filter = {
+            "logs": {
+                "task_run_id": {
+                    "any_": [task_run_id, single_task_run_log["task_run_id"]]
+                }
+            }
+        }
+        response = await client.post(READ_LOGS_URL, params={"sort": "TASK_RUN_ID_ASC"},
+                                     json=log_filter)
+        api_logs = [Log(**log_data) for log_data in response.json()]
+        assert api_logs[0].task_run_id == UUID(task_run_id)
+        assert api_logs[-1].task_run_id == UUID(single_task_run_log["task_run_id"])
+        assert api_logs[0].task_run_id < api_logs[-1].task_run_id
+
+    async def test_read_logs_sort_by_task_run_id_desc(
+        self, client, logs, task_run_id, single_task_run_log
+    ):
+        log_filter = {
+            "logs": {
+                "task_run_id": {
+                    "any_": [task_run_id, single_task_run_log["task_run_id"]]
+                }
+            }
+        }
+        response = await client.post(
+            READ_LOGS_URL, params={"sort": "TASK_RUN_ID_DESC"}, json=log_filter
+        )
+        api_logs = [Log(**log_data) for log_data in response.json()]
+        assert api_logs[0].task_run_id == UUID(single_task_run_log["task_run_id"])
+        assert api_logs[-1].task_run_id == UUID(task_run_id)
+        assert api_logs[0].task_run_id > api_logs[-1].task_run_id

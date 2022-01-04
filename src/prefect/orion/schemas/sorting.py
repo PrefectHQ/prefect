@@ -66,6 +66,10 @@ class LogSort(AutoEnum):
     TIMESTAMP_DESC = AutoEnum.auto()
     LEVEL_ASC = AutoEnum.auto()
     LEVEL_DESC = AutoEnum.auto()
+    FLOW_RUN_ID_ASC = AutoEnum.auto()
+    FLOW_RUN_ID_DESC = AutoEnum.auto()
+    TASK_RUN_ID_ASC = AutoEnum.auto()
+    TASK_RUN_ID_DESC = AutoEnum.auto()
 
     @inject_db
     def as_sql_sort(
