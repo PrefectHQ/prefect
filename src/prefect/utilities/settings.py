@@ -7,14 +7,14 @@ settings object, `Settings()`.
 # Note that when implementing nested settings, a `default_factory` should be
 # used to avoid instantiating the nested settings class until runtime.
 
+import os
 import textwrap
+from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from pydantic import BaseSettings, Field, SecretStr
-from typing import Optional
-from pydantic.fields import Undefined
 
 
 class SharedSettings(BaseSettings):
@@ -361,3 +361,42 @@ class Settings(SharedSettings):
 
 
 settings = Settings()
+
+
+@contextmanager
+def temporary_settings(**kwargs):
+    """
+    Temporarily override setting values. This will _not_ mutate values that have
+    been already been accessed at module load time.
+
+    This function should only be used for testing.
+
+    Example:
+        >>> from prefect import settings
+        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
+        >>>    assert settings.orion_host == "foo"
+        >>> assert settings.orion_host is None
+    """
+    old_env = os.environ.copy()
+    for setting in kwargs:
+        os.environ[setting] = kwargs[setting]
+
+    new_settings = Settings()
+    old_settings = settings.copy()
+
+    for field in settings.__fields__:
+        # The settings object is frozen and we must bypass Pydantic's setattr to
+        # mutate a field.
+        object.__setattr__(settings, field, getattr(new_settings, field))
+
+    try:
+        yield settings
+    finally:
+        for setting in kwargs:
+            if old_env.get(setting):
+                os.environ[setting] = old_env[setting]
+            else:
+                os.environ.pop(setting)
+
+        for field in settings.__fields__:
+            object.__setattr__(settings, field, getattr(old_settings, field))
