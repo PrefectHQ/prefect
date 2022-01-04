@@ -36,14 +36,16 @@ async def read_logs(
     ),
     offset: int = Body(0, ge=0),
     logs: schemas.filters.LogFilter = None,
+    sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Log]:
     """
-    Query for flows.
+    Query for logs.
     """
     return await models.logs.read_logs(
         session=session,
         log_filter=logs,
         offset=offset,
         limit=limit,
+        sort=sort
     )
