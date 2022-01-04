@@ -1,6 +1,6 @@
 <template>
   <Card class="menu font--primary" height="100%" tabindex="0">
-    <template v-if="smAndDown" v-slot:header>
+    <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3
           class="d-flex align-center font--primary font-weight-semibold ml-auto"
@@ -37,7 +37,7 @@
     <template v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
         <Button
-          v-if="!smAndDown"
+          v-if="media.md"
           flat
           height="35px"
           class="ml-auto mr-1"
@@ -48,7 +48,7 @@
         <Button
           color="primary"
           height="35px"
-          :width="smAndDown ? '100%' : 'auto'"
+          :width="!media.md ? '100%' : 'auto'"
           :disabled="!name || loading"
           @click="save"
         >
@@ -65,6 +65,7 @@ import { useStore } from 'vuex'
 import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
 import Tag from './Tag.vue'
+import media from '@/utilities/media'
 
 const store = useStore()
 const instance = getCurrentInstance()
@@ -106,11 +107,6 @@ const save = async () => {
 
 const filters = computed<FilterObject[]>(() => {
   return parseFilters(store.getters.globalFilter)
-})
-
-const smAndDown = computed(() => {
-  const breakpoints = instance?.appContext.config.globalProperties.$breakpoints
-  return !breakpoints.md
 })
 </script>
 

@@ -68,3 +68,7 @@ class PickleSerializer:
     @staticmethod
     def loads(blob: bytes) -> Any:
         return cloudpickle.loads(base64.decodebytes(blob))
+        # TODO: Consider adding python version data to pickle payloads to raise
+        #       more helpful errors for users.
+        #       A TypeError("expected bytes-like object, not int") will be raised if
+        #       a document is deserialized by Python 3.7 and serialized by 3.8+

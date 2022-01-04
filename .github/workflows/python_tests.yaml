@@ -2,9 +2,51 @@ name: Python tests
 
 on: [pull_request]
 
+env:
+  MINIMUM_PYTHON_VERSION: 3.7
+
 jobs:
+  build-test-images:
+    name: Build test images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.9
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args:
+            PYTHON_VERSION=${{ matrix.python-version }}
+          tags: prefecthq/prefect:dev-python${{ matrix.python-version }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Test docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect:dev-python${{ matrix.python-version }} prefect version
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: image-${{ github.sha }}-${{ matrix.python-version }}
+          path: /tmp/image.tar
+
   run-tests-sqlite:
-    name: SQLite
+    name: Test with SQLite
+    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -12,7 +54,7 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
-        os: 
+        os:
           - ubuntu-latest
           # - windows-latest
       fail-fast: false
@@ -23,6 +65,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -35,17 +78,28 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
-          
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: image-${{ github.sha }}-${{ matrix.python-version }}
+          path: /tmp
+
+      - name: Load Docker image
+        run:
+          docker load --input /tmp/image.tar
+
       - name: Run tests
-        env: 
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
+        env:
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
           pytest tests --all-services -vv
 
-  
+
 
   run-tests-postgres:
-    name: Postgres
+    name: Test with Postgres
+    needs: [build-test-images]
 
     strategy:
       matrix:
@@ -53,7 +107,7 @@ jobs:
           - 3.7
           - 3.8
           - 3.9
-        os: 
+        os:
           - ubuntu-latest
           # windows backend doesn't support containers
           # - windows-latest
@@ -76,6 +130,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -89,15 +144,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade --upgrade-strategy eager -e .[dev]
 
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: image-${{ github.sha }}-${{ matrix.python-version }}
+          path: /tmp
+
+      - name: Load Docker image
+        run:
+          docker load --input /tmp/image.tar
+
       - name: Run tests
-        env: 
+        env:
           PREFECT_ORION_DATABASE_CONNECTION_URL: 'postgresql+asyncpg://prefect:prefect@localhost/orion'
         run: |
           pytest tests --all-services -vv
 
 
   run-tests-lower-bounds:
-    name: Lower bound requirements
+    name: Test with lower requirements
+    needs: [build-test-images]
     # We cannot test on Ubuntu LTS because the sqlite version is not new enough
     runs-on: ubuntu-latest
 
@@ -105,11 +171,12 @@ jobs:
       - uses: actions/checkout@v2
         with:
           persist-credentials: false
+          fetch-depth: 0
 
-      - name: Set up Python 3.7
+      - name: Set up Python ${{ env.MINIMUM_PYTHON_VERSION }}
         uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: ${{ env.MINIMUM_PYTHON_VERSION }}
 
       - name: Generate lower bound python requirements
         # Creates lower bound files then replaces the input files so we can do a normal install
@@ -124,8 +191,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[dev]
 
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: image-${{ github.sha }}-${{ env.MINIMUM_PYTHON_VERSION }}
+          path: /tmp
+
+      - name: Load Docker image
+        run:
+          docker load --input /tmp/image.tar
+
       - name: Run tests
         env:
-          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///orion-tests.db"
+          PREFECT_ORION_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         run: |
           pytest tests --all-services -vv
