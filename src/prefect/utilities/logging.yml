@@ -19,14 +19,6 @@ formatters:
         format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s"
         datefmt: "%H:%M:%S"
 
-    flows:
-        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow %(flow_name)r - %(message)s"
-        datefmt: "%H:%M:%S"
-
-    tasks:
-        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task %(task_name)r - %(message)s"
-        datefmt: "%H:%M:%S" 
-
     flow_runs:
         format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
         datefmt: "%H:%M:%S"
@@ -35,16 +27,9 @@ formatters:
         format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
         datefmt: "%H:%M:%S"
 
-
-    #     datefmt: "%H:%M:%S"
-
-
-    # rich_simple:
-    #     format: "%(message)s"
-
     json:
         class: prefect.utilities.logging.JsonFormatter
-        format: "pretty"
+        format: "default"
 
 # filters:
     # Define any custom filters to drops records containing
@@ -58,16 +43,6 @@ handlers:
         class: logging.StreamHandler
         level: "{{default_level}}"
         formatter: standard
-
-    console_flows:
-        class: logging.StreamHandler
-        level: "{{default_level}}"
-        formatter: flows
-
-    console_tasks:
-        class: logging.StreamHandler
-        level: "{{default_level}}"
-        formatter: tasks
 
     console_flow_runs:
         class: logging.StreamHandler
