@@ -103,7 +103,19 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def run_logger(context: "RunContext" = None) -> logging.Logger:
+def run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+    """
+    Get a Prefect logger for the current task run or flow run.
+
+    The logger will be named either `prefect.task_runs` or `prefect.flow_runs`.
+    Contextual data about the run will be attached to the log records.
+
+    Additional keyword arguments can be provided to attach custom data to the log
+    records.
+
+    Raises:
+        RuntimeError: If called outside of a task or flow run context
+    """
     # Check for existing contexts
     task_run_context = prefect.context.TaskRunContext.get()
     flow_run_context = prefect.context.FlowRunContext.get()
@@ -122,11 +134,11 @@ def run_logger(context: "RunContext" = None) -> logging.Logger:
             task=task_run_context.task,
             flow_run=flow_run_context.flow_run if flow_run_context else None,
             flow=flow_run_context.flow if flow_run_context else None,
+            **kwargs,
         )
     elif flow_run_context:
         logger = flow_run_logger(
-            flow_run=flow_run_context.flow_run,
-            flow=flow_run_context.flow,
+            flow_run=flow_run_context.flow_run, flow=flow_run_context.flow, **kwargs
         )
     else:
         raise RuntimeError("There is no active flow or task run context.")
@@ -135,6 +147,14 @@ def run_logger(context: "RunContext" = None) -> logging.Logger:
 
 
 def flow_run_logger(flow_run: "FlowRun", flow: "Flow" = None, **kwargs: str):
+    """
+    Create a flow run logger with the run's metadata attached.
+
+    Additional keyword arguments can be provided to attach custom data to the log
+    records.
+
+    If the context is available, see `run_logger` instead.
+    """
     return logging.LoggerAdapter(
         get_logger("prefect.flow_runs"),
         extra={
@@ -155,6 +175,14 @@ def task_run_logger(
     flow: "Flow" = None,
     **kwargs: str
 ):
+    """
+    Create a task run logger with the run's metadata attached.
+
+    Additional keyword arguments can be provided to attach custom data to the log
+    records.
+
+    If the context is available, see `run_logger` instead.
+    """
     return logging.LoggerAdapter(
         get_logger("prefect.task_runs"),
         extra={
