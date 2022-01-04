@@ -68,7 +68,6 @@ from prefect.utilities.logging import (
     get_logger,
     run_logger,
     flow_run_logger,
-    task_run_logger,
 )
 
 
@@ -259,9 +258,7 @@ async def create_and_begin_subflow_run(
         The final state of the run
     """
     parent_flow_run_context = FlowRunContext.get()
-    parent_logger = flow_run_logger(
-        flow_run=parent_flow_run_context.flow_run, flow=parent_flow_run_context.flow
-    )
+    parent_logger = run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
