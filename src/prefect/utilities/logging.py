@@ -16,6 +16,9 @@ from prefect.utilities.settings import LoggingSettings, Settings
 
 if TYPE_CHECKING:
     from prefect.context import FlowRunContext, RunContext, TaskRunContext
+    from prefect.flows import Flow
+    from prefect.orion.schemas.core import FlowRun, TaskRun
+    from prefect.tasks import Task
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
@@ -131,7 +134,7 @@ def run_logger(context: "RunContext" = None) -> logging.Logger:
     return logger
 
 
-def flow_run_logger(flow_run, flow=None, **kwargs: str):
+def flow_run_logger(flow_run: "FlowRun", flow: "Flow" = None, **kwargs: str):
     return logging.LoggerAdapter(
         get_logger("prefect.flow_runs"),
         extra={
@@ -145,7 +148,13 @@ def flow_run_logger(flow_run, flow=None, **kwargs: str):
     )
 
 
-def task_run_logger(task_run, task=None, flow_run=None, flow=None, **kwargs: str):
+def task_run_logger(
+    task_run: "TaskRun",
+    task: "Task" = None,
+    flow_run: "FlowRun" = None,
+    flow: "Flow" = None,
+    **kwargs: str
+):
     return logging.LoggerAdapter(
         get_logger("prefect.task_runs"),
         extra={
@@ -160,38 +169,6 @@ def task_run_logger(task_run, task=None, flow_run=None, flow=None, **kwargs: str
             **kwargs,
         },
     )
-
-
-class RunContextLogger(logging.LoggerAdapter):
-    def __init__(
-        self,
-        logger: logging.Logger,
-        flow_run_context: "FlowRunContext" = None,
-        task_run_context: "TaskRunContext" = None,
-        extra: Mapping = None,
-    ) -> None:
-        self.flow_run_context = flow_run_context
-        self.task_run_context = task_run_context
-        super().__init__(logger, extra)
-
-    def process(self, msg, kwargs):
-        task_run_metadata = (
-            self.task_run_context.templatable_metadata()
-            if self.task_run_context
-            else {}
-        )
-        flow_run_metadata = (
-            self.flow_run_context.templatable_metadata()
-            if self.flow_run_context
-            else {}
-        )
-
-        kwargs["extra"] = {
-            **flow_run_metadata,
-            **task_run_metadata,
-            **kwargs.get("extra", {}),
-        }
-        return msg, kwargs
 
 
 class OrionHandler(logging.Handler):

@@ -171,8 +171,8 @@ async def retrieve_flow_then_begin_flow_run(
     """
     flow_run = await client.read_flow_run(flow_run_id)
     deployment = await client.read_deployment(flow_run.deployment_id)
-    flow_run_logger(flow_run, flow_name=deployment.flow_name).debug(
-        f"Loading flow for deployment {deployment.flow_name}/{deployment.name}"
+    flow_run_logger(flow_run).debug(
+        f"Loading flow for deployment {deployment.name!r}..."
     )
     flow = await load_flow_from_deployment(deployment, client=client)
 
@@ -205,13 +205,13 @@ async def begin_flow_run(
     Returns:
         The final state of the run
     """
+    logger = flow_run_logger(flow_run, flow)
+
     async with detect_crashes(flow_run=flow_run):
         # If the flow is async, we need to provide a portal so sync tasks can run
         portal_context = start_blocking_portal() if flow.isasync else nullcontext()
 
-        flow_run_logger(flow_run, flow).info(
-            f"Using task runner {type(flow.task_runner).__name__!r}"
-        )
+        logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
         async with flow.task_runner.start() as task_runner:
             with portal_context as sync_portal:
                 terminal_state = await orchestrate_flow_run(
@@ -233,7 +233,7 @@ async def begin_flow_run(
         repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
     )
 
-    flow_run_logger(flow_run, flow).log(
+    logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
         extra={"state_message": True},
@@ -259,11 +259,11 @@ async def create_and_begin_subflow_run(
         The final state of the run
     """
     parent_flow_run_context = FlowRunContext.get()
-    parent_flow_run_logger = flow_run_logger(
+    parent_logger = flow_run_logger(
         flow_run=parent_flow_run_context.flow_run, flow=parent_flow_run_context.flow
     )
 
-    parent_flow_run_logger.debug(f"Resolving inputs to {flow.name!r}")
+    parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
 
     # Generate a task in the parent flow run to represent the result of the subflow run
@@ -288,9 +288,8 @@ async def create_and_begin_subflow_run(
         tags=TagsContext.get().current_tags,
     )
 
-    parent_flow_run_logger.info(
-        f"Created subflow run {flow_run.name!r} for flow {flow.name!r}"
-    )
+    parent_logger.info(f"Created subflow run {flow_run.name!r} for flow {flow.name!r}")
+    logger = flow_run_logger(flow_run, flow)
 
     async with detect_crashes(flow_run=flow_run):
         async with flow.task_runner.start() as task_runner:
@@ -311,7 +310,7 @@ async def create_and_begin_subflow_run(
     display_state = (
         repr(terminal_state) if prefect.settings.debug_mode else str(terminal_state)
     )
-    flow_run_logger(flow_run, flow).log(
+    logger.log(
         level=logging.INFO if terminal_state.is_completed() else logging.ERROR,
         msg=f"Finished in state {display_state}",
         extra={"state_message": True},
