@@ -67,7 +67,7 @@ While Prefect Orion works with many of your favorite tools and Python modules, O
 
 ### SQLite
 
-Prefect Orion uses SQLite3 as the default backing database, but it is not packaged with the Orion installation. Most systems will have SQLite installed already since it's part of the Python standard library. Orion requires SQLite version 3.24.0 or later.
+Prefect Orion uses SQLite as the default backing database, but it is not packaged with the Orion installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Orion requires SQLite version 3.24.0 or later.
 
 You can check your SQLite version by executing the following command in a terminal:
 
