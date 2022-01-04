@@ -53,8 +53,10 @@ class TestLogFilters:
 
     def test_applies_multiple_conditions(self, db):
         task_run_id = uuid4()
-        log_filter = LogFilter(task_run_id={"any_": [task_run_id]},
-                               level={"any_": [20, 50]})
+        log_filter = LogFilter(
+            task_run_id={"any_": [task_run_id]}, level={"any_": [20, 50]}
+        )
         sql_filter = log_filter.as_sql_filter()
-        assert sql_filter.compare(sa.and_(db.Log.task_run_id.in_([task_run_id]),
-                                          db.Log.level.in_([20, 50])))
+        assert sql_filter.compare(
+            sa.and_(db.Log.task_run_id.in_([task_run_id]), db.Log.level.in_([20, 50]))
+        )

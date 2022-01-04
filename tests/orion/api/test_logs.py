@@ -199,8 +199,9 @@ class TestReadLogs:
                 }
             }
         }
-        response = await client.post(READ_LOGS_URL, params={"sort": "TASK_RUN_ID_ASC"},
-                                     json=log_filter)
+        response = await client.post(
+            READ_LOGS_URL, params={"sort": "TASK_RUN_ID_ASC"}, json=log_filter
+        )
         api_logs = [Log(**log_data) for log_data in response.json()]
         assert api_logs[0].task_run_id == UUID(task_run_id)
         assert api_logs[-1].task_run_id == UUID(single_task_run_log["task_run_id"])

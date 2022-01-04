@@ -43,9 +43,5 @@ async def read_logs(
     Query for logs.
     """
     return await models.logs.read_logs(
-        session=session,
-        log_filter=logs,
-        offset=offset,
-        limit=limit,
-        sort=sort
+        session=session, log_filter=logs, offset=offset, limit=limit, sort=sort
     )
