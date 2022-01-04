@@ -14,7 +14,7 @@ from prefect.orion.database.interface import OrionDBInterface
 
 @inject_db
 async def create_logs(
-    session: sa.orm.Session, db: OrionDBInterface, logs: schemas.core.Logs
+    session: sa.orm.Session, db: OrionDBInterface, logs: List[schemas.core.Log]
 ):
     """
     Creates new logs.
@@ -26,13 +26,12 @@ async def create_logs(
     Returns:
         int: count of logs created
     """
+    # Use a bulk insert.
+    insert_stmt = (await db.insert(db.Log)).values([log.dict() for log in logs])
+    await session.execute(insert_stmt)
+    await session.commit()
 
-    for log in logs.logs:
-        insert_stmt = (await db.insert(db.Log)).values(**log.dict(exclude_unset=True))
-        await session.execute(insert_stmt)
-    await session.flush()
-
-    return len(logs.logs)
+    return len(logs)
 
 
 @inject_db
