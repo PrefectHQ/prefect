@@ -103,7 +103,7 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def run_logger(context: "RunContext" = None, /, **kwargs: str) -> logging.Logger:
+def run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -113,7 +113,7 @@ def run_logger(context: "RunContext" = None, /, **kwargs: str) -> logging.Logger
     Arguments:
         context: A specific context may be provided as an override. By default, the
             context is inferred from global state and this should not be needed.
-        **kwargs: Keyword arguments will be attached to the log records in
+        **kwargs: Additional keyword arguments will be attached to the log records in
             addition to the run metadata
 
     Raises:
