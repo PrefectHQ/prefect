@@ -85,18 +85,23 @@ def create_app(database_config=None) -> FastAPI:
         pass
 
     def openapi():
-        if app.openapi_schema:
-            return app.openapi_schema
-        openapi_schema = get_openapi(
+        """
+        Convenience method for extracting the user facing OpenAPI schema from the API app.
+
+        This method is attached to the global public app for easy access.
+        """
+        partial_schema = get_openapi(
             title=API_TITLE,
             version=API_VERSION,
-            routes=app.routes,
+            routes=api_app.routes,
         )
-        openapi_schema["info"]["x-logo"] = {
-            "url": "static/prefect-logo-mark-gradient.png"
-        }
-        app.openapi_schema = openapi_schema
-        return app.openapi_schema
+        new_schema = partial_schema.copy()
+        new_schema["paths"] = {}
+        for path, value in partial_schema["paths"].items():
+            new_schema["paths"][f"/api{path}"] = value
+
+        new_schema["info"]["x-logo"] = {"url": "static/prefect-logo-mark-gradient.png"}
+        return new_schema
 
     app.openapi = openapi
 
