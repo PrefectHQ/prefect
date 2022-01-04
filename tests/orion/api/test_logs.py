@@ -25,25 +25,23 @@ def task_run_id():
 
 @pytest.fixture
 def log_data(client, flow_run_id, task_run_id):
-    yield {
-        "logs": [
-            {
-                "name": "prefect.flow_run",
-                "level": 20,
-                "message": "Ahoy, captain",
-                "timestamp": NOW.timestamp(),
-                "flow_run_id": flow_run_id,
-            },
-            {
-                "name": "prefect.task_run",
-                "level": 50,
-                "message": "Black flag ahead, captain!",
-                "timestamp": NOW.timestamp(),
-                "flow_run_id": flow_run_id,
-                "task_run_id": task_run_id,
-            },
-        ]
-    }
+    yield [
+        {
+            "name": "prefect.flow_run",
+            "level": 20,
+            "message": "Ahoy, captain",
+            "timestamp": NOW.timestamp(),
+            "flow_run_id": flow_run_id,
+        },
+        {
+            "name": "prefect.task_run",
+            "level": 50,
+            "message": "Black flag ahead, captain!",
+            "timestamp": NOW.timestamp(),
+            "flow_run_id": flow_run_id,
+            "task_run_id": task_run_id,
+        },
+    ]
 
 
 def assert_is_same_log(model, api_data):
@@ -67,12 +65,12 @@ class TestCreateLogs:
         assert response.status_code == 201
         assert response.json() == {"created": 2}
 
-        log_filter = LogFilter(**{"flow_run_id": {"any_": [flow_run_id]}})
+        log_filter = LogFilter(flow_run_id={"any_": [flow_run_id]})
         logs = await models.logs.read_logs(session=session, log_filter=log_filter)
         assert len(logs) == 2
 
         for i, log in enumerate(logs):
-            assert_is_same_log(log, log_data["logs"][i])
+            assert_is_same_log(log, log_data[i])
 
     async def test_create_logs_with_task_run_id_and_returns_number_created(
         self, session, client, flow_run_id, task_run_id, log_data
@@ -81,11 +79,11 @@ class TestCreateLogs:
         assert response.status_code == 201
         assert response.json() == {"created": 2}
 
-        log_filter = LogFilter(**{"task_run_id": {"any_": [task_run_id]}})
+        log_filter = LogFilter(task_run_id={"any_": [task_run_id]})
         logs = await models.logs.read_logs(session=session, log_filter=log_filter)
         assert len(logs) == 1
 
-        assert_is_same_log(logs[0], log_data["logs"][1])
+        assert_is_same_log(logs[0], log_data[1])
 
 
 class TestReadLogs:
@@ -95,7 +93,7 @@ class TestReadLogs:
 
     async def test_read_logs(self, client, logs):
         response = await client.post(READ_LOGS_URL)
-        assert len(response.json()["logs"]) == 2
+        assert len(response.json()) == 2
 
     async def test_read_logs_applies_log_filter(
         self, logs, log_data, client, task_run_id
@@ -103,16 +101,16 @@ class TestReadLogs:
         log_filter = {"logs": {"task_run_id": {"any_": [task_run_id]}}}
         response = await client.post(READ_LOGS_URL, json=log_filter)
         data = response.json()
-        assert len(data["logs"]) == 1
-        for log in data["logs"]:
+        assert len(data) == 1
+        for log in data:
             assert log["task_run_id"] == task_run_id
 
     async def test_read_logs_offset(self, client, logs):
         response = await client.post(READ_LOGS_URL, json={"offset": 1, "limit": 1})
         data = response.json()
-        assert len(data["logs"]) == 1
+        assert len(data) == 1
 
     async def test_read_logs_returns_empty_list(self, client):
         response = await client.post(READ_LOGS_URL)
         data = response.json()
-        assert data["logs"] == []
+        assert data == []

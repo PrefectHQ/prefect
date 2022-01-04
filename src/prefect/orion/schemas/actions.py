@@ -154,9 +154,3 @@ class LogCreate(
     )
 ):
     """Data used by the Orion API to create a log."""
-
-
-class LogsCreate(PrefectBaseModel):
-    """Data used by the Orion API to create logs."""
-
-    logs: List[LogCreate] = Field(..., description="The logs to create")
