@@ -336,12 +336,6 @@ class Log(ORMBaseModel):
     )
 
 
-class Logs(PrefectBaseModel):
-    """A list of ORM representations of logs."""
-
-    logs: List[Log] = Field(..., description="The logs.")
-
-
 class LogsCreated(PrefectBaseModel):
     """The number of logs created."""
 
