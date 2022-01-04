@@ -1,4 +1,4 @@
-# Orchestration components
+# The components of Orion
 
 Orion is a collection of components and services that form a dedicated _orchestration environment_:
 
