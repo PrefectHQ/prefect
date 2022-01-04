@@ -90,16 +90,6 @@ loggers:
         handlers: [console]
         propagate: no
 
-    prefect.flows:
-        level: DEBUG
-        handlers: [console_flows]
-        propagate: no
-
-    prefect.tasks:
-        level: DEBUG
-        handlers: [console_tasks]
-        propagate: no
-
     prefect.flow_runs:
         level: DEBUG
         handlers: [orion, console_flow_runs]
