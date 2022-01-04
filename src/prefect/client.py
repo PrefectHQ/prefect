@@ -380,7 +380,11 @@ class OrionClient:
         return flow_run
 
     async def update_flow_run(
-        self, flow_run_id: UUID, flow_version: str = None, parameters: dict = None
+        self,
+        flow_run_id: UUID,
+        flow_version: str = None,
+        parameters: dict = None,
+        name: str = None,
     ) -> None:
         """
         Update a flow run's details.
@@ -389,6 +393,7 @@ class OrionClient:
             flow_run_id: the run ID to update
             flow_version: a new version string for the flow run
             parameters: a dictionary of updated parameter values for the run
+            name: a new name for the flow run
 
         Returns:
             an `httpx.Response` object from the PATCH request
@@ -398,6 +403,9 @@ class OrionClient:
             params["flow_version"] = flow_version
         if parameters is not None:
             params["parameters"] = parameters
+        if name is not None:
+            params["name"] = name
+
         flow_run_data = schemas.actions.FlowRunUpdate(**params)
 
         return await self.patch(
