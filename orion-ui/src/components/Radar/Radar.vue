@@ -81,7 +81,7 @@
           :id="id"
           :transform="transform_"
           :collapsed-trees="collapsedTrees"
-          :radar="radial"
+          :radar="(radial as Radar)"
           :height="height"
           :width="width"
           @drag-viewport="dragViewport"
