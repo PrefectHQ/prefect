@@ -1,5 +1,5 @@
 task:
-  - "Robust communication with server instaces - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)"
+  - "Robust communication with server instances - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)"
 
 contributor:
   - "[Ahmed Ezzat](https://github.com/bitthebyte)"
