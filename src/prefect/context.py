@@ -60,12 +60,11 @@ class RunContext(ContextModel):
 
     Attributes:
         start_time: The time the run context was entered
+        client: The Orion client instance being used for API communication
     """
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
-
-    def templatable_metadata(self) -> Dict[str, str]:
-        return {"start_time": self.start_time}
+    client: OrionClient
 
 
 class FlowRunContext(RunContext):
@@ -74,10 +73,8 @@ class FlowRunContext(RunContext):
     flow run function.
 
     Attributes:
-        flow: The flow instance associated with the flow run
-        flow_run_id: The unique id identifying the flow run
-        name: The name of the flow run
-        client: The Orion client instance being used for API communication
+        flow: The flow instance associated with the run
+        flow_run: The API metadata for the flow run
         task_runner: The task_runner instance being used for the flow run
         task_run_futures: A list of futures for task runs created within this flow run
         subflow_states: A list of states for flow runs created within this flow run
@@ -87,8 +84,6 @@ class FlowRunContext(RunContext):
 
     flow: Flow
     flow_run: FlowRun
-    client: OrionClient
-
     task_runner: BaseTaskRunner
 
     # Tracking created objects
@@ -100,17 +95,6 @@ class FlowRunContext(RunContext):
     sync_portal: Optional[BlockingPortal] = None
     timeout_scope: Optional[CancelScope] = None
 
-    def templatable_metadata(self) -> Dict[str, str]:
-        return {
-            **super().templatable_metadata(),
-            **{
-                "flow_name": self.flow.name,
-                "flow_run_id": self.flow_run.id,
-                "flow_run_name": self.flow_run.name,
-                "task_runner_type": type(self.task_runner).__name__,
-            },
-        }
-
     __var__ = ContextVar("flow_run")
 
 
@@ -121,25 +105,11 @@ class TaskRunContext(RunContext):
 
     Attributes:
         task: The task instance associated with the task run
-        task_run_id: The unique id identifying the task run
-        flow_run_id: The unique id of the flow run the task run belongs to
-        client: The Orion client instance being used for API communication
+        task_run: The API metadata for this task run
     """
 
     task: Task
     task_run: TaskRun
-    client: OrionClient
-
-    def templatable_metadata(self) -> Dict[str, str]:
-        return {
-            **super().templatable_metadata(),
-            **{
-                "task_name": self.task.name,
-                "task_run_id": self.task_run.id,
-                "flow_run_id": self.task_run.flow_run_id,
-                "task_run_name": self.task_run.name,
-            },
-        }
 
     __var__ = ContextVar("task_run")
 
