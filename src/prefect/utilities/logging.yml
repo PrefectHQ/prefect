@@ -57,7 +57,6 @@ handlers:
     orion:
         class: prefect.utilities.logging.OrionHandler
         level: "{{default_level}}"
-        formatter: json
 
 loggers:
     prefect:
