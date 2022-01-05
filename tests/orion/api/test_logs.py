@@ -52,19 +52,6 @@ def log_data(client, flow_run_id, task_run_id):
     ]
 
 
-def assert_is_same_log(model, api_data):
-    assert model.name == api_data["name"]
-    assert model.level == api_data["level"]
-    assert model.message == api_data["message"]
-    assert model.timestamp == pendulum.from_timestamp(api_data["timestamp"]).astimezone(
-        pendulum.timezone("UTC")
-    )
-    assert str(model.flow_run_id) == api_data["flow_run_id"]
-
-    if model.task_run_id:
-        assert str(model.task_run_id) == api_data["task_run_id"]
-
-
 class TestCreateLogs:
     async def test_create_logs_with_flow_run_id_and_returns_number_created(
         self, session, client, log_data, flow_run_id
