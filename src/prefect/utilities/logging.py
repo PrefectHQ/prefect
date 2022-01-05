@@ -278,7 +278,11 @@ class OrionLogWorker:
                 ):
                     log = self.queue.get_nowait()
                     self.pending_logs.append(log)
-                    self.pending_size += sys.getsizeof(log)
+                    # NOTE: This requires serialization of the log twice as it will need
+                    #       to be jsonified when sent to the server as well. If
+                    #       performance is significant, the client can be modified to
+                    #       recieve json logs directly.
+                    self.pending_size += sys.getsizeof(log.json())
             except queue.Empty:
                 done = True
 
