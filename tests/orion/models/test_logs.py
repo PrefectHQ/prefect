@@ -63,7 +63,6 @@ async def logs(log_data, session):
 
 
 class TestCreateLogs:
-    @inject_db
     async def test_create_logs_succeeds(self, session, flow_run_id, log_data, logs, db):
         query = select(db.Log).order_by(db.Log.timestamp.asc())
         result = await session.execute(query)
