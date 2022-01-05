@@ -62,6 +62,7 @@ def create_app(database_config=None) -> FastAPI:
     api_app.include_router(api.task_run_states.router)
     api_app.include_router(api.deployments.router)
     api_app.include_router(api.saved_searches.router)
+    api_app.include_router(api.logs.router)
 
     api_app.mount(
         "/static",

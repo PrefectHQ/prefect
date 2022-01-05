@@ -137,6 +137,11 @@ class OrionDBInterface(metaclass=DBSingleton):
         return self.orm.SavedSearch
 
     @property
+    def Log(self):
+        """A log orm model"""
+        return self.orm.Log
+
+    @property
     def deployment_unique_upsert_columns(self):
         """Unique columns for upserting a Deployment"""
         return self.orm.deployment_unique_upsert_columns
