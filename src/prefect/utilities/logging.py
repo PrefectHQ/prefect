@@ -283,6 +283,7 @@ class OrionLogWorker:
                     #       performance is significant, the client can be modified to
                     #       recieve json logs directly.
                     self.pending_size += sys.getsizeof(log.json())
+
             except queue.Empty:
                 done = True
 
@@ -291,12 +292,12 @@ class OrionLogWorker:
                     await client.create_logs(self.pending_logs)
                     self.pending_logs = []
                     self.pending_size = 0
-                except Exception as exc:
+                except Exception:
                     # Attempt to send these logs on the next call instead
                     done = True
 
                     # Roughly replicate the behavior of the stdlib logger error handling
-                    if logging.raiseExceptions:
+                    if logging.raiseExceptions and sys.stderr:
                         sys.stderr.write("--- Orion logging error ---\n")
                         traceback.print_exc(file=sys.stderr)
                         sys.stderr.write(self.worker_info())
@@ -377,7 +378,8 @@ class OrionHandler(logging.Handler):
                 task_run_id = context.task_run.id
 
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
-        # from the standard lib `handleError` method if something goes wrong
+        # from the standard lib `handleError` method if something goes wrong and
+        # prevents bad logs from entering the queue
         from prefect.orion.schemas.actions import LogCreate
 
         return LogCreate(
