@@ -37,3 +37,68 @@ When you run a registered deployment in Orion, the following happens:
 - An agent detects the flow run and creates infrastructure for the flow run.
 - The flow run executes within the flow run infrastructure.
 
+To create a deployment:
+
+- Define the deployment specification
+- Register the deployment with the Orion server
+
+## Deployment specification
+
+A deployment specification is an instance of the Prefect [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object.
+
+`DeploymentSpec` takes the following parameters:
+
+| Parameter | Description |
+| --------- | ----------- |
+| `name` | String specifying the name of the deployment. (Required.) |
+| `flow` | The flow object to associate with the deployment. |
+| `flow_name` | String specifying the name of the flow to deploy. Only required if loading the flow from a `flow_location` with multiple flows. Inferred from `flow` if provided. |
+| `flow_location` | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. (Required if the deployment references a flow in a different file.) |
+| `push_to_server` | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
+| `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
+| `schedule` | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
+| `tags` | List containing tags to assign to the deployment. |
+
+The `flow` object or `flow_location` must be provided. If a `flow` object is not provided, `load_flow` must be called to load the flow from the given flow location.
+
+You can create a deployment specification in two ways:
+
+- In the Python file containing the flow definition.
+- In a separate Python file containing only the deployment specification.
+
+If you define the `DeploymentSpec` within the file that contains the flow, you only need to specify the flow function and the deployment name. Other parameters are optional.
+
+```Python
+from prefect import flow
+
+@flow
+def hello_world(name="world"):
+    print(f"Hello {name}!")
+
+# Note: a deployment does not need a command to explicitly
+# run the flow. The API handles this for you.
+# hello_world()
+
+from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    flow=hello_world,
+    name="hello-world-daily",
+)
+```
+
+If you define the `DeploymentSpec` in a separate Python deployment file, specify the path and filename of the file containing the flow definition, along with the deployment name. Other parameters are optional.
+
+```Python
+from prefect.deployments import DeploymentSpec
+
+DeploymentSpec(
+    flow_location="/path/to/flow.py",
+    name="hello-world-daily", 
+)
+```
+
+A deployment file or flow definition may include multiple `DeploymentSpec` instances, each representing a different deployment specification for the flow. Each `DeploymentSpec` for a given flow must have a unique `name` value. 
+
+## Deployment registration
+
