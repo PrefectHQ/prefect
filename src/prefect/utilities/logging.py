@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from prefect.context import FlowRunContext, RunContext, TaskRunContext
     from prefect.flows import Flow
     from prefect.orion.schemas.core import FlowRun, TaskRun
+    from prefect.orion.schemas.actions import LogCreate
     from prefect.tasks import Task
 
 
@@ -218,7 +219,7 @@ class OrionLogWorker:
     """
 
     def __init__(self) -> None:
-        self.queue: queue.Queue[dict] = queue.Queue()
+        self.queue: queue.Queue["LogCreate"] = queue.Queue()
         self.send_thread = threading.Thread(
             target=self.send_logs_loop,
             name="orion-log-worker",
@@ -229,7 +230,7 @@ class OrionLogWorker:
         self.started = False
 
         # Tracks logs that have been pulled from the queue but not sent successfully
-        self.pending_logs: List[dict] = []
+        self.pending_logs: List["LogCreate"] = []
         self.pending_size: int = 0
 
         # We must defer this import to avoid circular imports
@@ -314,7 +315,7 @@ class OrionLogWorker:
             f"    Pending log batch size: {self.pending_size}\n"
         )
 
-    def enqueue(self, log: dict):
+    def enqueue(self, log: "LogCreate"):
         self.queue.put(log)
 
     def start(self) -> None:
@@ -343,13 +344,13 @@ class OrionHandler(logging.Handler):
             cls.worker.start()
         return cls.worker
 
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord):
         try:
             self.get_worker().enqueue(self.prepare(record))
         except Exception:
             self.handleError(record)
 
-    def prepare(self, record: logging.LogRecord) -> dict:
+    def prepare(self, record: logging.LogRecord) -> "LogCreate":
         flow_run_id = getattr(record, "flow_run_id", None)
         task_run_id = getattr(record, "task_run_id", None)
 
@@ -371,10 +372,11 @@ class OrionHandler(logging.Handler):
             if context and hasattr(context, "task_run"):
                 task_run_id = context.task_run.id
 
-        # TODO: We could consider parsing here with `LogCreate` which would raise nice
-        #       logging errors that include the raw record on failure. We would then
-        #       pass `LogCreate` throughout instead of dictionaries.
-        return dict(
+        # Parsing to a `LogCreate` object here gives us nice parsing error messages
+        # from the standard lib `handleError` method if something goes wrong
+        from prefect.orion.schemas.actions import LogCreate
+
+        return LogCreate(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
             name=record.name,

@@ -1010,14 +1010,8 @@ class OrionClient:
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
-    async def create_logs(self, logs: Iterable[dict]) -> None:
-        serialized_logs = [
-            # Parsing here will give us clearer errors than a 422 if the log does not
-            # match the expected schema. If this becomes a performance issue, we can use
-            # a JSON encoder directly i.e. the FastAPI's `jsonable_encoder`
-            LogCreate.parse_obj(log).dict(json_compatible=True)
-            for log in logs
-        ]
+    async def create_logs(self, logs: Iterable[LogCreate]) -> None:
+        serialized_logs = [log.dict(json_compatible=True) for log in logs]
         await self.post(f"/logs/", json=serialized_logs)
 
     async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
