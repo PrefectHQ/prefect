@@ -137,3 +137,30 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 ## Examples
 
+The following example builds on an earlier example, demonstrating the use of multiple deployment specifications for a single flow, along with deployment-specific parameters and tags.
+
+```Python
+from prefect import flow
+
+@flow
+def hello_world(name="world"):
+    print(f"Hello {name}!")
+
+from prefect.deployments import DeploymentSpec
+from prefect.orion.schemas.schedules import IntervalSchedule
+from datetime import timedelta
+
+DeploymentSpec(
+    flow=hello_world,
+    name="hello-world-daily",
+    schedule=IntervalSchedule(interval=timedelta(days=1)),
+    tags=["earth"],
+)
+
+DeploymentSpec(
+    flow=hello_world,
+    name="hello-orion",
+    parameters={"name": "Orion"},
+    tags=["marvin"],
+)
+```
