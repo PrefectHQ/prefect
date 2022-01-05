@@ -287,6 +287,9 @@ class OrionLogWorker:
             except queue.Empty:
                 done = True
 
+            if not self.pending_logs:
+                continue
+
             async with self.client_cls() as client:
                 try:
                     await client.create_logs(self.pending_logs)
