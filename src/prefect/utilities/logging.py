@@ -346,7 +346,7 @@ class OrionHandler(logging.Handler):
     def emit(self, record):
         try:
             self.get_worker().enqueue(self.prepare(record))
-        except:
+        except Exception:
             self.handleError(record)
 
     def prepare(self, record: logging.LogRecord) -> dict:
