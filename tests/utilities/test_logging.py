@@ -1,16 +1,20 @@
 from unittest.mock import MagicMock
 
 import pytest
-import yaml
+
 
 from prefect.utilities.logging import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     get_logger,
     setup_logging,
     load_logging_config,
+    flow_run_logger,
+    task_run_logger,
+    run_logger,
 )
 from prefect.utilities.settings import LoggingSettings, Settings
-from prefect import settings
+from prefect import flow, task
+from prefect.context import TaskRunContext
 
 
 @pytest.fixture
@@ -99,6 +103,11 @@ def test_get_logger_returns_prefect_child_logger():
     assert logger.name == "prefect.foo"
 
 
+def test_get_logger_does_not_duplicate_prefect_prefix():
+    logger = get_logger("prefect.foo")
+    assert logger.name == "prefect.foo"
+
+
 def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
     fake_settings = Settings(logging=LoggingSettings(default_level="WARNING"))
 
@@ -111,3 +120,194 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
 
     setup_logging(fake_settings)
     dictConfigMock.assert_called_once_with(expected_config)
+
+
+def test_flow_run_logger(flow_run):
+    logger = flow_run_logger(flow_run)
+    assert logger.name == "prefect.flow_runs"
+    assert logger.extra == {
+        "flow_run_name": flow_run.name,
+        "flow_run_id": str(flow_run.id),
+        "flow_name": "<unknown>",
+    }
+
+
+def test_flow_run_logger_with_flow(flow_run):
+    @flow(name="foo")
+    def test_flow():
+        pass
+
+    logger = flow_run_logger(flow_run, test_flow)
+    assert logger.extra["flow_name"] == "foo"
+
+
+def test_flow_run_logger_with_kwargs(flow_run):
+    logger = flow_run_logger(flow_run, foo="test", flow_run_name="bar")
+    assert logger.extra["foo"] == "test"
+    assert logger.extra["flow_run_name"] == "bar"
+
+
+def test_task_run_logger(task_run):
+    logger = task_run_logger(task_run)
+    assert logger.name == "prefect.task_runs"
+    assert logger.extra == {
+        "task_run_name": task_run.name,
+        "task_run_id": str(task_run.id),
+        "flow_run_id": str(task_run.flow_run_id),
+        "flow_run_name": "<unknown>",
+        "flow_name": "<unknown>",
+        "task_name": "<unknown>",
+    }
+
+
+def test_task_run_logger_with_task(task_run):
+    @task(name="foo")
+    def test_task():
+        pass
+
+    logger = task_run_logger(task_run, test_task)
+    assert logger.extra["task_name"] == "foo"
+
+
+def test_task_run_logger_with_flow_run(task_run, flow_run):
+    logger = task_run_logger(task_run, flow_run=flow_run)
+    assert logger.extra["flow_run_id"] == str(task_run.flow_run_id)
+    assert logger.extra["flow_run_name"] == flow_run.name
+
+
+def test_task_run_logger_with_flow(task_run):
+    @flow(name="foo")
+    def test_flow():
+        pass
+
+    logger = task_run_logger(task_run, flow=test_flow)
+    assert logger.extra["flow_name"] == "foo"
+
+
+def test_task_run_logger_with_kwargs(task_run):
+    logger = task_run_logger(task_run, foo="test", task_run_name="bar")
+    assert logger.extra["foo"] == "test"
+    assert logger.extra["task_run_name"] == "bar"
+
+
+def test_run_logger_fails_outside_context():
+    with pytest.raises(RuntimeError, match="no active flow or task run context"):
+        run_logger()
+
+
+async def test_run_logger_with_explicit_context(orion_client, flow_run):
+    @task
+    def foo():
+        pass
+
+    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    context = TaskRunContext(task=foo, task_run=task_run, client=orion_client)
+
+    logger = run_logger(context)
+
+    assert logger.name == "prefect.task_runs"
+    assert logger.extra == {
+        "task_name": foo.name,
+        "task_run_id": str(task_run.id),
+        "task_run_name": task_run.name,
+        "flow_run_id": str(flow_run.id),
+        "flow_name": "<unknown>",
+        "flow_run_name": "<unknown>",
+    }
+
+
+async def test_run_logger_with_explicit_context_overrides_existing(
+    orion_client, flow_run
+):
+    @task
+    def foo():
+        pass
+
+    @task
+    def bar():
+        pass
+
+    task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
+    # Use `bar` instead of `foo` in context
+    context = TaskRunContext(task=bar, task_run=task_run, client=orion_client)
+
+    logger = run_logger(context)
+    assert logger.extra["task_name"] == bar.name
+
+
+async def test_run_logger_in_flow(orion_client):
+    @flow
+    def test_flow():
+        return run_logger()
+
+    state = test_flow()
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    logger = state.result()
+    assert logger.name == "prefect.flow_runs"
+    assert logger.extra == {
+        "flow_name": test_flow.name,
+        "flow_run_id": str(flow_run.id),
+        "flow_run_name": flow_run.name,
+    }
+
+
+async def test_run_logger_extra_data(orion_client):
+    @flow
+    def test_flow():
+        return run_logger(foo="test", flow_name="bar")
+
+    state = test_flow()
+    flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
+    logger = state.result()
+    assert logger.name == "prefect.flow_runs"
+    assert logger.extra == {
+        "flow_name": "bar",
+        "foo": "test",
+        "flow_run_id": str(flow_run.id),
+        "flow_run_name": flow_run.name,
+    }
+
+
+async def test_run_logger_in_nested_flow(orion_client):
+    @flow
+    def child_flow():
+        return run_logger()
+
+    @flow
+    def test_flow():
+        return child_flow()
+
+    child_state = test_flow().result()
+    flow_run = await orion_client.read_flow_run(child_state.state_details.flow_run_id)
+    logger = child_state.result()
+    assert logger.name == "prefect.flow_runs"
+    assert logger.extra == {
+        "flow_name": child_flow.name,
+        "flow_run_id": str(flow_run.id),
+        "flow_run_name": flow_run.name,
+    }
+
+
+async def test_run_logger_in_task(orion_client):
+    @task
+    def test_task():
+        return run_logger()
+
+    @flow
+    def test_flow():
+        return test_task().wait()
+
+    flow_state = test_flow()
+    flow_run = await orion_client.read_flow_run(flow_state.state_details.flow_run_id)
+    task_state = flow_state.result()
+    task_run = await orion_client.read_task_run(task_state.state_details.task_run_id)
+    logger = task_state.result()
+    assert logger.name == "prefect.task_runs"
+    assert logger.extra == {
+        "task_name": test_task.name,
+        "task_run_id": str(task_run.id),
+        "task_run_name": task_run.name,
+        "flow_name": test_flow.name,
+        "flow_run_id": str(flow_run.id),
+        "flow_run_name": flow_run.name,
+    }
