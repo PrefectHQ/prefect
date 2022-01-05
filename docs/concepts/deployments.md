@@ -120,7 +120,13 @@ Created deployment 'hello-world-daily' for flow 'hello-world'
 
 If you define deployment specifications in a file separate from your flow definition, we recommend as a best practice naming your deployment specification file using the model <flowname>_deployment.py. Following the examples shown earlier, for flow.py, you might name the deployment specification flow_deployment.py.
 
-The `prefect deployment` CLI command provides additional commands for managing and running deployments.
+## Running deployments
+
+If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as the Orion server is running.
+
+In the Orion dashboard, you can click the **Quick Run** button next to any deployment to execute an ad hoc flow run for that deployment.
+
+The `prefect deployment` CLI command provides commands for managing and running deployments locally.
 
 | Command | Description |
 | ------- | ----------- |
