@@ -1,3 +1,11 @@
+"""
+Tests for the logs API.
+
+NOTE: These tests use UUID1 to generate UUIDs with a stable sorted
+order. This is purely so that we can test sorting by flow run and
+task run ID with a stable order across test machines.
+"""
+
 from datetime import timedelta
 from unittest import mock
 from uuid import uuid1, UUID
