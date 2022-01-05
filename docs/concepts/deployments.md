@@ -39,8 +39,8 @@ When you run a registered deployment in Orion, the following happens:
 
 To create a deployment:
 
-- Define the deployment specification
-- Register the deployment with the Orion server
+- Define the deployment specification.
+- Register the deployment with the Orion server.
 
 ## Deployment specification
 
@@ -50,14 +50,14 @@ A deployment specification is an instance of the Prefect [`DeploymentSpec`](/api
 
 | Parameter | Description |
 | --------- | ----------- |
-| `name` | String specifying the name of the deployment. (Required.) |
-| `flow` | The flow object to associate with the deployment. |
-| `flow_name` | String specifying the name of the flow to deploy. Only required if loading the flow from a `flow_location` with multiple flows. Inferred from `flow` if provided. |
-| `flow_location` | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. (Required if the deployment references a flow in a different file.) |
-| `push_to_server` | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
-| `parameters` | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
-| `schedule` | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
-| `tags` | List containing tags to assign to the deployment. |
+| name | String specifying the name of the deployment. (Required.) |
+| flow | The flow object to associate with the deployment. |
+| flow_name | String specifying the name of the flow to deploy. Only required if loading the flow from a flow_location with multiple flows. Inferred from flow if provided. |
+| flow_location | String specifying the path to a script containing the flow to deploy. Inferred from flow if provided. (Required if the deployment references a flow in a different file.) |
+| push_to_server | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
+| parameters | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
+| schedule | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
+| tags | List containing tags to assign to the deployment. |
 
 The `flow` object or `flow_location` must be provided. If a `flow` object is not provided, `load_flow` must be called to load the flow from the given flow location.
 
@@ -118,7 +118,7 @@ Loading deployments from python script at 'flow.py'...
 Created deployment 'hello-world-daily' for flow 'hello-world'
 ```
 
-If you define deployment specifications in a file separate from your flow definition, we recommend as a best practice naming your deployment specification file using the model <flowname>_deployment.py. Following the examples shown earlier, for flow.py, you might name the deployment specification flow_deployment.py.
+If you define deployment specifications in a file separate from your flow definition, we recommend as a best practice naming your deployment specification file using the model [flowname]_deployment.py. Following the examples shown earlier, for flow.py, you might name the deployment specification flow_deployment.py. This is not a required practice, but may help you organize flows and deployments.
 
 ## Running deployments
 
@@ -130,10 +130,10 @@ The `prefect deployment` CLI command provides commands for managing and running 
 
 | Command | Description |
 | ------- | ----------- |
-| `create` | Create or update a deployment from a file. |
-| `execute` | Execute a local flow run for the given deployment. |
-| `inspect` | View details about a deployment. |
-| `ls` | View all deployments or deployments for specific flows. |
+| create | Create or update a deployment from a file. |
+| execute | Execute a local flow run for the given deployment. |
+| inspect | View details about a deployment. |
+| ls | View all deployments or deployments for specific flows. |
 
 ## Examples
 
