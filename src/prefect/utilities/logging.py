@@ -1,12 +1,21 @@
+import atexit
 import logging
 import logging.config
+import logging.handlers
 import os
+import queue
 import re
+import sys
+import threading
+import time
+import traceback
 from functools import lru_cache, partial
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING, List
 
+import anyio
+import pendulum
 import yaml
 from fastapi.encoders import jsonable_encoder
 
@@ -17,8 +26,9 @@ from prefect.utilities.settings import LoggingSettings, Settings
 if TYPE_CHECKING:
     from prefect.context import FlowRunContext, RunContext, TaskRunContext
     from prefect.flows import Flow
-    from prefect.orion.schemas.core import FlowRun, TaskRun
+    from prefect.orion.schemas.core import FlowRun, Log, TaskRun
     from prefect.tasks import Task
+
 
 # This path will be used if `LoggingSettings.settings_path` does not exist
 DEFAULT_LOGGING_SETTINGS_PATH = Path(__file__).parent / "logging.yml"
@@ -202,17 +212,185 @@ def task_run_logger(
     )
 
 
-class OrionHandler(logging.Handler):
-    def emit(self, record: logging.LogRecord):
-        """
-        Emit a logging record to Orion.
+class OrionLogWorker:
+    """
+    Manages the submission of logs to Orion.
+    """
 
-        This is not yet implemented. No logs are sent to the server.
+    def __init__(self) -> None:
+        self.queue: queue.Queue["Log"] = queue.Queue()
+        self.send_thread = threading.Thread(
+            target=self.send_logs_loop,
+            name="orion-log-worker",
+            daemon=True,
+        )
+        self.stop_event = threading.Event()
+        self.lock = threading.Lock()
+        self.started = False
+
+        # Tracks logs that have been pulled from the queue but not sent successfully
+        self.pending_logs: List[Log] = []
+        self.pending_size: int = 0
+
+        # We must defer this import to avoid circular imports
+        from prefect.client import OrionClient
+
+        self.client_cls = OrionClient
+
+        self.logger = get_logger("logging")
+
+        # Ensure stop is called at exit
+        atexit.register(self.stop)
+
+    def send_logs_loop(self):
         """
-        # TODO: Implement a log handler that sends logs to Orion, Core uses a custom
-        #       queue to batch messages but we may want to use the stdlib
-        #       `MemoryHandler` as a base which implements queueing already
-        #       https://docs.python.org/3/howto/logging-cookbook.html#buffering-logging-messages-and-outputting-them-conditionally
+        Should only be the target of the `send_thread` as it creates a new event loop.
+
+        Runs until the `stop_event` is set.
+        """
+        while not self.stop_event.wait(
+            timeout=prefect.settings.logging.orion_log_interval
+        ):
+            anyio.run(self.send_logs)
+
+        # After the stop event, we are exiting...
+        # Try to send any remaining logs
+        anyio.run(self.send_logs, True)
+
+    async def send_logs(self, exiting: bool = False) -> None:
+        """
+        Send all logs in the queue in batches to avoid network limits.
+
+        If a client error is encountered, the logs pulled from the queue are retained
+        and will be sent on the next call.
+        """
+        done = False
+
+        # Loop until the queue is empty or we encounter an error
+        while not done:
+
+            # Pull logs from the queue until it is empty or we reach the batch size
+            try:
+                while (
+                    self.pending_size
+                    < prefect.settings.logging.orion_max_batch_log_size
+                ):
+                    log = self.queue.get_nowait()
+                    self.pending_logs.append(log)
+                    # TODO: It may be expensive to serialize the log here and again in the
+                    #       client. If so, we can store serialized logs in the `pending`
+                    #       list and allow raw JSON to be sent to the client
+                    self.pending_size += sys.getsizeof(log.json())
+            except queue.Empty:
+                done = True
+
+            async with self.client_cls() as client:
+                try:
+                    await client.send_run_logs(self.pending_logs)
+                    self.pending_logs = []
+                    self.pending_size = 0
+                except Exception as exc:
+                    # Attempt to send these logs on the next call instead
+                    done = True
+
+                    # Roughly replicate the behavior of the stdlib logger error handling
+                    if logging.raiseExceptions:
+                        sys.stderr.write("--- Orion logging error ---\n")
+                        traceback.print_exc(file=sys.stderr)
+                        sys.stderr.write(self.worker_info())
+                        if exiting:
+                            sys.stderr.write(
+                                "The log worker is stopping and these logs will not be sent.\n"
+                            )
+                        else:
+                            sys.stderr.write(
+                                "The log worker will attempt to send these logs again in "
+                                f"{prefect.settings.logging.orion_log_interval}s\n"
+                            )
+
+    def worker_info(self) -> str:
+        """Returns a debugging string with worker log stats"""
+        return (
+            "Worker information:\n"
+            f"    Approximate queue length: {self.queue.qsize()}\n"
+            f"    Pending log batch length: {len(self.pending_logs)}\n"
+            f"    Pending log batch size: {self.pending_size}\n"
+        )
+
+    def enqueue(self, log: "Log"):
+        self.queue.put(log)
+
+    def start(self) -> None:
+        """Start the background thread"""
+        with self.lock:
+            if not self.started:
+                self.send_thread.start()
+                self.started = True
+
+    def stop(self) -> None:
+        """Flush all logs and stop the background thread"""
+        with self.lock:
+            if self.started:
+                self.stop_event.set()
+                self.send_thread.join()
+                self.started = False
+
+
+class OrionHandler(logging.Handler):
+    worker: OrionLogWorker = None
+
+    @classmethod
+    def get_worker(cls) -> OrionLogWorker:
+        if not cls.worker:
+            cls.worker = OrionLogWorker()
+            cls.worker.start()
+        return cls.worker
+
+    def emit(self, record):
+        try:
+            self.get_worker().enqueue(self.prepare(record))
+        except:
+            self.handleError(record)
+
+    def prepare(self, record: logging.LogRecord) -> "Log":
+        flow_run_id = getattr(record, "flow_run_id", None)
+        task_run_id = getattr(record, "task_run_id", None)
+
+        if not flow_run_id:
+            context = prefect.context.FlowRunContext.get()
+            if not context:
+                raise RuntimeError(
+                    "Attempted to send logs to Orion without a flow run id. The "
+                    "Orion log handler must be attached to loggers used within flow "
+                    "run contexts or the flow run id must be manually provided."
+                )
+            if hasattr(context, "flow_run"):
+                flow_run_id = context.flow_run.id
+            elif hasattr(context, "task_run"):
+                flow_run_id = context.task_run.flow_run_id
+
+        if not task_run_id:
+            context = prefect.context.TaskRunContext.get()
+            if context and hasattr(context, "task_run"):
+                task_run_id = context.task_run.id
+
+        from prefect.orion.schemas.core import Log
+
+        return Log(
+            flow_run_id=flow_run_id,
+            task_run_id=task_run_id,
+            name=record.name,
+            level=record.levelno,
+            timestamp=pendulum.from_timestamp(
+                getattr(record, "created", None) or time.time()
+            ).isoformat(),
+            message=record.getMessage(),
+        )
+
+    def close(self) -> None:
+        if self.worker:
+            self.worker.stop()
+        return super().close()
 
 
 def safe_jsonable(obj):

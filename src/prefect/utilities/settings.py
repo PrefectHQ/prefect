@@ -308,6 +308,14 @@ class LoggingSettings(BaseSettings):
         `{shared_settings.home}/logging.yml`.""",
     )
 
+    orion_log_interval: int = Field(
+        2,
+        description="""The number of seconds between batched writes of logs to Orion.""",
+    )
+    orion_max_batch_log_size: int = Field(
+        4_000_000, description="""The maximum size in bytes for a single log batch."""
+    )
+
 
 class AgentSettings(BaseSettings):
 
