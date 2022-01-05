@@ -11,7 +11,6 @@ from starlette import status
 from prefect import settings
 from prefect.orion import models, schemas
 from prefect.orion.api import dependencies
-from prefect.orion.schemas.core import LogsCreated
 from prefect.orion.utilities.server import OrionRouter
 
 router = OrionRouter(prefix="/logs", tags=["Logs"])
@@ -22,11 +21,10 @@ async def create_logs(
     logs: List[schemas.actions.LogCreate],
     response: Response,
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.LogsCreated:
+):
     """Create new logs from the provided schema."""
-    created = await models.logs.create_logs(session=session, logs=logs)
+    await models.logs.create_logs(session=session, logs=logs)
     response.status_code = status.HTTP_201_CREATED
-    return LogsCreated(created=created)
 
 
 @router.post("/filter")
@@ -36,7 +34,7 @@ async def read_logs(
     ),
     offset: int = Body(0, ge=0),
     logs: schemas.filters.LogFilter = None,
-    sort: schemas.sorting.LogSort = schemas.sorting.LogSort.TIMESTAMP_ASC,
+    sort: schemas.sorting.LogSort = Body(schemas.sorting.LogSort.TIMESTAMP_ASC),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> List[schemas.core.Log]:
     """

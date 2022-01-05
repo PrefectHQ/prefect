@@ -26,12 +26,8 @@ async def create_logs(
     Returns:
         int: count of logs created
     """
-    # Use a bulk insert.
     insert_stmt = (await db.insert(db.Log)).values([log.dict() for log in logs])
     await session.execute(insert_stmt)
-    await session.commit()
-
-    return len(logs)
 
 
 @inject_db

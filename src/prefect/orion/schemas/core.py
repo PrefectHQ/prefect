@@ -338,11 +338,5 @@ class Log(ORMBaseModel):
     )
 
 
-class LogsCreated(PrefectBaseModel):
-    """The number of logs created."""
-
-    created: int = Field(..., description="The number of log records created.")
-
-
 Flow.update_forward_refs()
 FlowRun.update_forward_refs()
