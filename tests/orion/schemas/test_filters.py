@@ -1,6 +1,6 @@
-from datetime import datetime
 from uuid import uuid4
 
+import pendulum
 import sqlalchemy as sa
 
 from prefect.orion import schemas
@@ -8,7 +8,7 @@ from prefect.orion.database.dependencies import inject_db
 from prefect.orion.schemas.filters import LogFilter
 
 
-NOW = datetime.now()
+NOW = pendulum.now()
 
 
 async def test_filters_without_params_do_not_error():
