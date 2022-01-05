@@ -26,7 +26,7 @@ from prefect.utilities.settings import LoggingSettings, Settings
 if TYPE_CHECKING:
     from prefect.context import FlowRunContext, RunContext, TaskRunContext
     from prefect.flows import Flow
-    from prefect.orion.schemas.core import FlowRun, Log, TaskRun
+    from prefect.orion.schemas.core import FlowRun, TaskRun
     from prefect.tasks import Task
 
 
@@ -218,7 +218,7 @@ class OrionLogWorker:
     """
 
     def __init__(self) -> None:
-        self.queue: queue.Queue["Log"] = queue.Queue()
+        self.queue: queue.Queue[dict] = queue.Queue()
         self.send_thread = threading.Thread(
             target=self.send_logs_loop,
             name="orion-log-worker",
@@ -229,7 +229,7 @@ class OrionLogWorker:
         self.started = False
 
         # Tracks logs that have been pulled from the queue but not sent successfully
-        self.pending_logs: List[Log] = []
+        self.pending_logs: List[dict] = []
         self.pending_size: int = 0
 
         # We must defer this import to avoid circular imports
@@ -280,13 +280,13 @@ class OrionLogWorker:
                     # TODO: It may be expensive to serialize the log here and again in the
                     #       client. If so, we can store serialized logs in the `pending`
                     #       list and allow raw JSON to be sent to the client
-                    self.pending_size += sys.getsizeof(log.json())
+                    self.pending_size += sys.getsizeof(log)
             except queue.Empty:
                 done = True
 
             async with self.client_cls() as client:
                 try:
-                    await client.send_run_logs(self.pending_logs)
+                    await client.create_logs(self.pending_logs)
                     self.pending_logs = []
                     self.pending_size = 0
                 except Exception as exc:
@@ -317,7 +317,7 @@ class OrionLogWorker:
             f"    Pending log batch size: {self.pending_size}\n"
         )
 
-    def enqueue(self, log: "Log"):
+    def enqueue(self, log: dict):
         self.queue.put(log)
 
     def start(self) -> None:
@@ -352,7 +352,7 @@ class OrionHandler(logging.Handler):
         except:
             self.handleError(record)
 
-    def prepare(self, record: logging.LogRecord) -> "Log":
+    def prepare(self, record: logging.LogRecord) -> dict:
         flow_run_id = getattr(record, "flow_run_id", None)
         task_run_id = getattr(record, "task_run_id", None)
 
@@ -374,9 +374,7 @@ class OrionHandler(logging.Handler):
             if context and hasattr(context, "task_run"):
                 task_run_id = context.task_run.id
 
-        from prefect.orion.schemas.core import Log
-
-        return Log(
+        return dict(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
             name=record.name,
