@@ -17,7 +17,7 @@ $ python -m asyncio
 """
 import os
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterable, Union, List
 from uuid import UUID
 
 import anyio
@@ -30,6 +30,7 @@ from prefect.orion import schemas
 from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.core import TaskRun
+from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
 from prefect.utilities.logging import get_logger
@@ -1008,6 +1009,16 @@ class OrionClient:
             "/task_run_states/", params=dict(task_run_id=task_run_id)
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
+
+    async def create_logs(self, logs: Iterable[dict]) -> None:
+        serialized_logs = [
+            # Parsing here will give us clearer errors than a 422 if the log does not
+            # match the expected schema. If this becomes a performance issue, we can use
+            # a JSON encoder directly i.e. the FastAPI's `jsonable_encoder`
+            LogCreate.parse_obj(log).dict(json_compatible=True)
+            for log in logs
+        ]
+        await self.post(f"/logs/", json=serialized_logs)
 
     async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
         """
