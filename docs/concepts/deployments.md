@@ -102,3 +102,32 @@ A deployment file or flow definition may include multiple `DeploymentSpec` insta
 
 ## Deployment registration
 
+Registering an Orion deployment enables you to run the deployment &mdash; and its referenced flow &mdash; via API, either on a predefined schedule, or by manually executing the deployment.
+
+Register a deployment with the Prefect CLI using the `prefect deployment create` command, specifying the name of the file containing the deployment specification. You can also run `prefect deployment create` to update an already registered deployment:
+
+```bash
+$ prefect deployment create <filename>
+```
+
+For example, if the hello-world deployment specification shown above is in the file flow.py, you'd see something like the following:
+
+```bash
+$ prefect deployment create flow.py
+Loading deployments from python script at 'flow.py'...
+Created deployment 'hello-world-daily' for flow 'hello-world'
+```
+
+If you define deployment specifications in a file separate from your flow definition, we recommend as a best practice naming your deployment specification file using the model <flowname>_deployment.py. Following the examples shown earlier, for flow.py, you might name the deployment specification flow_deployment.py.
+
+The `prefect deployment` CLI command provides additional commands for managing and running deployments.
+
+| Command | Description |
+| ------- | ----------- |
+| `create` | Create or update a deployment from a file. |
+| `execute` | Execute a local flow run for the given deployment. |
+| `inspect` | View details about a deployment. |
+| `ls` | View all deployments or deployments for specific flows. |
+
+## Examples
+
