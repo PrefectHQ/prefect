@@ -277,9 +277,6 @@ class OrionLogWorker:
                 ):
                     log = self.queue.get_nowait()
                     self.pending_logs.append(log)
-                    # TODO: It may be expensive to serialize the log here and again in the
-                    #       client. If so, we can store serialized logs in the `pending`
-                    #       list and allow raw JSON to be sent to the client
                     self.pending_size += sys.getsizeof(log)
             except queue.Empty:
                 done = True
@@ -374,6 +371,9 @@ class OrionHandler(logging.Handler):
             if context and hasattr(context, "task_run"):
                 task_run_id = context.task_run.id
 
+        # TODO: We could consider parsing here with `LogCreate` which would raise nice
+        #       logging errors that include the raw record on failure. We would then
+        #       pass `LogCreate` throughout instead of dictionaries.
         return dict(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
