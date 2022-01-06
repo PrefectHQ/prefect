@@ -66,7 +66,7 @@ from prefect.utilities.callables import (
 from prefect.utilities.collections import ensure_iterable, visit_collection
 from prefect.utilities.logging import (
     get_logger,
-    run_logger,
+    get_run_logger,
     flow_run_logger,
 )
 
@@ -258,7 +258,7 @@ async def create_and_begin_subflow_run(
         The final state of the run
     """
     parent_flow_run_context = FlowRunContext.get()
-    parent_logger = run_logger(parent_flow_run_context)
+    parent_logger = get_run_logger(parent_flow_run_context)
 
     parent_logger.debug(f"Resolving inputs to {flow.name!r}")
     task_inputs = {k: await collect_task_run_inputs(v) for k, v in parameters.items()}
@@ -515,7 +515,7 @@ async def create_and_submit_task_run(
     if wait_for:
         task_inputs["wait_for"] = await collect_task_run_inputs(wait_for)
 
-    logger = run_logger(flow_run_context)
+    logger = get_run_logger(flow_run_context)
 
     task_run = await flow_run_context.client.create_task_run(
         task=task,
@@ -586,7 +586,7 @@ async def orchestrate_task_run(
         task=task,
         client=client,
     )
-    logger = run_logger(context)
+    logger = get_run_logger(context)
 
     cache_key = task.cache_key_fn(context, parameters) if task.cache_key_fn else None
 
