@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 import sqlalchemy as sa
 
@@ -7,6 +9,7 @@ from prefect.orion.database.configurations import (
     AsyncPostgresConfiguration,
     AioSqliteConfiguration,
 )
+from prefect.orion.database.dependencies import provide_database_interface, inject_db
 from prefect.orion.database.query_components import (
     BaseQueryComponents,
     AsyncPostgresQueryComponents,
@@ -149,3 +152,25 @@ async def test_injecting_really_dumb_orm_configuration():
     db = dependencies.provide_database_interface()
     assert "my_string_column" not in db.Flow.__table__.columns.keys()
     assert db.Base.metadata.schema != "new_schema"
+
+
+async def test_inject_db(db):
+    """
+    Regression test for async-mangling behavior of inject_db() decorator.
+
+    Previously, when wrapping a coroutine function, the decorator returned
+    that function's coroutine object, instead of the coroutine function.
+
+    This worked fine in most cases because both a coroutine function and a
+    coroutine object can be awaited, but it broke our Pytest setup because
+    we were auto-marking coroutine functions as async, and any async test
+    wrapped by inject_db() was no longer a coroutine function, but instead
+    a coroutine object, so we skipped marking it.
+    """
+
+    class Returner:
+        @inject_db
+        async def return_1(self, db):
+            return 1
+
+    assert inspect.iscoroutinefunction(Returner().return_1)
