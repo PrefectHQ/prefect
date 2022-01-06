@@ -90,7 +90,7 @@ def create_app(database_config=None) -> FastAPI:
         request: Request, exc: StarletteHTTPException
     ):
         """Log a detailed exception for internal server errors before returning."""
-        logger.error(f"Encountered exception in request: {exc.detail}")
+        logger.error(f"Encountered exception in request:", exc_info=True)
         # pass to fastapi's default error handling
         return await http_exception_handler(request=request, exc=exc)
 
