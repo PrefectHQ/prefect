@@ -101,9 +101,31 @@ async def ls(flow_name: List[str] = None, by_created: bool = False):
 
 @deployment_app.command()
 @sync_compatible
+async def run(name: str):
+    """
+    Create a flow run for the given flow and deployment.
+
+    The flow run will be scheduled for now and an agent must execute it.
+
+    The flow run will not execute until an agent starts.
+    """
+    async with OrionClient() as client:
+        deployment = await client.read_deployment_by_name(name)
+        flow_run_id = await client.create_flow_run_from_deployment(deployment)
+
+    console.print(f"Created flow run '{flow_run_id}'")
+
+
+@deployment_app.command()
+@sync_compatible
 async def execute(name: str):
     """
-    Create and execute a local flow run for the given deployment
+    Create and execute a local flow run for the given deployment.
+
+    This does not require an agent and will bypass all flow runner settings attached to
+    the deployment.
+
+    This command will block until the flow run completes.
     """
     assert_deployment_name_format(name)
 
