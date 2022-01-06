@@ -820,10 +820,16 @@ class LogFilterName(PrefectFilterBaseModel):
 class LogFilterLevel(PrefectFilterBaseModel):
     """Filter by `Log.level`."""
 
-    any_: List[int] = Field(
+    ge_: int = Field(
         None,
-        description="A list of log levels to include",
-        example=[20, 50],
+        description="Include logs with a level greater than or equal to this level",
+        example=20,
+    )
+
+    le_: int = Field(
+        None,
+        description="Include logs with a level less than or equal to this level",
+        example=50,
     )
 
     @inject_db
@@ -832,8 +838,10 @@ class LogFilterLevel(PrefectFilterBaseModel):
         db: OrionDBInterface,
     ) -> List:
         filters = []
-        if self.any_ is not None:
-            filters.append(db.Log.level.in_(self.any_))
+        if self.ge_ is not None:
+            filters.append(db.Log.level >= self.ge_)
+        if self.le_ is not None:
+            filters.append(db.Log.level <= self.le_)
         return filters
 
 
