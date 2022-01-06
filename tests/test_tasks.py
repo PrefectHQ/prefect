@@ -357,11 +357,11 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
-    def test_cache_key_fn_context(self):
-        def stringed_context(context, args):
-            return str(context.flow_run_id)
+    def test_cache_key_fn_receives_context(self):
+        def get_flow_run_id(context, args):
+            return str(context.task_run.flow_run_id)
 
-        @task(cache_key_fn=stringed_context)
+        @task(cache_key_fn=get_flow_run_id)
         def foo(x):
             return x
 
