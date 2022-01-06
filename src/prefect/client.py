@@ -1011,6 +1011,12 @@ class OrionClient:
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
     async def create_logs(self, logs: Iterable[Union[LogCreate, dict]]) -> None:
+        """
+        Create logs for a flow or task run
+
+        Args:
+            logs: An iterable of `LogCreate` objects or already json-compatible dicts
+        """
         serialized_logs = [
             log.dict(json_compatible=True) if isinstance(log, LogCreate) else log
             for log in logs
@@ -1020,6 +1026,9 @@ class OrionClient:
     async def read_logs(
         self, log_filter: LogFilter = None, limit: int = None, offset: int = None
     ) -> None:
+        """
+        Read flow and task run logs.
+        """
         body = {
             "filter": log_filter.dict(json_compatible=True) if log_filter else None,
             "limit": limit,
