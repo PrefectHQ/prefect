@@ -315,6 +315,17 @@ class LoggingSettings(BaseSettings):
     orion_max_batch_log_size: int = Field(
         4_000_000, description="""The maximum size in bytes for a single log batch."""
     )
+    orion_max_single_log_size: int = Field(
+        1_000_000, description="""The maximum size in bytes for a single log."""
+    )
+
+    @root_validator
+    def single_log_size_smaller_than_max(cls, values):
+        if values["orion_max_batch_log_size"] < values["orion_max_single_log_size"]:
+            raise ValueError(
+                "`orion_max_single_log_size` cannot be larger than `orion_max_batch_log_size`"
+            )
+        return values
 
 
 class AgentSettings(BaseSettings):
