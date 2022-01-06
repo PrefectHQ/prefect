@@ -369,26 +369,29 @@ class OrionHandler(logging.Handler):
         task_run_id = getattr(record, "task_run_id", None)
 
         if not flow_run_id:
-            context = prefect.context.FlowRunContext.get()
-            if not context:
+            try:
+                context = prefect.context.get_run_context()
+            except:
                 raise RuntimeError(
                     "Attempted to send logs to Orion without a flow run id. The "
                     "Orion log handler must be attached to loggers used within flow "
                     "run contexts or the flow run id must be manually provided."
                 )
+
             if hasattr(context, "flow_run"):
                 flow_run_id = context.flow_run.id
             elif hasattr(context, "task_run"):
                 flow_run_id = context.task_run.flow_run_id
-
-        if not task_run_id:
-            context = prefect.context.TaskRunContext.get()
-            if context and hasattr(context, "task_run"):
-                task_run_id = context.task_run.id
+                task_run_id = task_run_id or context.task_run.id
+            else:
+                raise ValueError(
+                    "Encountered malformed run context. Does not contain flow or task "
+                    "run information."
+                )
 
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
-        # prevents bad logs from entering the queue
+        # prevents malformed logs from entering the queue
         from prefect.orion.schemas.actions import LogCreate
 
         return LogCreate(
@@ -398,7 +401,7 @@ class OrionHandler(logging.Handler):
             level=record.levelno,
             timestamp=pendulum.from_timestamp(
                 getattr(record, "created", None) or time.time()
-            ).isoformat(),
+            ),
             message=record.getMessage(),
         )
 
