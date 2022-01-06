@@ -1,1 +1,1 @@
-export * from './QueryParams'
+export * from './UrlQueryParams'
