@@ -10,7 +10,7 @@ from prefect.utilities.logging import (
     load_logging_config,
     flow_run_logger,
     task_run_logger,
-    run_logger,
+    get_run_logger,
 )
 from prefect.utilities.settings import LoggingSettings, Settings
 from prefect import flow, task
@@ -192,7 +192,7 @@ def test_task_run_logger_with_kwargs(task_run):
 
 def test_run_logger_fails_outside_context():
     with pytest.raises(RuntimeError, match="no active flow or task run context"):
-        run_logger()
+        get_run_logger()
 
 
 async def test_run_logger_with_explicit_context(orion_client, flow_run):
@@ -203,7 +203,7 @@ async def test_run_logger_with_explicit_context(orion_client, flow_run):
     task_run = await orion_client.create_task_run(foo, flow_run.id, dynamic_key="")
     context = TaskRunContext(task=foo, task_run=task_run, client=orion_client)
 
-    logger = run_logger(context)
+    logger = get_run_logger(context)
 
     assert logger.name == "prefect.task_runs"
     assert logger.extra == {
@@ -231,14 +231,14 @@ async def test_run_logger_with_explicit_context_overrides_existing(
     # Use `bar` instead of `foo` in context
     context = TaskRunContext(task=bar, task_run=task_run, client=orion_client)
 
-    logger = run_logger(context)
+    logger = get_run_logger(context)
     assert logger.extra["task_name"] == bar.name
 
 
 async def test_run_logger_in_flow(orion_client):
     @flow
     def test_flow():
-        return run_logger()
+        return get_run_logger()
 
     state = test_flow()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
@@ -254,7 +254,7 @@ async def test_run_logger_in_flow(orion_client):
 async def test_run_logger_extra_data(orion_client):
     @flow
     def test_flow():
-        return run_logger(foo="test", flow_name="bar")
+        return get_run_logger(foo="test", flow_name="bar")
 
     state = test_flow()
     flow_run = await orion_client.read_flow_run(state.state_details.flow_run_id)
@@ -271,7 +271,7 @@ async def test_run_logger_extra_data(orion_client):
 async def test_run_logger_in_nested_flow(orion_client):
     @flow
     def child_flow():
-        return run_logger()
+        return get_run_logger()
 
     @flow
     def test_flow():
@@ -291,7 +291,7 @@ async def test_run_logger_in_nested_flow(orion_client):
 async def test_run_logger_in_task(orion_client):
     @task
     def test_task():
-        return run_logger()
+        return get_run_logger()
 
     @flow
     def test_flow():

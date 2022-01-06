@@ -103,7 +103,7 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
     """
     Get a Prefect logger for the current task run or flow run.
 
