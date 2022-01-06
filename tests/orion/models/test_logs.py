@@ -73,7 +73,7 @@ class TestCreateLogs:
 
 class TestReadLogs:
     async def test_read_logs_level(self, session, logs):
-        log_filter = LogFilter(level={"any_": [10, 20]})
+        log_filter = LogFilter(level={"le_": 40})
         logs = await models.logs.read_logs(
             session=session, log_filter=log_filter, sort=LogSort.LEVEL_ASC
         )
