@@ -219,26 +219,24 @@ class OrionLogWorker:
     """
 
     def __init__(self) -> None:
-        self.queue: queue.Queue["LogCreate"] = queue.Queue()
-        self.send_thread = threading.Thread(
-            target=self.send_logs_loop,
+        self._queue: queue.Queue["LogCreate"] = queue.Queue()
+        self._send_thread = threading.Thread(
+            target=self._send_logs_loop,
             name="orion-log-worker",
             daemon=True,
         )
-        self.stop_event = threading.Event()
-        self.lock = threading.Lock()
-        self.started = False
+        self._stop_event = threading.Event()
+        self._lock = threading.Lock()
+        self._started = False
 
         # Tracks logs that have been pulled from the queue but not sent successfully
-        self.pending_logs: List["LogCreate"] = []
-        self.pending_size: int = 0
+        self._pending_logs: List["LogCreate"] = []
+        self._pending_size: int = 0
 
         # We must defer this import to avoid circular imports
         from prefect.client import OrionClient
 
         self.client_cls = OrionClient
-
-        self.logger = get_logger("logging")
 
         # Ensure stop is called at exit
         if sys.version_info < (3, 9):
@@ -253,13 +251,13 @@ class OrionLogWorker:
 
             _register_atexit(self.stop)
 
-    def send_logs_loop(self):
+    def _send_logs_loop(self):
         """
         Should only be the target of the `send_thread` as it creates a new event loop.
 
         Runs until the `stop_event` is set.
         """
-        while not self.stop_event.wait(
+        while not self._stop_event.wait(
             timeout=prefect.settings.logging.orion_log_interval
         ):
             anyio.run(self.send_logs)
@@ -287,28 +285,28 @@ class OrionLogWorker:
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
                 while (
-                    self.pending_size
+                    self._pending_size
                     < prefect.settings.logging.orion_max_batch_log_size
                 ):
-                    log = self.queue.get_nowait()
-                    self.pending_logs.append(log)
+                    log = self._queue.get_nowait()
+                    self._pending_logs.append(log)
                     # NOTE: This requires serialization of the log twice as it will need
                     #       to be jsonified when sent to the server as well. If
                     #       performance is significant, the client can be modified to
                     #       recieve json logs directly.
-                    self.pending_size += sys.getsizeof(log.json())
+                    self._pending_size += sys.getsizeof(log.json())
 
             except queue.Empty:
                 done = True
 
-            if not self.pending_logs:
+            if not self._pending_logs:
                 continue
 
             async with self.client_cls() as client:
                 try:
-                    await client.create_logs(self.pending_logs)
-                    self.pending_logs = []
-                    self.pending_size = 0
+                    await client.create_logs(self._pending_logs)
+                    self._pending_logs = []
+                    self._pending_size = 0
                 except Exception:
                     # Attempt to send these logs on the next call instead
                     done = True
@@ -332,28 +330,28 @@ class OrionLogWorker:
         """Returns a debugging string with worker log stats"""
         return (
             "Worker information:\n"
-            f"    Approximate queue length: {self.queue.qsize()}\n"
-            f"    Pending log batch length: {len(self.pending_logs)}\n"
-            f"    Pending log batch size: {self.pending_size}\n"
+            f"    Approximate queue length: {self._queue.qsize()}\n"
+            f"    Pending log batch length: {len(self._pending_logs)}\n"
+            f"    Pending log batch size: {self._pending_size}\n"
         )
 
     def enqueue(self, log: "LogCreate"):
-        self.queue.put(log)
+        self._queue.put(log)
 
     def start(self) -> None:
         """Start the background thread"""
-        with self.lock:
-            if not self.started:
-                self.send_thread.start()
-                self.started = True
+        with self._lock:
+            if not self._started:
+                self._send_thread.start()
+                self._started = True
 
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
-        with self.lock:
-            if self.started:
-                self.stop_event.set()
-                self.send_thread.join()
-                self.started = False
+        with self._lock:
+            if self._started:
+                self._stop_event.set()
+                self._send_thread.join()
+                self._started = False
 
 
 class OrionHandler(logging.Handler):
