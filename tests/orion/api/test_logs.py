@@ -1,14 +1,20 @@
+"""
+Tests for the logs API.
+
+NOTE: These tests use UUID1 to generate UUIDs with a stable sorted
+order. This is purely so that we can test sorting by flow run and
+task run ID with a stable order across test machines.
+"""
+
 from datetime import timedelta
 from unittest import mock
 from uuid import uuid1, UUID
 
 import pendulum
 import pytest
-from httpx import AsyncClient, ASGITransport
 from sqlalchemy.orm.exc import FlushError
 
 from prefect.orion import models
-from prefect.orion.api.server import app
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.core import Log
 from prefect.orion.schemas.filters import LogFilter
@@ -21,13 +27,11 @@ READ_LOGS_URL = "/logs/filter"
 
 @pytest.fixture
 def flow_run_id():
-    # Use uuid1 for these tests because it has a consistent order.
     yield uuid1()
 
 
 @pytest.fixture
 def task_run_id():
-    # Use uuid1 for these tests because it has a consistent order.
     yield uuid1()
 
 

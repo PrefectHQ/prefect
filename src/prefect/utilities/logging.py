@@ -114,7 +114,7 @@ def get_logger(name: str = None) -> logging.Logger:
     return logger
 
 
-def run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
+def get_run_logger(context: "RunContext" = None, **kwargs: str) -> logging.Logger:
     """
     Get a Prefect logger for the current task run or flow run.
 
@@ -174,7 +174,7 @@ def flow_run_logger(flow_run: "FlowRun", flow: "Flow" = None, **kwargs: str):
         extra={
             **{
                 "flow_run_name": flow_run.name,
-                "flow_run_id": flow_run.id,
+                "flow_run_id": str(flow_run.id),
                 "flow_name": flow.name if flow else "<unknown>",
             },
             **kwargs,
@@ -201,11 +201,11 @@ def task_run_logger(
         get_logger("prefect.task_runs"),
         extra={
             **{
+                "task_run_id": str(task_run.id),
+                "flow_run_id": str(task_run.flow_run_id),
                 "task_run_name": task_run.name,
-                "task_run_id": task_run.id,
                 "task_name": task.name if task else "<unknown>",
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
-                "flow_run_id": flow_run.id if flow_run else "<unknown>",
                 "flow_name": flow.name if flow else "<unknown>",
             },
             **kwargs,

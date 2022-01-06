@@ -15,7 +15,6 @@ Read the docs, run the code, or host the UI. Join thousands of community members
 
 !!! info "Don't Panic"
     Prefect Orion is under active development and may change rapidly. For production use, we recommend [Prefect Core](https://github.com/prefecthq/prefect).
-
 ---
 
 ## Hello, Orion!
@@ -24,93 +23,88 @@ Prefect is the easiest way to transform any function into a unit of work that ca
 
 Add workflow features like retries, distributed execution, scheduling, caching, and much more, with minimal changes to your code. Every activity is tracked and becomes visible in the Orion Dashboard.
 
-=== "Basic orchestration"
+### Basic orchestration
 
-    Decorate functions to automatically retry them on failure while providing complete visibility in the Orion Dashboard.
-
-
-    ```python hl_lines="1 6 13"
-    from prefect import flow, task
-    from typing import List
-    import httpx
+Decorate functions to automatically retry them on failure while providing complete visibility in the Orion Dashboard.
 
 
-    @task(retries=3)
-    def get_stars(repo: str):
-        url = f"https://api.github.com/repos/{repo}"
-        count = httpx.get(url).json()["stargazers_count"]
-        print(f"{repo} has {count} stars!")
+```python hl_lines="1 6 13"
+from prefect import flow, task
+from typing import List
+import httpx
+
+@task(retries=3)
+def get_stars(repo: str):
+    url = f"https://api.github.com/repos/{repo}"
+    count = httpx.get(url).json()["stargazers_count"]
+    print(f"{repo} has {count} stars!")
 
 
-    @flow(name="Github Stars")
-    def github_stars(repos: List[str]):
-        for repo in repos:
-            get_stars(repo)
+@flow(name="Github Stars")
+def github_stars(repos: List[str]):
+    for repo in repos:
+        get_stars(repo)
 
+# run the flow!
+github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
+```
 
-    # run the flow!
+### Parallel execution
+
+Control task execution by changing a flow's `task_runner`. The tasks in this flow, using the `DaskTaskRunner`, will automatically be submitted to run in parallel on a [Dask.distributed](http://distributed.dask.org/) cluster:
+
+```python hl_lines="2 14"
+from prefect import flow, task
+from prefect.task_runners import DaskTaskRunner
+from typing import List
+import httpx
+
+@task(retries=3)
+def get_stars(repo: str):
+    url = f"https://api.github.com/repos/{repo}"
+    count = httpx.get(url).json()["stargazers_count"]
+    print(f"{repo} has {count} stars!")
+
+@flow(name="Github Stars", task_runner=DaskTaskRunner())
+def github_stars(repos: List[str]):
+    for repo in repos:
+        get_stars(repo)
+
+# run the flow!
+if __name__ == "__main__":
     github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
-    ```
+```
 
-=== "Parallel execution"
+!!! warning "Guarding \__main__"
+    When using Python multiprocessing (as Dask does), best practice is to guard global-scope calls with `if __name__ == "__main__":`. This avoids an infinite recursion if you run the code as a standalone script (with certain process start methods). If you run the code interactively, you don't need the guard.
+---
 
-    Control task execution by changing a flow's `task_runner`. The tasks in this flow will automatically be submitted to run in parallel on a [Dask](https://dask.org) distributed cluster.
+### Async concurrency
 
-    ```python hl_lines="2 14"
-    from prefect import flow, task
-    from prefect.task_runners import DaskTaskRunner
-    from typing import List
-    import httpx
+With native async support, concurrent parallelism is easy. Asynchronous flows can include a mix of synchronous and asynchronous tasks, just like Python.
 
+```python hl_lines="4 8-10 16-17 21"
+from prefect import flow, task
+from typing import List
+import httpx
+import asyncio
 
-    @task(retries=3)
-    def get_stars(repo: str):
-        url = f"https://api.github.com/repos/{repo}"
-        count = httpx.get(url).json()["stargazers_count"]
-        print(f"{repo} has {count} stars!")
+@task(retries=3)
+async def get_stars(repo: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"https://api.github.com/repos/{repo}")
+    count = response.json()["stargazers_count"]
+    print(f"{repo} has {count} stars!")
 
+@flow(name="Github Stars")
+async def github_stars(repos: List[str]):
+    await asyncio.gather(*[get_stars(repo) for repo in repos])
 
-    @flow(name="Github Stars", task_runner=DaskTaskRunner())
-    def github_stars(repos: List[str]):
-        for repo in repos:
-            get_stars(repo)
+# run the flow!
+asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
+```
 
-
-    # run the flow!
-    if __name__ == "__main__":
-        github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"])
-    ```
-
-    !!! warning "Guarding \__main__"
-        When using Python multiprocessing (as Dask does), best practice is to guard global-scope calls with `if __name__ == "__main__":`. This avoids an infinite recursion if you run the code as a standalone script (with certain process start methods). If you run the code interactively, you don't need the guard.
-
-=== "Async concurrency"
-
-    With native async support, concurrent parallelism is easy. Asynchronous flows can include a mix of synchronous and asynchronous tasks, just like Python.
-
-    ```python hl_lines="4 8-10 16-17 21"
-    from prefect import flow, task
-    from typing import List
-    import httpx
-    import asyncio
-
-
-    @task(retries=3)
-    async def get_stars(repo: str):
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"https://api.github.com/repos/{repo}")
-        count = response.json()["stargazers_count"]
-        print(f"{repo} has {count} stars!")
-
-
-    @flow(name="Github Stars")
-    async def github_stars(repos: List[str]):
-        await asyncio.gather(*[get_stars(repo) for repo in repos])
-
-
-    # run the flow!
-    asyncio.run(github_stars(["PrefectHQ/Prefect", "PrefectHQ/miter-design"]))
-    ```
+### Orion dashboard
 
 After running any of these flows, fire up the UI to gain insight into their execution:
 
