@@ -219,7 +219,7 @@ class OrionLogWorker:
     """
 
     def __init__(self) -> None:
-        self._queue: queue.Queue["LogCreate"] = queue.Queue()
+        self._queue: queue.Queue[dict] = queue.Queue()
         self._send_thread = threading.Thread(
             target=self._send_logs_loop,
             name="orion-log-worker",
@@ -230,7 +230,7 @@ class OrionLogWorker:
         self._started = False
 
         # Tracks logs that have been pulled from the queue but not sent successfully
-        self._pending_logs: List["LogCreate"] = []
+        self._pending_logs: List[dict] = []
         self._pending_size: int = 0
 
         # We must defer this import to avoid circular imports
@@ -279,22 +279,29 @@ class OrionLogWorker:
         """
         done = False
 
+        # Determine the batch size by removing the max size of a single log to avoid
+        # exceeding the max size in normal operation. If the single log size is greater
+        # than this difference, we use that instead so logs will still be sent.
+        max_batch_size = max(
+            prefect.settings.logging.orion_max_batch_log_size
+            - prefect.settings.logging.orion_max_single_log_size,
+            prefect.settings.logging.orion_max_single_log_size,
+        )
+
         # Loop until the queue is empty or we encounter an error
         while not done:
 
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
-                while (
-                    self._pending_size
-                    < prefect.settings.logging.orion_max_batch_log_size
-                ):
+                while self._pending_size < max_batch_size:
                     log = self._queue.get_nowait()
                     self._pending_logs.append(log)
-                    # NOTE: This requires serialization of the log twice as it will need
-                    #       to be jsonified when sent to the server as well. If
-                    #       performance is significant, the client can be modified to
-                    #       recieve json logs directly.
-                    self._pending_size += sys.getsizeof(log.json())
+                    self._pending_size += sys.getsizeof(log)
+
+                    # Ensure that we do not go more than one log record over the batch
+                    # size if we've already reached it
+                    if self._pending_size > max_batch_size:
+                        break
 
             except queue.Empty:
                 done = True
@@ -407,7 +414,7 @@ class OrionHandler(logging.Handler):
         # prevents malformed logs from entering the queue
         from prefect.orion.schemas.actions import LogCreate
 
-        return LogCreate(
+        log = LogCreate(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
             name=record.name,
@@ -416,7 +423,16 @@ class OrionHandler(logging.Handler):
                 getattr(record, "created", None) or time.time()
             ),
             message=record.getMessage(),
-        )
+        ).dict(json_compatible=True)
+
+        log_size = sys.getsizeof(log)
+        if log_size > prefect.settings.logging.orion_max_single_log_size:
+            raise ValueError(
+                f"Log of size {log_size} is greater than the max size of "
+                f"{prefect.settings.logging.orion_max_single_log_size}"
+            )
+
+        return log
 
     def close(self) -> None:
         if self.worker:
