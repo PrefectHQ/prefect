@@ -79,9 +79,7 @@ export default defineComponent({
         'results-list-tabs__badge--active': this.internalTab == tab.href
       }
     },
-    getTabHasCount<T extends ResultsListTab>(
-      tab: T
-    ): tab is T & ResultsListTabWithCount {
+    getTabHasCount(tab: ResultsListTab): tab is ResultsListTabWithCount {
       return tab.count !== undefined
     }
   }
