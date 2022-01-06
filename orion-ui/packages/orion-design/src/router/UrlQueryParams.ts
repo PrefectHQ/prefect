@@ -7,7 +7,7 @@ class Reactive {
   }
 }
 
-export class QueryParams extends Reactive {
+export class UrlQueryParams extends Reactive {
   private readonly router: Router
 
   private get query() {
@@ -46,7 +46,7 @@ export class QueryParams extends Reactive {
     }
   }
 
-  private readonly handler: ProxyHandler<QueryParams> = {
+  private readonly handler: ProxyHandler<UrlQueryParams> = {
     set: (target, prop, value) => {
       Reflect.set(target, prop, value)
 
