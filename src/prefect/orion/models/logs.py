@@ -24,7 +24,7 @@ async def create_logs(
         logs: a list of log schemas
 
     Returns:
-        int: count of logs created
+        None
     """
     insert_stmt = (await db.insert(db.Log)).values([log.dict() for log in logs])
     await session.execute(insert_stmt)
