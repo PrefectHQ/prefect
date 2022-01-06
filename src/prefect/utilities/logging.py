@@ -264,6 +264,10 @@ class OrionLogWorker:
 
         If a client error is encountered, the logs pulled from the queue are retained
         and will be sent on the next call.
+
+        Note that if there is a single bad log in the queue, this will repeatedly
+        fail as we do not ever drop logs. We may want to adjust this behavior in the
+        future if there are issues.
         """
         done = False
 
@@ -354,6 +358,8 @@ class OrionHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord):
         try:
+            if not getattr(record, "send_to_orion", True):
+                return  # Do not send records that have opted out
             self.get_worker().enqueue(self.prepare(record))
         except Exception:
             self.handleError(record)
