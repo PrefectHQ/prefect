@@ -241,7 +241,17 @@ class OrionLogWorker:
         self.logger = get_logger("logging")
 
         # Ensure stop is called at exit
-        atexit.register(self.stop)
+        if sys.version_info < (3, 9):
+            atexit.register(self.stop)
+        else:
+            # See related issue at https://bugs.python.org/issue42647
+            # The http client uses a thread pool executor to make requests and in 3.9+
+            # new threads cannot be spawned after the interpreter finalizes threads
+            # which happens _before_ the normal `atexit` hook is called resulting in
+            # the failure to send logs.
+            from threading import _register_atexit
+
+            _register_atexit(self.stop)
 
     def send_logs_loop(self):
         """
@@ -355,6 +365,11 @@ class OrionHandler(logging.Handler):
             cls.worker = OrionLogWorker()
             cls.worker.start()
         return cls.worker
+
+    @classmethod
+    def flush(cls):
+        if cls.worker:
+            cls.worker.stop()
 
     def emit(self, record: logging.LogRecord):
         try:
