@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy import select
 
 from prefect.orion import models
-from prefect.orion.database.dependencies import inject_db
 from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.sorting import LogSort
