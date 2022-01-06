@@ -15,7 +15,6 @@ $ python -m asyncio
 ```
 </div>
 """
-import os
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterable, Union, List
 from uuid import UUID
@@ -31,6 +30,7 @@ from prefect.orion.api.server import app as orion_app
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.schemas.core import TaskRun
 from prefect.orion.schemas.actions import LogCreate
+from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
 from prefect.utilities.logging import get_logger
@@ -1010,9 +1010,24 @@ class OrionClient:
         )
         return pydantic.parse_obj_as(List[schemas.states.State], response.json())
 
-    async def create_logs(self, logs: Iterable[LogCreate]) -> None:
-        serialized_logs = [log.dict(json_compatible=True) for log in logs]
+    async def create_logs(self, logs: Iterable[Union[LogCreate, dict]]) -> None:
+        serialized_logs = [
+            log.dict(json_compatible=True) if isinstance(log, LogCreate) else log
+            for log in logs
+        ]
         await self.post(f"/logs/", json=serialized_logs)
+
+    async def read_logs(
+        self, log_filter: LogFilter = None, limit: int = None, offset: int = None
+    ) -> None:
+        body = {
+            "filter": log_filter.dict(json_compatible=True) if log_filter else None,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = await self.post(f"/logs/filter", json=body)
+        return pydantic.parse_obj_as(List[schemas.core.Log], response.json())
 
     async def resolve_datadoc(self, datadoc: DataDocument) -> Any:
         """
