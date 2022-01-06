@@ -191,13 +191,13 @@ const id = computed(() => {
   return route?.params.id as string
 })
 
-const flowRunbaseFilter = computed(() => {
+const flowRunBaseFilter = computed(() => {
   return { id: id.value }
 })
 
 const flowRunBase: Query = await Api.query({
   endpoint: Endpoints.flow_run,
-  body: flowRunbaseFilter,
+  body: flowRunBaseFilter,
   options: {
     pollInterval: 5000
   }
