@@ -123,46 +123,10 @@
       <div class="radar-content pb-2 px-2 d-flex flex-grow-1">
         <MiniRadarView :id="id" />
       </div>
-      <!-- <div
-        style="
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          position: absolute;
-        "
-        class="text-center"
-      >
-        <router-link :to="`/flow-run/${id}/radar`">
-          <IconButton icon="pi-radar-fill" />
-          <div>View Radar </div>
-        </router-link>
-      </div> -->
     </Card>
   </div>
 
-  <Tabs v-model="resultsTab" class="mt-3">
-    <Tab href="task_runs" class="subheader">
-      <i class="pi pi-task mr-1 text--grey-40" />
-      Task Runs
-      <span
-        class="result-badge caption ml-1"
-        :class="{ active: resultsTab == 'task_runs' }"
-      >
-        {{ taskRunsCount.toLocaleString() }}
-      </span>
-    </Tab>
-
-    <Tab href="sub_flow_runs" class="subheader">
-      <i class="pi pi-flow-run mr-1 text--grey-40" />
-      Subflow Runs
-      <span
-        class="result-badge caption ml-1"
-        :class="{ active: resultsTab == 'sub_flow_runs' }"
-      >
-        {{ subFlowRunsCount.toLocaleString() }}
-      </span>
-    </Tab>
-  </Tabs>
+  <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-3" />
 
   <div class="font--secondary caption my-2" style="min-height: 17px">
     <span v-show="resultsCount.value > 0">
@@ -206,13 +170,14 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
-import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, Ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
 
 const route = useRoute()
 
@@ -395,6 +360,21 @@ const subFlowRunsCount = computed(() => {
 const taskRuns = computed<TaskRun[]>(() => {
   return queries.task_runs.response?.value || []
 })
+
+const tabs: ResultsListTab[] = reactive([
+  {
+    label: 'Task Runs',
+    href: 'task_runs',
+    count: taskRunsCount,
+    icon: 'pi-task'
+  },
+  {
+    label: 'Subflow Runs',
+    href: 'sub_flow_runs',
+    count: subFlowRunsCount,
+    icon: 'pi-flow-run'
+  }
+])
 
 const duration = computed(() => {
   return state.value.type == 'PENDING' || state.value.type == 'SCHEDULED'
