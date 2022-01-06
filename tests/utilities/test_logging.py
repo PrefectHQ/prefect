@@ -1,13 +1,17 @@
 import logging
+import queue
+import sys
 import time
 import uuid
 from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
 
+import anyio
 import pendulum
 import pytest
 
+import prefect
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.orion.schemas.actions import LogCreate
 from prefect.utilities.logging import (
@@ -18,7 +22,8 @@ from prefect.utilities.logging import (
     load_logging_config,
     setup_logging,
 )
-from prefect.utilities.settings import LoggingSettings, Settings
+from prefect.utilities.compat import AsyncMock
+from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
 
 
 @pytest.fixture
@@ -180,31 +185,31 @@ class TestOrionHandler:
         with TaskRunContext.construct(task_run=task_run):
             logger.info("test-task")
 
-        mock_log_worker().enqueue.assert_called_once_with(
-            LogCreate.construct(
-                flow_run_id=task_run.flow_run_id,
-                task_run_id=task_run.id,
-                name=logger.name,
-                level=logging.INFO,
-                timestamp=ANY,
-                message="test-task",
-            )
-        )
+        expected = LogCreate.construct(
+            flow_run_id=task_run.flow_run_id,
+            task_run_id=task_run.id,
+            name=logger.name,
+            level=logging.INFO,
+            message="test-task",
+        ).dict(json_compatible=True)
+        expected["timestamp"] = ANY  # Tested separately
+
+        mock_log_worker().enqueue.assert_called_once_with(expected)
 
     def test_sends_flow_run_log_to_worker(self, logger, mock_log_worker, flow_run):
         with FlowRunContext.construct(flow_run=flow_run):
             logger.info("test-flow")
 
-        mock_log_worker().enqueue.assert_called_once_with(
-            LogCreate.construct(
-                flow_run_id=flow_run.id,
-                task_run_id=None,
-                name=logger.name,
-                level=logging.INFO,
-                timestamp=ANY,
-                message="test-flow",
-            )
-        )
+        expected = LogCreate.construct(
+            flow_run_id=flow_run.id,
+            task_run_id=None,
+            name=logger.name,
+            level=logging.INFO,
+            message="test-flow",
+        ).dict(json_compatible=True)
+        expected["timestamp"] = ANY  # Tested separately
+
+        mock_log_worker().enqueue.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_flow_run_id(
@@ -219,16 +224,16 @@ class TestOrionHandler:
         with context:
             logger.info("test-task", extra={"flow_run_id": flow_run_id})
 
-        mock_log_worker().enqueue.assert_called_once_with(
-            LogCreate.construct(
-                flow_run_id=flow_run_id,
-                task_run_id=None,
-                name=logger.name,
-                level=logging.INFO,
-                timestamp=ANY,
-                message="test-task",
-            )
-        )
+        expected = LogCreate.construct(
+            flow_run_id=flow_run_id,
+            task_run_id=None,
+            name=logger.name,
+            level=logging.INFO,
+            message="test-task",
+        ).dict(json_compatible=True)
+        expected["timestamp"] = ANY  # Tested separately
+
+        mock_log_worker().enqueue.assert_called_once_with(expected)
 
     @pytest.mark.parametrize("with_context", [True, False])
     def test_respects_explicit_task_run_id(
@@ -244,16 +249,16 @@ class TestOrionHandler:
             with context:
                 logger.warning("test-task", extra={"task_run_id": task_run_id})
 
-        mock_log_worker().enqueue.assert_called_once_with(
-            LogCreate.construct(
-                flow_run_id=flow_run.id,
-                task_run_id=task_run_id,
-                name=logger.name,
-                level=logging.WARNING,
-                timestamp=ANY,
-                message="test-task",
-            )
-        )
+        expected = LogCreate.construct(
+            flow_run_id=flow_run.id,
+            task_run_id=task_run_id,
+            name=logger.name,
+            level=logging.WARNING,
+            message="test-task",
+        ).dict(json_compatible=True)
+        expected["timestamp"] = ANY  # Tested separately
+
+        mock_log_worker().enqueue.assert_called_once_with(expected)
 
     def test_does_not_emit_logs_below_level(self, logger, mock_log_worker):
         logger.setLevel(logging.WARNING)
@@ -282,9 +287,11 @@ class TestOrionHandler:
             logger.info("test-flow")
 
         record = handler.emit.call_args[0][0]
-        log = mock_log_worker().enqueue.call_args[0][0]
+        log_json = mock_log_worker().enqueue.call_args[0][0]
 
-        assert log.timestamp == pendulum.from_timestamp(record.created)
+        assert (
+            log_json["timestamp"] == pendulum.from_timestamp(record.created).isoformat()
+        )
 
     def test_sets_timestamp_from_time_if_missing_from_recrod(
         self, logger, mock_log_worker, flow_run, handler, monkeypatch
@@ -303,9 +310,9 @@ class TestOrionHandler:
         with FlowRunContext.construct(flow_run=flow_run):
             logger.info("test-flow")
 
-        log = mock_log_worker().enqueue.call_args[0][0]
+        log_json = mock_log_worker().enqueue.call_args[0][0]
 
-        assert log.timestamp == pendulum.from_timestamp(now)
+        assert log_json["timestamp"] == pendulum.from_timestamp(now).isoformat()
 
     def test_does_not_send_logs_that_opt_out(self, logger, mock_log_worker, task_run):
         with TaskRunContext.construct(task_run=task_run):
@@ -338,3 +345,169 @@ class TestOrionHandler:
             "RuntimeError: Attempted to send logs to Orion without a flow run id."
             not in output.err
         )
+
+
+class TestOrionLogWorker:
+    @pytest.fixture
+    def log_json(self):
+        return LogCreate(
+            flow_run_id=uuid.uuid4(),
+            task_run_id=uuid.uuid4(),
+            name="test.logger",
+            level=10,
+            timestamp=pendulum.now("utc"),
+            message="hello",
+        ).dict(json_compatible=True)
+
+    def test_start_is_idempotent(self):
+        worker = OrionLogWorker()
+        worker._send_thread = MagicMock()
+        worker.start()
+        worker.start()
+        worker._send_thread.start.assert_called_once()
+
+    def test_stop_is_idempotent(self):
+        worker = OrionLogWorker()
+        worker._send_thread = MagicMock()
+        worker._stop_event = MagicMock()
+        worker.stop()
+        worker._stop_event.set.assert_not_called()
+        worker._send_thread.join.assert_not_called()
+        worker.start()
+        worker.stop()
+        worker.stop()
+        worker._stop_event.set.assert_called_once()
+        worker._send_thread.join.assert_called_once()
+
+    def test_enqueue(self, log_json):
+        worker = OrionLogWorker()
+        worker.enqueue(log_json)
+        assert worker._queue.get_nowait() == log_json
+
+    async def test_send_logs_single_record(self, log_json, orion_client):
+        worker = OrionLogWorker()
+        worker.enqueue(log_json)
+        await worker.send_logs()
+        logs = await orion_client.read_logs()
+        assert len(logs) == 1
+        assert logs[0].dict(include=log_json.keys(), json_compatible=True) == log_json
+
+    async def test_send_logs_many_records(self, log_json, orion_client):
+        # Use the read limit as the count since we'd need multiple read calls otherwise
+        count = prefect.settings.orion.api.default_limit
+        worker = OrionLogWorker()
+        log_json.pop("message")
+
+        for i in range(count):
+            new_log = log_json.copy()
+            new_log["message"] = str(i)
+            worker.enqueue(new_log)
+        await worker.send_logs()
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == count
+        for log in logs:
+            assert (
+                log.dict(
+                    include=log_json.keys(), exclude={"message"}, json_compatible=True
+                )
+                == log_json
+            )
+        assert len(set(log.message for log in logs)) == count, "Each log is unique"
+
+    async def test_send_logs_retries_on_next_call_on_exception(
+        self, log_json, orion_client, monkeypatch, capsys
+    ):
+        worker = OrionLogWorker()
+        create_logs = orion_client.create_logs
+        monkeypatch.setattr(
+            "prefect.client.OrionClient.create_logs",
+            MagicMock(side_effect=ValueError("Test")),
+        )
+
+        worker.enqueue(log_json)
+        await worker.send_logs()
+
+        # Log moved from queue to pending logs
+        assert worker._pending_logs == [log_json]
+        with pytest.raises(queue.Empty):
+            worker._queue.get_nowait()
+
+        # Restore client
+        monkeypatch.setattr(
+            "prefect.client.OrionClient.create_logs",
+            create_logs,
+        )
+        await worker.send_logs()
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 1
+
+    @pytest.mark.parametrize("exiting", [True, False])
+    async def test_send_logs_writes_exceptions_to_stderr(
+        self, log_json, capsys, monkeypatch, exiting
+    ):
+        worker = OrionLogWorker()
+        monkeypatch.setattr(
+            "prefect.client.OrionClient.create_logs",
+            MagicMock(side_effect=ValueError("Test")),
+        )
+
+        worker.enqueue(log_json)
+        await worker.send_logs(exiting=exiting)
+
+        err = capsys.readouterr().err
+        assert "--- Orion logging error ---" in err
+        assert "ValueError: Test" in err
+        if not exiting:
+            assert "will attempt to send these logs again" in err
+        else:
+            assert "log worker is stopping and these logs will not be sent" in err
+
+    async def test_send_logs_batches_by_size(self, log_json, monkeypatch):
+        test_log_size = sys.getsizeof(log_json)
+        mock_create_logs = AsyncMock()
+        worker = OrionLogWorker()
+        monkeypatch.setattr("prefect.client.OrionClient.create_logs", mock_create_logs)
+
+        worker.enqueue(log_json)
+        worker.enqueue(log_json)
+        worker.enqueue(log_json)
+        with temporary_settings(
+            PREFECT_LOGGING_ORION_MAX_BATCH_LOG_SIZE=str(test_log_size + 1),
+            PREFECT_LOGGING_ORION_MAX_SINGLE_LOG_SIZE=str(test_log_size),
+        ):
+            await worker.send_logs()
+
+        assert mock_create_logs.call_count == 3
+
+    async def test_logs_are_sent_when_started(self, log_json, orion_client):
+        with temporary_settings(PREFECT_LOGGING_ORION_LOG_INTERVAL="0.0001"):
+            worker = OrionLogWorker()
+            worker.enqueue(log_json)
+            worker.start()
+            worker.enqueue(log_json)
+
+        # We want to ensure logs are written without the thread being joined
+        await anyio.sleep(0.1)
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
+    async def test_logs_are_sent_immediately_when_stopped(self, log_json, orion_client):
+        # Set a long interval
+        start_time = time.time()
+        with temporary_settings(PREFECT_LOGGING_ORION_LOG_INTERVAL="10"):
+            worker = OrionLogWorker()
+            worker.enqueue(log_json)
+            worker.start()
+            worker.enqueue(log_json)
+            worker.stop()
+            worker.enqueue(log_json)  # Extra log will not be sent
+        end_time = time.time()
+
+        assert (
+            end_time - start_time
+        ) < 5  # An arbitary time less than the 10s interval
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2

@@ -14,7 +14,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseSettings, Field, SecretStr
+from pydantic import BaseSettings, Field, SecretStr, root_validator
 
 
 class SharedSettings(BaseSettings):
