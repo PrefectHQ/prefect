@@ -30,7 +30,7 @@ from prefect.utilities.logging import (
 from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
 
 
-@pyest.fixture
+@pytest.fixture
 def dictConfigMock(monkeypatch):
     mock = MagicMock()
     monkeypatch.setattr("logging.config.dictConfig", mock)
@@ -382,15 +382,22 @@ class TestOrionLogWorker:
             message="hello",
         ).dict(json_compatible=True)
 
-    def test_start_is_idempotent(self):
+    @pytest.fixture
+    def worker(self):
         worker = OrionLogWorker()
+        yield worker
+        # Ensures that a worker is stopped _before_ the test is torn down. Otherwise,
+        # remaining logs could be written by a background thread after all the tests
+        # finish and the database has been reset.
+        worker.stop()
+
+    def test_start_is_idempotent(self, worker):
         worker._send_thread = MagicMock()
         worker.start()
         worker.start()
         worker._send_thread.start.assert_called_once()
 
-    def test_stop_is_idempotent(self):
-        worker = OrionLogWorker()
+    def test_stop_is_idempotent(self, worker):
         worker._send_thread = MagicMock()
         worker._stop_event = MagicMock()
         worker.stop()
@@ -402,23 +409,20 @@ class TestOrionLogWorker:
         worker._stop_event.set.assert_called_once()
         worker._send_thread.join.assert_called_once()
 
-    def test_enqueue(self, log_json):
-        worker = OrionLogWorker()
+    def test_enqueue(self, log_json, worker):
         worker.enqueue(log_json)
         assert worker._queue.get_nowait() == log_json
 
-    async def test_send_logs_single_record(self, log_json, orion_client):
-        worker = OrionLogWorker()
+    async def test_send_logs_single_record(self, log_json, orion_client, worker):
         worker.enqueue(log_json)
         await worker.send_logs()
         logs = await orion_client.read_logs()
         assert len(logs) == 1
         assert logs[0].dict(include=log_json.keys(), json_compatible=True) == log_json
 
-    async def test_send_logs_many_records(self, log_json, orion_client):
+    async def test_send_logs_many_records(self, log_json, orion_client, worker):
         # Use the read limit as the count since we'd need multiple read calls otherwise
         count = prefect.settings.orion.api.default_limit
-        worker = OrionLogWorker()
         log_json.pop("message")
 
         for i in range(count):
@@ -439,9 +443,8 @@ class TestOrionLogWorker:
         assert len(set(log.message for log in logs)) == count, "Each log is unique"
 
     async def test_send_logs_retries_on_next_call_on_exception(
-        self, log_json, orion_client, monkeypatch, capsys
+        self, log_json, orion_client, monkeypatch, capsys, worker
     ):
-        worker = OrionLogWorker()
         create_logs = orion_client.create_logs
         monkeypatch.setattr(
             "prefect.client.OrionClient.create_logs",
@@ -468,9 +471,8 @@ class TestOrionLogWorker:
 
     @pytest.mark.parametrize("exiting", [True, False])
     async def test_send_logs_writes_exceptions_to_stderr(
-        self, log_json, capsys, monkeypatch, exiting
+        self, log_json, capsys, monkeypatch, exiting, worker
     ):
-        worker = OrionLogWorker()
         monkeypatch.setattr(
             "prefect.client.OrionClient.create_logs",
             MagicMock(side_effect=ValueError("Test")),
@@ -487,10 +489,9 @@ class TestOrionLogWorker:
         else:
             assert "log worker is stopping and these logs will not be sent" in err
 
-    async def test_send_logs_batches_by_size(self, log_json, monkeypatch):
+    async def test_send_logs_batches_by_size(self, log_json, monkeypatch, worker):
         test_log_size = sys.getsizeof(log_json)
         mock_create_logs = AsyncMock()
-        worker = OrionLogWorker()
         monkeypatch.setattr("prefect.client.OrionClient.create_logs", mock_create_logs)
 
         worker.enqueue(log_json)
@@ -504,9 +505,8 @@ class TestOrionLogWorker:
 
         assert mock_create_logs.call_count == 3
 
-    async def test_logs_are_sent_when_started(self, log_json, orion_client):
+    async def test_logs_are_sent_when_started(self, log_json, orion_client, worker):
         with temporary_settings(PREFECT_LOGGING_ORION_LOG_INTERVAL="0.0001"):
-            worker = OrionLogWorker()
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)
@@ -516,11 +516,12 @@ class TestOrionLogWorker:
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 
-    async def test_logs_are_sent_immediately_when_stopped(self, log_json, orion_client):
+    async def test_logs_are_sent_immediately_when_stopped(
+        self, log_json, orion_client, worker
+    ):
         # Set a long interval
         start_time = time.time()
         with temporary_settings(PREFECT_LOGGING_ORION_LOG_INTERVAL="10"):
-            worker = OrionLogWorker()
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)
