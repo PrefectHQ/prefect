@@ -140,7 +140,11 @@
     class="results-section d-flex flex-column align-stretch justify-stretch"
   >
     <transition name="tab-fade" mode="out-in" css>
-      <div v-if="resultsCount === 0" class="text-center my-8" key="no-results">
+      <div
+        v-if="resultsCount.value === 0"
+        class="text-center my-8"
+        key="no-results"
+      >
         <h2> No Results Found </h2>
       </div>
 
