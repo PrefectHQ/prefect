@@ -155,7 +155,19 @@ async def test_injecting_really_dumb_orm_configuration():
 
 
 async def test_inject_db(db):
-    # Regression test for async-mangling behavior of inject_db() decorator.
+    """
+    Regression test for async-mangling behavior of inject_db() decorator.
+
+    Previously, when wrapping a coroutine function, the decorator returned
+    that function's coroutine object, instead of the coroutine function.
+
+    This worked fine in most cases because both a coroutine function and a
+    coroutine object can be awaited, but it broke our Pytest setup because
+    we were auto-marking coroutine functions as async, and any async test
+    wrapped by inject_db() was no longer a coroutine function, but instead
+    a coroutine object, so we skipped marking it.
+    """
+
     class Returner:
         @inject_db
         async def return_1(self, db):
