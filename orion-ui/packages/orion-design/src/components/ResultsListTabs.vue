@@ -12,9 +12,14 @@
       >
         <i class="pi results-list-tabs__icon" :class="getTabIconClasses(tab)" />
         <span class="results-list-tabs__label">{{ tab.label }}</span>
-        <span class="results-list-tabs__badge" :class="getTabCountClasses(tab)">
-          {{ tab.count.toLocaleString() }}
-        </span>
+        <template v-if="getTabHasCount(tab)">
+          <span
+            class="results-list-tabs__badge"
+            :class="getTabCountClasses(tab)"
+          >
+            {{ tab.count.toLocaleString() }}
+          </span>
+        </template>
       </m-tab>
     </template>
   </m-tabs>
@@ -22,7 +27,10 @@
 
 <script lang="ts">
 import { defineComponent, PropType } from 'vue'
-import { ResultsListTab } from '../types/ResultsListTab'
+import {
+  ResultsListTab,
+  ResultsListTabWithCount
+} from '../types/ResultsListTab'
 
 export default defineComponent({
   name: 'ResultsListTabs',
@@ -31,7 +39,7 @@ export default defineComponent({
       type: String
     },
     tabs: {
-      type: Array as PropType<ResultsListTab[]>,
+      type: Array as PropType<(ResultsListTab | ResultsListTabWithCount)[]>,
       required: true
     }
   },
@@ -70,6 +78,11 @@ export default defineComponent({
       return {
         'results-list-tabs__badge--active': this.internalTab == tab.href
       }
+    },
+    getTabHasCount<T extends ResultsListTab>(
+      tab: T
+    ): tab is T & ResultsListTabWithCount {
+      return tab.count !== undefined
     }
   }
 })
