@@ -862,7 +862,7 @@ if __name__ == "__main__":
     try:
         flow_run_id = UUID(sys.argv[1])
     except Exception:
-        logger.error(
+        engine_logger.error(
             f"Invalid flow run id. Recieved arguments: {sys.argv}", exc_info=True
         )
         exit(1)
@@ -870,19 +870,19 @@ if __name__ == "__main__":
     try:
         enter_flow_run_engine_from_subprocess(flow_run_id)
     except Abort as exc:
-        logger.info(
+        engine_logger.info(
             f"Engine execution of flow run '{flow_run_id}' aborted by orchestrator: {exc}"
         )
         exit(0)
     except Exception:
-        logger.error(
+        engine_logger.error(
             f"Engine execution of flow run '{flow_run_id}' exited with unexpected "
             "exception",
             exc_info=True,
         )
         exit(1)
     except BaseException:
-        logger.error(
+        engine_logger.error(
             f"Engine execution of flow run '{flow_run_id}' interrupted by base "
             "exception",
             exc_info=True,
