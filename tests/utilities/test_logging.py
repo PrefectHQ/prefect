@@ -346,6 +346,20 @@ class TestOrionHandler:
             not in output.err
         )
 
+    async def test_does_not_enqueue_logs_that_are_too_big(
+        self, task_run, logger, capsys, mock_log_worker
+    ):
+        with TaskRunContext.construct(task_run=task_run):
+            with temporary_settings(
+                PREFECT_LOGGING_ORION_MAX_SINGLE_LOG_SIZE="1",
+            ):
+                logger.info("test")
+
+        mock_log_worker().enqueue.assert_not_called()
+        output = capsys.readouterr()
+        assert "ValueError" in output.err
+        assert "is greater than the max size of 1" in output.err
+
 
 class TestOrionLogWorker:
     @pytest.fixture
