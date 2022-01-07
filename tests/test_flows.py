@@ -853,6 +853,7 @@ class TestSubflowTaskInputs:
         )
 
 
+@pytest.mark.enable_orion_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @flow

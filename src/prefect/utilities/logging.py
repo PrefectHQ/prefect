@@ -257,9 +257,7 @@ class OrionLogWorker:
 
         Runs until the `stop_event` is set.
         """
-        while not self._stop_event.wait(
-            timeout=prefect.settings.logging.orion_log_interval
-        ):
+        while not self._stop_event.wait(prefect.settings.logging.orion.batch_interval):
             anyio.run(self.send_logs)
 
         # After the stop event, we are exiting...
@@ -283,9 +281,9 @@ class OrionLogWorker:
         # exceeding the max size in normal operation. If the single log size is greater
         # than this difference, we use that instead so logs will still be sent.
         max_batch_size = max(
-            prefect.settings.logging.orion_max_batch_log_size
-            - prefect.settings.logging.orion_max_single_log_size,
-            prefect.settings.logging.orion_max_single_log_size,
+            prefect.settings.logging.orion.batch_size
+            - prefect.settings.logging.orion.max_log_size,
+            prefect.settings.logging.orion.max_log_size,
         )
 
         # Loop until the queue is empty or we encounter an error
@@ -330,7 +328,7 @@ class OrionLogWorker:
                         else:
                             sys.stderr.write(
                                 "The log worker will attempt to send these logs again in "
-                                f"{prefect.settings.logging.orion_log_interval}s\n"
+                                f"{prefect.settings.logging.orion.batch_interval}s\n"
                             )
 
     def worker_info(self) -> str:
@@ -378,6 +376,8 @@ class OrionHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord):
         try:
+            if not prefect.settings.logging.orion.enabled:
+                return  # Respect the global settings toggle
             if not getattr(record, "send_to_orion", True):
                 return  # Do not send records that have opted out
             self.get_worker().enqueue(self.prepare(record))
@@ -426,10 +426,10 @@ class OrionHandler(logging.Handler):
         ).dict(json_compatible=True)
 
         log_size = sys.getsizeof(log)
-        if log_size > prefect.settings.logging.orion_max_single_log_size:
+        if log_size > prefect.settings.logging.orion.max_log_size:
             raise ValueError(
                 f"Log of size {log_size} is greater than the max size of "
-                f"{prefect.settings.logging.orion_max_single_log_size}"
+                f"{prefect.settings.logging.orion.max_log_size}"
             )
 
         return log
