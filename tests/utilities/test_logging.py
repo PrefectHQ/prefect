@@ -143,15 +143,6 @@ def mock_log_worker(monkeypatch):
 
 
 class TestOrionHandler:
-    @pytest.fixture(autouse=True)
-    def reset_log_worker(self):
-        """
-        Since we have a singleton worker for the runtime of the module, we must reset
-        it to `None` between tests
-        """
-        yield
-        OrionHandler.worker = None
-
     @pytest.fixture
     def handler(self):
         yield OrionHandler()
