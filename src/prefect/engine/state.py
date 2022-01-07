@@ -10,6 +10,8 @@ class as follows:
 Every run is initialized with the `Pending` state, meaning that it is waiting for
 execution. During execution a run will enter a `Running` state. Finally, runs become `Finished`.
 """
+import gc
+import sys
 import datetime
 from typing import Any, Dict, List, Optional, Type, Mapping
 
@@ -109,6 +111,32 @@ class State:
                 data["_result"] = new_result
 
         return data
+
+    def __sizeof__(self) -> int:
+            marked = {id(self)}
+            obj_q = [self]
+            size = 0
+
+            while obj_q:
+                if isinstance(obj_queue[0], State):
+                    # Avoid recursion of
+                    # sys.getsizeof() -> Object.__sizeof__ --> sys.getsizeof() . . .
+                    size += super(State, self).__sizeof__()
+                else:
+                    # Otherwise we just call any other object's __sizeof__
+                    size += sum(map(sys.getsizeof, obj_q))
+
+                # Find all child refs
+                all_refs = [(id(o), o) for o in gc.get_referents(*obj_q)]
+
+                # Filter out anything we've seen
+                new_refs = {o_id: o for o_id, o in all_refs if o_id not in marked and not isinstance(o, type)}
+
+                # Convert to list for access by index
+                obj_q = list(new_refs.values())
+                # Update our seen list
+                marked.update(new_refs.keys())
+        return size
 
     @property
     def result(self) -> Any:
