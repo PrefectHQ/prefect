@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import flow, tags
+from prefect import flow, tags, get_run_logger
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -855,3 +855,42 @@ class TestTaskWaitFor:
             @task
             def foo(wait_for):
                 pass
+
+
+class TestTaskRunLogs:
+    async def test_user_logs_are_sent_to_orion(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" in {log.message for log in logs}
+
+    async def test_logs_are_given_correct_ids(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            return my_task()
+
+        state = my_flow()
+        task_state = state.result()
+        flow_run_id = state.state_details.flow_run_id
+        task_run_id = task_state.state_details.task_run_id
+
+        logs = await orion_client.read_logs()
+        assert logs, "There should be logs"
+        assert all([log.flow_run_id == flow_run_id for log in logs])
+        task_run_logs = [log for log in logs if log.task_run_id is not None]
+        assert task_run_logs, f"There should be task run logs in {logs}"
+        assert all([log.task_run_id == task_run_id for log in task_run_logs])
