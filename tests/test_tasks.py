@@ -873,6 +873,21 @@ class TestTaskRunLogs:
         logs = await orion_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
+    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!", extra={"send_to_orion": False})
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" not in {log.message for log in logs}
+
     async def test_logs_are_given_correct_ids(self, orion_client):
         @task
         def my_task():
