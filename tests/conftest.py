@@ -11,12 +11,6 @@ from .fixtures.database import *
 from .fixtures.logging import *
 
 
-def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "service(arg) a service integration test. For example, 'docker'."
-    )
-
-
 def pytest_addoption(parser):
     parser.addoption(
         "--service",

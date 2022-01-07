@@ -266,6 +266,46 @@ class OrionSettings(BaseSettings):
     )
 
 
+class OrionHandlerSettings(BaseSettings):
+    """
+    Settings for the OrionHandler which sends logs to the API.
+
+    To change these settings via environment variable, set
+    `PREFECT_LOGGING_ORION_{{SETTING}}=X`.
+
+    To globally disable sending logs to the API, set
+    `PREFECT_LOGGING_ORION_ENABLED=False`
+
+    The other settings are generally dependent on network and server limitations.
+    """
+
+    class Config:
+        env_prefix = "PREFECT_LOGGING_ORION_"
+        frozen = True
+
+    enabled: bool = Field(
+        True,
+        description="""Should logs be sent to Orion? If False, logs sent to the 
+        OrionHandler will not be sent to the API.""",
+    )
+    batch_interval: float = Field(
+        2.0,
+        description="""The number of seconds between batched writes of logs to Orion.""",
+    )
+    batch_size: int = Field(
+        4_000_000, description="""The maximum size in bytes for a batch of logs."""
+    )
+    max_log_size: int = Field(
+        1_000_000, description="""The maximum size in bytes for a single log."""
+    )
+
+    @root_validator
+    def max_log_size_smaller_than_batch_size(cls, values):
+        if values["batch_size"] < values["max_log_size"]:
+            raise ValueError("`max_log_size` cannot be larger than `batch_size`")
+        return values
+
+
 class LoggingSettings(BaseSettings):
     """Settings related to Logging.
 
@@ -308,24 +348,10 @@ class LoggingSettings(BaseSettings):
         `{shared_settings.home}/logging.yml`.""",
     )
 
-    orion_log_interval: float = Field(
-        2.0,
-        description="""The number of seconds between batched writes of logs to Orion.""",
+    orion: OrionHandlerSettings = Field(
+        default_factory=OrionHandlerSettings,
+        description="Nested [OrionHandler settings][prefect.utilities.settings.OrionHandlerSettings].",
     )
-    orion_max_batch_log_size: int = Field(
-        4_000_000, description="""The maximum size in bytes for a single log batch."""
-    )
-    orion_max_single_log_size: int = Field(
-        1_000_000, description="""The maximum size in bytes for a single log."""
-    )
-
-    @root_validator
-    def single_log_size_smaller_than_max(cls, values):
-        if values["orion_max_batch_log_size"] < values["orion_max_single_log_size"]:
-            raise ValueError(
-                "`orion_max_single_log_size` cannot be larger than `orion_max_batch_log_size`"
-            )
-        return values
 
 
 class AgentSettings(BaseSettings):
