@@ -314,6 +314,14 @@ class Deployment(ORMBaseModel):
     # flow: Flow = None
 
 
+class ConcurrencyLimit(ORMBaseModel):
+    """An ORM representation of a concurrency limit."""
+
+    tag: str = Field(..., description="A tag the concurrency limit is applied to.")
+    concurrency_limit: int = Field(..., description="The concurrency limit.")
+    active_slots: int = Field(0, description="The number of in-use concurrency slots.")
+
+
 class SavedSearch(ORMBaseModel):
     """An ORM representation of saved search data. Represents a set of filter criteria."""
 
