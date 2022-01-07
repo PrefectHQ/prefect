@@ -46,7 +46,7 @@ export class UrlQueryParams extends Reactive {
     }
   }
 
-  private readonly handler: ProxyHandler<UrlQueryParams> = {
+  private readonly rootHandler: ProxyHandler<UrlQueryParams> = {
     set: (target, prop, value) => {
       Reflect.set(target, prop, value)
 
@@ -88,7 +88,7 @@ export class UrlQueryParams extends Reactive {
       { deep: true }
     )
 
-    return new Proxy(this, this.handler)
+    return new Proxy(this, this.rootHandler)
   }
 
   private updateClassFromParams(): void {
