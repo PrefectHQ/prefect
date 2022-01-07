@@ -857,6 +857,7 @@ class TestTaskWaitFor:
                 pass
 
 
+@pytest.mark.enable_orion_handler
 class TestTaskRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @task

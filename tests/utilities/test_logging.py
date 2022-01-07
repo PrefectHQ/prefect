@@ -142,6 +142,7 @@ def mock_log_worker(monkeypatch):
     return mock
 
 
+@pytest.mark.enable_orion_handler
 class TestOrionHandler:
     @pytest.fixture
     def handler(self):
