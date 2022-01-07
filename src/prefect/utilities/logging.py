@@ -220,9 +220,7 @@ class OrionAdapter(logging.LoggerAdapter):
     """
 
     def process(self, msg, kwargs):
-        extra = kwargs.get("extra") or {}
-        extra.update(self.extra)
-        kwargs["extra"] = extra
+        kwargs["extra"] = {**self.extra, **(kwargs.get("extra") or {})}
         return (msg, kwargs)
 
 
