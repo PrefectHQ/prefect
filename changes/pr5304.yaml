@@ -1,0 +1,5 @@
+enhancement:
+  - "Adds a State __sizeof__ impl to get the state of the obj plus it's children - [#5304](https://github.com/PrefectHQ/prefect/pull/5304)"
+
+contributor:
+  - "[Connor Martin](https://github.com/cjmartian)"
