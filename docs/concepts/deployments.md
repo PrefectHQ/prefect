@@ -17,7 +17,7 @@ At a high level, you can think of a deployment as configuration for managing flo
 More specifically:
 
 - A _deployment_ is the object stored by the API after you register a _deployment specification_. 
-- A deployment specification includes the settings that will be used to create the deployment. 
+- A [deployment specification](#deployment-specifications) includes the settings that will be used to create the deployment. 
 - Running a deployment creates a flow run using the settings defined in the deployment object.
 
 For example, in the backend, the deployment object has a `flow_data` field, which is a [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) that tells the server how to access the flow. This may be a document containing:
@@ -32,7 +32,7 @@ With a deployment specification, you just provide the path to the flow script. W
 
 Each deployment is associated with a single flow, but any given flow can have multiple deployments. This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and promotion purposes.
 
-[Flow runners](/concepts/flowrunners/) enable you to dynamically allocate infrastructure for your flow runs. Since the code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
+Flow runners enable you to dynamically allocate infrastructure for your flow runs. Since the code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
 
 A simple example of a deployment specification for a flow looks like this:
 
@@ -54,14 +54,6 @@ When you run a deployed flow in Orion, the following happens:
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
 - An agent detects the flow run and creates infrastructure for the flow run.
 - The flow run executes within the flow run infrastructure.
-
-### Deployment creation
-
-There are several ways to create an Orion deployment:
-
-- Using CLI commands and a Python or YAML deployment specification.
-- Using the API with either a Python or YAML deployment specification or a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object.
-- Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to manually create a deployment without a `DeploymentSpec`. (Not recommended at this time.)
 
 ## Deployment representation in Orion
 
@@ -94,7 +86,8 @@ Deployment(
     name='hello-world-daily',
     flow_id='118a3548-e74b-4555-9bac-fe52d81e536f',
     flow_data=DataDocument(encoding='orion'),
-    schedule=IntervalSchedule(interval=datetime.timedelta(seconds=60), anchor_date='2 years ago'),
+    schedule=IntervalSchedule(interval=datetime.timedelta(seconds=60), 
+                              anchor_date='2 years ago'),
     parameters={'name': 'Marvin'},
     tags=['foo', 'bar'],
     flow_runner=FlowRunnerSettings()
@@ -105,34 +98,42 @@ The [prefect.orion.api.deployments](/api-ref/orion/api/deployments/) API also pr
 
 ## Deployment specifications
 
+To create a deployment in Orion, you do not have to specify _all_ of the Deployment object properties. A _deployment specification_ lets you provide the details relevant to deploying your flow. When you create a deployment from a deployment specification, Orion uses the settings provided by your specification, defaults, and automatically constructed data such as timestamps and ids to create the underlying deployment object.
 
-`DeploymentSpec` takes the following parameters:
+There are several ways to build a deployment specification and use it to create a deployment:
+
+- Construct a `DeploymentSpec` object and pass that to Orion when creating a deployment via API.
+- Write your deployment specification as Python or YAML and pass that to Orion via the CLI or API.
+
+### DeploymentSpec object
+
+You can create a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object in your application and pass that to Orion to create a deployment.
+
+A `DeploymentSpec` object has the following required parameters:
 
 | Parameter | Description |
 | --------- | ----------- |
-| name | String specifying the name of the deployment. (Required.) |
+| name | String specifying the name of the deployment. |
 | flow | The flow object to associate with the deployment. |
-| flow_name | String specifying the name of the flow to deploy. Only required if loading the flow from a flow_location with multiple flows. Inferred from flow if provided. |
-| flow_location | String specifying the path to a script containing the flow to deploy. Inferred from flow if provided. (Required if the deployment references a flow in a different file.) |
+| flow_name | String specifying the name of the flow to deploy. |
+| flow_location | String specifying the path to a script containing the flow to deploy. Inferred from `flow` if provided. |
 | push_to_server | Boolean indicating whether the flow text will be loaded from the flow location and stored on the server instead of locally. This allows the flow to be compatible with all flow runners. If False, only an agent on the same machine will be able to run the deployment. Default is True. |
 | parameters | Dictionary of default parameters to set on flow runs from this deployment. If defined in Python, the values should be Pydantic-compatible objects. |
 | schedule | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
 | tags | List containing tags to assign to the deployment. |
 
-Either flow object or flow_location must be provided. If flow is provided, `load_flow` must be called to load the flow from the given flow location.
+Either the flow object or flow_location must be provided. If flow is provided, `load_flow` must be called to load the flow from the given flow location.
 
-If a flow_location is provided, the flow will be loaded from the flow location, which means that the flow location must be accessible when you create the deployment.
+If a flow_location is provided, the flow will be loaded from flow_location, which means that the flow location must be accessible when you create the deployment.
 
+## Deployment specifications as code
 
-
-
-
-You can create a deployment specification in two ways:
+You can also define a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object as either Python or YAML code. You can create deployment specifications of this type in two ways:
 
 - In the Python file containing the flow definition.
-- In a separate Python file containing only the deployment specification.
+- In a separate Python or YAML file containing only deployment specifications.
 
-If you define the `DeploymentSpec` within the file that contains the flow, you only need to specify the flow function and the deployment name. Other parameters are optional.
+If you define the `DeploymentSpec` within the file that contains the flow, you only need to specify the flow function and the deployment name. Other parameters are optional and are inferred or constructed by Orion utilities when you create a deployment.
 
 ```Python
 from prefect import flow
@@ -164,30 +165,44 @@ DeploymentSpec(
 )
 ```
 
-A deployment file or flow definition may include multiple `DeploymentSpec` instances, each representing a different deployment specification for a flow. Each deployment specification for a given flow must have a unique name &mdash; Orion does not support duplicate instances of flow_name/deployment_name. You can, however, include deployment specifications for multiple separate flows in a single deployment file.
+Deployment specifications can also be written in YAML and refer to the flow's location instead of the flow object:
 
-```Python
-from prefect.deployments import DeploymentSpec
-
-DeploymentSpec(
-    flow_location="/path/to/flow.py",
-    name="hello-world-daily", 
-)
+```yaml
+- name: hello-world-daily
+    flow_location: ./path/to/flow.py
+    flow_name: hello-world
+    tags:
+    - foo
+    - bar
+    parameters:
+        name: "Earth"
+    schedule:
+        interval: 3600
 ```
 
-### YAML specification
+A deployment specification file or flow definition may include multiple deployment specifications, each representing settings for a different deployment for a flow. Each deployment specification for a given flow must have a unique name &mdash; Orion does not support duplicate instances of flow_name/deployment_name. You can, however, include deployment specifications for multiple different flows in a single deployment file.
 
-## Creating deployments
+## Creating deployments 
 
-Registering an Orion deployment enables you to run the deployment &mdash; and its referenced flow &mdash; via API, either on a predefined schedule, or by manually executing the deployment.
+Creating a deployment is the process of providing deployment specification data to Orion, which then creates the deployment object for the associated flow. If the deployment includes a schedule, Orion then immediately creates the schedule flow runs and begins running the scheduled flows.
 
-Register a deployment with the Prefect CLI using the `prefect deployment create` command, specifying the name of the file containing the deployment specification. You can also run `prefect deployment create` to update an already registered deployment:
+There are several ways to create an Orion deployment:
+
+- Using CLI commands and a Python or YAML deployment specification.
+- Using the API with either a Python or YAML deployment specification or a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object.
+- Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to manually create a deployment without a `DeploymentSpec`. (Not recommended at this time.)
+
+### Creating deployments with the CLI
+
+Create a deployment with the Prefect CLI using the `prefect deployment create` command, specifying the name of the file containing the deployment specification &mdash; either the file containing the flow and the deployment specification, or a file containing only the Python or YAML specification. 
+
+You can also run `prefect deployment create` to update an existing deployment:
 
 ```bash
 $ prefect deployment create <filename>
 ```
 
-For example, if the hello-world deployment specification shown above is in the file flow.py, you'd see something like the following:
+For example, if the hello-world deployment specification shown earlier is in the file flow.py, you'd see something like the following:
 
 ```bash
 $ prefect deployment create flow.py
@@ -195,13 +210,19 @@ Loading deployments from python script at 'flow.py'...
 Created deployment 'hello-world-daily' for flow 'hello-world'
 ```
 
-Note: The Orion server has a scheduler service that creates flow runs for deployments with schedules. If you create a deployment while using an ephemeral server, we will schedule up to 100 runs immediately. If you need runs to continue to be scheduled, you will need to run a standalone Orion server.
+!!! note "Scheduled flow runs"
 
+    The Orion server has a scheduler service that creates flow runs for deployments with schedules. If you create a deployment while using an ephemeral server, Orion schedules up to 100 runs immediately. If you want flow runs scheduled beyond that, you must run a standalone Orion API server and agent. 
+    
+    Scheduled flow runs do not run unless the Orion API server and agent are running. 
 
+### Creating deployments with the API
+
+Coming soon.
 
 ## Running deployments
 
-If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as the Orion server is running.
+If you specify a schedule for a deployment, the deployment will execute its flow automatically on that schedule as long as the Orion API server and agent is running.
 
 In the Orion dashboard, you can click the **Quick Run** button next to any deployment to execute an ad hoc flow run for that deployment.
 
@@ -211,11 +232,13 @@ The `prefect deployment` CLI command provides commands for managing and running 
 | ------- | ----------- |
 | create | Create or update a deployment from a file. |
 | run | Create a flow run for the given flow and deployment. |
-| execute | Execute a local flow run for a given deployment. Does not require and agent and bypasses flow runner settings attached to the deployment. Intended for testing purposes. |
-| inspect | View details about a `DeploymentSpec` object. |
+| execute | Execute a local flow run for a given deployment. Does not require an agent and bypasses flow runner settings attached to the deployment. Intended for testing purposes. |
+| inspect | View details about a deployment. |
 | ls | View all deployments or deployments for specific flows. |
 
-# DeploymentSpec object
+### Running deployments with the API
+
+Coming soon.
 
 ## Examples
 
