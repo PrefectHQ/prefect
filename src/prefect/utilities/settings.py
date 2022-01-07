@@ -14,7 +14,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseSettings, Field, SecretStr
+from pydantic import BaseSettings, Field, SecretStr, root_validator
 
 
 class SharedSettings(BaseSettings):
@@ -308,6 +308,25 @@ class LoggingSettings(BaseSettings):
         `{shared_settings.home}/logging.yml`.""",
     )
 
+    orion_log_interval: float = Field(
+        2.0,
+        description="""The number of seconds between batched writes of logs to Orion.""",
+    )
+    orion_max_batch_log_size: int = Field(
+        4_000_000, description="""The maximum size in bytes for a single log batch."""
+    )
+    orion_max_single_log_size: int = Field(
+        1_000_000, description="""The maximum size in bytes for a single log."""
+    )
+
+    @root_validator
+    def single_log_size_smaller_than_max(cls, values):
+        if values["orion_max_batch_log_size"] < values["orion_max_single_log_size"]:
+            raise ValueError(
+                "`orion_max_single_log_size` cannot be larger than `orion_max_batch_log_size`"
+            )
+        return values
+
 
 class AgentSettings(BaseSettings):
 
@@ -378,25 +397,26 @@ def temporary_settings(**kwargs):
         >>> assert settings.orion_host is None
     """
     old_env = os.environ.copy()
-    for setting in kwargs:
-        os.environ[setting] = kwargs[setting]
-
-    new_settings = Settings()
     old_settings = settings.copy()
 
-    for field in settings.__fields__:
-        # The settings object is frozen and we must bypass Pydantic's setattr to
-        # mutate a field.
-        object.__setattr__(settings, field, getattr(new_settings, field))
-
     try:
+        for setting in kwargs:
+            os.environ[setting] = kwargs[setting]
+
+        new_settings = Settings()
+
+        for field in settings.__fields__:
+            # The settings object is frozen and we must bypass Pydantic's setattr to
+            # mutate a field.
+            object.__setattr__(settings, field, getattr(new_settings, field))
+
         yield settings
     finally:
         for setting in kwargs:
             if old_env.get(setting):
                 os.environ[setting] = old_env[setting]
             else:
-                os.environ.pop(setting)
+                os.environ.pop(setting, None)
 
         for field in settings.__fields__:
             object.__setattr__(settings, field, getattr(old_settings, field))

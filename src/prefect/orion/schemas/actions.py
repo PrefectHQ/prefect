@@ -1,10 +1,12 @@
 """
 Reduced schemas for accepting API actions.
 """
+from typing import List
 
 from pydantic import Field
 
 from prefect.orion import schemas
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 class FlowCreate(
@@ -145,3 +147,19 @@ class ConcurrencyLimitCreate(
     )
 ):
     """Data used by the Orion API to create a concurrency limit"""
+
+
+class LogCreate(
+    schemas.core.Log.subclass(
+        name="LogCreate",
+        include_fields=[
+            "name",
+            "level",
+            "message",
+            "timestamp",
+            "flow_run_id",
+            "task_run_id",
+        ],
+    )
+):
+    """Data used by the Orion API to create a log."""

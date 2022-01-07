@@ -1,7 +1,8 @@
 """
 Injected models dependencies
 """
-
+import asyncio
+import inspect
 from contextlib import asynccontextmanager
 from functools import wraps
 
@@ -91,19 +92,33 @@ def provide_database_interface():
 
 def inject_db(fn):
     """
-    Simple helper to provide a database interface to a function.
+    Decorator that provides a database interface to a function.
 
     The decorated function _must_ take a `db` kwarg and if a db is passed
     when called it will be used instead of creating a new one.
+
+    If the function is a coroutine function, the wrapper will await the
+    function's result. Otherwise, the wrapper will call the function
+    normally.
     """
 
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
+    def inject(kwargs):
         if "db" not in kwargs or kwargs["db"] is None:
             kwargs["db"] = provide_database_interface()
+
+    @wraps(fn)
+    async def async_wrapper(*args, **kwargs):
+        inject(kwargs)
+        return await fn(*args, **kwargs)
+
+    @wraps(fn)
+    def sync_wrapper(*args, **kwargs):
+        inject(kwargs)
         return fn(*args, **kwargs)
 
-    return wrapper
+    if inspect.iscoroutinefunction(fn):
+        return async_wrapper
+    return sync_wrapper
 
 
 @asynccontextmanager

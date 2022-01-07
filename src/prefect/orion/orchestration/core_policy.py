@@ -43,13 +43,42 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
+            SecureConcurrencySlot,
             CacheRetrieval,
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
+            ReturnConcurrencySlot,
         ]
+
+
+class SecureConcurrencySlot(BaseOrchestrationRule):
+    FROM_STATES = [None]
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def before_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+        db: OrionDBInterface,
+    ) -> None:
+        # increment concurrency count if below limit
+        # WAIT if at limit <- Default Behavior
+        # ABORT if at limit <- Configured Behavior
+        ...
+
+    async def cleanup() -> None:
+        # decrement concurrency count
+        ...
+
+
+class ReturnConcurrencySlot(BaseOrchestrationRule):
+    async def after_transition() -> None:
+        # decrement concurrency count
+        ...
 
 
 class CacheInsertion(BaseOrchestrationRule):
