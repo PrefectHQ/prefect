@@ -15,31 +15,47 @@ formatters:
         format: "%(asctime)s.%(msecs)03d | %(message)s"
         datefmt: "%H:%M:%S"
 
-    flow_run:
-        format: "%(asctime)s - %(flow_run_id)s - %(levelname)s - %(message)s"
+    standard:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s"
+        datefmt: "%H:%M:%S"
+
+    flow_runs:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
+        datefmt: "%H:%M:%S"
+
+    task_runs:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
+        datefmt: "%H:%M:%S"
 
     json:
         class: prefect.utilities.logging.JsonFormatter
+        format: "default"
 
-filters:
-    run_context:
-        # Injects run information into a log record
-        class: prefect.utilities.logging.RunContextInjector
-
-    # A user could define a custom filter that drops records containing
+# filters:
+    # Define any custom filters to drops records containing
     # sensitive information
+    # my_filter:
+        # class: your_module.FilterClass
+
 
 handlers:
     console:
         class: logging.StreamHandler
-        # take the level from the global logging settings
         level: "{{default_level}}"
-        formatter: simple
-        stream: ext://sys.stdout
+        formatter: standard
+
+    console_flow_runs:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: flow_runs
+
+    console_task_runs:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: task_runs
 
     orion:
         class: prefect.utilities.logging.OrionHandler
-        # take the level from the global logging settings
         level: "{{default_level}}"
         formatter: json
 
@@ -49,13 +65,16 @@ loggers:
         handlers: [console]
         propagate: no
 
-    # Only flow run logs are sent to Orion by default
-    prefect.flow_run:
+    prefect.flow_runs:
         level: DEBUG
-        handlers: [orion]
-        filters: [run_context]
-        propogate: yes
-    
+        handlers: [orion, console_flow_runs]
+        propagate: no
+
+    prefect.task_runs:
+        level: DEBUG
+        handlers: [orion, console_task_runs]
+        propagate: no
+
     root:
         level: INFO
         handlers: [console]
