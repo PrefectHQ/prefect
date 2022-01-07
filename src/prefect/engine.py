@@ -68,6 +68,7 @@ from prefect.utilities.logging import (
     get_logger,
     get_run_logger,
     flow_run_logger,
+    OrionHandler,
 )
 
 
@@ -237,6 +238,10 @@ async def begin_flow_run(
         msg=f"Finished in state {display_state}",
         extra={"send_to_orion": False},
     )
+
+    # When a "root" flow run finishes, flush logs so we do not have to rely on handling
+    # during interpreter shutdown
+    OrionHandler.flush()
 
     return terminal_state
 
