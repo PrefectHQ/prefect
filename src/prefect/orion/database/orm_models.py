@@ -579,6 +579,13 @@ class ORMLog:
 
 
 @declarative_mixin
+class ORMConcurrencyLimit:
+    tag = sa.Column(sa.String, nullable=False, index=True)
+    concurrency_limit = sa.Column(sa.SmallInteger, nullable=False)
+    active_slots = sa.Column(sa.SmallInteger, nullable=False)
+
+
+@declarative_mixin
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
@@ -680,6 +687,9 @@ class BaseORMConfiguration(ABC):
             pass
 
         class Log(ORMLog, self.Base):
+            pass
+
+        class ConcurrencyLimit(ORMConcurrencyLimit, self.Base):
             pass
 
         # TODO - move these to proper migrations
