@@ -8,6 +8,7 @@ import pytest
 from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.database import *
+from .fixtures.logging import *
 
 
 def pytest_configure(config):

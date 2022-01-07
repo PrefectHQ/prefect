@@ -4,6 +4,7 @@ import subprocess
 import anyio
 import httpx
 import pytest
+from httpx import ASGITransport
 
 from prefect.orion.api.server import app
 from prefect.utilities.settings import temporary_settings
@@ -16,6 +17,21 @@ async def client():
     """
 
     async with httpx.AsyncClient(app=app, base_url="https://test/api") as async_client:
+        yield async_client
+
+
+@pytest.fixture
+async def client_without_exceptions():
+    """
+    Yield a test client that does not raise app exceptions.
+
+    This is useful if you need to test e.g. 500 error responses.
+    """
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+
+    async with httpx.AsyncClient(
+        transport=transport, base_url="https://test/api"
+    ) as async_client:
         yield async_client
 
 
