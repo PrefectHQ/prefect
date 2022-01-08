@@ -169,7 +169,7 @@ def flow_run_logger(flow_run: "FlowRun", flow: "Flow" = None, **kwargs: str):
 
     If the context is available, see `run_logger` instead.
     """
-    return OrionAdapter(
+    return PrefectLogAdapter(
         get_logger("prefect.flow_runs"),
         extra={
             **{
@@ -197,7 +197,7 @@ def task_run_logger(
 
     If the context is available, see `run_logger` instead.
     """
-    return OrionAdapter(
+    return PrefectLogAdapter(
         get_logger("prefect.task_runs"),
         extra={
             **{
@@ -213,10 +213,11 @@ def task_run_logger(
     )
 
 
-class OrionAdapter(logging.LoggerAdapter):
+class PrefectLogAdapter(logging.LoggerAdapter):
     """
     Adapter that ensures extra kwargs are passed through correctly; without this
-    the `extra` fields set on the adapter would overshadow any provided on a log-by-log basis.
+    the `extra` fields set on the adapter would overshadow any provided on a
+    log-by-log basis.
     """
 
     def process(self, msg, kwargs):
