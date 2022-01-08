@@ -218,6 +218,9 @@ class PrefectLogAdapter(logging.LoggerAdapter):
     Adapter that ensures extra kwargs are passed through correctly; without this
     the `extra` fields set on the adapter would overshadow any provided on a
     log-by-log basis.
+
+    See https://bugs.python.org/issue32732 — the Python team has declared that this is
+    not a bug in the LoggingAdapter and subclassing is the intended workaround.
     """
 
     def process(self, msg, kwargs):
