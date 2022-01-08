@@ -20,7 +20,7 @@ More specifically:
 - A [deployment specification](#deployment-specifications) includes the settings that will be used to create the deployment. 
 - Running a deployment creates a flow run using the settings defined in the deployment object.
 
-For example, in the backend, the deployment object has a `flow_data` field, which is a [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) that tells the server how to access the flow. This may be a document containing:
+For example, in the Orion server, the deployment object has a `flow_data` field, which is a [`DataDocument`](/api-ref/orion/schemas/data/#prefect.orion.schemas.data.DataDocument) that tells the server how to access the flow. This may be a document containing:
 
 - A pointer to a file that contains the flow
 - The literal text of the flow code
