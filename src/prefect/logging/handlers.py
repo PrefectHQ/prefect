@@ -19,7 +19,7 @@ from prefect.client import OrionClient
 
 class OrionLogWorker:
     """
-    Manages the submission of logs to Orion.
+    Manages the submission of logs to Orion in a background thread.
     """
 
     def __init__(self) -> None:
@@ -159,6 +159,13 @@ class OrionLogWorker:
 
 
 class OrionHandler(logging.Handler):
+    """
+    A logging handler that sends logs to the Orion API.
+
+    Sends log records to the `OrionLogWorker` which manages sending batches of logs in
+    the background.
+    """
+
     worker: OrionLogWorker = None
 
     @classmethod
@@ -170,10 +177,18 @@ class OrionHandler(logging.Handler):
 
     @classmethod
     def flush(cls):
+        """
+        Tell the `OrionLogWorker` to send any currently enqueued logs.
+
+        Blocks until enqueued logs are sent.
+        """
         if cls.worker:
             cls.worker.stop()
 
     def emit(self, record: logging.LogRecord):
+        """
+        Send a log to the `OrionLogWorker`
+        """
         try:
             if not prefect.settings.logging.orion.enabled:
                 return  # Respect the global settings toggle
@@ -184,6 +199,16 @@ class OrionHandler(logging.Handler):
             self.handleError(record)
 
     def prepare(self, record: logging.LogRecord) -> LogCreate:
+        """
+        Convert a `logging.LogRecord` to the Orion `LogCreate` schema and serialize.
+
+        This infers the linked flow or task run from the log record or the current
+        run context.
+
+        If a flow run id cannot be found, the log will be dropped.
+
+        Logs exceeding the maximum size will be dropped.
+        """
         flow_run_id = getattr(record, "flow_run_id", None)
         task_run_id = getattr(record, "task_run_id", None)
 
@@ -232,6 +257,9 @@ class OrionHandler(logging.Handler):
         return log
 
     def close(self) -> None:
+        """
+        Shuts down this handler and the `OrionLogWorker`.
+        """
         if self.worker:
             self.worker.stop()
         return super().close()
