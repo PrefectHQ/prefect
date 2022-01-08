@@ -6,15 +6,15 @@ import sys
 import threading
 import time
 import traceback
-from typing import TYPE_CHECKING, List
+from typing import List
 
 import anyio
 import pendulum
 
 import prefect
 
-if TYPE_CHECKING:
-    from prefect.orion.schemas.actions import LogCreate
+from prefect.orion.schemas.actions import LogCreate
+from prefect.client import OrionClient
 
 
 class OrionLogWorker:
@@ -36,11 +36,6 @@ class OrionLogWorker:
         # Tracks logs that have been pulled from the queue but not sent successfully
         self._pending_logs: List[dict] = []
         self._pending_size: int = 0
-
-        # We must defer this import to avoid circular imports
-        from prefect.client import OrionClient
-
-        self.client_cls = OrionClient
 
         # Ensure stop is called at exit
         if sys.version_info < (3, 9):
@@ -111,7 +106,7 @@ class OrionLogWorker:
             if not self._pending_logs:
                 continue
 
-            async with self.client_cls() as client:
+            async with OrionClient() as client:
                 try:
                     await client.create_logs(self._pending_logs)
                     self._pending_logs = []
@@ -144,7 +139,7 @@ class OrionLogWorker:
             f"    Pending log batch size: {self._pending_size}\n"
         )
 
-    def enqueue(self, log: "LogCreate"):
+    def enqueue(self, log: LogCreate):
         self._queue.put(log)
 
     def start(self) -> None:
@@ -188,7 +183,7 @@ class OrionHandler(logging.Handler):
         except Exception:
             self.handleError(record)
 
-    def prepare(self, record: logging.LogRecord) -> "LogCreate":
+    def prepare(self, record: logging.LogRecord) -> LogCreate:
         flow_run_id = getattr(record, "flow_run_id", None)
         task_run_id = getattr(record, "task_run_id", None)
 
@@ -216,8 +211,6 @@ class OrionHandler(logging.Handler):
         # Parsing to a `LogCreate` object here gives us nice parsing error messages
         # from the standard lib `handleError` method if something goes wrong and
         # prevents malformed logs from entering the queue
-        from prefect.orion.schemas.actions import LogCreate
-
         log = LogCreate(
             flow_run_id=flow_run_id,
             task_run_id=task_run_id,
