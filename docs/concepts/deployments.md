@@ -53,7 +53,7 @@ When you run a deployed flow in Orion, the following happens:
 
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
 - An agent detects the flow run and creates infrastructure for the flow run.
-- The flow run executes within the flow run infrastructure.
+- The flow run executes within the infrastructure specified by the flow runner.
 
 ## Deployment representation in Orion
 
