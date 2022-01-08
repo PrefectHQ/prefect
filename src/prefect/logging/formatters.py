@@ -13,6 +13,16 @@ def safe_jsonable(obj):
 
 
 class JsonFormatter(logging.Formatter):
+    """
+    Formats log records as a JSON string.
+
+    If a log record attribute is not JSON serialiazable, it will be dropped from the
+    output.
+
+    The format may be specified as "pretty" to format the JSON with indents and
+    newlines.
+    """
+
     def __init__(self, fmt, dmft, style) -> None:
         if fmt not in ["pretty", "default"]:
             raise ValueError("Format must be either 'pretty' or 'default'.")
