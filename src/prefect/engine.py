@@ -64,12 +64,8 @@ from prefect.utilities.callables import (
     parameters_to_args_kwargs,
 )
 from prefect.utilities.collections import ensure_iterable, visit_collection
-from prefect.utilities.logging import (
-    get_logger,
-    get_run_logger,
-    flow_run_logger,
-    OrionHandler,
-)
+from prefect.logging.loggers import get_logger, get_run_logger, flow_run_logger
+from prefect.logging.handlers import OrionHandler
 
 
 R = TypeVar("R")
