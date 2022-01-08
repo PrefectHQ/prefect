@@ -1,6 +1,6 @@
 # Deployments
 
-A deployment is a backend concept that encapsulates a flow, allowing it to be scheduled and triggered via API. 
+A deployment is a server-side concept that encapsulates a flow, allowing it to be scheduled and triggered via API. 
 
 Deployments are uniquely identified by the combination of flow_name/deployment_name. Each deployment is associated with a single flow. The deployment stores metadata about where your flow's code is stored and how your flow should be run.
 
