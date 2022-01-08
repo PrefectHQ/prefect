@@ -15,7 +15,7 @@ import prefect
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.orion.schemas.actions import LogCreate
-from prefect.utilities.compat import AsyncMock
+from prefect.utilities.testing import AsyncMock
 from prefect.utilities.logging import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     OrionHandler,

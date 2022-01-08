@@ -10,7 +10,7 @@ from prefect.flow_runners import SubprocessFlowRunner, UniversalFlowRunner, Flow
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Completed, Pending, Running, Scheduled
 from prefect.exceptions import Abort
-from prefect.utilities.compat import AsyncMock
+from prefect.utilities.testing import AsyncMock
 
 
 def mock_flow_runner(runner_type, start_error=None):
