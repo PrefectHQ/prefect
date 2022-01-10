@@ -185,7 +185,7 @@ import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
 
 const route = useRoute()
 
-const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
+const resultsTab: Ref<'task_runs' | 'sub_flow_runs' | 'logs'> = ref('task_runs')
 
 const id = computed(() => {
   return route?.params.id as string
@@ -377,6 +377,11 @@ const tabs: ResultsListTab[] = reactive([
     href: 'sub_flow_runs',
     count: subFlowRunsCount,
     icon: 'pi-flow-run'
+  },
+  {
+    label: 'Logs',
+    href: 'logs',
+    icon: 'pi-task'
   }
 ])
 

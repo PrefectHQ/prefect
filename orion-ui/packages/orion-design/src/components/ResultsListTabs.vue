@@ -1,7 +1,7 @@
 <template>
   <m-tabs
     class="results-list-tabs"
-    :modelValue="internalTab"
+    :model-value="internalTab"
     @update:modelValue="setTab"
   >
     <template v-for="tab in tabs" :key="tab.href">
@@ -26,67 +26,79 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
-import {
-  ResultsListTab,
-  ResultsListTabWithCount
-} from '../types/ResultsListTab'
+  import { defineComponent, PropType } from 'vue'
+  import {
+    ResultsListTab,
+    ResultsListTabWithCount
+  } from '../types/ResultsListTab'
 
-export default defineComponent({
-  name: 'ResultsListTabs',
-  props: {
-    tab: {
-      type: String
+  export default defineComponent({
+    name: 'ResultsListTabs',
+    expose: [],
+    props: {
+      tab: {
+        type: String,
+        required: true,
+      },
+
+      tabs: {
+        type: Array as PropType<(ResultsListTab | ResultsListTabWithCount)[]>,
+        required: true,
+      },
     },
-    tabs: {
-      type: Array as PropType<(ResultsListTab | ResultsListTabWithCount)[]>,
-      required: true
-    }
-  },
-  data(): { internalTab: string } {
-    return {
-      internalTab: ''
-    }
-  },
-  watch: {
-    tab: {
-      immediate: true,
-      handler: function (tab) {
+
+    emits: ['update:tab'],
+
+    data(): { internalTab: string } {
+      return {
+        internalTab: '',
+      }
+    },
+
+    watch: {
+      tab: {
+        immediate: true,
+        handler: function(tab) {
+          this.internalTab = tab
+        },
+      },
+    },
+
+    methods: {
+      setTab(tab: string) {
         this.internalTab = tab
-      }
-    }
-  },
-  methods: {
-    setTab(tab: string) {
-      this.internalTab = tab
-      this.$emit('update:tab', tab)
-    },
-    getTabClasses(tab: ResultsListTab) {
-      return {
-        active: this.internalTab == tab.href
-      }
-    },
-    getTabIconClasses(tab: ResultsListTab) {
-      return [
-        tab.icon,
-        {
-          'results-list-tabs__icon--active': this.internalTab == tab.href
+        this.$emit('update:tab', tab)
+      },
+
+      getTabClasses(tab: ResultsListTab) {
+        return {
+          active: this.internalTab == tab.href,
         }
-      ]
+      },
+
+      getTabIconClasses(tab: ResultsListTab) {
+        return [
+          tab.icon,
+          {
+            'results-list-tabs__icon--active': this.internalTab == tab.href,
+          },
+        ]
+      },
+
+      getTabCountClasses(tab: ResultsListTab) {
+        return {
+          'results-list-tabs__badge--active': this.internalTab == tab.href,
+        }
+      },
+
+      getTabHasCount(tab: ResultsListTab): tab is ResultsListTabWithCount {
+        return tab.count !== undefined
+      },
     },
-    getTabCountClasses(tab: ResultsListTab) {
-      return {
-        'results-list-tabs__badge--active': this.internalTab == tab.href
-      }
-    },
-    getTabHasCount(tab: ResultsListTab): tab is ResultsListTabWithCount {
-      return tab.count !== undefined
-    }
-  }
-})
+  })
 </script>
 
-<style>
+<style lang="css">
 .results-list-tabs__icon {
   color: var(--grey-40);
 }
