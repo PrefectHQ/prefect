@@ -30,7 +30,7 @@ from prefect.orion.schemas.states import (
     StateDetails,
     StateType,
 )
-from prefect.utilities.compat import AsyncMock
+from prefect.utilities.testing import AsyncMock
 
 
 class TestUserReturnValueToState:
