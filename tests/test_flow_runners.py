@@ -27,7 +27,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.compat import AsyncMock
+from prefect.utilities.testing import AsyncMock
 from prefect.utilities.settings import temporary_settings
 
 
