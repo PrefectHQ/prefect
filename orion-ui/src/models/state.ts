@@ -1,4 +1,4 @@
-import { State as StateType } from '@/types/states'
+import { StateType } from '@/types/states'
 
 export interface IState {
   id: string
