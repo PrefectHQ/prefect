@@ -28,7 +28,6 @@ import Row from '@/components/Global/Row/Row.vue'
 import RadarNode from '@/components/Radar/Nodes/Node.vue'
 import RadarFlowRunNode from '@/components/Radar/Nodes/FlowRunNode.vue'
 import RadarOverflowNode from '@/components/Radar/Nodes/OverflowNode.vue'
-import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
 
 import '@prefecthq/miter-design/dist/style.css'
 import MiterDesign from '@prefecthq/miter-design'
@@ -61,6 +60,5 @@ app.component('Row', Row)
 app.component('RadarNode', RadarNode)
 app.component('RadarFlowRunNode', RadarFlowRunNode)
 app.component('RadarOverflowNode', RadarOverflowNode)
-app.component('StateIcon', StateIcon)
 
 app.mount('#app')

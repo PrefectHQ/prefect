@@ -32,7 +32,7 @@
             </template>
             <template v-slot:header>
               <div class="interval-bar-chart-card__popover-header">
-                <StateIcon class="mr-1" :state="state.state_type" colored />
+                <StateTypeIcon class="mr-1" :type="state.state_type" colored />
                 <span>{{ state.state_name }} flow runs</span>
               </div>
             </template>
@@ -72,6 +72,7 @@ import { ClassValue } from '@/types/css'
 
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import { StateType, States, StateDirections } from '@/types/states'
+import { StateTypeIcon } from '@prefecthq/orion-design'
 
 type TransitionSelectionType = Transition<
   SVGGElement,

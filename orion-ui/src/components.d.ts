@@ -10,7 +10,6 @@ import FlowListItem from '@/components/Global/FlowListItem/FlowListItem.vue'
 import FlowRunListItem from '@/components/Global/FlowRunListItem/FlowRunListItem.vue'
 import TaskRunListItem from '@/components/Global/TaskRunListItem/TaskRunListItem.vue'
 import ResultsList from '@/components/Global/ResultsList/ResultsList.vue'
-import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
 
 declare module 'vue' {
   export interface GlobalComponents {
@@ -26,6 +25,5 @@ declare module 'vue' {
     FlowRunListItem: typeof FlowRunListItem
     TaskRunListItem: typeof TaskRunListItem
     ResultsList: typeof ResultsList
-    StateIcon: typeof StateIcon
   }
 }
