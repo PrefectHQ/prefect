@@ -24,6 +24,8 @@ import { Api, Query, Endpoints, TaskRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumb/BreadCrumb.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
