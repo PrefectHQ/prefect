@@ -122,9 +122,9 @@ A `DeploymentSpec` object has the following required parameters:
 | schedule | [Schedule](/concepts/schedules/) instance specifying a schedule for running the deployment. |
 | tags | List containing tags to assign to the deployment. |
 
-Either the flow object or flow_location must be provided. If flow is provided, `load_flow` must be called to load the flow from the given flow location.
+Either the flow object or location must be provided.
 
-If a flow_location is provided, the flow will be loaded from flow_location, which means that the flow location must be accessible when you create the deployment.
+If a flow location is provided, the script at the given location will be run when the deployment is created to load metadata about the flow.
 
 ## Deployment specifications as code
 
