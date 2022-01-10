@@ -775,3 +775,8 @@ title = "Airbyte Tasks"
 module = "prefect.tasks.airbyte"
 classes = ["AirbyteConnectionTask"]
 verified_task = true
+
+[pages.tasks.zendesk]
+title = "Zendesk Tasks"
+module = "prefect.tasks.zendesk"
+classes = ["ZendeskTicketsIncrementalExportTask"]
