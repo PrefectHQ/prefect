@@ -19,7 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import prefect
 from prefect import settings
 from prefect.orion import api, services
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.orion.database.dependencies import MODELS_DEPENDENCIES
 
 TITLE = "Prefect Orion"
