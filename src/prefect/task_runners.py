@@ -70,7 +70,7 @@ import distributed
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.utilities.asyncio import A
 from prefect.utilities.importtools import import_object
 from prefect.utilities.hashing import to_qualified_name

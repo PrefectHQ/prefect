@@ -8,7 +8,6 @@ from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
 
-import anyio
 import pendulum
 import pytest
 
@@ -17,17 +16,18 @@ from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.orion.schemas.actions import LogCreate
 from prefect.utilities.testing import AsyncMock
-from prefect.utilities.logging import (
+from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
-    OrionHandler,
-    OrionLogWorker,
-    flow_run_logger,
-    get_logger,
-    get_run_logger,
     load_logging_config,
     setup_logging,
-    task_run_logger,
 )
+from prefect.logging.loggers import (
+    flow_run_logger,
+    get_logger,
+    task_run_logger,
+    get_run_logger,
+)
+from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
 
 
@@ -139,7 +139,7 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
 @pytest.fixture
 def mock_log_worker(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr("prefect.utilities.logging.OrionLogWorker", mock)
+    monkeypatch.setattr("prefect.logging.handlers.OrionLogWorker", mock)
     return mock
 
 
