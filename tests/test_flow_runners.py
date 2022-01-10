@@ -27,7 +27,7 @@ from prefect.flow_runners import (
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
-from prefect.utilities.compat import AsyncMock
+from prefect.utilities.testing import AsyncMock
 from prefect.utilities.settings import temporary_settings
 
 
@@ -478,7 +478,7 @@ class TestSubprocessFlowRunner:
         if not stream_output:
             assert output.out == ""
         else:
-            assert "Beginning flow run" in output.out, "Log from the engine is present"
+            assert "Finished in state" in output.out, "Log from the engine is present"
             assert "\n\n" not in output.out, "Line endings are not double terminated"
 
 
@@ -949,7 +949,7 @@ class TestDockerFlowRunner:
         if not stream_output:
             assert output.out == ""
         else:
-            assert "Beginning flow run" in output.out, "Log from the engine is present"
+            assert "Finished in state" in output.out, "Log from the engine is present"
             assert "\n\n" not in output.out, "Line endings are not double terminated"
 
     @pytest.mark.service("docker")

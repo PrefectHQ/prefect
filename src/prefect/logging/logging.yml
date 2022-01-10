@@ -1,0 +1,79 @@
+# Prefect logging config file.
+#
+# Any config in this file can be set with an env var
+# `PREFECT_LOGGING_[PATH]_[TO]_[KEY]=VALUE`
+#
+# Global logging settings values can be interpolated by setting `key: "{{key}}"`
+# (note the quotations and double curly brackets). Note that only keys available
+# under `prefect.settings.logging` will be interpolated.
+
+version: 1
+disable_existing_loggers: False
+
+formatters:
+    simple:
+        format: "%(asctime)s.%(msecs)03d | %(message)s"
+        datefmt: "%H:%M:%S"
+
+    standard:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s - %(message)s"
+        datefmt: "%H:%M:%S"
+
+    flow_runs:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Flow run %(flow_run_name)r - %(message)s"
+        datefmt: "%H:%M:%S"
+
+    task_runs:
+        format: "%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
+        datefmt: "%H:%M:%S"
+
+    json:
+        class: prefect.logging.formatters.JsonFormatter
+        format: "default"
+
+# filters:
+    # Define any custom filters to drops records containing
+    # sensitive information
+    # my_filter:
+        # class: your_module.FilterClass
+
+
+handlers:
+    console:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: standard
+
+    console_flow_runs:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: flow_runs
+
+    console_task_runs:
+        class: logging.StreamHandler
+        level: "{{default_level}}"
+        formatter: task_runs
+
+    orion:
+        class: prefect.logging.handlers.OrionHandler
+        level: "{{default_level}}"
+
+loggers:
+    prefect:
+        level: DEBUG
+        handlers: [console]
+        propagate: no
+
+    prefect.flow_runs:
+        level: DEBUG
+        handlers: [orion, console_flow_runs]
+        propagate: no
+
+    prefect.task_runs:
+        level: DEBUG
+        handlers: [orion, console_task_runs]
+        propagate: no
+
+    root:
+        level: INFO
+        handlers: [console]

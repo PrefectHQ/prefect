@@ -13,7 +13,7 @@ export type StateName =
   | 'Scheduled'
   | 'Pending'
   | 'Failed'
-  | 'Canceled'
+  | 'Cancelled'
 
 export type StateDirection = 1 | -1
 export type StateIcon = `pi-${Lowercase<State>}`
@@ -34,7 +34,7 @@ export const StateNames: ReadonlyMap<State, StateName> = new Map([
   [States.SCHEDULED, 'Scheduled'],
   [States.PENDING, 'Pending'],
   [States.FAILED, 'Failed'],
-  [States.CANCELLED, 'Canceled']
+  [States.CANCELLED, 'Cancelled']
 ])
 
 export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([

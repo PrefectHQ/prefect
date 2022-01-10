@@ -70,7 +70,7 @@ import distributed
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.utilities.asyncio import A
 from prefect.utilities.importtools import import_object
 from prefect.utilities.hashing import to_qualified_name
@@ -81,8 +81,12 @@ R = TypeVar("R")
 
 class BaseTaskRunner(metaclass=abc.ABCMeta):
     def __init__(self) -> None:
-        self.logger = get_logger("task_runner")
+        self.logger = get_logger(f"task_runner.{self.name}")
         self._started: bool = False
+
+    @property
+    def name(self):
+        return type(self).__name__.lower().replace("taskrunner", "")
 
     @abc.abstractmethod
     async def submit(
@@ -132,13 +136,13 @@ class BaseTaskRunner(metaclass=abc.ABCMeta):
             raise RuntimeError("The task runner is already started!")
 
         async with AsyncExitStack() as exit_stack:
-            self.logger.info(f"Starting task runner `{self}`...")
+            self.logger.debug(f"Starting task runner...")
             try:
                 await self._start(exit_stack)
                 self._started = True
                 yield self
             finally:
-                self.logger.info(f"Shutting down task runner `{self}`...")
+                self.logger.debug(f"Shutting down task runner...")
                 self._started = False
 
     async def _start(self, exit_stack: AsyncExitStack) -> None:
