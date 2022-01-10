@@ -230,14 +230,15 @@ class State(IDBaseModel, Generic[R]):
         """
         Generates a simple state representation appropriate for logging:
 
-        `MyCompletedState(message="my message", type=COMPLETED)`
+        `MyCompletedState("my message", type=COMPLETED)`
         """
 
-        display = dict(
-            message=repr(self.message),
-            type=self.type,
+        display_type = (
+            f", type={self.type}"
+            if self.type.value.lower() != self.name.lower()
+            else ""
         )
-        return f"{self.name}({', '.join(f'{k}={v}' for k, v in display.items())})"
+        return f"{self.name}({self.message!r}{display_type})"
 
     def __hash__(self) -> int:
         return hash(

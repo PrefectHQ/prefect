@@ -8,12 +8,7 @@ import pytest
 from .fixtures.api import *
 from .fixtures.client import *
 from .fixtures.database import *
-
-
-def pytest_configure(config):
-    config.addinivalue_line(
-        "markers", "service(arg) a service integration test. For example, 'docker'."
-    )
+from .fixtures.logging import *
 
 
 def pytest_addoption(parser):

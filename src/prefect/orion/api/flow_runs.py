@@ -17,7 +17,7 @@ from prefect.orion.orchestration import dependencies as orchestration_dependenci
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.orion.models.flow_runs import DependencyResult
 
 
