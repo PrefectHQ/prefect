@@ -1,5 +1,4 @@
-// todo: rename this to StateType
-export type State =
+export type StateType =
   | 'COMPLETED'
   | 'RUNNING'
   | 'SCHEDULED'
@@ -16,8 +15,8 @@ export type StateName =
   | 'Cancelled'
 
 export type StateDirection = 1 | -1
-export type StateIcon = `pi-${Lowercase<State>}`
-export type StateColor = `var(--${Lowercase<State>})`
+export type StateIcon = `pi-${Lowercase<StateType>}`
+export type StateColor = `var(--${Lowercase<StateType>})`
 
 export class States {
   public static readonly COMPLETED = 'COMPLETED'
@@ -28,7 +27,7 @@ export class States {
   public static readonly CANCELLED = 'CANCELLED'
 }
 
-export const StateNames: ReadonlyMap<State, StateName> = new Map([
+export const StateNames: ReadonlyMap<StateType, StateName> = new Map([
   [States.COMPLETED, 'Completed'],
   [States.RUNNING, 'Running'],
   [States.SCHEDULED, 'Scheduled'],
@@ -37,7 +36,7 @@ export const StateNames: ReadonlyMap<State, StateName> = new Map([
   [States.CANCELLED, 'Cancelled']
 ])
 
-export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([
+export const StateDirections: ReadonlyMap<StateType, StateDirection> = new Map([
   [States.COMPLETED, -1],
   [States.RUNNING, -1],
   [States.SCHEDULED, -1],
@@ -46,7 +45,7 @@ export const StateDirections: ReadonlyMap<State, StateDirection> = new Map([
   [States.CANCELLED, 1]
 ])
 
-export const StateIcons: ReadonlyMap<State, StateIcon> = new Map([
+export const StateIcons: ReadonlyMap<StateType, StateIcon> = new Map([
   [States.COMPLETED, 'pi-completed'],
   [States.RUNNING, 'pi-running'],
   [States.SCHEDULED, 'pi-scheduled'],
@@ -55,7 +54,7 @@ export const StateIcons: ReadonlyMap<State, StateIcon> = new Map([
   [States.CANCELLED, 'pi-cancelled']
 ])
 
-export const StateColors: ReadonlyMap<State, StateColor> = new Map([
+export const StateColors: ReadonlyMap<StateType, StateColor> = new Map([
   [States.COMPLETED, 'var(--completed)'],
   [States.RUNNING, 'var(--running)'],
   [States.SCHEDULED, 'var(--scheduled)'],

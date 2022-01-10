@@ -1,4 +1,4 @@
-import { State } from '@/types/states'
+import { StateType } from '@/types/states'
 import { State as StateObj } from '@/typings/objects'
 
 export interface IFlowRun {
@@ -21,7 +21,7 @@ export interface IFlowRun {
   name: string
   parent_task_run_id: string
   state_id: string
-  state_type: State
+  state_type: StateType
   state: StateObj
   tags: string[]
   task_run_count: number
@@ -48,7 +48,7 @@ export default class FlowRun implements IFlowRun {
   public name: string
   public parent_task_run_id: string
   public state_id: string
-  public state_type: State
+  public state_type: StateType
   public state: StateObj
   public tags: string[]
   public task_run_count: number
