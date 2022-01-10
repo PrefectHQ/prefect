@@ -571,6 +571,11 @@ title = "SodaSpark Tasks"
 module = "prefect.tasks.sodaspark"
 classes = ["SodaSparkScan"]
 
+[pages.tasks.mixpanel]
+title = "Mixpanel Tasks"
+module = "prefect.tasks.mixpanel"
+classes = ["MixpanelExportTask"]
+
 [pages.tasks.databricks]
 title = "Databricks Tasks"
 module = "prefect.tasks.databricks"
