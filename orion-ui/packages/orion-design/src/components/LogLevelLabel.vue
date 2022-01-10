@@ -23,7 +23,7 @@
   })
 </script>
 
-<style lang="scss" scoped>
+<style lang="css">
 .log-level-label {
   display: inline-block;
   font-family: barlow;

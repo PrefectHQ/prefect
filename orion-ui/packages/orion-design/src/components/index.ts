@@ -1,2 +1,5 @@
 export { default as ListItemLog } from './ListItemLog.vue'
+export { default as LogLevelLabel } from './LogLevelLabel.vue'
 export { default as ResultsListTabs } from './ResultsListTabs.vue'
+export { default as StateTypeIcon } from './StateTypeIcon.vue'
+export { default as TaskRunLink } from './TaskRunLink.vue'

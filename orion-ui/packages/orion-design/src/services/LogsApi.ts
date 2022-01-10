@@ -33,7 +33,7 @@ function logsResponseMapper({ data }: AxiosResponse<ILogResponse[]>): Log[] {
   return data.map(logMapper)
 }
 
-export default class LogsApi extends Api {
+export class LogsApi extends Api {
   protected static route = '/api/logs'
 
   public static filter(filter: LogsRequestFilter): Promise<Log[]> {
