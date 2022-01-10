@@ -103,7 +103,7 @@ To create a deployment in Orion, you do not have to specify _all_ of the Deploym
 There are several ways to build a deployment specification and use it to create a deployment:
 
 - Construct a `DeploymentSpec` object and pass that to Orion when creating a deployment via API.
-- Write your deployment specification as Python or YAML and pass that to Orion via the CLI or API.
+- Write your deployment specification as Python or YAML and use the CLI to create the deployment. The CLI will generate the `DeploymentCreate` object to pass to the API.
 
 ### DeploymentSpec object
 
