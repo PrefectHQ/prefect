@@ -32,7 +32,7 @@ With a deployment specification, you just provide the path to the flow script. W
 
 Each deployment is associated with a single flow, but any given flow can have multiple deployments. This enables you to run a single flow with different parameters, on multiple schedules, and in different environments. This also allows you to run different versions of the same flow for testing and promotion purposes.
 
-Flow runners enable you to dynamically allocate infrastructure for your flow runs. Since the code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
+Flow runners enable you to dynamically allocate infrastructure for your flow runs. Since the flow's code must be retrieved on the created infrastructure, configuring flow runners is possible only for deployed flows.
 
 A simple example of a deployment specification for a flow looks like this:
 
