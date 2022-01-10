@@ -1,0 +1,5 @@
+enhancement:
+  - "Add authentication as parameter for SnowflakeQuery and SnowflakeQueriesFromFile tasks - [#5173](https://github.com/PrefectHQ/prefect/pull/5173)"
+
+contributor:
+  - "[Gaylord Cherencey](https://github.com/gcherencey)"
