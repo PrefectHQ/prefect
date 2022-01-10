@@ -75,7 +75,7 @@ Deployment properties include:
 | tags | An optional list of tags for the deployment. |
 | flow_runner | [`FlowRunnerSettings`](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) containing details about the flow runner to assign to flow runs associated with this deployment. |
 
-You can inspect a deployment using the CLI with the `prefect deployment inspect` command, passing the name of the deployment in flow_name/deployment_name format.
+You can inspect a deployment using the CLI with the `prefect deployment inspect` command, reference the deployment with `<flow_name>/<deployment_name>`.
 
 ```bash
 $ prefect deployment inspect hello-world/hello-world-daily
