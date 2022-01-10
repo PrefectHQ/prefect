@@ -1,13 +1,13 @@
 import logging
 import queue
 import sys
+import threading
 import time
 import uuid
 from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
 
-import anyio
 import pendulum
 import pytest
 
@@ -15,18 +15,19 @@ import prefect
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.orion.schemas.actions import LogCreate
-from prefect.utilities.compat import AsyncMock
-from prefect.utilities.logging import (
+from prefect.utilities.testing import AsyncMock
+from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
-    OrionHandler,
-    OrionLogWorker,
-    flow_run_logger,
-    get_logger,
-    get_run_logger,
     load_logging_config,
     setup_logging,
-    task_run_logger,
 )
+from prefect.logging.loggers import (
+    flow_run_logger,
+    get_logger,
+    task_run_logger,
+    get_run_logger,
+)
+from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
 
 
@@ -138,7 +139,7 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
 @pytest.fixture
 def mock_log_worker(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr("prefect.utilities.logging.OrionLogWorker", mock)
+    monkeypatch.setattr("prefect.logging.handlers.OrionLogWorker", mock)
     return mock
 
 
@@ -508,14 +509,26 @@ class TestOrionLogWorker:
 
         assert mock_create_logs.call_count == 3
 
-    async def test_logs_are_sent_when_started(self, log_json, orion_client, worker):
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="0.0001"):
+    async def test_logs_are_sent_when_started(
+        self, log_json, orion_client, worker, monkeypatch
+    ):
+        event = threading.Event()
+        unpatched_create_logs = orion_client.create_logs
+
+        async def create_logs(self, *args, **kwargs):
+            result = await unpatched_create_logs(*args, **kwargs)
+            event.set()
+            return result
+
+        monkeypatch.setattr("prefect.client.OrionClient.create_logs", create_logs)
+
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="0.001"):
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)
 
         # We want to ensure logs are written without the thread being joined
-        await anyio.sleep(0.1)
+        event.wait(1)
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 

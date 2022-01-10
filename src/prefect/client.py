@@ -33,7 +33,7 @@ from prefect.orion.schemas.actions import LogCreate
 from prefect.orion.schemas.filters import LogFilter
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import Scheduled
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 
 if TYPE_CHECKING:
     from prefect.flows import Flow
