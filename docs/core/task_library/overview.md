@@ -70,6 +70,7 @@ Tasks marked with the <Badge text="Verified" type="success" vertical="middle"></
     <td><img src="/logos/sqlserverlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/sql_server.html">SQL Server</a></td>
     <td><img src="/logos/trello.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/trello.html">Trello</a></td>
     <td><img src="/logos/tlogo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/twitter.html">Twitter</a></td>
+    <td><Badge text="Verified" type="success"></Badge><img src="/logos/monte_carlo.png" height="128" width="128" style="max-height: 128px; max-width: 128px;"> <a href="https://docs.prefect.io/api/latest/tasks/monte_carlo.html">Monte Carlo</a></td>
     <td></td>
     <td></td>
   </tr>
