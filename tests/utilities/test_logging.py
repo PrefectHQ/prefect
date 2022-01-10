@@ -1,6 +1,7 @@
 import logging
 import queue
 import sys
+import threading
 import time
 import uuid
 from contextlib import nullcontext
@@ -508,14 +509,26 @@ class TestOrionLogWorker:
 
         assert mock_create_logs.call_count == 3
 
-    async def test_logs_are_sent_when_started(self, log_json, orion_client, worker):
-        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="0.0001"):
+    async def test_logs_are_sent_when_started(
+        self, log_json, orion_client, worker, monkeypatch
+    ):
+        event = threading.Event()
+        unpatched_create_logs = orion_client.create_logs
+
+        async def create_logs(self, *args, **kwargs):
+            result = await unpatched_create_logs(*args, **kwargs)
+            event.set()
+            return result
+
+        monkeypatch.setattr("prefect.client.OrionClient.create_logs", create_logs)
+
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="0.001"):
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)
 
         # We want to ensure logs are written without the thread being joined
-        await anyio.sleep(0.1)
+        event.wait(1)
         logs = await orion_client.read_logs()
         assert len(logs) == 2
 
