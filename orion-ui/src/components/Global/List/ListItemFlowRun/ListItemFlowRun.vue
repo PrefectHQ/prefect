@@ -16,17 +16,22 @@
     </div>
 
     <div v-if="media.md" class="chart-container mr-2">
+      <!--
+        The code for :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        is NOT implemented in RunHistoryChart--Chart.vue.
+        In order to prevent this component from throwing error when imported to Nebula,
+        the value is set to 0 until further code changes
+      -->
       <RunHistoryChart
         :items="taskRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="store.getters.globalFilter.intervalSeconds"
+        :interval-seconds="0"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
         disable-popovers
       />
     </div>
-
     <div class="font--secondary item--duration mr-2">
       {{ duration }}
     </div>
@@ -54,6 +59,9 @@ import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
+import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumb/BreadCrumb.vue'
 
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()
