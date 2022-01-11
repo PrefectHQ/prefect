@@ -10,7 +10,7 @@
 <script lang="ts" setup>
   import { subscribe } from '@prefecthq/vue-compositions'
   import { computed } from 'vue'
-  import { TaskRunsApi } from '../services/TaskRunsApi'
+  import { TaskRuns } from '../services/TaskRunsApi'
   import StateTypeIcon from './StateTypeIcon.vue'
 
   const props = defineProps({
@@ -20,7 +20,7 @@
     },
   })
 
-  const subscription = subscribe(TaskRunsApi.getTaskRun, [props.taskId])
+  const subscription = subscribe(TaskRuns.getTaskRun, [props.taskId])
 
   const taskRunName = computed(() => subscription.response.value?.name)
   const taskRunStateType = computed(() => subscription.response.value?.stateType)

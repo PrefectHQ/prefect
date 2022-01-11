@@ -16,13 +16,16 @@ export type ILogResponse = {
 }
 
 export class LogsApi extends Api {
-  protected static route = '/api/logs'
+  public constructor() {
+    super('/api/logs')
+  }
 
-  public static filter(filter: LogsRequestFilter): Promise<Log[]> {
+  public filter(filter: LogsRequestFilter): Promise<Log[]> {
+    console.log('here', this)
     return this.post('/filter', filter).then(this.logsResponseMapper)
   }
 
-  protected static logMapper(log: ILogResponse): Log {
+  protected logMapper(log: ILogResponse): Log {
     return new Log({
       id: log.id,
       created: new Date(log.created),
@@ -36,7 +39,9 @@ export class LogsApi extends Api {
     })
   }
 
-  protected static logsResponseMapper({ data }: AxiosResponse<ILogResponse[]>): Log[] {
+  protected logsResponseMapper({ data }: AxiosResponse<ILogResponse[]>): Log[] {
     return data.map(this.logMapper)
   }
 }
+
+export const Logs = new LogsApi()
