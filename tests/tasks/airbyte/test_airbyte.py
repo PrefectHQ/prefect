@@ -41,7 +41,7 @@ class TestAirbyte:
     def test_check_health_status(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
-            responses.GET, airbyte_base_url + "/health/", json={"db": True}, status=200
+            responses.GET, airbyte_base_url + "/health/", json={"available": True}, status=200
         )
         session = requests.Session()
         task = AirbyteConnectionTask(
@@ -54,7 +54,7 @@ class TestAirbyte:
     def test_check_health_status_2(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
-            responses.GET, airbyte_base_url + "/health/", json={"db": False}, status=200
+            responses.GET, airbyte_base_url + "/health/", json={"available": False}, status=200
         )
         session = requests.Session()
         task = AirbyteConnectionTask(

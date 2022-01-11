@@ -76,7 +76,7 @@ class AirbyteConnectionTask(Task):
         try:
             response = session.get(get_connection_url)
             self.logger.info(response.json())
-            health_status = response.json()["db"]
+            health_status = response.json()["available"]
             if not health_status:
                 raise AirbyteServerNotHealthyException(
                     f"Airbyte Server health status: {health_status}"
