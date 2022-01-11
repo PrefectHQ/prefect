@@ -95,6 +95,7 @@ See the [`prefect.flow_runners` API reference](/api-ref/prefect/flow-runners/) f
 
 Check out the [Docker flow runner tutorial](/tutorials/docker-flow-runner/) for getting started running a flow in a Docker container.
 
+Check out the [virtual environments](/tutorials/virtual-environments/) for getting started running a flow in a Python virtual environment.
 
 ## Flow runner serialization
 
