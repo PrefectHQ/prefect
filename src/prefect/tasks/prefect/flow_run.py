@@ -73,7 +73,7 @@ def create_flow_run(
         Union[
             pendulum.DateTime,
             datetime.datetime,
-            pendulum.duration,
+            pendulum.Duration,
             datetime.timedelta,
         ]
     ] = None,
@@ -143,7 +143,7 @@ def create_flow_run(
     if idempotency_key is None:
         idempotency_key = prefect.context.get("task_run_id", None)
 
-    if isinstance(scheduled_start_time, (pendulum.duration, datetime.timedelta)):
+    if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
         scheduled_start_time = pendulum.now("utc") + scheduled_start_time
 
     client = Client()
