@@ -89,14 +89,14 @@ DockerFlowRunner(env={"EXTRA_PIP_PACKAGES": "my-extra-package1 my-extra-package2
 
 ## Using Docker with a standalone agent
 
-Since the created Docker container must be able to communicate with the API, the ephemeral API cannot be used with the Docker flow runner.
-
-When you run the Orion API server with `prefect orion start`, an agent is included by default. When run with the `--no-agent` flag, the agent will not be run alongside the API.
-
 The agent can be run standalone with `prefect agent start`. However, if you start the agent without giving it an API URL, it will run an ephemeral server. If this agent attempts to submit a flow run using the Docker flow runner, it will immediately fail.
 
-To connect to your hosted API, provide the `PREFECT_ORION_HOST` environment variable:
+If you do not have the Orion API hosted already, start the Orion API locally with `prefect orion start --no-agent`. The `--no-agent` flag will disable the agent that is usually started alongside the server.
+
+To connect the agent to your API, provide the `PREFECT_ORION_HOST` environment variable:
 
 ```bash
 $ PREFECT_ORION_HOST="http://127.0.0.1:4200/api/" prefect agent start
 ```
+
+The API must be available from within the flow run container. To faciliate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
