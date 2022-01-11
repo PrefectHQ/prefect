@@ -52,7 +52,7 @@ Once the deployment has been created, you'll see it in the Orion dashboard and c
 When you run a deployed flow in Orion, the following happens:
 
 - The user runs the deployment, which creates a flow run. (The API creates flow runs automatically for deployments with schedules.)
-- An agent detects the flow run and uses a flow runner to creates infrastructure for the run.
+- An agent detects the flow run and uses a flow runner to create infrastructure for the run.
 - The flow run executes within the infrastructure.
 
 ## Deployment representation in Orion
@@ -75,7 +75,7 @@ Deployment properties include:
 | tags | An optional list of tags for the deployment. |
 | flow_runner | [`FlowRunnerSettings`](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.FlowRunnerSettings) containing details about the flow runner to assign to flow runs associated with this deployment. |
 
-You can inspect a deployment using the CLI with the `prefect deployment inspect` command, reference the deployment with `<flow_name>/<deployment_name>`.
+You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
 ```bash
 $ prefect deployment inspect hello-world/hello-world-daily
@@ -102,8 +102,9 @@ To create a deployment in Orion, you do not have to specify _all_ of the Deploym
 
 There are several ways to build a deployment specification and use it to create a deployment:
 
-- Construct a `DeploymentSpec` object and pass that to Orion when creating a deployment via API.
-- Write your deployment specification as Python or YAML and use the CLI to create the deployment. The CLI will generate the `DeploymentCreate` object to pass to the API.
+- If calling the API manually, construct a request with the fields specified by [`DeploymentCreate`](/api-ref/orion/schemas/actions/#prefect.orion.schemas.actions.DeploymentCreate).
+- If using the `OrionClient`, the request will be constructed for you. See [`OrionClient.create_deployment`](/api-ref/prefect/client/#prefect.client.OrionClient.create_deployment) for the required fields.
+- You can also write your deployment specification as Python or YAML and use the CLI to create the deployment. The CLI will generate the `DeploymentCreate` object to pass to the API.
 
 ### DeploymentSpec object
 
