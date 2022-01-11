@@ -14,10 +14,10 @@ from prefect.orion.database.interface import OrionDBInterface
 @inject_db
 async def create_concurrency_limit(
     session: sa.orm.Session,
-    deployment: schemas.core.concurrency_limit,
+    concurrency_limit: schemas.core.concurrency_limit,
     db: OrionDBInterface,
 ):
-    insert_values = deployment.dict(shallow=True, exclude_unset=True)
+    insert_values = concurrency_limit.dict(shallow=True, exclude_unset=True)
     concurrency_tag = insert_values["tag"]
 
     insert_stmt = (
