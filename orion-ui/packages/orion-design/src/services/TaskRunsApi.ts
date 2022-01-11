@@ -34,13 +34,15 @@ export type ITaskRunResponse = {
 }
 
 export class TaskRunsApi extends Api {
-  protected static route = '/api/task_runs'
+  public constructor() {
+    super('/api/task_runs')
+  }
 
-  public static getTaskRun(id: string): Promise<TaskRun> {
+  public getTaskRun(id: string): Promise<TaskRun> {
     return this.get(`/${id}`).then(this.taskRunResponseMapper)
   }
 
-  protected static taskRunMapper(taskRun: ITaskRunResponse): TaskRun {
+  protected taskRunMapper(taskRun: ITaskRunResponse): TaskRun {
     return new TaskRun({
       id: taskRun.id,
       flowRunId: taskRun.flow_run_id,
@@ -71,11 +73,13 @@ export class TaskRunsApi extends Api {
     })
   }
 
-  protected static taskRunResponseMapper({ data }: AxiosResponse<ITaskRunResponse>): TaskRun {
+  protected taskRunResponseMapper({ data }: AxiosResponse<ITaskRunResponse>): TaskRun {
     return this.taskRunMapper(data)
   }
 
-  protected static taskRunsResponseMapper({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
+  protected taskRunsResponseMapper({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
     return data.map(this.taskRunMapper)
   }
 }
+
+export const TaskRuns = new TaskRunsApi()

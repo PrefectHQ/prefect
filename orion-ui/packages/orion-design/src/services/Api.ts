@@ -3,43 +3,56 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 
 export class Api {
-  protected static route: string = ''
-  protected static config: AxiosRequestConfig = {
-    // todo: can this will need to be defined by the server itself
-    // https://github.com/PrefectHQ/orion/issues/667
-    baseURL: `http://localhost:4200${this.route}`,
-  }
-  protected static instance: AxiosInstance = axios.create(this.config)
+  // todo: can this will need to be defined by the server itself
+  // https://github.com/PrefectHQ/orion/issues/667
+  protected server: string = 'http://localhost:4200'
+  protected instance: AxiosInstance
 
-  protected static request<T = any, R = AxiosResponse<T>>(config: AxiosRequestConfig): Promise<R> {
+  public constructor(routeOrConfig: string | AxiosRequestConfig) {
+    let config: AxiosRequestConfig
+
+    if (typeof routeOrConfig === 'string') {
+      const route = routeOrConfig
+      config = {
+        baseURL: `http://localhost:4200${route}`,
+      }
+    } else {
+      config = routeOrConfig
+    }
+
+    this.instance = axios.create(config)
+  }
+
+  protected request<T = any, R = AxiosResponse<T>>(config: AxiosRequestConfig): Promise<R> {
     return this.instance.request(config)
   }
 
-  protected static get<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
+  protected get<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.get(url, config)
   }
 
-  protected static delete<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
+  protected delete<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.delete(url, config)
   }
 
-  protected static head<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
+  protected head<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.head(url, config)
   }
 
-  protected static options<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
+  protected options<T = any, R = AxiosResponse<T>>(url: string, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.options(url, config)
   }
 
-  protected static post<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
+  protected post<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
+    console.log('here', this.instance.post)
     return this.instance.post(url, data, config)
   }
 
-  protected static put<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
+  protected put<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.put(url, data, config)
   }
 
-  protected static patch<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
+  protected patch<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.patch(url, data, config)
   }
 }
