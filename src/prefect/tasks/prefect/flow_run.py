@@ -73,7 +73,7 @@ def create_flow_run(
         Union[
             pendulum.DateTime,
             datetime.datetime,
-            pendulum.duration.Duration,
+            pendulum.duration,
             datetime.timedelta,
         ]
     ] = None,
@@ -100,6 +100,8 @@ def create_flow_run(
             existing run config settings
         - scheduled_start_time: An optional time in the future to schedule flow run
             execution for. If not provided, the flow run will be scheduled to start now
+        - scheduled_delay_seconds: An optional amount of time, in seconds, to wait before
+            starting the flow. If not provided, the flow will start immediately.
         - idempotency_key: a unique idempotency key for scheduling the
             flow run. Duplicate flow runs with the same idempotency key will only create
             a single flow run. This is useful for ensuring that only one run is created
@@ -143,7 +145,7 @@ def create_flow_run(
     if idempotency_key is None:
         idempotency_key = prefect.context.get("task_run_id", None)
 
-    if isinstance(scheduled_start_time, pendulum.duration.Duration) or isinstance(
+    if isinstance(scheduled_start_time, pendulum.duration) or isinstance(
         scheduled_start_time, datetime.timedelta
     ):
         scheduled_start_time = pendulum.now("utc") + scheduled_start_time
