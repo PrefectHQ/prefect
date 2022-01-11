@@ -35,7 +35,7 @@ Create the deployment:
 $ prefect deployment create ./example-deployment.py
 ```
 
-In a separate terminal, start the Orion API:
+In a separate terminal, start the Orion server:
 
 ```bash
 $ prefect orion start
