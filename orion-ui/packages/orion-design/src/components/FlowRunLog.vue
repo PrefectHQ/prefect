@@ -1,5 +1,5 @@
 <template>
-  <div class="flow-run-log">
+  <div class="flow-run-log" :class="classes.log">
     <template v-if="log.taskRunId">
       <div class="flow-run-log__task">
         <TaskRunLink :task-id="log.taskRunId" />
@@ -42,6 +42,10 @@
     computed: {
       classes: function() {
         return {
+          log: {
+            'flow-run-log--has-task': this.log.taskRunId,
+          },
+
           time: [`flow-run-log__time--${snakeCase(LogLevel.GetLabel(this.log.level))}`],
         }
       },
@@ -54,33 +58,87 @@
 </script>
 
 <style lang="scss">
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use 'sass:map';
+
 .flow-run-log {
   display: grid;
-  grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr;
   gap: var(--p-1);
   font-size: 13px;
-  padding: 0 var(--p-1);
+  padding: var(--p-1);
+  padding-bottom: 0;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "level"
+    "time"
+    "message";
+
+  + .flow-run-log {
+    border-top: 1px solid var(--grey-20);
+  }
+
+  @media screen and (min-width: map.get($breakpoints, 'sm')) {
+    grid-template-columns: 100px 1fr;
+    grid-template-areas:
+      "level   task"
+      "time    ."
+      "message message";
+  }
+
+  @media screen and (min-width: map.get($breakpoints, 'md')) {
+    grid-template-areas: "task level time message";
+    grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr;
+    padding: 0 var(--p-1);
+
+    + .flow-run-log {
+      border: 0;
+    }
+  }
+}
+
+.flow-run-log--has-task {
+  grid-template-areas:
+    "level"
+    "time"
+    "task"
+    "message";
 }
 
 .flow-run-log__task {
-  grid-column: task;
+  grid-area: task;
   background-color: #F9FAFD;
   display: flex;
   align-items: flex-start;
   padding: 0 var(--p-1);
+  max-width: 100%;
+  min-width: 0;
+  margin-right: auto;
+
+  @media screen and (min-width: map.get($breakpoints, 'sm')) {
+    margin-right: unset;
+    margin-left: auto;
+  }
+
+  @media screen and (min-width: map.get($breakpoints, 'md')) {
+    margin-left: unset;
+  }
 }
 
 .flow-run-log__level {
   margin-top: 3px;
-  grid-column: level;
+  grid-area: level;
 }
 
 .flow-run-log__time {
   padding-top: 1px;
   font-family: 'input-sans';
-  text-align: center;
-  grid-column: time;
+  grid-area: time;
   color: var(--log-level-info);
+  text-align: 'left';
+
+  @media screen and (min-width: map.get($breakpoints, 'md')) {
+    text-align: center;
+  }
 }
 
 .flow-run-log__time--error {
@@ -96,7 +154,7 @@
   font-family: 'input-sans';
   border: 1px solid transparent;
   border-radius: 4px;
-  grid-column: message;
+  grid-area: message;
   padding: 0 var(--p-1);
   display: flex;
 

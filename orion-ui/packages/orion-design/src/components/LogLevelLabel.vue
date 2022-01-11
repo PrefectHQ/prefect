@@ -44,6 +44,7 @@
   line-height: 18px;
   color: #fff;
   text-align: center;
+  width: 65px;
 }
 
 .log-level-label--not-set,
