@@ -2,7 +2,7 @@
   <m-tabs
     class="results-list-tabs"
     :model-value="internalTab"
-    @update:modelValue="setTab"
+    @update:model-value="setTab"
   >
     <template v-for="tab in tabs" :key="tab.href">
       <m-tab

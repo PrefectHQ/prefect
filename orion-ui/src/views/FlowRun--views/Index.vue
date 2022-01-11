@@ -165,6 +165,10 @@
         endpoint="task_runs"
         :poll-interval="5000"
       />
+
+      <template v-else-if="resultsTab == 'logs'">
+        <FlowRunLogsTabContent :flow-run-id="id" />
+      </template>
     </transition>
   </section>
 
@@ -182,6 +186,7 @@ import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
+import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
 
 const route = useRoute()
 

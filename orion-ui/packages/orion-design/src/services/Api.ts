@@ -44,7 +44,6 @@ export class Api {
   }
 
   protected post<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
-    console.log('here', this.instance.post)
     return this.instance.post(url, data, config)
   }
 

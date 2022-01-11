@@ -20,9 +20,8 @@ export class LogsApi extends Api {
     super('/api/logs')
   }
 
-  public filter(filter: LogsRequestFilter): Promise<Log[]> {
-    console.log('here', this)
-    return this.post('/filter', filter).then(this.logsResponseMapper)
+  public filter(filter?: LogsRequestFilter): Promise<Log[]> {
+    return this.post('/filter', filter).then(response => this.logsResponseMapper(response))
   }
 
   protected logMapper(log: ILogResponse): Log {
@@ -40,7 +39,7 @@ export class LogsApi extends Api {
   }
 
   protected logsResponseMapper({ data }: AxiosResponse<ILogResponse[]>): Log[] {
-    return data.map(this.logMapper)
+    return data.map(log => this.logMapper(log))
   }
 }
 
