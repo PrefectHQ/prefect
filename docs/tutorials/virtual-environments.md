@@ -10,18 +10,18 @@ We recommend reading the documentation for the virtual environment of your choic
 In this example, we create an environment named `prefect-dev` with Python 3.8:
 
 ```bash
-$ conda create --name prefect-dev python=3.8   
+conda create --name prefect-dev python=3.8   
 ```
 
 Then, we activate the environment:
 
 ```bash
-$ conda activate prefect-dev
+conda activate prefect-dev
 ```
 
 Now, [install Prefect](/getting-started/installation.md):
 ```bash
-$ pip install prefect>=2.0a
+pip install prefect>=2.0a
 ```
 
 ## Running a flow in the virtual environment
@@ -41,7 +41,7 @@ my_flow()
 You can run this flow in your environment:
 
 ```bash
-$ python example.py
+python example.py
 ```
 
 If you flow has additional dependencies, you can add them to your environment with `pip install`.
@@ -88,19 +88,19 @@ DeploymentSpec(
 Create the deployment:
 
 ```bash
-$ prefect deployment create ./example-deployment.py
+prefect deployment create ./example-deployment.py
 ```
 
 In a separate terminal, start an agent:
 
 ```bash
-$ prefect agent start
+prefect agent start
 ```
 
 Then create a flow run for the deployment:
 
 ```bash
-$ prefect deployment run my-flow/example
+prefect deployment run my-flow/example
 ```
 
 You should see output from the agent as the flow run is submitted and run in your conda environment.

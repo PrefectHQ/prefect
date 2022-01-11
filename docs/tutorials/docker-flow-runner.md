@@ -32,19 +32,19 @@ DeploymentSpec(
 Create the deployment:
 
 ```bash
-$ prefect deployment create ./example-deployment.py
+prefect deployment create ./example-deployment.py
 ```
 
 In a separate terminal, start the Orion server:
 
 ```bash
-$ prefect orion start
+prefect orion start
 ```
 
 Then create a flow run for the deployment:
 
 ```bash
-$ prefect deployment run my-flow/example
+prefect deployment run my-flow/example
 ```
 
 You should see output in the Orion API as the flow run is submitted and a container is created.
@@ -52,7 +52,7 @@ You should see output in the Orion API as the flow run is submitted and a contai
 You can check that the container was run with:
 
 ```bash
-$ docker container ls --latest
+docker container ls --latest
 ```
 
 You should see a container with a name matching your flow run name.
@@ -96,7 +96,7 @@ If you do not have the Orion API hosted already, start the Orion API locally wit
 To connect the agent to your API, provide the `PREFECT_ORION_HOST` environment variable:
 
 ```bash
-$ PREFECT_ORION_HOST="http://127.0.0.1:4200/api/" prefect agent start
+PREFECT_ORION_HOST="http://127.0.0.1:4200/api/" prefect agent start
 ```
 
 The API must be available from within the flow run container. To faciliate connections to locally hosted APIs, `localhost` and `127.0.0.1` will be replaced with `host.docker.internal`.
