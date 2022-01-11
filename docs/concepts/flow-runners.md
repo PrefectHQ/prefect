@@ -61,7 +61,7 @@ For example, you can specify environment variables which will be provided no mat
 ```python hl_lines="13"
 from prefect import flow
 from prefect.deployments import DeploymentSpec
-from prefect.flow_runners import SubprocessFlowRunner
+from prefect.flow_runners import UniversalFlowRunner
 
 @flow
 def my_flow():
