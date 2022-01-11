@@ -1,13 +1,12 @@
 
 # Docker integration
 
-Prefect integrates with Docker via the [flow runner interface](/concepts/flow-runners/).
-The [DockerFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.DockerFlowRunner) runs Prefect flows using [Docker containers](https://www.docker.com/resources/what-container).
+Prefect integrates with Docker via the [flow runner interface](/concepts/flow-runners/). The [DockerFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.DockerFlowRunner) runs Prefect flows using [Docker containers](https://www.docker.com/resources/what-container).
 
 ## Requirements
 
-- The [Docker Engine](https://docs.docker.com/engine/) must be installed and running on the same machine as your agent
-- You must run a standalone Orion API (`prefect orion start`)
+- The [Docker Engine](https://docs.docker.com/engine/) must be installed and running on the same machine as your agent.
+- You must run a standalone Orion API server (`prefect orion start`).
 
 ## Your first Docker deployment
 
@@ -33,19 +32,19 @@ DeploymentSpec(
 Create the deployment:
 
 ```bash
-prefect deployment create ./example-deployment.py
+$ prefect deployment create ./example-deployment.py
 ```
 
 In a separate terminal, start the Orion API:
 
 ```bash
-prefect orion start
+$ prefect orion start
 ```
 
 Then create a flow run for the deployment:
 
 ```bash
-prefect deployment run my-flow/example
+$ prefect deployment run my-flow/example
 ```
 
 You should see output in the Orion API as the flow run is submitted and a container is created.
@@ -53,7 +52,7 @@ You should see output in the Orion API as the flow run is submitted and a contai
 You can check that the container was run with:
 
 ```bash
-docker container ls --latest
+$ docker container ls --latest
 ```
 
 You should see a container with a name matching your flow run name.
@@ -92,12 +91,12 @@ DockerFlowRunner(env={"EXTRA_PIP_PACKAGES": "my-extra-package1 my-extra-package2
 
 Since the created Docker container must be able to communicate with the API, the ephemeral API cannot be used with the Docker flow runner.
 
-When you run the standadlone API with `prefect orion start`, an agent is included by default. When run with the `--no-agent` flag, the agent will not be run alongside the API.
+When you run the Orion API server with `prefect orion start`, an agent is included by default. When run with the `--no-agent` flag, the agent will not be run alongside the API.
 
 The agent can be run standalone with `prefect agent start`. However, if you start the agent without giving it an API URL, it will run an ephemeral server. If this agent attempts to submit a flow run using the Docker flow runner, it will immediately fail.
 
 To connect to your hosted API, provide the `PREFECT_ORION_HOST` environment variable:
 
 ```bash
-PREFECT_ORION_HOST="http://127.0.0.1:4200/api/" prefect agent start
+$ PREFECT_ORION_HOST="http://127.0.0.1:4200/api/" prefect agent start
 ```
