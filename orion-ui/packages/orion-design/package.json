@@ -3,6 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
+        "dev": "vite build --watch",
         "build": "vite build & vue-tsc",
         "postbuild": "node scripts/fix-types.js"
     },
