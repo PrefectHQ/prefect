@@ -76,7 +76,7 @@ from prefect.flow_runners import DockerFlowRunner
 DockerFlowRunner(image="my-custom-tag")
 ```
 
-When using a custom image, you must have the `prefect` Python package installed and available from the default `python` command.
+When using a custom image, you must have the `prefect` Python package installed and available from the default `python` command. We recommend deriving your image from a Prefect base image e.g. `prefecthq/prefect:2.0a7-python3.8`.
 
 ### Adding requirements to the default image
 
