@@ -33,6 +33,7 @@
   border-radius: 4px;
   padding: 0 8px;
   line-height: 18px;
+  color: #fff;
 }
 
 .log-level-label--not-set,

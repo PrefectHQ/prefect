@@ -1,4 +1,5 @@
-export { default as ListItemLog } from './ListItemLog.vue'
+export { default as FlowRunLog } from './FlowRunLog.vue'
+export { default as FlowRunLogs } from './FlowRunLogs.vue'
 export { default as LogLevelLabel } from './LogLevelLabel.vue'
 export { default as ResultsListTabs } from './ResultsListTabs.vue'
 export { default as StateTypeIcon } from './StateTypeIcon.vue'

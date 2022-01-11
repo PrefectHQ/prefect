@@ -1,5 +1,5 @@
 <template>
-  <template v-if="subscription.response">
+  <template v-if="task">
     <a class="task-run-link">
       <StateTypeIcon :type="taskRunStateType!" colored />
       <span class="task-run-link__name">{{ taskRunName }}</span>
@@ -8,8 +8,8 @@
 </template>
 
 <script lang="ts" setup>
-  import { subscribe } from '@prefecthq/vue-compositions'
-  import { computed } from 'vue'
+  import { computed, ref } from 'vue'
+  import { TaskRun } from '..'
   import { TaskRuns } from '../services/TaskRunsApi'
   import StateTypeIcon from './StateTypeIcon.vue'
 
@@ -20,10 +20,11 @@
     },
   })
 
-  const subscription = subscribe(TaskRuns.getTaskRun, [props.taskId])
+  const task = ref<TaskRun | null>(null)
+  const taskRunName = computed(() => task.value?.name)
+  const taskRunStateType = computed(() => task.value?.stateType)
 
-  const taskRunName = computed(() => subscription.response.value?.name)
-  const taskRunStateType = computed(() => subscription.response.value?.stateType)
+  task.value = await TaskRuns.getTaskRun(props.taskId)
 </script>
 
 <style lang="css">
