@@ -94,3 +94,10 @@ The following flow runners are available:
 See the [`prefect.flow_runners` API reference](/api-ref/prefect/flow-runners/) for descriptions of each flow runner.
 
 Check out the [Docker flow runner tutorial](/tutorials/docker-flow-runner/) for getting started running a flow in a Docker container.
+
+
+## Flow runner serialization
+
+When a deployment is created, the flow runner must be serialized and stored by the API. When serialized, a flow runner is converted to a `FlowRunnerSettings` type. You'll see this schema when interacting with the API.
+
+When an agent begins submission of a flow run, it pulls flow runner settings from the API. The settings are deserialized into a concrete `FlowRunner` instance which is used to create the infrastructure for the flow run.
