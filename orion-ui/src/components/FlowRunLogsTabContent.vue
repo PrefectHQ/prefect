@@ -17,7 +17,9 @@ import {
   FlowRunLogs,
   Log
 } from '@prefecthq/orion-design'
-import { computed, defineProps, ref } from 'vue'
+import { subscribe } from '@prefecthq/vue-compositions'
+import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
+import { computed, defineProps, ref, watch } from 'vue'
 
 const props = defineProps({
   flowRunId: {
@@ -29,8 +31,6 @@ const props = defineProps({
   }
 })
 
-const logs = ref<Log[]>([])
-
 // todo: paginate this with limit/offset
 const filter = computed<LogsRequestFilter>(() => ({
   logs: {
@@ -40,7 +40,16 @@ const filter = computed<LogsRequestFilter>(() => ({
   }
 }))
 
-logs.value = await Logs.filter(filter.value)
+const options: SubscriptionOptions = {
+  interval: props.loading ? 5000 : undefined
+}
+const subscription = subscribe(Logs.filter.bind(Logs), [filter.value], options)
+const logs = computed<Log[]>(() => subscription.response.value ?? [])
+
+watch(
+  () => props.loading,
+  () => subscription.unsubscribe()
+)
 </script>
 
 <style>
