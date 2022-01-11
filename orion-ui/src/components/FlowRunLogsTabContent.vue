@@ -1,5 +1,13 @@
 <template>
-  <FlowRunLogs class="flow-run-logs-tab-content" :logs="logs" />
+  <div class="flow-run-logs-tabs-content">
+    <FlowRunLogs class="flow-run-logs-tab-content" :logs="logs" />
+    <template v-if="loading">
+      <div class="flow-run-logs-tabs-content__loading">
+        <m-loader :loading="true" class="flow-run-logs-tabs-content__loader" />
+        <span>Run in progress...</span>
+      </div>
+    </template>
+  </div>
 </template>
 
 <script lang="ts" setup>
@@ -15,6 +23,9 @@ const props = defineProps({
   flowRunId: {
     type: String,
     required: true
+  },
+  loading: {
+    type: Boolean
   }
 })
 
@@ -31,3 +42,23 @@ const filter = computed<LogsRequestFilter>(() => ({
 
 logs.value = await Logs.filter(filter.value)
 </script>
+
+<style>
+.flow-run-logs-tabs-content {
+  background-color: #fff;
+}
+
+.flow-run-logs-tabs-content__loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--p-1);
+}
+
+.flow-run-logs-tabs-content__loader {
+  /* loader needs to expose a prop */
+  --loader-size: 25px !important;
+  --loader-stroke-width: 5px !important;
+  margin-right: var(--m-1);
+}
+</style>

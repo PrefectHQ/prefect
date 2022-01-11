@@ -1,9 +1,11 @@
 <template>
   <button class="copy-button" @click="copy">
     <i class="pi pi-file-copy-line pi-sm" />
-    <span class="copy-button__label">
-      <slot>Copy</slot>
-    </span>
+    <template v-if="!iconOnly">
+      <span class="copy-button__label">
+        <slot>Copy</slot>
+      </span>
+    </template>
   </button>
 </template>
 
@@ -19,6 +21,13 @@ export default defineComponent({
     toast: {
       type: String as PropType<string>,
       default: 'Copied to Clipboard'
+    },
+    timeout: {
+      type: Number,
+      default: 5000
+    },
+    iconOnly: {
+      type: Boolean
     }
   },
   methods: {
@@ -27,7 +36,8 @@ export default defineComponent({
 
       this.$toast.add({
         type: 'success',
-        content: this.toast
+        content: this.toast,
+        timeout: this.timeout
       })
     }
   }

@@ -167,7 +167,7 @@
       />
 
       <template v-else-if="resultsTab == 'logs'">
-        <FlowRunLogsTabContent :flow-run-id="id" />
+        <FlowRunLogsTabContent :flow-run-id="id" :loading="loading" />
       </template>
     </transition>
   </section>
@@ -352,6 +352,10 @@ const end = computed<string>(() => {
 
 const state = computed<State>(() => {
   return flowRun.value?.state
+})
+
+const loading = computed<boolean>(() => {
+  return state.value.type == 'RUNNING'
 })
 
 const tags = computed(() => {

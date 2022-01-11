@@ -39,7 +39,7 @@ export class TaskRunsApi extends Api {
   }
 
   public getTaskRun(id: string): Promise<TaskRun> {
-    return this.get(`/${id}`).then(this.taskRunResponseMapper)
+    return this.get(`/${id}`).then(response => this.taskRunResponseMapper(response))
   }
 
   protected taskRunMapper(taskRun: ITaskRunResponse): TaskRun {
@@ -78,7 +78,7 @@ export class TaskRunsApi extends Api {
   }
 
   protected taskRunsResponseMapper({ data }: AxiosResponse<ITaskRunResponse[]>): TaskRun[] {
-    return data.map(this.taskRunMapper)
+    return data.map(task => this.taskRunMapper(task))
   }
 }
 
