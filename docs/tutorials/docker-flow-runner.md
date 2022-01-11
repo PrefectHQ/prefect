@@ -79,7 +79,7 @@ When using a custom image, you must have the `prefect` Python package installed 
 
 If you have some Python dependencies, but do not want to build your own image, our default image supports dynamic installation with `pip`.
 
-To use this feature, provide the environment variable `EXTRA_PIP_PACKAGES`:
+To use this feature, provide the environment variable `EXTRA_PIP_PACKAGES` as a space delimited string:
 
 ```python
 from prefect.flow_runners import DockerFlowRunner
