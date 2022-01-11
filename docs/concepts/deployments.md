@@ -77,8 +77,8 @@ Deployment properties include:
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
-```bash
-$ prefect deployment inspect hello-world/hello-world-daily
+```bash hl_lines="1"
+prefect deployment inspect hello-world/hello-world-daily
 Deployment(
     id='fee2bf95-5022-4945-bd7a-42a67b8b25fb',
     created='39 minutes ago',
@@ -199,14 +199,14 @@ Create a deployment with the Prefect CLI using the `prefect deployment create` c
 
 You can also run `prefect deployment create` to update an existing deployment:
 
-```bash
-$ prefect deployment create <filename>
+```bash hl_lines="1"
+prefect deployment create <filename>
 ```
 
 For example, if the hello-world deployment specification shown earlier is in the file flow.py, you'd see something like the following:
 
-```bash
-$ prefect deployment create flow.py
+```bash hl_lines="1"
+prefect deployment create flow.py
 Loading deployments from python script at 'flow.py'...
 Created deployment 'hello-world-daily' for flow 'hello-world'
 ```
