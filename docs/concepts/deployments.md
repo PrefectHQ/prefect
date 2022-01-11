@@ -189,9 +189,9 @@ Creating a deployment is the process of providing deployment specification data 
 
 There are several ways to create an Orion deployment:
 
-- Using CLI commands and a Python or YAML deployment specification.
-- Using the API with either a Python or YAML deployment specification or a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object.
-- Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to manually create a deployment without a `DeploymentSpec`. (Not recommended at this time.)
+- Using CLI commands and a Python or YAML [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec).
+- Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to manually create a deployment with [`create_deployment`](/api-ref/prefect/client/#prefect.client.OrionClient.create_deployment) and the fields specified by [`DeploymentCreate`](/api-ref/orion/schemas/actions/#prefect.orion.schemas.actions.DeploymentCreate). 
+- Making an API call with a JSON document conforming to `DeploymentCreate`. (Not recommended at this time.)
 
 ### Creating deployments with the CLI
 
