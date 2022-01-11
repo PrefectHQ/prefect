@@ -24,7 +24,7 @@ Then, we must [install Prefect](/getting-started/installation.md):
 pip install prefect>=2.0a
 ```
 
-## Writing and running a flow
+## Running a flow in the virtual environment
 
 Save the following script to the file `example.py`:
 
