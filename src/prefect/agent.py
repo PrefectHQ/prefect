@@ -18,7 +18,7 @@ from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.filters import FlowRunFilter
 from prefect.orion.schemas.sorting import FlowRunSort
 from prefect.orion.schemas.states import Failed, Pending, State, StateType
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 
 
 class OrionAgent:

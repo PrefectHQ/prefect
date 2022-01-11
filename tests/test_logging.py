@@ -1,13 +1,13 @@
 import logging
 import queue
 import sys
+import threading
 import time
 import uuid
 from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
 
-import anyio
 import pendulum
 import pytest
 
@@ -15,18 +15,19 @@ import prefect
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.orion.schemas.actions import LogCreate
-from prefect.utilities.compat import AsyncMock
-from prefect.utilities.logging import (
+from prefect.utilities.testing import AsyncMock
+from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
-    OrionHandler,
-    OrionLogWorker,
-    flow_run_logger,
-    get_logger,
-    get_run_logger,
     load_logging_config,
     setup_logging,
-    task_run_logger,
 )
+from prefect.logging.loggers import (
+    flow_run_logger,
+    get_logger,
+    task_run_logger,
+    get_run_logger,
+)
+from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
 
 
@@ -138,10 +139,11 @@ def test_default_level_is_applied_to_interpolated_yaml_values(dictConfigMock):
 @pytest.fixture
 def mock_log_worker(monkeypatch):
     mock = MagicMock()
-    monkeypatch.setattr("prefect.utilities.logging.OrionLogWorker", mock)
+    monkeypatch.setattr("prefect.logging.handlers.OrionLogWorker", mock)
     return mock
 
 
+@pytest.mark.enable_orion_handler
 class TestOrionHandler:
     @pytest.fixture
     def handler(self):
@@ -320,6 +322,17 @@ class TestOrionHandler:
 
         mock_log_worker().enqueue.assert_not_called()
 
+    def test_does_not_send_logs_when_handler_is_disabled(
+        self, logger, mock_log_worker, task_run
+    ):
+        with temporary_settings(
+            PREFECT_LOGGING_ORION_ENABLED="False",
+        ):
+            with TaskRunContext.construct(task_run=task_run):
+                logger.info("test")
+
+        mock_log_worker().enqueue.assert_not_called()
+
     def test_does_not_send_logs_outside_of_run_context(
         self, logger, mock_log_worker, capsys
     ):
@@ -351,7 +364,7 @@ class TestOrionHandler:
     ):
         with TaskRunContext.construct(task_run=task_run):
             with temporary_settings(
-                PREFECT_LOGGING_ORION_MAX_SINGLE_LOG_SIZE="1",
+                PREFECT_LOGGING_ORION_MAX_LOG_SIZE="1",
             ):
                 logger.info("test")
 
@@ -489,30 +502,49 @@ class TestOrionLogWorker:
         worker.enqueue(log_json)
         worker.enqueue(log_json)
         with temporary_settings(
-            PREFECT_LOGGING_ORION_MAX_BATCH_LOG_SIZE=str(test_log_size + 1),
-            PREFECT_LOGGING_ORION_MAX_SINGLE_LOG_SIZE=str(test_log_size),
+            PREFECT_LOGGING_ORION_BATCH_SIZE=str(test_log_size + 1),
+            PREFECT_LOGGING_ORION_MAX_LOG_SIZE=str(test_log_size),
         ):
             await worker.send_logs()
 
         assert mock_create_logs.call_count == 3
 
-    async def test_logs_are_sent_when_started(self, log_json, orion_client, worker):
-        with temporary_settings(PREFECT_LOGGING_ORION_LOG_INTERVAL="0.0001"):
+    async def test_logs_are_sent_when_started(
+        self, log_json, orion_client, worker, monkeypatch
+    ):
+        event = threading.Event()
+        unpatched_create_logs = orion_client.create_logs
+
+        async def create_logs(self, *args, **kwargs):
+            result = await unpatched_create_logs(*args, **kwargs)
+            event.set()
+            return result
+
+        monkeypatch.setattr("prefect.client.OrionClient.create_logs", create_logs)
+
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="0.001"):
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)
 
         # We want to ensure logs are written without the thread being joined
-        await anyio.sleep(0.1)
+        event.wait(1)
         logs = await orion_client.read_logs()
         assert len(logs) == 2
+
+    def test_batch_interval_is_respected(self, worker):
+        worker._stop_event = MagicMock(return_val=False)
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
+            worker.start()
+
+        worker._stop_event.wait.assert_called_once_with(5)
 
     async def test_logs_are_sent_immediately_when_stopped(
         self, log_json, orion_client, worker
     ):
         # Set a long interval
         start_time = time.time()
-        with temporary_settings(PREFECT_LOGGING_ORION_LOG_INTERVAL="10"):
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)

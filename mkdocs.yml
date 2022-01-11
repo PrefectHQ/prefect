@@ -88,6 +88,7 @@ nav:
             - 'prefect.deployments': api-ref/prefect/deployments.md
             - 'prefect.engine': api-ref/prefect/engine.md
             - 'prefect.exceptions': api-ref/prefect/exceptions.md
+            - 'prefect.logging': api-ref/prefect/logging.md
             - 'prefect.task_runners': api-ref/prefect/task-runners.md
             - 'prefect.flows': api-ref/prefect/flows.md
             - 'prefect.futures': api-ref/prefect/futures.md
@@ -99,7 +100,6 @@ nav:
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
-                - 'prefect.utilities.logging': api-ref/prefect/utilities/logging.md
                 - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
             - 'Command Line Interface':
                 - 'prefect.cli.agent': api-ref/prefect/cli/agent.md
