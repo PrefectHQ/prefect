@@ -1,0 +1,5 @@
+enhancement:
+  - "`StepActivate` task accepts `run` arguments - [#5231](https://github.com/PrefectHQ/prefect/pull/5231)"
+
+contributor:
+  - "[Mathijs Miermans](https://github.com/mmiermans)"
