@@ -853,6 +853,7 @@ class TestSubflowTaskInputs:
         )
 
 
+@pytest.mark.enable_orion_handler
 class TestFlowRunLogs:
     async def test_user_logs_are_sent_to_orion(self, orion_client):
         @flow
@@ -864,6 +865,20 @@ class TestFlowRunLogs:
 
         logs = await orion_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
+
+    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+        @flow
+        def my_flow():
+            logger = get_run_logger()
+            logger.info(
+                "Hello world!",
+                extra={"send_to_orion": False},
+            )
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" not in {log.message for log in logs}
 
     async def test_logs_are_given_correct_id(self, orion_client):
         @flow

@@ -33,7 +33,7 @@ import prefect
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 
 if TYPE_CHECKING:
     from docker import DockerClient

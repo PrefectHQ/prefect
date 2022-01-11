@@ -28,7 +28,7 @@ formatters:
         datefmt: "%H:%M:%S"
 
     json:
-        class: prefect.utilities.logging.JsonFormatter
+        class: prefect.logging.formatters.JsonFormatter
         format: "default"
 
 # filters:
@@ -55,7 +55,7 @@ handlers:
         formatter: task_runs
 
     orion:
-        class: prefect.utilities.logging.OrionHandler
+        class: prefect.logging.handlers.OrionHandler
         level: "{{default_level}}"
 
 loggers:

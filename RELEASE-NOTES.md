@@ -1,5 +1,21 @@
 # Orion Release Notes
 
+## 2.0a7
+
+### Flow Runners
+On the heels of the recent rename of Onion's `Executor` to `TaskRunner`, this release introduces `FlowRunner`, an analogous concept that specifies the infrastructure that a flow runs on. Just as a task runner can be specified for a flow, which encapsulates tasks, a flow runner can be specified for a deployment, which encapsulates a flow. This release includes two flow runners, which we expect to be the most commonly used:
+- **SubprocessFlowRunner** - The subprocess flow runner is the default flow runner. It allows for specification of a runtime Python environment with `virtualenv` and `conda` support.
+- **DockerFlowRunner** - Executes the flow run in a Docker container. The image, volumes, labels, and networks can be customized. From this release on, Docker images for use with this flow runner will be published with each release.
+
+Future releases will introduce runners for executing flows on Kubernetes and major cloud platform's container compute services (e.g. AWS ECS, Google Cloud Run).
+
+### Other enhancements
+In addition to flow runners, we added several other enhancements and resolved a few issues, including:
+- Corrected git installation command in docs
+- Refined UI through color, spacing, and alignment updates
+- Resolved memory leak issues associated with the cache of session factories
+- Improved agent locking of double submitted flow runs and handling for failed flow run submission
+
 ## 2.0a6
 
 ### Subflows and Radar follow up
@@ -9,13 +25,13 @@ With the 2.0a5 release, we introduced the ability to navigate seamlessly between
 - Adding a flow and task run count to all subflow run cards in the Radar view
 - Adding a mini Radar view on the Flow run page
 
-### Runners
+### Task Runners
 Previous versions of Prefect could only trigger execution of code defined within tasks. Orion can trigger execution of significant code that can be run _outside of tasks_. In order to make the role previously played by Prefect's `Executor` more explicit, we have renamed `Executor` to `TaskRunner`.
 
-A related `FlowRunner` component is forthcoming. 
+A related `FlowRunner` component is forthcoming.
 
 ### Other enhancements
-In addition to the introducing of runners and subflow UI enhancements, we added several other enhancements and resolved a few issues, including: 
+In addition to task runners and subflow UI enhancements, we added several other enhancements and resolved a few issues, including:
 - Introduced dependency injection pathways so that Orion's database access can be modified after import time
 - Enabled the ability to copy the run ID from the flow run page
 - Added additional metadata to the flow run page details panel
@@ -40,8 +56,8 @@ While our focus was on Radar, we also made several other material improvements t
 
 We're excited to announce the fourth alpha release of Prefect's second-generation workflow engine.
 
-In this release, the highlight is executors. Executors are used to run tasks in Prefect workflows. 
-In Orion, you can write a flow that contains no tasks. 
+In this release, the highlight is executors. Executors are used to run tasks in Prefect workflows.
+In Orion, you can write a flow that contains no tasks.
 It can call many functions and execute arbitrary Python, but it will all happen sequentially and on a single machine.
 Tasks allow you to track and orchestrate discrete chunks of your workflow while enabling powerful execution patterns.
 

@@ -179,7 +179,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
         States.RUNNING,
         States.COMPLETED,
         States.FAILED,
-        States.CANCELED
+        States.CANCELLED
       ])
       .value((d: Bucket, key: string) => {
         const value =
