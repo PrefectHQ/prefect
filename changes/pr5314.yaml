@@ -1,0 +1,5 @@
+task:
+  - "Fix response key in airbyte task health check - [#5314](https://github.com/PrefectHQ/prefect/pull/5314)"
+
+contributor:
+  - "[Dennis Hinnenkamp](https://github.com/sikwel)"
