@@ -24,3 +24,12 @@
     },
   })
 </script>
+
+<style>
+.flow-run-logs {
+  background-color: #fff;
+  padding: var(--p-1) 0;
+  display: grid;
+  gap: var(--p-1);
+}
+</style>

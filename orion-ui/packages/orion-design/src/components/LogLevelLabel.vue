@@ -24,6 +24,15 @@
 </script>
 
 <style lang="css">
+:root {
+  --log-level-not-set: #8EA0AE;
+  --log-level-info: #8EA0AE;
+  --log-level-debug: #024DFD;
+  --log-level-warning: #8EA0AE;
+  --log-level-error: #FB4E4E;
+  --log-level-critical: #B82E2E;
+}
+
 .log-level-label {
   display: inline-block;
   font-family: barlow;
@@ -34,26 +43,27 @@
   padding: 0 8px;
   line-height: 18px;
   color: #fff;
+  text-align: center;
 }
 
 .log-level-label--not-set,
 .log-level-label--info {
-  background-color: #8EA0AE;
+  background-color: var(--log-level-info);
 }
 
 .log-level-label--debug {
-  background-color: #024DFD;
+  background-color: var(--log-level-debug);
 }
 
 .log-level-label--warning {
-  background-color: #8EA0AE;
+  background-color: var(--log-level-warning);
 }
 
 .log-level-label--error {
-  background-color: #F6A609;
+  background-color: var(--log-level-error);
 }
 
 .log-level-label--critical {
-  background-color: #B82E2E;
+  background-color: var(--log-level-critical);
 }
 </style>
