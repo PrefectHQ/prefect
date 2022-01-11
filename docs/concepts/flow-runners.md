@@ -18,7 +18,7 @@ Flow runners are specific to the environments in which flows will run. Prefect c
 - `SubprocessFlowRunner` runs flows in a local subprocess
 - `DockerFlowRunner` runs flows in a Docker container
 
-## Using an flow runner
+## Using a flow runner
 
 To use a specific flow runner, import the flow runner from `prefect.flow_runners` and assign the flow runner to the deployment in the deployment specification when a deployment is created. 
 
