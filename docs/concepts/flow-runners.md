@@ -1,6 +1,6 @@
 # Flow runners
 
-Flow runners are responsible for running Prefect flows. Each deployment has a flow runner associated with it. The flow runner is used to create and monitor infrastructure for flow runs associated with deployments.
+Flow runners are responsible for creating and monitoring infrastructure for flow runs associated with deployments.
 
 When creating ad hoc flow runs by calling a flow yourself, you are taking full control of your flow's execution environment. A flow runner cannot be used in this case.
 
