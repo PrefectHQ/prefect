@@ -2,15 +2,29 @@
 
 Flow runners are responsible for running Prefect flows. Each deployment has a flow runner associated with it. The flow runner is used to create and monitor infrastructure for flow runs associated with deployments.
 
-When creating adhoc flow runs by calling a flow yourself, you are taking full control of your flow's execution environment. A flow runner cannot be used in this case.
+When creating ad hoc flow runs by calling a flow yourself, you are taking full control of your flow's execution environment. A flow runner cannot be used in this case.
+
+## Flow runners overview
+
+There are parallels between flow and task runs. Notably, each has a step where infrastructure can be created for the user's code to execute in. Based on the deployment specification for a deployment, flow runners:
+
+- Create the environment specified by the deployment specification and any included environment variables.
+- Retrieve the flow from a code file, `DataDocument`, or pickle.
+- Run the flow.
+
+Flow runners are specific to the environments in which flows will run. Prefect currently provides the following flow runners:
+
+- `UniversalFlowRunner` is the base flow runner
+- `SubprocessFlowRunner` runs flows in a local subprocess
+- `DockerFlowRunner` runs flows in a Docker container
 
 ## Using an flow runner
 
-Import flow runners from `prefect.flow_runners` and assign one when the deployment is created. 
+To use a specific flow runner, import the flow runner from `prefect.flow_runners` and assign the flow runner to the deployment in the deployment specification when a deployment is created. 
 
-For example, when using a `DeploymentSpec`, we can attach a `SubprocessFlowRunner` to indicate that this flow should be run in a subprocess:
+For example, when using a `DeploymentSpec`, you can attach a `SubprocessFlowRunner` to indicate that this flow should be run in a local subprocess:
 
-```python hl_lines="13"
+```python
 from prefect import flow
 from prefect.deployments import DeploymentSpec
 from prefect.flow_runners import SubprocessFlowRunner
@@ -18,7 +32,6 @@ from prefect.flow_runners import SubprocessFlowRunner
 @flow
 def my_flow():
     pass
-
 
 DeploymentSpec(
     name="test",
@@ -29,11 +42,11 @@ DeploymentSpec(
 
 ## Configuring a flow runner
 
-All flow runners have the configuration fields at [UniversalFlowRunner](...) available. Additionally, each flow runner has type specific options.
+All flow runners have the configuration fields at [`UniversalFlowRunner`](/api-ref/prefect/flow_runners/#prefect.flow_runners.UniversalFlowRunner) available. Additionally, every flow runner has type-specific options.
 
-For example, we can configure our subprocess flow runner to include an environment variable (a universal setting) and an Anaconda environment (a subprocess specific setting):
+For example, you can configure the `SubprocessFlowRunner` to include an environment variable (a universal setting) and an Anaconda environment (a subprocess-specific setting):
 
-```python hl_lines="13"
+```python hl_lines="12"
 from prefect import flow
 from prefect.deployments import DeploymentSpec
 from prefect.flow_runners import SubprocessFlowRunner
@@ -41,7 +54,6 @@ from prefect.flow_runners import SubprocessFlowRunner
 @flow
 def my_flow():
     pass
-
 
 DeploymentSpec(
     name="test",
@@ -56,9 +68,9 @@ By including a flow runner type for your deployment, you are specifying where yo
 
 The `UniversalFlowRunner` is useful when you want to use the universal settings without limiting the flow run to a specific type of infrastructure.
 
-For example, you can specify environment variables which will be provided no matter what infrastructure the flow runs on:
+For example, you can specify environment variables that will be provided no matter what infrastructure the flow runs on:
 
-```python hl_lines="13"
+```python hl_lines="12"
 from prefect import flow
 from prefect.deployments import DeploymentSpec
 from prefect.flow_runners import UniversalFlowRunner
@@ -66,7 +78,6 @@ from prefect.flow_runners import UniversalFlowRunner
 @flow
 def my_flow():
     pass
-
 
 DeploymentSpec(
     name="test",
@@ -81,15 +92,14 @@ If a deployment has a universal flow runner or no flow runner specified, the def
 
 The default flow runner is configured by the agent. Currently, the agent does not allow the default to be changed. A `SubprocessFlowRunner` will always be used.
 
-
 ## Types of flow runners
 
 The following flow runners are available:
 
-- Universal
-- Subprocess
-- Docker
-- Kubernetes (planned)
+- `UniversalFlowRunner` is the base flow runner
+- `SubprocessFlowRunner` runs flows in a local subprocess
+- `DockerFlowRunner` runs flows in a Docker container
+- `KubernetesFlowrunner` (planned for a future release)
 
 See the [`prefect.flow_runners` API reference](/api-ref/prefect/flow-runners/) for descriptions of each flow runner.
 
@@ -101,4 +111,4 @@ Check out the [virtual environments](/tutorials/virtual-environments/) for getti
 
 When a deployment is created, the flow runner must be serialized and stored by the API. When serialized, a flow runner is converted to a `FlowRunnerSettings` type. You'll see this schema when interacting with the API.
 
-When an agent begins submission of a flow run, it pulls flow runner settings from the API. The settings are deserialized into a concrete `FlowRunner` instance which is used to create the infrastructure for the flow run.
+When an agent begins submission of a flow run, it pulls flow runner settings from the API. The settings are deserialized into a concrete `FlowRunner` instance, which is used to create the infrastructure for the flow run.
