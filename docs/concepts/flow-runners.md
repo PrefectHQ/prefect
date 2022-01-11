@@ -8,7 +8,12 @@ When creating ad hoc flow runs by calling a flow yourself, you are taking full c
 
 There are parallels between flow and task runs. Notably, each has a step where infrastructure can be created for the user's code to execute in. 
 
-The flow runner is attached to a deployment and is propagated to flow runs created for that deployment. The flow runner is deserialized by the agent and it has one job: Start the infrastructure it is configured to create, then run a Python command to start the `prefect.engine`, which acquires and calls the flow.
+The flow runner is attached to a deployment and is propagated to flow runs created for that deployment. The flow runner is deserialized by the agent and it has two jobs:
+
+- Create infrastructure
+- Run a Python command to start the `prefect.engine` in the infrastructure
+
+The engine acquires and calls the flow. The flow runner doesn't know anything about how the flow is stored, it's just passing a flow run id to the engine.
 
 Flow runners are specific to the environments in which flows will run. Prefect currently provides the following flow runners:
 
