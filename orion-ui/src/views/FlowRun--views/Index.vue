@@ -169,7 +169,7 @@
       />
 
       <template v-else-if="resultsTab == 'logs'">
-        <FlowRunLogsTabContent :flow-run-id="id" :loading="loading" />
+        <FlowRunLogsTabContent :flow-run-id="id" :running="running" />
       </template>
     </transition>
   </section>
@@ -320,7 +320,8 @@ const queries: { [key: string]: Query } = {
 
 const countMap = {
   task_runs: 'task_runs_count',
-  sub_flow_runs: 'sub_flow_runs_count'
+  sub_flow_runs: 'sub_flow_runs_count',
+  logs: '' // dummy because there is no count query for logs. And not taking the time to refactor results count right now
 }
 
 const resultsCount = computed(() => {
@@ -356,7 +357,7 @@ const state = computed<State>(() => {
   return flowRun.value?.state
 })
 
-const loading = computed<boolean>(() => {
+const running = computed<boolean>(() => {
   return state.value.type == 'RUNNING'
 })
 

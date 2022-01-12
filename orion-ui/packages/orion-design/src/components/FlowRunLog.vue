@@ -1,9 +1,10 @@
 <template>
   <div class="flow-run-log">
     <LogLevelLabel :level="log.level" class="flow-run-log__level" />
-    <span class="flow-run-log__time" :class="classes.time">{{ time }}</span>
+    <span v-tooltip="formatDateTimeNumeric(log.timestamp)" class="flow-run-log__time" :class="classes.time">{{ time }}</span>
     <template v-if="log.taskRunId">
       <div class="flow-run-log__task">
+        <!-- this has an api call which technically shouldn't be nested in orion-design components -->
         <TaskRunLink :task-id="log.taskRunId" />
       </div>
     </template>
@@ -18,7 +19,7 @@
   import CopyButton from '@/components/Global/CopyButton.vue'
   import { snakeCase } from '@/utilities/strings'
   import { defineComponent, PropType } from 'vue'
-  import { formatTimeNumeric, LogLevel } from '..'
+  import { formatDateTimeNumeric, formatTimeNumeric, LogLevel } from '..'
   import { Log } from '../models'
   import LogLevelLabel from './LogLevelLabel.vue'
   import TaskRunLink from './TaskRunLink.vue'
@@ -49,6 +50,10 @@
       time: function() {
         return formatTimeNumeric(this.log.timestamp)
       },
+    },
+
+    methods: {
+      formatDateTimeNumeric,
     },
   })
 </script>
@@ -99,6 +104,7 @@
   max-width: 100%;
   min-width: 0;
   margin-right: auto;
+  user-select: none;
 
   @media screen and (min-width: map.get($breakpoints, 'sm')) {
     margin-right: unset;
@@ -111,6 +117,7 @@
 }
 
 .flow-run-log__level {
+  user-select: none;
   margin-top: 3px;
   grid-area: level;
 }
