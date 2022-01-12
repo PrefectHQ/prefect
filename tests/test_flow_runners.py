@@ -777,13 +777,7 @@ class TestDockerFlowRunner:
     async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_if_not_present(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
-        mock_get = MagicMock()
-
-        def raise_error(_):
-            raise ImageNotFound("No way, bub")
-
-        mock_get.side_effect = raise_error
-        mock_docker_client.images.get = mock_get
+        mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
 
         await DockerFlowRunner(image="prefect:omega").submit_flow_run(
             flow_run, MagicMock()
@@ -794,13 +788,7 @@ class TestDockerFlowRunner:
     async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than_latest_if_present(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
-        mock_get = MagicMock()
-
-        def return_image(_):
-            return Image()
-
-        mock_get.side_effect = return_image
-        mock_docker_client.images.get = mock_get
+        mock_docker_client.images.get.return_value = Image()
 
         await DockerFlowRunner(image="prefect:omega").submit_flow_run(
             flow_run, MagicMock()
@@ -811,7 +799,7 @@ class TestDockerFlowRunner:
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
         await DockerFlowRunner(
-            image="prefect", image_pull_policy=ImagePullPolicy.always
+            image="prefect", image_pull_policy=ImagePullPolicy.ALWAYS
         ).submit_flow_run(flow_run, MagicMock())
         mock_docker_client.images.get.assert_not_called()
         mock_docker_client.images.pull.assert_called_once()
@@ -821,23 +809,17 @@ class TestDockerFlowRunner:
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
         await DockerFlowRunner(
-            image="prefect", image_pull_policy=ImagePullPolicy.never
+            image="prefect", image_pull_policy=ImagePullPolicy.NEVER
         ).submit_flow_run(flow_run, MagicMock())
         mock_docker_client.images.pull.assert_not_called()
 
     async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
-        mock_get = MagicMock()
-
-        def raise_error(_):
-            raise ImageNotFound("No way, bub")
-
-        mock_get.side_effect = raise_error
-        mock_docker_client.images.get = mock_get
+        mock_docker_client.images.get.side_effect = ImageNotFound("No way, bub")
 
         await DockerFlowRunner(
-            image="prefect", image_pull_policy=ImagePullPolicy.if_not_present
+            image="prefect", image_pull_policy=ImagePullPolicy.IF_NOT_PRESENT
         ).submit_flow_run(flow_run, MagicMock())
         mock_docker_client.images.pull.assert_called_once()
         mock_docker_client.images.pull.assert_called_with("prefect", None)
@@ -845,16 +827,10 @@ class TestDockerFlowRunner:
     async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
         self, mock_docker_client, flow_run, use_hosted_orion
     ):
-        mock_get = MagicMock()
-
-        def return_image(_):
-            return Image()
-
-        mock_get.side_effect = return_image
-        mock_docker_client.images.get = mock_get
+        mock_docker_client.images.get.return_value = Image()
 
         await DockerFlowRunner(
-            image="prefect", image_pull_policy=ImagePullPolicy.if_not_present
+            image="prefect", image_pull_policy=ImagePullPolicy.IF_NOT_PRESENT
         ).submit_flow_run(flow_run, MagicMock())
         mock_docker_client.images.pull.assert_not_called()
 
