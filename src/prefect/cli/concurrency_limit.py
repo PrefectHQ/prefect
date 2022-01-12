@@ -37,3 +37,16 @@ async def create(tag: str, concurrency_limit: int):
             raise
 
     console.print(Pretty(cl))
+
+
+@concurrency_limit_app.command()
+@sync_compatible
+async def delete(tag: str):
+
+    async with OrionClient() as client:
+        try:
+            result = await client.delete_concurrency_limit_by_tag(tag=tag)
+        except httpx.HTTPStatusError as exc:
+            raise
+
+    console.print(Pretty(result))

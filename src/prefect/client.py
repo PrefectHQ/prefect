@@ -142,6 +142,24 @@ class OrionClient:
         response.raise_for_status()
         return response
 
+    async def delete(self, route: str, **kwargs) -> httpx.Response:
+        """
+        Send a DELETE request to the provided route.
+
+        Args:
+            route: the path to make the request to
+            **kwargs: see [`httpx.request`](https://www.python-httpx.org/api/)
+
+        Raises:
+            httpx.HTTPStatusError: if a non-200 status code is returned
+
+        Returns:
+            an `httpx.Response` object
+        """
+        response = await self._client.delete(route, **kwargs)
+        response.raise_for_status()
+        return response
+
     async def get(
         self,
         route: str,
@@ -448,6 +466,29 @@ class OrionClient:
             raise httpx.RequestError(f"Malformed response: {response}")
 
         return UUID(concurrency_limit_id)
+
+    async def delete_concurrency_limit_by_tag(
+        self,
+        tag: str,
+    ):
+        """
+        Create a flow deployment in Orion.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+
+        Raises:
+            httpx.RequestError: if the concurrency limit was not found
+
+        Returns:
+            True if the concurrency limit was deleted
+        """
+
+        response = await self.delete(
+            f"/concurrency_limits/tag/{tag}",
+        )
+
+        return response
 
     async def create_deployment(
         self,

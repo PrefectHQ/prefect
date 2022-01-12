@@ -78,3 +78,33 @@ async def read_concurrency_limit_by_tag(
             status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
         )
     return model
+
+
+@router.delete("/{id}")
+async def delete_concurrency_limit(
+    concurrency_limit_id: UUID = Path(
+        ..., description="The concurrency limit id", alias="id"
+    ),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    result = await models.concurrency_limits.delete_concurrency_limit(
+        session=session, concurrency_limit_id=concurrency_limit_id
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+        )
+
+
+@router.delete("/tag/{tag}")
+async def delete_concurrency_limit_by_tag(
+    tag: str = Path(..., description="The tag name"),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+):
+    result = await models.concurrency_limits.delete_concurrency_limit_by_tag(
+        session=session, tag=tag
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+        )
