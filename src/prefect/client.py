@@ -414,6 +414,41 @@ class OrionClient:
             json=flow_run_data.dict(json_compatible=True, exclude_unset=True),
         )
 
+    async def create_concurrency_limit(
+        self,
+        tag: str,
+        concurrency_limit: int,
+    ) -> UUID:
+        """
+        Create a flow deployment in Orion.
+
+        Args:
+            tag: a tag the concurrency limit is applied to
+            concurrency_limit: the maximum number of concurrent runs for a given tag
+
+        Raises:
+            httpx.RequestError: if the concurrency limit was not created for any reason
+
+        Returns:
+            the ID of the concurrency limit in the backend
+        """
+
+        concurrency_limit_create = schemas.actions.ConcurrencyLimitCreate(
+            tag=tag,
+            concurrency_limit=concurrency_limit,
+        )
+        response = await self.post(
+            "/concurrency_limits/",
+            json=concurrency_limit_create.dict(json_compatible=True),
+        )
+
+        concurrency_limit_id = response.json().get("id")
+
+        if not concurrency_limit_id:
+            raise httpx.RequestError(f"Malformed response: {response}")
+
+        return UUID(concurrency_limit_id)
+
     async def create_deployment(
         self,
         flow_id: UUID,

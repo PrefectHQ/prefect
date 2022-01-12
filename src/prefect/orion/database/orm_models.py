@@ -786,6 +786,7 @@ class BaseORMConfiguration(ABC):
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
         self.Log = Log
+        self.ConcurrencyLimit = ConcurrencyLimit
 
     @abstractmethod
     def run_migrations(self):
