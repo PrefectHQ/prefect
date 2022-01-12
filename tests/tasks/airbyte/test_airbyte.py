@@ -41,7 +41,10 @@ class TestAirbyte:
     def test_check_health_status(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
-            responses.GET, airbyte_base_url + "/health/", json={"db": True}, status=200
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"db": True},
+            status=200,
         )
         session = requests.Session()
         task = AirbyteConnectionTask(
@@ -54,7 +57,42 @@ class TestAirbyte:
     def test_check_health_status_2(self):
         airbyte_base_url = f"http://localhost:8000/api/v1"
         responses.add(
-            responses.GET, airbyte_base_url + "/health/", json={"db": False}, status=200
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"db": False},
+            status=200,
+        )
+        session = requests.Session()
+        task = AirbyteConnectionTask(
+            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
+        )
+        with pytest.raises(AirbyteServerNotHealthyException):
+            task._check_health_status(session, airbyte_base_url)
+
+    @responses.activate
+    def test_check_health_status_3(self):
+        airbyte_base_url = f"http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"available": True},
+            status=200,
+        )
+        session = requests.Session()
+        task = AirbyteConnectionTask(
+            connection_id="749c19dc-4f97-4f30-bb0f-126e53506960"
+        )
+        response = task._check_health_status(session, airbyte_base_url)
+        assert response
+
+    @responses.activate
+    def test_check_health_status_4(self):
+        airbyte_base_url = f"http://localhost:8000/api/v1"
+        responses.add(
+            responses.GET,
+            airbyte_base_url + "/health/",
+            json={"available": False},
+            status=200,
         )
         session = requests.Session()
         task = AirbyteConnectionTask(
