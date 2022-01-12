@@ -90,7 +90,9 @@ class ORMFlow:
     def deployments(cls):
         return sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
 @declarative_mixin
@@ -135,14 +137,16 @@ class ORMFlowRunState:
     def as_state(self) -> states.State:
         return states.State.from_orm(self)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run_state__flow_run_id_timestamp_desc",
-            "flow_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_flow_run_state__flow_run_id_timestamp_desc",
+                "flow_run_id",
+                sa.desc("timestamp"),
+                unique=True,
+            ),
+        )
 
 
 @declarative_mixin
@@ -187,14 +191,16 @@ class ORMTaskRunState:
     def as_state(self) -> states.State:
         return states.State.from_orm(self)
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run_state__task_run_id_timestamp_desc",
-            "task_run_id",
-            sa.desc("timestamp"),
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_task_run_state__task_run_id_timestamp_desc",
+                "task_run_id",
+                sa.desc("timestamp"),
+                unique=True,
+            ),
+        )
 
 
 class ORMTaskRunStateCache:
@@ -209,13 +215,15 @@ class ORMTaskRunStateCache:
     )
     task_run_state_id = sa.Column(UUID(), nullable=False)
 
-    __table_args__ = (
-        sa.Index(
-            "ix_task_run_state_cache__cache_key_created_desc",
-            "cache_key",
-            sa.desc("created"),
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "ix_task_run_state_cache__cache_key_created_desc",
+                "cache_key",
+                sa.desc("created"),
+            ),
+        )
 
 
 @declarative_mixin
@@ -449,34 +457,36 @@ class ORMFlowRun(ORMRun):
             foreign_keys=lambda: [cls.parent_task_run_id],
         )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_flow_run__flow_id_idempotency_key",
-            "flow_id",
-            "idempotency_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_flow_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_flow_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_flow_run__state_type",
-            "state_type",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_flow_run__flow_id_idempotency_key",
+                "flow_id",
+                "idempotency_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_flow_run__expected_start_time_desc",
+                sa.desc("expected_start_time"),
+            ),
+            sa.Index(
+                "ix_flow_run__next_scheduled_start_time_asc",
+                sa.asc("next_scheduled_start_time"),
+            ),
+            sa.Index(
+                "ix_flow_run__end_time_desc",
+                sa.desc("end_time"),
+            ),
+            sa.Index(
+                "ix_flow_run__start_time",
+                "start_time",
+            ),
+            sa.Index(
+                "ix_flow_run__state_type",
+                "state_type",
+            ),
+        )
 
 
 @declarative_mixin
@@ -584,35 +594,37 @@ class ORMTaskRun(ORMRun):
             uselist=False,
         )
 
-    __table_args__ = (
-        sa.Index(
-            "uq_task_run__flow_run_id_task_key_dynamic_key",
-            "flow_run_id",
-            "task_key",
-            "dynamic_key",
-            unique=True,
-        ),
-        sa.Index(
-            "ix_task_run__expected_start_time_desc",
-            sa.desc("expected_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            sa.asc("next_scheduled_start_time"),
-        ),
-        sa.Index(
-            "ix_task_run__end_time_desc",
-            sa.desc("end_time"),
-        ),
-        sa.Index(
-            "ix_task_run__start_time",
-            "start_time",
-        ),
-        sa.Index(
-            "ix_task_run__state_type",
-            "state_type",
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_task_run__flow_run_id_task_key_dynamic_key",
+                "flow_run_id",
+                "task_key",
+                "dynamic_key",
+                unique=True,
+            ),
+            sa.Index(
+                "ix_task_run__expected_start_time_desc",
+                sa.desc("expected_start_time"),
+            ),
+            sa.Index(
+                "ix_task_run__next_scheduled_start_time_asc",
+                sa.asc("next_scheduled_start_time"),
+            ),
+            sa.Index(
+                "ix_task_run__end_time_desc",
+                sa.desc("end_time"),
+            ),
+            sa.Index(
+                "ix_task_run__start_time",
+                "start_time",
+            ),
+            sa.Index(
+                "ix_task_run__state_type",
+                "state_type",
+            ),
+        )
 
 
 @declarative_mixin
@@ -648,14 +660,16 @@ class ORMDeployment:
     def flow(cls):
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
 
-    __table_args__ = (
-        sa.Index(
-            "uq_deployment__flow_id_name",
-            "flow_id",
-            "name",
-            unique=True,
-        ),
-    )
+    @declared_attr
+    def __table_args__(cls):
+        return (
+            sa.Index(
+                "uq_deployment__flow_id_name",
+                "flow_id",
+                "name",
+                unique=True,
+            ),
+        )
 
 
 @declarative_mixin
@@ -686,7 +700,9 @@ class ORMSavedSearch:
         nullable=False,
     )
 
-    __table_args__ = (sa.UniqueConstraint("name"),)
+    @declared_attr
+    def __table_args__(cls):
+        return (sa.UniqueConstraint("name"),)
 
 
 class BaseORMConfiguration(ABC):
