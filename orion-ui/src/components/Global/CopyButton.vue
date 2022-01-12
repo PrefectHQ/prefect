@@ -15,7 +15,7 @@ import { defineComponent, PropType } from 'vue'
 export default defineComponent({
   props: {
     value: {
-      type: String as PropType<string>,
+      type: [String, Function] as PropType<string | (() => string)>,
       required: true
     },
     toast: {
@@ -32,7 +32,11 @@ export default defineComponent({
   },
   methods: {
     copy() {
-      navigator.clipboard.writeText(this.value)
+      if (typeof this.value === 'function') {
+        navigator.clipboard.writeText(this.value())
+      } else {
+        navigator.clipboard.writeText(this.value)
+      }
 
       this.$toast.add({
         type: 'success',
