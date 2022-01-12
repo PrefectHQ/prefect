@@ -90,15 +90,10 @@ class OrionLogWorker:
 
             # Pull logs from the queue until it is empty or we reach the batch size
             try:
-                while self._pending_size < max_batch_size:
+                while self._pending_size <= max_batch_size:
                     log = self._queue.get_nowait()
                     self._pending_logs.append(log)
                     self._pending_size += sys.getsizeof(log)
-
-                    # Ensure that we do not add another log if we have reached the max
-                    # size already
-                    if self._pending_size > max_batch_size:
-                        break
 
             except queue.Empty:
                 done = True
