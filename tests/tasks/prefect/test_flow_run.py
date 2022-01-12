@@ -109,6 +109,33 @@ class TestCreateFlowRun:
             idempotency_key=None,
         )
 
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"scheduled_start_time": pendulum.duration(days=1)},
+        ],
+    )
+    def test_creates_flow_in_future(
+        self, MockFlowView, MockClient, monkeypatch, kwargs
+    ):
+        MockFlowView.from_id.return_value.flow_id = "flow-id"
+        # Mocking the concept of "now" so we can have consistent assertions
+        now = pendulum.now("utc")
+        mock_now = MagicMock(return_value=now)
+        monkeypatch.setattr("prefect.client.client.pendulum.now", mock_now)
+        create_flow_run.run(flow_id="flow-id", **kwargs)
+        MockClient().create_flow_run.assert_called_once_with(
+            flow_id="flow-id",
+            parameters=kwargs.get("parameters"),
+            run_name=kwargs.get("run_name"),
+            labels=kwargs.get("labels"),
+            context=kwargs.get("context"),
+            run_config=kwargs.get("run_config"),
+            scheduled_start_time=pendulum.now("utc")
+            + kwargs.get("scheduled_start_time"),
+            idempotency_key=None,
+        )
+
     def test_generates_run_name_from_parent_and_child(self, MockFlowView, MockClient):
         MockFlowView.from_id.return_value.flow_id = "flow-id"
         MockFlowView.from_id.return_value.name = "child-name"
