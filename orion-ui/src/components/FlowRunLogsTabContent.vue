@@ -10,7 +10,7 @@
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header"> </div>
-      <FlowRunLogs :logs="logs">
+      <FlowRunLogs v-show="!loading" :logs="logs">
         <template #empty>
           <p class="flow-run_logs-tab-content__empty">
             No logs to show.
@@ -25,10 +25,10 @@
         </template>
       </FlowRunLogs>
     </div>
-    <template v-if="running">
+    <template v-if="running || loading">
       <div class="flow-run-logs-tabs-content__loading">
-        <m-loader loading class="flow-run-logs-tabs-content__loader" />
-        <span>Run in progress...</span>
+        <m-loader :loading="true" class="flow-run-logs-tabs-content__loader" />
+        <span v-show="running">Run in progress...</span>
       </div>
     </template>
   </div>
@@ -92,6 +92,7 @@ const options: SubscriptionOptions = {
 }
 const subscription = subscribe(Logs.filter.bind(Logs), [filter], options)
 const logs = computed<Log[]>(() => subscription.response.value ?? [])
+const loading = computed<boolean>(() => subscription.loading.value ?? true)
 
 const clearFilters = () => {
   levelFilter.value = []
