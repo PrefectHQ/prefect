@@ -1,4 +1,4 @@
-import { StateType, States } from '@/types/states'
+import { State, States } from '@/types/states'
 import faker from 'faker'
 
 type NumberOptions = {
@@ -30,7 +30,7 @@ export function fakerRandomArray<T extends FakerCallback>(
 }
 
 export function fakerRandomState(
-  states: StateType[] = Object.values(States)
-): StateType {
+  states: State[] = Object.values(States)
+): State {
   return states[faker.datatype.number(states.length - 1)]
 }

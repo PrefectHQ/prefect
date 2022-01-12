@@ -4,14 +4,14 @@
 
 <script lang="ts">
 import { Vue, prop } from 'vue-class-component'
-import { StateType, StateColors, StateIcons } from '@/types/states'
+import { State, StateColors, StateIcons } from '@/types/states'
 import { StyleValue } from '@vue/runtime-dom'
 import { ClassValue } from '@/types/css'
 import { IconSize, getIconSizeClass } from '@/utilities/icons'
 import { isState } from '@/utilities/states'
 
 class Props {
-  state = prop<StateType>({ required: true, validator: isState })
+  state = prop<State>({ required: true, validator: isState })
   size = prop<IconSize>({ default: null })
   colored = prop<boolean>({ default: false, type: Boolean })
 }

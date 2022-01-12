@@ -71,7 +71,7 @@ import { StyleValue } from '@vue/runtime-dom'
 import { ClassValue } from '@/types/css'
 
 import { formatDateTimeNumeric } from '@/utilities/dates'
-import { StateType, States, StateDirections } from '@/types/states'
+import { State, States, StateDirections } from '@/types/states'
 
 type TransitionSelectionType = Transition<
   SVGGElement,
@@ -186,7 +186,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
           d.states.find((state) => state.state_type == key)?.count_runs || 0
 
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return value * StateDirections.get(key as StateType)!
+        return value * StateDirections.get(key as State)!
       })
       .offset(d3.stackOffsetDiverging)(this.items)
   }
@@ -227,7 +227,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
     const middle = this.padding.middle / 2
     const middleOffset = this.padding.middle
       ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        StateDirections.get(item.state_type as StateType)! * middle
+        StateDirections.get(item.state_type as State)! * middle
       : 0
 
     const top = this.yScale(seriesSlot[0]) + middleOffset
@@ -240,7 +240,7 @@ export default class RunHistoryChart extends mixins(D3Base).with(Props) {
 
   calculateBarClass(item: StateBucket): ClassValue {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const direction = StateDirections.get(item.state_type as StateType)!
+    const direction = StateDirections.get(item.state_type as State)!
 
     return [
       `${item.state_type.toLowerCase()}-bg`,
