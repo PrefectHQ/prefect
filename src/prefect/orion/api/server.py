@@ -5,9 +5,9 @@ Defines the Orion FastAPI app.
 import asyncio
 from functools import partial
 import os
-from typing import List
+from typing import List, Optional
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,9 +43,9 @@ class SPAStaticFiles(StaticFiles):
 
 
 def create_orion_api(
-    router_prefix: str = "",
-    include_admin_router: bool = True,
-    dependencies: List = None,
+    router_prefix: Optional[str] = "",
+    include_admin_router: Optional[bool] = True,
+    dependencies: Optional[List[Depends]] = None,
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Orion API
@@ -55,6 +55,9 @@ def create_orion_api(
         include_admin_router: whether or not to include admin routes, these routes
             have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to the FastAPI app
+
+    Returns:
+        a FastAPI app that serves the Orion API
     """
     api_app = FastAPI(title=API_TITLE, dependencies=dependencies)
 
