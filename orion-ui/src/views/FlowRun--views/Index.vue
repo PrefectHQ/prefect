@@ -128,13 +128,15 @@
 
   <ResultsListTabs v-model:tab="resultsTab" :tabs="tabs" class="mt-3" />
 
-  <div class="font--secondary caption my-2" style="min-height: 17px">
-    <span v-show="resultsCount.value > 0">
-      {{ resultsCount.value?.toLocaleString() }} Result{{
-        resultsCount.value !== 1 ? 's' : ''
-      }}
-    </span>
-  </div>
+  <template v-if="resultsCount.value > 0">
+    <div class="font--secondary caption my-2" style="min-height: 17px">
+      <span>
+        {{ resultsCount.value?.toLocaleString() }} Result{{
+          resultsCount.value !== 1 ? 's' : ''
+        }}
+      </span>
+    </div>
+  </template>
 
   <section
     class="results-section d-flex flex-column align-stretch justify-stretch"
