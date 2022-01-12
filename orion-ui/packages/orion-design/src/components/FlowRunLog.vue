@@ -1,12 +1,12 @@
 <template>
   <div class="flow-run-log">
+    <LogLevelLabel :level="log.level" class="flow-run-log__level" />
+    <span class="flow-run-log__time" :class="classes.time">{{ time }}</span>
     <template v-if="log.taskRunId">
       <div class="flow-run-log__task">
         <TaskRunLink :task-id="log.taskRunId" />
       </div>
     </template>
-    <LogLevelLabel :level="log.level" class="flow-run-log__level" />
-    <span class="flow-run-log__time" :class="classes.time">{{ time }}</span>
     <div class="flow-run-log__details">
       <span class="flow-run-log__message">{{ log.message }}</span>
       <CopyButton :value="log.message" class="flow-run-log__copy" toast="Copied message to clipboard" icon-only />

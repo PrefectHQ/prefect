@@ -3,6 +3,13 @@
     <template v-for="log in logs" :key="log.id">
       <FlowRunLog :log="log" />
     </template>
+    <template v-if="empty">
+      <slot name="empty">
+        <div class="flow-run-logs__empty">
+          <p>No logs to show</p>
+        </div>
+      </slot>
+    </template>
   </div>
 </template>
 
@@ -13,16 +20,18 @@
 </script>
 
 <script lang="ts" setup>
-  import { PropType } from 'vue'
+  import { computed, PropType } from 'vue'
   import { Log } from '../models'
   import FlowRunLog from './FlowRunLog.vue'
 
-  defineProps({
+  const props = defineProps({
     logs: {
       type: Array as PropType<Log[]>,
       required: true,
     },
   })
+
+  const empty = computed<boolean>(() => props.logs.length == 0)
 </script>
 
 <style>
@@ -31,5 +40,9 @@
   padding: var(--p-1) 0;
   display: grid;
   gap: var(--p-1);
+}
+
+.flow-run-logs__empty {
+  text-align: center;
 }
 </style>
