@@ -11,6 +11,8 @@ import anyio.abc
 import coolname
 import pydantic
 import pytest
+from docker.errors import ImageNotFound
+from docker.models.images import Image
 from typing_extensions import Literal
 from typing import NamedTuple
 
@@ -29,6 +31,8 @@ from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.testing import AsyncMock
 from prefect.utilities.settings import temporary_settings
+
+from src.prefect.flow_runners import ImagePullPolicy
 
 
 class VersionInfo(NamedTuple):
@@ -754,12 +758,105 @@ class TestDockerFlowRunner:
         )
         assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
 
-    async def test_pulls_image(self, mock_docker_client, flow_run, use_hosted_orion):
-        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
-        image, tag = get_prefect_image_name().split(":")
-
+    async def test_default_image_pull_policy_pulls_image_with_latest_tag(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        await DockerFlowRunner(image="prefect:latest").submit_flow_run(
+            flow_run, MagicMock()
+        )
         mock_docker_client.images.pull.assert_called_once()
-        mock_docker_client.images.pull.assert_called_with(image, tag)
+        mock_docker_client.images.pull.assert_called_with("prefect", "latest")
+
+    async def test_default_image_pull_policy_pulls_image_with_no_tag(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        await DockerFlowRunner(image="prefect").submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.images.pull.assert_called_once()
+        mock_docker_client.images.pull.assert_called_with("prefect", None)
+
+    async def test_default_image_pull_policy_pulls_image_with_tag_other_than_latest_if_not_present(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        mock_get = MagicMock()
+
+        def raise_error(_):
+            raise ImageNotFound("No way, bub")
+
+        mock_get.side_effect = raise_error
+        mock_docker_client.images.get = mock_get
+
+        await DockerFlowRunner(image="prefect:omega").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.images.pull.assert_called_once()
+        mock_docker_client.images.pull.assert_called_with("prefect", "omega")
+
+    async def test_default_image_pull_policy_does_not_pull_image_with_tag_other_than_latest_if_present(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        mock_get = MagicMock()
+
+        def return_image(_):
+            return Image()
+
+        mock_get.side_effect = return_image
+        mock_docker_client.images.get = mock_get
+
+        await DockerFlowRunner(image="prefect:omega").submit_flow_run(
+            flow_run, MagicMock()
+        )
+        mock_docker_client.images.pull.assert_not_called()
+
+    async def test_image_pull_policy_always_pulls(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        await DockerFlowRunner(
+            image="prefect", image_pull_policy=ImagePullPolicy.always
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.images.get.assert_not_called()
+        mock_docker_client.images.pull.assert_called_once()
+        mock_docker_client.images.pull.assert_called_with("prefect", None)
+
+    async def test_image_pull_policy_never_does_not_pull(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        await DockerFlowRunner(
+            image="prefect", image_pull_policy=ImagePullPolicy.never
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.images.pull.assert_not_called()
+
+    async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        mock_get = MagicMock()
+
+        def raise_error(_):
+            raise ImageNotFound("No way, bub")
+
+        mock_get.side_effect = raise_error
+        mock_docker_client.images.get = mock_get
+
+        await DockerFlowRunner(
+            image="prefect", image_pull_policy=ImagePullPolicy.if_not_present
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.images.pull.assert_called_once()
+        mock_docker_client.images.pull.assert_called_with("prefect", None)
+
+    async def test_image_pull_policy_if_not_present_does_not_pull_image_if_present(
+        self, mock_docker_client, flow_run, use_hosted_orion
+    ):
+        mock_get = MagicMock()
+
+        def return_image(_):
+            return Image()
+
+        mock_get.side_effect = return_image
+        mock_docker_client.images.get = mock_get
+
+        await DockerFlowRunner(
+            image="prefect", image_pull_policy=ImagePullPolicy.if_not_present
+        ).submit_flow_run(flow_run, MagicMock())
+        mock_docker_client.images.pull.assert_not_called()
 
     @pytest.mark.parametrize("platform", ["win32", "darwin"])
     async def test_does_not_add_docker_host_gateway_on_other_platforms(
