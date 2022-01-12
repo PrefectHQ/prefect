@@ -1,7 +1,7 @@
-import { StateType, StateName } from '@/types/states'
+import { State, StateName } from '@/types/states'
 
 export type IFlowRunStateHistory = {
-  state_type: StateType
+  state_type: State
   state_name: StateName
   count_runs: number
   sum_estimated_run_time: number
@@ -9,7 +9,7 @@ export type IFlowRunStateHistory = {
 }
 
 export default class FlowRunStateHistory implements IFlowRunStateHistory {
-  public readonly state_type: StateType
+  public readonly state_type: State
   public readonly state_name: StateName
   public readonly count_runs: number
   public readonly sum_estimated_run_time: number
