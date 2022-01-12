@@ -396,7 +396,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         )
 
         if self._should_pull_image(docker_client):
-            self.logger.info(f"Pulling image {self.image}...")
+            self.logger.info(f"Pulling image {self.image!r}...")
             self._pull_image(docker_client)
 
         container = self._create_container(docker_client, **container_settings)
