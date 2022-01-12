@@ -173,7 +173,7 @@ watch(
   box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 1;
-  padding: var(--p-2) var(--p-1);
+  padding: var(--p-2);
   gap: var(--p-1);
   margin-bottom: var(--m-1);
   grid-template-areas: 'message copy';
