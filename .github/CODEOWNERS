@@ -1,0 +1,11 @@
+# global
+*                                   @madkinsz
+
+# release
+.github/workflows/release.yaml      @cicdw
+
+# ui
+/orion-ui                           @pleek91
+
+# documentation
+/docs                               @tpdorsey
