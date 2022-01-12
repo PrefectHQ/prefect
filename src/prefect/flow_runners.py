@@ -288,9 +288,9 @@ class SubprocessFlowRunner(UniversalFlowRunner):
 
 
 class ImagePullPolicy(str, Enum):
-    if_not_present = "if_not_present"
-    always = "always"
-    never = "never"
+    IF_NOT_PRESENT = "if_not_present"
+    ALWAYS = "always"
+    NEVER = "never"
 
 
 @register_flow_runner
@@ -439,8 +439,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         if not self.image_pull_policy:
             image, tag = self._get_image_and_tag()
             if tag == "latest" or not tag:
-                return ImagePullPolicy.always
-            return ImagePullPolicy.if_not_present
+                return ImagePullPolicy.ALWAYS
+            return ImagePullPolicy.IF_NOT_PRESENT
         return self.image_pull_policy
 
     def _should_pull_image(self, docker_client: "DockerClient") -> bool:
@@ -449,11 +449,11 @@ class DockerFlowRunner(UniversalFlowRunner):
         """
         image_pull_policy = self._determine_image_pull_policy()
 
-        if image_pull_policy is ImagePullPolicy.always:
+        if image_pull_policy is ImagePullPolicy.ALWAYS:
             return True
-        elif image_pull_policy is ImagePullPolicy.never:
+        elif image_pull_policy is ImagePullPolicy.NEVER:
             return False
-        elif image_pull_policy is ImagePullPolicy.if_not_present:
+        elif image_pull_policy is ImagePullPolicy.IF_NOT_PRESENT:
             try:
                 # NOTE: images.get() wants the tag included with the image
                 # name, while images.pull() wants them split.
