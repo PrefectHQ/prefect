@@ -1,17 +1,20 @@
 # global
-*                                   @madkinsz
+*                                    @madkinsz
 
 # release
-.github/workflows/release.yaml      @cicdw
+/.github/workflows/release.yaml      @cicdw
+
+# orion server
+/src/prefect/orion                   @zangell44 @madkinsz @abrookins
 
 # ui
-/orion-ui                           @pleek91
+/orion-ui                            @pleek91
 
 # documentation
-/docs                               @tpdorsey
+/docs                                @tpdorsey
 
 # orchestration rules / policies
-src/prefect/orion/orchestration     @anticorrelator
+/src/prefect/orion/orchestration     @anticorrelator
 
 # database configuration / models
-src/prefect/orion/database          @anticorrelator
+/src/prefect/orion/database          @anticorrelator
