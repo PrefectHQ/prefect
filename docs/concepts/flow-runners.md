@@ -2,16 +2,16 @@
 
 Flow runners are responsible for creating and monitoring infrastructure for flow runs associated with deployments.
 
-When creating ad hoc flow runs by calling a flow yourself, you are taking full control of your flow's execution environment. A flow runner cannot be used in this case.
+A flow runner can only be used with a deployment. When you run a flow directly by calling the flow yourself, you are responsible for the environment in which the flow executes.
 
 ## Flow runners overview
 
-There are parallels between flow and task runs. Notably, each has a step where infrastructure can be created for the user's code to execute in. 
+Orion uses flow runners to create the infrastructure for a user's flow to execute.
 
 The flow runner is attached to a deployment and is propagated to flow runs created for that deployment. The flow runner is deserialized by the agent and it has two jobs:
 
-- Create infrastructure
-- Run a Python command to start the `prefect.engine` in the infrastructure
+- Create infrastructure for the flow run
+- Run a Python command to start the `prefect.engine` in the infrastructure, which executes the flow
 
 The engine acquires and calls the flow. The flow runner doesn't know anything about how the flow is stored, it's just passing a flow run id to the engine.
 
@@ -21,9 +21,14 @@ Flow runners are specific to the environments in which flows will run. Prefect c
 - `SubprocessFlowRunner` runs flows in a local subprocess
 - `DockerFlowRunner` runs flows in a Docker container
 
+!!! note "What about tasks?" 
+
+    Flows and tasks can both use runners to manage the environment in which code runs. While flows use flow runners, tasks use task runners. For more on how task runners work, see our [documentation on task runners](/concepts/task-runners/).
+
+
 ## Using a flow runner
 
-To use a specific flow runner, import the flow runner from `prefect.flow_runners` and assign the flow runner to the deployment in the deployment specification when a deployment is created. 
+To use a flow runner, pass a configured flow runner instance into a deployment specification. 
 
 For example, when using a `DeploymentSpec`, you can attach a `SubprocessFlowRunner` to indicate that this flow should be run in a local subprocess:
 
@@ -43,11 +48,19 @@ DeploymentSpec(
 )
 ```
 
+Next, use this deployment specification to create a deployment with the `prefect deployment create` command. Assuming the code exists in a deployment.py file, the command looks like this:
+
+```bash
+prefect deployment create ./deployment.py
+```
+
+Once the deployment exists, any flow runs that this deployment starts will use `SubprocessFlowRunner`.
+
 ## Configuring a flow runner
 
 All flow runners have the configuration fields at [`UniversalFlowRunner`](/api-ref/prefect/flow_runners/#prefect.flow_runners.UniversalFlowRunner) available. Additionally, every flow runner has type-specific options.
 
-For example, you can configure the `SubprocessFlowRunner` to include an environment variable (a universal setting) and an Anaconda environment (a subprocess-specific setting):
+You can mix type-specific flow runner options with universal flow runner options. For example, you can configure the `SubprocessFlowRunner` to include an environment variable (a universal setting) and an Anaconda environment (a subprocess-specific setting):
 
 ```python hl_lines="12"
 from prefect import flow
@@ -110,8 +123,3 @@ Check out the [Docker flow runner tutorial](/tutorials/docker-flow-runner/) for 
 
 Check out the [virtual environments](/tutorials/virtual-environments/) for getting started running a flow in a Python virtual environment.
 
-## Flow runner serialization
-
-When a deployment is created, the flow runner must be serialized and stored by the API. When serialized, a flow runner is converted to a `FlowRunnerSettings` type. You'll see this schema when interacting with the API.
-
-When an agent begins submission of a flow run, it pulls flow runner settings from the API. The settings are deserialized into a concrete `FlowRunner` instance, which is used to create the infrastructure for the flow run.

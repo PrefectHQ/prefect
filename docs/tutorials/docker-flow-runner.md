@@ -1,5 +1,5 @@
 
-# Docker integration
+# Running flows in Docker
 
 Prefect integrates with Docker via the [flow runner interface](/concepts/flow-runners/). The [DockerFlowRunner](/api-ref/prefect/flow-runners.md#prefect.flow_runners.DockerFlowRunner) runs Prefect flows using [Docker containers](https://www.docker.com/resources/what-container).
 

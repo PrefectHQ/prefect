@@ -1,5 +1,5 @@
 
-# Virtual environments with Prefect
+# Virtual environments
 
 Virtual environments allow you to separate your Python dependencies for each project. Using virtual environments is a highly recommended practice when developing with Python.
 
@@ -56,9 +56,7 @@ This may be desirable for development or in simple cases where your flow does no
 
 ## Specifying a virtual environment on a deployment
 
-You may want some flows to run in a different virtual environment.
-
-The subprocess flow runner supports the following virtual environments:
+You may want your flows to run in a different Python environment than the agent. The subprocess flow runner supports the following virtual environments:
 
 - [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
 - [virtualenv](https://virtualenv.pypa.io/en/latest/)
