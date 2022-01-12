@@ -180,7 +180,7 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
-import { computed, onBeforeUnmount, reactive, ref, Ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
@@ -375,17 +375,17 @@ const taskRuns = computed<TaskRun[]>(() => {
   return queries.task_runs.response?.value || []
 })
 
-const tabs: ResultsListTab[] = reactive([
+const tabs = computed<ResultsListTab[]>(() => [
   {
     label: 'Task Runs',
     href: 'task_runs',
-    count: taskRunsCount,
+    count: taskRunsCount.value,
     icon: 'pi-task'
   },
   {
     label: 'Subflow Runs',
     href: 'sub_flow_runs',
-    count: subFlowRunsCount,
+    count: subFlowRunsCount.value,
     icon: 'pi-flow-run'
   },
   {
