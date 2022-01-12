@@ -24,6 +24,7 @@ from prefect.flow_runners import (
     register_flow_runner,
     python_version_minor,
     get_prefect_image_name,
+    MIN_COMPAT_PREFECT_VERSION,
 )
 from prefect.orion.schemas.core import FlowRunnerSettings
 from prefect.orion.schemas.data import DataDocument
@@ -883,6 +884,37 @@ class TestDockerFlowRunner:
         )
 
         assert await DockerFlowRunner().submit_flow_run(flow_run, fake_status)
+
+        fake_status.started.assert_called_once()
+        flow_run = await orion_client.read_flow_run(flow_run.id)
+        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
+        assert runtime_settings.orion_host == hosted_orion_api.replace(
+            "localhost", "host.docker.internal"
+        )
+
+    @pytest.mark.service("docker")
+    async def test_execution_is_compatible_with_old_prefect_container_version(
+        self,
+        flow_run,
+        orion_client,
+        use_hosted_orion,
+        hosted_orion_api,
+        python_executable_test_deployment,
+    ):
+        """
+        This test confirms that the flow runner can properly start a flow run in a
+        container running an old version of Prefect. This tests for regression in the
+        path of "starting a flow run" as well as basic API communication.
+        """
+        fake_status = MagicMock(spec=anyio.abc.TaskStatus)
+
+        flow_run = await orion_client.create_flow_run_from_deployment(
+            python_executable_test_deployment
+        )
+
+        assert await DockerFlowRunner(
+            image=get_prefect_image_name(MIN_COMPAT_PREFECT_VERSION)
+        ).submit_flow_run(flow_run, fake_status)
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
