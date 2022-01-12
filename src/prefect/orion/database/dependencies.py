@@ -1,7 +1,6 @@
 """
-Injected models dependencies
+Injected database interface dependencies
 """
-import asyncio
 import inspect
 from contextlib import asynccontextmanager
 from functools import wraps
@@ -149,3 +148,18 @@ async def temporary_orm_config(tmp_orm_config):
         yield
     finally:
         MODELS_DEPENDENCIES["orm"] = starting_orm_config
+
+
+def set_database_config(database_config):
+    """Set Orion database configuration"""
+    MODELS_DEPENDENCIES["database_config"] = database_config
+
+
+def set_query_components(query_components):
+    """Set Orion query components"""
+    MODELS_DEPENDENCIES["query_components"] = query_components
+
+
+def set_orm_config(orm_config):
+    """Set Orion orm configuration"""
+    MODELS_DEPENDENCIES["orm"] = orm_config
