@@ -98,6 +98,7 @@ nav:
                 - 'prefect.utilities.asyncio': api-ref/prefect/utilities/asyncio.md
                 - 'prefect.utilities.callables': api-ref/prefect/utilities/callables.md
                 - 'prefect.utilities.collections': api-ref/prefect/utilities/collections.md
+                - 'prefect.utilities.enum': api-ref/prefect/utilities/enum.md
                 - 'prefect.utilities.filesystem': api-ref/prefect/utilities/filesystem.md
                 - 'prefect.utilities.hashing': api-ref/prefect/utilities/hashing.md
                 - 'prefect.utilities.settings': api-ref/prefect/utilities/settings.md
@@ -148,7 +149,6 @@ nav:
                 - 'orion.services.scheduler': api-ref/orion/services/scheduler.md
             - 'Utilities':
                 - 'orion.utilities.database': api-ref/orion/utilities/database.md
-                - 'orion.utilities.enum': api-ref/orion/utilities/enum.md
                 - 'orion.utilities.filesystem': api-ref/orion/utilities/filesystem.md
                 - 'orion.utilities.functions': api-ref/orion/utilities/functions.md
                 - 'orion.utilities.schemas': api-ref/orion/utilities/schemas.md
