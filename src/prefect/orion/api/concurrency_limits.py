@@ -61,11 +61,11 @@ async def read_concurrency_limit(
     return model
 
 
-@router.get("/tag/{tag_name}")
+@router.get("/tag/{tag}")
 async def read_concurrency_limit_by_tag(
-    tag: str = Path(..., description="The tag name"),
+    tag: str = Path(..., description="The tag name", alias='tag'),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.Deployment:
+) -> schemas.core.ConcurrencyLimit:
     """
     Get a deployment using the name of the flow and the deployment.
     """

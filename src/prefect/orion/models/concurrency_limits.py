@@ -49,7 +49,7 @@ async def read_concurrency_limit_by_tag(
 ):
     query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
-    result = await session.query(query)
+    result = await session.execute(query)
     return result.scalar()
 
 
@@ -75,9 +75,37 @@ async def delete_concurrency_limit_by_tag(
     db: OrionDBInterface,
 ) -> bool:
 
-    query = sa.delete(db.ConcurrencyLimit).where(
-        db.ConcurrencyLimit.tag == tag
-    )
+    query = sa.delete(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)
     return result.rowcount > 0
+
+
+@inject_db
+async def read_concurrency_limits(
+    session: sa.orm.Session,
+    db: OrionDBInterface,
+    offset: int = None,
+    limit: int = None,
+):
+    """
+    Read deployments.
+
+    Args:
+        session: A database session
+        offset: Query offset
+        limit: Query limit
+
+    Returns:
+        List[db.ConcurrencyLimit]: concurrency limits
+    """
+
+    query = select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
+
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+
+    result = await session.execute(query)
+    return result.scalars().unique().all()
