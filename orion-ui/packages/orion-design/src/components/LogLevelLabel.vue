@@ -28,7 +28,7 @@
   --log-level-not-set: #8EA0AE;
   --log-level-info: #8EA0AE;
   --log-level-debug: #024DFD;
-  --log-level-warning: #8EA0AE;
+  --log-level-warning: #F6A609;
   --log-level-error: #FB4E4E;
   --log-level-critical: #B82E2E;
 }
