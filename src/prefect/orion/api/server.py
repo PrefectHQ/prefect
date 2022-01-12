@@ -55,31 +55,51 @@ def create_orion_api(
         router_prefix: a prefix to apply to all included routers
         include_admin_router: whether or not to include admin routes, these routes
             have can take desctructive actions like resetting the database
-        dependencies: a list of global dependencies to add to the FastAPI app
+        dependencies: a list of global dependencies to add to each Orion router
         health_check_path: the health check route path
 
     Returns:
         a FastAPI app that serves the Orion API
     """
-    api_app = FastAPI(title=API_TITLE, dependencies=dependencies)
+    api_app = FastAPI(title=API_TITLE)
 
     @api_app.get(health_check_path)
     async def health_check():
         return True
 
     # api routers
-    api_app.include_router(api.data.router, prefix=router_prefix)
-    api_app.include_router(api.flows.router, prefix=router_prefix)
-    api_app.include_router(api.flow_runs.router, prefix=router_prefix)
-    api_app.include_router(api.task_runs.router, prefix=router_prefix)
-    api_app.include_router(api.flow_run_states.router, prefix=router_prefix)
-    api_app.include_router(api.task_run_states.router, prefix=router_prefix)
-    api_app.include_router(api.deployments.router, prefix=router_prefix)
-    api_app.include_router(api.saved_searches.router, prefix=router_prefix)
-    api_app.include_router(api.logs.router, prefix=router_prefix)
+    api_app.include_router(
+        api.data.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.flows.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.flow_runs.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.task_runs.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.flow_run_states.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.task_run_states.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.deployments.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.saved_searches.router, prefix=router_prefix, dependencies=dependencies
+    )
+    api_app.include_router(
+        api.logs.router, prefix=router_prefix, dependencies=dependencies
+    )
 
     if include_admin_router:
-        api_app.include_router(api.admin.router, prefix=router_prefix)
+        api_app.include_router(
+            api.admin.router, prefix=router_prefix, dependencies=dependencies
+        )
 
     # custom error handling
     async def validation_exception_handler(
