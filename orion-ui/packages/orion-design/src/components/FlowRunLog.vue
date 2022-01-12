@@ -10,7 +10,7 @@
     </template>
     <div class="flow-run-log__details">
       <span class="flow-run-log__message">{{ log.message }}</span>
-      <CopyButton :value="log.message" class="flow-run-log__copy" toast="Copied message to clipboard" icon-only />
+      <CopyButton :value="log.message" label="" class="flow-run-log__copy" toast="Copied message to clipboard" />
     </div>
   </div>
 </template>
