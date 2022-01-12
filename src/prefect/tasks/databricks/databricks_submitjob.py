@@ -1,4 +1,3 @@
-import six
 import time
 from typing import List, Dict
 
@@ -7,35 +6,7 @@ from prefect.utilities.tasks import defaults_from_attrs
 from prefect.exceptions import PrefectException
 
 from prefect.tasks.databricks.databricks_hook import DatabricksHook
-
-
-def _deep_string_coerce(content, json_path="json"):
-    """
-    Coerces content or all values of content if it is a dict to a string. The
-    function will throw if content contains non-string or non-numeric types.
-
-    The reason why we have this function is because the `self.json` field must be a
-    dict with only string values. This is because `render_template` will fail
-    for numerical values.
-    """
-    c = _deep_string_coerce
-    if isinstance(content, six.string_types):
-        return content
-    elif isinstance(content, six.integer_types + (float,)):
-        # Databricks can tolerate either numeric or string types in the API backend.
-        return str(content)
-    elif isinstance(content, (list, tuple)):
-        return [c(e, "{0}[{1}]".format(json_path, i)) for i, e in enumerate(content)]
-    elif isinstance(content, dict):
-        return {
-            k: c(v, "{0}[{1}]".format(json_path, k)) for k, v in list(content.items())
-        }
-    else:
-        param_type = type(content)
-        msg = "Type {0} used for parameter {1} is not a number or a string".format(
-            param_type, json_path
-        )
-        raise ValueError(msg)
+from prefect.tasks.databricks.utils import deep_string_coerce
 
 
 def _handle_databricks_task_execution(task, hook, log, submitted_run_id):
@@ -367,7 +338,7 @@ class DatabricksSubmitRun(Task):
             self.json["run_name"] = run_name or "Run Submitted by Prefect"
 
         # Validate the dictionary to a valid JSON object
-        self.json = _deep_string_coerce(self.json)
+        self.json = deep_string_coerce(self.json)
 
         # Submit the job
         submitted_run_id = hook.submit_run(self.json)
@@ -679,7 +650,7 @@ class DatabricksRunNow(Task):
             run_now_json["jar_params"] = jar_params
 
         # Validate the dictionary to a valid JSON object
-        self.json = _deep_string_coerce(run_now_json)
+        self.json = deep_string_coerce(run_now_json)
 
         # Submit the job
         submitted_run_id = hook.run_now(self.json)
