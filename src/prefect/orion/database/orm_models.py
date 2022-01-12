@@ -678,13 +678,15 @@ class ORMLog:
 class ORMSavedSearch:
     """SQLAlchemy model of a saved search."""
 
-    name = sa.Column(sa.String, nullable=False, unique=True)
+    name = sa.Column(sa.String, nullable=False)
     filters = sa.Column(
         JSON,
         server_default="{}",
         default=dict,
         nullable=False,
     )
+
+    __table_args__ = (sa.UniqueConstraint("name"),)
 
 
 class BaseORMConfiguration(ABC):
