@@ -46,6 +46,7 @@ def create_orion_api(
     router_prefix: Optional[str] = "",
     include_admin_router: Optional[bool] = True,
     dependencies: Optional[List[Depends]] = None,
+    health_check_path: str = "/health",
 ) -> FastAPI:
     """
     Create a FastAPI app that includes the Orion API
@@ -55,11 +56,16 @@ def create_orion_api(
         include_admin_router: whether or not to include admin routes, these routes
             have can take desctructive actions like resetting the database
         dependencies: a list of global dependencies to add to the FastAPI app
+        health_check_path: the health check route path
 
     Returns:
         a FastAPI app that serves the Orion API
     """
     api_app = FastAPI(title=API_TITLE, dependencies=dependencies)
+
+    @api_app.get(health_check_path)
+    async def health_check():
+        return True
 
     # api routers
     api_app.include_router(api.data.router, prefix=router_prefix)
