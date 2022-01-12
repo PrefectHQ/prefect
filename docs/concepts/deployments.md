@@ -77,8 +77,8 @@ Deployment properties include:
 
 You can inspect a deployment using the CLI with the `prefect deployment inspect` command, referencing the deployment with `<flow_name>/<deployment_name>`.
 
-```bash hl_lines="1"
-prefect deployment inspect hello-world/hello-world-daily
+```bash 
+$ prefect deployment inspect hello-world/hello-world-daily
 Deployment(
     id='fee2bf95-5022-4945-bd7a-42a67b8b25fb',
     created='39 minutes ago',
@@ -131,8 +131,10 @@ If a flow location is provided, the script at the given location will be run whe
 
 You can also define a [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec) object as either Python or YAML code. You can create deployment specifications of this type in two ways:
 
-- In the Python file containing the flow definition.
-- In a separate Python or YAML file containing only deployment specifications.
+- In a Python script, setting `flow` to the flow object. The flow object can be from the same file or imported.
+- In a Python or YAML file, setting `flow_location` to the path of the Python script containing the flow object.
+
+In the second case, if there are multiple flows in the `flow_location`, you will need to also pass a `flow_name` to disambiguate.
 
 If you define the `DeploymentSpec` within the file that contains the flow, you only need to specify the flow function and the deployment name. Other parameters are optional and are inferred or constructed by Orion utilities when you create a deployment.
 
@@ -190,7 +192,7 @@ Creating a deployment is the process of providing deployment specification data 
 There are several ways to create an Orion deployment:
 
 - Using CLI commands and a Python or YAML [`DeploymentSpec`](/api-ref/prefect/deployments/#prefect.deployments.DeploymentSpec).
-- Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to manually create a deployment with parameters required by [`create_deployment`](/api-ref/prefect/client/#prefect.client.OrionClient.create_deployment). 
+- Using [OrionClient](/api-ref/prefect/client/#prefect.client.OrionClient) to create a deployment with [`create_deployment`](/api-ref/prefect/client/#prefect.client.OrionClient.create_deployment). 
 - Making an API call with a JSON document conforming to `DeploymentCreate`. (Not recommended at this time.)
 
 ### Creating deployments with the CLI
@@ -199,14 +201,14 @@ Create a deployment with the Prefect CLI using the `prefect deployment create` c
 
 You can also run `prefect deployment create` to update an existing deployment:
 
-```bash hl_lines="1"
-prefect deployment create <filename>
+```bash
+$ prefect deployment create <filename>
 ```
 
 For example, if the hello-world deployment specification shown earlier is in the file flow.py, you'd see something like the following:
 
-```bash hl_lines="1"
-prefect deployment create flow.py
+```bash
+$ prefect deployment create flow.py
 Loading deployments from python script at 'flow.py'...
 Created deployment 'hello-world-daily' for flow 'hello-world'
 ```
