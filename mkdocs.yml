@@ -62,7 +62,7 @@ nav:
         - Installation: getting-started/installation.md
         - Tutorials:
             - tutorials/first-steps.md
-            - tutorials/flow-configuration.md
+            - tutorials/flow-task-config.md
             - tutorials/task-dependencies.md
             - tutorials/execution.md
             - tutorials/dask-task-runner.md
