@@ -11,3 +11,9 @@ export function formatTimeNumeric(date: Date | string): string {
 
   return format(parsed, 'hh:mm:ss a')
 }
+
+export function formatDate(date: Date | string): string {
+  const parsed = new Date(date)
+
+  return format(parsed, 'MMM do, yyyy')
+}
