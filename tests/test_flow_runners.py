@@ -754,6 +754,13 @@ class TestDockerFlowRunner:
         )
         assert call_extra_hosts == {"host.docker.internal": "host-gateway"}
 
+    async def test_pulls_image(self, mock_docker_client, flow_run, use_hosted_orion):
+        await DockerFlowRunner().submit_flow_run(flow_run, MagicMock())
+        image, tag = get_prefect_image_name().split(":")
+
+        mock_docker_client.images.pull.assert_called_once()
+        mock_docker_client.images.pull.assert_called_with(image, tag)
+
     @pytest.mark.parametrize("platform", ["win32", "darwin"])
     async def test_does_not_add_docker_host_gateway_on_other_platforms(
         self, mock_docker_client, flow_run, use_hosted_orion, monkeypatch, platform

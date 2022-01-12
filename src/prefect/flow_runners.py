@@ -385,6 +385,8 @@ class DockerFlowRunner(UniversalFlowRunner):
         self.logger.info(
             f"Flow run {flow_run.name!r} has container settings = {container_settings}"
         )
+
+        self._pull_image(docker_client)
         container = self._create_container(docker_client, **container_settings)
 
         # Add additional networks after the container is created; only one network can
@@ -399,6 +401,16 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         return container.id
 
+    def _pull_image(self, docker_client: "DockerClient"):
+        """
+        Pull the image we're going to use to create the container.
+
+        This makes sure that the image is available locally -- Docker's
+        `create_container` API does not pull for us.
+        """
+        image_name, tag = self.image.split(":")
+        return docker_client.images.pull(image_name, tag)
+
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
         """
         Create a docker container with retries on name conflicts.
@@ -410,6 +422,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         index = 0
         container = None
         name = original_name = kwargs.pop("name", "prefect-flow-run")
+
         while not container:
             try:
                 container = docker_client.containers.create(name=name, **kwargs)
