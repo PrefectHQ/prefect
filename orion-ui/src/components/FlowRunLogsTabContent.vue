@@ -10,10 +10,38 @@
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header">
-        <span class="flow-run-logs-tab-content__column">Task run info</span>
-        <span class="flow-run-logs-tab-content__column">Level</span>
-        <span class="flow-run-logs-tab-content__column">Time</span>
-        <span class="flow-run-logs-tab-content__column">Message</span>
+        <span
+          class="
+            flow-run-logs-tab-content__column
+            flow-run-logs-tab-content__column--task
+          "
+        >
+          Task run info
+        </span>
+        <span
+          class="
+            flow-run-logs-tab-content__column
+            flow-run-logs-tab-content__column--level
+          "
+        >
+          Level
+        </span>
+        <span
+          class="
+            flow-run-logs-tab-content__column
+            flow-run-logs-tab-content__column--time
+          "
+        >
+          Time
+        </span>
+        <span
+          class="
+            flow-run-logs-tab-content__column
+            flow-run-logs-tab-content__column--message
+          "
+        >
+          Message
+        </span>
         <CopyButton :value="makeCsv" toast="Logs copied to clipboard">
           Copy Logs
         </CopyButton>
@@ -125,7 +153,10 @@ watch(
 )
 </script>
 
-<style>
+<style lang="scss">
+@use '@prefecthq/miter-design/src/styles/abstracts/variables' as *;
+@use 'sass:map';
+
 .flow-run-logs-tabs-content__header {
   display: flex;
   align-items: center;
@@ -133,6 +164,55 @@ watch(
   margin: var(--m-2) 0;
   flex-wrap: wrap;
   gap: var(--m-1);
+}
+
+.flow-run-logs-tab-content__table-header {
+  display: grid;
+  justify-content: space-between;
+  background-color: #fff;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1;
+  padding: var(--p-2) var(--p-1);
+  gap: var(--p-1);
+  margin-bottom: var(--m-1);
+  grid-template-areas: 'message copy';
+  grid-template-columns: [message] 1fr [copy] 115px;
+
+  @media screen and (min-width: map.get($breakpoints, 'md')) {
+    grid-template-areas: 'task level time message copy';
+    grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr [copy] 115px;
+  }
+}
+
+.flow-run-logs-tab-content__column {
+  font-weight: 600;
+}
+
+.flow-run-logs-tab-content__column--task,
+.flow-run-logs-tab-content__column--level,
+.flow-run-logs-tab-content__column--time {
+  display: none;
+
+  @media screen and (min-width: map.get($breakpoints, 'md')) {
+    display: block;
+  }
+}
+
+.flow-run-logs-tab-content__column--task {
+  grid-area: task;
+}
+
+.flow-run-logs-tab-content__column--level {
+  grid-area: level;
+}
+
+.flow-run-logs-tab-content__column--time {
+  grid-area: time;
+}
+
+.flow-run-logs-tab-content__column--message {
+  grid-area: message;
 }
 
 .flow-run-logs-tabs-content__span {
