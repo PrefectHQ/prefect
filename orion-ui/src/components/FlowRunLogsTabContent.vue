@@ -9,7 +9,15 @@
       </ButtonGroupInput>
     </div>
     <div class="flow-run-logs-tab-content__table">
-      <div class="flow-run-logs-tab-content__table-header"> </div>
+      <div class="flow-run-logs-tab-content__table-header">
+        <span class="flow-run-logs-tab-content__column">Task run info</span>
+        <span class="flow-run-logs-tab-content__column">Level</span>
+        <span class="flow-run-logs-tab-content__column">Time</span>
+        <span class="flow-run-logs-tab-content__column">Message</span>
+        <CopyButton :value="makeCsv" toast="Logs copied to clipboard">
+          Copy Logs
+        </CopyButton>
+      </div>
       <FlowRunLogs v-show="!loading" :logs="logs">
         <template #empty>
           <p class="flow-run_logs-tab-content__empty">
@@ -41,11 +49,13 @@ import {
   FlowRunLogs,
   Log,
   LogLevel,
-  ButtonGroupInput
+  ButtonGroupInput,
+  formatDateTimeNumeric
 } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions'
 import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
 import { computed, defineProps, ref, watch } from 'vue'
+import CopyButton from './Global/CopyButton.vue'
 
 const props = defineProps({
   flowRunId: {
@@ -96,6 +106,17 @@ const loading = computed<boolean>(() => subscription.loading.value ?? true)
 
 const clearFilters = () => {
   levelFilter.value = []
+}
+
+const makeCsv = (): string => {
+  return logs.value
+    .map((log) => {
+      const level = LogLevel.GetLabel(log.level)
+      const time = formatDateTimeNumeric(log.timestamp)
+
+      return `${level}\t${time}\t${log.message}`
+    })
+    .join('\n')
 }
 
 watch(
