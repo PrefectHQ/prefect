@@ -64,5 +64,20 @@ async def delete_concurrency_limit(
         db.ConcurrencyLimit.id == concurrency_limit_id
     )
 
-    result = sa.execute(query)
+    result = await session.execute(query)
+    return result.rowcount > 0
+
+
+@inject_db
+async def delete_concurrency_limit_by_tag(
+    session: sa.orm.Session,
+    tag: str,
+    db: OrionDBInterface,
+) -> bool:
+
+    query = sa.delete(db.ConcurrencyLimit).where(
+        db.ConcurrencyLimit.tag == tag
+    )
+
+    result = await session.execute(query)
     return result.rowcount > 0
