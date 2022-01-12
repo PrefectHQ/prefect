@@ -79,7 +79,7 @@ class ORMBase:
 class ORMFlow:
     """SQLAlchemy mixin of a flow."""
 
-    name = sa.Column(sa.String, nullable=False, unique=True)
+    name = sa.Column(sa.String, nullable=False)
     tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr
@@ -89,6 +89,8 @@ class ORMFlow:
     @declared_attr
     def deployments(cls):
         return sa.orm.relationship("Deployment", back_populates="flow", lazy="raise")
+
+    __table_args__ = (sa.UniqueConstraint("name"),)
 
 
 @declarative_mixin
@@ -133,6 +135,15 @@ class ORMFlowRunState:
     def as_state(self) -> states.State:
         return states.State.from_orm(self)
 
+    __table_args__ = (
+        sa.Index(
+            "uq_flow_run_state__flow_run_id_timestamp_desc",
+            "flow_run_id",
+            sa.desc("timestamp"),
+            unique=True,
+        ),
+    )
+
 
 @declarative_mixin
 class ORMTaskRunState:
@@ -176,6 +187,15 @@ class ORMTaskRunState:
     def as_state(self) -> states.State:
         return states.State.from_orm(self)
 
+    __table_args__ = (
+        sa.Index(
+            "uq_task_run_state__task_run_id_timestamp_desc",
+            "task_run_id",
+            sa.desc("timestamp"),
+            unique=True,
+        ),
+    )
+
 
 class ORMTaskRunStateCache:
     """
@@ -188,6 +208,14 @@ class ORMTaskRunStateCache:
         nullable=True,
     )
     task_run_state_id = sa.Column(UUID(), nullable=False)
+
+    __table_args__ = (
+        sa.Index(
+            "ix_task_run_state_cache__cache_key_created_desc",
+            "cache_key",
+            sa.desc("created"),
+        ),
+    )
 
 
 @declarative_mixin
@@ -421,6 +449,35 @@ class ORMFlowRun(ORMRun):
             foreign_keys=lambda: [cls.parent_task_run_id],
         )
 
+    __table_args__ = (
+        sa.Index(
+            "uq_flow_run__flow_id_idempotency_key",
+            "flow_id",
+            "idempotency_key",
+            unique=True,
+        ),
+        sa.Index(
+            "ix_flow_run__expected_start_time_desc",
+            sa.desc("expected_start_time"),
+        ),
+        sa.Index(
+            "ix_flow_run__next_scheduled_start_time_asc",
+            sa.asc("next_scheduled_start_time"),
+        ),
+        sa.Index(
+            "ix_flow_run__end_time_desc",
+            sa.desc("end_time"),
+        ),
+        sa.Index(
+            "ix_flow_run__start_time",
+            "start_time",
+        ),
+        sa.Index(
+            "ix_flow_run__state_type",
+            "state_type",
+        ),
+    )
+
 
 @declarative_mixin
 class ORMTaskRun(ORMRun):
@@ -527,6 +584,36 @@ class ORMTaskRun(ORMRun):
             uselist=False,
         )
 
+    __table_args__ = (
+        sa.Index(
+            "uq_task_run__flow_run_id_task_key_dynamic_key",
+            "flow_run_id",
+            "task_key",
+            "dynamic_key",
+            unique=True,
+        ),
+        sa.Index(
+            "ix_task_run__expected_start_time_desc",
+            sa.desc("expected_start_time"),
+        ),
+        sa.Index(
+            "ix_task_run__next_scheduled_start_time_asc",
+            sa.asc("next_scheduled_start_time"),
+        ),
+        sa.Index(
+            "ix_task_run__end_time_desc",
+            sa.desc("end_time"),
+        ),
+        sa.Index(
+            "ix_task_run__start_time",
+            "start_time",
+        ),
+        sa.Index(
+            "ix_task_run__state_type",
+            "state_type",
+        ),
+    )
+
 
 @declarative_mixin
 class ORMDeployment:
@@ -561,6 +648,15 @@ class ORMDeployment:
     def flow(cls):
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
 
+    __table_args__ = (
+        sa.Index(
+            "uq_deployment__flow_id_name",
+            "flow_id",
+            "name",
+            unique=True,
+        ),
+    )
+
 
 @declarative_mixin
 class ORMLog:
@@ -594,12 +690,39 @@ class ORMSavedSearch:
 class BaseORMConfiguration(ABC):
     """
     Abstract base class used to inject database-specific ORM configuration into Orion.
+
+    Modifications to core Orion data structures can have unintended consequences.
+    Use with caution.
+
+    Args:
+        base_metadata: sqlalchemy.schema.Metadata used to create the Base orm class
+        base_model_mixins: a list of mixins to add to the Base orm model
+        flow_mixin: flow orm mixin, combined with Base orm class
+        flow_run_mixin: flow run orm mixin, combined with Base orm class
+        flow_run_state_mixin: flow run state mixin, combined with Base orm class
+        task_run_mixin: task run mixin, combined with Base orm class
+        task_run_state_mixin: task run state, combined with Base orm class
+        task_run_state_cache_mixin: task run state cache orm mixin, combined with Base orm class
+        deployment_mixin: deployment orm mixin, combined with Base orm class
+        saved_search_mixin: saved search orm mixin, combined with Base orm class
+        log_mixin: log orm mixin, combined with Base orm class
+
+    TODO - example
     """
 
     def __init__(
         self,
         base_metadata: sa.schema.MetaData = None,
         base_model_mixins: List = None,
+        flow_mixin=ORMFlow,
+        flow_run_mixin=ORMFlowRun,
+        flow_run_state_mixin=ORMFlowRunState,
+        task_run_mixin=ORMTaskRun,
+        task_run_state_mixin=ORMTaskRunState,
+        task_run_state_cache_mixin=ORMTaskRunStateCache,
+        deployment_mixin=ORMDeployment,
+        saved_search_mixin=ORMSavedSearch,
+        log_mixin=ORMLog,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -628,7 +751,17 @@ class BaseORMConfiguration(ABC):
         self.base_model_mixins = base_model_mixins or []
 
         self._create_base_model()
-        self._create_orm_models()
+        self._create_orm_models(
+            flow_mixin=flow_mixin,
+            flow_run_mixin=flow_run_mixin,
+            flow_run_state_mixin=flow_run_state_mixin,
+            task_run_mixin=task_run_mixin,
+            task_run_state_mixin=task_run_state_mixin,
+            task_run_state_cache_mixin=task_run_state_cache_mixin,
+            deployment_mixin=deployment_mixin,
+            saved_search_mixin=saved_search_mixin,
+            log_mixin=log_mixin,
+        )
 
     def _unique_key(self) -> Tuple[Hashable, ...]:
         """
@@ -649,123 +782,49 @@ class BaseORMConfiguration(ABC):
 
         self.Base = Base
 
-    def _create_orm_models(self):
+    def _create_orm_models(
+        self,
+        flow_mixin=ORMFlow,
+        flow_run_mixin=ORMFlowRun,
+        flow_run_state_mixin=ORMFlowRunState,
+        task_run_mixin=ORMTaskRun,
+        task_run_state_mixin=ORMTaskRunState,
+        task_run_state_cache_mixin=ORMTaskRunStateCache,
+        deployment_mixin=ORMDeployment,
+        saved_search_mixin=ORMSavedSearch,
+        log_mixin=ORMLog,
+    ):
         """
         Defines the ORM models used in Orion and binds them to the `self`. This method
         only runs on instantiation.
         """
 
-        class Flow(ORMFlow, self.Base):
+        class Flow(flow_mixin, self.Base):
             pass
 
-        class FlowRunState(ORMFlowRunState, self.Base):
+        class FlowRunState(flow_run_state_mixin, self.Base):
             pass
 
-        class TaskRunState(ORMTaskRunState, self.Base):
+        class TaskRunState(task_run_state_mixin, self.Base):
             pass
 
-        class TaskRunStateCache(ORMTaskRunStateCache, self.Base):
+        class TaskRunStateCache(task_run_state_cache_mixin, self.Base):
             pass
 
-        class FlowRun(ORMFlowRun, self.Base):
+        class FlowRun(flow_run_mixin, self.Base):
             pass
 
-        class TaskRun(ORMTaskRun, self.Base):
+        class TaskRun(task_run_mixin, self.Base):
             pass
 
-        class Deployment(ORMDeployment, self.Base):
+        class Deployment(deployment_mixin, self.Base):
             pass
 
-        class SavedSearch(ORMSavedSearch, self.Base):
+        class SavedSearch(saved_search_mixin, self.Base):
             pass
 
-        class Log(ORMLog, self.Base):
+        class Log(log_mixin, self.Base):
             pass
-
-        # TODO - move these to proper migrations
-        sa.Index(
-            "uq_flow_run_state__flow_run_id_timestamp_desc",
-            "flow_run_id",
-            FlowRunState.timestamp.desc(),
-            unique=True,
-        )
-
-        sa.Index(
-            "uq_task_run_state__task_run_id_timestamp_desc",
-            TaskRunState.task_run_id,
-            TaskRunState.timestamp.desc(),
-            unique=True,
-        )
-
-        sa.Index(
-            "ix_task_run_state_cache__cache_key_created_desc",
-            TaskRunStateCache.cache_key,
-            sa.desc("created"),
-        )
-
-        sa.Index(
-            "uq_flow_run__flow_id_idempotency_key",
-            FlowRun.flow_id,
-            FlowRun.idempotency_key,
-            unique=True,
-        )
-
-        sa.Index(
-            "ix_flow_run__expected_start_time_desc",
-            FlowRun.expected_start_time.desc(),
-        )
-        sa.Index(
-            "ix_flow_run__next_scheduled_start_time_asc",
-            FlowRun.next_scheduled_start_time.asc(),
-        )
-        sa.Index(
-            "ix_flow_run__end_time_desc",
-            FlowRun.end_time.desc(),
-        )
-        sa.Index(
-            "ix_flow_run__start_time",
-            FlowRun.start_time,
-        )
-        sa.Index(
-            "ix_flow_run__state_type",
-            FlowRun.state_type,
-        )
-
-        sa.Index(
-            "uq_task_run__flow_run_id_task_key_dynamic_key",
-            TaskRun.flow_run_id,
-            TaskRun.task_key,
-            TaskRun.dynamic_key,
-            unique=True,
-        )
-
-        sa.Index(
-            "ix_task_run__expected_start_time_desc",
-            TaskRun.expected_start_time.desc(),
-        )
-        sa.Index(
-            "ix_task_run__next_scheduled_start_time_asc",
-            TaskRun.next_scheduled_start_time.asc(),
-        )
-        sa.Index(
-            "ix_task_run__end_time_desc",
-            TaskRun.end_time.desc(),
-        )
-        sa.Index(
-            "ix_task_run__start_time",
-            TaskRun.start_time,
-        )
-        sa.Index(
-            "ix_task_run__state_type",
-            TaskRun.state_type,
-        )
-
-        sa.Index(
-            "uq_deployment__flow_id_name",
-            Deployment.flow_id,
-            Deployment.name,
-            unique=True,
-        )
 
         self.Flow = Flow
         self.FlowRunState = FlowRunState
