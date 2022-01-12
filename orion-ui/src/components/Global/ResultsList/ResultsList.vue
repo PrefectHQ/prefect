@@ -5,7 +5,7 @@
       :key="key"
       :item="item"
       :is="props.component"
-      :ref="(el) => createItemRef(key, el)"
+      :ref="(el) => createItemRef(key, el as any)"
     />
 
     <Observer @intersection="fetchMore" />
@@ -24,7 +24,7 @@ import {
   withDefaults,
   WatchStopHandle
 } from 'vue'
-import Observer from '@/components/Global/IntersectionObserver/IntersectionObsever.vue'
+import Observer from '@/components//Global/IntersectionObserver/IntersectionObserver.vue'
 import { Api, Endpoints, FilterBody, Query } from '@/plugins/api'
 
 const props = withDefaults(
