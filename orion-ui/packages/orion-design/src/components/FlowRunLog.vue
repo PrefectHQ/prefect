@@ -19,8 +19,9 @@
   import CopyButton from '@/components/Global/CopyButton.vue'
   import { snakeCase } from '@/utilities/strings'
   import { defineComponent, PropType } from 'vue'
-  import { formatDateTimeNumeric, formatTimeNumeric, LogLevel } from '..'
+  import { formatDateTimeNumeric, formatTimeNumeric } from '..'
   import { Log } from '../models'
+  import { logLevelLabel } from '../utilities'
   import LogLevelLabel from './LogLevelLabel.vue'
   import TaskRunLink from './TaskRunLink.vue'
 
@@ -43,7 +44,7 @@
     computed: {
       classes: function() {
         return {
-          time: [`flow-run-log__time--${snakeCase(LogLevel.GetLabel(this.log.level))}`],
+          time: [`flow-run-log__time--${snakeCase(logLevelLabel(this.log.level))}`],
         }
       },
 

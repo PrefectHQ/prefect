@@ -7,7 +7,7 @@
 <script lang="ts" setup>
   import { snakeCase } from '@/utilities/strings'
   import { computed } from 'vue'
-  import { LogLevel } from '../services/LogLevel'
+  import { logLevelLabel } from '../utilities'
 
   const props = defineProps({
     level: {
@@ -16,7 +16,7 @@
     },
   })
 
-  const label = computed(() => LogLevel.GetLabel(props.level))
+  const label = computed(() => logLevelLabel(props.level))
 
   const classes = computed(() => {
     return `log-level-label--${snakeCase(label.value)}`
