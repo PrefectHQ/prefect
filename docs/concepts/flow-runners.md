@@ -28,7 +28,7 @@ Flow runners are specific to the environments in which flows will run. Prefect c
 
 ## Using a flow runner
 
-To use a flow runner, pass a configured flow runner instance into a deployment specification. 
+To use a flow runner, pass an instance of the desired flow runner type into a deployment specification. 
 
 For example, when using a `DeploymentSpec`, you can attach a `SubprocessFlowRunner` to indicate that this flow should be run in a local subprocess:
 
