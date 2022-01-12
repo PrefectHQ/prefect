@@ -4,10 +4,6 @@ export class LogLevel {
   public static HighestLogLevel = 0
 
   public static GetLabel(level: number): string {
-    if (!LogLevel.Validate(level)) {
-      throw 'Log level must be a number from 0 to 50'
-    }
-
     const [first] = level.toString()
 
     switch (first) {
@@ -24,9 +20,5 @@ export class LogLevel {
       default:
         return 'Not Set'
     }
-  }
-
-  public static Validate(level: number): boolean {
-    return level >= 0 && level <= 50
   }
 }
