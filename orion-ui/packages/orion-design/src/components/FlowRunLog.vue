@@ -87,7 +87,7 @@
   @media screen and (min-width: map.get($breakpoints, 'md')) {
     grid-template-areas: "task level time message";
     grid-template-columns: [task] 140px [level] 65px [time] 100px [message] 1fr;
-    padding: 0 var(--p-1);
+    padding: 0 var(--p-2);
 
     + .flow-run-log {
       border: 0;
