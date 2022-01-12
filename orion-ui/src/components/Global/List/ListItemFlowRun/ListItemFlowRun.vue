@@ -16,17 +16,11 @@
     </div>
 
     <div v-if="media.md" class="chart-container mr-2">
-      <!--
-        The code for :interval-seconds="store.getters.globalFilter.intervalSeconds"
-        is NOT implemented in RunHistoryChart--Chart.vue.
-        In order to prevent this component from throwing error when imported to Nebula,
-        the value is set to 0 until further code changes
-      -->
       <RunHistoryChart
         :items="taskRunHistory"
         :interval-start="start"
         :interval-end="end"
-        :interval-seconds="0"
+        :interval-seconds="store.getters.globalFilter.intervalSeconds"
         static-median
         :padding="{ top: 3, bottom: 3, left: 6, right: 6, middle: 2 }"
         disable-popovers
