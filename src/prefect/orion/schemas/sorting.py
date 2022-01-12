@@ -4,7 +4,7 @@ Schemas for sorting Orion API objects.
 
 from sqlalchemy.sql.expression import ColumnElement
 
-from prefect.orion.utilities.enum import AutoEnum
+from prefect.utilities.enum import AutoEnum
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 
