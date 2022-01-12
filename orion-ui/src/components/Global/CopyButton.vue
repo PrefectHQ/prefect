@@ -1,9 +1,9 @@
 <template>
   <button class="copy-button" @click="copy">
     <i class="pi pi-file-copy-line pi-sm" />
-    <template v-if="!iconOnly">
+    <template v-if="label.length || $slots.default">
       <span class="copy-button__label">
-        <slot>Copy</slot>
+        <slot>{{ label }}</slot>
       </span>
     </template>
   </button>
@@ -18,16 +18,17 @@ export default defineComponent({
       type: [String, Function] as PropType<string | (() => string)>,
       required: true
     },
+    label: {
+      type: String,
+      default: 'Copy'
+    },
     toast: {
-      type: String as PropType<string>,
+      type: String,
       default: 'Copied to Clipboard'
     },
     timeout: {
       type: Number,
       default: 5000
-    },
-    iconOnly: {
-      type: Boolean
     }
   },
   methods: {
