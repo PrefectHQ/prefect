@@ -207,7 +207,7 @@
 import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
@@ -218,9 +218,7 @@ const route = useRoute()
 
 const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
 
-const id = computed(() => {
-  return route?.params.id as string
-})
+const id = ref(route?.params.id as string)
 
 const flowRunbaseFilter = computed(() => {
   return { id: id.value }
@@ -411,7 +409,17 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
+const idWatcher = watch(route, () => {
+  id.value = route?.params.id as string
+})
+
+onBeforeRouteLeave(() => {
+  idWatcher()
+})
+
 watch(id, async () => {
+  if (!id.value) return
+
   await flowRunBase.fetch()
   queries.flow.fetch()
 

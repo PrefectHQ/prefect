@@ -6,15 +6,20 @@ import asyncio
 from functools import partial
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import prefect
 from prefect import settings
 from prefect.orion import api, services
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.orion.database.dependencies import MODELS_DEPENDENCIES
 
 TITLE = "Prefect Orion"
@@ -62,6 +67,33 @@ def create_app(database_config=None) -> FastAPI:
     api_app.include_router(api.task_run_states.router)
     api_app.include_router(api.deployments.router)
     api_app.include_router(api.saved_searches.router)
+    api_app.include_router(api.logs.router)
+
+    # API app custom error handling
+    @api_app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(
+        request: Request, exc: RequestValidationError
+    ):
+        """Provide a detailed message for request validation errors."""
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=jsonable_encoder(
+                {
+                    "exception_message": "Invalid request received.",
+                    "exception_detail": exc.errors(),
+                    "request_body": exc.body,
+                }
+            ),
+        )
+
+    @api_app.exception_handler(StarletteHTTPException)
+    async def custom_http_exception_handler(
+        request: Request, exc: StarletteHTTPException
+    ):
+        """Log a detailed exception for internal server errors before returning."""
+        logger.error(f"Encountered exception in request:", exc_info=True)
+        # pass to fastapi's default error handling
+        return await http_exception_handler(request=request, exc=exc)
 
     api_app.mount(
         "/static",
