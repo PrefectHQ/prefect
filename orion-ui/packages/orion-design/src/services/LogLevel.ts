@@ -1,8 +1,5 @@
 export class LogLevel {
 
-  public static LowestLogLevel = 0
-  public static HighestLogLevel = 0
-
   public static GetLabel(level: number): string {
     const [first] = level.toString()
 
@@ -21,4 +18,5 @@ export class LogLevel {
         return 'Not Set'
     }
   }
+
 }
