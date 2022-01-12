@@ -123,7 +123,7 @@ def test_cloud_handler_emit_warns_and_truncates_long_messages(
 
     with pytest.warns(
         UserWarning,
-        match="Received a log of size 360 bytes, exceeding the limit of 200",
+        match="Received a log of size 3[0-9][0-9] bytes, exceeding the limit of 200",
     ):
         logger.info("h" * 220)
 
