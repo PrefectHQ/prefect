@@ -80,7 +80,7 @@ DeploymentSpec(
 
 ## Using the universal flow runner
 
-By including a flow runner type for your deployment, you are specifying where your flow will run. If you want your flow to be able to run on any infrastructure, deferring the choice to the agent, you may either leave the `flow_runner` field blank or set it to a `UniversalFlowRunner`.
+By including a flow runner type for your deployment, you are specifying the infrastructure that will run your flow. If you want your flow to be able to run on any infrastructure, deferring the choice to the agent, you may either leave the `flow_runner` field blank or set it to a `UniversalFlowRunner`.
 
 The `UniversalFlowRunner` is useful when you want to use the universal settings without limiting the flow run to a specific type of infrastructure.
 
@@ -102,12 +102,6 @@ DeploymentSpec(
 )
 ```
 
-## Configuring the default flow runner
-
-If a deployment has a universal flow runner or no flow runner specified, the default flow runner will be used.
-
-The default flow runner is configured by the agent. Currently, the agent does not allow the default to be changed. A `SubprocessFlowRunner` will always be used.
-
 ## Types of flow runners
 
 The following flow runners are available:
@@ -115,11 +109,13 @@ The following flow runners are available:
 - `UniversalFlowRunner` is the base flow runner
 - `SubprocessFlowRunner` runs flows in a local subprocess
 - `DockerFlowRunner` runs flows in a Docker container
-- `KubernetesFlowrunner` (planned for a future release)
 
 See the [`prefect.flow_runners` API reference](/api-ref/prefect/flow-runners/) for descriptions of each flow runner.
+
+If a deployment has a universal flow runner or no flow runner specified, the default flow runner will be used.
+
+The default flow runner is configured by the agent. Currently, the agent does not allow the default to be changed. A `SubprocessFlowRunner` will always be used.
 
 Check out the [Docker flow runner tutorial](/tutorials/docker-flow-runner/) for getting started running a flow in a Docker container.
 
 Check out the [virtual environments](/tutorials/virtual-environments/) for getting started running a flow in a Python virtual environment.
-
