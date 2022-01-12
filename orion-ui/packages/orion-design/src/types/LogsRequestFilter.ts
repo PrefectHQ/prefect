@@ -1,5 +1,7 @@
 import { ILogResponse } from '../services/LogsApi'
 
+export type LogsRequestSort = `${Uppercase<keyof ILogResponse>}_${'ASC' | 'DSC'}`
+
 export interface LogsRequestFilter {
   limit?: number,
   offset?: number,
@@ -19,5 +21,5 @@ export interface LogsRequestFilter {
       any_?: string[],
     },
   },
-  sort?: `${Uppercase<keyof ILogResponse>}_${'ASC' | 'DSC'}`,
+  sort?: LogsRequestSort,
 }
