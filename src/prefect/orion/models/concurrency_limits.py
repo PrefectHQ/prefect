@@ -14,24 +14,18 @@ from prefect.orion.database.interface import OrionDBInterface
 @inject_db
 async def create_concurrency_limit(
     session: sa.orm.Session,
-    concurrency_limit: schemas.core.concurrency_limit,
+    concurrency_limit: schemas.core.ConcurrencyLimit,
     db: OrionDBInterface,
 ):
     insert_values = concurrency_limit.dict(shallow=True, exclude_unset=True)
     concurrency_tag = insert_values["tag"]
 
-    insert_stmt = (
-        (await db.insert(db.ConcurrencyLimit))
-        .values(**insert_values)
-    )
+    insert_stmt = (await db.insert(db.ConcurrencyLimit)).values(**insert_values)
 
     await session.execute(insert_stmt)
 
-    query = (
-        sa.select(db.ConcurrencyLimit)
-        .where(
-            db.ConcurrencyLimit.tag == concurrency_tag
-        )
+    query = sa.select(db.ConcurrencyLimit).where(
+        db.ConcurrencyLimit.tag == concurrency_tag
     )
 
     result = await session.execute(query)
@@ -53,12 +47,7 @@ async def read_concurrency_limit_by_tag(
     tag: str,
     db: OrionDBInterface,
 ):
-    query = (
-        sa.select(db.ConcurrencyLimit)
-        .where(
-            db.ConcurrencyLimit.tag == tag
-        )
-    )
+    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.query(query)
     return result.scalar()
@@ -71,11 +60,8 @@ async def delete_concurrency_limit(
     db: OrionDBInterface,
 ) -> bool:
 
-    query = (
-        sa.delete(db.ConcurrencyLimit)
-        .where(
-            db.ConcurrencyLimit.id == concurrency_limit_id
-        )
+    query = sa.delete(db.ConcurrencyLimit).where(
+        db.ConcurrencyLimit.id == concurrency_limit_id
     )
 
     result = sa.execute(query)

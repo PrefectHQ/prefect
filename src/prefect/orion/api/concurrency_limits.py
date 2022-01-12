@@ -17,7 +17,7 @@ from prefect.orion.utilities.server import OrionRouter
 from prefect.orion.database.dependencies import provide_database_interface
 from prefect.orion.database.interface import OrionDBInterface
 
-router = OrionRouter(prefix="/concurrency_limits", tags=["concurrency_limits"])
+router = OrionRouter(prefix="/concurrency_limits", tags=["Concurrency Limits"])
 
 
 @router.post("/")
@@ -35,7 +35,7 @@ async def create_concurrency_limit(
         session=session, concurrency_limit=concurrency_limit
     )
 
-    if model.created >= now:
+    if model.created >= pendulum.now():
         response.status_code = status.HTTP_201_CREATED
 
     return model
@@ -43,7 +43,9 @@ async def create_concurrency_limit(
 
 @router.get("/{id}")
 async def read_concurrency_limit(
-    concurrency_limit_id: UUID = Path(..., description="The concurrency limit id", alias="id"),
+    concurrency_limit_id: UUID = Path(
+        ..., description="The concurrency limit id", alias="id"
+    ),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.Deployment:
     """
@@ -72,6 +74,7 @@ async def read_concurrency_limit_by_tag(
     )
 
     if not model:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail="Concurrency limit not found"
+        )
     return model
-
