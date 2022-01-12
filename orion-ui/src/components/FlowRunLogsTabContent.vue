@@ -2,16 +2,14 @@
   <div class="flow-run-logs-tabs-content">
     <div class="flow-run-logs-tabs-content__header">
       <p class="flow-run-logs-tabs-content__span">Showing: Start to Now</p>
-      <ButtonGroupInput
-        v-model:value="levelFilter"
-        :items="[10, 20, 30, 40, 50]"
-      >
+      <ButtonGroupInput v-model:value="levelFilter" :items="levels">
         <template #default="{ item }">
           {{ LogLevel.GetLabel(item) }}
         </template>
       </ButtonGroupInput>
     </div>
     <div class="flow-run-logs-tab-content__table">
+      <div class="flow-run-logs-tab-content__table-header"> </div>
       <FlowRunLogs :logs="logs">
         <template #empty>
           <p class="flow-run_logs-tab-content__empty">
@@ -27,7 +25,7 @@
         </template>
       </FlowRunLogs>
     </div>
-    <template v-if="loading">
+    <template v-if="running">
       <div class="flow-run-logs-tabs-content__loading">
         <m-loader loading class="flow-run-logs-tabs-content__loader" />
         <span>Run in progress...</span>
@@ -47,27 +45,29 @@ import {
 } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions'
 import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-import { computed, defineProps, reactive, ref, watch } from 'vue'
+import { computed, defineProps, ref, watch } from 'vue'
 
 const props = defineProps({
   flowRunId: {
     type: String,
     required: true
   },
-  loading: {
+  running: {
     type: Boolean
   }
 })
 
+const levels = [10, 20, 30, 40, 50]
 const levelFilter = ref<number[]>([])
 
 // todo: paginate this with limit/offset
 const filter = computed<LogsRequestFilter>(() => {
   const level: Required<LogsRequestFilter>['logs']['level'] = {}
-  const minLevel = Math.min(...levelFilter.value)
-  const maxLevel = Math.max(...levelFilter.value)
 
   if (levelFilter.value.length) {
+    const minLevel = Math.min(...levelFilter.value)
+    const maxLevel = Math.max(...levelFilter.value)
+
     if (minLevel > 0) {
       level.ge_ = minLevel
     }
@@ -88,7 +88,7 @@ const filter = computed<LogsRequestFilter>(() => {
 })
 
 const options: SubscriptionOptions = {
-  interval: props.loading ? 5000 : undefined
+  interval: props.running ? 5000 : undefined
 }
 const subscription = subscribe(Logs.filter.bind(Logs), [filter], options)
 const logs = computed<Log[]>(() => subscription.response.value ?? [])
@@ -98,15 +98,12 @@ const clearFilters = () => {
 }
 
 watch(
-  () => props.loading,
+  () => props.running,
   () => subscription.unsubscribe()
 )
 </script>
 
 <style>
-.flow-run-logs-tabs-content {
-}
-
 .flow-run-logs-tabs-content__header {
   display: flex;
   align-items: center;
