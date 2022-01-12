@@ -4,7 +4,6 @@ import subprocess
 import sys
 import warnings
 import re
-from enum import Enum
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -35,7 +34,9 @@ import prefect
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
+from prefect.utilities.enum import AutoEnum
 from prefect.logging import get_logger
+
 
 if TYPE_CHECKING:
     from docker import DockerClient
@@ -287,10 +288,10 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         return command, env
 
 
-class ImagePullPolicy(str, Enum):
-    IF_NOT_PRESENT = "if_not_present"
-    ALWAYS = "always"
-    NEVER = "never"
+class ImagePullPolicy(AutoEnum):
+    IF_NOT_PRESENT = AutoEnum.auto()
+    ALWAYS = AutoEnum.auto()
+    NEVER = AutoEnum.auto()
 
 
 @register_flow_runner
@@ -396,6 +397,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         )
 
         if self._should_pull_image(docker_client):
+            self.logger.info(f"Pulling image {self.image!r}...")
             self._pull_image(docker_client)
 
         container = self._create_container(docker_client, **container_settings)

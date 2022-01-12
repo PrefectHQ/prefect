@@ -6,7 +6,7 @@ import datetime
 from typing import List
 from typing_extensions import Literal
 from pydantic import Field
-from prefect.orion.utilities.enum import AutoEnum
+from prefect.utilities.enum import AutoEnum
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.orion import schemas
 
