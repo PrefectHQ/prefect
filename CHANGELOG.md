@@ -4,32 +4,29 @@
 
 Released on January 12, 2022.
 
-### Features
-
-- Add Mixpanel Tasks - [#5276](https://github.com/PrefectHQ/prefect/pull/5276)
-- Add Zendesk Tickets Incremental Export Task - [#5278](https://github.com/PrefectHQ/prefect/pull/5278)
-- Added Cube.js Query Task - [#5280](https://github.com/PrefectHQ/prefect/pull/5280)
-
 ### Enhancements
 
 - Add authentication as parameter for SnowflakeQuery and SnowflakeQueriesFromFile tasks - [#5173](https://github.com/PrefectHQ/prefect/pull/5173)
-- `StepActivate` task accepts `run` arguments - [#5231](https://github.com/PrefectHQ/prefect/pull/5231)
-- Allow dbt Cloud task to use custom domain for Enterprise customers- [#5273](https://github.com/PrefectHQ/prefect/pull/5273)
-- Adds schedule_delay_seconds to create_flow_run() that delays when a flow is triggered. - [#5303](https://github.com/PrefectHQ/prefect/pull/5303)
-- Upgrade hasura to 2.0.9 - [#5173](https://github.com/PrefectHQ/prefect/pull/5313)
+- Allow passing timedeltas to `create_flow_run` to schedule subflows at runtime - [#5303](https://github.com/PrefectHQ/prefect/pull/5303)
+- Upgrade Prefect Server Hasura image to 2.0.9 - [#5173](https://github.com/PrefectHQ/prefect/pull/5313)
+- Allow client retries on failed requests to Prefect Server - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)
 
 ### Task Library
 
-- Adding Monte Carlo lineage tasks - [#5256](https://github.com/PrefectHQ/prefect/pull/5256)
-- Add 'Firebolt' to Prefect Task Library  - [#5265](https://github.com/PrefectHQ/prefect/pull/5265)
-- Robust communication with server instances - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)
-- Fix response key in airbyte task health check - [#5314](https://github.com/PrefectHQ/prefect/pull/5314)
-- Allow all Postgres task parameters to be configured at runtime as well as init - [#4377](https://github.com/PrefectHQ/prefect/pull/5016)
+- Add Mixpanel tasks - [#5276](https://github.com/PrefectHQ/prefect/pull/5276)
+- Add Zendesk Tickets Incremental Export task - [#5278](https://github.com/PrefectHQ/prefect/pull/5278)
+- Add Cube.js Query task - [#5280](https://github.com/PrefectHQ/prefect/pull/5280)
+- Add Monte Carlo lineage tasks - [#5256](https://github.com/PrefectHQ/prefect/pull/5256)
+- Add Firebolt task - [#5265](https://github.com/PrefectHQ/prefect/pull/5265)
+- Add custom domain support to dbt Cloud tasks for enterprise customers - [#5273](https://github.com/PrefectHQ/prefect/pull/5273)
+- Fix response key in Airbyte task health check - [#5314](https://github.com/PrefectHQ/prefect/pull/5314)
+- Allow all Postgres task parameters to be configured at runtime - [#4377](https://github.com/PrefectHQ/prefect/pull/5016)
+- Fix `AirbyteConnectionTask` requiring optional parameters - [#5260](https://github.com/PrefectHQ/prefect/pull/5260)
+- Allow `StepActivate` task to receive runtime parameters - [#5231](https://github.com/PrefectHQ/prefect/pull/5231)
 
 ### Fixes
 
 - Fix bug where null `run_config` field caused deserialization errors in backend views  - [#1234](https://github.com/PrefectHQ/prefect/pull/1234)
-- AirbyteConnectionTask.run() requires parameters that should be optional - [#5260](https://github.com/PrefectHQ/prefect/pull/5260)
 
 ### Contributors
 
