@@ -1,5 +1,5 @@
 <template>
-  <div class="flow-run-log" :class="classes.log">
+  <div class="flow-run-log">
     <template v-if="log.taskRunId">
       <div class="flow-run-log__task">
         <TaskRunLink :task-id="log.taskRunId" />
@@ -42,10 +42,6 @@
     computed: {
       classes: function() {
         return {
-          log: {
-            'flow-run-log--has-task': this.log.taskRunId,
-          },
-
           time: [`flow-run-log__time--${snakeCase(LogLevel.GetLabel(this.log.level))}`],
         }
       },
@@ -67,17 +63,15 @@
   font-size: 13px;
   padding: var(--p-1);
   padding-bottom: 0;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    "level"
-    "time"
-    "message";
+  display: flex;
+  flex-direction: column;
 
   + .flow-run-log {
     border-top: 1px solid var(--grey-20);
   }
 
   @media screen and (min-width: map.get($breakpoints, 'sm')) {
+    display: grid;
     grid-template-columns: 100px 1fr;
     grid-template-areas:
       "level   task"
@@ -94,14 +88,6 @@
       border: 0;
     }
   }
-}
-
-.flow-run-log--has-task {
-  grid-template-areas:
-    "level"
-    "time"
-    "task"
-    "message";
 }
 
 .flow-run-log__task {
