@@ -288,7 +288,7 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         return command, env
 
 
-class ImagePullPolicy(str, AutoEnum):
+class ImagePullPolicy(AutoEnum):
     IF_NOT_PRESENT = AutoEnum.auto()
     ALWAYS = AutoEnum.auto()
     NEVER = AutoEnum.auto()
