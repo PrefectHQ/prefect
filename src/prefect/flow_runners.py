@@ -25,6 +25,7 @@ import packaging.version
 import sniffio
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
+from docker.errors import ImageNotFound, APIError
 from pydantic import BaseModel, Field, root_validator, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -33,7 +34,9 @@ import prefect
 from prefect.orion.schemas.core import FlowRun, FlowRunnerSettings
 from prefect.utilities.asyncio import run_sync_in_worker_thread
 from prefect.utilities.compat import ThreadedChildWatcher
+from prefect.utilities.enum import AutoEnum
 from prefect.logging import get_logger
+
 
 if TYPE_CHECKING:
     from docker import DockerClient
@@ -285,6 +288,12 @@ class SubprocessFlowRunner(UniversalFlowRunner):
         return command, env
 
 
+class ImagePullPolicy(AutoEnum):
+    IF_NOT_PRESENT = AutoEnum.auto()
+    ALWAYS = AutoEnum.auto()
+    NEVER = AutoEnum.auto()
+
+
 @register_flow_runner
 class DockerFlowRunner(UniversalFlowRunner):
     """
@@ -307,6 +316,7 @@ class DockerFlowRunner(UniversalFlowRunner):
     typename: Literal["docker"] = "docker"
 
     image: str = Field(default_factory=get_prefect_image_name)
+    image_pull_policy: ImagePullPolicy = None
     networks: List[str] = Field(default_factory=list)
     labels: Dict[str, str] = None
     auto_remove: bool = False
@@ -385,6 +395,11 @@ class DockerFlowRunner(UniversalFlowRunner):
         self.logger.info(
             f"Flow run {flow_run.name!r} has container settings = {container_settings}"
         )
+
+        if self._should_pull_image(docker_client):
+            self.logger.info(f"Pulling image {self.image!r}...")
+            self._pull_image(docker_client)
+
         container = self._create_container(docker_client, **container_settings)
 
         # Add additional networks after the container is created; only one network can
@@ -399,6 +414,64 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         return container.id
 
+    def _get_image_and_tag(self) -> Tuple[str, Optional[str]]:
+        parts = self.image.split(":")
+        image = parts.pop(0)
+        tag = parts[0] if parts else None
+        return image, tag
+
+    def _determine_image_pull_policy(self) -> ImagePullPolicy:
+        """
+        Determine the appropriate image pull policy.
+
+        1. If they specified an image pull policy, use that.
+
+        2. If they did not specify an image pull policy and gave us
+           the "latest" tag, use ImagePullPolicy.always.
+
+        3. If they did not specify an image pull policy and did not
+           specify a tag, use ImagePullPolicy.always.
+
+        4. If they did not specify an image pull policy and gave us
+           a tag other than "latest", use ImagePullPolicy.if_not_present.
+
+        This logic matches the behavior of Kubernetes.
+        See:https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
+        """
+        if not self.image_pull_policy:
+            image, tag = self._get_image_and_tag()
+            if tag == "latest" or not tag:
+                return ImagePullPolicy.ALWAYS
+            return ImagePullPolicy.IF_NOT_PRESENT
+        return self.image_pull_policy
+
+    def _should_pull_image(self, docker_client: "DockerClient") -> bool:
+        """
+        Decide whether we need to pull the Docker image.
+        """
+        image_pull_policy = self._determine_image_pull_policy()
+
+        if image_pull_policy is ImagePullPolicy.ALWAYS:
+            return True
+        elif image_pull_policy is ImagePullPolicy.NEVER:
+            return False
+        elif image_pull_policy is ImagePullPolicy.IF_NOT_PRESENT:
+            try:
+                # NOTE: images.get() wants the tag included with the image
+                # name, while images.pull() wants them split.
+                docker_client.images.get(self.image)
+            except ImageNotFound:
+                self.logger.debug(f"Could not find Docker image locally: {self.image}")
+                return True
+        return False
+
+    def _pull_image(self, docker_client: "DockerClient"):
+        """
+        Pull the image we're going to use to create the container.
+        """
+        image, tag = self._get_image_and_tag()
+        return docker_client.images.pull(image, tag)
+
     def _create_container(self, docker_client: "DockerClient", **kwargs) -> "Container":
         """
         Create a docker container with retries on name conflicts.
@@ -410,6 +483,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         index = 0
         container = None
         name = original_name = kwargs.pop("name", "prefect-flow-run")
+
         while not container:
             try:
                 container = docker_client.containers.create(name=name, **kwargs)

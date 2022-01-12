@@ -1,4 +1,4 @@
-# Flow and Task configuration
+# Flow and task configuration
 
 Now that we've written our first flow, let's explore some of the configuration options that Prefect exposes.
 
@@ -129,7 +129,7 @@ This pattern is particularly useful when triggering flow runs via Orion's API. A
 
     For more information, please refer to the [pydantic documentation](https://pydantic-docs.helpmanual.io/usage/models/).
 
-## Basic Task configuration
+## Basic task configuration
 
 By design, tasks follow a very similar metadata model to flows: we can independently assign tasks their own name, description, and even version!  Ultimately tasks are the genesis for much of the granular control and observability that Prefect provides.
 

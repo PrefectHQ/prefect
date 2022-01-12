@@ -410,12 +410,13 @@ const ApiPlugin: Plugin = {
     app.provide('$api', api)
 
     app.mixin({
-      unmounted() {
+      beforeUnmount() {
         if (this.queries && typeof this.queries == 'object') {
           Object.values(this.queries)
             .filter((query) => query instanceof Query)
             .forEach((query) => {
               ;(query as Query).stopPolling()
+              ;(query as Query).unwatch()
               Api.queries.delete((query as Query).id)
             })
         }
