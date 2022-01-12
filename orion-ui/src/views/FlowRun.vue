@@ -44,14 +44,20 @@ import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
 import CopyButton from '@/components/Global/CopyButton.vue'
 import media from '@/utilities/media'
 
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 
 const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
-const id = computed<string>(() => {
-  return route?.params.id as string
+const id = ref(route?.params.id as string)
+
+const idWatcher = watch(route, () => {
+  id.value = route?.params.id as string
+})
+
+onBeforeRouteLeave(() => {
+  idWatcher()
 })
 
 const version = computed<string>(() => {
@@ -123,6 +129,7 @@ onBeforeMount(() => {
 })
 
 watch(id, () => {
+  if (!id.value) return
   queries.flow.fetch()
 })
 </script>

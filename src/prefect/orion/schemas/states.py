@@ -10,7 +10,7 @@ from uuid import UUID
 import pendulum
 from pydantic import Field, validator, root_validator
 
-from prefect.orion.utilities.enum import AutoEnum
+from prefect.utilities.enum import AutoEnum
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.utilities.schemas import IDBaseModel, PrefectBaseModel
 

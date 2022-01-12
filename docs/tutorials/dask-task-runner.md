@@ -1,5 +1,5 @@
 
-# Dask integration
+# Running tasks with Dask
 
 Prefect integrates with `Dask` via the [task runner interface](/concepts/task-runners/). 
 The [DaskTaskRunner](/api-ref/prefect/task-runners.md#prefect.task_runners.DaskTaskRunner) runs Prefect
