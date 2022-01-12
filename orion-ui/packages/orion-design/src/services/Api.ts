@@ -2,25 +2,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 
-export class Api {
+export abstract class Api {
   // todo: can this will need to be defined by the server itself
   // https://github.com/PrefectHQ/orion/issues/667
   protected server: string = 'http://localhost:4200'
-  protected instance: AxiosInstance
+  protected config: AxiosRequestConfig | null = null
 
-  public constructor(routeOrConfig: string | AxiosRequestConfig) {
-    let config: AxiosRequestConfig
+  private _config: AxiosRequestConfig | null = null
+  private _instance: AxiosInstance | null = null
 
-    if (typeof routeOrConfig === 'string') {
-      const route = routeOrConfig
-      config = {
-        baseURL: `http://localhost:4200${route}`,
-      }
-    } else {
-      config = routeOrConfig
-    }
+  protected abstract route: string
 
-    this.instance = axios.create(config)
+  protected get instance(): AxiosInstance {
+    return this.getInstance()
   }
 
   protected request<T = any, R = AxiosResponse<T>>(config: AxiosRequestConfig): Promise<R> {
@@ -53,5 +47,27 @@ export class Api {
 
   protected patch<T = any, R = AxiosResponse<T>>(url: string, data?: any, config?: AxiosRequestConfig): Promise<R> {
     return this.instance.patch(url, data, config)
+  }
+
+  private getConfig(): AxiosRequestConfig {
+    if (this.config) {
+      return this.config
+    }
+
+    if (this._config) {
+      return this._config
+    }
+
+    return this._config = {
+      baseURL: `${this.server}${this.route}`,
+    }
+  }
+
+  private getInstance(): AxiosInstance {
+    if (this._instance) {
+      return this._instance
+    }
+
+    return this._instance = axios.create(this.getConfig())
   }
 }

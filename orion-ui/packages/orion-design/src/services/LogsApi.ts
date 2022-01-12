@@ -16,9 +16,8 @@ export type ILogResponse = {
 }
 
 export class LogsApi extends Api {
-  public constructor() {
-    super('/api/logs')
-  }
+
+  protected route: string = '/api/logs'
 
   public filter(filter?: LogsRequestFilter): Promise<Log[]> {
     return this.post('/filter', filter).then(response => this.logsResponseMapper(response))

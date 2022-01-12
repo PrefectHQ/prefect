@@ -34,9 +34,8 @@ export type ITaskRunResponse = {
 }
 
 export class TaskRunsApi extends Api {
-  public constructor() {
-    super('/api/task_runs')
-  }
+
+  protected route: string = '/api/task_runs'
 
   public getTaskRun(id: string): Promise<TaskRun> {
     return this.get(`/${id}`).then(response => this.taskRunResponseMapper(response))
