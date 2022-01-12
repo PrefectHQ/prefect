@@ -6,15 +6,24 @@ export abstract class Api {
   // todo: can this will need to be defined by the server itself
   // https://github.com/PrefectHQ/orion/issues/667
   protected server: string = 'http://localhost:4200'
-  protected config: AxiosRequestConfig | null = null
 
   private _config: AxiosRequestConfig | null = null
   private _instance: AxiosInstance | null = null
 
   protected abstract route: string
 
+  public constructor(config?: AxiosRequestConfig) {
+    if (config) {
+      this._config = config
+    }
+  }
+
   protected get instance(): AxiosInstance {
     return this.getInstance()
+  }
+
+  protected get config(): AxiosRequestConfig {
+    return this.getConfig()
   }
 
   protected request<T = any, R = AxiosResponse<T>>(config: AxiosRequestConfig): Promise<R> {
@@ -50,10 +59,6 @@ export abstract class Api {
   }
 
   private getConfig(): AxiosRequestConfig {
-    if (this.config) {
-      return this.config
-    }
-
     if (this._config) {
       return this._config
     }
@@ -68,6 +73,6 @@ export abstract class Api {
       return this._instance
     }
 
-    return this._instance = axios.create(this.getConfig())
+    return this._instance = axios.create(this.config)
   }
 }
