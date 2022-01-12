@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix bug where null `run_config` field caused deserialization errors in backend views  - [#1234](https://github.com/PrefectHQ/prefect/pull/1234)"
