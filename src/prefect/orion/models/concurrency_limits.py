@@ -85,8 +85,8 @@ async def delete_concurrency_limit_by_tag(
 async def read_concurrency_limits(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    offset: int = None,
     limit: int = None,
+    offset: int = None,
 ):
     """
     Read deployments.
@@ -100,7 +100,7 @@ async def read_concurrency_limits(
         List[db.ConcurrencyLimit]: concurrency limits
     """
 
-    query = select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
+    query = sa.select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
 
     if offset is not None:
         query = query.offset(offset)

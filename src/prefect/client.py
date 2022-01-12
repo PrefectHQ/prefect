@@ -498,6 +498,21 @@ class OrionClient:
 
         return concurrency_limit
 
+    async def read_concurrency_limits(
+        self,
+        limit: int,
+        offset: int,
+    ):
+        body = {
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = await self.post("/concurrency_limits/filter", json=body)
+        return pydantic.parse_obj_as(
+            List[schemas.core.ConcurrencyLimit], response.json()
+        )
+
     async def delete_concurrency_limit_by_tag(
         self,
         tag: str,

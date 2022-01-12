@@ -54,6 +54,19 @@ async def read(tag: str):
 
 @concurrency_limit_app.command()
 @sync_compatible
+async def ls(limit: int = 15, offset: int = 0):
+
+    async with OrionClient() as client:
+        try:
+            result = await client.read_concurrency_limits(limit=limit, offset=offset)
+        except httpx.HTTPStatusError as exc:
+            raise
+
+    console.print(Pretty(result))
+
+
+@concurrency_limit_app.command()
+@sync_compatible
 async def delete(tag: str):
 
     async with OrionClient() as client:
