@@ -80,6 +80,26 @@ async def read_concurrency_limit_by_tag(
     return model
 
 
+@router.post("/filter")
+async def read_concurrency_limits(
+    limit: int = Body(
+        settings.orion.api.default_limit, ge=0, le=settings.orion.api.default_limit
+    ),
+    offset: int = Body(0, ge=0),
+    session: sa.orm.Session = Depends(dependencies.get_session),
+) -> List[schemas.core.ConcurrencyLimit]:
+    """
+    Query for concurrency limits.
+    """
+
+    return await models.concurrency_limits.read_concurrency_limits(
+        session=session,
+        limit=limit,
+        offset=offset,
+    )
+
+
+
 @router.delete("/{id}")
 async def delete_concurrency_limit(
     concurrency_limit_id: UUID = Path(
