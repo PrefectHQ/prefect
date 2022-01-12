@@ -258,6 +258,8 @@ class date_add(FunctionElement):
 
     type = Timestamp()
     name = "date_add"
+    # see https://docs.sqlalchemy.org/en/14/core/compiler.html#enabling-caching-support-for-custom-constructs
+    inherit_cache = False
 
     def __init__(self, dt, interval):
         self.dt = dt
