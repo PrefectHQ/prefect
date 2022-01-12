@@ -6,13 +6,14 @@ Released on January 12, 2022.
 
 ### Enhancements
 
-- Add authentication as parameter for SnowflakeQuery and SnowflakeQueriesFromFile tasks - [#5173](https://github.com/PrefectHQ/prefect/pull/5173)
 - Allow passing timedeltas to `create_flow_run` to schedule subflows at runtime - [#5303](https://github.com/PrefectHQ/prefect/pull/5303)
 - Upgrade Prefect Server Hasura image to 2.0.9 - [#5173](https://github.com/PrefectHQ/prefect/pull/5313)
 - Allow client retries on failed requests to Prefect Server - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)
 
 ### Task Library
 
+
+- Add authentication parameter for Snowflake query tasks - [#5173](https://github.com/PrefectHQ/prefect/pull/5173)
 - Add Mixpanel tasks - [#5276](https://github.com/PrefectHQ/prefect/pull/5276)
 - Add Zendesk Tickets Incremental Export task - [#5278](https://github.com/PrefectHQ/prefect/pull/5278)
 - Add Cube.js Query task - [#5280](https://github.com/PrefectHQ/prefect/pull/5280)
