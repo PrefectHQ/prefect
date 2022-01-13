@@ -20,12 +20,10 @@ from uuid import UUID
 
 import anyio
 import anyio.abc
-import docker
 import packaging.version
 import sniffio
 from anyio.abc import TaskStatus
 from anyio.streams.text import TextReceiveStream
-from docker.errors import ImageNotFound, APIError
 from pydantic import BaseModel, Field, root_validator, validator
 from slugify import slugify
 from typing_extensions import Literal
@@ -39,6 +37,7 @@ from prefect.logging import get_logger
 
 
 if TYPE_CHECKING:
+    import docker
     from docker import DockerClient
     from docker.models.containers import Container
 
@@ -460,7 +459,7 @@ class DockerFlowRunner(UniversalFlowRunner):
                 # NOTE: images.get() wants the tag included with the image
                 # name, while images.pull() wants them split.
                 docker_client.images.get(self.image)
-            except ImageNotFound:
+            except self._docker.errors.ImageNotFound:
                 self.logger.debug(f"Could not find Docker image locally: {self.image}")
                 return True
         return False
@@ -487,7 +486,7 @@ class DockerFlowRunner(UniversalFlowRunner):
         while not container:
             try:
                 container = docker_client.containers.create(name=name, **kwargs)
-            except docker.errors.APIError as exc:
+            except self._docker.errors.APIError as exc:
                 if "Conflict" in str(exc) and "container name" in str(exc):
                     index += 1
                     name = f"{original_name}-{index}"
@@ -501,7 +500,7 @@ class DockerFlowRunner(UniversalFlowRunner):
 
         try:
             container = docker_client.containers.get(container_id)
-        except docker.errors.NotFound:
+        except self._docker.errors.NotFound:
             self.logger.error(f"Flow run container {container_id!r} was removed.")
             return
 
@@ -524,10 +523,16 @@ class DockerFlowRunner(UniversalFlowRunner):
         result = container.wait()
         return result.get("StatusCode") == 0
 
+    @property
+    def _docker(self) -> "docker":
+        import docker
+
+        return docker
+
     def _get_client(self):
         try:
-            docker_client = docker.from_env()
-        except docker.errors.DockerException as exc:
+            docker_client = self._docker.from_env()
+        except self._docker.errors.DockerException as exc:
             raise RuntimeError(f"Could not connect to Docker.") from exc
 
         return docker_client
