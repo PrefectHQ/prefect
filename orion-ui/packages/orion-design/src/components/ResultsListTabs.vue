@@ -65,14 +65,14 @@
     },
 
     methods: {
-      setTab(tab: string) {
-        this.internalTab = tab
-        this.$emit('update:tab', tab)
+      setTab(href: string) {
+        this.internalTab = href
+        this.$emit('update:tab', href)
       },
 
       getTabClasses(tab: ResultsListTab) {
         return {
-          active: this.internalTab == tab.href,
+          active: this.isActiveTab(tab),
         }
       },
 
@@ -80,19 +80,23 @@
         return [
           tab.icon,
           {
-            'results-list-tabs__icon--active': this.internalTab == tab.href,
+            'results-list-tabs__icon--active': this.isActiveTab(tab),
           },
         ]
       },
 
       getTabCountClasses(tab: ResultsListTab) {
         return {
-          'results-list-tabs__badge--active': this.internalTab == tab.href,
+          'results-list-tabs__badge--active': this.isActiveTab(tab),
         }
       },
 
       getTabHasCount(tab: ResultsListTab): tab is ResultsListTabWithCount {
         return tab.count !== undefined
+      },
+
+      isActiveTab(tab: ResultsListTab): boolean {
+        return this.internalTab == tab.href
       },
     },
   })
