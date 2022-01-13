@@ -3,8 +3,6 @@ name: Release Orion Design
 on:
   workflow_dispatch:
   push:
-    paths: 
-      - orion-ui/packages/orion-design/package.json
     branches:
       - main
       - orion-design-publish-workflow
