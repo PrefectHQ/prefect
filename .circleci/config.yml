@@ -2,10 +2,6 @@ version: 2.1
 
 jobs:
   hello:
-    filters:
-      branch:
-        ignore: .*
-
     docker:
       - image: alpine:latest
 
