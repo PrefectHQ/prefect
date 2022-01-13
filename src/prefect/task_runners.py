@@ -300,7 +300,6 @@ class DaskTaskRunner(BaseTaskRunner):
         self.client_kwargs = client_kwargs
 
         # Runtime attributes
-        self._distributed: "distributed" = None
         self._client: "distributed.Client" = None
         self._cluster: "distributed.deploy.Cluster" = None
         self._dask_futures: Dict[UUID, "distributed.Future"] = {}
@@ -344,13 +343,11 @@ class DaskTaskRunner(BaseTaskRunner):
         except self._distributed.TimeoutError:
             return None
 
-    @staticmethod
-    def import_distributed() -> "distributed":
+    @property
+    def _distributed(self) -> "distributed":
         """
-        Delayed import of dask.distributed allowing configuration of the task runner
-        without the distributed extra installed.
-
-        Also improves `prefect` module import times.
+        Delayed import of `distributed` allowing configuration of the task runner
+        without the extra installed and improves `prefect` import times.
         """
         try:
             import distributed
@@ -369,8 +366,6 @@ class DaskTaskRunner(BaseTaskRunner):
         - Creates a client to connect to the cluster
         - Pushes a call to wait for all running futures to complete on exit
         """
-        self._distributed = self.import_distributed()
-
         if self.address:
             self.logger.info(
                 f"Connecting to an existing Dask cluster at {self.address}"
