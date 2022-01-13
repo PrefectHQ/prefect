@@ -1,5 +1,5 @@
 import { StateType } from '../types/StateType'
-import { State } from './State'
+import { IState } from './State'
 
 export interface ITaskRun {
   id: string,
@@ -24,7 +24,7 @@ export interface ITaskRun {
   endTime: Date,
   stateId: string,
   stateType: StateType,
-  state: State,
+  state: IState,
   duration: number,
   subflowRuns: boolean,
   tags: string[],
@@ -53,7 +53,7 @@ export class TaskRun implements ITaskRun {
   public endTime: Date
   public stateId: string
   public stateType: StateType
-  public state: State
+  public state: IState
   public duration: number
   public subflowRuns: boolean
   public tags: string[]
