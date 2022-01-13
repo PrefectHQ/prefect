@@ -93,7 +93,7 @@ class DatabaseSettings(BaseSettings):
             A database connection URL in a SQLAlchemy-compatible
             format. Orion currently supports SQLite and Postgres. Note that all
             Orion engines must use an async driver - for SQLite, use
-            `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`. 
+            `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
 
             SQLite in-memory databases can be used by providing the url
             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
@@ -196,8 +196,8 @@ class ServicesSettings(BaseSettings):
 
     scheduler_insert_batch_size: int = Field(
         500,
-        description="""The number of flow runs the scheduler will attempt to insert 
-        in one batch across all deployments. If the number of flow runs to 
+        description="""The number of flow runs the scheduler will attempt to insert
+        in one batch across all deployments. If the number of flow runs to
         schedule exceeds this amount, the runs will be inserted in batches of this size. Defaults to `500`.
         """,
     )
@@ -285,7 +285,7 @@ class OrionHandlerSettings(BaseSettings):
 
     enabled: bool = Field(
         True,
-        description="""Should logs be sent to Orion? If False, logs sent to the 
+        description="""Should logs be sent to Orion? If False, logs sent to the
         OrionHandler will not be sent to the API.""",
     )
     batch_interval: float = Field(
