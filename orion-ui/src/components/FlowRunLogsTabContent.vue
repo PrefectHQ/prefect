@@ -2,11 +2,11 @@
   <div class="flow-run-logs-tabs-content">
     <div class="flow-run-logs-tabs-content__header">
       <p class="flow-run-logs-tabs-content__span">Showing: Start to Now</p>
-      <ButtonGroupInput v-model:value="levelFilter" :items="levels">
-        <template #default="{ item }">
-          {{ logLevelLabel(item) }}
-        </template>
-      </ButtonGroupInput>
+      <m-select
+        v-model="levelFilter"
+        :options="levelOptions"
+        class="flow-run-logs-tabs-content__filter"
+      />
     </div>
     <div class="flow-run-logs-tab-content__table">
       <div class="flow-run-logs-tab-content__table-header">
@@ -50,11 +50,7 @@
         <template #empty>
           <p class="flow-run_logs-tab-content__empty">
             No logs to show.
-            <Button
-              v-show="levelFilter.length"
-              class="ml-2"
-              @click="clearFilters"
-            >
+            <Button v-show="levelFilter" class="ml-2" @click="clearFilters">
               Try clearing your filter
             </Button>
           </p>
@@ -77,7 +73,6 @@ import {
   FlowRunLogs,
   Log,
   logLevelLabel,
-  ButtonGroupInput,
   formatDateTimeNumeric
 } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions'
@@ -95,32 +90,26 @@ const props = defineProps({
   }
 })
 
-const levels = [10, 20, 30, 40, 50]
-const levelFilter = ref<number[]>([])
+const levelOptions = [
+  { label: 'Critical only', value: 50 },
+  { label: 'Error and above', value: 40 },
+  { label: 'Warning and above', value: 30 },
+  { label: 'Info and above', value: 20 },
+  { label: 'Debug and above', value: 10 },
+  { label: 'All log levels', value: 0 }
+]
+const levelFilter = ref<number>(0)
 
 // todo: paginate this with limit/offset
 const filter = computed<LogsRequestFilter>(() => {
-  const level: Required<LogsRequestFilter>['logs']['level'] = {}
-
-  if (levelFilter.value.length) {
-    const minLevel = Math.min(...levelFilter.value)
-    const maxLevel = Math.max(...levelFilter.value)
-
-    if (minLevel > 0) {
-      level.ge_ = minLevel
-    }
-
-    if (maxLevel < 50) {
-      level.le_ = maxLevel
-    }
-  }
-
   return {
     logs: {
       flow_run_id: {
         any_: [props.flowRunId]
       },
-      level
+      level: {
+        ge_: levelFilter.value
+      }
     }
   }
 })
@@ -133,7 +122,7 @@ const logs = computed<Log[]>(() => subscription.response.value ?? [])
 const loading = computed<boolean>(() => subscription.loading.value ?? true)
 
 const clearFilters = () => {
-  levelFilter.value = []
+  levelFilter.value = 0
 }
 
 const makeCsv = (): string => {
@@ -164,6 +153,10 @@ watch(
   margin: var(--m-2) 0;
   flex-wrap: wrap;
   gap: var(--m-1);
+}
+
+.flow-run-logs-tabs-content__filter {
+  width: 200px !important;
 }
 
 .flow-run-logs-tab-content__table-header {

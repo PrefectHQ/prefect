@@ -1,4 +1,3 @@
-export { default as ButtonGroupInput } from './ButtonGroupInput.vue'
 export { default as FlowRunLog } from './FlowRunLog.vue'
 export { default as FlowRunLogs } from './FlowRunLogs.vue'
 export { default as LogLevelLabel } from './LogLevelLabel.vue'
