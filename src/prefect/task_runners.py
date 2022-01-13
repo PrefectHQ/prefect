@@ -67,6 +67,8 @@ from contextlib import AsyncExitStack
 
 if TYPE_CHECKING:
     import distributed
+else:
+    distributed = None
 
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
@@ -349,12 +351,15 @@ class DaskTaskRunner(BaseTaskRunner):
         Delayed import of `distributed` allowing configuration of the task runner
         without the extra installed and improves `prefect` import times.
         """
-        try:
-            import distributed
-        except ImportError as exc:
-            raise RuntimeError(
-                "Using the `DaskTaskRunner` requires `distributed` to be installed."
-            ) from exc
+        global distributed
+
+        if distributed is None:
+            try:
+                import distributed
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Using the `DaskTaskRunner` requires `distributed` to be installed."
+                ) from exc
 
         return distributed
 
