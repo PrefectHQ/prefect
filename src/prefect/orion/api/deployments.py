@@ -54,14 +54,6 @@ async def create_deployment(
         db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
-
-    # proactively schedule the deployment
-    if deployment.schedule and deployment.is_schedule_active:
-        await models.deployments.schedule_runs(
-            session=session,
-            deployment_id=model.id,
-        )
-
     return model
 
 
@@ -202,13 +194,6 @@ async def set_schedule_active(
         )
     deployment.is_schedule_active = True
     await session.flush()
-
-    # proactively schedule the deployment
-    if deployment.schedule:
-        await models.deployments.schedule_runs(
-            session=session,
-            deployment_id=deployment_id,
-        )
 
 
 @router.post("/{id}/set_schedule_inactive")
