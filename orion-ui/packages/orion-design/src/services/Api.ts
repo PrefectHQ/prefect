@@ -19,11 +19,21 @@ export abstract class Api {
   }
 
   protected get instance(): AxiosInstance {
-    return this.getInstance()
+    if (this._instance) {
+      return this._instance
+    }
+
+    return this._instance = axios.create(this.config)
   }
 
   protected get config(): AxiosRequestConfig {
-    return this.getConfig()
+    if (this._config) {
+      return this._config
+    }
+
+    return this._config = {
+      baseURL: `${this.server}${this.route}`,
+    }
   }
 
   protected request<T = any, R = AxiosResponse<T>>(config: AxiosRequestConfig): Promise<R> {
@@ -58,21 +68,4 @@ export abstract class Api {
     return this.instance.patch(url, data, config)
   }
 
-  private getConfig(): AxiosRequestConfig {
-    if (this._config) {
-      return this._config
-    }
-
-    return this._config = {
-      baseURL: `${this.server}${this.route}`,
-    }
-  }
-
-  private getInstance(): AxiosInstance {
-    if (this._instance) {
-      return this._instance
-    }
-
-    return this._instance = axios.create(this.config)
-  }
 }
