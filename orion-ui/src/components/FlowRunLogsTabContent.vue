@@ -4,7 +4,7 @@
       <p class="flow-run-logs-tabs-content__span">Showing: Start to Now</p>
       <ButtonGroupInput v-model:value="levelFilter" :items="levels">
         <template #default="{ item }">
-          {{ LogLevel.GetLabel(item) }}
+          {{ logLevelLabel(item) }}
         </template>
       </ButtonGroupInput>
     </div>
@@ -76,7 +76,7 @@ import {
   LogsRequestFilter,
   FlowRunLogs,
   Log,
-  LogLevel,
+  logLevelLabel,
   ButtonGroupInput,
   formatDateTimeNumeric
 } from '@prefecthq/orion-design'
@@ -139,7 +139,7 @@ const clearFilters = () => {
 const makeCsv = (): string => {
   return logs.value
     .map((log) => {
-      const level = LogLevel.GetLabel(log.level)
+      const level = logLevelLabel(log.level)
       const time = formatDateTimeNumeric(log.timestamp)
 
       return `${level}\t${time}\t${log.message}`
