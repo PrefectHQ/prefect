@@ -1,3 +1,13 @@
 version: 2.1
 
-# This config is required for CircleCI on the OSS repository to pass builds.
+jobs:
+  hello:
+    filters:
+      branch:
+        ignore: .*
+
+    docker:
+      - image: alpine:latest
+
+    steps:
+      - run: echo "hello world"
