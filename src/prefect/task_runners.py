@@ -353,7 +353,7 @@ class DaskTaskRunner(BaseTaskRunner):
             import distributed
         except ImportError as exc:
             raise RuntimeError(
-                "Using the Dask task runner requires Dask `distributed` to be installed."
+                "Using the `DaskTaskRunner` requires `distributed` to be installed."
             ) from exc
 
         return distributed
