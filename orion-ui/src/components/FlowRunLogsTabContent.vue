@@ -216,7 +216,10 @@ watch(
 }
 
 .flow-run-logs-tab-content__table {
+  border-radius: 4px;
+  overflow: hidden;
   background-color: #fff;
+  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.06), 0px 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .flow-run_logs-tab-content__empty {

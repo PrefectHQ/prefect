@@ -67,6 +67,7 @@
   display: flex;
   justify-content: center;
   position: relative;
+  margin: 0 var(--m-2);
 
   &:after {
     content: '';
