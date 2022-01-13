@@ -525,7 +525,16 @@ class DockerFlowRunner(UniversalFlowRunner):
 
     @property
     def _docker(self) -> "docker":
-        import docker
+        """
+        Delayed import of `docker` allowing configuration of the flow runner without
+        the extra installed and improves `prefect` import times.
+        """
+        try:
+            import docker
+        except ImportError as exc:
+            raise RuntimeError(
+                "Using the Docker flow runner requires `dockerpy` to be installed."
+            ) from exc
 
         return docker
 
