@@ -19,7 +19,7 @@ jobs:
       - name: Check Package Version
         uses: EndBug/version-check@v2.1.0
         id: check
-        width: 
+        with: 
           file-name: ./orion-ui/packages/orion-design/package.json
 
       - name: Cancel
@@ -52,7 +52,7 @@ jobs:
       - name: Get Package Version
         uses: EndBug/version-check@v2.1.0
         id: version
-        width: 
+        with: 
           file-name: ./orion-ui/packages/orion-design/package.json
 
       - name: Publish Package
