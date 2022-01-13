@@ -1,8 +1,8 @@
 import { AxiosResponse } from 'axios'
-import { State } from '../models/State'
 import { TaskRun } from '../models/TaskRun'
 import { StateType } from '../types/StateType'
 import { Api } from './Api'
+import { IStateResponse, States } from './StatesApi'
 
 export type ITaskRunResponse = {
   id: string,
@@ -11,7 +11,7 @@ export type ITaskRunResponse = {
   cache_key: string,
   created: string,
   dynamic_key: string,
-  empirical_policy: Record<string, any>,
+  empirical_policy: Record<string, unknown>,
   estimated_run_time: number,
   estimated_start_time_delta: number,
   total_run_time: number,
@@ -19,7 +19,7 @@ export type ITaskRunResponse = {
   next_scheduled_start_time: string | null,
   run_count: number,
   name: string,
-  task_inputs: Record<string, any>,
+  task_inputs: Record<string, unknown>,
   task_key: string,
   task_version: string,
   updated: string,
@@ -27,7 +27,7 @@ export type ITaskRunResponse = {
   end_time: string,
   state_id: string,
   state_type: StateType,
-  state: State,
+  state: IStateResponse,
   duration: number,
   subflow_runs: boolean,
   tags: string[],
@@ -65,7 +65,7 @@ export class TaskRunsApi extends Api {
       endTime: new Date(taskRun.end_time),
       stateId: taskRun.state_id,
       stateType: taskRun.state_type,
-      state: taskRun.state,
+      state: States.stateMapper(taskRun.state),
       duration: taskRun.duration,
       subflowRuns: taskRun.subflow_runs,
       tags: taskRun.tags,
