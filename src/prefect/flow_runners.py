@@ -533,7 +533,7 @@ class DockerFlowRunner(UniversalFlowRunner):
             import docker
         except ImportError as exc:
             raise RuntimeError(
-                "Using the `DockerFlowRunner`requires `docker-py` to be installed."
+                "Using the `DockerFlowRunner` requires `docker-py` to be installed."
             ) from exc
 
         return docker
