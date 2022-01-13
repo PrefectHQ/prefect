@@ -131,9 +131,8 @@
   <template v-if="resultsCount.value > 0">
     <div class="font--secondary caption my-2" style="min-height: 17px">
       <span>
-        {{ resultsCount.value?.toLocaleString() }} Result{{
-          resultsCount.value !== 1 ? 's' : ''
-        }}
+        {{ resultsCount.value.toLocaleString() }}
+        {{ toPluralString('Result', resultsCount) }}
       </span>
     </div>
   </template>
@@ -189,6 +188,7 @@ import MiniRadarView from './MiniRadar.vue'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 import { ResultsListTabs, ResultsListTab } from '@prefecthq/orion-design'
 import FlowRunLogsTabContent from '@/components/FlowRunLogsTabContent.vue'
+import { toPluralString } from '@/utilities/strings'
 
 const route = useRoute()
 
