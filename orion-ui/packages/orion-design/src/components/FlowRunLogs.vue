@@ -61,7 +61,7 @@
 }
 
 .flow-run-logs__divider {
-  font-family: 'input-sans';
+  font-family: var(--font-secondary);
   font-size: 13px;
   color: var(--grey-40);
   display: flex;

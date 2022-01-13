@@ -125,10 +125,10 @@
 
 .flow-run-log__time {
   padding-top: 1px;
-  font-family: 'input-sans';
+  font-family: var(--font-secondary);
   grid-area: time;
   color: var(--log-level-info);
-  text-align: 'left';
+  text-align: left;
 
   @media screen and (min-width: map.get($breakpoints, 'md')) {
     text-align: center;
@@ -145,7 +145,7 @@
 
 .flow-run-log__details {
   margin: 0;
-  font-family: 'input-sans';
+  font-family: var(--font-secondary);
   border: 1px solid transparent;
   border-radius: 4px;
   grid-area: message;
