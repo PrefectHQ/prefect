@@ -5,7 +5,7 @@ mkdocs-material
 mkdocstrings
 mypy 
 pytest
-pytest-asyncio
+pytest-asyncio >= 0.17
 pytkdocs >= 0.13.0
 flake8
 pytest-env

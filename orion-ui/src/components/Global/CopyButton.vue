@@ -39,9 +39,9 @@ export default defineComponent({
         navigator.clipboard.writeText(this.value)
       }
 
-      this.$toast.add({
+      this.$toast({
         type: 'success',
-        content: this.toast,
+        message: this.toast,
         timeout: this.timeout
       })
     }
