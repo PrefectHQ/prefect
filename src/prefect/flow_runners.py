@@ -40,7 +40,8 @@ if TYPE_CHECKING:
     import docker
     from docker import DockerClient
     from docker.models.containers import Container
-
+else:
+    docker = None
 
 _FLOW_RUNNERS: Dict[str, "FlowRunner"] = {}
 FlowRunnerT = TypeVar("FlowRunnerT", bound=Type["FlowRunner"])
@@ -529,12 +530,15 @@ class DockerFlowRunner(UniversalFlowRunner):
         Delayed import of `docker` allowing configuration of the flow runner without
         the extra installed and improves `prefect` import times.
         """
-        try:
-            import docker
-        except ImportError as exc:
-            raise RuntimeError(
-                "Using the `DockerFlowRunner` requires `docker-py` to be installed."
-            ) from exc
+        global docker
+
+        if docker is None:
+            try:
+                import docker
+            except ImportError as exc:
+                raise RuntimeError(
+                    "Using the `DockerFlowRunner` requires `docker-py` to be installed."
+                ) from exc
 
         return docker
 
