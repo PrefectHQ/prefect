@@ -8,7 +8,7 @@ export interface ITaskRun {
   cacheKey: string,
   created: Date,
   dynamicKey: string,
-  empiricalPolicy: Record<string, any>,
+  empiricalPolicy: Record<string, unknown>,
   estimatedRunTime: number,
   estimatedStartTimeDelta: number,
   totalRunTime: number,
@@ -16,7 +16,7 @@ export interface ITaskRun {
   nextScheduledStartTime: string | null,
   runCount: number,
   name: string,
-  taskInputs: Record<string, any>,
+  taskInputs: Record<string, unknown>,
   taskKey: string,
   taskVersion: string,
   updated: Date,
@@ -37,7 +37,7 @@ export class TaskRun implements ITaskRun {
   public cacheKey: string
   public created: Date
   public dynamicKey: string
-  public empiricalPolicy: Record<string, any>
+  public empiricalPolicy: Record<string, unknown>
   public estimatedRunTime: number
   public estimatedStartTimeDelta: number
   public totalRunTime: number
@@ -45,7 +45,7 @@ export class TaskRun implements ITaskRun {
   public nextScheduledStartTime: string | null
   public runCount: number
   public name: string
-  public taskInputs: Record<string, any>
+  public taskInputs: Record<string, unknown>
   public taskKey: string
   public taskVersion: string
   public updated: Date
