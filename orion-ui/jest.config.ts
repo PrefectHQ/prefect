@@ -4,19 +4,17 @@ import type { Config } from '@jest/types'
 class DOMRect {}
 
 const config: Config.InitialOptions = {
+  projects: ['./test-projects/*'],
   maxWorkers: 1,
   moduleFileExtensions: ['js', 'ts', 'json', 'vue'],
   rootDir: '.',
-  transform: {
-    '^.+\\.tsx?$': ['ts-jest', {}], // process `*.ts` files with ts-jest
-    '.*\\.(vue)$': ['vue3-jest', {}] // process `*.vue` files with vue-jest
-  },
   testURL: 'http://localhost/',
-  setupFiles: ['./tests/setupJest.ts'],
   verbose: true,
-  testEnvironment: 'jsdom',
   globals: {
-    DOMRect
+    DOMRect,
+    'ts-jest': {
+      tsconfig: './tsconfig.json'
+    }
   }
 }
 

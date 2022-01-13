@@ -1,17 +1,10 @@
-<p align="center"><img src="docs/img/logos/prefect-orion-constellation-banner-light.png" width=1000></p>
+<p align="center"><img src="https://images.ctfassets.net/gm98wzqotmnx/4lgiSBlqqp7GH72CXvipnL/46e0fb4dabeb28e302427b6f6b95b4e7/prefect-orion-constellation-banner-light.png" width=1000></p>
 
 # Orion
 
 A development repo for Prefect Orion; reference documentation can be found at https://orion-docs.prefect.io/.
 
 ## Welcome!
-
-```bash
-$ git clone https://github.com/PrefectHQ/prefect.git
-$ cd prefect/
-$ git checkout orion
-$ pip install -e ".[dev]"
-```
 
 Prefect Orion is the second-generation workflow orchestration engine from [Prefect](https://www.prefect.io), now available as a [technical preview](https://orion-docs.prefect.io/faq/#why-is-orion-a-technical-preview).
 

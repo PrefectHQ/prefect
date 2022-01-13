@@ -17,6 +17,7 @@ from prefect.deployments import (
 from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
+from prefect.flow_runners import SubprocessFlowRunner
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import IntervalSchedule
 from prefect.orion.serializers import D
@@ -192,7 +193,8 @@ class TestDeploymentSpecFromFile:
             spec.load_flow()
 
 
-async def test_create_deployment_from_spec(orion_client):
+@pytest.mark.parametrize("push_to_server", [True, False])
+async def test_create_deployment_from_spec(orion_client, push_to_server):
     schedule = IntervalSchedule(interval=timedelta(days=1))
 
     spec = DeploymentSpec(
@@ -201,6 +203,8 @@ async def test_create_deployment_from_spec(orion_client):
         schedule=schedule,
         parameters={"foo": "bar"},
         tags=["foo", "bar"],
+        flow_runner=SubprocessFlowRunner(env={"FOO": "BAR"}),
+        push_to_server=push_to_server,
     )
     deployment_id = await create_deployment_from_spec(spec, client=orion_client)
 
@@ -210,11 +214,17 @@ async def test_create_deployment_from_spec(orion_client):
     assert lookup.schedule == schedule
     assert lookup.parameters == {"foo": "bar"}
     assert lookup.tags == ["foo", "bar"]
+    assert lookup.flow_runner == spec.flow_runner.to_settings()
 
-    # Location was encoded into a data document
-    assert lookup.flow_data == DataDocument(
-        encoding="file", blob=spec.flow_location.encode()
-    )
+    if push_to_server:
+        with open(spec.flow_location, "rb") as flow_file:
+            flow_text = flow_file.read()
+        assert await orion_client.retrieve_data(lookup.flow_data) == flow_text
+    else:
+        # Location was encoded into a data document
+        assert lookup.flow_data == DataDocument(
+            encoding="file", blob=spec.flow_location.encode()
+        )
 
     # Flow was loaded
     assert spec.flow is not None

@@ -5,9 +5,10 @@ mkdocs-material
 mkdocstrings
 mypy 
 pytest
-pytest-asyncio
-pytkdocs 
+pytest-asyncio >= 0.17
+pytkdocs >= 0.13.0
 flake8
 pytest-env
 requests
+virtualenv
 mock; python_version < '3.8'

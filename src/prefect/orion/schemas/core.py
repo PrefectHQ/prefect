@@ -3,7 +3,7 @@ Full schemas of Orion API objects.
 """
 
 import datetime
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Optional
 from uuid import UUID
 
 from pydantic import Field, validator
@@ -26,6 +26,32 @@ class Flow(ORMBaseModel):
     # relationships
     # flow_runs: List["FlowRun"] = Field(default_factory=list)
     # deployments: List["Deployment"] = Field(default_factory=list)
+
+
+class FlowRunnerSettings(PrefectBaseModel):
+    """
+    An API schema for passing details about the flow runner.
+
+    This schema is agnostic to the types and configuration provided by clients
+    """
+
+    type: str = Field(
+        None,
+        description="The type of the flow runner which can be used by the client for dispatching.",
+    )
+    config: dict = Field(
+        None, description="The configuration for the given flow runner type."
+    )
+
+    # The following is required for composite compatibility in the ORM
+
+    def __init__(self, type: str = None, config: dict = None, **kwargs) -> None:
+        # Pydantic does not support positional arguments so they must be converted to
+        # keyword arguments
+        super().__init__(type=type, config=config, **kwargs)
+
+    def __composite_values__(self):
+        return self.type, self.config
 
 
 class FlowRun(ORMBaseModel):
@@ -102,6 +128,10 @@ class FlowRun(ORMBaseModel):
     )
     auto_scheduled: bool = Field(
         False, description="Whether or not the flow run was automatically scheduled."
+    )
+    flow_runner: FlowRunnerSettings = Field(
+        None,
+        description="The flow runner to use to create infrastructure to execute this flow run",
     )
 
     # relationships
@@ -276,6 +306,11 @@ class Deployment(ORMBaseModel):
         example=["tag-1", "tag-2"],
     )
 
+    flow_runner: FlowRunnerSettings = Field(
+        None,
+        description="The flow runner to assign to flow runs associated with this deployment.",
+    )
+
     # flow: Flow = None
 
 
@@ -285,6 +320,21 @@ class SavedSearch(ORMBaseModel):
     name: str = Field(..., description="The name of the saved search.")
     filters: dict = Field(
         default_factory=dict, description="The filter set for the saved search."
+    )
+
+
+class Log(ORMBaseModel):
+    """An ORM representation of log data."""
+
+    name: str = Field(..., description="The logger name.")
+    level: int = Field(..., description="The log level.")
+    message: str = Field(..., description="The log message.")
+    timestamp: datetime.datetime = Field(..., description="The log timestamp.")
+    flow_run_id: UUID = Field(
+        ..., description="The flow run ID associated with the log."
+    )
+    task_run_id: Optional[UUID] = Field(
+        None, description="The task run ID associated with the log."
     )
 
 

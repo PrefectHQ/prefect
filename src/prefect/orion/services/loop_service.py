@@ -8,7 +8,7 @@ import pendulum
 from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 
 from prefect.orion.database.dependencies import inject_db
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.orion.database.interface import OrionDBInterface
 
 
@@ -26,8 +26,6 @@ class LoopService:
     # flag for whether the service should stop running
     should_stop: bool = False
 
-    session_factory: async_scoped_session = None
-
     def __init__(self, loop_seconds: float = None):
         if loop_seconds:
             self.loop_seconds = loop_seconds
@@ -39,16 +37,13 @@ class LoopService:
         """
         Called prior to running the service
         """
-        # prepare a database engine
-        # this call is cached and shared across services if possible
-        self.session_factory = await db.session_factory()
+        pass
 
     async def shutdown(self) -> None:
         """
         Called after running the service
         """
         self.should_stop = False
-        self.session_factory = None
 
     async def start(self, loops=None) -> None:
         """

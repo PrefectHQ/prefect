@@ -1,16 +1,6 @@
 <template>
-  <ListItem class="list-item--deployment d-flex align-start justify-start">
-    <i class="item--icon pi pi-map-pin-line text--grey-40 align-self-start" />
-    <div
-      class="
-        item--title
-        ml-2
-        d-flex
-        flex-column
-        justify-center
-        align-self-start
-      "
-    >
+  <ListItem class="list-item--deployment" icon="pi-map-pin-line">
+    <div class="list-item__title">
       <h2>
         {{ item.name }}
       </h2>
@@ -48,22 +38,13 @@
           </span>
         </span>
 
-        <span class="mr-1 caption text-truncate d-flex align-center">
-          <Tag
-            v-for="tag in tags"
-            :key="tag"
-            color="secondary-pressed"
-            class="font--primary mr-1"
-            icon="pi-label"
-            flat
-          >
-            {{ tag }}
-          </Tag>
+        <span class="mr-1 text-truncate caption">
+          <Tags :tags="tags" />
         </span>
       </div>
     </div>
 
-    <div v-breakpoints="'sm'" class="ml-auto d-flex align-middle nowrap">
+    <div v-if="media.sm" class="ml-auto d-flex align-middle nowrap">
       <Toggle v-if="false" v-model="scheduleActive" />
 
       <Button
@@ -145,8 +126,9 @@
 <script lang="ts">
 import { Options, Vue, prop } from 'vue-class-component'
 import { secondsToString } from '@/util/util'
-import { Deployment, IntervalSchedule, CronSchedule } from '@/typings/objects'
+import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
+import media from '@/utilities/media'
 
 class Props {
   item = prop<Deployment>({ required: true })
@@ -172,6 +154,7 @@ export default class ListItemDeployment extends Vue.with(Props) {
   search: string = ''
   scheduleActive: boolean = this.item.is_schedule_active
   creatingRun: boolean = false
+  media = media
 
   async createRun(): Promise<void> {
     this.creatingRun = true
@@ -233,5 +216,27 @@ export default class ListItemDeployment extends Vue.with(Props) {
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/components/list-item--deployment.scss';
+.tag-container {
+  margin-top: 6px;
+
+  > .tag-wrapper {
+    margin-top: -4px;
+  }
+}
+
+.parameters-hr {
+  border: 0;
+  border-bottom: 1px solid;
+  color: $grey-10 !important;
+  width: 100%;
+}
+
+.parameter-type {
+  background-color: $grey-40;
+  border-radius: 4px;
+}
+
+.parameters-container {
+  overflow: auto;
+}
 </style>

@@ -5,24 +5,9 @@
         <!-- TODO; This card is overflowing boundaries and text truncation doesn't seem to be working... fix that or whatever. -->
         <div class="d-inline-flex flex-column">
           <div class="flex-grow-0 flex-shrink-1">
-            <span
-              class="run-state correct-text caption mr-1"
-              :class="state.type?.toLowerCase() + '-bg'"
-            >
-              {{ state.name }}
-            </span>
-
             <span class="d-inline-flex align-center text-truncate">
-              <Tag
-                v-for="tag in tags"
-                :key="tag"
-                color="secondary-pressed"
-                class="font--primary caption font-weight-semibold mr-1"
-                icon="pi-label"
-                flat
-              >
-                {{ tag }}
-              </Tag>
+              <StateLabel :name="state.name" :type="state.type" class="mr-1" />
+              <Tags :tags="tags" class="mr-1 caption" />
               <div
                 class="
                   caption
@@ -222,19 +207,18 @@
 import { Api, Query, Endpoints, BaseFilter, FlowsFilter } from '@/plugins/api'
 import { State, FlowRun, Deployment, TaskRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, ref, Ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { secondsToApproximateString } from '@/util/util'
 import { formatDateTimeNumeric } from '@/utilities/dates'
 import Timeline from '@/components/Timeline/Timeline.vue'
 import MiniRadarView from './MiniRadar.vue'
+import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
 
 const route = useRoute()
 
 const resultsTab: Ref<'task_runs' | 'sub_flow_runs'> = ref('task_runs')
 
-const id = computed(() => {
-  return route?.params.id as string
-})
+const id = ref(route?.params.id as string)
 
 const flowRunbaseFilter = computed(() => {
   return { id: id.value }
@@ -425,7 +409,17 @@ onBeforeUnmount(() => {
   Api.queries.delete(flowRunBase.id)
 })
 
+const idWatcher = watch(route, () => {
+  id.value = route?.params.id as string
+})
+
+onBeforeRouteLeave(() => {
+  idWatcher()
+})
+
 watch(id, async () => {
+  if (!id.value) return
+
   await flowRunBase.fetch()
   queries.flow.fetch()
 

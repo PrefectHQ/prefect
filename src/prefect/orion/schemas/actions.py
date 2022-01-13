@@ -1,10 +1,12 @@
 """
 Reduced schemas for accepting API actions.
 """
+from typing import List
 
 from pydantic import Field
 
 from prefect.orion import schemas
+from prefect.orion.utilities.schemas import PrefectBaseModel
 
 
 class FlowCreate(
@@ -33,6 +35,7 @@ class DeploymentCreate(
             "tags",
             "parameters",
             "flow_data",
+            "flow_runner",
         ],
     )
 ):
@@ -41,7 +44,8 @@ class DeploymentCreate(
 
 class FlowRunUpdate(
     schemas.core.FlowRun.subclass(
-        name="FlowRunUpdate", include_fields=["flow_version", "parameters", "name"]
+        name="FlowRunUpdate",
+        include_fields=["flow_version", "parameters", "name", "flow_runner"],
     )
 ):
     """Data used by the Orion API to update a flow run."""
@@ -98,6 +102,7 @@ class FlowRunCreate(
             "tags",
             "idempotency_key",
             "parent_task_run_id",
+            "flow_runner",
         ],
     )
 ):
@@ -116,6 +121,7 @@ class DeploymentFlowRunCreate(
             "context",
             "tags",
             "idempotency_key",
+            "flow_runner",
         ],
     )
 ):
@@ -132,3 +138,19 @@ class SavedSearchCreate(
     )
 ):
     """Data used by the Orion API to create a saved search."""
+
+
+class LogCreate(
+    schemas.core.Log.subclass(
+        name="LogCreate",
+        include_fields=[
+            "name",
+            "level",
+            "message",
+            "timestamp",
+            "flow_run_id",
+            "task_run_id",
+        ],
+    )
+):
+    """Data used by the Orion API to create a log."""

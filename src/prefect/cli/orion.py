@@ -14,7 +14,7 @@ from anyio.streams.text import TextReceiveStream
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.utilities.asyncio import sync, sync_compatible
+from prefect.utilities.asyncio import sync_compatible
 
 orion_app = typer.Typer(name="orion")
 app.add_typer(orion_app)
@@ -40,8 +40,12 @@ async def open_process_and_stream_output(
         if task_status is not None:
             task_status.started()
 
-        async for text in TextReceiveStream(process.stdout):
-            print(text, end="")  # Output is already new-line terminated
+        try:
+            async for text in TextReceiveStream(process.stdout):
+                print(text, end="")  # Output is already new-line terminated
+        except BaseException:
+            process.terminate()
+            raise
 
 
 @orion_app.command()
@@ -50,7 +54,7 @@ async def start(
     host: str = settings.orion.api.host,
     port: int = settings.orion.api.port,
     log_level: str = settings.logging.default_level,
-    services: bool = settings.orion.services.run_in_app,
+    services: bool = True,  # Note this differs from the default of `settings.orion.services.run_in_app`
     agent: bool = True,
     ui: bool = settings.orion.ui.enabled,
 ):

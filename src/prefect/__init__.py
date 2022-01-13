@@ -16,7 +16,8 @@ del _pathlib
 
 # Prepare settings and logging first
 from prefect.utilities.settings import settings
-from prefect.utilities.logging import setup_logging
+from prefect.logging.configuration import setup_logging
+from prefect.logging.loggers import get_run_logger
 
 if not _os.path.exists(settings.home):
     _os.makedirs(settings.home, exist_ok=True)
@@ -30,4 +31,4 @@ import prefect.serializers
 from prefect.orion.schemas.states import State
 from prefect.flows import flow
 from prefect.tasks import task
-from prefect.engine import tags
+from prefect.context import tags

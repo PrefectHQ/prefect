@@ -3,8 +3,10 @@ Async and thread safe models for passing runtime context data.
 
 These contexts should never be directly mutated by the user.
 """
+from logging import Logger
+from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Optional, Type, TypeVar, Union, List, Set
+from typing import Optional, Type, TypeVar, Union, List, Set, Dict
 from uuid import UUID
 
 import pendulum
@@ -18,6 +20,7 @@ from prefect.flows import Flow
 from prefect.futures import PrefectFuture
 from prefect.tasks import Task
 from prefect.orion.schemas.states import State
+from prefect.orion.schemas.core import TaskRun, FlowRun
 
 T = TypeVar("T")
 
@@ -57,9 +60,11 @@ class RunContext(ContextModel):
 
     Attributes:
         start_time: The time the run context was entered
+        client: The Orion client instance being used for API communication
     """
 
     start_time: DateTime = Field(default_factory=lambda: pendulum.now("UTC"))
+    client: OrionClient
 
 
 class FlowRunContext(RunContext):
@@ -68,9 +73,8 @@ class FlowRunContext(RunContext):
     flow run function.
 
     Attributes:
-        flow: The flow instance associated with the flow run
-        flow_run_id: The unique id identifying the flow run
-        client: The Orion client instance being used for API communication
+        flow: The flow instance associated with the run
+        flow_run: The API metadata for the flow run
         task_runner: The task_runner instance being used for the flow run
         task_run_futures: A list of futures for task runs created within this flow run
         subflow_states: A list of states for flow runs created within this flow run
@@ -79,11 +83,13 @@ class FlowRunContext(RunContext):
     """
 
     flow: Flow
-    flow_run_id: UUID
-    client: OrionClient
+    flow_run: FlowRun
     task_runner: BaseTaskRunner
+
+    # Tracking created objects
     task_run_futures: List[PrefectFuture] = Field(default_factory=list)
     subflow_states: List[State] = Field(default_factory=list)
+
     # The synchronous portal is only created for async flows for creating engine calls
     # from synchronous task and subflow calls
     sync_portal: Optional[BlockingPortal] = None
@@ -99,15 +105,11 @@ class TaskRunContext(RunContext):
 
     Attributes:
         task: The task instance associated with the task run
-        task_run_id: The unique id identifying the task run
-        flow_run_id: The unique id of the flow run the task run belongs to
-        client: The Orion client instance being used for API communication
+        task_run: The API metadata for this task run
     """
 
     task: Task
-    task_run_id: UUID
-    flow_run_id: UUID
-    client: OrionClient
+    task_run: TaskRun
 
     __var__ = ContextVar("task_run")
 
@@ -151,3 +153,60 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     raise RuntimeError(
         "No run context available. You are not in a flow or task run context."
     )
+
+
+@contextmanager
+def tags(*new_tags: str) -> Set[str]:
+    """
+    Context manager to add tags to flow and task run calls.
+
+    Tags are always combined with any existing tags.
+
+    Yields:
+        The current set of tags
+
+    Examples:
+        >>> from prefect import tags, task, flow
+        >>> @task
+        >>> def my_task():
+        >>>     pass
+
+        Run a task with tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("a", "b"):
+        >>>         my_task()  # has tags: a, b
+
+        Run a flow with tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     pass
+        >>> with tags("a", b"):
+        >>>     my_flow()  # has tags: a, b
+
+        Run a task with nested tag contexts
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("a", "b"):
+        >>>         with tags("c", "d"):
+        >>>             my_task()  # has tags: a, b, c, d
+        >>>         my_task()  # has tags: a, b
+
+        Inspect the current tags
+
+        >>> @flow
+        >>> def my_flow():
+        >>>     with tags("c", "d"):
+        >>>         with tags("e", "f") as current_tags:
+        >>>              print(current_tags)
+        >>> with tags("a", b"):
+        >>>     my_flow()
+        {"a", "b", "c", "d", "e", "f"}
+    """
+    current_tags = TagsContext.get().current_tags
+    new_tags = current_tags.union(new_tags)
+    with TagsContext(current_tags=new_tags):
+        yield new_tags

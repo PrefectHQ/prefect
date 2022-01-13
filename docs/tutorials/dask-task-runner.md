@@ -1,5 +1,5 @@
 
-# Dask integration
+# Running tasks with Dask
 
 Prefect integrates with `Dask` via the [task runner interface](/concepts/task-runners/). 
 The [DaskTaskRunner](/api-ref/prefect/task-runners.md#prefect.task_runners.DaskTaskRunner) runs Prefect
@@ -23,12 +23,11 @@ By default, when you use a `DaskTaskRunner` it creates a temporary local Dask
 cluster.
 
 ```python
-from prefect import flow
 from prefect.task_runners import DaskTaskRunner
 
 # By default this will use a temporary local Dask cluster
-@flow(task_runner=DaskTaskRunner())
-def my_flow():
+@flow
+def my_flow(task_runner=DaskTaskRunner()):
     pass
 ```
 

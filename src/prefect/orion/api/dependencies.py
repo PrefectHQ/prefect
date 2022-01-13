@@ -19,8 +19,7 @@ async def get_session(db: OrionDBInterface = Depends(provide_database_interface)
     A `response_scoped_dependency` is used to ensure this session is closed before the
     response is returned to a client.
     """
-    # load engine with API timeout setting
-    session_factory = await db.session_factory()
-    async with session_factory() as session:
+    session = await db.session()
+    async with session:
         async with session.begin():
             yield session

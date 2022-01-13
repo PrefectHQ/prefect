@@ -1,9 +1,9 @@
 version: 2.1
 
-orbs:
-  welcome: circleci/welcome-orb@0.4.1
+jobs:
+  build:  # must be called 'build' if not using a workflow
+    docker:
+      - image: alpine:latest
 
-workflows:
-  welcome:
-    jobs:
-      - welcome/run
+    steps:
+      - run: echo "looks good to me!"

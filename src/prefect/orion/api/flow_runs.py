@@ -17,7 +17,7 @@ from prefect.orion.orchestration import dependencies as orchestration_dependenci
 from prefect.orion.orchestration.policies import BaseOrchestrationPolicy
 from prefect.orion.orchestration.rules import OrchestrationResult
 from prefect.orion.utilities.server import OrionRouter
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.orion.models.flow_runs import DependencyResult
 
 
@@ -48,6 +48,7 @@ async def create_flow_run(
     model = await models.flow_runs.create_flow_run(session=session, flow_run=flow_run)
     if model.created >= now:
         response.status_code = status.HTTP_201_CREATED
+
     return model
 
 

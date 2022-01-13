@@ -166,8 +166,11 @@ class TestStateConvenienceFunctions:
 
 
 class TestRepresentation:
-    async def test_state_str_includes_message_and_type(self):
-        assert str(Failed(message="abc")) == "Failed(message='abc', type=FAILED)"
+    async def test_state_str_includes_message(self):
+        assert str(Failed(message="abc")) == "Failed('abc')"
+
+    async def test_state_str_includes_type_if_name_is_custom(self):
+        assert str(Failed(message="abc", name="Foo")) == "Foo('abc', type=FAILED)"
 
     async def test_state_repr_includes_message_and_type_and_result(self):
         data = DataDocument(encoding="text", blob=b"abc")

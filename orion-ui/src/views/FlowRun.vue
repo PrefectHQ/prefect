@@ -13,26 +13,24 @@
       :class="{ blur: route.fullPath.includes('/radar') }"
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
-      <div
-        v-breakpoints="'sm'"
-        class="text-truncate"
-        v-show="route.fullPath.includes('/radar')"
-      >
-        <span v-breakpoints="'sm'" class="ml-5">
-          Flow Version:
-          <span class="font-weight-semibold" v-if="!flowRun.flow_version">
-            --
+      <template v-if="route.fullPath.includes('/radar')">
+        <div v-if="media.sm" class="text-truncate d-flex align-center">
+          <span class="ml-5">
+            Flow Version:
+            <span class="font-weight-semibold">
+              {{ version }}
+            </span>
           </span>
-          <span class="font-weight-semibold" v-else>
-            {{ flowRun.flow_version }}
-          </span>
-        </span>
-
-        <button v-breakpoints="'md'" class="copy-link ml-1" @click="copyRunId">
-          <i class="pi pi-link pi-xs" />
-          Copy Run ID
-        </button>
-      </div>
+          <CopyButton
+            v-if="media.md"
+            class="ml-1"
+            :value="id"
+            toast="Run ID was copied to clipboard"
+          >
+            Copy Run ID
+          </CopyButton>
+        </div>
+      </template>
     </div>
 
     <router-view />
@@ -42,24 +40,28 @@
 <script lang="ts" setup>
 import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, Flow } from '@/typings/objects'
-import {
-  computed,
-  onBeforeUnmount,
-  onBeforeMount,
-  ref,
-  Ref,
-  watch,
-  getCurrentInstance
-} from 'vue'
+import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
+import CopyButton from '@/components/Global/CopyButton.vue'
+import media from '@/utilities/media'
 
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 
 const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
-const id = computed<string>(() => {
-  return route?.params.id as string
+const id = ref(route?.params.id as string)
+
+const idWatcher = watch(route, () => {
+  id.value = route?.params.id as string
+})
+
+onBeforeRouteLeave(() => {
+  idWatcher()
+})
+
+const version = computed<string>(() => {
+  return flowRun.value.flow_version ?? '--'
 })
 
 const flowRunBaseBody = computed(() => {
@@ -115,16 +117,6 @@ const crumbs = computed(() => {
   return arr
 })
 
-const instance = getCurrentInstance()
-
-const copyRunId = () => {
-  navigator.clipboard.writeText(id.value)
-  instance?.appContext.config.globalProperties.$toast.add({
-    type: 'success',
-    content: 'Run ID was copied to clipboard'
-  })
-}
-
 // This cleanup is necessary since the initial flow run query isn't
 // wrapped in the queries object
 onBeforeUnmount(() => {
@@ -137,10 +129,15 @@ onBeforeMount(() => {
 })
 
 watch(id, () => {
+  if (!id.value) return
   queries.flow.fetch()
 })
 </script>
 
 <style lang="scss" scoped>
-@use '@/styles/views/flow-run.scss';
+.blur {
+  backdrop-filter: blur(1px);
+  background-color: rgba(244, 245, 247, 0.8);
+  border-radius: 8px;
+}
 </style>

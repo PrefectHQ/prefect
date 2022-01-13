@@ -28,6 +28,7 @@ class TestCreateDeployment:
         assert response.status_code == 201
         assert response.json()["name"] == "My Deployment"
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+        assert response.json()["flow_runner"] == {"config": None, "type": None}
         deployment_id = response.json()["id"]
 
         deployment = await models.deployments.read_deployment(
@@ -38,6 +39,38 @@ class TestCreateDeployment:
         assert deployment.tags == ["foo"]
         assert deployment.flow_id == flow.id
         assert deployment.parameters == {"foo": "bar"}
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            config=None, type=None
+        )
+
+    @pytest.mark.parametrize("with_config", [True, False])
+    async def test_create_deployment_with_flow_runner(
+        self, session, client, flow, flow_function, with_config
+    ):
+        flow_data = DataDocument.encode("cloudpickle", flow_function)
+
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_data=flow_data,
+            flow_id=flow.id,
+            flow_runner=schemas.core.FlowRunnerSettings(
+                type="test", config={"foo": "bar"} if with_config else None
+            ),
+        ).dict(json_compatible=True)
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+
+        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"} if with_config else None
+        ).dict(json_compatible=True)
+
+        deployment = await models.deployments.read_deployment(
+            session=session, deployment_id=response.json()["id"]
+        )
+        assert deployment.flow_runner == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"} if with_config else None
+        )
 
     async def test_create_deployment_respects_flow_id_name_uniqueness(
         self, session, client, flow, flow_function
@@ -68,6 +101,7 @@ class TestCreateDeployment:
         assert response.json()["name"] == "My Deployment"
         assert response.json()["id"] == deployment_id
         assert response.json()["flow_data"] == flow_data.dict(json_compatible=True)
+        assert response.json()["flow_runner"] == {"config": None, "type": None}
         assert not response.json()["is_schedule_active"]
 
         # post different data, upsert should be respected
@@ -76,6 +110,9 @@ class TestCreateDeployment:
             flow_id=flow.id,
             flow_data=DataDocument.encode("json", "test"),
             is_schedule_active=True,
+            flow_runner=schemas.core.FlowRunnerSettings(
+                type="test", config={"foo": "bar"}
+            ),
         ).dict(json_compatible=True)
         response = await client.post("/deployments/", json=data)
         assert response.status_code == 200
@@ -85,6 +122,9 @@ class TestCreateDeployment:
         assert response.json()["flow_data"] == DataDocument.encode("json", "test").dict(
             json_compatible=True
         )
+        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
+            type="test", config={"foo": "bar"}
+        ).dict(json_compatible=True)
 
     async def test_create_deployment_populates_and_returned_created(
         self, client, flow, flow_function
@@ -102,7 +142,7 @@ class TestCreateDeployment:
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
 
-    async def test_creating_deployment_with_active_schedule_creates_runs(
+    async def test_creating_deployment_with_active_schedule_doesnt_create_runs(
         self, session, client, flow, flow_function
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -123,7 +163,7 @@ class TestCreateDeployment:
         n_runs = await models.flow_runs.count_flow_runs(
             session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
-        assert n_runs == 100
+        assert n_runs == 0
 
     async def test_creating_deployment_with_inactive_schedule_creates_no_runs(
         self, session, client, flow, flow_function
@@ -174,9 +214,9 @@ class TestCreateDeployment:
         self, client, deployment, session, flow_function
     ):
 
-        # set active to schedule runs
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
+        # schedule runs
+        response = await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 100
@@ -218,9 +258,9 @@ class TestCreateDeployment:
         db,
     ):
 
-        # set active to schedule runs
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
+        # schedule runs
+        response = await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 100
@@ -252,9 +292,9 @@ class TestCreateDeployment:
             ).dict(json_compatible=True),
         )
 
-        # ensure there are still just 101 runs
+        # auto-scheduled runs should be deleted
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 101
+        assert n_runs == 1
 
         # check that the maximum run is from the secondly schedule
         query = sa.select(sa.func.max(db.FlowRun.expected_start_time))
@@ -526,7 +566,7 @@ class TestSetScheduleActive:
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
         assert response.status_code == 404
 
-    async def test_set_schedule_active_schedules_runs(
+    async def test_set_schedule_active_toggles_active_flag(
         self, client, deployment, session
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -539,7 +579,10 @@ class TestSetScheduleActive:
             f"/deployments/{deployment.id}/set_schedule_active"
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == 0
+
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
 
     async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
         self, client, deployment, session
@@ -563,9 +606,9 @@ class TestSetScheduleActive:
         self, client, deployment, session
     ):
 
-        # set active to schedule runs
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
+        # schedule runs
+        response = await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 100
@@ -686,24 +729,10 @@ class TestScheduleDeployment:
 
 
 class TestCreateFlowRunFromDeployment:
-    async def test_create_flow_run_from_deployment(self, session, client, flow):
-        @prefect.flow
-        def echo_flow(foo):
-            return foo
-
-        deployment = await models.deployments.create_deployment(
-            session=session,
-            deployment=schemas.core.Deployment(
-                name="My Deployment",
-                flow_data=DataDocument.encode("cloudpickle", echo_flow),
-                flow_id=flow.id,
-                parameters={"foo": "bar"},
-                tags=["bar", "foo"],
-            ),
-        )
-        await session.commit()
-
-        # should use default parameters and tags
+    async def test_create_flow_run_from_deployment_with_defaults(
+        self, deployment, client
+    ):
+        # should use default parameters, tags, and flow runner
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run", json={}
         )
@@ -711,27 +740,43 @@ class TestCreateFlowRunFromDeployment:
         assert response.json()["parameters"] == deployment.parameters
         assert response.json()["flow_id"] == str(deployment.flow_id)
         assert response.json()["deployment_id"] == str(deployment.id)
+        assert response.json()["flow_runner"] == deployment.flow_runner.dict(
+            json_compatible=True
+        )
 
-        # should override params
+    async def test_create_flow_run_from_deployment_override_params(
+        self, deployment, client
+    ):
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run",
             json=schemas.actions.DeploymentFlowRunCreate(
                 parameters={"foo": "not_bar"}
             ).dict(json_compatible=True),
         )
-        assert sorted(response.json()["tags"]) == sorted(deployment.tags)
         assert response.json()["parameters"] == {"foo": "not_bar"}
-        assert response.json()["flow_id"] == str(deployment.flow_id)
-        assert response.json()["deployment_id"] == str(deployment.id)
 
-        # should override tags
+    async def test_create_flow_run_from_deployment_override_tags(
+        self, deployment, client
+    ):
+        response = await client.post(
+            f"deployments/{deployment.id}/create_flow_run",
+            json=schemas.actions.DeploymentFlowRunCreate(tags=["nope"]).dict(
+                json_compatible=True
+            ),
+        )
+        assert sorted(response.json()["tags"]) == ["nope"]
+
+    async def test_create_flow_run_from_deployment_override_flow_runner(
+        self, deployment, client
+    ):
         response = await client.post(
             f"deployments/{deployment.id}/create_flow_run",
             json=schemas.actions.DeploymentFlowRunCreate(
-                parameters={"foo": "not_bar"}, tags=["nope"]
+                flow_runner=schemas.core.FlowRunnerSettings(
+                    type="override", config={"apple": "berry"}
+                )
             ).dict(json_compatible=True),
         )
-        assert sorted(response.json()["tags"]) == ["bar", "foo", "nope"]
-        assert response.json()["parameters"] == {"foo": "not_bar"}
-        assert response.json()["flow_id"] == str(deployment.flow_id)
-        assert response.json()["deployment_id"] == str(deployment.id)
+        assert response.json()["flow_runner"] == schemas.core.FlowRunnerSettings(
+            type="override", config={"apple": "berry"}
+        ).dict(json_compatible=True)

@@ -6,6 +6,7 @@ from coolname import generate_slug
 
 import pendulum
 import sqlalchemy as sa
+from sqlalchemy import FetchedValue
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import declared_attr, declarative_mixin, as_declarative
 from prefect.orion.schemas import core, data, schedules, states
@@ -70,6 +71,7 @@ class ORMBase:
         server_default=now(),
         default=lambda: pendulum.now("UTC"),
         onupdate=now(),
+        server_onupdate=FetchedValue(),
     )
 
 
@@ -310,10 +312,24 @@ class ORMFlowRun(ORMRun):
     idempotency_key = sa.Column(sa.String)
     context = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     empirical_policy = sa.Column(JSON, server_default="{}", default={}, nullable=False)
+    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
+
+    flow_runner_type = sa.Column(sa.String)
+    flow_runner_config = sa.Column(JSON)
+
+    @declared_attr
+    def flow_runner(cls):
+        return sa.orm.composite(
+            core.FlowRunnerSettings,
+            cls.flow_runner_type,
+            cls.flow_runner_config,
+        )
+
+    # TODO: This field is unused and should be replaced with `empirical_flow_runner_type`
+    #       and `empirical_flow_runner_config` to capture final settings used by agents
     empirical_config = sa.Column(
         JSON, server_default="{}", default=dict, nullable=False
     )
-    tags = sa.Column(JSON, server_default="[]", default=list, nullable=False)
 
     @declared_attr
     def parent_task_run_id(cls):
@@ -530,9 +546,36 @@ class ORMDeployment:
     parameters = sa.Column(JSON, server_default="{}", default=dict, nullable=False)
     flow_data = sa.Column(Pydantic(data.DataDocument))
 
+    flow_runner_type = sa.Column(sa.String)
+    flow_runner_config = sa.Column(JSON)
+
+    @declared_attr
+    def flow_runner(cls):
+        return sa.orm.composite(
+            core.FlowRunnerSettings,
+            cls.flow_runner_type,
+            cls.flow_runner_config,
+        )
+
     @declared_attr
     def flow(cls):
         return sa.orm.relationship("Flow", back_populates="deployments", lazy="raise")
+
+
+@declarative_mixin
+class ORMLog:
+    """
+    SQLAlchemy model of a logging statement.
+    """
+
+    name = sa.Column(sa.String, nullable=False)
+    level = sa.Column(sa.SmallInteger, nullable=False, index=True)
+    flow_run_id = sa.Column(UUID(), nullable=False, index=True)
+    task_run_id = sa.Column(UUID(), nullable=True, index=True)
+    message = sa.Column(sa.Text, nullable=False)
+
+    # The client-side timestamp of this logged statement.
+    timestamp = sa.Column(Timestamp(), nullable=False, index=True)
 
 
 @declarative_mixin
@@ -636,6 +679,9 @@ class BaseORMConfiguration(ABC):
         class SavedSearch(ORMSavedSearch, self.Base):
             pass
 
+        class Log(ORMLog, self.Base):
+            pass
+
         # TODO - move these to proper migrations
         sa.Index(
             "uq_flow_run_state__flow_run_id_timestamp_desc",
@@ -729,6 +775,7 @@ class BaseORMConfiguration(ABC):
         self.TaskRun = TaskRun
         self.Deployment = Deployment
         self.SavedSearch = SavedSearch
+        self.Log = Log
 
     @abstractmethod
     def run_migrations(self):

@@ -103,7 +103,7 @@ async def read_saved_searches(
     limit: int = None,
 ):
     """
-    Read SavedSearches.
+    Read SavedSearchs.
 
     Args:
         session (sa.orm.Session): A database session
@@ -111,7 +111,7 @@ async def read_saved_searches(
         limit(int): Query limit
 
     Returns:
-        List[db.SavedSearch]: SavedSearches
+        List[db.SavedSearch]: SavedSearchs
     """
 
     query = select(db.SavedSearch).order_by(db.SavedSearch.name)

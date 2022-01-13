@@ -54,14 +54,6 @@ async def create_deployment(
         db.FlowRun.auto_scheduled.is_(True),
     )
     await session.execute(delete_query)
-
-    # proactively schedule the deployment
-    if deployment.schedule and deployment.is_schedule_active:
-        await models.deployments.schedule_runs(
-            session=session,
-            deployment_id=model.id,
-        )
-
     return model
 
 
@@ -203,13 +195,6 @@ async def set_schedule_active(
     deployment.is_schedule_active = True
     await session.flush()
 
-    # proactively schedule the deployment
-    if deployment.schedule:
-        await models.deployments.schedule_runs(
-            session=session,
-            deployment_id=deployment_id,
-        )
-
 
 @router.post("/{id}/set_schedule_inactive")
 async def set_schedule_inactive(
@@ -270,11 +255,20 @@ async def create_flow_run_from_deployment(
 
     # hydrate the input model into a full flow run / state model
     flow_run = schemas.core.FlowRun(
-        **flow_run.dict(exclude={"parameters", "tags"}),
+        **flow_run.dict(
+            exclude={
+                "parameters",
+                "tags",
+                "runner_type",
+                "runner_config",
+                "flow_runner",
+            }
+        ),
         flow_id=deployment.flow_id,
         deployment_id=deployment.id,
         parameters=parameters,
-        tags=set(deployment.tags).union(flow_run.tags)
+        tags=set(deployment.tags).union(flow_run.tags),
+        flow_runner=flow_run.flow_runner or deployment.flow_runner,
     )
 
     if not flow_run.state:
