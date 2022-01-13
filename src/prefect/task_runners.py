@@ -60,12 +60,13 @@ from typing import (
     Awaitable,
     AsyncIterator,
     Union,
+    TYPE_CHECKING,
 )
 from uuid import UUID
 from contextlib import AsyncExitStack
 
-# TODO: Once task runners are split into separate files this should become an optional dependency
-import distributed
+if TYPE_CHECKING:
+    import distributed
 
 from prefect.futures import PrefectFuture
 from prefect.orion.schemas.states import State
@@ -269,7 +270,7 @@ class DaskTaskRunner(BaseTaskRunner):
             if isinstance(cluster_class, str):
                 cluster_class = import_object(cluster_class)
             else:
-                cluster_class = cluster_class or distributed.LocalCluster
+                cluster_class = cluster_class
 
         # Create a copies of incoming kwargs since we may mutate them
         cluster_kwargs = cluster_kwargs.copy() if cluster_kwargs else {}
@@ -299,6 +300,7 @@ class DaskTaskRunner(BaseTaskRunner):
         self.client_kwargs = client_kwargs
 
         # Runtime attributes
+        self._distributed: "distributed" = None
         self._client: "distributed.Client" = None
         self._cluster: "distributed.deploy.Cluster" = None
         self._dask_futures: Dict[UUID, "distributed.Future"] = {}
@@ -339,8 +341,25 @@ class DaskTaskRunner(BaseTaskRunner):
         future = self._get_dask_future(prefect_future)
         try:
             return await future.result(timeout=timeout)
-        except distributed.TimeoutError:
+        except self._distributed.TimeoutError:
             return None
+
+    @staticmethod
+    def import_distributed() -> "distributed":
+        """
+        Delayed import of dask.distributed allowing configuration of the task runner
+        without the distributed extra installed.
+
+        Also improves `prefect` module import times.
+        """
+        try:
+            import distributed
+        except ImportError as exc:
+            raise RuntimeError(
+                "Using the Dask task runner requires Dask `distributed` to be installed."
+            ) from exc
+
+        return distributed
 
     async def _start(self, exit_stack: AsyncExitStack):
         """
@@ -350,12 +369,16 @@ class DaskTaskRunner(BaseTaskRunner):
         - Creates a client to connect to the cluster
         - Pushes a call to wait for all running futures to complete on exit
         """
+        self._distributed = self.import_distributed()
+
         if self.address:
             self.logger.info(
                 f"Connecting to an existing Dask cluster at {self.address}"
             )
             connect_to = self.address
         else:
+            self.cluster_class = self.cluster_class or self._distributed.LocalCluster
+
             self.logger.info(
                 f"Creating a new Dask cluster with `{to_qualified_name(self.cluster_class)}`"
             )
@@ -366,7 +389,9 @@ class DaskTaskRunner(BaseTaskRunner):
                 self._cluster.adapt(**self.adapt_kwargs)
 
         self._client = await exit_stack.enter_async_context(
-            distributed.Client(connect_to, asynchronous=True, **self.client_kwargs)
+            self._distributed.Client(
+                connect_to, asynchronous=True, **self.client_kwargs
+            )
         )
 
         # Wait for all futures before tearing down the client / cluster on exit
@@ -402,4 +427,4 @@ class DaskTaskRunner(BaseTaskRunner):
         Restore the `distributed.Client` by loading the client on a dask worker.
         """
         self.__dict__.update(data)
-        self._client = distributed.get_client()
+        self._client = self._distributed.get_client()
