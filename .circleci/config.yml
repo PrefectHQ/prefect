@@ -1,9 +1,3 @@
 version: 2.1
 
-orbs:
-  welcome: circleci/welcome-orb@0.4.1
-
-workflows:
-  welcome:
-    jobs:
-      - welcome/run
+# This config is required for CircleCI on the OSS repository to pass builds.
