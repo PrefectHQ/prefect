@@ -1,7 +1,7 @@
 <template>
   <div class="flow-run-log">
     <LogLevelLabel :level="log.level" class="flow-run-log__level" />
-    <span v-tooltip="formatDateTimeNumeric(log.timestamp)" class="flow-run-log__time" :class="classes.time">{{ time }}</span>
+    <span v-tooltip="dateTime" class="flow-run-log__time" :class="classes.time">{{ time }}</span>
     <template v-if="log.taskRunId">
       <div class="flow-run-log__task">
         <!-- this has an api call which technically shouldn't be nested in orion-design components -->
@@ -51,10 +51,10 @@
       time: function() {
         return formatTimeNumeric(this.log.timestamp)
       },
-    },
 
-    methods: {
-      formatDateTimeNumeric,
+      dateTime: function() {
+        return formatDateTimeNumeric(this.log.timestamp)
+      },
     },
   })
 </script>
