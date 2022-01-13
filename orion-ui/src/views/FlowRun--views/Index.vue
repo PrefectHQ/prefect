@@ -391,7 +391,7 @@ const tabs = computed<ResultsListTab[]>(() => [
   {
     label: 'Logs',
     href: 'logs',
-    icon: 'pi-task'
+    icon: 'pi-logs-fill'
   }
 ])
 
