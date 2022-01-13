@@ -25,9 +25,9 @@ export default defineComponent({
     copy() {
       navigator.clipboard.writeText(this.value)
 
-      this.$toast.add({
+      this.$toast({
         type: 'success',
-        content: this.toast
+        message: this.toast
       })
     }
   }

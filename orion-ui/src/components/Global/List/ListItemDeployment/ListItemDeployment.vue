@@ -168,9 +168,9 @@ export default class ListItemDeployment extends Vue.with(Props) {
         }
       }
     })
-    this.$toast.add({
+    this.$toast({
       type: res.error ? 'error' : 'success',
-      content: res.error
+      message: res.error
         ? `Error: ${res.error}`
         : res.response.value?.name
         ? `Run created: ${res.response.value?.name}`
