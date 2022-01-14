@@ -63,7 +63,7 @@ async def read_concurrency_limit(
 
 @router.get("/tag/{tag}")
 async def read_concurrency_limit_by_tag(
-    tag: str = Path(..., description="The tag name", alias='tag'),
+    tag: str = Path(..., description="The tag name", alias="tag"),
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.ConcurrencyLimit:
     """
@@ -97,7 +97,6 @@ async def read_concurrency_limits(
         limit=limit,
         offset=offset,
     )
-
 
 
 @router.delete("/{id}")
