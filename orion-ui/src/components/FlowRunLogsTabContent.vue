@@ -46,7 +46,7 @@
           Copy Logs
         </CopyButton>
       </div>
-      <div class="flow-run-logs-tab-content__logs">
+      <div ref="logsRef" class="flow-run-logs-tab-content__logs">
         <FlowRunLogs :logs="logs">
           <template #empty>
             <p class="flow-run_logs-tab-content__empty">
@@ -95,6 +95,8 @@ const props = defineProps({
   }
 })
 
+const logsRef = ref<HTMLDivElement>()
+
 const levelOptions = [
   { label: 'Critical only', value: 50 },
   { label: 'Error and above', value: 40 },
@@ -130,6 +132,20 @@ const clearFilters = () => {
   levelFilter.value = 0
 }
 
+const updateScrollPosition = (): void => {
+  if (!logsRef.value) {
+    return
+  }
+
+  const div = logsRef.value
+  const hasScrolled = div.scrollTop > 0
+  const atBottom = div.scrollTop + div.offsetHeight === div.scrollHeight
+
+  if (hasScrolled && atBottom) {
+    div.scrollTop = div.scrollHeight
+  }
+}
+
 const makeCsv = (): string => {
   return logs.value
     .map((log) => {
@@ -144,6 +160,11 @@ const makeCsv = (): string => {
 watch(
   () => props.running,
   () => subscription.unsubscribe()
+)
+
+watch(
+  () => subscription.response.value,
+  () => updateScrollPosition()
 )
 </script>
 
