@@ -5,6 +5,7 @@ Intended for internal use by the Orion API.
 
 import sqlalchemy as sa
 from uuid import UUID
+from typing import Optional
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
@@ -85,8 +86,8 @@ async def delete_concurrency_limit_by_tag(
 async def read_concurrency_limits(
     session: sa.orm.Session,
     db: OrionDBInterface,
-    limit: int = None,
-    offset: int = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
 ):
     """
     Read deployments.

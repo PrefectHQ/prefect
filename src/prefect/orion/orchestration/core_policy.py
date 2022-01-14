@@ -67,12 +67,12 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         from prefect.orion.models import concurrency_limits
 
         self.applied_limits = []
+        all_limits = await concurrency_limits.read_concurrency_limits(context.session, limit=None, offset=None)
+        limit_lookup = {limit.tag: limit for limit in all_limits}
         for tag in context.run.tags:
-            cl = await concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            cl = limit_lookup.get(tag, None)
             if cl is not None:
-                active_slots = cl.active_slots
-                tag_limit = cl.concurrency_limit
-                if active_slots >= tag_limit:
+                if cl.active_slots >= cl.concurrency_limit:
                     await self.delay_transition(5, f"Concurrency limit for the {tag} tag has been reached")
                 else:
                     self.applied_limits.append(tag)
@@ -86,8 +86,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     ) -> None:
         for tag in self.applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
-            active_slots = cl.active_slots
-            cl.active_slots = max(0, active_slots - 1)
+            cl.active_slots = max(0, cl.active_slots - 1)
 
 
 class ReturnConcurrencySlots(BaseOrchestrationRule):
@@ -102,8 +101,10 @@ class ReturnConcurrencySlots(BaseOrchestrationRule):
     ) -> None:
         from prefect.orion.models import concurrency_limits
 
+        all_limits = await concurrency_limits.read_concurrency_limits(context.session, limit=None, offset=None)
+        limit_lookup = {limit.tag: limit for limit in all_limits}
         for tag in context.run.tags:
-            cl = await concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            cl = limit_lookup.get(tag, None)
             if cl is not None:
                 active_slots = cl.active_slots
                 cl.active_slots = max(0, active_slots - 1)
