@@ -17,7 +17,7 @@ jobs:
 
     steps: 
       - uses: actions/checkout@v2
-        width: 
+        with: 
           persist-credentials: false
 
       - name: Check Package Version
