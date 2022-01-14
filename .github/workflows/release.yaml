@@ -196,7 +196,7 @@ jobs:
         run: |
           git checkout -b "orion-release-${GITHUB_REF#refs/*/}"
           git fetch prefect-orion
-          git merge prefect-orion/orion -m "Merge w/ latest upstream changes"
+          git merge prefect-orion/orion -m "Merge w/ latest upstream changes" -s ours
 
       - name: Push and open PR
         run: |
