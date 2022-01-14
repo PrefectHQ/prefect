@@ -46,7 +46,11 @@
           Copy Logs
         </CopyButton>
       </div>
-      <FlowRunLogs v-show="!loading" :logs="logs">
+      <FlowRunLogs
+        v-show="!loading"
+        :logs="logs"
+        class="flow-run-logs-tab-content__logs"
+      >
         <template #empty>
           <p class="flow-run_logs-tab-content__empty">
             No logs to show.
@@ -238,5 +242,11 @@ watch(
   --loader-size: 25px !important;
   --loader-stroke-width: 5px !important;
   margin-right: var(--m-1);
+}
+
+.flow-run-logs-tab-content__logs {
+  height: 300px;
+  overflow-y: auto;
+  position: relative;
 }
 </style>
