@@ -46,27 +46,28 @@
           Copy Logs
         </CopyButton>
       </div>
-      <FlowRunLogs
-        v-show="!loading"
-        :logs="logs"
-        class="flow-run-logs-tab-content__logs"
-      >
-        <template #empty>
-          <p class="flow-run_logs-tab-content__empty">
-            No logs to show.
-            <Button v-show="levelFilter" class="ml-2" @click="clearFilters">
-              Try clearing your filter
-            </Button>
-          </p>
+      <div class="flow-run-logs-tab-content__logs">
+        <FlowRunLogs :logs="logs">
+          <template #empty>
+            <p class="flow-run_logs-tab-content__empty">
+              No logs to show.
+              <Button v-show="levelFilter" class="ml-2" @click="clearFilters">
+                Try clearing your filter
+              </Button>
+            </p>
+          </template>
+        </FlowRunLogs>
+        <template v-if="running || loading">
+          <div class="flow-run-logs-tabs-content__loading">
+            <m-loader
+              :loading="true"
+              class="flow-run-logs-tabs-content__loader"
+            />
+            <span v-show="running">Run in progress...</span>
+          </div>
         </template>
-      </FlowRunLogs>
-    </div>
-    <template v-if="running || loading">
-      <div class="flow-run-logs-tabs-content__loading">
-        <m-loader :loading="true" class="flow-run-logs-tabs-content__loader" />
-        <span v-show="running">Run in progress...</span>
       </div>
-    </template>
+    </div>
   </div>
 </template>
 
