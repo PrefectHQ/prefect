@@ -1,0 +1,9 @@
+version: 2.1
+
+jobs:
+  build:  # must be called 'build' if not using a workflow
+    docker:
+      - image: alpine:latest
+
+    steps:
+      - run: echo "looks good to me!"
