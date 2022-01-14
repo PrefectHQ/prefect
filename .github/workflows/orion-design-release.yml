@@ -16,6 +16,8 @@ jobs:
 
     steps: 
       - uses: actions/checkout@v2
+        width: 
+          persist-credentials: false
 
       - name: Check Package Version
         uses: EndBug/version-check@v2.1.0
