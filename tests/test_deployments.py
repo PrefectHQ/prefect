@@ -14,7 +14,7 @@ from prefect.deployments import (
     load_flow_from_deployment,
     load_flow_from_script,
 )
-from prefect.exceptions import FlowScriptError, MissingFlowError, UnspecifiedFlowError
+from prefect.exceptions import ScriptError, MissingFlowError, UnspecifiedFlowError
 from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
 from prefect.flow_runners import SubprocessFlowRunner
@@ -102,7 +102,7 @@ class TestLoadFlowFromScript:
 
     def test_requires_name_for_file_with_multiple_flows(self):
         with pytest.raises(
-            UnspecifiedFlowError, match="Found 2 flows.*'hello-sun' 'hello-moon'"
+            UnspecifiedFlowError, match="Found 2 flows.*'hello-moon' 'hello-sun'"
         ):
             load_flow_from_script(TEST_FILES_DIR / "multiple_flows.py")
 
@@ -113,7 +113,7 @@ class TestLoadFlowFromScript:
             load_flow_from_script(TEST_FILES_DIR / "single_flow.py", flow_name="foo")
 
     def test_errors_in_flow_script_are_reraised(self):
-        with pytest.raises(FlowScriptError) as exc:
+        with pytest.raises(ScriptError) as exc:
             load_flow_from_script(TEST_FILES_DIR / "flow_with_load_error.py")
         script_err = exc.value.__cause__
         assert script_err is not None
@@ -189,7 +189,7 @@ class TestDeploymentSpecFromFile:
         )
         assert len(specs) == 1
         spec = list(specs)[0]
-        with pytest.raises(FlowScriptError):
+        with pytest.raises(ScriptError):
             spec.load_flow()
 
 
@@ -323,7 +323,7 @@ class TestLoadFlowFromDeployment:
         assert isinstance(loaded_flow_object, Flow)
         assert flow_object.name == loaded_flow_object.name
 
-    async def test_load_bad_flow_scriptfrom_deployment(self, flow_id, orion_client):
+    async def test_load_bad_flow_script_from_deployment(self, flow_id, orion_client):
         deployment = Deployment(
             name="test",
             flow_id=flow_id,
@@ -332,5 +332,5 @@ class TestLoadFlowFromDeployment:
                 encoder="text",
             ),
         )
-        with pytest.raises(FlowScriptError):
+        with pytest.raises(ScriptError):
             await load_flow_from_deployment(deployment, client=orion_client)
