@@ -63,18 +63,17 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db: OrionDBInterface,
     ) -> None:
         from prefect.orion.models import concurrency_limits
 
         self.applied_limits = []
         for tag in context.run.tags:
-            cl = concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            cl = await concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
             if cl is not None:
                 active_slots = cl.active_slots
                 tag_limit = cl.concurrency_limit
                 if active_slots >= tag_limit:
-                    self.delay_transition(5, f"Concurrency limit for the {tag} tag has been reached")
+                    await self.delay_transition(5, f"Concurrency limit for the {tag} tag has been reached")
                 else:
                     self.applied_limits.append(tag)
                     cl.active_slots += 1
@@ -86,12 +85,12 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         context: OrchestrationContext,
     ) -> None:
         for tag in self.applied_limits:
-            cl = concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            cl = await concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
             active_slots = cl.active_slots
             cl.active_slots = max(0, active_slots - 1)
 
 
-class ReturnConcurrencySlot(BaseOrchestrationRule):
+class ReturnConcurrencySlots(BaseOrchestrationRule):
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = ALL_ORCHESTRATION_STATES
 
@@ -100,12 +99,11 @@ class ReturnConcurrencySlot(BaseOrchestrationRule):
         initial_state: Optional[states.State],
         validated_state: Optional[states.State],
         context: TaskOrchestrationContext,
-        db: OrionDBInterface,
     ) -> None:
         from prefect.orion.models import concurrency_limits
 
         for tag in context.run.tags:
-            cl = concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            cl = await concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
             if cl is not None:
                 active_slots = cl.active_slots
                 cl.active_slots = max(0, active_slots - 1)
