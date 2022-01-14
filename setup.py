@@ -38,7 +38,7 @@ orchestration_extras = {
         "google-cloud-aiplatform >= 1.4.0, < 2.0",
         "google-auth >= 2.0, < 3.0",
     ],
-    "git": ["dulwich >= 0.19.7"],
+    "git": ["dulwich >= 0.19.7, < 0.20.27"],
     "github": ["PyGithub >= 1.51, < 2.0"],
     "gitlab": ["python-gitlab >= 2.5.0, < 3.0"],
     "kubernetes": ["kubernetes >= 9.0.0a1, <= 13.0"],
