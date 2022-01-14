@@ -13,10 +13,10 @@
         <span
           class="
             flow-run-logs-tab-content__column
-            flow-run-logs-tab-content__column--task
+            flow-run-logs-tab-content__column-run
           "
         >
-          Task run info
+          Run name
         </span>
         <span
           class="
@@ -182,7 +182,7 @@ watch(
   font-weight: 600;
 }
 
-.flow-run-logs-tab-content__column--task,
+.flow-run-logs-tab-content__column-run,
 .flow-run-logs-tab-content__column--level,
 .flow-run-logs-tab-content__column--time {
   display: none;
@@ -192,7 +192,7 @@ watch(
   }
 }
 
-.flow-run-logs-tab-content__column--task {
+.flow-run-logs-tab-content__column-run {
   grid-area: task;
 }
 
