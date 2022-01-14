@@ -3,7 +3,8 @@
     "version": "0.1.1",
     "private": false,
     "keywords": [
-        "prefect"
+        "prefect",
+        "vue3"
     ],
     "scripts": {
         "build": "vite build & vue-tsc",
