@@ -11,3 +11,8 @@ async def test_validation_error_handler(client):
         }
     ]
     assert response.json()["request_body"] == bad_flow_data
+
+
+async def test_health_check_route(client):
+    response = await client.get("/health")
+    assert response.status_code == 200
