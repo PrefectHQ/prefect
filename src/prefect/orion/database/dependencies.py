@@ -2,7 +2,7 @@
 Injected database interface dependencies
 """
 import inspect
-from contextlib import asynccontextmanager
+from contextlib import contextmanager
 from functools import wraps
 
 
@@ -120,8 +120,8 @@ def inject_db(fn):
     return sync_wrapper
 
 
-@asynccontextmanager
-async def temporary_database_config(tmp_database_config):
+@contextmanager
+def temporary_database_config(tmp_database_config):
     starting_config = MODELS_DEPENDENCIES["database_config"]
     try:
         MODELS_DEPENDENCIES["database_config"] = tmp_database_config
@@ -130,8 +130,8 @@ async def temporary_database_config(tmp_database_config):
         MODELS_DEPENDENCIES["database_config"] = starting_config
 
 
-@asynccontextmanager
-async def temporary_query_components(tmp_queries):
+@contextmanager
+def temporary_query_components(tmp_queries):
     starting_queries = MODELS_DEPENDENCIES["query_components"]
     try:
         MODELS_DEPENDENCIES["query_components"] = tmp_queries
@@ -140,8 +140,8 @@ async def temporary_query_components(tmp_queries):
         MODELS_DEPENDENCIES["query_components"] = starting_queries
 
 
-@asynccontextmanager
-async def temporary_orm_config(tmp_orm_config):
+@contextmanager
+def temporary_orm_config(tmp_orm_config):
     starting_orm_config = MODELS_DEPENDENCIES["orm"]
     try:
         MODELS_DEPENDENCIES["orm"] = tmp_orm_config

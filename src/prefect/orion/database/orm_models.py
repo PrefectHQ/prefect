@@ -635,7 +635,12 @@ class ORMDeployment:
 
     @declared_attr
     def flow_id(cls):
-        return sa.Column(UUID, sa.ForeignKey("flow.id"), nullable=False, index=True)
+        return sa.Column(
+            UUID,
+            sa.ForeignKey("flow.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
 
     schedule = sa.Column(Pydantic(schedules.SCHEDULE_TYPES))
     is_schedule_active = sa.Column(
