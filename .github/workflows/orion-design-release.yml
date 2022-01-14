@@ -1,0 +1,69 @@
+name: Release Orion Design
+
+on:
+  workflow_dispatch:
+  push:
+    paths: 
+      - orion-ui/packages/orion-design/package.json
+    branches:
+      - main
+
+jobs:
+
+  version-change-check:
+    name: Check Package Version
+    runs-on: ubuntu-latest
+
+    steps: 
+      - uses: actions/checkout@v2
+        with: 
+          persist-credentials: false
+
+      - name: Check Package Version
+        uses: EndBug/version-check@v2.1.0
+        id: check
+        with: 
+          diff-search: true
+          file-name: ./orion-ui/packages/orion-design/package.json
+
+      - name: Cancel
+        if: steps.check.outputs.changed == 'false'
+        uses: andymckay/cancel-action@0.2
+
+  build-and-publish:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+    needs: [version-change-check]
+    environment: 'npm'
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Read .nvmrc
+        run: echo "##[set-output name=NVMRC;]$(cat .nvmrc)"
+        id: nvm
+
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "${{ steps.nvm.outputs.NVMRC }}"
+      
+      - name: Install dependencies
+        working-directory: ./orion-ui/packages/orion-design
+        run: npm ci install
+
+      - name: Get Package Version
+        uses: EndBug/version-check@v2.1.0
+        id: version
+        with: 
+          diff-search: true
+          file-name: ./orion-ui/packages/orion-design/package.json
+
+      - name: Publish Package
+        id: publish
+        uses: JS-DevTools/npm-publish@v1
+        with:
+          token: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          access: public
+          package: ./orion-ui/packages/orion-design/package.json
