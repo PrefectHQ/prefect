@@ -22,6 +22,9 @@ from prefect.deployments import (
     load_flow_from_deployment,
 )
 from prefect.exceptions import FlowScriptError
+from prefect.agent import OrionAgent
+from prefect.exceptions import ScriptError
+from prefect.flow_runners import FlowRunner, FlowRunnerSettings
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
 
@@ -221,8 +224,8 @@ async def create(
         try:
             await create_deployment_from_spec(spec)
 
-        except FlowScriptError as exc:
-            traceback = exc.rich_user_traceback()
+        except ScriptError as exc:
+            traceback = exc.user_exc.__traceback__
         except Exception as exc:
             traceback = Traceback.from_exception(*sys.exc_info())
 

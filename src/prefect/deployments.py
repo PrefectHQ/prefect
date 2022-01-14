@@ -51,22 +51,25 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, List, Set, Tuple, Iterable
+from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple, Union
 from uuid import UUID
 
+import fsspec
 import yaml
+from fsspec.core import OpenFile
+from fsspec.implementations.local import LocalFileSystem
 from pydantic import root_validator, validator
 
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
-    FlowScriptError,
-    MissingFlowError,
-    UnspecifiedFlowError,
     MissingDeploymentError,
+    MissingFlowError,
+    ScriptError,
     UnspecifiedDeploymentError,
+    UnspecifiedFlowError,
 )
-from prefect.flows import Flow
 from prefect.flow_runners import FlowRunner
+from prefect.flows import Flow
 from prefect.orion import schemas
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.schedules import SCHEDULE_TYPES
@@ -74,7 +77,6 @@ from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
 from prefect.utilities.filesystem import tmpchdir
-from prefect.flow_runners import SubprocessFlowRunner
 
 
 class DeploymentSpec(PrefectBaseModel):
@@ -165,7 +167,43 @@ class DeploymentSpec(PrefectBaseModel):
         return hash((self.name, self.flow_name))
 
 
-def load_flows_from_script(script_path: str) -> Set[Flow]:
+def run_script(path: str, text: Union[str, bytes] = None):
+    """ """
+    if text:
+        with NamedTemporaryFile(
+            mode="wt" if isinstance(text, str) else "wb",
+            prefix=f"run-{filename(path)}",
+            suffix=".py",
+        ) as tmpfile:
+            tmpfile.write(text)
+            tmpfile.flush()
+            run_path = tmpfile.name
+    else:
+        if not is_local_path(path):
+            # Remote paths need to be local to run
+            with fsspec.open(path) as f:
+                contents = f.read()
+            return run_script(path, contents)
+
+        run_path = path
+
+    try:
+        return runpy.run_path(run_path)
+    except Exception as exc:
+        raise ScriptError(user_exc=exc, path=path) from exc
+
+
+def filename(path: str):
+    """Extract the file name from a path with remote file system support"""
+    try:
+        of: OpenFile = fsspec.open(path)
+        sep = of.fs.sep
+    except (ImportError, AttributeError):
+        sep = "\\" if "\\" in path else "/"
+    return path.split(sep)[-1]
+
+
+def load_flows_from_script(path: str) -> Set[Flow]:
     """
     Load all flow objects from the given python script. All of the code in the file
     will be executed.
@@ -176,26 +214,19 @@ def load_flows_from_script(script_path: str) -> Set[Flow]:
     Raises:
         FlowScriptError: If an exception is encountered while running the script
     """
-    try:
-        variables = runpy.run_path(script_path)
-    except Exception as exc:
-        raise FlowScriptError(
-            user_exc=exc,
-            script_path=script_path,
-        ) from exc
-
+    variables = run_script(path)
     return set(extract_instances(variables.values(), types=Flow))
 
 
-def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
+def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
     """
-    Extract a flow object from a script by running all of the code in the file
+    Extract a flow object from a script by running all of the code in the file.
 
     If the script has multiple flows in it, a flow name must be provided to specify
     the flow to return.
 
     Args:
-        script_path: A path to a Python script containing flows
+        path: A path to a Python script containing flows
         flow_name: An optional flow name to look for in the script
 
     Returns:
@@ -205,9 +236,9 @@ def load_flow_from_script(script_path: str, flow_name: str = None) -> Flow:
         See `load_flows_from_script` and `select_flow`
     """
     return select_flow(
-        load_flows_from_script(script_path),
+        load_flows_from_script(path),
         flow_name=flow_name,
-        from_message=f"in script '{script_path}'",
+        from_message=f"in script '{path}'",
     )
 
 
@@ -242,7 +273,7 @@ def select_flow(
 
     elif not flow_name and len(flows) > 1:
         raise UnspecifiedFlowError(
-            f"Found {len(flows)} flows{from_message}: {listrepr(flows.keys())}. "
+            f"Found {len(flows)} flows{from_message}: {listrepr(sorted(flows.keys()))}. "
             "Specify a flow name to select a flow.",
         )
 
@@ -363,12 +394,12 @@ async def create_deployment_from_spec(
     return deployment_id
 
 
-def deployment_specs_from_script(script_path: str) -> Set[DeploymentSpec]:
+def deployment_specs_from_script(path: str) -> Set[DeploymentSpec]:
     """
     Load deployment specifications from a python script.
     """
     with _register_new_specs() as specs:
-        runpy.run_path(script_path)
+        run_script(path)
 
     return specs
 
@@ -377,7 +408,7 @@ def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
     """
     Load deployment specifications from a yaml file.
     """
-    with open(path, "r") as f:
+    with fsspec.open(path, "r") as f:
         contents = yaml.safe_load(f.read())
 
     # Load deployments relative to the yaml file's directory
@@ -422,6 +453,23 @@ def _register_spec(spec: DeploymentSpec) -> None:
     # Replace the existing spec with the new one if they collide
     specs.discard(spec)
     specs.add(spec)
+
+
+def is_local_path(path: Union[str, pathlib.Path, OpenFile]):
+    if isinstance(path, str):
+        try:
+            of = fsspec.open(path)
+        except ImportError:
+            # The path is a remote file system that uses a lib that is not installed
+            return False
+    elif isinstance(path, pathlib.Path):
+        return True
+    elif isinstance(path, OpenFile):
+        of = path
+    else:
+        raise TypeError(f"Invalid path of type {type(path).__name__!r}")
+
+    return type(of.fs) == LocalFileSystem
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):

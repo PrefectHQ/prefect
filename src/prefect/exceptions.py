@@ -44,6 +44,21 @@ class UnspecifiedDeploymentError(PrefectException):
     pass
 
 
+class ScriptError(PrefectException):
+    """
+    Raised when a script errors during evaluation while attempting to load data
+    """
+
+    def __init__(
+        self,
+        user_exc: Exception,
+        path: str,
+    ) -> None:
+        message = f"Script at {path!r} encountered an exception"
+        super().__init__(message)
+        self.user_exc = user_exc
+
+
 class FlowScriptError(PrefectException):
     """
     Raised when a script errors during evaluation while attempting to load a flow.
