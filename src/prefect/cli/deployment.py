@@ -9,13 +9,17 @@ import fastapi
 import httpx
 import pendulum
 import typer
+import traceback
+from anyio.abc import TaskStatus
 from rich.padding import Padding
 from rich.pretty import Pretty
 from rich.traceback import Traceback
+from pydantic import ValidationError
 
 from prefect.cli.base import app, console, exit_with_error
 from prefect.client import OrionClient
 from prefect.deployments import (
+    DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
@@ -36,6 +40,25 @@ def assert_deployment_name_format(name: str) -> None:
         exit_with_error(
             "Invalid deployment name. Expected '<flow-name>/<deployment-name>'"
         )
+
+
+def handle_deployment_spec_exception(exc: Exception):
+    if isinstance(exc, ScriptError):
+        console.print(f"[red]{exc}[/red]")
+        handle_deployment_spec_exception(exc.user_exc)
+    elif isinstance(exc, ValidationError):
+        if exc.model == DeploymentSpec:
+            console.print("Invalid deployment specification:")
+            for err in exc.errors():
+                location = " -> ".join(str(e) for e in err["loc"])
+                if location == "__root__":
+                    console.print(f"- {err['msg']}")
+                else:
+                    console.print(f"- {location}: {err['msg']}")
+        else:
+            console.print(exc)
+    else:
+        console.print(traceback.TracebackException.from_exception(exc).format())
 
 
 @deployment_app.command()
@@ -70,7 +93,8 @@ async def inspect(name: str):
             else:
                 raise
 
-    console.print(Pretty(deployment))
+    deployment_json = deployment.dict(json_compatible=True)
+    console.print(Pretty(deployment_json))
 
 
 @deployment_app.command()
@@ -210,31 +234,30 @@ async def create(
     try:
         specs = loader(path)
     except Exception as exc:
-        console.print_exception()
-        exit_with_error(
-            f"Encountered exception while loading specifications from {str(path)!r}"
-        )
+        handle_deployment_spec_exception(exc)
+        exit_with_error(f"Failed to load specifications from {str(path)!r}")
 
     if not specs:
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
     for spec in specs:
-        traceback = None
+        tb = None
+        stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
+
         try:
+            console.print(
+                f"Creating deployment [bold blue]{spec.name!r}[/] for flow [blue]{spec.flow_name!r}[/]..."
+            )
+            if spec.push_location:
+                console.print(
+                    f"Pushing flow from [green]{str(spec.flow_location)!r}[/] to [green]{str(spec.push_location)!r}[/]..."
+                )
             await spec.create_deployment()
-        except ScriptError as exc:
-            traceback = exc.user_exc.__traceback__
         except Exception as exc:
-            traceback = Traceback.from_exception(*sys.exc_info())
+            tb = traceback.TracebackException.from_exception(exc)
 
-        stylized_name = f"deployment [bold blue]{spec.name!r}[/]"
-        if spec.flow_name:
-            stylized_name += f" for flow [blue]{spec.flow_name!r}[/]"
+        if tb:
+            console.print(f"Failed to create deployment {stylized_name}", style="red")
+            console.print("\t".join(list(tb.format())))
         else:
-            stylized_name += f" for flow at [blue]{spec.flow_location!r}[/]"
-
-        if traceback:
-            console.print(f"Failed to create {stylized_name}", style="red")
-            console.print(Padding(traceback, (1, 4, 1, 4)))
-        else:
-            console.print(f"Created {stylized_name}", style="green")
+            console.print(f"Created deployment {stylized_name}")
