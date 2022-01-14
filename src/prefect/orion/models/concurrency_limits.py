@@ -90,7 +90,7 @@ async def read_concurrency_limits(
     offset: Optional[int] = None,
 ):
     """
-    Read deployments.
+    Read concurrency limits.
 
     Args:
         session: A database session
