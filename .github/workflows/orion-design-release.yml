@@ -6,6 +6,7 @@ on:
     paths: 
       - orion-ui/packages/orion-design/package.json
     branches:
+      - orion-design-publish-workflow
       - main
 
 jobs:
