@@ -1,7 +1,11 @@
 {
     "name": "@prefecthq/orion-design",
-    "version": "0.1.0",
-    "private": true,
+    "version": "0.1.1",
+    "private": false,
+    "keywords": [
+        "prefect",
+        "vue3"
+    ],
     "scripts": {
         "build": "vite build & vue-tsc",
         "postbuild": "node scripts/fix-types.js"
