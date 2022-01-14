@@ -5,14 +5,14 @@
       {{ title }}
     </div>
 
-    <Input
+    <m-input
       v-model="input"
       @keyup.enter="addTag"
       placeholder="Press enter to add a tag"
     />
 
     <div class="mt-2 tag-container">
-      <Tag
+      <m-tag
         v-for="(tag, i) in tags"
         :key="tag"
         class="ma--half"
@@ -21,7 +21,7 @@
       >
         <i class="pi pi-price-tag-3-line pi-xs mr--half" />
         {{ tag }}
-      </Tag>
+      </m-tag>
     </div>
   </div>
 </template>

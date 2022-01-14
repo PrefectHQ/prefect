@@ -51,9 +51,9 @@
           <template #empty>
             <p class="flow-run_logs-tab-content__empty">
               No logs to show.
-              <Button v-show="levelFilter" class="ml-2" @click="clearFilters">
+              <m-button v-show="levelFilter" class="ml-2" @click="clearFilters">
                 Try clearing your filter
-              </Button>
+              </m-button>
             </p>
           </template>
         </FlowRunLogs>
