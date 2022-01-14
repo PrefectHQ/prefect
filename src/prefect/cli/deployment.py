@@ -16,7 +16,6 @@ from rich.traceback import Traceback
 from prefect.cli.base import app, console, exit_with_error
 from prefect.client import OrionClient
 from prefect.deployments import (
-    create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
@@ -222,8 +221,7 @@ async def create(
     for spec in specs:
         traceback = None
         try:
-            await create_deployment_from_spec(spec)
-
+            await spec.create()
         except ScriptError as exc:
             traceback = exc.user_exc.__traceback__
         except Exception as exc:

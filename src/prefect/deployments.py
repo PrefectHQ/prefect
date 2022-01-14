@@ -76,7 +76,8 @@ from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
-from prefect.utilities.filesystem import tmpchdir
+from prefect.utilities.importtools import objects_from_script
+from prefect.utilities.filesystem import tmpchdir, filename, is_local_path
 
 
 class DeploymentSpec(PrefectBaseModel):
@@ -166,80 +167,35 @@ class DeploymentSpec(PrefectBaseModel):
         # Deployments are unique on name / flow name pair
         return hash((self.name, self.flow_name))
 
+    @sync_compatible
+    @inject_client
+    async def create(self, client: OrionClient) -> UUID:
+        """
+        Create a deployment from the current specification.
+        """
+        self.load_flow()
+        flow_id = await client.create_flow(self.flow)
 
-def run_script(path: str, text: Union[str, bytes] = None):
-    """ """
-    if text:
-        with NamedTemporaryFile(
-            mode="wt" if isinstance(text, str) else "wb",
-            prefix=f"run-{filename(path)}",
-            suffix=".py",
-        ) as tmpfile:
-            tmpfile.write(text)
-            tmpfile.flush()
-            run_path = tmpfile.name
-    else:
-        if not is_local_path(path):
-            # Remote paths need to be local to run
-            with fsspec.open(path) as f:
-                contents = f.read()
-            return run_script(path, contents)
+        if self.push_to_server:
+            with open(self.flow_location, "rb") as flow_file:
+                flow_data = await client.persist_data(flow_file.read())
+        else:
+            flow_data = DataDocument(encoding="file", blob=self.flow_location.encode())
 
-        run_path = path
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=self.name,
+            schedule=self.schedule,
+            flow_data=flow_data,
+            parameters=self.parameters,
+            tags=self.tags,
+            flow_runner=self.flow_runner,
+        )
 
-    try:
-        return runpy.run_path(run_path)
-    except Exception as exc:
-        raise ScriptError(user_exc=exc, path=path) from exc
-
-
-def filename(path: str):
-    """Extract the file name from a path with remote file system support"""
-    try:
-        of: OpenFile = fsspec.open(path)
-        sep = of.fs.sep
-    except (ImportError, AttributeError):
-        sep = "\\" if "\\" in path else "/"
-    return path.split(sep)[-1]
+        return deployment_id
 
 
-def load_flows_from_script(path: str) -> Set[Flow]:
-    """
-    Load all flow objects from the given python script. All of the code in the file
-    will be executed.
-
-    Returns:
-        A set of flows
-
-    Raises:
-        FlowScriptError: If an exception is encountered while running the script
-    """
-    variables = run_script(path)
-    return set(extract_instances(variables.values(), types=Flow))
-
-
-def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
-    """
-    Extract a flow object from a script by running all of the code in the file.
-
-    If the script has multiple flows in it, a flow name must be provided to specify
-    the flow to return.
-
-    Args:
-        path: A path to a Python script containing flows
-        flow_name: An optional flow name to look for in the script
-
-    Returns:
-        The flow object from the script
-
-    Raises:
-        See `load_flows_from_script` and `select_flow`
-    """
-    return select_flow(
-        load_flows_from_script(path),
-        flow_name=flow_name,
-        from_message=f"in script '{path}'",
-    )
+# Utilities for loading flows and deployment specifications ----------------------------
 
 
 def select_flow(
@@ -352,6 +308,45 @@ def select_deployment(
         return list(deployments.values())[0]
 
 
+def load_flows_from_script(path: str) -> Set[Flow]:
+    """
+    Load all flow objects from the given python script. All of the code in the file
+    will be executed.
+
+    Returns:
+        A set of flows
+
+    Raises:
+        FlowScriptError: If an exception is encountered while running the script
+    """
+    objects = objects_from_script(path)
+    return set(extract_instances(objects.values(), types=Flow))
+
+
+def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
+    """
+    Extract a flow object from a script by running all of the code in the file.
+
+    If the script has multiple flows in it, a flow name must be provided to specify
+    the flow to return.
+
+    Args:
+        path: A path to a Python script containing flows
+        flow_name: An optional flow name to look for in the script
+
+    Returns:
+        The flow object from the script
+
+    Raises:
+        See `load_flows_from_script` and `select_flow`
+    """
+    return select_flow(
+        load_flows_from_script(path),
+        flow_name=flow_name,
+        from_message=f"in script '{path}'",
+    )
+
+
 def deployment_specs_and_flows_from_script(
     script_path: str,
 ) -> Tuple[Set[DeploymentSpec], Set[Flow]]:
@@ -364,42 +359,12 @@ def deployment_specs_and_flows_from_script(
     return (specs, flows)
 
 
-@sync_compatible
-@inject_client
-async def create_deployment_from_spec(
-    spec: DeploymentSpec, client: OrionClient
-) -> UUID:
-    """
-    Create a deployment from a specification.
-    """
-    spec.load_flow()
-    flow_id = await client.create_flow(spec.flow)
-
-    if spec.push_to_server:
-        with open(spec.flow_location, "rb") as flow_file:
-            flow_data = await client.persist_data(flow_file.read())
-    else:
-        flow_data = DataDocument(encoding="file", blob=spec.flow_location.encode())
-
-    deployment_id = await client.create_deployment(
-        flow_id=flow_id,
-        name=spec.name,
-        schedule=spec.schedule,
-        flow_data=flow_data,
-        parameters=spec.parameters,
-        tags=spec.tags,
-        flow_runner=spec.flow_runner,
-    )
-
-    return deployment_id
-
-
 def deployment_specs_from_script(path: str) -> Set[DeploymentSpec]:
     """
     Load deployment specifications from a python script.
     """
     with _register_new_specs() as specs:
-        run_script(path)
+        objects_from_script(path)
 
     return specs
 
@@ -453,23 +418,6 @@ def _register_spec(spec: DeploymentSpec) -> None:
     # Replace the existing spec with the new one if they collide
     specs.discard(spec)
     specs.add(spec)
-
-
-def is_local_path(path: Union[str, pathlib.Path, OpenFile]):
-    if isinstance(path, str):
-        try:
-            of = fsspec.open(path)
-        except ImportError:
-            # The path is a remote file system that uses a lib that is not installed
-            return False
-    elif isinstance(path, pathlib.Path):
-        return True
-    elif isinstance(path, OpenFile):
-        of = path
-    else:
-        raise TypeError(f"Invalid path of type {type(path).__name__!r}")
-
-    return type(of.fs) == LocalFileSystem
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):
