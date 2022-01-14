@@ -8,7 +8,6 @@ from pydantic import ValidationError
 
 from prefect.deployments import (
     DeploymentSpec,
-    create_deployment_from_spec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
@@ -192,42 +191,41 @@ class TestDeploymentSpecFromFile:
         with pytest.raises(ScriptError):
             spec.load_flow()
 
+    @pytest.mark.parametrize("push_to_server", [True, False])
+    async def test_create_deployment(self, orion_client, push_to_server):
+        schedule = IntervalSchedule(interval=timedelta(days=1))
 
-@pytest.mark.parametrize("push_to_server", [True, False])
-async def test_create_deployment_from_spec(orion_client, push_to_server):
-    schedule = IntervalSchedule(interval=timedelta(days=1))
-
-    spec = DeploymentSpec(
-        name="test",
-        flow_location=TEST_FILES_DIR / "single_flow.py",
-        schedule=schedule,
-        parameters={"foo": "bar"},
-        tags=["foo", "bar"],
-        flow_runner=SubprocessFlowRunner(env={"FOO": "BAR"}),
-        push_to_server=push_to_server,
-    )
-    deployment_id = await create_deployment_from_spec(spec, client=orion_client)
-
-    # Deployment was created in backend
-    lookup = await orion_client.read_deployment(deployment_id)
-    assert lookup.name == "test"
-    assert lookup.schedule == schedule
-    assert lookup.parameters == {"foo": "bar"}
-    assert lookup.tags == ["foo", "bar"]
-    assert lookup.flow_runner == spec.flow_runner.to_settings()
-
-    if push_to_server:
-        with open(spec.flow_location, "rb") as flow_file:
-            flow_text = flow_file.read()
-        assert await orion_client.retrieve_data(lookup.flow_data) == flow_text
-    else:
-        # Location was encoded into a data document
-        assert lookup.flow_data == DataDocument(
-            encoding="file", blob=spec.flow_location.encode()
+        spec = DeploymentSpec(
+            name="test",
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            schedule=schedule,
+            parameters={"foo": "bar"},
+            tags=["foo", "bar"],
+            flow_runner=SubprocessFlowRunner(env={"FOO": "BAR"}),
+            push_to_server=push_to_server,
         )
+        deployment_id = await spec.create_deployment(client=orion_client)
 
-    # Flow was loaded
-    assert spec.flow is not None
+        # Deployment was created in backend
+        lookup = await orion_client.read_deployment(deployment_id)
+        assert lookup.name == "test"
+        assert lookup.schedule == schedule
+        assert lookup.parameters == {"foo": "bar"}
+        assert lookup.tags == ["foo", "bar"]
+        assert lookup.flow_runner == spec.flow_runner.to_settings()
+
+        if push_to_server:
+            with open(spec.flow_location, "rb") as flow_file:
+                flow_text = flow_file.read()
+            assert await orion_client.retrieve_data(lookup.flow_data) == flow_text
+        else:
+            # Location was encoded into a data document
+            assert lookup.flow_data == DataDocument(
+                encoding="file", blob=spec.flow_location.encode()
+            )
+
+        # Flow was loaded
+        assert spec.flow is not None
 
 
 class TestLoadFlowFromDeployment:

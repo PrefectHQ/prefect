@@ -128,7 +128,7 @@ class DeploymentSpec(PrefectBaseModel):
                 self.flow_name = self.flow.name
         return self
 
-    @root_validator
+    @root_validator(pre=True)
     def infer_location_from_flow(cls, values):
         if values.get("flow") and not values.get("flow_location"):
             flow_file = values["flow"].fn.__globals__.get("__file__")
@@ -144,13 +144,13 @@ class DeploymentSpec(PrefectBaseModel):
     def ensure_flow_location_is_absolute(cls, value):
         return str(pathlib.Path(value).absolute())
 
-    @root_validator
+    @root_validator(pre=True)
     def infer_flow_name_from_flow(cls, values):
         if values.get("flow") and not values.get("flow_name"):
             values["flow_name"] = values["flow"].name
         return values
 
-    @root_validator
+    @root_validator(pre=True)
     def ensure_flow_name_matches_flow_object(cls, values):
         flow, flow_name = values.get("flow"), values.get("flow_name")
         if flow and flow_name and flow.name != flow_name:
@@ -158,6 +158,12 @@ class DeploymentSpec(PrefectBaseModel):
                 "`flow.name` and `flow_name` must match. "
                 f"Got {flow.name!r} and {flow_name!r}."
             )
+        return values
+
+    @root_validator(pre=True)
+    def infer_name_from_flow_name(cls, values):
+        if values.get("flow_name") and not values.get("name"):
+            values["name"] = values["flow_name"]
         return values
 
     class Config:
@@ -169,7 +175,7 @@ class DeploymentSpec(PrefectBaseModel):
 
     @sync_compatible
     @inject_client
-    async def create(self, client: OrionClient) -> UUID:
+    async def create_deployment(self, client: OrionClient) -> UUID:
         """
         Create a deployment from the current specification.
         """

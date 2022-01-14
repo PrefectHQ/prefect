@@ -221,7 +221,7 @@ async def create(
     for spec in specs:
         traceback = None
         try:
-            await spec.create()
+            await spec.create_deployment()
         except ScriptError as exc:
             traceback = exc.user_exc.__traceback__
         except Exception as exc:
