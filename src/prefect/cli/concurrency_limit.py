@@ -75,4 +75,7 @@ async def delete(tag: str):
         except httpx.HTTPStatusError as exc:
             raise
 
-    console.print(Pretty(result))
+    if result:
+        console.print(Pretty(f"Deleted concurrency limit set on the tag: {tag}"))
+    else:
+        console.print(Pretty(f"No concurrency limit found for the tag: {tag}"))

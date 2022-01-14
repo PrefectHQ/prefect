@@ -438,11 +438,12 @@ class OrionClient:
         concurrency_limit: int,
     ) -> UUID:
         """
-        Create a flow deployment in Orion.
+        Create a tag concurrency limit in Orion. These limits govern concurrently
+        running tasks.
 
         Args:
             tag: a tag the concurrency limit is applied to
-            concurrency_limit: the maximum number of concurrent runs for a given tag
+            concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
             httpx.RequestError: if the concurrency limit was not created for any reason
@@ -473,17 +474,17 @@ class OrionClient:
         tag: str,
     ) -> UUID:
         """
-        Create a flow deployment in Orion.
+        Read the concurrency limit set on a specific tag.
 
         Args:
             tag: a tag the concurrency limit is applied to
-            concurrency_limit: the maximum number of concurrent runs for a given tag
+            concurrency_limit: the maximum number of concurrent task runs for a given tag
 
         Raises:
             httpx.RequestError: if the concurrency limit was not created for any reason
 
         Returns:
-            the ID of the concurrency limit in the backend
+            the concurrency limit set on a specific tag
         """
         response = await self.get(
             f"/concurrency_limits/tag/{tag}",
@@ -503,6 +504,17 @@ class OrionClient:
         limit: int,
         offset: int,
     ):
+        """
+        Lists concurrencly limits set on task run tags.
+
+        Args:
+            limit: the maximum number of concurrency limits returned
+            offset: the concurrency limit query offset
+
+        Returns:
+            a list of concurrency limits
+        """
+
         body = {
             "limit": limit,
             "offset": offset,
@@ -518,7 +530,7 @@ class OrionClient:
         tag: str,
     ):
         """
-        Create a flow deployment in Orion.
+        Delete the concurrency limit set on a specific tag.
 
         Args:
             tag: a tag the concurrency limit is applied to
@@ -527,14 +539,19 @@ class OrionClient:
             httpx.RequestError: if the concurrency limit was not found
 
         Returns:
-            True if the concurrency limit was deleted
+            True if the concurrency limit was deleted, False otherwise
         """
+        try:
+            response = await self.delete(
+                f"/concurrency_limits/tag/{tag}",
+            )
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return False
+            else:
+                raise e
 
-        response = await self.delete(
-            f"/concurrency_limits/tag/{tag}",
-        )
-
-        return response
+        return True
 
     async def create_deployment(
         self,
