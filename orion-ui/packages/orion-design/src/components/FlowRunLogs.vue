@@ -66,8 +66,10 @@
   color: var(--grey-40);
   display: flex;
   justify-content: center;
-  position: relative;
+  position: sticky;
+  top: 0;
   margin: 0 var(--m-2);
+  background: #fff;
 
   &:after {
     content: '';
