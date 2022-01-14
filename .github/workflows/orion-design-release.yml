@@ -3,9 +3,10 @@ name: Release Orion Design
 on:
   workflow_dispatch:
   push:
+    paths: 
+      - orion-ui/packages/orion-design/package.json
     branches:
       - main
-      - orion-design-re-release-0-1-3
 
 jobs:
 
