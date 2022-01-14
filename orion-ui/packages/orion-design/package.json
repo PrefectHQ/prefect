@@ -4,7 +4,8 @@
     "private": false,
     "keywords": [
         "prefect",
-        "vue3"
+        "vue3",
+        "orion"
     ],
     "scripts": {
         "dev": "vite build --watch",
