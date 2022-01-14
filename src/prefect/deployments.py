@@ -107,10 +107,10 @@ class DeploymentSpec(PrefectBaseModel):
     """
 
     name: str
-    flow: Flow = None
+    flow: Flow
     flow_name: str = None
     flow_location: str = None
-    push_to_server: bool = True
+    push_location: str = None
     parameters: Dict[str, Any] = None
     schedule: SCHEDULE_TYPES = None
     tags: List[str] = None
@@ -121,12 +121,25 @@ class DeploymentSpec(PrefectBaseModel):
         # After initialization; register this deployment. See `_register_new_specs`
         _register_spec(self)
 
-    def load_flow(self):
-        if self.flow_location and not self.flow:
-            self.flow = load_flow_from_script(self.flow_location, self.flow_name)
-            if not self.flow_name:
-                self.flow_name = self.flow.name
-        return self
+    # Validation and inference ---------------------------------------------------------
+
+    @validator("flow_location", pre=True)
+    def ensure_flow_location_is_str(cls, value):
+        return str(value)
+
+    @validator("flow_location", pre=True)
+    def ensure_flow_location_is_absolute(cls, value):
+        if is_local_path(value):
+            return str(pathlib.Path(value).absolute())
+        return value
+
+    @root_validator(pre=True)
+    def load_flow(cls, values):
+        if values.get("flow_location") and not values.get("flow"):
+            values["flow"] = load_flow_from_script(
+                values["flow_location"], values.get("flow_name")
+            )
+        return values
 
     @root_validator(pre=True)
     def infer_location_from_flow(cls, values):
@@ -136,13 +149,11 @@ class DeploymentSpec(PrefectBaseModel):
                 values["flow_location"] = abspath(str(flow_file))
         return values
 
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_str(cls, value):
-        return str(value)
-
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_absolute(cls, value):
-        return str(pathlib.Path(value).absolute())
+    @root_validator(pre=True)
+    def ensure_flow_or_location_provided(cls, values):
+        if not values.get("flow_location") and not values.get("flow"):
+            raise ValueError("Either `flow_location` or `flow` must be provided.")
+        return values
 
     @root_validator(pre=True)
     def infer_flow_name_from_flow(cls, values):
@@ -162,16 +173,22 @@ class DeploymentSpec(PrefectBaseModel):
 
     @root_validator(pre=True)
     def infer_name_from_flow_name(cls, values):
-        if values.get("flow_name") and not values.get("name"):
+        if not values.get("name") and values.get("flow_name"):
             values["name"] = values["flow_name"]
         return values
 
-    class Config:
-        arbitrary_types_allowed = True
+    @root_validator
+    def ensure_flow_location_matches_flow(cls, values):
+        if values.get("flow") and values.get("flow_location"):
+            flow_file = abspath(str(values["flow"].fn.__globals__.get("__file__")))
+            if flow_file and values["flow_location"] != flow_file:
+                raise ValueError(
+                    f"The given flow location {values['flow_location']!r} does not "
+                    f"match the path of the given flow: '{flow_file}'."
+                )
+        return values
 
-    def __hash__(self) -> int:
-        # Deployments are unique on name / flow name pair
-        return hash((self.name, self.flow_name))
+    # Methods --------------------------------------------------------------------------
 
     @sync_compatible
     @inject_client
@@ -179,12 +196,17 @@ class DeploymentSpec(PrefectBaseModel):
         """
         Create a deployment from the current specification.
         """
-        self.load_flow()
         flow_id = await client.create_flow(self.flow)
 
-        if self.push_to_server:
-            with open(self.flow_location, "rb") as flow_file:
+        if self.push_location is None:
+            # Push to the server
+            with fsspec.open(self.flow_location, "rb") as flow_file:
                 flow_data = await client.persist_data(flow_file.read())
+        elif self.push_location:
+            with fsspec.open(self.flow_location, "rb") as flow_file:
+                with fsspec.open(self.push_location, "wb") as push_file:
+                    push_file.write(flow_file.read())
+            flow_data = DataDocument(encoding="file", blob=self.push_location.encode())
         else:
             flow_data = DataDocument(encoding="file", blob=self.flow_location.encode())
 
@@ -199,6 +221,15 @@ class DeploymentSpec(PrefectBaseModel):
         )
 
         return deployment_id
+
+    # Pydantic -------------------------------------------------------------------------
+
+    class Config:
+        arbitrary_types_allowed = True
+
+    def __hash__(self) -> int:
+        # Deployments are unique on name / flow name pair
+        return hash((self.name, self.flow_name))
 
 
 # Utilities for loading flows and deployment specifications ----------------------------
