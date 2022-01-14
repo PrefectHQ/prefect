@@ -7,6 +7,7 @@
         "vue3"
     ],
     "scripts": {
+        "dev": "vite build --watch",
         "build": "vite build & vue-tsc",
         "postbuild": "node scripts/fix-types.js"
     },
@@ -26,6 +27,7 @@
     "dependencies": {
         "@prefecthq/miter-design": "0.1.20",
         "@prefecthq/vue-compositions": "0.1.9",
+        "axios": "^0.24.0",
         "core-js": "^3.6.5",
         "d3": "^7.0.0",
         "vue": "^3.0.5",
@@ -34,10 +36,12 @@
     "devDependencies": {
         "@babel/helper-compilation-targets": "^7.16.3",
         "@babel/runtime": "^7.16.3",
+        "@prefecthq/eslint-config": "1.0.11",
         "@types/d3": "^7.0.0",
         "@types/node": "^15.14.1",
         "@vitejs/plugin-vue": "^1.2.5",
         "date-fns": "^2.25.0",
+        "eslint": "^8.6.0",
         "replace": "^1.2.1",
         "sass": "^1.35.2",
         "typescript": "^4.1.6",
