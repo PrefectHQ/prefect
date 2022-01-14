@@ -67,7 +67,7 @@
   display: flex;
   justify-content: center;
   position: sticky;
-  top: calc(var(--p-1) * -1);
+  top: 0;
   margin: 0 var(--m-2);
   background: #fff;
 
