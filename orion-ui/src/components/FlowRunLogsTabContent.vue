@@ -82,7 +82,7 @@ import {
 } from '@prefecthq/orion-design'
 import { subscribe } from '@prefecthq/vue-compositions'
 import { SubscriptionOptions } from '@prefecthq/vue-compositions/src/subscribe/types'
-import { computed, defineProps, ref, watch } from 'vue'
+import { computed, defineProps, nextTick, ref, watch } from 'vue'
 import CopyButton from './Global/CopyButton.vue'
 
 const props = defineProps({
@@ -142,7 +142,9 @@ const updateScrollPosition = (): void => {
   const atBottom = div.scrollTop + div.offsetHeight === div.scrollHeight
 
   if (hasScrolled && atBottom) {
-    div.scrollTop = div.scrollHeight
+    nextTick(() => {
+      div.scrollTop = div.scrollHeight
+    })
   }
 }
 
