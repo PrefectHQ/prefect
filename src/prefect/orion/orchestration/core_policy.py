@@ -73,8 +73,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             if cl is not None:
                 active_slots = cl.active_slots
                 tag_limit = cl.concurrency_limit
-                if active_slots >= tag_limit
-                    self.delay_transition(60, f"Concurrency limit for the {tag} tag has been reached")
+                if active_slots >= tag_limit:
+                    self.delay_transition(5, f"Concurrency limit for the {tag} tag has been reached")
                 else:
                     self.applied_limits.append(tag)
                     cl.active_slots += 1
