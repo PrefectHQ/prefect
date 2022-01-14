@@ -43,20 +43,20 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
     def priority():
         return [
-            SecureConcurrencySlot,
+            SecureTaskConcurrencySlots,
             CacheRetrieval,
             PreventTransitionsFromTerminalStates,
             WaitForScheduledTime,
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
-            ReturnConcurrencySlot,
+            ReturnConcurrencySlots,
         ]
 
 
-class SecureConcurrencySlot(BaseOrchestrationRule):
-    FROM_STATES = [None]
-    TO_STATES = ALL_ORCHESTRATION_STATES
+class SecureTaskConcurrencySlots(BaseOrchestrationRule):
+    FROM_STATES = ALL_ORCHESTRATION_STATES
+    TO_STATES = [states.StateType.RUNNING]
 
     async def before_transition(
         self,
@@ -65,20 +65,50 @@ class SecureConcurrencySlot(BaseOrchestrationRule):
         context: TaskOrchestrationContext,
         db: OrionDBInterface,
     ) -> None:
-        # increment concurrency count if below limit
-        # WAIT if at limit <- Default Behavior
-        # ABORT if at limit <- Configured Behavior
-        ...
+        from prefect.orion.models import concurrency_limits
 
-    async def cleanup() -> None:
-        # decrement concurrency count
-        ...
+        self.applied_limits = []
+        for tag in context.run.tags:
+            cl = concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            if cl is not None:
+                active_slots = cl.active_slots
+                tag_limit = cl.concurrency_limit
+                if active_slots >= tag_limit
+                    self.delay_transition(60, f"Concurrency limit for the {tag} tag has been reached")
+                else:
+                    self.applied_limits.append(tag)
+                    cl.active_slots += 1
+
+    async def cleanup(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: OrchestrationContext,
+    ) -> None:
+        for tag in self.applied_limits:
+            cl = concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            active_slots = cl.active_slots
+            cl.active_slots = max(0, active_slots - 1)
 
 
 class ReturnConcurrencySlot(BaseOrchestrationRule):
-    async def after_transition() -> None:
-        # decrement concurrency count
-        ...
+    FROM_STATES = [states.StateType.RUNNING]
+    TO_STATES = ALL_ORCHESTRATION_STATES
+
+    async def after_transition(
+        self,
+        initial_state: Optional[states.State],
+        validated_state: Optional[states.State],
+        context: TaskOrchestrationContext,
+        db: OrionDBInterface,
+    ) -> None:
+        from prefect.orion.models import concurrency_limits
+
+        for tag in context.run.tags:
+            cl = concurrency_limits.read_concurrency_limit_by_tag(context.session, tag)
+            if cl is not None:
+                active_slots = cl.active_slots
+                cl.active_slots = max(0, active_slots - 1)
 
 
 class CacheInsertion(BaseOrchestrationRule):
