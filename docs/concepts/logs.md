@@ -2,11 +2,11 @@
 
 Prefect enables you to log a variety of useful information about your flow and task runs, capturing information about your workflows for purposes such as monitoring, troubleshooting, and auditing.
 
-Prefect captures logs for your flow and task runs by default, even if you have not started a Orion API server with `prefect orion start`.
+Prefect captures logs for your flow and task runs by default, even if you have not started an Orion API server with `prefect orion start`.
 
 You can view and filter logs in the Orion UI, or access log records via the API or CLI.
 
-Prefect enables fine-grained customization of log levels for flows and tasks, including configurations for individual flow definitions and custom log handlers.
+Prefect enables fine-grained customization of log levels for flows and tasks, including configuration for default levels and log message formatting.
 
 ## Logging overview
 
@@ -16,12 +16,16 @@ For example, say you created a simple flow in a file flow.py. If you create a lo
 
 ```bash
 $ python flow.py
-16:45:44.534 | INFO    | prefect.engine - Created flow run 'gray-dingo' for flow 'hello-flow'
+16:45:44.534 | INFO    | prefect.engine - Created flow run 'gray-dingo' for flow 
+'hello-flow'
 16:45:44.534 | INFO    | Flow run 'gray-dingo' - Using task runner 'SequentialTaskRunner'
-16:45:44.598 | INFO    | Flow run 'gray-dingo' - Created task run 'hello-task-54135dc1-0' for task 'hello-task'
+16:45:44.598 | INFO    | Flow run 'gray-dingo' - Created task run 'hello-task-54135dc1-0' 
+for task 'hello-task'
 Hello world!
-16:45:44.650 | INFO    | Task run 'hello-task-54135dc1-0' - Finished in state Completed(None)
-16:45:44.672 | INFO    | Flow run 'gray-dingo' - Finished in state Completed('All states completed.')
+16:45:44.650 | INFO    | Task run 'hello-task-54135dc1-0' - Finished in state 
+Completed(None)
+16:45:44.672 | INFO    | Flow run 'gray-dingo' - Finished in state 
+Completed('All states completed.')
 ```
 
 You can see logs for the flow run in the Orion UI by navigating to the flow run and selecting the **Logs** tab.
@@ -29,8 +33,6 @@ You can see logs for the flow run in the Orion UI by navigating to the flow run 
 ![Viewing logs for a flow run in the Orion UI](/img/concepts/flow_run_logs.png)
 
 Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNING`, `INFO`, and `DEBUG`. By default, Prefect logs `INFO`-level events. You can configure the root logging level as well as specific logging levels for flow and task runs.
-
-
 
 ## Logging Configuration
 
@@ -65,7 +67,7 @@ Prefect automatically uses the flow run logger based on the flow context. Based 
 15:35:17.304 | INFO    | Flow run 'mottled-marten' - INFO level log message.
 ```
 
-By default, Prefect uses the flow run name for flow log messages.
+The default flow run log formatter uses the flow run name for log messages.
 
 ### Logging in tasks
 
@@ -84,39 +86,9 @@ def logger_flow():
     logger_task()
 ```
 
-By default, Prefect uses the task run name for task log messages.
-
-### Extra Loggers
-
-Many libraries like `boto3` and `snowflake.connector` are setup to emit their own internal logs when configured with a logging configuration. You may even have an internal shared library for your team with the same functionality.
-
-If you are doing this via the standard `logging` library you might do this:
-
-```python
-import logging
-import sys
-for l in ['snowflake.connector', 'boto3', 'custom_lib']:
-    logger = logging.getLogger(l)
-    logger.setLevel('INFO')
-    log_stream = logging.StreamHandler(sys.stdout)
-    log_stream.setFormatter(LOG_FORMAT)
-    logger.addHandler(log_stream)
-```
-
-Given that Prefect already provides a way to configure logging for local and cloud, you can provide these extra loggers to have them inherit the Prefect logging config to stream locally and also show up in cloud.
-
-In order for this to work you need to provide a list to `prefect.config.logging.extra_loggers`.
-
-Here is what the TOML config will look like:
-
-```toml
-[logging]
-# Extra loggers for Prefect log configuration
-extra_loggers = "['snowflake.connector', 'boto3', 'custom_lib']"
-```
-
-As an environment variable:
+The default task run log formatter uses the task run name for log messages.
 
 ```bash
-export PREFECT__LOGGING__EXTRA_LOGGERS="['snowflake.connector', 'boto3', 'custom_lib']"
+15:33:47.179 | ERROR   | Task run 'task_one-80a1ffd1-0' - A task level ERROR message.
 ```
+
