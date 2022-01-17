@@ -2,6 +2,21 @@
 Prefect-specific exceptions.
 """
 from rich.traceback import Traceback
+import prefect
+from typing import Iterable
+from types import ModuleType, TracebackType
+
+
+def _trim_traceback(tb: TracebackType, remove_modules: Iterable[ModuleType]):
+    strip_paths = [module.__file__ for module in remove_modules]
+
+    while any(
+        module_path in str(tb.tb_frame.f_globals["__file__"])
+        for module_path in strip_paths
+    ):
+        tb = tb.tb_next
+
+    return tb
 
 
 class PrefectException(Exception):
@@ -44,6 +59,14 @@ class UnspecifiedDeploymentError(PrefectException):
     pass
 
 
+class SpecValidationError(PrefectException, ValueError):
+    """
+    Raised when a value for a specification is inorrect
+    """
+
+    pass
+
+
 class ScriptError(PrefectException):
     """
     Raised when a script errors during evaluation while attempting to load data
@@ -57,6 +80,14 @@ class ScriptError(PrefectException):
         message = f"Script at {str(path)!r} encountered an exception"
         super().__init__(message)
         self.user_exc = user_exc
+
+        import runpy
+
+        # Strip script run information from the traceback
+        self.user_exc.__traceback__ = _trim_traceback(
+            self.user_exc.__traceback__,
+            remove_modules=[prefect.utilities.importtools, runpy],
+        )
 
 
 class FlowScriptError(PrefectException):
