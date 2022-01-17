@@ -26,7 +26,7 @@ from prefect.deployments import (
 )
 from prefect.exceptions import FlowScriptError
 from prefect.agent import OrionAgent
-from prefect.exceptions import ScriptError
+from prefect.exceptions import ScriptError, SpecValidationError
 from prefect.flow_runners import FlowRunner, FlowRunnerSettings
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
@@ -216,28 +216,45 @@ async def create(
     else:
         exit_with_error("Unknown file type. Expected a '.py', '.yml', or '.yaml' file.")
 
-    console.print(f"Loading deployments from {from_msg} at [green]{str(path)!r}[/]...")
+    console.print(
+        f"Loading deployment specifcations from {from_msg} at [green]{str(path)!r}[/]..."
+    )
     try:
         specs = loader(path)
-    except Exception as exc:
-        console.print(exception_traceback(exc))
+    except ScriptError as exc:
+        console.print(exc)
+        console.print(exception_traceback(exc.user_exc))
         exit_with_error(f"Failed to load specifications from {str(path)!r}")
 
     if not specs:
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
-    for spec in specs:
+    for spec, src in specs.items():
         exc = None
+
+        try:
+            spec.validate()
+        except SpecValidationError as exc:
+            console.print(
+                f"Specification in {str(src['file'])!r}, line {src['line']} failed validation! {exc}",
+                style="red",
+            )
+            continue
+
         stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
 
         try:
             console.print(
                 f"Creating deployment [bold blue]{spec.name!r}[/] for flow [blue]{spec.flow_name!r}[/]..."
             )
-            if spec.push_location:
-                console.print(
-                    f"Pushing flow from [green]{str(spec.flow_location)!r}[/] to [green]{str(spec.push_location)!r}[/]..."
-                )
+            source = f"flow script from [green]{str(spec.flow_location)!r}[/]"
+            target = (
+                f"[green]{str(spec.push_location)!r}[/]"
+                if spec.push_location
+                else "server"
+            )
+            if spec.should_push():
+                console.print(f"Pushing {source} to {target}...")
             await spec.create_deployment()
         except Exception as exc:
             pass

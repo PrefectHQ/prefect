@@ -56,6 +56,7 @@ from uuid import UUID
 
 import fsspec
 import yaml
+import sys
 from fsspec.core import OpenFile
 from fsspec.implementations.local import LocalFileSystem
 from pydantic import root_validator, validator
@@ -64,7 +65,7 @@ from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
     MissingDeploymentError,
     MissingFlowError,
-    ScriptError,
+    SpecValidationError,
     UnspecifiedDeploymentError,
     UnspecifiedFlowError,
 )
@@ -106,8 +107,8 @@ class DeploymentSpec(PrefectBaseModel):
         tags: An optional set of tags to assign to the deployment.
     """
 
-    name: str
-    flow: Flow
+    name: str = None
+    flow: Flow = None
     flow_name: str = None
     flow_location: str = None
     push_location: str = None
@@ -123,70 +124,67 @@ class DeploymentSpec(PrefectBaseModel):
 
     # Validation and inference ---------------------------------------------------------
 
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_str(cls, value):
-        return str(value)
+    def validate(self):
 
-    @validator("flow_location", pre=True)
-    def ensure_flow_location_is_absolute(cls, value):
-        if is_local_path(value):
-            return str(pathlib.Path(value).absolute())
-        return value
+        # Ensure either flow location or flow were provided
 
-    @root_validator(pre=True)
-    def load_flow(cls, values):
-        if values.get("flow_location") and not values.get("flow"):
-            values["flow"] = load_flow_from_script(
-                values["flow_location"], values.get("flow_name")
+        if not self.flow_location and not self.flow:
+            raise SpecValidationError(
+                "Either `flow_location` or `flow` must be provided."
             )
-        return values
 
-    @root_validator(pre=True)
-    def infer_location_from_flow(cls, values):
-        if values.get("flow") and not values.get("flow_location"):
-            flow_file = values["flow"].fn.__globals__.get("__file__")
+        # Load the flow from the flow location
+
+        if self.flow_location and not self.flow:
+            self.flow = load_flow_from_script(self.flow_location, self.flow_name)
+
+        # Infer the flow location from the flow
+
+        elif self.flow and not self.flow_location:
+            self.flow_location = self.flow.fn.__globals__.get("__file__")
+
+        # Ensure the flow location matches the flow both are given
+
+        elif self.flow and self.flow_location:
+            flow_file = self.flow.fn.__globals__.get("__file__")
             if flow_file:
-                values["flow_location"] = abspath(str(flow_file))
-        return values
+                abs_given = abspath(str(self.flow_location))
+                abs_flow = abspath(str(flow_file))
+                if abs_given != abs_flow:
+                    raise SpecValidationError(
+                        f"The given flow location {abs_given!r} does not "
+                        f"match the path of the given flow: '{abs_flow}'."
+                    )
 
-    @root_validator(pre=True)
-    def ensure_flow_or_location_provided(cls, values):
-        if not values.get("flow_location") and not values.get("flow"):
-            raise ValueError("Either `flow_location` or `flow` must be provided.")
-        return values
+        # Ensure the flow location is absolute if local
 
-    @root_validator(pre=True)
-    def infer_flow_name_from_flow(cls, values):
-        if values.get("flow") and not values.get("flow_name"):
-            values["flow_name"] = values["flow"].name
-        return values
+        if self.flow_location and is_local_path(self.flow_location):
+            self.flow_location = str(pathlib.Path(self.flow_location).absolute())
 
-    @root_validator(pre=True)
-    def ensure_flow_name_matches_flow_object(cls, values):
-        flow, flow_name = values.get("flow"), values.get("flow_name")
-        if flow and flow_name and flow.name != flow_name:
-            raise ValueError(
+        # Infer flow name from flow
+
+        if self.flow and not self.flow_name:
+            self.flow_name = self.flow.name
+
+        # Ensure a given flow name matches the given flow's name
+
+        elif self.flow.name != self.flow_name:
+            raise SpecValidationError(
                 "`flow.name` and `flow_name` must match. "
-                f"Got {flow.name!r} and {flow_name!r}."
+                f"Got {self.flow.name!r} and {self.flow_name!r}."
             )
-        return values
 
-    @root_validator(pre=True)
-    def infer_name_from_flow_name(cls, values):
-        if not values.get("name") and values.get("flow_name"):
-            values["name"] = values["flow_name"]
-        return values
+        # Default the deployment name to the flow name
 
-    @root_validator
-    def ensure_flow_location_matches_flow(cls, values):
-        if values.get("flow") and values.get("flow_location"):
-            flow_file = abspath(str(values["flow"].fn.__globals__.get("__file__")))
-            if flow_file and values["flow_location"] != flow_file:
-                raise ValueError(
-                    f"The given flow location {values['flow_location']!r} does not "
-                    f"match the path of the given flow: '{flow_file}'."
-                )
-        return values
+        if not self.name and self.flow_name:
+            self.name = self.flow_name
+
+        # The push location may not be a local path
+
+        if self.push_location and is_local_path(self.push_location):
+            raise SpecValidationError(
+                f"`push_location` must be a remote path. Got {self.push_location!r}."
+            )
 
     # Methods --------------------------------------------------------------------------
 
@@ -196,6 +194,8 @@ class DeploymentSpec(PrefectBaseModel):
         """
         Create a deployment from the current specification.
         """
+        self.validate()
+
         flow_id = await client.create_flow(self.flow)
 
         if self.push_location is None:
@@ -386,7 +386,7 @@ def load_flow_from_script(path: str, flow_name: str = None) -> Flow:
 
 def deployment_specs_and_flows_from_script(
     script_path: str,
-) -> Tuple[Set[DeploymentSpec], Set[Flow]]:
+) -> Tuple[Dict[DeploymentSpec, str], Set[Flow]]:
     """
     Load deployment specifications and flows from a python script.
     """
@@ -396,7 +396,7 @@ def deployment_specs_and_flows_from_script(
     return (specs, flows)
 
 
-def deployment_specs_from_script(path: str) -> Set[DeploymentSpec]:
+def deployment_specs_from_script(path: str) -> Dict[DeploymentSpec, str]:
     """
     Load deployment specifications from a python script.
     """
@@ -406,7 +406,7 @@ def deployment_specs_from_script(path: str) -> Set[DeploymentSpec]:
     return specs
 
 
-def deployment_specs_from_yaml(path: str) -> Set[DeploymentSpec]:
+def deployment_specs_from_yaml(path: str) -> Dict[DeploymentSpec, dict]:
     """
     Load deployment specifications from a yaml file.
     """
@@ -437,7 +437,7 @@ def _register_new_specs():
     This is convenient for `deployment_specs_from_script` which can collect deployment
     declarations without requiring them to be assigned to a global variable
     """
-    specs = set()
+    specs = dict()
     token = _DeploymentSpecContextVar.set(specs)
     yield specs
     _DeploymentSpecContextVar.reset(token)
@@ -452,9 +452,11 @@ def _register_spec(spec: DeploymentSpec) -> None:
     if specs is None:
         return
 
+    # Retrieve information about the definition of the spec
+    frame = sys._getframe().f_back.f_back
+
     # Replace the existing spec with the new one if they collide
-    specs.discard(spec)
-    specs.add(spec)
+    specs[spec] = {"file": frame.f_globals["__file__"], "line": frame.f_lineno}
 
 
 def load_flow_from_text(script_contents: AnyStr, flow_name: str):
