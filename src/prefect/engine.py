@@ -210,7 +210,6 @@ async def begin_flow_run(
         logger.info(f"Using task runner {type(flow.task_runner).__name__!r}")
         async with flow.task_runner.start() as task_runner:
             with portal_context as sync_portal:
-                OrionHandler.attach_extra_loggers()
                 terminal_state = await orchestrate_flow_run(
                     flow,
                     flow_run=flow_run,

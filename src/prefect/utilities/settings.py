@@ -293,12 +293,6 @@ class OrionHandlerSettings(BaseSettings):
         OrionHandler will not be sent to the API.""",
     )
 
-    loggers: str = Field(
-        "",
-        description="""Additional loggers to attach to the OrionHandler at runtime.
-        Values should be comma separated.""",
-    )
-
     batch_interval: float = Field(
         2.0,
         description="""The number of seconds between batched writes of logs to Orion.""",
@@ -309,9 +303,6 @@ class OrionHandlerSettings(BaseSettings):
     max_log_size: int = Field(
         1_000_000, description="""The maximum size in bytes for a single log."""
     )
-
-    def get_loggers(self) -> List[str]:
-        return self.loggers.split(",") or []
 
     @root_validator
     def max_log_size_smaller_than_batch_size(cls, values):
@@ -366,6 +357,18 @@ class LoggingSettings(BaseSettings):
         default_factory=OrionHandlerSettings,
         description="Nested [OrionHandler settings][prefect.utilities.settings.OrionHandlerSettings].",
     )
+
+    extra_loggers: str = Field(
+        "",
+        description="""Additional loggers to attach to Prefect logging at runtime.
+        Values should be comma separated. The handlers attached to the 'prefect' logger
+        will be added to these loggers. Additionally, if the level is not set, it will
+        be set to the same level as the 'prefect' logger.
+        """,
+    )
+
+    def get_extra_loggers(self) -> List[str]:
+        return self.extra_loggers.split(",") if self.extra_loggers else []
 
 
 class AgentSettings(BaseSettings):
