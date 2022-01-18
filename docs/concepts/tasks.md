@@ -50,7 +50,7 @@ Tasks allow a great deal of customization via arguments. Examples include retry 
 | retries | An optional number of times to retry on task run failure. |
 | retry_delay_seconds | An optional number of seconds to wait before retrying the task after failure. This is only applicable if `retries` is nonzero. |
 
-For example, tasks can be uniquely identified by name. You can provide a `name` parameter value for the task, but if not provided, the function name is used. 
+For example, tasks can be uniquely identified by name. You can provide a `name` value for the task, but if not provided, the function name is used. Here we've used the optional `description` argument as well.
 
 ```python hl_lines="1"
 @task(name="hello-task", description="This task says hello.")
@@ -60,7 +60,9 @@ def my_task():
 
 ## Tags
 
-Sometimes, it is useful to group a variety a tasks in multiple ways. Prefect provides tags for this purpose. Tags may be specified either as an optional keyword argument on.
+Sometimes, it is useful to group tasks in ways other than by name or flow context. Prefect provides tags for this purpose. 
+
+Tags may be specified either as an optional keyword argument on on the task definition, or as a keyword argument or with a convenient context manager.
 
 ```python hl_lines="1"
 @task(name="hello-task", description="This task says hello.")
