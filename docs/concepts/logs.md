@@ -12,7 +12,12 @@ Prefect enables fine-grained customization of log levels for flows and tasks, in
 
 Whenever you run a flow, Prefect automatically logs events for flow runs and task runs, along with any custom log handlers you have configured. No configuration is needed to enable Prefect logging.
 
-For example, say you created a simple flow in a file flow.py. If you create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
+There are two components of logging in Prefect: 
+
+- Log messages displayed in the console or Orion UI.
+- Log data persisted to the database.
+
+Emitted log messages are familiar to most users. For example, say you created a simple flow in a file flow.py. If you create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
 
 ```bash
 $ python flow.py
@@ -32,11 +37,29 @@ You can see logs for the flow run in the Orion UI by navigating to the flow run 
 
 ![Viewing logs for a flow run in the Orion UI](/img/concepts/flow_run_logs.png)
 
+These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
+
 Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNING`, `INFO`, and `DEBUG`. By default, Prefect logs `INFO`-level events. You can configure the root logging level as well as specific logging levels for flow and task runs.
+
+Logged events are also persisted to the Orion database. A log record includes the following data:
+
+| Column | Description |
+| --- | --- |
+| id | Primary key ID of the log record. |
+| created | Timestamp specifying when the record was created. |
+| updated | Timestamp specifying when the record was updated. |
+| name | String specifying the flow name if the log record is created for a flow run, or the task name if the log record is created for a task run. |
+| level | Integer representation of the logging level. |
+| flow_run_id | ID of the flow run associated with the log record. If the log record is for a task run, this is the parent flow of the task. | 
+| task_run_id | ID of the task run associated with the log record. Null if the logging a flow run event. |
+| message | Log message. |
+| timestamp | The client-side timestamp of this logged statement. |
 
 ## Logging Configuration
 
-There is a /prefect/logging/logging.yml file packaged with Prefect that defines the default logging configuration. You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting in logging.yml. 
+There is a /prefect/logging/logging.yml file packaged with Prefect that defines the default logging configuration. 
+
+You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting in logging.yml. 
 
 For example, to change the default logging levels for Prefect to `DEBUG`, you can set the environment variable `PREFECT_LOGGING_LOGGERS_ROOT_LEVEL="DEBUG"`.
 
@@ -86,9 +109,10 @@ def logger_flow():
     logger_task()
 ```
 
-The default task run log formatter uses the task run name for log messages.
+Prefect automatically uses the task run logger based on the task context. The default task run log formatter uses the task run name for log messages. 
 
 ```bash
-15:33:47.179 | ERROR   | Task run 'task_one-80a1ffd1-0' - A task level ERROR message.
+15:33:47.179 | INFO   | Task run 'task_one-80a1ffd1-0' - INFO level log message from a task.
 ```
 
+The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
