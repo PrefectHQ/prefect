@@ -12,12 +12,7 @@ Prefect enables fine-grained customization of log levels for flows and tasks, in
 
 Whenever you run a flow, Prefect automatically logs events for flow runs and task runs, along with any custom log handlers you have configured. No configuration is needed to enable Prefect logging.
 
-There are two components of logging in Prefect: 
-
-- Log messages displayed in the console or Orion UI.
-- Log data persisted to the database.
-
-Emitted log messages are familiar to most users. For example, say you created a simple flow in a file flow.py. If you create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
+For example, say you created a simple flow in a file `flow.py`. If you create a local flow run with `python flow.py`, you'll see an example of the log messages created automatically by Prefect:
 
 ```bash
 $ python flow.py
@@ -39,7 +34,7 @@ You can see logs for the flow run in the Orion UI by navigating to the flow run 
 
 These log messages reflect the logging configuration for log levels and message formatters. You may customize the log levels captured and the default message format through configuration, and you can capture custom logging events by explicitly emitting log messages during flow and task runs.
 
-Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNING`, `INFO`, and `DEBUG`. By default, Prefect logs `INFO`-level events. You can configure the root logging level as well as specific logging levels for flow and task runs.
+Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNING`, `INFO`, and `DEBUG`. By default, Prefect displays `INFO`-level and above events. You can configure the root logging level as well as specific logging levels for flow and task runs.
 
 Logged events are also persisted to the Orion database. A log record includes the following data:
 
@@ -48,24 +43,28 @@ Logged events are also persisted to the Orion database. A log record includes th
 | id | Primary key ID of the log record. |
 | created | Timestamp specifying when the record was created. |
 | updated | Timestamp specifying when the record was updated. |
-| name | String specifying the flow name if the log record is created for a flow run, or the task name if the log record is created for a task run. |
+| name | String specifying the name of the logger. |
 | level | Integer representation of the logging level. |
 | flow_run_id | ID of the flow run associated with the log record. If the log record is for a task run, this is the parent flow of the task. | 
-| task_run_id | ID of the task run associated with the log record. Null if the logging a flow run event. |
+| task_run_id | ID of the task run associated with the log record. Null if logging a flow run event. |
 | message | Log message. |
 | timestamp | The client-side timestamp of this logged statement. |
 
 ## Logging Configuration
 
-There is a /prefect/logging/logging.yml file packaged with Prefect that defines the default logging configuration. 
+As mentioned earlier, by default, Prefect displays `INFO`-level and above logging records. You may change this level to `DEBUG` and `DEBUG`-level logs created by Prefect will be shown as well. You may need to change the log level used by loggers from other libraries to see their log records.
 
-You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting in logging.yml. 
+You can override any logging configuration by setting an environment variable using the syntax `PREFECT_LOGGING_[PATH]_[TO]_[KEY]`, with `[PATH]_[TO]_[KEY]` corresponding to the nested address of any setting. 
 
-For example, to change the default logging levels for Prefect to `DEBUG`, you can set the environment variable `PREFECT_LOGGING_LOGGERS_ROOT_LEVEL="DEBUG"`.
-
-You can also customize logging configuration by creating your own version of logging.yml with custom settings, then specifying the path to your custom settings file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist, Prefect ignores the setting and uses the default configuration.)
+For example, to change the default logging levels for Prefect to `DEBUG`, you can set the environment variable `PREFECT_LOGGING_DEFAULT_LEVEL="DEBUG"`.
 
 Prefect's log levels are governed by `PREFECT_LOGGING_LOGGERS_ROOT_LEVEL`, which defaults to `INFO`. However, this setting only affects Prefect loggers, not Python or other loggers globally.
+
+You may adjust the log level used by specific handlers. For example, you could set `PREFECT_LOGGING_HANDLERS_ORION_LEVEL=ERROR` to have only `ERROR` logs reported to Orion. The console handlers will still default to level `INFO`.
+
+There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml) file packaged with Prefect that defines the default logging configuration. 
+
+You can customize logging configuration by creating your own version of `logging.yml` with custom settings, by either creating the file at the default location (`/.prefect/logging.yml`) or by specifying the path to the file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist at the specified location, Prefect ignores the setting and uses the default configuration.)
 
 ## Prefect Loggers
 
@@ -84,7 +83,7 @@ def logger_flow():
     logger.info("INFO level log message.")
 ```
 
-Prefect automatically uses the flow run logger based on the flow context. Based on the above code, Prefect captures the following as a log event.
+Prefect automatically uses the flow run logger based on the flow context. If you run the above code, Prefect captures the following as a log event.
 
 ```bash
 15:35:17.304 | INFO    | Flow run 'mottled-marten' - INFO level log message.
@@ -116,3 +115,42 @@ Prefect automatically uses the task run logger based on the task context. The de
 ```
 
 The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
+
+## Formatters
+
+Prefect log formatters specify the format of log messages. You can see details of message formatting for different loggers in [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/prefect/logging/logging.yml). For example, the default formatting for task run log records is:
+
+```python
+"%(asctime)s.%(msecs)03d | %(levelname)-7s | Task run %(task_run_name)r - %(message)s"
+```
+
+The variables available to interpolate in log messages varies by logger. In addition to the run context, message string, and any keyword arguments, flow and task run loggers have access to additional variables.
+
+
+The flow run logger has the following:
+
+- flow_run_name
+- flow_run_id
+- flow_name 
+
+The task run logger has the following:
+
+- task_run_id
+- flow_run_id
+- task_run_name
+- task_name
+- flow_run_name
+- flow_name
+
+You can specify custom formatting by setting an environment variable or by modifying the formatter in a `logging.yml` fileas described earlier. For example, to change the formatting for the flow runs formatter:
+
+```bash
+PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_FORMAT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
+```
+
+The resulting messages, using the flow run ID instead of name, would look like this:
+
+```bash
+10:40:01.211 | INFO    | e43a5a80-417a-41c4-a39e-2ef7421ee1fc - Created task run 
+'othertask-1c085beb-3' for task 'othertask'
+```
