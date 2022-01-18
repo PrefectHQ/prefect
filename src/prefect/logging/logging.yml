@@ -61,7 +61,7 @@ handlers:
 loggers:
     prefect:
         level: DEBUG
-        handlers: [console]
+        handlers: [orion, console]
         propagate: no
 
     prefect.flow_runs:
