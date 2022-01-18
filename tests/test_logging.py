@@ -8,27 +8,30 @@ from contextlib import nullcontext
 from functools import partial
 from unittest.mock import ANY, MagicMock
 
+import anyio
 import pendulum
 import pytest
 
 import prefect
 from prefect import flow, task
 from prefect.context import FlowRunContext, TaskRunContext
-from prefect.orion.schemas.actions import LogCreate
-from prefect.utilities.testing import AsyncMock
+from prefect.flow_runners import SubprocessFlowRunner
 from prefect.logging.configuration import (
     DEFAULT_LOGGING_SETTINGS_PATH,
     load_logging_config,
     setup_logging,
 )
+from prefect.logging.handlers import OrionHandler, OrionLogWorker
 from prefect.logging.loggers import (
     flow_run_logger,
     get_logger,
-    task_run_logger,
     get_run_logger,
+    task_run_logger,
 )
-from prefect.logging.handlers import OrionHandler, OrionLogWorker
+from prefect.orion.schemas.actions import LogCreate
+from prefect.orion.schemas.data import DataDocument
 from prefect.utilities.settings import LoggingSettings, Settings, temporary_settings
+from prefect.utilities.testing import AsyncMock
 
 
 @pytest.fixture
@@ -36,6 +39,41 @@ def dictConfigMock(monkeypatch):
     mock = MagicMock()
     monkeypatch.setattr("logging.config.dictConfig", mock)
     return mock
+
+
+@pytest.fixture
+async def logger_test_deployment(orion_client):
+    """
+    A deployment with a flow that returns information about the given loggers
+    """
+
+    @prefect.flow
+    def my_flow(loggers=["foo", "bar", "prefect"]):
+        import logging
+
+        settings = {}
+
+        for logger_name in loggers:
+            logger = logging.getLogger(logger_name)
+            settings[logger_name] = {
+                "handlers": [handler.name for handler in logger.handlers],
+                "level": logger.level,
+            }
+            logger.info(f"Hello from {logger_name}")
+
+        return settings
+
+    flow_id = await orion_client.create_flow(my_flow)
+
+    flow_data = DataDocument.encode("cloudpickle", my_flow)
+
+    deployment_id = await orion_client.create_deployment(
+        flow_id=flow_id,
+        name="logger_test_deployment",
+        flow_data=flow_data,
+    )
+
+    return deployment_id
 
 
 def test_setup_logging_uses_default_path(tmp_path, dictConfigMock):
@@ -100,6 +138,41 @@ def test_setup_logging_uses_env_var_overrides(tmp_path, dictConfigMock, monkeypa
     setup_logging(fake_settings)
 
     dictConfigMock.assert_called_once_with(expected_config)
+
+
+@pytest.mark.enable_orion_handler
+async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deployment):
+    """
+    Runs a flow in a subprocess to check that PREFECT_LOGGING_EXTRA_LOGGERS works as
+    intended. This avoids side-effects of modifying the loggers in this test run without
+    confusing mocking.
+    """
+    flow_run = await orion_client.create_flow_run_from_deployment(
+        logger_test_deployment
+    )
+
+    await SubprocessFlowRunner(
+        env={"PREFECT_LOGGING_EXTRA_LOGGERS": "foo"}
+    ).submit_flow_run(flow_run, MagicMock(spec=anyio.abc.TaskStatus))
+
+    state = (await orion_client.read_flow_run(flow_run.id)).state
+    settings = await orion_client.resolve_datadoc(state.result())
+    api_logs = await orion_client.read_logs()
+    api_log_messages = [log.message for log in api_logs]
+
+    prefect_logger = logging.getLogger("prefect")
+
+    # Configures 'foo' to match 'prefect'
+    assert settings["foo"]["handlers"] == [
+        handler.name for handler in prefect_logger.handlers
+    ]
+    assert settings["foo"]["level"] == prefect_logger.level
+    assert "Hello from foo" in api_log_messages
+
+    # Does not configure 'bar'
+    assert settings["bar"]["handlers"] == []
+    assert settings["bar"]["level"] == logging.NOTSET
+    assert "Hello from bar" not in api_log_messages
 
 
 @pytest.mark.parametrize("name", ["default", None, ""])
