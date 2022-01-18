@@ -72,7 +72,7 @@ class UpstreamTaskError(PrefectException):
 class MissingContextError(PrefectException, RuntimeError):
     """
     Raised when a method is called that requires a task or flow run context to be
-    active but it is not currently.
+    active but one cannot be found.
     """
 
     pass
