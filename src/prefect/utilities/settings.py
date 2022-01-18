@@ -12,9 +12,9 @@ import textwrap
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
-from pydantic import BaseSettings, Field, SecretStr, root_validator
+from pydantic import BaseSettings, Field, SecretStr, root_validator, validator
 
 
 class SharedSettings(BaseSettings):
@@ -292,6 +292,13 @@ class OrionHandlerSettings(BaseSettings):
         description="""Should logs be sent to Orion? If False, logs sent to the
         OrionHandler will not be sent to the API.""",
     )
+
+    loggers: str = Field(
+        "",
+        description="""Additional loggers to attach to the OrionHandler at runtime.
+        Values should be comma separated.""",
+    )
+
     batch_interval: float = Field(
         2.0,
         description="""The number of seconds between batched writes of logs to Orion.""",
@@ -302,6 +309,9 @@ class OrionHandlerSettings(BaseSettings):
     max_log_size: int = Field(
         1_000_000, description="""The maximum size in bytes for a single log."""
     )
+
+    def get_loggers(self) -> List[str]:
+        return self.loggers.split(",") or []
 
     @root_validator
     def max_log_size_smaller_than_batch_size(cls, values):

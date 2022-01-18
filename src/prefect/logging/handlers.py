@@ -180,6 +180,13 @@ class OrionHandler(logging.Handler):
         if cls.worker:
             cls.worker.stop()
 
+    @classmethod
+    def attach_extra_loggers(cls):
+        instance = cls()
+        for logger_name in prefect.settings.logging.orion.get_loggers():
+            logger = logging.getLogger(logger_name)
+            logger.addHandler(instance)
+
     def emit(self, record: logging.LogRecord):
         """
         Send a log to the `OrionLogWorker`
