@@ -160,13 +160,13 @@ async def test_flow_run_respects_extra_loggers(orion_client, logger_test_deploym
     api_logs = await orion_client.read_logs()
     api_log_messages = [log.message for log in api_logs]
 
-    prefect_logger = logging.getLogger("prefect")
+    extra_logger = logging.getLogger("prefect.extra")
 
-    # Configures 'foo' to match 'prefect'
+    # Configures 'foo' to match 'prefect.extra'
     assert settings["foo"]["handlers"] == [
-        handler.name for handler in prefect_logger.handlers
+        handler.name for handler in extra_logger.handlers
     ]
-    assert settings["foo"]["level"] == prefect_logger.level
+    assert settings["foo"]["level"] == extra_logger.level
     assert "Hello from foo" in api_log_messages
 
     # Does not configure 'bar'
