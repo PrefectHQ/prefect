@@ -198,11 +198,7 @@ class OrionHandler(logging.Handler):
     def handleError(self, record: logging.LogRecord) -> None:
         _, exc, _ = sys.exc_info()
 
-        # Ignore `prefect` logs outside of a run context for now
-        if isinstance(exc, MissingContextError) and record.name.startswith("prefect."):
-            return
-
-        # Warn for other loggers outside of a run context, the stack level here
+        # Warn when a logger is used outside of a run context, the stack level here
         # gets us to the user logging call
         if isinstance(exc, MissingContextError):
             warnings.warn(exc, stacklevel=8)
