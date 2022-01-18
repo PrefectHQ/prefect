@@ -53,7 +53,12 @@ def load_logging_config(path: Path, settings: LoggingSettings) -> dict:
         # reassign the updated value
         flat_config[key_tup] = val
 
-    return flatdict_to_dict(flat_config)
+    parsed_config = flatdict_to_dict(flat_config)
+    # Cast the root logger to Python's expected empty string
+    if "loggers" in parsed_config:
+        parsed_config["loggers"][""] = parsed_config["loggers"].pop("root", {})
+
+    return parsed_config
 
 
 def setup_logging(settings: Settings) -> None:
