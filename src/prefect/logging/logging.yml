@@ -65,15 +65,17 @@ loggers:
         propagate: no
 
     prefect.flow_runs:
+        level: NOTSET
         handlers: [orion, console_flow_runs]
         propagate: no
 
     prefect.task_runs:
+        level: NOTSET
         handlers: [orion, console_task_runs]
         propagate: no
     
     # The root logger: any logger without propagation disabled sends to here as well
-    "":
+    root:
         # By default, we display warning level logs from any library in the console
         # to match Python's default behavior but format logs nicely
         level: WARNING
