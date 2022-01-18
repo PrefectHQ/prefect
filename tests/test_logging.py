@@ -341,16 +341,15 @@ class TestOrionHandler:
         mock_log_worker().enqueue.assert_not_called()
 
     def test_explicit_task_run_id_still_requires_flow_run_id(
-        self, logger, mock_log_worker, capsys
+        self, logger, mock_log_worker
     ):
         task_run_id = uuid.uuid4()
-        logger.info("test-task", extra={"task_run_id": task_run_id})
+        with pytest.warns(
+            UserWarning, match="attempted to send logs .* without a flow run id"
+        ):
+            logger.info("test-task", extra={"task_run_id": task_run_id})
+
         mock_log_worker().enqueue.assert_not_called()
-        output = capsys.readouterr()
-        assert (
-            "RuntimeError: Attempted to send logs to Orion without a flow run id."
-            in output.err
-        )
 
     def test_sets_timestamp_from_record_created_time(
         self, logger, mock_log_worker, flow_run, handler
@@ -409,16 +408,50 @@ class TestOrionHandler:
     def test_does_not_send_logs_outside_of_run_context(
         self, logger, mock_log_worker, capsys
     ):
-        # Does not raise error in the main process
+        # Warns in the main process
+        with pytest.warns(
+            UserWarning, match="attempted to send logs .* without a flow run id"
+        ):
+            logger.info("test")
+
+        mock_log_worker().enqueue.assert_not_called()
+
+        # No stderr output
+        output = capsys.readouterr()
+        assert output.err == ""
+
+    def test_missing_context_warning_refers_to_caller_lineno(
+        self, logger, mock_log_worker
+    ):
+        from inspect import getframeinfo, currentframe
+
+        # Warns in the main process
+        with pytest.warns(
+            UserWarning, match="attempted to send logs .* without a flow run id"
+        ) as warnings:
+            logger.info("test")
+            lineno = getframeinfo(currentframe()).lineno - 1
+            # The above dynamic collects the line number so that added tests do not
+            # break this tests
+
+        mock_log_worker().enqueue.assert_not_called()
+        assert warnings.pop().lineno == lineno
+
+    def test_writes_logging_errors_to_stderr(
+        self, logger, mock_log_worker, capsys, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "prefect.logging.handlers.OrionHandler.prepare",
+            MagicMock(side_effect=RuntimeError("Oh no!")),
+        )
+        # No error raised
         logger.info("test")
 
         mock_log_worker().enqueue.assert_not_called()
 
+        # Error is in stdout
         output = capsys.readouterr()
-        assert (
-            "RuntimeError: Attempted to send logs to Orion without a flow run id."
-            in output.err
-        )
+        assert "RuntimeError: Oh no!" in output.err
 
     def test_does_not_write_error_for_logs_outside_run_context_that_opt_out(
         self, logger, mock_log_worker, capsys
