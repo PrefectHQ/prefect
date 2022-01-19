@@ -893,6 +893,9 @@ class TestFlowRunLogs:
         assert all([log.flow_run_id == flow_run_id for log in logs])
         assert all([log.task_run_id is None for log in logs])
 
+
+@pytest.mark.enable_orion_handler
+class TestSubFlowLogs:
     async def test_subflow_logs_are_written_correctly(self, orion_client):
         @flow
         def my_subflow():
@@ -912,5 +915,34 @@ class TestFlowRunLogs:
         logs = await orion_client.read_logs()
         assert all([log.task_run_id is None for log in logs])
         assert all([log.flow_run_id == flow_run_id for log in logs[:-1]])
+        assert logs[-1].message == "Hello smaller world!"
+        assert logs[-1].flow_run_id == subflow_run_id
+
+    async def test_subflow_logs_are_written_correctly_with_tasks(self, orion_client):
+        @task
+        def a_log_task():
+            logger = get_run_logger()
+            logger.info("Task log")
+
+        @flow
+        def my_subflow():
+            a_log_task()
+            logger = get_run_logger()
+            logger.info("Hello smaller world!")
+
+        @flow
+        def my_flow():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+            return my_subflow()
+
+        state = my_flow()
+        flow_run_id = state.state_details.flow_run_id
+        subflow_run_id = state.result().state_details.flow_run_id
+
+        logs = await orion_client.read_logs()
+        task_run_logs = [log for log in logs if log.task_run_id is not None]
+        assert len(task_run_logs) == 1
+        assert task_run_logs[0].flow_run_id == subflow_run_id
         assert logs[-1].message == "Hello smaller world!"
         assert logs[-1].flow_run_id == subflow_run_id
