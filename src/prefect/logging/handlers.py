@@ -60,7 +60,7 @@ class OrionLogWorker:
         Runs until the `stop_event` is set.
         """
         while not self._stop_event.is_set():
-            # Wait until flush is called or the batch interval is set
+            # Wait until flush is called or the batch interval is reached
             self._flush_event.wait(prefect.settings.logging.orion.batch_interval)
             self._flush_event.clear()
 
