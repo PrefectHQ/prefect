@@ -207,7 +207,7 @@ class TestOrionHandler:
 
         output = capsys.readouterr()
         assert (
-            "RuntimeError: Logs cannot be sent after the worker is stopped."
+            "RuntimeError: Logs cannot be enqueued after the Orion log worker is stopped."
             in output.err
         )
 
@@ -593,7 +593,6 @@ class TestOrionLogWorker:
             worker.start()
             worker.enqueue(log_json)
             worker.stop()
-            worker.enqueue(log_json)  # Extra log will not be sent
         end_time = time.time()
 
         assert (
@@ -602,6 +601,20 @@ class TestOrionLogWorker:
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
+
+    async def test_raises_on_enqueue_after_stop(self, worker, log_json):
+        worker.start()
+        worker.stop()
+        with pytest.raises(
+            RuntimeError, match="Logs cannot be enqueued after .* is stopped"
+        ):
+            worker.enqueue(log_json)
+
+    async def test_raises_on_start_after_stop(self, worker, log_json):
+        worker.start()
+        worker.stop()
+        with pytest.raises(RuntimeError, match="cannot be started after stopping"):
+            worker.start()
 
     async def test_logs_are_sent_immediately_when_flushed(
         self, log_json, orion_client, worker
