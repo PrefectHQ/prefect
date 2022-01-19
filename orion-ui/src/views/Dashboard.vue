@@ -174,7 +174,7 @@ const countsFilter = (
       if (end.value) start_time.before_ = end.value?.toISOString()
     }
 
-    const countsFilter = { ...filter.value }
+    const countsFilter = buildFilter(store.getters.globalFilter)
 
     const stateType = state_name == 'Failed'
     countsFilter.flow_runs = {
