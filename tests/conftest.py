@@ -31,13 +31,6 @@ def pytest_collection_modifyitems(session, config, items):
     """
     Modify all tests to automatically and transparently support asyncio
     """
-    for item in items:
-        # automatically add @pytest.mark.asyncio to async tests
-        if isinstance(item, pytest.Function) and inspect.iscoroutinefunction(
-            item.function
-        ):
-            item.add_marker(pytest.mark.asyncio)
-
     if config.getoption("--all-services"):
         # Do not skip any service tests
         return
@@ -61,7 +54,8 @@ def event_loop(request):
     Redefine the event loop to support session/module-scoped fixtures;
     see https://github.com/pytest-dev/pytest-asyncio/issues/68
     """
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
 
     # configure asyncio logging to capture long running tasks
     asyncio_logger = logging.getLogger("asyncio")
@@ -74,6 +68,10 @@ def event_loop(request):
         yield loop
     finally:
         loop.close()
+
+    # Workaround for failures in pytest_asyncio 0.17;
+    # see https://github.com/pytest-dev/pytest-asyncio/issues/257
+    policy.set_event_loop(loop)
 
 
 @pytest.fixture
