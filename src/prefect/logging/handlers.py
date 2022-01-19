@@ -141,7 +141,8 @@ class OrionLogWorker:
         self._queue.put(log)
 
     def flush(self) -> None:
-        self._flush_event.set()
+        with self._lock:
+            self._flush_event.set()
 
     def start(self) -> None:
         """Start the background thread"""
