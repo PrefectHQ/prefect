@@ -210,8 +210,6 @@ async def create(path: str):
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
     for spec, src in specs.items():
-        exc = None
-
         try:
             spec.validate()
         except SpecValidationError as exc:
@@ -237,10 +235,8 @@ async def create(path: str):
                 console.print(f"Pushing {source} to {target}...")
             await spec.create_deployment()
         except Exception as exc:
-            pass
-
-        if exc:
             console.print(exception_traceback(exc))
             console.print(f"Failed to create deployment {stylized_name}", style="red")
+            continue
         else:
             console.print(f"Created deployment {stylized_name}")

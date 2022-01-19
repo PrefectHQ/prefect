@@ -125,7 +125,7 @@ class DeploymentSpec(PrefectBaseModel):
     def ensure_paths_are_absolute_strings(cls, value):
         if isinstance(value, pathlib.Path):
             return str(value.absolute())
-        elif isinstance(value, str):
+        elif isinstance(value, str) and is_local_path(value):
             return abspath(value)
         return value
 
@@ -150,7 +150,7 @@ class DeploymentSpec(PrefectBaseModel):
 
         # Ensure the flow location matches the flow both are given
 
-        elif self.flow and self.flow_location:
+        elif self.flow and self.flow_location and is_local_path(self.flow_location):
             flow_file = self.flow.fn.__globals__.get("__file__")
             if flow_file:
                 abs_given = abspath(str(self.flow_location))
