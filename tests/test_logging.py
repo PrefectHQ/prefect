@@ -173,11 +173,43 @@ class TestOrionHandler:
         logger.info("test-task", extra={"flow_run_id": uuid.uuid4()})
         mock_log_worker().start.assert_called()
 
-    def test_worker_is_stopped_on_handler_close(self, mock_log_worker):
+    def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
         handler = OrionHandler()
         handler.get_worker()
         handler.close()
-        mock_log_worker().stop.assert_called_once()
+        mock_log_worker().flush.assert_called_once()
+        # The worker cannot be stopped because it is a singleton and other handler
+        # instances may be using it
+        mock_log_worker().stop.assert_not_called()
+
+    async def test_logs_can_still_be_sent_after_close(
+        self, logger, handler, flow_run, orion_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
+        handler.close()  # Close it
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush()
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
+    async def test_logs_cannot_be_sent_after_worker_stop(
+        self, logger, handler, flow_run, orion_client, capsys
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.worker.stop()
+
+        # Send a log that will not be sent
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 1
+
+        output = capsys.readouterr()
+        assert (
+            "RuntimeError: Logs cannot be sent after the worker is stopped."
+            in output.err
+        )
 
     def test_worker_is_not_stopped_if_not_set_on_handler_close(self, mock_log_worker):
         OrionHandler().close()
