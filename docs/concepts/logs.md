@@ -36,20 +36,6 @@ These log messages reflect the logging configuration for log levels and message 
 
 Prefect supports the standard Python logging levels `CRITICAL`, `ERROR`, `WARNING`, `INFO`, and `DEBUG`. By default, Prefect displays `INFO`-level and above events. You can configure the root logging level as well as specific logging levels for flow and task runs.
 
-Logged events are also persisted to the Orion database. A log record includes the following data:
-
-| Column | Description |
-| --- | --- |
-| id | Primary key ID of the log record. |
-| created | Timestamp specifying when the record was created. |
-| updated | Timestamp specifying when the record was updated. |
-| name | String specifying the name of the logger. |
-| level | Integer representation of the logging level. |
-| flow_run_id | ID of the flow run associated with the log record. If the log record is for a task run, this is the parent flow of the task. | 
-| task_run_id | ID of the task run associated with the log record. Null if logging a flow run event. |
-| message | Log message. |
-| timestamp | The client-side timestamp of this logged statement. |
-
 ## Logging Configuration
 
 As mentioned earlier, by default, Prefect displays `INFO`-level and above logging records. You may change this level to `DEBUG` and `DEBUG`-level logs created by Prefect will be shown as well. You may need to change the log level used by loggers from other libraries to see their log records.
@@ -66,13 +52,15 @@ There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/p
 
 You can customize logging configuration by creating your own version of `logging.yml` with custom settings, by either creating the file at the default location (`/.prefect/logging.yml`) or by specifying the path to the file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist at the specified location, Prefect ignores the setting and uses the default configuration.)
 
+See the Python [Logging configuration](https://docs.python.org/3/library/logging.config.html) documentation for more information about the configuration options and syntax used by `logging.yml`.
+
 ## Prefect Loggers
 
 To access the Prefect logger, import `from prefect import get_run_logger`. You can send messages to the logger in both flows and tasks.
 
 ### Logging in flows
 
-To log from a flow, create an instance of `get_run_logger()`, then call the logger specifying the log level and optional message to log.
+To log from a flow, retrieve a logger instance with `get_run_logger()`, then call the standard Python [logging methods](https://docs.python.org/3/library/logging.html).
 
 ```python
 from prefect import flow, get_run_logger
@@ -93,7 +81,7 @@ The default flow run log formatter uses the flow run name for log messages.
 
 ### Logging in tasks
 
-Logging in tasks works much as logging in flows: create an instance of `get_run_logger()`, then call the logger specifying the log level and optional message to log.
+Logging in tasks works much as logging in flows: retrieve a logger instance with `get_run_logger()`, then call the standard Python [logging methods](https://docs.python.org/3/library/logging.html).
 
 ```python
 from prefect import flow, task, get_run_logger
@@ -129,18 +117,18 @@ The variables available to interpolate in log messages varies by logger. In addi
 
 The flow run logger has the following:
 
-- flow_run_name
-- flow_run_id
-- flow_name 
+- `flow_run_name`
+- `flow_run_id`
+- `flow_name`
 
 The task run logger has the following:
 
-- task_run_id
-- flow_run_id
-- task_run_name
-- task_name
-- flow_run_name
-- flow_name
+- `task_run_id`
+- `flow_run_id`
+- `task_run_name`
+- `task_name`
+- `flow_run_name`
+- `flow_name`
 
 You can specify custom formatting by setting an environment variable or by modifying the formatter in a `logging.yml` fileas described earlier. For example, to change the formatting for the flow runs formatter:
 
@@ -154,3 +142,21 @@ The resulting messages, using the flow run ID instead of name, would look like t
 10:40:01.211 | INFO    | e43a5a80-417a-41c4-a39e-2ef7421ee1fc - Created task run 
 'othertask-1c085beb-3' for task 'othertask'
 ```
+
+## Log database schema
+
+Logged events are also persisted to the Orion database. A log record includes the following data:
+
+| Column | Description |
+| --- | --- |
+| id | Primary key ID of the log record. |
+| created | Timestamp specifying when the record was created. |
+| updated | Timestamp specifying when the record was updated. |
+| name | String specifying the name of the logger. |
+| level | Integer representation of the logging level. |
+| flow_run_id | ID of the flow run associated with the log record. If the log record is for a task run, this is the parent flow of the task. | 
+| task_run_id | ID of the task run associated with the log record. Null if logging a flow run event. |
+| message | Log message. |
+| timestamp | The client-side timestamp of this logged statement. |
+
+For more information, see [Log schema](/api-ref/orion/schemas/core/#prefect.orion.schemas.core.Log) in the API documentation.
