@@ -167,7 +167,7 @@ class OrionHandler(logging.Handler):
     def get_worker(cls) -> OrionLogWorker:
         if not cls.worker:
             cls.worker = OrionLogWorker()
-            cls.worker.start()
+        cls.worker.start()
         return cls.worker
 
     @classmethod
