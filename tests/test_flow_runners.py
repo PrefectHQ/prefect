@@ -978,7 +978,6 @@ class TestDockerFlowRunner:
         flow_run,
         orion_client,
         use_hosted_orion,
-        hosted_orion_api,
         python_executable_test_deployment,
     ):
         """
@@ -998,10 +997,7 @@ class TestDockerFlowRunner:
 
         fake_status.started.assert_called_once()
         flow_run = await orion_client.read_flow_run(flow_run.id)
-        runtime_settings = await orion_client.resolve_datadoc(flow_run.state.result())
-        assert runtime_settings.orion_host == hosted_orion_api.replace(
-            "localhost", "host.docker.internal"
-        )
+        assert flow_run.state.is_completed()
 
     @pytest.mark.service("docker")
     async def test_executing_flow_run_has_rw_access_to_volumes(
