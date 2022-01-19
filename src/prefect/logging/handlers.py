@@ -158,6 +158,10 @@ class OrionLogWorker:
                 self._send_thread.join()
                 self._started = False
 
+    def is_stopped(self) -> bool:
+        with self._lock:
+            return not self._started
+
 
 class OrionHandler(logging.Handler):
     """
@@ -174,6 +178,9 @@ class OrionHandler(logging.Handler):
         if not cls.worker:
             cls.worker = OrionLogWorker()
             cls.worker.start()
+        elif cls.worker.is_stopped():
+            raise RuntimeError("Logs cannot be sent after the worker is stopped.")
+
         return cls.worker
 
     @classmethod
@@ -259,8 +266,10 @@ class OrionHandler(logging.Handler):
 
     def close(self) -> None:
         """
-        Shuts down this handler and the `OrionLogWorker`.
+        Shuts down this handler and the flushes the `OrionLogWorker`.
         """
         if self.worker:
-            self.worker.stop()
+            # We flush instead of closing ecause another class instance may be using the
+            # worker
+            self.worker.flush()
         return super().close()
