@@ -297,7 +297,7 @@ const flowRunHistoryFilter = computed<FlowRunsHistoryFilter>(() => {
     history_start: start.value.toISOString(),
     history_end: end.value.toISOString(),
     history_interval_seconds: interval.value,
-    ...store.getters.composedFilter
+    ...buildFilter(store.getters.globalFilter)
   }
 })
 
@@ -305,7 +305,7 @@ const flowRunStatsFilter = computed<FlowRunsHistoryFilter>(() => {
   return {
     ...flowRunHistoryFilter.value,
     history_interval_seconds: interval.value * 2,
-    ...store.getters.composedFilter
+    ...buildFilter(store.getters.globalFilter)
   }
 })
 
