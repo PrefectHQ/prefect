@@ -57,6 +57,14 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
     Raises:
         ScriptError: if the script raises an exception during execution
     """
+
+    def run_script(run_path: str):
+        with tmpchdir(run_path):
+            try:
+                return runpy.run_path(run_path)
+            except Exception as exc:
+                raise ScriptError(user_exc=exc, path=path) from exc
+
     if text:
         with NamedTemporaryFile(
             mode="wt" if isinstance(text, str) else "wb",
@@ -65,7 +73,8 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
         ) as tmpfile:
             tmpfile.write(text)
             tmpfile.flush()
-            run_path = tmpfile.name
+            return run_script(tmpfile.name)
+
     else:
         if not is_local_path(path):
             # Remote paths need to be local to run
@@ -73,10 +82,4 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
                 contents = f.read()
             return objects_from_script(path, contents)
 
-        run_path = path
-
-    with tmpchdir(run_path):
-        try:
-            return runpy.run_path(run_path)
-        except Exception as exc:
-            raise ScriptError(user_exc=exc, path=path) from exc
+        return run_script(path)
