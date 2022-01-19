@@ -878,7 +878,7 @@ class TestFlowRunLogs:
         logs = await orion_client.read_logs()
         assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
 
-    async def test_tracebacks_are_logged(self, orion_client):
+    async def test_exception_info_is_included_in_log(self, orion_client):
         @flow
         def my_flow():
             logger = get_run_logger()
@@ -891,8 +891,21 @@ class TestFlowRunLogs:
 
         logs = await orion_client.read_logs()
         error_log = [log.message for log in logs if log.level == 40].pop()
-        assert "NameError" in error_log
-        assert "x + y" in error_log
+        assert "Traceback" in error_log
+        assert "NameError" in error_log, "References the exception type"
+        assert "x + y" in error_log, "References the line of code"
+
+    async def test_raised_exceptions_include_tracebacks(self, orion_client):
+        @flow
+        def my_flow():
+            raise ValueError("Hello!")
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        error_log = [log.message for log in logs if log.level == 40].pop()
+        assert "Traceback" in error_log
+        assert "ValueError: Hello!" in error_log, "References the exception"
 
     async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
         @flow
