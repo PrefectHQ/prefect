@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@prefecthq/miter-design": "0.1.20",
-    "@prefecthq/orion-design": "0.1.4",
+    "@prefecthq/orion-design": "0.1.3",
     "@prefecthq/vue-compositions": "0.1.9",
     "core-js": "^3.6.5",
     "d3": "^7.0.0",
