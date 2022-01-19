@@ -1,33 +1,23 @@
 """
 Command line interface for working with deployments.
 """
-import sys
-from pathlib import Path
+import traceback
 from typing import List
 
 import fastapi
 import httpx
 import pendulum
 import typer
-import traceback
-from anyio.abc import TaskStatus
-from rich.padding import Padding
 from rich.pretty import Pretty
-from rich.traceback import Traceback
-from pydantic import ValidationError
 
 from prefect.cli.base import app, console, exit_with_error
 from prefect.client import OrionClient
 from prefect.deployments import (
-    DeploymentSpec,
     deployment_specs_from_script,
     deployment_specs_from_yaml,
     load_flow_from_deployment,
 )
-from prefect.exceptions import FlowScriptError
-from prefect.agent import OrionAgent
 from prefect.exceptions import ScriptError, SpecValidationError
-from prefect.flow_runners import FlowRunner, FlowRunnerSettings
 from prefect.orion.schemas.filters import FlowFilter
 from prefect.utilities.asyncio import sync_compatible
 
