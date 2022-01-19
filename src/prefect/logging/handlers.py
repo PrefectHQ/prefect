@@ -271,7 +271,7 @@ class OrionHandler(logging.Handler):
             timestamp=pendulum.from_timestamp(
                 getattr(record, "created", None) or time.time()
             ),
-            message=record.getMessage(),
+            message=self.format(record),
         ).dict(json_compatible=True)
 
         log_size = sys.getsizeof(log)
