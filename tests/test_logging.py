@@ -404,12 +404,15 @@ class TestOrionLogWorker:
     def test_stop_is_idempotent(self, worker):
         worker._send_thread = MagicMock()
         worker._stop_event = MagicMock()
+        worker._flush_event = MagicMock()
         worker.stop()
         worker._stop_event.set.assert_not_called()
+        worker._flush_event.set.assert_not_called()
         worker._send_thread.join.assert_not_called()
         worker.start()
         worker.stop()
         worker.stop()
+        worker._flush_event.set.assert_called_once()
         worker._stop_event.set.assert_called_once()
         worker._send_thread.join.assert_called_once()
 
@@ -533,11 +536,11 @@ class TestOrionLogWorker:
         assert len(logs) == 2
 
     def test_batch_interval_is_respected(self, worker):
-        worker._stop_event = MagicMock(return_val=False)
+        worker._flush_event = MagicMock(return_val=False)
         with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
             worker.start()
 
-        worker._stop_event.wait.assert_called_once_with(5)
+        worker._flush_event.wait.assert_called_once_with(5)
 
     async def test_logs_are_sent_immediately_when_stopped(
         self, log_json, orion_client, worker
@@ -558,6 +561,45 @@ class TestOrionLogWorker:
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
+
+    async def test_logs_are_sent_immediately_when_flushed(
+        self, log_json, orion_client, worker
+    ):
+        # Set a long interval
+        start_time = time.time()
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+            worker.enqueue(log_json)
+            worker.start()
+            worker.enqueue(log_json)
+            worker.flush()
+        end_time = time.time()
+
+        assert (
+            end_time - start_time
+        ) < 5  # An arbitary time less than the 10s interval
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
+    async def test_logs_can_be_flushed_repeatedly(self, log_json, orion_client, worker):
+        # Set a long interval
+        start_time = time.time()
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+            worker.enqueue(log_json)
+            worker.start()
+            worker.enqueue(log_json)
+            worker.flush()
+            worker.flush()
+            worker.enqueue(log_json)
+            worker.flush()
+        end_time = time.time()
+
+        assert (
+            end_time - start_time
+        ) < 5  # An arbitary time less than the 10s interval
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 3
 
 
 def test_flow_run_logger(flow_run):
