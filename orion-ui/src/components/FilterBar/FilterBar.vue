@@ -85,13 +85,13 @@
 <script lang="ts" setup>
 import { ref, Ref, onBeforeUnmount, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useStore } from 'vuex'
+import { useStore } from '@/store'
 import FilterMenu from './FilterMenu.vue'
 import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
 import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
-import { generateInitialGlobalFilterState } from '@/store'
+import { generateInitialGlobalFilterState } from '@/store/filter'
 import TagGroup from './TagGroup.vue'
 import media from '@/utilities/media'
 
@@ -153,11 +153,11 @@ const removeFilter = (filter: FilterObject): void => {
 }
 
 const filters = computed<FilterObject[]>(() => {
-  return parseFilters(store.getters.globalFilter)
+  return parseFilters(store.state.filter)
 })
 
 const clearFilters = () => {
-  store.commit('resetFilters')
+  store.commit('filter/resetFilter')
 }
 
 /**
@@ -195,10 +195,7 @@ const overlay = computed(() => {
 })
 
 const filtersApplied = computed(() => {
-  return (
-    initialGlobalFilterStateString !==
-    JSON.stringify(store.getters.globalFilter)
-  )
+  return initialGlobalFilterStateString !== JSON.stringify(store.state.filter)
 })
 
 onMounted(() => {
