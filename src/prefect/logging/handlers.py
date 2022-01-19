@@ -59,6 +59,7 @@ class OrionLogWorker:
         """
         while not self._stop_event.is_set():
             self._flush_event.wait(prefect.settings.logging.orion.batch_interval)
+            self._flush_event.clear()
             anyio.run(self.send_logs)
 
         # After the stop event, we are exiting...
