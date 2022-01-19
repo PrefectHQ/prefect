@@ -231,7 +231,7 @@ jobs:
 
   publish-docker-images:
     name: Publish Docker images
-    needs: [publish-release, build-docker-images]
+    needs: [build-docker-images, build-release, publish-test-release]
     environment: 'prod'
 
     runs-on: ubuntu-latest
