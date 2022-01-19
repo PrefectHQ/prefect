@@ -52,7 +52,7 @@ There is a [`logging.yml`](https://github.com/PrefectHQ/prefect/blob/orion/src/p
 
 You can customize logging configuration by creating your own version of `logging.yml` with custom settings, by either creating the file at the default location (`/.prefect/logging.yml`) or by specifying the path to the file with `PREFECT_LOGGING_SETTINGS_PATH`. (If the file does not exist at the specified location, Prefect ignores the setting and uses the default configuration.)
 
-See the Python [Logging configuration](https://docs.python.org/3/library/logging.config.html) documentation for more information about the configuration options and syntax used by `logging.yml`.
+See the Python [Logging configuration](https://docs.python.org/3/library/logging.config.html#logging.config.dictConfig) documentation for more information about the configuration options and syntax used by `logging.yml`.
 
 ## Prefect Loggers
 
@@ -99,7 +99,7 @@ def logger_flow():
 Prefect automatically uses the task run logger based on the task context. The default task run log formatter uses the task run name for log messages. 
 
 ```bash
-15:33:47.179 | INFO   | Task run 'task_one-80a1ffd1-0' - INFO level log message from a task.
+15:33:47.179 | INFO   | Task run 'logger_task-80a1ffd1-0' - INFO level log message from a task.
 ```
 
 The underlying log model for task runs captures the task name, task run ID, and parent flow run ID, which are persisted to the database for reporting and may also be used in custom message formatting.
@@ -130,7 +130,7 @@ The task run logger has the following:
 - `flow_run_name`
 - `flow_name`
 
-You can specify custom formatting by setting an environment variable or by modifying the formatter in a `logging.yml` fileas described earlier. For example, to change the formatting for the flow runs formatter:
+You can specify custom formatting by setting an environment variable or by modifying the formatter in a `logging.yml` file as described earlier. For example, to change the formatting for the flow runs formatter:
 
 ```bash
 PREFECT_LOGGING_FORMATTERS_FLOW_RUNS_FORMAT="%(asctime)s.%(msecs)03d | %(levelname)-7s | %(flow_run_id)s - %(message)s"
