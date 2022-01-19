@@ -574,14 +574,13 @@ class TestOrionLogWorker:
 
         worker._flush_event.wait.assert_called_once_with(5)
 
-    def test_batch_interval_is_respected_after_flushing(self, worker):
+    def test_flush_event_is_cleared(self, worker):
         worker._flush_event = MagicMock(return_val=False)
         with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
             worker.start()
             worker.flush()
 
         worker._flush_event.wait.assert_called_with(5)
-        worker._flush_event.wait.call_count == 2
         worker._flush_event.clear.assert_called_once()
 
     async def test_logs_are_sent_immediately_when_stopped(
