@@ -142,7 +142,7 @@ class TestCreateDeployment:
         assert pendulum.parse(response.json()["created"]) >= now
         assert pendulum.parse(response.json()["updated"]) >= now
 
-    async def test_creating_deployment_with_active_schedule_creates_runs(
+    async def test_creating_deployment_with_active_schedule_doesnt_create_runs(
         self, session, client, flow, flow_function
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -163,7 +163,7 @@ class TestCreateDeployment:
         n_runs = await models.flow_runs.count_flow_runs(
             session, flow_filter=schemas.filters.FlowFilter(id=dict(any_=[flow.id]))
         )
-        assert n_runs == 100
+        assert n_runs == 0
 
     async def test_creating_deployment_with_inactive_schedule_creates_no_runs(
         self, session, client, flow, flow_function
@@ -214,9 +214,9 @@ class TestCreateDeployment:
         self, client, deployment, session, flow_function
     ):
 
-        # set active to schedule runs
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
+        # schedule runs
+        response = await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 100
@@ -258,9 +258,9 @@ class TestCreateDeployment:
         db,
     ):
 
-        # set active to schedule runs
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
+        # schedule runs
+        response = await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 100
@@ -292,9 +292,9 @@ class TestCreateDeployment:
             ).dict(json_compatible=True),
         )
 
-        # ensure there are still just 101 runs
+        # auto-scheduled runs should be deleted
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 101
+        assert n_runs == 1
 
         # check that the maximum run is from the secondly schedule
         query = sa.select(sa.func.max(db.FlowRun.expected_start_time))
@@ -566,7 +566,7 @@ class TestSetScheduleActive:
         response = await client.post(f"/deployments/{uuid4()}/set_schedule_active")
         assert response.status_code == 404
 
-    async def test_set_schedule_active_schedules_runs(
+    async def test_set_schedule_active_toggles_active_flag(
         self, client, deployment, session
     ):
         n_runs = await models.flow_runs.count_flow_runs(session)
@@ -579,7 +579,10 @@ class TestSetScheduleActive:
             f"/deployments/{deployment.id}/set_schedule_active"
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
-        assert n_runs == 100
+        assert n_runs == 0
+
+        await session.refresh(deployment)
+        assert deployment.is_schedule_active is True
 
     async def test_set_schedule_active_doesnt_schedule_runs_if_no_schedule_set(
         self, client, deployment, session
@@ -603,9 +606,9 @@ class TestSetScheduleActive:
         self, client, deployment, session
     ):
 
-        # set active to schedule runs
-        response = await client.post(
-            f"/deployments/{deployment.id}/set_schedule_active"
+        # schedule runs
+        response = await models.deployments.schedule_runs(
+            session=session, deployment_id=deployment.id
         )
         n_runs = await models.flow_runs.count_flow_runs(session)
         assert n_runs == 100

@@ -107,13 +107,13 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, getCurrentInstance, onBeforeMount, onBeforeUnmount } from 'vue'
+import { ref, onBeforeMount, onBeforeUnmount } from 'vue'
 import { Api, Endpoints } from '@/plugins/api'
+import { showToast } from '@prefecthq/miter-design'
 import { useStore } from 'vuex'
 import media from '@/utilities/media'
 
 const store = useStore()
-const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 
 type SavedSearch = {
@@ -232,9 +232,9 @@ const remove = async (id: string) => {
 
   const res = await query.fetch()
 
-  instance?.appContext.config.globalProperties.$toast.add({
+  showToast({
     type: res.error ? 'error' : 'success',
-    content: res.error ? `Error: ${res.error}` : 'Search removed',
+    message: res.error ? `Error: ${res.error}` : 'Search removed',
     timeout: 10000
   })
 
