@@ -173,11 +173,43 @@ class TestOrionHandler:
         logger.info("test-task", extra={"flow_run_id": uuid.uuid4()})
         mock_log_worker().start.assert_called()
 
-    def test_worker_is_stopped_on_handler_close(self, mock_log_worker):
+    def test_worker_is_flushed_on_handler_close(self, mock_log_worker):
         handler = OrionHandler()
         handler.get_worker()
         handler.close()
-        mock_log_worker().stop.assert_called_once()
+        mock_log_worker().flush.assert_called_once()
+        # The worker cannot be stopped because it is a singleton and other handler
+        # instances may be using it
+        mock_log_worker().stop.assert_not_called()
+
+    async def test_logs_can_still_be_sent_after_close(
+        self, logger, handler, flow_run, orion_client
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
+        handler.close()  # Close it
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.flush(block=True)
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
+    async def test_logs_cannot_be_sent_after_worker_stop(
+        self, logger, handler, flow_run, orion_client, capsys
+    ):
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+        handler.worker.stop()
+
+        # Send a log that will not be sent
+        logger.info("Test", extra={"flow_run_id": flow_run.id})
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 1
+
+        output = capsys.readouterr()
+        assert (
+            "RuntimeError: Logs cannot be enqueued after the Orion log worker is stopped."
+            in output.err
+        )
 
     def test_worker_is_not_stopped_if_not_set_on_handler_close(self, mock_log_worker):
         OrionHandler().close()
@@ -404,12 +436,15 @@ class TestOrionLogWorker:
     def test_stop_is_idempotent(self, worker):
         worker._send_thread = MagicMock()
         worker._stop_event = MagicMock()
+        worker._flush_event = MagicMock()
         worker.stop()
         worker._stop_event.set.assert_not_called()
+        worker._flush_event.set.assert_not_called()
         worker._send_thread.join.assert_not_called()
         worker.start()
         worker.stop()
         worker.stop()
+        worker._flush_event.set.assert_called_once()
         worker._stop_event.set.assert_called_once()
         worker._send_thread.join.assert_called_once()
 
@@ -533,11 +568,21 @@ class TestOrionLogWorker:
         assert len(logs) == 2
 
     def test_batch_interval_is_respected(self, worker):
-        worker._stop_event = MagicMock(return_val=False)
+        worker._flush_event = MagicMock(return_val=False)
+
         with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
             worker.start()
 
-        worker._stop_event.wait.assert_called_once_with(5)
+        worker._flush_event.wait.assert_called_with(5)
+
+    def test_flush_event_is_cleared(self, worker):
+        worker._flush_event = MagicMock(return_val=False)
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
+            worker.start()
+            worker.flush(block=True)
+
+        worker._flush_event.wait.assert_called_with(5)
+        worker._flush_event.clear.assert_called()
 
     async def test_logs_are_sent_immediately_when_stopped(
         self, log_json, orion_client, worker
@@ -549,7 +594,6 @@ class TestOrionLogWorker:
             worker.start()
             worker.enqueue(log_json)
             worker.stop()
-            worker.enqueue(log_json)  # Extra log will not be sent
         end_time = time.time()
 
         assert (
@@ -558,6 +602,59 @@ class TestOrionLogWorker:
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
+
+    async def test_raises_on_enqueue_after_stop(self, worker, log_json):
+        worker.start()
+        worker.stop()
+        with pytest.raises(
+            RuntimeError, match="Logs cannot be enqueued after .* is stopped"
+        ):
+            worker.enqueue(log_json)
+
+    async def test_raises_on_start_after_stop(self, worker, log_json):
+        worker.start()
+        worker.stop()
+        with pytest.raises(RuntimeError, match="cannot be started after stopping"):
+            worker.start()
+
+    async def test_logs_are_sent_immediately_when_flushed(
+        self, log_json, orion_client, worker
+    ):
+        # Set a long interval
+        start_time = time.time()
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+            worker.enqueue(log_json)
+            worker.start()
+            worker.enqueue(log_json)
+            worker.flush(block=True)
+        end_time = time.time()
+
+        assert (
+            end_time - start_time
+        ) < 5  # An arbitary time less than the 10s interval
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 2
+
+    async def test_logs_can_be_flushed_repeatedly(self, log_json, orion_client, worker):
+        # Set a long interval
+        start_time = time.time()
+        with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="10"):
+            worker.enqueue(log_json)
+            worker.start()
+            worker.enqueue(log_json)
+            worker.flush()
+            worker.flush()
+            worker.enqueue(log_json)
+            worker.flush(block=True)
+        end_time = time.time()
+
+        assert (
+            end_time - start_time
+        ) < 5  # An arbitary time less than the 10s interval
+
+        logs = await orion_client.read_logs()
+        assert len(logs) == 3
 
 
 def test_flow_run_logger(flow_run):
