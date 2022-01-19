@@ -29,9 +29,12 @@ class OrionLogWorker:
             name="orion-log-worker",
             daemon=True,
         )
+        self._flush_event = threading.Event()
         self._stop_event = threading.Event()
+        self._send_logs_finished_event = threading.Event()
         self._lock = threading.Lock()
         self._started = False
+        self._stopped = False  # Cannot be started again after stopped
 
         # Tracks logs that have been pulled from the queue but not sent successfully
         self._pending_logs: List[dict] = []
@@ -56,12 +59,21 @@ class OrionLogWorker:
 
         Runs until the `stop_event` is set.
         """
-        while not self._stop_event.wait(prefect.settings.logging.orion.batch_interval):
+        while not self._stop_event.is_set():
+            # Wait until flush is called or the batch interval is reached
+            self._flush_event.wait(prefect.settings.logging.orion.batch_interval)
+            self._flush_event.clear()
+
             anyio.run(self.send_logs)
+
+            # Notify watchers that logs were sent
+            self._send_logs_finished_event.set()
+            self._send_logs_finished_event.clear()
 
         # After the stop event, we are exiting...
         # Try to send any remaining logs
         anyio.run(self.send_logs, True)
+        self._send_logs_finished_event.set()
 
     async def send_logs(self, exiting: bool = False) -> None:
         """
@@ -135,22 +147,42 @@ class OrionLogWorker:
         )
 
     def enqueue(self, log: LogCreate):
+        if self._stopped:
+            raise RuntimeError(
+                "Logs cannot be enqueued after the Orion log worker is stopped."
+            )
         self._queue.put(log)
+
+    def flush(self, block: bool = False) -> None:
+        with self._lock:
+            self._flush_event.set()
+            if block:
+                self._send_logs_finished_event.wait()
 
     def start(self) -> None:
         """Start the background thread"""
         with self._lock:
-            if not self._started:
+            if not self._started and not self._stopped:
                 self._send_thread.start()
                 self._started = True
+            elif self._stopped:
+                raise RuntimeError(
+                    "The Orion log worker cannot be started after stopping."
+                )
 
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
         with self._lock:
             if self._started:
+                self._flush_event.set()
                 self._stop_event.set()
                 self._send_thread.join()
                 self._started = False
+                self._stopped = True
+
+    def is_stopped(self) -> bool:
+        with self._lock:
+            return not self._stopped
 
 
 class OrionHandler(logging.Handler):
@@ -171,14 +203,14 @@ class OrionHandler(logging.Handler):
         return cls.worker
 
     @classmethod
-    def flush(cls):
+    def flush(cls, block: bool = False):
         """
         Tell the `OrionLogWorker` to send any currently enqueued logs.
 
-        Blocks until enqueued logs are sent.
+        Blocks until enqueued logs are sent if `block` is set.
         """
         if cls.worker:
-            cls.worker.stop()
+            cls.worker.flush(block)
 
     def emit(self, record: logging.LogRecord):
         """
@@ -253,8 +285,10 @@ class OrionHandler(logging.Handler):
 
     def close(self) -> None:
         """
-        Shuts down this handler and the `OrionLogWorker`.
+        Shuts down this handler and the flushes the `OrionLogWorker`.
         """
         if self.worker:
-            self.worker.stop()
+            # We flush instead of closing ecause another class instance may be using the
+            # worker
+            self.worker.flush()
         return super().close()
