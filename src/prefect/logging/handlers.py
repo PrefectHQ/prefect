@@ -31,6 +31,7 @@ class OrionLogWorker:
         )
         self._flush_event = threading.Event()
         self._stop_event = threading.Event()
+        self._send_cond = threading.Condition()
         self._lock = threading.Lock()
         self._started = False
         self._stopped = False  # Cannot be started again after stopped
@@ -59,13 +60,21 @@ class OrionLogWorker:
         Runs until the `stop_event` is set.
         """
         while not self._stop_event.is_set():
+            # Wait until flush is called or the batch interval is set
             self._flush_event.wait(prefect.settings.logging.orion.batch_interval)
             self._flush_event.clear()
+
             anyio.run(self.send_logs)
+
+            # Notify watchers that logs were sent
+            with self._send_cond:
+                self._send_cond.notify_all()
 
         # After the stop event, we are exiting...
         # Try to send any remaining logs
         anyio.run(self.send_logs, True)
+        with self._send_cond:
+            self._send_cond.notify_all()
 
     async def send_logs(self, exiting: bool = False) -> None:
         """
@@ -145,9 +154,13 @@ class OrionLogWorker:
             )
         self._queue.put(log)
 
-    def flush(self) -> None:
+    def flush(self, block: bool = False) -> None:
         with self._lock:
             self._flush_event.set()
+
+            if block:
+                with self._send_cond:
+                    self._send_cond.wait()
 
     def start(self) -> None:
         """Start the background thread"""
@@ -193,14 +206,14 @@ class OrionHandler(logging.Handler):
         return cls.worker
 
     @classmethod
-    def flush(cls):
+    def flush(cls, block: bool = False):
         """
         Tell the `OrionLogWorker` to send any currently enqueued logs.
 
-        Blocks until enqueued logs are sent.
+        Blocks until enqueued logs are sent if `block` is set.
         """
         if cls.worker:
-            cls.worker.flush()
+            cls.worker.flush(block)
 
     def emit(self, record: logging.LogRecord):
         """

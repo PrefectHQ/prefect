@@ -188,7 +188,7 @@ class TestOrionHandler:
         logger.info("Test", extra={"flow_run_id": flow_run.id})  # Start the logger
         handler.close()  # Close it
         logger.info("Test", extra={"flow_run_id": flow_run.id})
-        handler.flush()
+        handler.flush(block=True)
 
         logs = await orion_client.read_logs()
         assert len(logs) == 2
@@ -578,10 +578,10 @@ class TestOrionLogWorker:
         worker._flush_event = MagicMock(return_val=False)
         with temporary_settings(PREFECT_LOGGING_ORION_BATCH_INTERVAL="5"):
             worker.start()
-            worker.flush()
+            worker.flush(block=True)
 
         worker._flush_event.wait.assert_called_with(5)
-        worker._flush_event.clear.assert_called_once()
+        worker._flush_event.clear.assert_called()
 
     async def test_logs_are_sent_immediately_when_stopped(
         self, log_json, orion_client, worker
@@ -625,7 +625,7 @@ class TestOrionLogWorker:
             worker.enqueue(log_json)
             worker.start()
             worker.enqueue(log_json)
-            worker.flush()
+            worker.flush(block=True)
         end_time = time.time()
 
         assert (
@@ -645,7 +645,7 @@ class TestOrionLogWorker:
             worker.flush()
             worker.flush()
             worker.enqueue(log_json)
-            worker.flush()
+            worker.flush(block=True)
         end_time = time.time()
 
         assert (
