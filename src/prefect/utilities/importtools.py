@@ -81,5 +81,5 @@ def objects_from_script(path: str, text: Union[str, bytes] = None) -> Dict[str, 
             with fsspec.open(path) as f:
                 contents = f.read()
             return objects_from_script(path, contents)
-
-        return run_script(path)
+        else:
+            return run_script(path)
