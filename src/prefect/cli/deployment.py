@@ -42,23 +42,9 @@ def assert_deployment_name_format(name: str) -> None:
         )
 
 
-def handle_deployment_spec_exception(exc: Exception):
-    if isinstance(exc, ScriptError):
-        console.print(f"[red]{exc}[/red]")
-        handle_deployment_spec_exception(exc.user_exc)
-    elif isinstance(exc, ValidationError):
-        if exc.model == DeploymentSpec:
-            console.print("Invalid deployment specification:")
-            for err in exc.errors():
-                location = " -> ".join(str(e) for e in err["loc"])
-                if location == "__root__":
-                    console.print(f"- {err['msg']}")
-                else:
-                    console.print(f"- {location}: {err['msg']}")
-        else:
-            console.print(exc)
-    else:
-        console.print(traceback.TracebackException.from_exception(exc).format())
+def exception_traceback(exc):
+    tb = traceback.TracebackException.from_exception(exc)
+    return "".join(list(tb.format()))
 
 
 @deployment_app.command()
@@ -234,14 +220,14 @@ async def create(
     try:
         specs = loader(path)
     except Exception as exc:
-        handle_deployment_spec_exception(exc)
+        console.print(exception_traceback(exc))
         exit_with_error(f"Failed to load specifications from {str(path)!r}")
 
     if not specs:
         exit_with_error(f"No deployment specifications found!", style="yellow")
 
     for spec in specs:
-        tb = None
+        exc = None
         stylized_name = f"[blue]'{spec.flow_name}/[/][bold blue]{spec.name}'[/]"
 
         try:
@@ -254,10 +240,10 @@ async def create(
                 )
             await spec.create_deployment()
         except Exception as exc:
-            tb = traceback.TracebackException.from_exception(exc)
+            pass
 
-        if tb:
+        if exc:
+            console.print(exception_traceback(exc))
             console.print(f"Failed to create deployment {stylized_name}", style="red")
-            console.print("\t".join(list(tb.format())))
         else:
             console.print(f"Created deployment {stylized_name}")
