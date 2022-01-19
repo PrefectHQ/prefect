@@ -895,7 +895,7 @@ class TestFlowRunLogs:
 
 
 @pytest.mark.enable_orion_handler
-class TestSubFlowLogs:
+class TestSubflowRunLogs:
     async def test_subflow_logs_are_written_correctly(self, orion_client):
         @flow
         def my_subflow():
