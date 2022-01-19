@@ -46,20 +46,17 @@ Examples:
 """
 
 import pathlib
-import runpy
+import sys
 from contextlib import contextmanager
 from contextvars import ContextVar
 from os.path import abspath
 from tempfile import NamedTemporaryFile
-from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple, Union
+from typing import Any, AnyStr, Dict, Iterable, List, Set, Tuple
 from uuid import UUID
 
 import fsspec
 import yaml
-import sys
-from fsspec.core import OpenFile
-from fsspec.implementations.local import LocalFileSystem
-from pydantic import root_validator, validator
+from pydantic import validator
 
 from prefect.client import OrionClient, inject_client
 from prefect.exceptions import (
@@ -77,8 +74,8 @@ from prefect.orion.schemas.schedules import SCHEDULE_TYPES
 from prefect.orion.utilities.schemas import PrefectBaseModel
 from prefect.utilities.asyncio import sync_compatible
 from prefect.utilities.collections import extract_instances, listrepr
+from prefect.utilities.filesystem import is_local_path, tmpchdir
 from prefect.utilities.importtools import objects_from_script
-from prefect.utilities.filesystem import tmpchdir, filename, is_local_path
 
 
 class DeploymentSpec(PrefectBaseModel):
