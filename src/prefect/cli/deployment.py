@@ -151,17 +151,7 @@ async def execute(name: str):
 
 @deployment_app.command()
 @sync_compatible
-async def create(
-    path: Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        writable=False,
-        readable=True,
-        resolve_path=False,
-    ),
-):
+async def create(path: str):
     """
     Create or update a deployment from a file containing deployment specifications
 
@@ -205,11 +195,11 @@ async def create(
           flow_location: "./my_other_flowflow.py"
         ```
     """
-    if path.name.endswith(".py"):
+    if path.endswith(".py"):
         from_msg = "python script"
         loader = deployment_specs_from_script
 
-    elif path.name.endswith(".yaml") or path.name.endswith(".yml"):
+    elif path.endswith(".yaml") or path.endswith(".yml"):
         from_msg = "yaml file"
         loader = deployment_specs_from_yaml
 
