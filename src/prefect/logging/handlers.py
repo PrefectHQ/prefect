@@ -31,7 +31,7 @@ class OrionLogWorker:
         )
         self._flush_event = threading.Event()
         self._stop_event = threading.Event()
-        self._send_cond = threading.Condition()
+        self._send_logs_finished = threading.Condition()
         self._lock = threading.Lock()
         self._started = False
         self._stopped = False  # Cannot be started again after stopped
@@ -67,14 +67,14 @@ class OrionLogWorker:
             anyio.run(self.send_logs)
 
             # Notify watchers that logs were sent
-            with self._send_cond:
-                self._send_cond.notify_all()
+            with self._send_logs_finished:
+                self._send_logs_finished.notify_all()
 
         # After the stop event, we are exiting...
         # Try to send any remaining logs
         anyio.run(self.send_logs, True)
-        with self._send_cond:
-            self._send_cond.notify_all()
+        with self._send_logs_finished:
+            self._send_logs_finished.notify_all()
 
     async def send_logs(self, exiting: bool = False) -> None:
         """
@@ -159,8 +159,8 @@ class OrionLogWorker:
             self._flush_event.set()
 
             if block:
-                with self._send_cond:
-                    self._send_cond.wait()
+                with self._send_logs_finished:
+                    self._send_logs_finished.wait()
 
     def start(self) -> None:
         """Start the background thread"""
