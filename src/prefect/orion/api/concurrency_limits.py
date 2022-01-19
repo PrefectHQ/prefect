@@ -26,8 +26,11 @@ async def create_concurrency_limit(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
 
+    # hydrate the input model into a full model
+    concurrency_limit_model = schemas.core.ConcurrencyLimit(**concurrency_limit.dict())
+
     model = await models.concurrency_limits.create_concurrency_limit(
-        session=session, concurrency_limit=concurrency_limit
+        session=session, concurrency_limit=concurrency_limit_model
     )
 
     if model.created >= pendulum.now():
