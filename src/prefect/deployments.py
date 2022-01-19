@@ -124,6 +124,14 @@ class DeploymentSpec(PrefectBaseModel):
 
     # Validation and inference ---------------------------------------------------------
 
+    @validator("flow_location", pre=True)
+    def ensure_paths_are_absolute_strings(cls, value):
+        if isinstance(value, pathlib.Path):
+            return str(value.absolute())
+        elif isinstance(value, str):
+            return abspath(value)
+        return value
+
     def validate(self):
 
         # Ensure either flow location or flow were provided
@@ -159,7 +167,7 @@ class DeploymentSpec(PrefectBaseModel):
         # Ensure the flow location is absolute if local
 
         if self.flow_location and is_local_path(self.flow_location):
-            self.flow_location = str(pathlib.Path(self.flow_location).absolute())
+            self.flow_location = abspath(str(self.flow_location))
 
         # Infer flow name from flow
 
@@ -188,6 +196,15 @@ class DeploymentSpec(PrefectBaseModel):
 
     # Methods --------------------------------------------------------------------------
 
+    def should_push(self):
+        """
+        We push if the location is set _or_ the location is unset but the source
+        location is a local path.
+        """
+        return (
+            not self.push_location and is_local_path(self.flow_location)
+        ) or self.push_location
+
     @sync_compatible
     @inject_client
     async def create_deployment(self, client: OrionClient) -> UUID:
@@ -198,15 +215,17 @@ class DeploymentSpec(PrefectBaseModel):
 
         flow_id = await client.create_flow(self.flow)
 
-        if self.push_location is None:
+        if self.should_push():
             # Push to the server
             with fsspec.open(self.flow_location, "rb") as flow_file:
-                flow_data = await client.persist_data(flow_file.read())
-        elif self.push_location:
-            with fsspec.open(self.flow_location, "rb") as flow_file:
-                with fsspec.open(self.push_location, "wb") as push_file:
-                    push_file.write(flow_file.read())
-            flow_data = DataDocument(encoding="file", blob=self.push_location.encode())
+                flow_bytes = flow_file.read()
+
+            if not self.push_location:
+                flow_data = await client.persist_data(flow_bytes)
+            else:
+                flow_data = DataDocument.encode(
+                    "file", flow_bytes, path=self.push_location
+                )
         else:
             flow_data = DataDocument(encoding="file", blob=self.flow_location.encode())
 

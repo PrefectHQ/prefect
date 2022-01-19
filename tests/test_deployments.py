@@ -2,6 +2,7 @@ import os
 import textwrap
 from datetime import timedelta
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -13,7 +14,12 @@ from prefect.deployments import (
     load_flow_from_deployment,
     load_flow_from_script,
 )
-from prefect.exceptions import ScriptError, MissingFlowError, UnspecifiedFlowError
+from prefect.exceptions import (
+    ScriptError,
+    MissingFlowError,
+    UnspecifiedFlowError,
+    SpecValidationError,
+)
 from prefect.flows import Flow, flow
 from prefect.orion.schemas.core import Deployment
 from prefect.flow_runners import SubprocessFlowRunner
@@ -29,32 +35,33 @@ TEST_FILES_DIR = Path(__file__).parent / "deployment_test_files"
 
 class TestDeploymentSpec:
     def test_infers_flow_location_from_flow(self):
-        spec = DeploymentSpec(name="test", flow=hello_world_flow)
+        spec = DeploymentSpec(flow=hello_world_flow)
+        spec.validate()
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
 
     def test_flow_location_is_coerced_to_string(self):
-        spec = DeploymentSpec(
-            name="test", flow_location=TEST_FILES_DIR / "single_flow.py"
-        )
+        spec = DeploymentSpec(flow_location=TEST_FILES_DIR / "single_flow.py")
+        spec.validate()
         assert type(spec.flow_location) is str
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
 
     def test_flow_location_is_absolute(self):
         spec = DeploymentSpec(
-            name="test",
             flow_location=(TEST_FILES_DIR / "single_flow.py").relative_to(os.getcwd()),
         )
         assert spec.flow_location == str((TEST_FILES_DIR / "single_flow.py").absolute())
 
     def test_infers_flow_name_from_flow(self):
-        spec = DeploymentSpec(name="test", flow=hello_world_flow)
+        spec = DeploymentSpec(flow=hello_world_flow)
+        spec.validate()
         assert spec.flow_name == "hello-world"
 
     def test_checks_for_flow_name_consistency(self):
+        spec = DeploymentSpec(flow=hello_world_flow, flow_name="other-name")
         with pytest.raises(
-            ValidationError, match="`flow.name` and `flow_name` must match"
+            SpecValidationError, match="`flow.name` and `flow_name` must match"
         ):
-            DeploymentSpec(name="test", flow=hello_world_flow, flow_name="other-name")
+            spec.validate()
 
     def test_loads_flow_and_name_from_location(self):
         spec = DeploymentSpec(
@@ -62,7 +69,7 @@ class TestDeploymentSpec:
         )
         assert spec.flow is None
         assert spec.flow_name is None
-        spec.load_flow()
+        spec.validate()
         assert isinstance(spec.flow, Flow)
         assert spec.flow.name == "hello-world"
         assert spec.flow_name == "hello-world"
@@ -75,7 +82,7 @@ class TestDeploymentSpec:
         )
         assert spec.flow is None
         assert spec.flow_name == "hello-sun"
-        spec.load_flow()
+        spec.validate()
         assert isinstance(spec.flow, Flow)
         assert spec.flow.name == "hello-sun"
         assert spec.flow_name == "hello-sun"
@@ -125,6 +132,7 @@ class TestDeploymentSpecFromFile:
         specs = deployment_specs_from_script(TEST_FILES_DIR / "inline_deployment.py")
         assert len(specs) == 1
         spec = list(specs)[0]
+        spec.validate()
         assert spec.name == "inline-deployment"
         assert spec.flow.name == "hello-world"
         assert spec.flow_name == "hello-world"
@@ -136,6 +144,7 @@ class TestDeploymentSpecFromFile:
         specs = deployment_specs_from_script(TEST_FILES_DIR / "single_deployment.py")
         assert len(specs) == 1
         spec = list(specs)[0]
+        spec.validate()
         assert spec.name == "hello-world-daily"
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
         assert isinstance(spec.schedule, IntervalSchedule)
@@ -145,6 +154,8 @@ class TestDeploymentSpecFromFile:
     def test_multiple_specs_separate_from_flow(self):
         specs = deployment_specs_from_script(TEST_FILES_DIR / "multiple_deployments.py")
         assert len(specs) == 2
+        for spec in specs:
+            spec.validate()
         specs_by_name = {spec.name: spec for spec in specs}
         assert set(specs_by_name.keys()) == {
             "hello-sun-deployment",
@@ -161,6 +172,7 @@ class TestDeploymentSpecFromFile:
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "single-deployment.yaml")
         assert len(specs) == 1
         spec = list(specs)[0]
+        spec.validate()
         assert spec.name == "hello-world-deployment"
         assert spec.flow_location == str(TEST_FILES_DIR / "single_flow.py")
         assert isinstance(spec.schedule, IntervalSchedule)
@@ -170,6 +182,8 @@ class TestDeploymentSpecFromFile:
     def test_multiple_specs_from_yaml(self):
         specs = deployment_specs_from_yaml(TEST_FILES_DIR / "multiple-deployments.yaml")
         assert len(specs) == 2
+        for spec in specs:
+            spec.validate()
         specs_by_name = {spec.name: spec for spec in specs}
         assert set(specs_by_name.keys()) == {
             "hello-sun-deployment",
@@ -189,10 +203,9 @@ class TestDeploymentSpecFromFile:
         assert len(specs) == 1
         spec = list(specs)[0]
         with pytest.raises(ScriptError):
-            spec.load_flow()
+            spec.validate()
 
-    @pytest.mark.parametrize("push_to_server", [True, False])
-    async def test_create_deployment(self, orion_client, push_to_server):
+    async def test_create_deployment(self, orion_client):
         schedule = IntervalSchedule(interval=timedelta(days=1))
 
         spec = DeploymentSpec(
@@ -202,7 +215,6 @@ class TestDeploymentSpecFromFile:
             parameters={"foo": "bar"},
             tags=["foo", "bar"],
             flow_runner=SubprocessFlowRunner(env={"FOO": "BAR"}),
-            push_to_server=push_to_server,
         )
         deployment_id = await spec.create_deployment(client=orion_client)
 
@@ -214,18 +226,77 @@ class TestDeploymentSpecFromFile:
         assert lookup.tags == ["foo", "bar"]
         assert lookup.flow_runner == spec.flow_runner.to_settings()
 
-        if push_to_server:
-            with open(spec.flow_location, "rb") as flow_file:
-                flow_text = flow_file.read()
-            assert await orion_client.retrieve_data(lookup.flow_data) == flow_text
-        else:
-            # Location was encoded into a data document
-            assert lookup.flow_data == DataDocument(
-                encoding="file", blob=spec.flow_location.encode()
-            )
-
         # Flow was loaded
         assert spec.flow is not None
+
+    async def test_pushes_local_flows_to_server(self, orion_client):
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+        )
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        lookup = await orion_client.read_deployment(deployment_id)
+
+        with open(spec.flow_location, "rb") as flow_file:
+            flow_text = flow_file.read()
+        assert await orion_client.retrieve_data(lookup.flow_data) == flow_text
+
+    async def test_references_remote_flow_locations(self, orion_client, monkeypatch):
+        # Pretend local paths are remote
+        monkeypatch.setattr(
+            "prefect.deployments.is_local_path", MagicMock(return_value=False)
+        )
+
+        spec = DeploymentSpec(flow_location=TEST_FILES_DIR / "single_flow.py")
+
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        lookup = await orion_client.read_deployment(deployment_id)
+        # The data is a reference to the flow location instead of an orion document
+        assert lookup.flow_data == DataDocument(
+            encoding="file", blob=spec.flow_location.encode()
+        )
+
+    async def test_pushes_local_flows_to_remote_path(
+        self, orion_client, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "prefect.deployments.is_local_path", MagicMock(return_value=False)
+        )
+
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            push_location=str(tmp_path / "flow.py"),
+        )
+
+        deployment_id = await spec.create_deployment(client=orion_client)
+
+        lookup = await orion_client.read_deployment(deployment_id)
+        # The data is a reference to the flow location instead of an orion document
+        assert lookup.flow_data == DataDocument(
+            encoding="file", blob=spec.push_location.encode()
+        )
+
+        # The data from `flow_location` is present at `push_location`
+        with open(spec.flow_location, "rb") as f:
+            flow_bytes = f.read()
+        with open(spec.push_location, "rb") as f:
+            assert f.read() == flow_bytes
+
+        # And the data document can be decoded to the same bytes
+        assert lookup.flow_data.decode() == flow_bytes
+
+    async def test_push_location_cannot_be_local(self, tmp_path):
+
+        spec = DeploymentSpec(
+            flow_location=TEST_FILES_DIR / "single_flow.py",
+            push_location=str(tmp_path / "flow.py"),
+        )
+
+        with pytest.raises(
+            SpecValidationError, match="`push_location` must be a remote path"
+        ):
+            spec.validate()
 
 
 class TestLoadFlowFromDeployment:
