@@ -26,9 +26,6 @@ async def create_concurrency_limit(
     db: OrionDBInterface = Depends(provide_database_interface),
 ) -> schemas.core.ConcurrencyLimit:
 
-    # hydrate the input model into a full model
-    deployment = schemas.core.ConcurrencyLimit(**concurrency_limit.dict())
-
     model = await models.concurrency_limits.create_concurrency_limit(
         session=session, concurrency_limit=concurrency_limit
     )
@@ -45,7 +42,7 @@ async def read_concurrency_limit(
         ..., description="The concurrency limit id", alias="id"
     ),
     session: sa.orm.Session = Depends(dependencies.get_session),
-) -> schemas.core.Deployment:
+) -> schemas.core.ConcurrencyLimit:
     """
     Get a concurrency limit by id.
     """
@@ -65,8 +62,9 @@ async def read_concurrency_limit_by_tag(
     session: sa.orm.Session = Depends(dependencies.get_session),
 ) -> schemas.core.ConcurrencyLimit:
     """
-    Get a deployment using the name of the flow and the deployment.
+    Get a concurrency limit by tag.
     """
+
     model = await models.concurrency_limits.read_concurrency_limit_by_tag(
         session=session, tag=tag
     )
