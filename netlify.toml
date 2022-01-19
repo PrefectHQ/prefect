@@ -9,7 +9,7 @@
 [build]
 base = ""
 command = """
-pip install --update -e ".[dev]" \
+pip install --upgrade -e ".[dev]" \
 && prefect dev build-docs  \
 && mkdocs build
 """
