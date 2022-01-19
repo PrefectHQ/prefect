@@ -33,8 +33,9 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
+import type { FlowsFilter } from '@prefecthq/orion-design'
 import RunHistoryChart from '@/components/RunHistoryChart/RunHistoryChart--Chart.vue'
-import { Api, Query, Endpoints, FlowsFilter } from '@/plugins/api'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { Flow } from '@/typings/objects'
 import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'

@@ -20,7 +20,8 @@
 
 <script lang="ts" setup>
 import { computed } from 'vue'
-import { Api, Query, Endpoints, TaskRunsFilter } from '@/plugins/api'
+import type { TaskRunsFilter } from '@prefecthq/orion-design'
+import { Api, Query, Endpoints } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
