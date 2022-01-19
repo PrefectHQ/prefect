@@ -33,6 +33,7 @@ class OrionLogWorker:
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
         self._started = False
+        self._stopped = False  # Cannot be started again after stopped
 
         # Tracks logs that have been pulled from the queue but not sent successfully
         self._pending_logs: List[dict] = []
@@ -138,6 +139,10 @@ class OrionLogWorker:
         )
 
     def enqueue(self, log: LogCreate):
+        if self._stopped:
+            raise RuntimeError(
+                "Logs cannot be enqueued after the Orion log worker is stopped."
+            )
         self._queue.put(log)
 
     def flush(self) -> None:
@@ -147,9 +152,13 @@ class OrionLogWorker:
     def start(self) -> None:
         """Start the background thread"""
         with self._lock:
-            if not self._started:
+            if not self._started and not self._stopped:
                 self._send_thread.start()
                 self._started = True
+            elif self._stopped:
+                raise RuntimeError(
+                    "The Orion log worker cannot be started after stopping."
+                )
 
     def stop(self) -> None:
         """Flush all logs and stop the background thread"""
@@ -159,10 +168,11 @@ class OrionLogWorker:
                 self._stop_event.set()
                 self._send_thread.join()
                 self._started = False
+                self._stopped = True
 
     def is_stopped(self) -> bool:
         with self._lock:
-            return not self._started
+            return not self._stopped
 
 
 class OrionHandler(logging.Handler):
@@ -180,9 +190,6 @@ class OrionHandler(logging.Handler):
         if not cls.worker:
             cls.worker = OrionLogWorker()
             cls.worker.start()
-        elif cls.worker.is_stopped():
-            raise RuntimeError("Logs cannot be sent after the worker is stopped.")
-
         return cls.worker
 
     @classmethod
