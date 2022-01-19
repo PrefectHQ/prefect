@@ -866,6 +866,38 @@ class TestFlowRunLogs:
         logs = await orion_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
+    async def test_repeated_flow_calls_send_logs_to_orion(self, orion_client):
+        @flow
+        def my_flow(i):
+            logger = get_run_logger()
+            logger.info(f"Hello {i}")
+
+        my_flow(1)
+        my_flow(2)
+
+        logs = await orion_client.read_logs()
+        assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
+
+    async def test_subflow_run_user_logs_are_sent_to_orion(self, orion_client):
+        @flow
+        def my_subflow():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            return my_subflow()
+
+        parent_state = my_flow()
+        child_state = parent_state.result()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" in {log.message for log in logs}
+        assert {log.flow_run_id for log in logs} == {
+            parent_state.state_details.flow_run_id,
+            child_state.state_details.flow_run_id,
+        }, "Logs from the two child runs are included"
+
     async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
         @flow
         def my_flow():

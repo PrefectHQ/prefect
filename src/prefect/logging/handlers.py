@@ -29,6 +29,7 @@ class OrionLogWorker:
             name="orion-log-worker",
             daemon=True,
         )
+        self._flush_event = threading.Event()
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
         self._started = False
@@ -56,7 +57,8 @@ class OrionLogWorker:
 
         Runs until the `stop_event` is set.
         """
-        while not self._stop_event.wait(prefect.settings.logging.orion.batch_interval):
+        while not self._stop_event.is_set():
+            self._flush_event.wait(prefect.settings.logging.orion.batch_interval)
             anyio.run(self.send_logs)
 
         # After the stop event, we are exiting...
@@ -137,6 +139,9 @@ class OrionLogWorker:
     def enqueue(self, log: LogCreate):
         self._queue.put(log)
 
+    def flush(self) -> None:
+        self._flush_event.set()
+
     def start(self) -> None:
         """Start the background thread"""
         with self._lock:
@@ -148,6 +153,7 @@ class OrionLogWorker:
         """Flush all logs and stop the background thread"""
         with self._lock:
             if self._started:
+                self._flush_event.set()
                 self._stop_event.set()
                 self._send_thread.join()
                 self._started = False
@@ -167,7 +173,7 @@ class OrionHandler(logging.Handler):
     def get_worker(cls) -> OrionLogWorker:
         if not cls.worker:
             cls.worker = OrionLogWorker()
-        cls.worker.start()
+            cls.worker.start()
         return cls.worker
 
     @classmethod
@@ -178,7 +184,7 @@ class OrionHandler(logging.Handler):
         Blocks until enqueued logs are sent.
         """
         if cls.worker:
-            cls.worker.stop()
+            cls.worker.flush()
 
     def emit(self, record: logging.LogRecord):
         """
