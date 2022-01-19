@@ -340,7 +340,6 @@ export class Query {
   private async http(): Promise<any> {
     let route = this.route
     const body = JSON.parse(JSON.stringify(this.body)) || {}
-    console.log(body)
 
     if (this.endpoint.interpolate) {
       const keys: Array<string> = []
