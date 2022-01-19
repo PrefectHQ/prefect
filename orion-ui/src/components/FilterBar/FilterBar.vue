@@ -91,12 +91,12 @@ import FilterSearch from './FilterSearch.vue'
 import SearchMenu from './SearchMenu.vue'
 import SaveSearchMenu from './SaveSearchMenu.vue'
 import { parseFilters, FilterObject } from './util'
-import { generateInitialGlobalFilterState } from '@/store/filter'
+import { GlobalFilterDefaults } from '@prefecthq/orion-design'
 import TagGroup from './TagGroup.vue'
 import media from '@/utilities/media'
 
 const initialGlobalFilterStateString = JSON.stringify(
-  generateInitialGlobalFilterState()
+  new GlobalFilterDefaults()
 )
 
 const store = useStore()
