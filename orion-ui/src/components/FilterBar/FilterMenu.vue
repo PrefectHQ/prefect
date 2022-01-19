@@ -170,7 +170,7 @@
 
 <script lang="ts" setup>
 import { ref, readonly } from 'vue'
-import { useStore } from 'vuex'
+import { useStore } from '@/store'
 import FilterAccordion from './FilterAccordion.vue'
 import FormTags from './composables/Form--Tags.vue'
 import FormStates from './composables/Form--States.vue'
@@ -180,7 +180,7 @@ import media from '@/utilities/media'
 const emit = defineEmits(['close'])
 const store = useStore()
 
-const gf = readonly(store.getters.globalFilter)
+const gf = readonly(store.state.filter)
 
 const defaultFilters = {
   flows: {
@@ -200,8 +200,8 @@ const defaultFilters = {
     timeframe: {
       ...(gf.flow_runs.timeframe || {
         dynamic: false,
-        from: { units: 'minutes', value: 60, timestamp: null },
-        to: { units: 'minutes', value: 60, timestamp: null }
+        from: { unit: 'minutes', value: 60, timestamp: null },
+        to: { unit: 'minutes', value: 60, timestamp: null }
       })
     }
   },
@@ -212,8 +212,8 @@ const defaultFilters = {
     timeframe: {
       ...(gf.task_runs.timeframe || {
         dynamic: false,
-        from: { units: 'minutes', value: 60, timestamp: null },
-        to: { units: 'minutes', value: 60, timestamp: null }
+        from: { unit: 'minutes', value: 60, timestamp: null },
+        to: { unit: 'minutes', value: 60, timestamp: null }
       })
     }
   }
@@ -222,7 +222,7 @@ const defaultFilters = {
 const filters = ref({ ...defaultFilters })
 
 const apply = () => {
-  store.commit('globalFilter', { ...filters.value })
+  store.commit('filter/setFilter', { ...filters.value })
   emit('close')
 }
 
