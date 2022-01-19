@@ -29,7 +29,7 @@
 import { computed } from 'vue'
 import IntervalBarChart from './IntervalBarChart.vue'
 import { IntervalBarChartItem } from './Types/IntervalBarChartItem'
-import { FlowRunsHistoryFilter } from '@/plugins/api'
+import { FlowRunsHistoryFilter } from '@prefecthq/orion-design'
 
 const props = defineProps<{
   filter: FlowRunsHistoryFilter

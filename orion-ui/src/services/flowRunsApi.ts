@@ -1,6 +1,6 @@
 import FlowRunHistory from '@/models/flowRunHistory'
 import { IFlowRunStateHistory } from '@/models/flowRunStateHistory'
-import { HistoryFilter } from '@/plugins/api'
+import { HistoryFilter } from '@prefecthq/orion-design'
 import { createApi } from '@/utilities/api'
 import { AxiosResponse } from 'axios'
 
