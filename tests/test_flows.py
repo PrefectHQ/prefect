@@ -866,6 +866,18 @@ class TestFlowRunLogs:
         logs = await orion_client.read_logs()
         assert "Hello world!" in {log.message for log in logs}
 
+    async def test_repeated_flow_calls_send_logs_to_orion(self, orion_client):
+        @flow
+        def my_flow(i):
+            logger = get_run_logger()
+            logger.info(f"Hello {i}")
+
+        my_flow(1)
+        my_flow(2)
+
+        logs = await orion_client.read_logs()
+        assert {"Hello 1", "Hello 2"}.issubset({log.message for log in logs})
+
     async def test_tracebacks_are_logged(self, orion_client):
         @flow
         def my_flow():
