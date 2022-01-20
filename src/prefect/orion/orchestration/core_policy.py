@@ -70,9 +70,9 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         all_limits = await concurrency_limits.read_concurrency_limits(
             context.session, limit=None, offset=None
         )
-        limit_lookup = {limit.tag: limit for limit in all_limits}
+        limits_by_tag = {limit.tag: limit for limit in all_limits}
         for tag in context.run.tags:
-            cl = limit_lookup.get(tag, None)
+            cl = limits_by_tag.get(tag, None)
             if cl is not None:
                 if cl.active_slots >= cl.concurrency_limit:
                     await self.delay_transition(
