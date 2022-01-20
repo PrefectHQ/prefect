@@ -62,36 +62,165 @@ def my_task():
 
 Sometimes, it is useful to group tasks in ways other than by name or flow context. Prefect provides tags for this purpose. 
 
-Tags may be specified either as an optional keyword argument on on the task definition, or as a keyword argument or with a convenient context manager.
+Tags may be specified as an optional keyword argument on the task decorator.
 
 ```python hl_lines="1"
-@task(name="hello-task", description="This task says hello.")
+@task(name="hello-task", tags=["test"])
 def my_task():
     print("Hello, I'm a task")
 ```
 
+You can also provide tags as an argument with a context manager, specifying tags when the task is called rather than in its definition.
+
 ```python
 from prefect import tags
 
-with tags('red', 'blue'):
-    t = Task()
+@task
+def my_task():
+    print("Hello, I'm a task")
 
-assert t.tags == {'red', 'blue'}
+@flow
+def my_flow():
+    with tags("test"):
+        my_task()
 ```
-
 
 ## Retries
 
-One of the most common reasons to put code in a Prefect task is to automatically retry it on failure. To enable retries, pass appropriate `max_retries` and `retry_delay` parameters to your task:
+A key capability of Prefect tasks is the ability to automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task:
 
 ```python
-# this task will retry up to 3 times, waiting 10 minutes between each retry
-Task(max_retries=3, retry_delay=datetime.timedelta(minutes=10))
+import requests
+# this task will retry up to 3 times, waiting 1 minute between each retry
+@task(retries=3, retry_delay_seconds=60)
+def get_page(url):
+    page = requests.get(url)
 ```
 
-::: tip Retries don't create new task runs
-A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
-:::
+!!! note "Retries don't create new task runs"
+    A new task run is not created when a task is retried. A new state is added to the state history of the original task run.
+
+## Caching
+
+Caching refers to the ability of a task run to reflect a finished state without actually running the code that defines the task. This allows you to efficiently reuse results of tasks that may be expensive to run with every flow run, or reuse cached results if the inputs to a task have not changed.  
+
+You must specify a `cache_key_fn` that returns a cache key. You may optionally provide a `cache_expiration` timedelta indicating when the cache expires. If you do not specify a `cache_expiration`, the cache key does not expire.
+
+You can define a task that is cached based on its inputs by using the Prefect `task_input_hash`. This is a task cache key implementation that hashes all inputs to the task using a JSON or cloudpickle serializer. If the task inputs do not change, the cached results are used rather than running the task until the cache expires.
+
+Note that, if any arguments are not JSON serializable, the pickle serializer is used as a fallback. If cloudpickle fails, `task_input_hash` returns a null key indicating that a cache key could not be generated for the given inputs.
+
+In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains the same when it is called, it runs only once, but the cached return value will be returned. However, if the input argument value changes, `hello_task()` runs using that input.
+
+```python
+from prefect.tasks import task_input_hash
+from datetime import timedelta
+
+@task(cache_key_fn=task_input_hash, cache_expiration=timedelta(days=1))
+def hello_task(name_input):
+    # Doing some work
+    print("Saying hello")
+    return "hello " + name_input
+
+@flow
+def hello_flow():
+    hello_task(name_input)
+```
+
+You can also provide your own function or other callable that returns a string cache key.
+
+```python
+def static_cache_key(context, parameters):
+    # return a constant
+    return "static cache key"
+
+@task(cache_key_fn=static_cache_key)
+def cached_task():
+    print('running an expensive operation')
+    return 42
+
+@flow
+def test_caching():
+    cached_task()
+    cached_task()
+    cached_task()
+```
+
+In this case, there's no expiration for the cache key, and no logic to change the cache key, so `cached_task()` only runs once.
+
+<div class="termy">
+```
+>>> test_caching()
+running an expensive operation
+>>> test_caching()
+>>> test_caching()
+```
+</div>
+
+Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same state, including the same return values.  
+
+Caching can be configured further in the following ways:
+
+A generic `cache_key_fn` is a function that accepts two positional arguments: 
+
+- The first argument corresponds to the `TaskRunContext`, which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`.
+- The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
+
+
+
+
+            Wait for a task to finish
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     my_task().wait()
+
+            Use the result from a task in a flow
+
+            >>> @flow
+            >>> def my_flow():
+            >>>     print(my_task().wait().result)
+            >>>
+            >>> my_flow()
+            hello
+
+            Run an async task in an async flow
+
+            >>> @task
+            >>> async def my_async_task():
+            >>>     pass
+            >>>
+            >>> @flow
+            >>> async def my_flow():
+            >>>     await my_async_task()
+
+            Run a sync task in an async flow
+
+            >>> @flow
+            >>> async def my_flow():
+            >>>     my_task()
+
+            Enforce ordering between tasks that do not exchange data
+            >>> @task
+            >>> def task_1():
+            >>>     pass
+            >>>
+            >>> @task
+            >>> def task_2():
+            >>>     pass
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     x = task_1()
+            >>>
+            >>>     # task 2 will wait for task_1 to complete
+            >>>     y = task_2(wait_for=[x])
+
+
+
+
+
+
 
 
 ## Constants
@@ -114,33 +243,6 @@ assert len(flow.constants) == 2
 
 Prefect will attempt to automatically turn Python objects into `Constants`, including collections (like `lists`, `tuples`, `sets`, and `dicts`). If the resulting constant is used directly as the input to a task, it is optimized out of the task graph and stored in the `flow.constants` dict. However, if the constant is mapped over, then it remains in the dependency graph.
 
-## Operators
-
-When using the [functional API](flows.html#functional-api), Prefect tasks support basic mathematical and logical operators. For example:
-
-```python
-import random
-from prefect import Flow, task
-
-@task
-def a_number():
-    return random.randint(0, 100)
-
-with Flow('Using Operators') as flow:
-    a = a_number()
-    b = a_number()
-
-    add = a + b
-    sub = a - b
-    lt = a < b
-    # etc
-```
-
-These operators automatically add new tasks to the active flow context.
-
-::: warning Operator validation
-Because Prefect flows are not executed when you create them, Prefect can not validate that operators are being applied to compatible types. For example, you could subtract a task that produces a list from a task that produces an integer. This would create an error at runtime, but not during task definition.
-:::
 
 ## Collections
 
