@@ -5,7 +5,6 @@ Module containing the base workflow class and decorator - for most use cases, us
 # See https://github.com/python/mypy/issues/8645
 
 import inspect
-import json
 from functools import update_wrapper, partial
 from typing import (
     Any,
@@ -29,7 +28,6 @@ from typing_extensions import ParamSpec
 from prefect import State
 from prefect.task_runners import BaseTaskRunner, SequentialTaskRunner
 from prefect.exceptions import ParameterTypeError
-from prefect.futures import PrefectFuture
 from prefect.orion.utilities.functions import parameter_schema
 from prefect.utilities.asyncio import is_async_fn
 from prefect.utilities.callables import (

@@ -33,6 +33,8 @@ import StateIcon from '@/components/Global/StateIcon/StateIcon.vue'
 import '@prefecthq/miter-design/dist/style.css'
 import MiterDesign from '@prefecthq/miter-design'
 
+import '@prefecthq/orion-design/dist/style.css'
+
 import '@/styles/main.scss'
 
 const storageKey = 'orion-color-mode'

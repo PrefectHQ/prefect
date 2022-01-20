@@ -161,12 +161,12 @@ export default class Settings extends Vue {
     }).fetch()
     this.showToast({
       type: query.error ? 'error' : 'success',
-      content: query.error ? query.error : 'Database reset'
+      message: query.error ? query.error : 'Database reset'
     })
   }
 
-  showToast(options: { type: string; content: string }): void {
-    this.$toast.add({ ...options, timeout: 5000 })
+  showToast(options: { type: string; message: string }): void {
+    this.$toast({ ...options, timeout: 5000 })
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any

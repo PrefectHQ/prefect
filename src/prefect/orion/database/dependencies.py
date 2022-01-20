@@ -1,8 +1,8 @@
 """
-Injected models dependencies
+Injected database interface dependencies
 """
-
-from contextlib import asynccontextmanager
+import inspect
+from contextlib import contextmanager
 from functools import wraps
 
 
@@ -91,23 +91,37 @@ def provide_database_interface():
 
 def inject_db(fn):
     """
-    Simple helper to provide a database interface to a function.
+    Decorator that provides a database interface to a function.
 
     The decorated function _must_ take a `db` kwarg and if a db is passed
     when called it will be used instead of creating a new one.
+
+    If the function is a coroutine function, the wrapper will await the
+    function's result. Otherwise, the wrapper will call the function
+    normally.
     """
 
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
+    def inject(kwargs):
         if "db" not in kwargs or kwargs["db"] is None:
             kwargs["db"] = provide_database_interface()
+
+    @wraps(fn)
+    async def async_wrapper(*args, **kwargs):
+        inject(kwargs)
+        return await fn(*args, **kwargs)
+
+    @wraps(fn)
+    def sync_wrapper(*args, **kwargs):
+        inject(kwargs)
         return fn(*args, **kwargs)
 
-    return wrapper
+    if inspect.iscoroutinefunction(fn):
+        return async_wrapper
+    return sync_wrapper
 
 
-@asynccontextmanager
-async def temporary_database_config(tmp_database_config):
+@contextmanager
+def temporary_database_config(tmp_database_config):
     starting_config = MODELS_DEPENDENCIES["database_config"]
     try:
         MODELS_DEPENDENCIES["database_config"] = tmp_database_config
@@ -116,8 +130,8 @@ async def temporary_database_config(tmp_database_config):
         MODELS_DEPENDENCIES["database_config"] = starting_config
 
 
-@asynccontextmanager
-async def temporary_query_components(tmp_queries):
+@contextmanager
+def temporary_query_components(tmp_queries):
     starting_queries = MODELS_DEPENDENCIES["query_components"]
     try:
         MODELS_DEPENDENCIES["query_components"] = tmp_queries
@@ -126,11 +140,26 @@ async def temporary_query_components(tmp_queries):
         MODELS_DEPENDENCIES["query_components"] = starting_queries
 
 
-@asynccontextmanager
-async def temporary_orm_config(tmp_orm_config):
+@contextmanager
+def temporary_orm_config(tmp_orm_config):
     starting_orm_config = MODELS_DEPENDENCIES["orm"]
     try:
         MODELS_DEPENDENCIES["orm"] = tmp_orm_config
         yield
     finally:
         MODELS_DEPENDENCIES["orm"] = starting_orm_config
+
+
+def set_database_config(database_config):
+    """Set Orion database configuration"""
+    MODELS_DEPENDENCIES["database_config"] = database_config
+
+
+def set_query_components(query_components):
+    """Set Orion query components"""
+    MODELS_DEPENDENCIES["query_components"] = query_components
+
+
+def set_orm_config(orm_config):
+    """Set Orion orm configuration"""
+    MODELS_DEPENDENCIES["orm"] = orm_config

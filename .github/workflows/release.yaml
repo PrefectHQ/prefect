@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-release:
-    name: Build Release
+    name: Build release
 
     runs-on: ubuntu-latest
 
@@ -33,7 +33,7 @@ jobs:
           path: ${{ env.pythonLocation }}
           # Load installed python packages from the cache
           key: ${{ env.pythonLocation }}-${{ hashFiles('requirements*.txt') }}
-          
+
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
@@ -41,7 +41,7 @@ jobs:
 
       - name: Build UI
         run: |
-          prefect dev build-ui 
+          prefect dev build-ui
 
       - name: Build a binary wheel and a source tarball
         run: |
@@ -53,6 +53,66 @@ jobs:
         with:
           name: built-package
           path: './dist'
+
+  build-docker-images:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - 3.7
+          - 3.8
+          - 3.9
+
+    steps:
+
+      # Not needed until we want multiarchecture builds
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v3
+        with:
+          images: prefecthq/prefect
+          tags: |
+            type=pep440,pattern={{version}}
+            type=pep440,pattern={{major}}.{{minor}}
+            type=pep440,pattern={{major}}
+            type=sha
+          flavor: |
+            latest=false
+            suffix=-python${{ matrix.python-version }}
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Build image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          build-args:
+            PYTHON_VERSION=${{ matrix.python-version }}
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Test docker image
+        run: |
+          docker load --input /tmp/image.tar
+          docker run --rm prefecthq/prefect:sha-${GITHUB_SHA::7}-python${{ matrix.python-version }} prefect version
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v2
+        # Images are stashed for publish after approval is given
+        with:
+          name: release-image-${{ github.sha }}-${{ matrix.python-version }}
+          path: /tmp/image.tar
 
   publish-docs:
     name: Open PR to docs branch
@@ -92,7 +152,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish-test-release:
-    name: Publish Release to Test PyPI
+    name: Publish release to Test PyPI
     needs: [build-release]
     runs-on: ubuntu-latest
 
@@ -110,7 +170,7 @@ jobs:
           repository_url: https://test.pypi.org/legacy/
 
   publish-code:
-    name: Open PR to OS Prefect repo
+    name: Open PR to prefecthq/prefect repo
     environment: 'prod'
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
@@ -136,7 +196,7 @@ jobs:
         run: |
           git checkout -b "orion-release-${GITHUB_REF#refs/*/}"
           git fetch prefect-orion
-          git merge prefect-orion/orion -m "Merge w/ latest upstream changes"
+          git merge prefect-orion/orion -m "Merge w/ latest upstream changes" -s ours
 
       - name: Push and open PR
         run: |
@@ -145,9 +205,12 @@ jobs:
             --title "Publish code from Orion release ${GITHUB_REF#refs/*/}" \
             --body '_automatically created with `gh` cli on merge to `main`_' \
             --base orion --repo prefecthq/prefect
+        env:
+          GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
+          MARVIN_GITHUB_TOKEN: ${{ secrets.OS_GITHUB_TOKEN }}
 
   publish-release:
-    name: Publish Release to PyPI
+    name: Publish release to PyPI
     environment: 'prod'
     needs: [build-release, publish-test-release]
     runs-on: ubuntu-latest
@@ -163,3 +226,47 @@ jobs:
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+          name: ci
+
+  publish-docker-images:
+    name: Publish Docker images
+    needs: [build-docker-images, build-release, publish-test-release]
+    environment: 'prod'
+
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Download image artifacts for Python 3.7
+        uses: actions/download-artifact@v2
+        with:
+          name: release-image-${{ github.sha }}-3.7
+          path: /tmp/3.7/
+
+      - name: Download image artifacts for Python 3.8
+        uses: actions/download-artifact@v2
+        with:
+          name: release-image-${{ github.sha }}-3.8
+          path: /tmp/3.8/
+
+      - name: Download image artifacts for Python 3.9
+        uses: actions/download-artifact@v2
+        with:
+          name: release-image-${{ github.sha }}-3.9
+          path: /tmp/3.9/
+
+      - name: Load images
+        run: |
+          docker load --input /tmp/3.7/image.tar
+          docker load --input /tmp/3.8/image.tar
+          docker load --input /tmp/3.9/image.tar
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push images
+        run: |
+          docker image push --all-tags prefecthq/prefect

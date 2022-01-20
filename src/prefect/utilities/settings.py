@@ -7,14 +7,14 @@ settings object, `Settings()`.
 # Note that when implementing nested settings, a `default_factory` should be
 # used to avoid instantiating the nested settings class until runtime.
 
+import os
 import textwrap
+from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
-
-from pydantic import BaseSettings, Field, SecretStr
 from typing import Optional
-from pydantic.fields import Undefined
+
+from pydantic import BaseSettings, Field, SecretStr, root_validator
 
 
 class SharedSettings(BaseSettings):
@@ -93,7 +93,7 @@ class DatabaseSettings(BaseSettings):
             A database connection URL in a SQLAlchemy-compatible
             format. Orion currently supports SQLite and Postgres. Note that all
             Orion engines must use an async driver - for SQLite, use
-            `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`. 
+            `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
 
             SQLite in-memory databases can be used by providing the url
             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
@@ -121,6 +121,10 @@ class APISettings(BaseSettings):
     """Settings related to the Orion API. To change these settings via
     environment variable, set `PREFECT_ORION_API_{SETTING}=X`.
     """
+
+    class Config:
+        env_prefix = "PREFECT_ORION_API_"
+        frozen = True
 
     # a default limit for queries
     default_limit: int = Field(
@@ -196,8 +200,8 @@ class ServicesSettings(BaseSettings):
 
     scheduler_insert_batch_size: int = Field(
         500,
-        description="""The number of flow runs the scheduler will attempt to insert 
-        in one batch across all deployments. If the number of flow runs to 
+        description="""The number of flow runs the scheduler will attempt to insert
+        in one batch across all deployments. If the number of flow runs to
         schedule exceeds this amount, the runs will be inserted in batches of this size. Defaults to `500`.
         """,
     )
@@ -266,6 +270,46 @@ class OrionSettings(BaseSettings):
     )
 
 
+class OrionHandlerSettings(BaseSettings):
+    """
+    Settings for the OrionHandler which sends logs to the API.
+
+    To change these settings via environment variable, set
+    `PREFECT_LOGGING_ORION_{{SETTING}}=X`.
+
+    To globally disable sending logs to the API, set
+    `PREFECT_LOGGING_ORION_ENABLED=False`
+
+    The other settings are generally dependent on network and server limitations.
+    """
+
+    class Config:
+        env_prefix = "PREFECT_LOGGING_ORION_"
+        frozen = True
+
+    enabled: bool = Field(
+        True,
+        description="""Should logs be sent to Orion? If False, logs sent to the
+        OrionHandler will not be sent to the API.""",
+    )
+    batch_interval: float = Field(
+        2.0,
+        description="""The number of seconds between batched writes of logs to Orion.""",
+    )
+    batch_size: int = Field(
+        4_000_000, description="""The maximum size in bytes for a batch of logs."""
+    )
+    max_log_size: int = Field(
+        1_000_000, description="""The maximum size in bytes for a single log."""
+    )
+
+    @root_validator
+    def max_log_size_smaller_than_batch_size(cls, values):
+        if values["batch_size"] < values["max_log_size"]:
+            raise ValueError("`max_log_size` cannot be larger than `batch_size`")
+        return values
+
+
 class LoggingSettings(BaseSettings):
     """Settings related to Logging.
 
@@ -306,6 +350,11 @@ class LoggingSettings(BaseSettings):
         description=f"""The path to a custom YAML logging configuration file. If
         no file is found, the default `logging.yml` is used. Defaults to
         `{shared_settings.home}/logging.yml`.""",
+    )
+
+    orion: OrionHandlerSettings = Field(
+        default_factory=OrionHandlerSettings,
+        description="Nested [OrionHandler settings][prefect.utilities.settings.OrionHandlerSettings].",
     )
 
 
@@ -361,3 +410,43 @@ class Settings(SharedSettings):
 
 
 settings = Settings()
+
+
+@contextmanager
+def temporary_settings(**kwargs):
+    """
+    Temporarily override setting values. This will _not_ mutate values that have
+    been already been accessed at module load time.
+
+    This function should only be used for testing.
+
+    Example:
+        >>> from prefect import settings
+        >>> with temporary_settings(PREFECT_ORION_HOST="foo"):
+        >>>    assert settings.orion_host == "foo"
+        >>> assert settings.orion_host is None
+    """
+    old_env = os.environ.copy()
+    old_settings = settings.copy()
+
+    try:
+        for setting in kwargs:
+            os.environ[setting] = kwargs[setting]
+
+        new_settings = Settings()
+
+        for field in settings.__fields__:
+            # The settings object is frozen and we must bypass Pydantic's setattr to
+            # mutate a field.
+            object.__setattr__(settings, field, getattr(new_settings, field))
+
+        yield settings
+    finally:
+        for setting in kwargs:
+            if old_env.get(setting):
+                os.environ[setting] = old_env[setting]
+            else:
+                os.environ.pop(setting, None)
+
+        for field in settings.__fields__:
+            object.__setattr__(settings, field, getattr(old_settings, field))

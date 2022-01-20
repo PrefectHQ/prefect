@@ -14,7 +14,7 @@
     >
       <bread-crumbs class="flex-grow-1" :crumbs="crumbs" icon="pi-flow-run" />
       <template v-if="route.fullPath.includes('/radar')">
-        <div v-breakpoints="'sm'" class="text-truncate d-flex align-center">
+        <div v-if="media.sm" class="text-truncate d-flex align-center">
           <span class="ml-5">
             Flow Version:
             <span class="font-weight-semibold">
@@ -22,7 +22,7 @@
             </span>
           </span>
           <CopyButton
-            v-breakpoints="'md'"
+            v-if="media.md"
             class="ml-1"
             :value="id"
             toast="Run ID was copied to clipboard"
@@ -42,15 +42,22 @@ import { Api, Query, Endpoints } from '@/plugins/api'
 import { FlowRun, Flow } from '@/typings/objects'
 import { computed, onBeforeUnmount, onBeforeMount, ref, Ref, watch } from 'vue'
 import CopyButton from '@/components/Global/CopyButton.vue'
+import media from '@/utilities/media'
 
-import { useRoute } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
 
 const route = useRoute()
 
 const resultsTab: Ref<string | null> = ref(null)
 
-const id = computed<string>(() => {
-  return route?.params.id as string
+const id = ref(route?.params.id as string)
+
+const idWatcher = watch(route, () => {
+  id.value = route?.params.id as string
+})
+
+onBeforeRouteLeave(() => {
+  idWatcher()
 })
 
 const version = computed<string>(() => {
@@ -122,6 +129,7 @@ onBeforeMount(() => {
 })
 
 watch(id, () => {
+  if (!id.value) return
   queries.flow.fetch()
 })
 </script>

@@ -1,5 +1,5 @@
 import json
-from prefect.orion.utilities.enum import AutoEnum
+from prefect.utilities.enum import AutoEnum
 
 
 class Color(AutoEnum):
