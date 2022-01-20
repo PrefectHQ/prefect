@@ -35,7 +35,7 @@ a {
 }
 
 .bread-crumb::after {
-  content: ' / ';
+  content: '\00a0/\00a0';
 }
 
 .bread-crumb:last-child::after {
