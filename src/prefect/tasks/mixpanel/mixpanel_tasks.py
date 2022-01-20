@@ -40,9 +40,9 @@ class MixpanelExportTask(Task):
         - use_eu_server (bool, optional): Whether to use the Mixpanel EU server to retrieve data.
             More info at https://help.mixpanel.com/hc/en-us/articles/360039135652-Data-Residency-in-EU.
             Default is `False`.
-        - group_events: Whetner to group events with the same name.
+        - group_events: Whether to group events with the same name.
             This is taken into account only if `parse_response` is True.
-        - **kwargs (dict, optional): additional keyword arguments to pass to the
+        - **kwargs (dict, optional): Additional keyword arguments to pass to the
             Task constructor.
     """
 
@@ -130,8 +130,8 @@ class MixpanelExportTask(Task):
         Returns:
             - if `parse_response` is False, then returns a `str` response pulled
                 from the Export API, (which is basically a JSONL string).
-            - if `parse_response` is True and `group_events` is True, then returns a `dict` where each key
-                contains homogeneous events.
+            - if `parse_response` is True and `group_events` is True, then returns a `dict` where
+                each key contains homogeneous events.
             - if `parse_response` is True and `group_events` is False, then returns
                 a `list` of JSON objects obtained by parsing the response.
 
@@ -189,21 +189,17 @@ class MixpanelExportTask(Task):
 
         events = response.text
 
-        ret = events if events else None
-
-        if ret:
-
-            if parse_response:
-                received_events = [json.loads(event) for event in events.splitlines()]
-
-                if group_events:
-                    grouped_events = defaultdict(list)
-                    for received_event in received_events:
-                        grouped_events[received_event["event"]].append(
-                            received_event["properties"]
-                        )
-                    return dict(grouped_events)
-
-                return received_events
-
-        return ret
+        if not events:
+            return None
+        elif parse_response:
+            received_events = [json.loads(event) for event in events.splitlines()]
+            if group_events:
+                grouped_events = defaultdict(list)
+                for received_event in received_events:
+                    grouped_events[received_event["event"]].append(
+                        received_event["properties"]
+                    )
+                return dict(grouped_events)
+            return received_events
+        else:
+            return events

@@ -1,5 +1,5 @@
+import base64
 from datetime import date
-import logging
 import os
 import pytest
 import responses
@@ -52,43 +52,53 @@ class TestMixpanelTasks:
         assert mx_export_task.event == expected_event
 
     def test_run_missing_both_api_secret_and_env_var_raises(self):
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Missing both `api_secret` and `api_secret_env_var`."
+        with pytest.raises(ValueError, match=msg_match):
             MixpanelExportTask().run()
 
-        assert "Missing both `api_secret` and `api_secret_env_var`." in str(exc)
-
     def test_run_missing_api_secret_not_found_env_var_raises(self):
-        with pytest.raises(ValueError) as exc:
+        msg_match = "Missing `api_secret` and `api_secret_env_var` not found."
+        with pytest.raises(ValueError, match=msg_match):
             MixpanelExportTask().run(api_secret_env_var="foo")
-
-        assert "Missing `api_secret` and `api_secret_env_var` not found." in str(exc)
 
     @responses.activate
     def test_run_secret_from_api_secret(self, caplog):
-        caplog.set_level(logging.DEBUG)
-
         today = date.today().strftime("%Y-%m-%d")
         url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(responses.GET, url, status=200)
 
         mx_export_task = MixpanelExportTask()
-        mx_export_task.run(api_secret="foo")
 
-        assert "Got secret from `api_secret`" in caplog.text
+        secret = "foo"
+        mx_export_task.run(api_secret=secret)
+
+        secret_bytes = f"{secret}:".encode("ascii")
+        secret_b64_bytes = base64.b64encode(secret_bytes)
+        secret_message = secret_b64_bytes.decode("ascii")
+        authorization = f"Basic {secret_message}"
+
+        assert responses.calls[0].request.headers["Authorization"] == authorization
 
     @patch.dict(os.environ, {"foo": "bar"})
     @responses.activate
     def test_run_secret_from_api_secret_env_var(self, caplog):
-        caplog.set_level(logging.DEBUG)
 
         today = date.today().strftime("%Y-%m-%d")
         url = f"https://data.mixpanel.com/api/2.0/export?from_date=2011-07-10&to_date={today}"
         responses.add(responses.GET, url, status=200)
 
         mx_export_task = MixpanelExportTask()
-        mx_export_task.run(api_secret_env_var="foo")
 
-        assert "Got secret from env var passed from `api_secret_env_var`" in caplog.text
+        secret_env_var = "foo"
+        mx_export_task.run(api_secret_env_var=secret_env_var)
+        secret = os.environ[secret_env_var]
+
+        secret_bytes = f"{secret}:".encode("ascii")
+        secret_b64_bytes = base64.b64encode(secret_bytes)
+        secret_message = secret_b64_bytes.decode("ascii")
+        authorization = f"Basic {secret_message}"
+
+        assert responses.calls[0].request.headers["Authorization"] == authorization
 
     @responses.activate
     def test_run_empty_result_without_parse(self):
@@ -162,7 +172,5 @@ class TestMixpanelTasks:
 
         mx_export_task = MixpanelExportTask()
 
-        with pytest.raises(FAIL) as exc:
+        with pytest.raises(FAIL, match="Mixpanel export API error."):
             mx_export_task.run(api_secret="foo", from_date="abc", to_date="abc")
-
-        assert "Mixpanel export API error." in str(exc)
