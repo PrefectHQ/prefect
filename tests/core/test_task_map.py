@@ -1158,6 +1158,27 @@ class TestFlatMap:
             == "At least one upstream state has an unmappable result."
         )
 
+    @pytest.mark.parametrize(
+        "executor", ["local", "sync", "mproc", "mthread"], indirect=True
+    )
+    def test_flatmap_one_unflattenable_input(self, executor):
+        class NestTaskWithSignal(Task):
+            def run(self, x):
+                if x == 2:
+                    from prefect.engine.signals import SKIP
+                    raise SKIP("Skip this task execution")
+                return [x]
+
+        ll = ListTask()
+        nest = NestTaskWithSignal()
+        a = AddTask()
+        with Flow("test") as flow:
+            nested = nest.map(ll())
+            z = a.map(flatten(nested))
+
+        state = flow.run()
+        assert state.result[z].result == [2, None, 4]
+
 
 def test_mapped_retries_regenerate_child_pipelines():
     """
