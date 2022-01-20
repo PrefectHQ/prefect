@@ -27,7 +27,7 @@ from prefect.orion.database.orm_models import (
     (AsyncPostgresConfiguration, AioSqliteConfiguration),
 )
 async def test_injecting_an_existing_database_database_config(ConnectionConfig):
-    async with dependencies.temporary_database_config(ConnectionConfig()):
+    with dependencies.temporary_database_config(ConnectionConfig()):
         db = dependencies.provide_database_interface()
         assert type(db.database_config) == ConnectionConfig
 
@@ -51,7 +51,7 @@ async def test_injecting_a_really_dumb_database_database_config():
         def is_inmemory(self, engine):
             ...
 
-    async with dependencies.temporary_database_config(
+    with dependencies.temporary_database_config(
         UselessConfiguration(connection_url=None)
     ):
         db = dependencies.provide_database_interface()
@@ -62,7 +62,7 @@ async def test_injecting_a_really_dumb_database_database_config():
     "QueryComponents", (AsyncPostgresQueryComponents, AioSqliteQueryComponents)
 )
 async def test_injecting_existing_query_components(QueryComponents):
-    async with dependencies.temporary_query_components(QueryComponents()):
+    with dependencies.temporary_query_components(QueryComponents()):
         db = dependencies.provide_database_interface()
         assert type(db.queries) == QueryComponents
 
@@ -110,7 +110,7 @@ async def test_injecting_really_dumb_query_components():
         ):
             ...
 
-    async with dependencies.temporary_query_components(ReallyBrokenQueries()):
+    with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
         assert type(db.queries) == ReallyBrokenQueries
 
@@ -119,7 +119,7 @@ async def test_injecting_really_dumb_query_components():
     "ORMConfig", (AsyncPostgresORMConfiguration, AioSqliteORMConfiguration)
 )
 async def test_injecting_existing_orm_configs(ORMConfig):
-    async with dependencies.temporary_orm_config(ORMConfig()):
+    with dependencies.temporary_orm_config(ORMConfig()):
         db = dependencies.provide_database_interface()
         assert type(db.orm) == ORMConfig
 
@@ -134,7 +134,7 @@ async def test_injecting_really_dumb_orm_configuration():
             sa.String, nullable=False, default="Mostly harmless"
         )
 
-    async with dependencies.temporary_orm_config(
+    with dependencies.temporary_orm_config(
         UselessORMConfiguration(
             base_metadata=sa.schema.MetaData(schema="new_schema"),
             base_model_mixins=[UselessBaseMixin],
