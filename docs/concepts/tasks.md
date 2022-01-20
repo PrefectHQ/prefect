@@ -127,7 +127,10 @@ def hello_flow():
     hello_task(name_input)
 ```
 
-You can also provide your own function or other callable that returns a string cache key.
+You can also provide your own function or other callable that returns a string cache key. A generic `cache_key_fn` is a function that accepts two positional arguments: 
+
+- The first argument corresponds to the `TaskRunContext`, which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`.
+- The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
 
 ```python
 def static_cache_key(context, parameters):
@@ -159,257 +162,97 @@ running an expensive operation
 
 Whenever each task run requested to enter a `Running` state, it provided its cache key computed from the `cache_key_fn`.  The Orion backend identified that there was a COMPLETED state associated with this key and instructed the run to immediately enter the same state, including the same return values.  
 
-Caching can be configured further in the following ways:
+## Futures
 
-A generic `cache_key_fn` is a function that accepts two positional arguments: 
+Coming soon.
 
-- The first argument corresponds to the `TaskRunContext`, which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`.
-- The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
+## Task ordering
 
+By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. You can also explicitly order task execution by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method on a task or the [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter, specifying upstream task dependencies.
 
-
-
-            Wait for a task to finish
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     my_task().wait()
-
-            Use the result from a task in a flow
-
-            >>> @flow
-            >>> def my_flow():
-            >>>     print(my_task().wait().result)
-            >>>
-            >>> my_flow()
-            hello
-
-            Run an async task in an async flow
-
-            >>> @task
-            >>> async def my_async_task():
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> async def my_flow():
-            >>>     await my_async_task()
-
-            Run a sync task in an async flow
-
-            >>> @flow
-            >>> async def my_flow():
-            >>>     my_task()
-
-            Enforce ordering between tasks that do not exchange data
-            >>> @task
-            >>> def task_1():
-            >>>     pass
-            >>>
-            >>> @task
-            >>> def task_2():
-            >>>     pass
-            >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     x = task_1()
-            >>>
-            >>>     # task 2 will wait for task_1 to complete
-            >>>     y = task_2(wait_for=[x])
-
-
-
-
-
-
-
-
-## Constants
-
-If a non-`Task` input is provided to a task, it is automatically converted to a `Constant`.
+You can wait for a task to finish before continuing flow execution by using the `wait()` method on a task.
 
 ```python
-from prefect import Flow, task
+@flow
+def my_flow():
+    my_task().wait()
+```
+
+You can use `wait()` on the result of task, since there won't be a result until the task completes:
+
+```python
+@task
+def my_task():
+    return "hello"
+
+@flow
+def my_flow():
+    print(my_task().wait().result())
+```
+
+You can also assign the result of `my_task()` to a variable and use `wait()` on the variable. This example demonstrates the why specifying execution order matters, particularly when using arbitrary Python alongside tasks in your flow.
+
+
+```python
+@flow
+def my_flow():
+    state = my_task()
+    print(type(state))
+    print(type(state.wait()))
+```
+
+In this case, the first print statement can execute before `my_task()` completes and still represents a `PrefectFuture` for the task. The second print statement waits for the task to complete and now shows the result is a `State`, which contains a result.
+
+```bash
+...
+14:03:21.729 | INFO    | Task run 'my_task-ec9685da-0' - Finished in state Completed(None)
+<class 'prefect.futures.PrefectFuture'>
+<class 'prefect.orion.schemas.states.State'>
+14:03:21.753 | INFO    | Flow run 'nonchalant-lizard' - Finished in state 
+Completed('All states completed.')
+```
+
+You can use the `wait_for` parameter to enforce ordering between tasks that do not exchange data.
+
+```python
+@task
+def task_1():
+    pass
 
 @task
-def add(x, y):
-    return x + y
+def task_2():
+    pass
 
-with Flow('Flow With Constant') as flow:
-    add(1, 2)
-
-assert len(flow.tasks) == 1
-assert len(flow.constants) == 2
+@flow
+def my_flow():
+    x = task_1()
+    # task 2 will wait for task_1 to complete
+    y = task_2(wait_for=[x])
 ```
 
-Prefect will attempt to automatically turn Python objects into `Constants`, including collections (like `lists`, `tuples`, `sets`, and `dicts`). If the resulting constant is used directly as the input to a task, it is optimized out of the task graph and stored in the `flow.constants` dict. However, if the constant is mapped over, then it remains in the dependency graph.
+## Async tasks
 
-
-## Collections
-
-When using the [functional API](flows.html#functional-api), Prefect tasks can automatically be used in collections. For example:
+Run an async task in an async flow
 
 ```python
-import random
-from prefect import Flow, task
-
 @task
-def a_number():
-    return random.randint(0, 100)
+async def my_async_task():
+    pass
 
-@task
-def get_sum(x):
-    return sum(x)
-
-with Flow('Using Collections') as flow:
-    a = a_number()
-    b = a_number()
-    s = get_sum([a, b])
+@flow
+async def my_flow():
+    await my_async_task()
 ```
 
-In this case, a `List` task will automatically be created to take the results of `a` and `b` and put them in a list. That automatically-created task becomes the sole upstream dependency of `s`.
-
-Prefect will perform automatic collection extraction for lists, tuples, sets, and dictionaries.
-
-## Indexing
-
-When using the [functional API](flows.html#functional-api), Prefect tasks can be indexed to retrieve specific results.
+Run a sync task in an async flow
 
 ```python
-from prefect import Flow, task
-
-@task
-def fn():
-    return {'a': 1, 'b': 2}
-
-
-with Flow('Indexing Flow') as flow:
-    x = fn()
-    y = x['a']
+@flow
+async def my_flow():
+    my_task()
 ```
 
-This will automatically add a `GetItem` task to the flow that receives `x` as its input and attempts to perform `x['a']`. The result of that task (`1`) is stored as `y`.
+## Subclassing Task
 
-::: warning Key validation
-Because Prefect flows are not executed at runtime, Prefect can not validate that the indexed key is available ahead of time. Therefore, Prefect will allow you to index any task by any value. If the key does not exist when the flow is actually run, a runtime error will be raised.
-:::
-
-## Multiple Return Values
-
-Sometimes your task may have multiple return values that you want to deal with
-separately. By default Prefect tasks aren't iterable, so the standard Python
-pattern will error:
-
-```python
-from prefect import Flow, task
-
-@task
-def inc_and_dec(x):
-    return x + 1, x - 1
-
-with Flow("This Errors") as flow:
-    # This raises a TypeError, since Prefect doesn't know how many values
-    # `inc_and_dec` returns
-    inc, dec = inc_and_dec(1)
-```
-
-To make this work, you need to let Prefect know how many return values your
-task has. You can do this by either:
-
-- Passing in `nout` to the `@task` decorator or the `Task` constructor when defining your task.
-- Providing a return type annotation for your task (in a class-based task, this
-  would go on the `run` method).
-
-For example:
-
-```python
-# Passing in `nout` explicitly
-@task(nout=2)
-def inc_and_dec(x):
-    return x + 1, x - 1
-
-# Using a return type annotation
-from typing import Tuple
-
-@task
-def double_and_triple(x: int) -> Tuple[int, int]:
-    return x * 2, x * 3
-
-with Flow("This works") as flow:
-    inc, dec = inc_and_dec(1)
-    double, triple = double_and_triple(inc)
-```
-
-Note that multiple return values can also be used by explicitly indexing tasks
-(as described above). Providing `nout` or a return type annotation only adds
-the convenience of tuple unpacking.
-
-## Mapping
-
-_For more detail, see the [mapping concept docs](mapping.html)._
-
-Generally speaking, Prefect's [functional API](flows.html#functional-api) allows you to call a task like a function.
-
-In addition, you can call `Task.map()` to automatically map a task over its inputs. Prefect will generate a dynamic copy of the task for each element of the input. If you don't want an input to be treated as iterable (for example, you want to provide it to every dynamic copy), just wrap it with Prefect's `unmapped()` annotation.
-
-```python
-from prefect import task, unmapped
-
-@task
-def add(x, y):
-    return x + y
-
-add.map(x=[1, 2, 3], y=unmapped(1))
-```
-
-Maps can be composed, allowing the creation of powerful dynamic pipelines:
-
-```python
-z1 = add.map(x=[1, 2, 3], y=unmapped(1))
-z2 = add.map(x=z1, y=unmapped(100))
-```
-
-In addition, if the result of a mapped task is passed to an un-mapped task (or used as the `unmapped` input to a mapped task), then its results will be collected in a list. This allows transparent but totally flexible map/reduce functionality.
-
-## Flattening
-
-_For more detail, see the [mapping concept docs](mapping.html)._
-
-To "un-nest" a task that returns a list of lists, use Prefect's `flatten()` annotation. This is most useful when a task in a mapped pipeline returns a sequence.
-
-
-
-
-
-
-
-### Retrieving tasks
-
-While identifying attributes are most useful when querying for tasks in Prefect Cloud and applying some advanced tag-based features, they can be used locally with a flow's `get_tasks()` function. This will return any tasks that match all of the provided arguments. For example:
-
-```python
-flow.get_tasks(name='my-task')
-flow.get_tasks(tags=['red'])
-```
-
-## State handlers
-
-State handlers allow users to provide custom logic that fires whenever a task changes state. For example, you could send a Slack notification if the task failed -- we actually think that's so useful we included it [here](/api/latest/utilities/notifications.html#functions)!
-
-State handlers must have the following signature:
-
-```python
-state_handler(task: Task, old_state: State, new_state: State) -> State
-```
-
-The handler is called anytime the task's state changes, and receives the task itself, the old state, and the new state. The state that the handler returns is used as the task's new state.
-
-If multiple handlers are provided, they are called in sequence. Each one will receive the "true" `old_state` and the `new_state` generated by the previous handler.
-
-Handlers can also be associated with the `Flow`, `TaskRunner`, and `FlowRunner` classes. The task-level handlers are called first.
-
-## Caching
-
-Tasks can be cached, in which case their outputs will be reused for future runs. For example, you might want to make sure that a database is loaded before generating reports, but you might not want to run the load task every time the flow is run. No problem: just cache the load task for 24 hours, and future runs will reuse its successful output.
-
-For more details, see the relevant docs under [execution](./execution.html#caching).
+Coming soon.
 
