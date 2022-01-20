@@ -7,7 +7,6 @@
           <BreadCrumb :crumb="crumb" />
         </template>
       </div>
-      <span v-breakpoints="'sm'">&nbsp;/&nbsp;</span>
       <div class="bread-crumbs__crumbs--last">
         <BreadCrumb :crumb="lastCrumb" />
       </div>
@@ -41,30 +40,28 @@ const lastCrumb = computed(() => {
 
 <style lang="scss" scoped>
 .bread-crumbs {
-  display: flex;
-  align-items: center;
-
   &__crumbs {
-    min-height: 30px;
-    display: flex;
-    align-items: center;
-  }
-}
+    &--first {
+      font-size: 14px;
+    }
 
-@media (max-width: 640px) {
-  .bread-crumbs {
-    &__crumbs {
+    &--last {
+      margin: -6px 0 2px;
+    }
+
+    @media (min-width: 640px) {
       display: flex;
-      justify-content: center;
-      align-items: baseline;
-      flex-direction: column;
 
       &--first {
-        font-size: 14px !important;
+        font-size: 20px;
       }
 
       &--last {
-        margin: -6px 0 2px;
+        margin: 0;
+      }
+
+      &--first::after {
+        content: ' / ';
       }
     }
   }
