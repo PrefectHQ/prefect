@@ -1,5 +1,0 @@
-feature:
-  - "Add Zendesk Tickets Incremental Export Task - [#5278](https://github.com/PrefectHQ/prefect/pull/5278)"
-
-contributor:
-  - "[Alessandro Lollo](https://github.com/AlessandroLollo)"
