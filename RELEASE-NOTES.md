@@ -12,6 +12,7 @@ Learn more about logging in [the docs](https://orion-docs.prefect.io/concepts/lo
 ### Other Enhancements
 
 In addition to logs, we also included the scheduler in the set of services started with `prefect orion start`. Previously, this required a dedicated flag or an additional command. Now, the scheduler is always available while Orion is running.
+
 ## 2.0a8
 
 The 2.0a7 release required users to pull Docker images (e.g. `docker pull prefecthq/prefect:2.0a7-python3.8`) before the agent could run flows in Docker.
