@@ -587,3 +587,10 @@ def test_watch_flow_run_timeout(monkeypatch):
     with pytest.raises(RuntimeError, match="timed out after 12 hours of waiting"):
         for log in watch_flow_run("id"):
             pass
+
+
+def test_flow_run_view_handles_null_run_config():
+    flow_run_data = FLOW_RUN_DATA_1.copy()
+    flow_run_data["run_config"] = None
+    flow_run_view = FlowRunView._from_flow_run_data(flow_run_data)
+    assert flow_run_view.run_config is None

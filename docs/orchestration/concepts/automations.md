@@ -65,6 +65,7 @@ If you are on a Standard or Enterprise plan, you can also configure Prefect API 
 
 - Cancel a flow run
 - Pause a flow's schedule
+- Start a new flow run
 
 
 ## Messages

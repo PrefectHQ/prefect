@@ -9,6 +9,7 @@ import tempfile
 import time
 import subprocess
 import textwrap
+from flaky import flaky
 from unittest.mock import MagicMock, patch
 from random import shuffle
 
@@ -2636,6 +2637,7 @@ class TestFlowRunMethod:
         state = f.run()
         assert state.result[report_start_time].result is start_time
 
+    @flaky
     def test_flow_dot_run_updates_the_scheduled_start_time_of_each_scheduled_run(self):
 
         start_times = [pendulum.now().add(seconds=i * 0.2) for i in range(1, 4)]

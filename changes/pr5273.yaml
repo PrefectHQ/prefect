@@ -1,5 +1,0 @@
-enhancement:
-  - "Allow dbt Cloud task to use custom domain for Enterprise customers- [#5273](https://github.com/PrefectHQ/prefect/pull/5273)"
-
-contributor:
-  - "[Henning Holgersen](https://github.com/radbrt)"
