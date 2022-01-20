@@ -81,6 +81,7 @@ nav:
         - Flow Runners: concepts/flow-runners.md
         - Schedules: concepts/schedules.md
         - Settings: concepts/settings.md
+        - Logging: concepts/logs.md
     - FAQ: faq.md
     - 'API Reference': 
         - Overview: api-ref/overview.md

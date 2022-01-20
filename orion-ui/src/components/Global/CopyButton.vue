@@ -1,9 +1,11 @@
 <template>
   <button class="copy-button" @click="copy">
     <i class="pi pi-file-copy-line pi-sm" />
-    <span class="copy-button__label">
-      <slot>Copy</slot>
-    </span>
+    <template v-if="label.length || $slots.default">
+      <span class="copy-button__label">
+        <slot>{{ label }}</slot>
+      </span>
+    </template>
   </button>
 </template>
 
@@ -13,21 +15,34 @@ import { defineComponent, PropType } from 'vue'
 export default defineComponent({
   props: {
     value: {
-      type: String as PropType<string>,
+      type: [String, Function] as PropType<string | (() => string)>,
       required: true
     },
+    label: {
+      type: String,
+      default: 'Copy'
+    },
     toast: {
-      type: String as PropType<string>,
+      type: String,
       default: 'Copied to Clipboard'
+    },
+    timeout: {
+      type: Number,
+      default: 5000
     }
   },
   methods: {
     copy() {
-      navigator.clipboard.writeText(this.value)
+      if (typeof this.value === 'function') {
+        navigator.clipboard.writeText(this.value())
+      } else {
+        navigator.clipboard.writeText(this.value)
+      }
 
-      this.$toast.add({
+      this.$toast({
         type: 'success',
-        content: this.toast
+        message: this.toast,
+        timeout: this.timeout
       })
     }
   }

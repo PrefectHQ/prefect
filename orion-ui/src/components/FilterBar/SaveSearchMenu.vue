@@ -60,15 +60,15 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, getCurrentInstance } from 'vue'
+import { computed, ref } from 'vue'
 import { useStore } from 'vuex'
 import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
+import { showToast } from '@prefecthq/miter-design'
 import Tag from './Tag.vue'
 import media from '@/utilities/media'
 
 const store = useStore()
-const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const loading = ref(false)
 
@@ -93,9 +93,9 @@ const save = async () => {
 
   const res = await query.fetch()
 
-  instance?.appContext.config.globalProperties.$toast.add({
+  showToast({
     type: res.error ? 'error' : 'success',
-    content: res.error ? `Error: ${res.error}` : 'Filter saved!',
+    message: res.error ? `Error: ${res.error}` : 'Filter saved!',
     timeout: 10000
   })
 
