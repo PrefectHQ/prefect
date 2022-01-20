@@ -19,13 +19,13 @@ async def create_concurrency_limit(
     concurrency_limit: schemas.core.ConcurrencyLimit,
     db: OrionDBInterface,
 ):
+    insert_values = concurrency_limit.dict(shallow=True, exclude_unset=True)
+    concurrency_tag = insert_values["tag"]
+
     # set `updated` manually
     # known limitation of `on_conflict_do_update`, will not use `Column.onupdate`
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     concurrency_limit.updated = pendulum.now("UTC")
-
-    insert_values = concurrency_limit.dict(shallow=True, exclude_unset=True)
-    concurrency_tag = insert_values["tag"]
 
     insert_stmt = (
         (await db.insert(db.ConcurrencyLimit))
