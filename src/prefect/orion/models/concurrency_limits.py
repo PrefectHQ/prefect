@@ -27,7 +27,16 @@ async def create_concurrency_limit(
     insert_values = concurrency_limit.dict(shallow=True, exclude_unset=True)
     concurrency_tag = insert_values["tag"]
 
-    insert_stmt = (await db.insert(db.ConcurrencyLimit)).values(**insert_values)
+    insert_stmt = (
+        (await db.insert(db.ConcurrencyLimit))
+        .values(**insert_values)
+        .on_conflict_do_update(
+            index_elements=db.concurrency_limit_unique_upsert_columns,
+            set_=concurrency_limit.dict(
+                shallow=True, include={"concurrency_limit", "updated"}
+            ),
+        )
+    )
 
     await session.execute(insert_stmt)
 

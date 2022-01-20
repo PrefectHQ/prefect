@@ -799,6 +799,11 @@ class BaseORMConfiguration(ABC):
         return [self.Deployment.flow_id, self.Deployment.name]
 
     @property
+    def concurrency_limit_unique_upsert_columns(self):
+        """Unique columns for upserting a ConcurrencyLimit"""
+        return [self.ConcurrencyLimit.tag]
+
+    @property
     def flow_run_unique_upsert_columns(self):
         """Unique columns for upserting a FlowRun"""
         return [self.FlowRun.flow_id, self.FlowRun.idempotency_key]
