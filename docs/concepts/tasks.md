@@ -1,22 +1,20 @@
 # Tasks
 
-A task is a function that represents a discrete unit of work in a Prefect workflow. Tasks are not required &mdash; you may define Prefect workflows that consist only of flows &mdash; but tasks enable you to encapsulate elements of your workflow logic that can be reused across flows and subflows. 
+A task is a function that represents a discrete unit of work in a Prefect workflow. Tasks are not required &mdash; you may define Prefect workflows that consist only of flows, and that use regular Python statements and functions. Tasks enable you to encapsulate elements of your workflow logic in observable units that can be reused across flows and subflows. 
 
 ## Tasks overview
 
-Tasks are functions: they can take inputs, perform work, and return an output. A Prefect task can do almost a Python function can do.  
+Tasks are functions: they can take inputs, perform work, and return an output. A Prefect task can do almost anything a Python function can do.  
 
 Tasks are special because they receive metadata about upstream dependencies and the state of those dependencies before they run, even if they don't receive any explicit data inputs from them. This gives you the opportunity to, for example, have a task wait on the completion of another task before executing.
 
-Tasks also take advantage of automatic Prefect [logging](/concepts/logs.md) to capture details about task runs such as runtime and final state. 
+Tasks also take advantage of automatic Prefect [logging](/concepts/logs.md) to capture details about task runs such as runtime, tags, and final state. 
 
-Tasks may call other tasks, but all task runs occur within the context of a flow run.
-
-That said, you can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. 
+Tasks may call other tasks, but all task runs occur within the context of a flow run. That said, you can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. 
 
 For most use cases, we recommend using the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
 
-```python hl_lines="3"
+```python hl_lines="3-5"
 from prefect import flow, task
 
 @task
@@ -28,13 +26,14 @@ def my_flow():
     my_task()
 ```
 
-!!! note "How big should a task be?"
-    People often wonder how much code to put in each task.
+Before a task run completes, a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) represents the status of a task executing in a task runner. See [Futures](#futures) for further information.
 
+When a task completes, a [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) represents the final state of the task run and its results, if any. See [States](/concepts/states/) for further information.
+
+!!! note "How big should a task be?"
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
 
     To be clear, there's nothing stopping you from putting all of your code in a single task &mdash; Prefect will happily run it! However, if any line of code fails, the entire task will fail and must be retried from the beginning. This can be trivially avoided by splitting the code into multiple dependent tasks.
-:::
 
 ## Task arguments
 
@@ -72,7 +71,7 @@ def my_task():
 
 You can also provide tags as an argument with a context manager, specifying tags when the task is called rather than in its definition.
 
-```python
+```python hl_lines="9"
 from prefect import tags
 
 @task
@@ -89,7 +88,7 @@ def my_flow():
 
 A key capability of Prefect tasks is the ability to automatically retry on failure. To enable retries, pass `retries` and `retry_delay_seconds` parameters to your task:
 
-```python
+```python hl_lines="3"
 import requests
 # this task will retry up to 3 times, waiting 1 minute between each retry
 @task(retries=3, retry_delay_seconds=60)
@@ -112,7 +111,7 @@ Note that, if any arguments are not JSON serializable, the pickle serializer is 
 
 In this example, until the `cache_expiration` time ends, as long as the input to `hello_task()` remains the same when it is called, it runs only once, but the cached return value will be returned. However, if the input argument value changes, `hello_task()` runs using that input.
 
-```python
+```python hl_lines="1 4"
 from prefect.tasks import task_input_hash
 from datetime import timedelta
 
@@ -132,7 +131,7 @@ You can also provide your own function or other callable that returns a string c
 - The first argument corresponds to the `TaskRunContext`, which is a basic object with attributes `task_run_id`, `flow_run_id`, and `task`.
 - The second argument corresponds to a dictionary of input values to the task. For example, if your task is defined with signature `fn(x, y, z)` then the dictionary will have keys `"x"`, `"y"`, and `"z"` with corresponding values that can be used to compute your cache key.
 
-```python
+```python hl_lines="1-5"
 def static_cache_key(context, parameters):
     # return a constant
     return "static cache key"
@@ -190,7 +189,7 @@ def my_flow():
     print(my_task().wait().result())
 ```
 
-You can also assign the result of `my_task()` to a variable and use `wait()` on the variable. This example demonstrates the why specifying execution order matters, particularly when using arbitrary Python alongside tasks in your flow.
+You can also assign the result of a task to a variable and use `wait()` on the variable. This example demonstrates the why specifying execution order matters, particularly when using arbitrary Python alongside tasks in your flow.
 
 
 ```python
@@ -204,6 +203,7 @@ def my_flow():
 In this case, the first print statement can execute before `my_task()` completes and still represents a `PrefectFuture` for the task. The second print statement waits for the task to complete and now shows the result is a `State`, which contains a result.
 
 ```bash
+$ python my_flow.py
 ...
 14:03:21.729 | INFO    | Task run 'my_task-ec9685da-0' - Finished in state Completed(None)
 <class 'prefect.futures.PrefectFuture'>
@@ -226,31 +226,13 @@ def task_2():
 @flow
 def my_flow():
     x = task_1()
-    # task 2 will wait for task_1 to complete
+    # task_2 will wait for task_1 to complete
     y = task_2(wait_for=[x])
 ```
 
 ## Async tasks
 
-Run an async task in an async flow
-
-```python
-@task
-async def my_async_task():
-    pass
-
-@flow
-async def my_flow():
-    await my_async_task()
-```
-
-Run a sync task in an async flow
-
-```python
-@flow
-async def my_flow():
-    my_task()
-```
+Coming soon.
 
 ## Subclassing Task
 
