@@ -8,7 +8,9 @@
         </template>
       </div>
       <div class="bread-crumbs__crumbs--last">
-        <BreadCrumb :crumb="lastCrumb" />
+        <component :is="boldTag">
+          <BreadCrumb :crumb="lastCrumb" />
+        </component>
       </div>
     </div>
   </component>
@@ -23,10 +25,12 @@ interface Props {
   crumbs: Crumb[]
   icon?: string
   tag?: string
+  bold?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  tag: 'h1'
+  tag: 'h1',
+  bold: false
 })
 
 const firstCrumbs = computed(() => {
@@ -35,6 +39,10 @@ const firstCrumbs = computed(() => {
 
 const lastCrumb = computed(() => {
   return props.crumbs.slice(-1)[0]
+})
+
+const boldTag = computed(() => {
+  return props.bold ? 'strong' : 'span'
 })
 </script>
 
@@ -46,6 +54,7 @@ const lastCrumb = computed(() => {
     }
 
     &--last {
+      font-size: 20px;
       margin: -6px 0 2px;
     }
 
@@ -57,11 +66,12 @@ const lastCrumb = computed(() => {
       }
 
       &--last {
+        font-size: 20px;
         margin: 0;
       }
 
       &--first::after {
-        content: ' / ';
+        content: '\00a0/\00a0';
       }
     }
   }
