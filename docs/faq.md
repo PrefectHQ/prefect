@@ -14,23 +14,33 @@ Curiously enough, Orion is also the home of Ford Prefect, a roving researcher fo
 
 Orion has three major objectives:
 
-- embracing dynamic, DAG-free workflows
-- an extraordinary developer experience
-- transparent and observable orchestration rules
+- Embracing dynamic, DAG-free workflows
+- An extraordinary developer experience
+- Transparent and observable orchestration rules
 
 As Prefect has matured, so has the modern data stack. The on-demand, dynamic, highly scalable workflows that used to exist principally in the domain of data science and analytics are now prevalent throughout all of data engineering. Few companies have workflows that don’t deal with streaming data, uncertain timing, runtime logic, complex dependencies, versioning, or custom scheduling.
 
-This means that the current generation of workflow managers are built around the wrong abstraction: the DAG. DAGs are an increasingly arcane, constrained way of representing the dynamic, heterogeneous range of modern data and computation patterns.
+This means that the current generation of workflow managers are built around the wrong abstraction: the directed acyclic graph (DAG). DAGs are an increasingly arcane, constrained way of representing the dynamic, heterogeneous range of modern data and computation patterns.
 
-Furthermore, as workflows have become more complex, it has become even more important to focus on the developer experience of building, testing, and monitoring them. Faced with an explosion of available tools, it is more important than ever for development teams to seek orchestration tools that will be compatible with any code/tools/services they may require in the future.
+Furthermore, as workflows have become more complex, it has become even more important to focus on the developer experience of building, testing, and monitoring them. Faced with an explosion of available tools, it is more important than ever for development teams to seek orchestration tools that will be compatible with any code, tools, or services they may require in the future.
 
 And finally, this additional complexity means that providing clear and consistent insight into the behavior of the orchestration engine and any decisions it makes is critically important.
 
-_Orion represents a unified solution to these three problems_. It is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code", but Orion represents "code as code": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work. To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much - or as little - of the Orion engine as is useful for their objectives.
+_Orion represents a unified solution to these three problems_. 
+
+Orion is capable of governing **any** code through a well-defined series of state transitions designed to maximize the user's understanding of what happened during execution. It's popular to describe "workflows as code" or "orchestration as code," but Orion represents "code as code": rather than ask users to change how they work to meet the requirements of the orchestrator, we've defined an orchestrator that adapts to how our users work. 
+
+To achieve this, we've leveraged the familiar tools of native Python: first class functions, type annotations, and `async` support. Users are free to implement as much &mdash; or as little &mdash; of the Orion engine as is useful for their objectives.
 
 ### Why is Orion a "technical preview"?
 
-Orion is the latest step in a long-term mission to codify the best practices of modern data engineering. Historically, Prefect has benefitted from looping our community in early to our product development lifecycle. We are continuing this tradition with Orion. The current codebase is the core of our new workflow engine. It meets our initial design objectives and we are excited to learn from our users' experiences in the wild. However, while it is fully functional, it is far from a finished product. Many conveniences and even some major features have not yet been implemented. Over the next few months, you can follow our development in the open -- and even participate yourself -- as we bring this product toward release. Until then, we will maintain the "technical preview" label to communicate the status of the project as not yet battle-tested in production. For production use cases, we currently recommend [Prefect Core](https://github.com/prefecthq/prefect).
+Orion is the latest step in a long-term mission to codify the best practices of modern data engineering. Historically, Prefect has benefitted from looping our community in early to our product development lifecycle. We are continuing this tradition with Orion. 
+
+The current codebase is the core of our new workflow engine. It meets our initial design objectives and we are excited to learn from our users' experiences in the wild. However, while it is fully functional, it is far from a finished product. Many conveniences &mdash; and even some major features &mdash; have not yet been implemented. 
+
+Over the next few months, you can follow our development in the open &mdash; and even participate yourself &mdash; as we bring this product toward release. Until then, we will maintain the "technical preview" label to communicate the status of the project as not yet battle-tested in production. 
+
+For production use cases, we currently recommend [Prefect Core](https://github.com/prefecthq/prefect).
 
 ### Can I use Orion in production?
 
@@ -39,8 +49,6 @@ Orion is alpha software and we do not recommend Orion for production use at this
 ### How is Orion licensed?
 
 The Orion technical preview is licensed under the [Prefect Community License 1.0](https://www.prefect.io/legal/prefect-community-license), a highly permissive open-source license. The Prefect Community License places no restrictions on use except for distributing Prefect Orion as a service outside your organization. If you have any questions about licensing, please [contact us](mailto:hello@prefect.io).
-
-As Orion matures, most or all of its components will be released under the [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) license.
 
 ## Features
 
@@ -98,11 +106,11 @@ def my_flow():
         my_mapped_task_2(i)
 ```
 
-Note that when tasks are called on constant values, they can not detect their upstream edges automatically. In this example, `my_mapped_task_2` does not know that it is downstream from `list_task()`. Orion will have convenience functions for detecting these associations, and Orion's `.map()` operator will automatically track them.
+Note that when tasks are called on constant values, they cannot detect their upstream edges automatically. In this example, `my_mapped_task_2` does not know that it is downstream from `list_task()`. Orion will have convenience functions for detecting these associations, and Orion's `.map()` operator will automatically track them.
 
-### How do I tell enforce ordering between tasks that don't share data?
+### How do I enforce ordering between tasks that don't share data?
 
-To create a dependency between two tasks that do not exchange data but one needs to wait for the other to finish, use the special [`wait_for` keyword argument][prefect.tasks.Task.__call__]:
+To create a dependency between two tasks that do not exchange data, but one needs to wait for the other to finish, use the special [`wait_for`][prefect.tasks.Task.__call__] keyword argument:
 
 ```python
 @task
@@ -136,24 +144,32 @@ The Orion technical preview consists of a few complementary parts:
 - Metadata DB: a persistent store for states, results, and run metadata
 - Dashboard: a UI for monitoring and interacting with the system
 
-Most users will begin in the *client* by annotating a function as either a `flow` or `task`. Every time that function is called, it collaborates with the *orchestration engine* via the Orion API. The orchestration engine is responsible for governing the function's transitions through various [states](concepts/states) that represent its progress. The orchestration engine is composed of a variety of rules that enforce helpful behaviors. For example, one rule might intercept tasks that fail and instruct them to retry; another might identify that a task was cached and instruct it not to run at all. All states and metadata are stored in the *metadata database*. The Dashboard leverages all of this to deliver an interactive way to browse live and historical data.
+Most users will begin in the *client* by annotating a function as either a `flow` or `task`. 
+
+Every time that function is called, it collaborates with the *orchestration engine* via the Orion API. The orchestration engine is responsible for governing the function's transitions through various [states](concepts/states) that represent its progress. 
+
+The orchestration engine is composed of a variety of rules that enforce helpful behaviors. For example, one rule might intercept tasks that fail and instruct them to retry. Another might identify that a task was cached and instruct it not to run at all. 
+
+All states and metadata are stored in the *metadata database*. 
+
+The Dashboard leverages all of this to deliver an interactive way to browse live and historical data.
 
 !!! tip "Always On"
-Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. Running a flow interactively will still properly interact with the orchestration API and persist metadata in your locally-configured database. You only need to run a stateful Orion server and related services when you require the features they provide, such as automatic scheduling and execution, or a hosted UI. This means that for interactive runs against a SQLite database, Orion can operate as a completely serverless platform.
+Thanks to ephemeral APIs, Orion doesn't have to be run as a persistent service. Running a flow interactively will still properly interact with the orchestration API and persist metadata in your locally-configured database. You only need to run a stateful Orion server and related services when you require the features they provide, such as automatic scheduling and execution or a hosted UI. For interactive runs against a SQLite database, Orion can operate as a completely serverless platform.
 
 ### What external requirements does Orion have?
 
 Orion does not have any additional requirements besides those installed by `pip install prefect>=2.0a1`. The entire system, including the UI and services, can be run in a single process via `prefect orion start` and does not require Docker.
 
-To use Postgres, users must provide the [connection string][prefect.utilities.settings.DatabaseSettings.connection_url] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
+To use PostgreSQL, users must provide the [connection string][prefect.utilities.settings.DatabaseSettings.connection_url] for a running database via the `PREFECT_ORION_DATABASE_CONNECTION_URL` environment variable. 
 
 ### What databases does Orion support?
 
-Orion works with SQLite and Postgres. New Orion installs default to a SQLite database hosted at `~/.prefect/orion.db`.
+Orion works with SQLite and PostgreSQL. New Orion installs default to a SQLite database hosted at `~/.prefect/orion.db`.
 
 ### How do I choose between SQLite and Postgres?
 
-SQLite is appropriate for getting started and exploring Orion. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency may prefer to start with Postgres.
+SQLite is appropriate for getting started and exploring Orion. We have tested it with up to hundreds of thousands of task runs. Many users may be able to stay on SQLite for some time. However, under write-heavy workloads, SQLite performance can begin to suffer. Users running many flows with high degrees of parallelism or concurrency may prefer to start with PostgreSQL.
 
 This answer will be updated with more concrete guidelines in the future.
 
@@ -163,10 +179,11 @@ This answer will be updated with more concrete guidelines in the future.
 
 Orion represents the future of Prefect's orchestration engine and API. It will power a new generation of self-hosted and commercial Prefect products. We are releasing it as a technical preview because it has achieved its primary design objectives, but it still has a ways to go. In the coming months, you will see Orion undergo rapid changes as it approaches a stable release in early 2022. At that time, Orion will become the "default" version of Prefect, replacing both Prefect Core and Prefect Server. 
 
-
 ### Can I still use Prefect Core?
 
-Yes! Prefect Core is our battle-tested, production-ready workflow engine. Its API has remained stable - and almost completely backwards compatible - for almost two years. Our Prefect Cloud customers have used it to execute nearly half a billion tasks this year, and our open-source users have stressed it even further. For these reasons, as a reflection of its maturity, Prefect Core will be promoted to 1.0 in the near future. Prefect 1.0 will remain fully supported by the Prefect team for at least one year after Orion's release.
+Yes! Prefect Core is our battle-tested, production-ready workflow engine. Its API has remained stable &mdash; and almost completely backwards compatible &mdash; for almost two years. Our Prefect Cloud customers have used it to execute over half a billion tasks this year, and our open-source users have stressed it even further. 
+
+For these reasons, as a reflection of its maturity, Prefect Core will be promoted to 1.0 in the near future. Prefect 1.0 will remain fully supported by the Prefect team for at least one year after Orion's release.
 
 ### Is there an upgrade guide from Prefect Core to Prefect Orion?
 

@@ -4,22 +4,31 @@
 
 Prefect requires Python 3.7+
 
-We assume you are familiar with managing a Python installation using tools like `pip`, `conda` or `virtualenv`.
+We recommend installing Orion using a Python virtual environment manager such as `pipenv`, `conda` or `virtualenv`.
 
 ## Installing the latest version
 
-Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell
+Prefect is published as a Python package. To install the latest 2.0 release, run the following in a shell, using the pre-release version of Orion you want to test:
 
 ```bash
-pip install -U "prefect>=2.0.0a"
+pip install -U "prefect>=<version>"
 ```
+
+For example, to install the latest 2.0a6 version:
+
+```bash
+pip install -U "prefect>=2.0a6"
+```
+
+Find the available release versions in the [Orion Release Notes](https://github.com/PrefectHQ/prefect/blob/orion/RELEASE-NOTES.md) or the [PyPI release history](https://pypi.org/project/prefect/#history).
+
 
 ## Installing the bleeding edge
 
 If you'd like to test with the most up-to-date code, you can install directly off the `orion` branch on GitHub:
 
 ```bash
-pip install https://github.com/PrefectHQ/prefect@orion
+pip install git+https://github.com/PrefectHQ/prefect@orion
 ```
 
 !!! warning "`orion` may not be stable"
@@ -27,7 +36,7 @@ pip install https://github.com/PrefectHQ/prefect@orion
 
 ## Installing for development
 
-If you would like to install a version of Prefect for development, first clone the Prefect repository
+If you'd like to install a version of Prefect for development, first clone the Prefect repository
 and then install in editable mode with `pip`:
 
 ```bash
@@ -40,12 +49,12 @@ pip install -e ".[dev]"
 
 ## Checking your installation
 
-To check that Prefect was installed correctly, you can test the CLI
+To check that Prefect was installed correctly, you can test the Prefect CLI:
 
 <div class="termy">
 ```
 $ prefect version
-2.0a2
+2.0a6
 ```
 </div>
 
@@ -54,7 +63,14 @@ Running this command should print a familiar looking version string to your cons
 
 ## External requirements
 
+While Prefect Orion works with many of your favorite tools and Python modules, Orion has a few external dependencies.
+
 ### SQLite
 
-SQLite cannot be packaged with the installation, but is the default backing database.
-Most systems will have SQLite installed already. We require a minimum version of 3.24.0.
+Prefect Orion uses SQLite as the default backing database, but it is not packaged with the Orion installation. Most systems will have SQLite installed already since it is typically bundled as a part of Python. Orion requires SQLite version 3.24.0 or later.
+
+You can check your SQLite version by executing the following command in a terminal:
+
+```bash
+$ sqlite3 --version
+```

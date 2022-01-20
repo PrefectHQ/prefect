@@ -797,6 +797,144 @@ class DeploymentFilter(PrefectFilterBaseModel):
         return filters
 
 
+class LogFilterName(PrefectFilterBaseModel):
+    """Filter by `Log.name`."""
+
+    any_: List[str] = Field(
+        None,
+        description="A list of log names to include",
+        example=["prefect.logger.flow_runs", "prefect.logger.task_runs"],
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.name.in_(self.any_))
+        return filters
+
+
+class LogFilterLevel(PrefectFilterBaseModel):
+    """Filter by `Log.level`."""
+
+    ge_: int = Field(
+        None,
+        description="Include logs with a level greater than or equal to this level",
+        example=20,
+    )
+
+    le_: int = Field(
+        None,
+        description="Include logs with a level less than or equal to this level",
+        example=50,
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.ge_ is not None:
+            filters.append(db.Log.level >= self.ge_)
+        if self.le_ is not None:
+            filters.append(db.Log.level <= self.le_)
+        return filters
+
+
+class LogFilterTimestamp(PrefectFilterBaseModel):
+    """Filter by `Log.timestamp`."""
+
+    before_: datetime.datetime = Field(
+        None, description="Only include logs with a timestamp at or before this time"
+    )
+    after_: datetime.datetime = Field(
+        None, description="Only include logs with a timestamp at or after this time"
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.before_ is not None:
+            filters.append(db.Log.timestamp <= self.before_)
+        if self.after_ is not None:
+            filters.append(db.Log.timestamp >= self.after_)
+        return filters
+
+
+class LogFilterFlowRunId(PrefectFilterBaseModel):
+    """Filter by `Log.flow_run_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of flow run IDs to include")
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.flow_run_id.in_(self.any_))
+        return filters
+
+
+class LogFilterTaskRunId(PrefectFilterBaseModel):
+    """Filter by `Log.task_run_id`."""
+
+    any_: List[UUID] = Field(None, description="A list of task run IDs to include")
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+        if self.any_ is not None:
+            filters.append(db.Log.task_run_id.in_(self.any_))
+        return filters
+
+
+class LogFilter(PrefectFilterBaseModel):
+    """Filter logs. Only logs matching all criteria will be returned"""
+
+    level: Optional[LogFilterLevel] = Field(
+        None, description="Filter criteria for `Log.level`"
+    )
+    timestamp: Optional[LogFilterTimestamp] = Field(
+        None, description="Filter criteria for `Log.timestamp`"
+    )
+    flow_run_id: Optional[LogFilterFlowRunId] = Field(
+        None, description="Filter criteria for `Log.flow_run_id`"
+    )
+    task_run_id: Optional[LogFilterTaskRunId] = Field(
+        None, description="Filter criteria for `Log.task_run_id`"
+    )
+
+    @inject_db
+    def _get_filter_list(
+        self,
+        db: OrionDBInterface,
+    ) -> List:
+        filters = []
+
+        if self.level is not None:
+            filters.append(self.level.as_sql_filter())
+        if self.timestamp is not None:
+            filters.append(self.timestamp.as_sql_filter())
+        if self.flow_run_id is not None:
+            filters.append(self.flow_run_id.as_sql_filter())
+        if self.task_run_id is not None:
+            filters.append(self.task_run_id.as_sql_filter())
+
+        return filters
+
+
 class FilterSet(PrefectBaseModel):
     """A collection of filters for common objects"""
 

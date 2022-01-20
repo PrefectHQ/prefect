@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 import pydantic
 from prefect.orion import models, schemas
-from prefect.utilities.logging import get_logger
+from prefect.logging import get_logger
 from prefect.orion.database.dependencies import inject_db
 from prefect.orion.database.interface import OrionDBInterface
 

@@ -1,3 +1,5 @@
+import inspect
+
 import pytest
 import sqlalchemy as sa
 
@@ -7,6 +9,7 @@ from prefect.orion.database.configurations import (
     AsyncPostgresConfiguration,
     AioSqliteConfiguration,
 )
+from prefect.orion.database.dependencies import provide_database_interface, inject_db
 from prefect.orion.database.query_components import (
     BaseQueryComponents,
     AsyncPostgresQueryComponents,
@@ -24,7 +27,7 @@ from prefect.orion.database.orm_models import (
     (AsyncPostgresConfiguration, AioSqliteConfiguration),
 )
 async def test_injecting_an_existing_database_database_config(ConnectionConfig):
-    async with dependencies.temporary_database_config(ConnectionConfig()):
+    with dependencies.temporary_database_config(ConnectionConfig()):
         db = dependencies.provide_database_interface()
         assert type(db.database_config) == ConnectionConfig
 
@@ -48,7 +51,7 @@ async def test_injecting_a_really_dumb_database_database_config():
         def is_inmemory(self, engine):
             ...
 
-    async with dependencies.temporary_database_config(
+    with dependencies.temporary_database_config(
         UselessConfiguration(connection_url=None)
     ):
         db = dependencies.provide_database_interface()
@@ -59,7 +62,7 @@ async def test_injecting_a_really_dumb_database_database_config():
     "QueryComponents", (AsyncPostgresQueryComponents, AioSqliteQueryComponents)
 )
 async def test_injecting_existing_query_components(QueryComponents):
-    async with dependencies.temporary_query_components(QueryComponents()):
+    with dependencies.temporary_query_components(QueryComponents()):
         db = dependencies.provide_database_interface()
         assert type(db.queries) == QueryComponents
 
@@ -107,7 +110,7 @@ async def test_injecting_really_dumb_query_components():
         ):
             ...
 
-    async with dependencies.temporary_query_components(ReallyBrokenQueries()):
+    with dependencies.temporary_query_components(ReallyBrokenQueries()):
         db = dependencies.provide_database_interface()
         assert type(db.queries) == ReallyBrokenQueries
 
@@ -116,7 +119,7 @@ async def test_injecting_really_dumb_query_components():
     "ORMConfig", (AsyncPostgresORMConfiguration, AioSqliteORMConfiguration)
 )
 async def test_injecting_existing_orm_configs(ORMConfig):
-    async with dependencies.temporary_orm_config(ORMConfig()):
+    with dependencies.temporary_orm_config(ORMConfig()):
         db = dependencies.provide_database_interface()
         assert type(db.orm) == ORMConfig
 
@@ -131,7 +134,7 @@ async def test_injecting_really_dumb_orm_configuration():
             sa.String, nullable=False, default="Mostly harmless"
         )
 
-    async with dependencies.temporary_orm_config(
+    with dependencies.temporary_orm_config(
         UselessORMConfiguration(
             base_metadata=sa.schema.MetaData(schema="new_schema"),
             base_model_mixins=[UselessBaseMixin],
@@ -149,3 +152,25 @@ async def test_injecting_really_dumb_orm_configuration():
     db = dependencies.provide_database_interface()
     assert "my_string_column" not in db.Flow.__table__.columns.keys()
     assert db.Base.metadata.schema != "new_schema"
+
+
+async def test_inject_db(db):
+    """
+    Regression test for async-mangling behavior of inject_db() decorator.
+
+    Previously, when wrapping a coroutine function, the decorator returned
+    that function's coroutine object, instead of the coroutine function.
+
+    This worked fine in most cases because both a coroutine function and a
+    coroutine object can be awaited, but it broke our Pytest setup because
+    we were auto-marking coroutine functions as async, and any async test
+    wrapped by inject_db() was no longer a coroutine function, but instead
+    a coroutine object, so we skipped marking it.
+    """
+
+    class Returner:
+        @inject_db
+        async def return_1(self, db):
+            return 1
+
+    assert inspect.iscoroutinefunction(Returner().return_1)
