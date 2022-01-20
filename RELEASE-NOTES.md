@@ -4,7 +4,7 @@
 
 ### Logs
 
-This release marks another major milestone on Orion's continued evolution into a production ready tool. Logs are fundamental output of any orchestrator. We didn't start with them because they aren't what makes Orion unique. In fact, Orion's logs are designed to work exactly the way that you'd expect them to work. Our logger is built entirely on Python's [standard library logging configuration hooks](https://docs.python.org/3/library/logging.config.html), so you can easily output to JSON, write to files, set levels, and more - without Orion getting in the way.
+This release marks another major milestone on Orion's continued evolution into a production ready tool. Logs are fundamental output of any orchestrator. We didn't start with them because they aren't what makes Orion unique. In fact, Orion's logs are designed to work exactly the way that you'd expect them to work. Our logger is built entirely on Python's [standard library logging configuration hooks](https://docs.python.org/3/library/logging.config.html), so you can easily output to JSON, write to files, set levels, and more - without Orion getting in the way. All logs are associated with a flow run ID. Where relevant, they are also associated with a task run ID.
 
 Once you've run your flow, you can find the logs in a dedicated tab on the flow run page, where you can copy them all or one line at a time. You can even watch them come in as your flow run executes. Future releases will enable further filter options and log downloads.
 Learn more about logging in [the docs](https://orion-docs.prefect.io/concepts/logs/).
