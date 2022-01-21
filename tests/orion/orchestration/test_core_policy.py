@@ -8,13 +8,17 @@ from prefect.orion.orchestration.core_policy import (
     CacheInsertion,
     CacheRetrieval,
     PreventTransitionsFromTerminalStates,
-    RetryPotentialFailures,
     RenameReruns,
+    RetryPotentialFailures,
+    ReturnConcurrencySlots,
+    SecureTaskConcurrencySlots,
     WaitForScheduledTime,
 )
 
+from prefect.orion import schemas
 from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
-from prefect.orion.schemas import states
+from prefect.orion.models import concurrency_limits
+from prefect.orion.schemas import states, actions
 
 
 def transition_names(transition):
@@ -402,3 +406,50 @@ class TestTransitionsFromTerminalStatesRule:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["task"])
+class TestTaskConcurrencyLimits:
+    async def test_all_other_transitions_are_accepted(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        cl_create = actions.ConcurrencyLimitCreate(
+            tag="test_tag",
+            concurrency_limit=1,
+        ).dict(json_compatible=True)
+
+        cl_model = schemas.core.ConcurrencyLimit(**cl_create)
+
+        await concurrency_limits.create_concurrency_limit(
+            session=session, concurrency_limit=cl_model
+        )
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx1 = await initialize_orchestration(
+            session, "task", *intended_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *intended_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        ctx2 = await initialize_orchestration(
+            session, "task", *intended_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *intended_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.WAIT
