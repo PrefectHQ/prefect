@@ -1003,6 +1003,7 @@ class TestTaskCopy:
     def test_copy_signature_aligns_with_task_signature(self):
         task_params = dict(inspect.signature(Task.__init__).parameters)
         copy_params = dict(inspect.signature(Task.copy).parameters)
-        del task_params["fn"]
+        # `copy` does not accept a new function
+        task_params.pop("fn")
         assert task_params == copy_params
 
