@@ -1001,7 +1001,7 @@ class TestTaskCopy:
         assert copied_task.retry_delay_seconds == 5
 
     def test_copy_signature_aligns_with_task_signature(self):
-        task_params = dict(inspect.signature(Task).parameters)
+        task_params = dict(inspect.signature(Task.__init__).parameters)
         copy_params = dict(inspect.signature(Task.copy).parameters)
         del task_params["fn"]
         assert task_params == copy_params
