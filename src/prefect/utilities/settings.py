@@ -368,7 +368,14 @@ class LoggingSettings(BaseSettings):
     )
 
     def get_extra_loggers(self) -> List[str]:
-        return self.extra_loggers.split(",") if self.extra_loggers else []
+        """
+        Parse the `extra_loggers` CSV and trim whitespace from logger names
+        """
+        return (
+            [name.strip() for name in self.extra_loggers.split(",")]
+            if self.extra_loggers
+            else []
+        )
 
 
 class AgentSettings(BaseSettings):
