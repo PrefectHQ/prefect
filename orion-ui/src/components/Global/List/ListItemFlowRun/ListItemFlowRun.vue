@@ -55,7 +55,7 @@ import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
 import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
 import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
-import BreadCrumbs from '@/components/Global/BreadCrumb/BreadCrumb.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 
 const store = useStore()
 const props = defineProps<{ item: FlowRun }>()
