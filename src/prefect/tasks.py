@@ -224,8 +224,8 @@ class Task(Generic[P, R]):
     @overload
     def __call__(
         self: "Task[P, NoReturn]",
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[None, Sync]:
         # `NoReturn` matches if a type can't be inferred for the function which stops a
@@ -235,8 +235,8 @@ class Task(Generic[P, R]):
     @overload
     def __call__(
         self: "Task[P, Coroutine[Any, Any, T]]",
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ) -> Awaitable[PrefectFuture[T, Async]]:
         ...
@@ -244,16 +244,16 @@ class Task(Generic[P, R]):
     @overload
     def __call__(
         self: "Task[P, T]",
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T, Sync]:
         ...
 
     def __call__(
         self,
-        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
