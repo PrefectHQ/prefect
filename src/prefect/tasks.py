@@ -189,10 +189,7 @@ class Task(Generic[P, R]):
             >>> def my_task():
             >>>     return 1
             >>>
-            >>> @flow
-            >>> def my_flow():
-            >>>     new_task = my_task.copy(name="My new task")
-            >>>     return new_task()
+            >>> new_task = my_task.copy(name="My new task")
 
             Copy a task and update the retry settings
 
@@ -205,10 +202,18 @@ class Task(Generic[P, R]):
             >>>         raise ValueError("Retry me please!")
             >>>     return x
             >>>
+            >>> new_task = my_task.copy(retries=5, retry_delay_seconds=2)
+
+            Use a copied a task within a flow
+
+            >>> @task(name="My task")
+            >>> def my_task():
+            >>>     return 1
+            >>>
             >>> @flow
-            >>> def my_flow():
-            >>>     new_task = my_task.copy(retries=5, retry_delay_seconds=2)
-            >>>     return new_task()
+            >>> my_flow():
+            >>>     new_task = my_task.copy(name="My new task")
+            >>>     new_task()
         """
         return Task(
             fn=self.fn,
