@@ -996,7 +996,6 @@ class TestTaskCopy:
         assert copied_task.tags is not initial_task.tags
         assert copied_task.cache_key_fn is cache_key_fn
         assert copied_task.cache_expiration == datetime.timedelta(days=1)
-        assert copied_task.cache_expiration is not initial_task.cache_expiration
         assert copied_task.retries == 2
         assert copied_task.retry_delay_seconds == 5
 

@@ -221,7 +221,7 @@ class Task(Generic[P, R]):
             description=description or self.description,
             tags=tags or copy(self.tags),
             cache_key_fn=cache_key_fn or self.cache_key_fn,
-            cache_expiration=cache_expiration or deepcopy(self.cache_expiration),
+            cache_expiration=cache_expiration or self.cache_expiration,
             retries=retries or self.retries,
             retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
         )
