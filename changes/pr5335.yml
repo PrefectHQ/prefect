@@ -1,2 +1,2 @@
 enhancement:
-  "Upgrade version of Hasura GraphQL engine to v2.1.1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)"
+  - "Upgrade version of Hasura GraphQL engine to v2.1.1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)"
