@@ -50,7 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
 }
 
 .bread-crumbs__crumb--bold {
-  font-weight: bold;
+  font-weight: 600;
 }
 
 @media (min-width: 640px) {
