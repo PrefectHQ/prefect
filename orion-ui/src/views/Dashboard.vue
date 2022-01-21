@@ -122,14 +122,15 @@ import LatenessIntervalBarChart from '@/components/LatenessIntervalBarChart.vue'
 import type {
   UnionFilters,
   FlowRunsHistoryFilter,
-  DeploymentsFilter
+  DeploymentsFilter,
+  ResultsListTab
 } from '@prefecthq/orion-design'
 
 import { Api, Endpoints, Query } from '@/plugins/api'
 import { useStore } from 'vuex'
 import { useRoute } from 'vue-router'
 import router from '@/router'
-import { ResultsListTab, buildFilter } from '@prefecthq/orion-design'
+import { ResultsListTabs, buildFilter } from '@prefecthq/orion-design'
 
 const store = useStore()
 const route = useRoute()

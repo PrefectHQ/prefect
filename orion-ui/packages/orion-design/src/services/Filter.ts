@@ -48,8 +48,8 @@ function buildBaseFilter(baseFilter: BaseFilter): Filter {
 }
 
 function buildTimeFrameFilter(timeFrame: RunTimeFrame | undefined): TimeFrameFilter | undefined {
-  if (timeFrame === undefined) {
-    return timeFrame
+  if (!timeFrame || !isValidTimeFrame(timeFrame.from) && !isValidTimeFrame(timeFrame.from)) {
+    return undefined
   }
 
   let filter: TimeFrameFilter = {}
@@ -66,8 +66,8 @@ function buildTimeFrameFilter(timeFrame: RunTimeFrame | undefined): TimeFrameFil
 }
 
 function buildStateFilter(states: RunState[] | undefined): StateFilter | undefined {
-  if (states === undefined || !isNonEmptyArray(states)) {
-    return states
+  if (!states || !isNonEmptyArray(states)) {
+    return undefined
   }
 
   let filter: StateFilter = {}
@@ -108,8 +108,15 @@ function buildFlowFilter(globalFilter: GlobalFilter): FlowFilter {
 function buildFlowRunFilter(globalFilter: GlobalFilter): FlowRunFilter {
   const filter: FlowRunFilter = buildBaseFilter(globalFilter.flow_runs)
 
-  filter.expected_start_time = buildTimeFrameFilter(globalFilter.flow_runs.timeframe)
-  filter.state = buildStateFilter(globalFilter.flow_runs.states)
+  const startTime = buildTimeFrameFilter(globalFilter.flow_runs.timeframe)
+  if (startTime) {
+    filter.expected_start_time = startTime
+  }
+
+  const state = buildStateFilter(globalFilter.flow_runs.states)
+  if (state) {
+    filter.state = state
+  }
 
   return filter
 }
@@ -117,8 +124,15 @@ function buildFlowRunFilter(globalFilter: GlobalFilter): FlowRunFilter {
 function buildTaskRunFilter(globalFilter: GlobalFilter): TaskRunFilter {
   const filter: TaskRunFilter = buildBaseFilter(globalFilter.task_runs)
 
-  filter.start_time = buildTimeFrameFilter(globalFilter.task_runs.timeframe)
-  filter.state = buildStateFilter(globalFilter.task_runs.states)
+  const startTime = buildTimeFrameFilter(globalFilter.task_runs.timeframe)
+  if (startTime) {
+    filter.start_time = startTime
+  }
+
+  const state = buildStateFilter(globalFilter.task_runs.states)
+  if (state) {
+    filter.state = state
+  }
 
   return filter
 }
