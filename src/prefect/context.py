@@ -21,6 +21,7 @@ from prefect.futures import PrefectFuture
 from prefect.tasks import Task
 from prefect.orion.schemas.states import State
 from prefect.orion.schemas.core import TaskRun, FlowRun
+from prefect.exceptions import MissingContextError
 
 T = TypeVar("T")
 
@@ -150,7 +151,7 @@ def get_run_context() -> Union[FlowRunContext, TaskRunContext]:
     if flow_run_ctx:
         return flow_run_ctx
 
-    raise RuntimeError(
+    raise MissingContextError(
         "No run context available. You are not in a flow or task run context."
     )
 
