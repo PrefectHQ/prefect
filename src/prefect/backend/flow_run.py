@@ -99,7 +99,7 @@ def watch_flow_run(
         if total_time_elapsed > 60 * 60 * 12:
             raise RuntimeError(
                 "`watch_flow_run` timed out after 12 hours of waiting for completion. "
-                "Your flow run is still in state: {flow_run.state}"
+                f"Your flow run is still in state: {flow_run.state}"
             )
 
         if (
