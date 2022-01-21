@@ -50,7 +50,7 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
             RetryPotentialFailures,
             RenameReruns,
             CacheInsertion,
-            ReturnConcurrencySlots,
+            ReturnTaskConcurrencySlots,
         ]
 
 
@@ -105,7 +105,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             cl.active_slots = max(0, cl.active_slots - 1)
 
 
-class ReturnConcurrencySlots(BaseOrchestrationRule):
+class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = ALL_ORCHESTRATION_STATES
 

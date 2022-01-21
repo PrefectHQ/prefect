@@ -1,6 +1,8 @@
 import contextlib
 import pendulum
 import pytest
+import random
+
 from itertools import product
 
 from prefect.orion.schemas.responses import SetStateStatus
@@ -10,13 +12,17 @@ from prefect.orion.orchestration.core_policy import (
     PreventTransitionsFromTerminalStates,
     RenameReruns,
     RetryPotentialFailures,
-    ReturnConcurrencySlots,
+    ReturnTaskConcurrencySlots,
     SecureTaskConcurrencySlots,
     WaitForScheduledTime,
 )
 
 from prefect.orion import schemas
-from prefect.orion.orchestration.rules import ALL_ORCHESTRATION_STATES, TERMINAL_STATES
+from prefect.orion.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
+    TERMINAL_STATES,
+    BaseOrchestrationRule,
+)
 from prefect.orion.models import concurrency_limits
 from prefect.orion.schemas import states, actions
 
@@ -432,8 +438,7 @@ class TestTaskConcurrencyLimits:
         initialize_orchestration,
     ):
         await self.create_concurrency_limit(session, "test_tag", 1)
-
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -499,6 +504,81 @@ class TestTaskConcurrencyLimits:
 
         assert ctx4.response_status == SetStateStatus.ACCEPT
 
+    async def test_concurrency_limiting_aborts_transitions_with_zero_limit(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "the worst limit", 0)
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["the worst limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ABORT
+
+    async def test_returning_concurrency_slots_on_fizzle(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                await self.reject_transition(
+                    mutated_state, reason="gotta fizzle some rules, for fun"
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                pass
+
+            async def cleanup(self, initial_state, validated_state, context):
+                pass
+
+        await self.create_concurrency_limit(session, "a nice little limit", 1)
+
+        concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReturnTaskConcurrencySlots,
+            StateMutatingRule,
+        ]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["a nice little limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.REJECT
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(
+                session, "a nice little limit"
+            )
+        ).active_slots == 0
+
     async def test_concurrency_race_condition_new_tags_arent_double_counted(
         self,
         session,
@@ -507,7 +587,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "primary tag", 2)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -620,7 +700,7 @@ class TestTaskConcurrencyLimits:
         await self.create_concurrency_limit(session, "primary tag", 2)
         await self.create_concurrency_limit(session, "secondary tag", 1)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -682,7 +762,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "test_tag", 1)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -722,7 +802,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "test_tag", 2)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
 
         ctx1 = await initialize_orchestration(
@@ -761,7 +841,7 @@ class TestTaskConcurrencyLimits:
     ):
         await self.create_concurrency_limit(session, "test_tag", 2)
 
-        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnTaskConcurrencySlots]
 
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
