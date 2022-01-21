@@ -251,19 +251,20 @@ def initialize_orchestration(
         run_type,
         initial_state_type,
         proposed_state_type,
+        run_override=None,
         run_tags=None,
         initial_details=None,
         proposed_details=None,
     ):
 
         if run_type == "flow":
-            run = flow_run
+            run = run_override if run_override is not None else flow_run
             if run_tags is not None:
                 run.tags = run_tags
             context = FlowOrchestrationContext
             state_constructor = commit_flow_run_state
         elif run_type == "task":
-            run = task_run
+            run = run_override if run_override is not None else task_run
             if run_tags is not None:
                 run.tags = run_tags
             context = TaskOrchestrationContext

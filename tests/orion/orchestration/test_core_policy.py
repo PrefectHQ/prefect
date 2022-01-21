@@ -410,7 +410,7 @@ class TestTransitionsFromTerminalStatesRule:
 
 @pytest.mark.parametrize("run_type", ["task"])
 class TestTaskConcurrencyLimits:
-    async def test_all_other_transitions_are_accepted(
+    async def test_basic_concurrency_limiting(
         self,
         session,
         run_type,
@@ -429,27 +429,50 @@ class TestTaskConcurrencyLimits:
 
         concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
 
-        initial_state_type = states.StateType.PENDING
-        proposed_state_type = states.StateType.RUNNING
-        intended_transition = (initial_state_type, proposed_state_type)
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
         ctx1 = await initialize_orchestration(
-            session, "task", *intended_transition, run_tags=["test_tag"]
+            session, "task", *running_transition, run_tags=["test_tag"]
         )
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in concurrency_policy:
-                ctx1 = await stack.enter_async_context(rule(ctx1, *intended_transition))
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
             await ctx1.validate_proposed_state()
 
         assert ctx1.response_status == SetStateStatus.ACCEPT
 
         ctx2 = await initialize_orchestration(
-            session, "task", *intended_transition, run_tags=["test_tag"]
+            session, "task", *running_transition, run_tags=["test_tag"]
         )
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in concurrency_policy:
-                ctx2 = await stack.enter_async_context(rule(ctx2, *intended_transition))
+                ctx2 = await stack.enter_async_context(rule(ctx2, *running_transition))
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.WAIT
+
+        ctx3 = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=ctx1.run,
+            run_tags=["test_tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx3 = await stack.enter_async_context(
+                    rule(ctx3, *completed_transition)
+                )
+            await ctx3.validate_proposed_state()
+
+        assert ctx3.response_status == SetStateStatus.ACCEPT
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *running_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ACCEPT
