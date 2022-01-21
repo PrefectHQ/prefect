@@ -434,7 +434,6 @@ class TestTaskConcurrencyLimits:
         await self.create_concurrency_limit(session, "test_tag", 1)
 
         concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
-
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -509,7 +508,6 @@ class TestTaskConcurrencyLimits:
         await self.create_concurrency_limit(session, "primary tag", 2)
 
         concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
-
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -623,7 +621,6 @@ class TestTaskConcurrencyLimits:
         await self.create_concurrency_limit(session, "secondary tag", 1)
 
         concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
-
         running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
 
@@ -676,3 +673,133 @@ class TestTaskConcurrencyLimits:
             await ctx3.validate_proposed_state()
 
         assert ctx3.response_status == SetStateStatus.ACCEPT
+
+    async def test_concurrency_race_condition_limit_increases_dont_impact_execution(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "test_tag", 1)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        await self.create_concurrency_limit(session, "test_tag", 2)
+
+        ctx2 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *running_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ACCEPT
+
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
+        ).active_slots == 2
+
+    async def test_concurrency_race_condition_limit_decreases_impact_new_runs(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "test_tag", 2)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        await self.create_concurrency_limit(session, "test_tag", 1)
+
+        ctx2 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *running_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.WAIT
+
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
+        ).active_slots == 1
+
+    async def test_concurrency_race_condition_limit_decreases_dont_impact_existing_runs(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "test_tag", 2)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["test_tag"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
+        ).active_slots == 1
+
+        await self.create_concurrency_limit(session, "test_tag", 1)
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=ctx1.run,
+            run_tags=["test_tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(
+                    rule(ctx2, *completed_transition)
+                )
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.ACCEPT
+
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
+        ).active_slots == 0
