@@ -153,7 +153,7 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     @property
     def concurrency_limit_unique_upsert_columns(self):
-        """Unique columns for upserting a Deployment"""
+        """Unique columns for upserting a ConcurrencyLimit"""
         return self.orm.concurrency_limit_unique_upsert_columns
 
     @property
