@@ -503,7 +503,7 @@ class TestTaskConcurrencyLimits:
         run_type,
         initialize_orchestration,
     ):
-        await self.create_concurrency_limit(session, "initial tag", 2)
+        await self.create_concurrency_limit(session, "primary tag", 2)
 
         concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
 
@@ -514,7 +514,7 @@ class TestTaskConcurrencyLimits:
             session,
             "task",
             *running_transition,
-            run_tags=["initial tag", "secondary tag"],
+            run_tags=["primary tag", "secondary tag"],
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -536,7 +536,7 @@ class TestTaskConcurrencyLimits:
             session,
             "task",
             *running_transition,
-            run_tags=["initial tag", "secondary tag"],
+            run_tags=["primary tag", "secondary tag"],
         )
 
         async with contextlib.AsyncExitStack() as stack:
@@ -545,6 +545,12 @@ class TestTaskConcurrencyLimits:
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.ACCEPT
+
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(
+                session, "primary tag"
+            )
+        ).active_slots == 2
 
         assert (
             await concurrency_limits.read_concurrency_limit_by_tag(
@@ -557,12 +563,14 @@ class TestTaskConcurrencyLimits:
             "task",
             *completed_transition,
             run_override=ctx1.run,
-            run_tags=["initial tag", "secondary tag"],
+            run_tags=["primary tag", "secondary tag"],
         )
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in concurrency_policy:
-                ctx3 = await stack.enter_async_context(rule(ctx3, *running_transition))
+                ctx3 = await stack.enter_async_context(
+                    rule(ctx3, *completed_transition)
+                )
             await ctx3.validate_proposed_state()
 
         assert ctx3.response_status == SetStateStatus.ACCEPT
@@ -578,17 +586,23 @@ class TestTaskConcurrencyLimits:
             "task",
             *completed_transition,
             run_override=ctx2.run,
-            run_tags=["initial tag", "secondary tag"],
+            run_tags=["primary tag", "secondary tag"],
         )
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in concurrency_policy:
-                ctx4 = await stack.enter_async_context(rule(ctx4, *running_transition))
+                ctx4 = await stack.enter_async_context(
+                    rule(ctx4, *completed_transition)
+                )
             await ctx4.validate_proposed_state()
 
         assert ctx4.response_status == SetStateStatus.ACCEPT
 
-        await session.flush()
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(
+                session, "primary tag"
+            )
+        ).active_slots == 1
 
         assert (
             await concurrency_limits.read_concurrency_limit_by_tag(
