@@ -250,6 +250,7 @@ class Task(Generic[P, R]):
     def __call__(
         self,
         *args: Any,
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
