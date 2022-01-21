@@ -431,6 +431,11 @@ class TestTaskConcurrencyLimits:
     async def delete_concurrency_limit(self, session, tag):
         await concurrency_limits.delete_concurrency_limit_by_tag(session, tag)
 
+    async def count_concurrency_slots(self, session, tag):
+        return (
+            await concurrency_limits.read_concurrency_limit_by_tag(session, tag)
+        ).active_slots
+
     async def test_basic_concurrency_limiting(
         self,
         session,
@@ -464,9 +469,7 @@ class TestTaskConcurrencyLimits:
 
         assert ctx2.response_status == SetStateStatus.WAIT
 
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
-        ).active_slots == 1
+        assert (await self.count_concurrency_slots(session, "test_tag")) == 1
 
         ctx3 = await initialize_orchestration(
             session,
@@ -484,10 +487,7 @@ class TestTaskConcurrencyLimits:
             await ctx3.validate_proposed_state()
 
         assert ctx3.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
-        ).active_slots == 0
+        assert (await self.count_concurrency_slots(session, "test_tag")) == 0
 
         ctx4 = await initialize_orchestration(
             session,
@@ -573,11 +573,7 @@ class TestTaskConcurrencyLimits:
             await ctx1.validate_proposed_state()
 
         assert ctx1.response_status == SetStateStatus.REJECT
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "a nice little limit"
-            )
-        ).active_slots == 0
+        assert (await self.count_concurrency_slots(session, "a nice little limit")) == 0
 
     async def test_concurrency_race_condition_new_tags_arent_double_counted(
         self,
@@ -607,11 +603,7 @@ class TestTaskConcurrencyLimits:
 
         await self.create_concurrency_limit(session, "secondary tag", 1)
 
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "secondary tag"
-            )
-        ).active_slots == 0
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 0
 
         ctx2 = await initialize_orchestration(
             session,
@@ -627,17 +619,8 @@ class TestTaskConcurrencyLimits:
 
         assert ctx2.response_status == SetStateStatus.ACCEPT
 
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "primary tag"
-            )
-        ).active_slots == 2
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "secondary tag"
-            )
-        ).active_slots == 1
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 2
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 1
 
         ctx3 = await initialize_orchestration(
             session,
@@ -655,12 +638,7 @@ class TestTaskConcurrencyLimits:
             await ctx3.validate_proposed_state()
 
         assert ctx3.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "secondary tag"
-            )
-        ).active_slots == 1
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 1
 
         ctx4 = await initialize_orchestration(
             session,
@@ -678,18 +656,8 @@ class TestTaskConcurrencyLimits:
             await ctx4.validate_proposed_state()
 
         assert ctx4.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "primary tag"
-            )
-        ).active_slots == 1
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "secondary tag"
-            )
-        ).active_slots == 0
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 1
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 0
 
     async def test_concurrency_race_condition_deleted_tags_dont_impact_execution(
         self,
@@ -717,12 +685,7 @@ class TestTaskConcurrencyLimits:
             await ctx1.validate_proposed_state()
 
         assert ctx1.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(
-                session, "secondary tag"
-            )
-        ).active_slots == 1
+        assert (await self.count_concurrency_slots(session, "secondary tag")) == 1
 
         ctx2 = await initialize_orchestration(
             session,
@@ -789,10 +752,7 @@ class TestTaskConcurrencyLimits:
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
-        ).active_slots == 2
+        assert (await self.count_concurrency_slots(session, "test_tag")) == 2
 
     async def test_concurrency_race_condition_limit_decreases_impact_new_runs(
         self,
@@ -828,10 +788,7 @@ class TestTaskConcurrencyLimits:
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.WAIT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
-        ).active_slots == 1
+        assert (await self.count_concurrency_slots(session, "test_tag")) == 1
 
     async def test_concurrency_race_condition_limit_decreases_dont_impact_existing_runs(
         self,
@@ -856,10 +813,7 @@ class TestTaskConcurrencyLimits:
             await ctx1.validate_proposed_state()
 
         assert ctx1.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
-        ).active_slots == 1
+        assert (await self.count_concurrency_slots(session, "test_tag")) == 1
 
         await self.create_concurrency_limit(session, "test_tag", 1)
 
@@ -879,7 +833,4 @@ class TestTaskConcurrencyLimits:
             await ctx2.validate_proposed_state()
 
         assert ctx2.response_status == SetStateStatus.ACCEPT
-
-        assert (
-            await concurrency_limits.read_concurrency_limit_by_tag(session, "test_tag")
-        ).active_slots == 0
+        assert (await self.count_concurrency_slots(session, "test_tag")) == 0
