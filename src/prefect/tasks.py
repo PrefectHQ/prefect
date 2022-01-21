@@ -188,7 +188,7 @@ class Task(Generic[P, R]):
             >>> @task(name="My task")
             >>> def my_task():
             >>>     return 1
-            >>> 
+            >>>
             >>> @flow
             >>> def my_flow():
             >>>     new_task = my_task.copy(name="My new task")
