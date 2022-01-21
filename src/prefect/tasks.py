@@ -4,6 +4,7 @@ Module containing the base workflow task class and decorator - for most use case
 # This file requires type-checking with pyright because mypy does not yet support PEP612
 # See https://github.com/python/mypy/issues/8645
 
+from copy import copy, deepcopy
 import datetime
 import logging
 import inspect
@@ -145,9 +146,85 @@ class Task(Generic[P, R]):
         self.retries = retries
         self.retry_delay_seconds = retry_delay_seconds
 
+    def copy(
+        self,
+        name: str = None,
+        description: str = None,
+        tags: Iterable[str] = None,
+        cache_key_fn: Callable[
+            ["TaskRunContext", Dict[str, Any]], Optional[str]
+        ] = None,
+        cache_expiration: datetime.timedelta = None,
+        retries: int = 0,
+        retry_delay_seconds: Union[float, int] = 0,
+    ):
+        """
+        Method to copy a task and override any task settings.
+
+        Args:
+            name: An optional name for the task; if not provided, the name will be inferred
+                from the given function.
+            description: An optional string description for the task.
+            tags: An optional set of tags to be associated with runs of this task. These
+                tags are combined with any tags defined by a `prefect.tags` context at
+                task runtime.
+            cache_key_fn: An optional callable that, given the task run context and call
+                parameters, generates a string key; if the key matches a previous completed
+                state, that state result will be restored instead of running the task again.
+            cache_expiration: An optional amount of time indicating how long cached states
+                for this task should be restorable; if not provided, cached states will
+                never expire.
+            retries: An optional number of times to retry on task run failure
+            retry_delay_seconds: An optional number of seconds to wait before retrying the
+                task after failure. This is only applicable if `retries` is nonzero.
+
+        Returns:
+            A new callable `Task` object which, when called, will submit the task for execution.
+
+        Examples:
+
+            Copy a task and update the name
+
+            >>> @task(name="My task")
+            >>> def my_task():
+            >>>     return 1
+            >>> 
+            >>> @flow
+            >>> def my_flow():
+            >>>     new_task = my_task.copy(name="My new task")
+            >>>     return new_task()
+
+            Copy a task and update the retry settings
+
+            >>> from random import randint
+            >>>
+            >>> @task(retries=1, retry_delay_seconds=5)
+            >>> def my_task():
+            >>>     x = randint(0, 5)
+            >>>     if x >= 3:  # Make a task that fails sometimes
+            >>>         raise ValueError("Retry me please!")
+            >>>     return x
+            >>>
+            >>> @flow
+            >>> def my_flow():
+            >>>     new_task = my_task.copy(retries=5, retry_delay_seconds=2)
+            >>>     return new_task()
+        """
+        return Task(
+            fn=self.fn,
+            name=name or self.name,
+            description=description or self.description,
+            tags=tags or copy(self.tags),
+            cache_key_fn=cache_key_fn or self.cache_key_fn,
+            cache_expiration=cache_expiration or deepcopy(self.cache_expiration),
+            retries=retries or self.retries,
+            retry_delay_seconds=retry_delay_seconds or self.retry_delay_seconds,
+        )
+
     @overload
     def __call__(
         self: "Task[P, NoReturn]",
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[None, Sync]:
@@ -158,6 +235,7 @@ class Task(Generic[P, R]):
     @overload
     def __call__(
         self: "Task[P, Coroutine[Any, Any, T]]",
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> Awaitable[PrefectFuture[T, Async]]:
@@ -166,6 +244,7 @@ class Task(Generic[P, R]):
     @overload
     def __call__(
         self: "Task[P, T]",
+        wait_for: Optional[Iterable[PrefectFuture]] = None,
         *args: P.args,
         **kwargs: P.kwargs,
     ) -> PrefectFuture[T, Sync]:
@@ -173,8 +252,8 @@ class Task(Generic[P, R]):
 
     def __call__(
         self,
-        *args: Any,
         wait_for: Optional[Iterable[PrefectFuture]] = None,
+        *args: Any,
         **kwargs: Any,
     ) -> Union[PrefectFuture, Awaitable[PrefectFuture]]:
         """
