@@ -5,8 +5,8 @@ function isValidTimeFrame(
   timeFrame: TimeFrame | undefined
 ): timeFrame is TimeFrame {
   return (
-    timeFrame?.timestamp !== undefined ||
-    (timeFrame?.value !== undefined && timeFrame.unit !== undefined)
+    timeFrame?.timestamp != undefined ||
+    (timeFrame?.value != undefined && timeFrame.unit != undefined)
   )
 }
 
