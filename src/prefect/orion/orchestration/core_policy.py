@@ -76,7 +76,9 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             if cl is not None:
                 if cl.active_slots >= cl.concurrency_limit:
                     await self.delay_transition(
-                        30, f"Concurrency limit for the {tag} tag has been reached"
+                        30,
+                        f"Concurrency limit for the {tag} tag has been reached",
+                        cleanup=True,
                     )
                 else:
                     self.applied_limits.append(tag)
@@ -88,6 +90,8 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
         validated_state: Optional[states.State],
         context: OrchestrationContext,
     ) -> None:
+        from prefect.orion.models import concurrency_limits
+
         for tag in self.applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
                 context.session, tag
