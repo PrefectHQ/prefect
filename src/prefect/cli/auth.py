@@ -128,7 +128,8 @@ def login(key, token):
 
     # Attempt to treat the input like an API key even if it is passed as a token
     # Ignore any tenant id that has been previously set via login
-    client = Client(api_key=key or token, tenant_id=None)
+    client = Client(api_key=key or token)
+    client._tenant_id = None
 
     try:
         tenant_id = client._get_auth_tenant()
