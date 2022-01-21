@@ -422,6 +422,9 @@ class TestTaskConcurrencyLimits:
             session=session, concurrency_limit=cl_model
         )
 
+    async def delete_concurrency_limit(self, session, tag):
+        await concurrency_limits.delete_concurrency_limit_by_tag(session, tag)
+
     async def test_basic_concurrency_limiting(
         self,
         session,
@@ -524,7 +527,7 @@ class TestTaskConcurrencyLimits:
 
         assert ctx1.response_status == SetStateStatus.ACCEPT
 
-        await self.create_concurrency_limit(session, "secondary tag", 2)
+        await self.create_concurrency_limit(session, "secondary tag", 1)
 
         assert (
             await concurrency_limits.read_concurrency_limit_by_tag(
@@ -609,3 +612,67 @@ class TestTaskConcurrencyLimits:
                 session, "secondary tag"
             )
         ).active_slots == 0
+
+    async def test_concurrency_race_condition_deleted_tags_dont_impact_execution(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        await self.create_concurrency_limit(session, "primary tag", 2)
+        await self.create_concurrency_limit(session, "secondary tag", 1)
+
+        concurrency_policy = [SecureTaskConcurrencySlots, ReturnConcurrencySlots]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        ctx1 = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        assert (
+            await concurrency_limits.read_concurrency_limit_by_tag(
+                session, "secondary tag"
+            )
+        ).active_slots == 1
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *running_transition))
+            await ctx2.validate_proposed_state()
+
+        assert ctx2.response_status == SetStateStatus.WAIT
+
+        await self.delete_concurrency_limit(session, "secondary tag")
+
+        ctx3 = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_tags=["primary tag", "secondary tag"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx3 = await stack.enter_async_context(rule(ctx3, *running_transition))
+            await ctx3.validate_proposed_state()
+
+        assert ctx3.response_status == SetStateStatus.ACCEPT
