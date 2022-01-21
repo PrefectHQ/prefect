@@ -369,6 +369,66 @@ class TestBaseOrchestrationRule:
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
 
+    async def test_rules_that_reject_state_with_cleanup_fizzle_themselves(
+        self, session, task_run
+    ):
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_step = MagicMock()
+
+        class StateMutatingRuleWithCleanup(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, AND fizzles itself upon exiting
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.reject_transition(
+                    mutated_state, reason="for testing, of course", cleanup=True
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        mutating_rule = StateMutatingRuleWithCleanup(ctx, *intended_transition)
+        async with mutating_rule as ctx:
+            pass
+        assert await mutating_rule.invalid() is False
+        assert await mutating_rule.fizzled() is True
+
+        # this rule fizzles itself, so cleanup is called instead of the after hook
+        assert before_transition_hook.call_count == 1
+        assert after_transition_hook.call_count == 0
+        assert cleanup_step.call_count == 1
+
     async def test_rules_that_wait_do_not_fizzle_themselves(self, session, task_run):
         before_transition_hook = MagicMock()
         after_transition_hook = MagicMock()
@@ -424,6 +484,182 @@ class TestBaseOrchestrationRule:
         assert before_transition_hook.call_count == 1
         assert after_transition_hook.call_count == 1
         assert cleanup_step.call_count == 0
+
+    async def test_rules_that_wait_with_cleanup_fizzle_themselves(
+        self, session, task_run
+    ):
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_step = MagicMock()
+
+        class StateMutatingRuleWithCleanup(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, AND fizzles itself upon exiting
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.delay_transition(
+                    42, reason="for testing, of course", cleanup=True
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        mutating_rule = StateMutatingRuleWithCleanup(ctx, *intended_transition)
+        async with mutating_rule as ctx:
+            pass
+        assert await mutating_rule.invalid() is False
+        assert await mutating_rule.fizzled() is True
+
+        # this rule fizzles itself, so cleanup is called instead of the after hook
+        assert before_transition_hook.call_count == 1
+        assert after_transition_hook.call_count == 0
+        assert cleanup_step.call_count == 1
+
+    async def test_rules_that_abort_do_not_fizzle_themselves(self, session, task_run):
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_step = MagicMock()
+
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, but won't fizzle itself upon exiting
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.abort_transition(reason="for testing, of course")
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        mutating_rule = StateMutatingRule(ctx, *intended_transition)
+        async with mutating_rule as ctx:
+            pass
+        assert await mutating_rule.invalid() is False
+        assert await mutating_rule.fizzled() is False
+
+        # despite the mutation, this rule is valid so before and after hooks will fire
+        assert before_transition_hook.call_count == 1
+        assert after_transition_hook.call_count == 1
+        assert cleanup_step.call_count == 0
+
+    async def test_rules_that_abort_with_cleanup_fizzle_themselves(
+        self, session, task_run
+    ):
+        before_transition_hook = MagicMock()
+        after_transition_hook = MagicMock()
+        cleanup_step = MagicMock()
+
+        class StateMutatingRuleWithCleanup(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                # this rule mutates the proposed state type, AND fizzles itself upon exiting
+                mutated_state = proposed_state.copy()
+                mutated_state.type = random.choice(
+                    list(
+                        set(states.StateType)
+                        - {initial_state.type, proposed_state.type}
+                    )
+                )
+                before_transition_hook()
+                # `BaseOrchestrationRule` provides hooks designed to mutate the proposed state
+                await self.abort_transition(
+                    reason="for testing, of course", cleanup=True
+                )
+
+            async def after_transition(self, initial_state, validated_state, context):
+                after_transition_hook()
+
+            async def cleanup(self, initial_state, validated_state, context):
+                cleanup_step()
+
+        # this rule seems valid because the initial and proposed states match the intended transition
+        initial_state_type = states.StateType.PENDING
+        proposed_state_type = states.StateType.RUNNING
+        intended_transition = (initial_state_type, proposed_state_type)
+        initial_state = await commit_task_run_state(
+            session, task_run, initial_state_type
+        )
+        proposed_state = (
+            states.State(type=proposed_state_type) if proposed_state_type else None
+        )
+
+        ctx = OrchestrationContext(
+            session=session,
+            initial_state=initial_state,
+            proposed_state=proposed_state,
+        )
+
+        mutating_rule = StateMutatingRuleWithCleanup(ctx, *intended_transition)
+        async with mutating_rule as ctx:
+            pass
+        assert await mutating_rule.invalid() is False
+        assert await mutating_rule.fizzled() is True
+
+        # this rule fizzles itself, so cleanup is called instead of the after hook
+        assert before_transition_hook.call_count == 1
+        assert after_transition_hook.call_count == 0
+        assert cleanup_step.call_count == 1
 
     @pytest.mark.parametrize("initial_state_type", ALL_ORCHESTRATION_STATES)
     async def test_rules_enforce_initial_state_validity(
