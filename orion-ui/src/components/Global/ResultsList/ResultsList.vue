@@ -26,6 +26,7 @@ import {
 } from 'vue'
 import Observer from '@/components//Global/IntersectionObserver/IntersectionObserver.vue'
 import { Api, Endpoints, FilterBody, Query } from '@/plugins/api'
+import List from '@/components/Global/List/List.vue'
 
 const props = withDefaults(
   defineProps<{
