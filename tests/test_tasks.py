@@ -3,12 +3,13 @@ from itertools import repeat
 from unittest.mock import MagicMock
 
 import pytest
+import inspect
 
 from prefect import flow, tags, get_run_logger
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
-from prefect.tasks import task, task_input_hash
+from prefect.tasks import Task, task, task_input_hash
 from prefect.utilities.testing import exceptions_equal
 from prefect.exceptions import ReservedArgumentError
 
@@ -930,3 +931,78 @@ class TestTaskRunLogs:
         task_run_logs = [log for log in logs if log.task_run_id is not None]
         assert task_run_logs, f"There should be task run logs in {logs}"
         assert all([log.task_run_id == task_run_id for log in task_run_logs])
+
+
+class TestTaskCopy:
+    def test_copy_allows_override_of_task_settings(self):
+        def first_cache_key_fn(*_):
+            return "first cache hit"
+
+        def second_cache_key_fn(*_):
+            return "second cache hit"
+
+        @task(
+            name="Initial task",
+            description="Task before copy",
+            tags=["tag1", "tag2"],
+            cache_key_fn=first_cache_key_fn,
+            cache_expiration=datetime.timedelta(days=1),
+            retries=2,
+            retry_delay_seconds=5,
+        )
+        def initial_task():
+            pass
+
+        copied_task = initial_task.copy(
+            name="Copied task",
+            description="A copied task",
+            tags=["tag3", "tag4"],
+            cache_key_fn=second_cache_key_fn,
+            cache_expiration=datetime.timedelta(days=2),
+            retries=5,
+            retry_delay_seconds=10
+        )
+
+        assert copied_task.name == "Copied task"
+        assert copied_task.description == "A copied task"
+        assert set(copied_task.tags) == {"tag3", "tag4"}
+        assert copied_task.cache_key_fn is second_cache_key_fn
+        assert copied_task.cache_expiration == datetime.timedelta(days=2)
+        assert copied_task.retries == 5
+        assert copied_task.retry_delay_seconds == 10
+
+    def test_copy_uses_existing_settings_when_no_override(self):
+        def cache_key_fn(*_):
+            return "cache hit"
+
+        @task(
+            name="Initial task",
+            description="Task before copy",
+            tags=["tag1", "tag2"],
+            cache_key_fn=cache_key_fn,
+            cache_expiration=datetime.timedelta(days=1),
+            retries=2,
+            retry_delay_seconds=5,
+        )
+        def initial_task():
+            pass
+
+        copied_task = initial_task.copy()
+
+        assert copied_task is not initial_task
+        assert copied_task.name == "Initial task"
+        assert copied_task.description == "Task before copy"
+        assert set(copied_task.tags) == {"tag1", "tag2"}
+        assert copied_task.tags is not initial_task.tags
+        assert copied_task.cache_key_fn is cache_key_fn
+        assert copied_task.cache_expiration == datetime.timedelta(days=1)
+        assert copied_task.cache_expiration is not initial_task.cache_expiration
+        assert copied_task.retries == 2
+        assert copied_task.retry_delay_seconds == 5
+
+    def test_copy_signature_aligns_with_task_signature(self):
+        task_params = dict(inspect.signature(Task).parameters)
+        copy_params = dict(inspect.signature(Task.copy).parameters)
+        del task_params["fn"]
+        assert task_params == copy_params
+
