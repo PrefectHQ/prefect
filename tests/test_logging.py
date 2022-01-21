@@ -449,7 +449,7 @@ class TestOrionHandler:
 
         mock_log_worker().enqueue.assert_not_called()
 
-        # Error is in stdout
+        # Error is in stderr
         output = capsys.readouterr()
         assert "RuntimeError: Oh no!" in output.err
 
