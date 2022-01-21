@@ -98,8 +98,9 @@ def test_auth_login_with_api_key(patch_post, monkeypatch, cloud_api, as_token):
     assert result.exit_code == 0
     assert "Logged in to Prefect Cloud tenant 'Name' (tenant-slug)" in result.output
 
-    # Client is instantiated with the correct key and null tenant
-    Client.assert_called_with(api_key="test", tenant_id=None)
+    # Client is instantiated with the correct key and the tenant id is reset
+    Client.assert_called_with(api_key="test")
+    assert Client()._tenant_id is None
     # Auth tenant is retrieved to verify key
     Client()._get_auth_tenant.assert_called_once()
     # Auth tenant is set on Client and saved to disk
