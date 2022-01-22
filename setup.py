@@ -57,7 +57,7 @@ extras = {
     "dev": dev_requires + test_requires,
     "dropbox": ["dropbox ~= 9.0"],
     "firebolt": ["firebolt-sdk >= 0.2.1"],
-    "ge": ["great_expectations >= 0.13.84", "mistune"],
+    "ge": ["great_expectations >= 0.13.84", "mistune < 2.0"],
     "gcp": [
         "google-cloud-bigquery >= 1.6.0",
     ]
