@@ -83,7 +83,7 @@ extras = {
     "redis": ["redis >= 3.2.1"],
     "rss": ["feedparser >= 5.0.1"],
     "snowflake": ["snowflake-connector-python >= 1.8.2"],
-    "spacy": ["spacy >= 2.0.0"],
+    "spacy": ["spacy >= 2.0.0, < 3.0"],
     "templates": ["jinja2 >= 2.0"],
     "test": test_requires,
     "vault": ["hvac >= 0.10"],
