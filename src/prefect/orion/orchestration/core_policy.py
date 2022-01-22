@@ -77,15 +77,37 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             if cl is not None:
                 limit = cl.concurrency_limit
                 if limit == 0:
+                    for tag in self._applied_limits:
+                        cl = await concurrency_limits.read_concurrency_limit_by_tag(
+                            context.session, tag
+                        )
+                        active_slots = set(cl.active_slots)
+                        active_slots.discard(str(context.run.id))
+                        await concurrency_limits.update_concurrency_slots(
+                            context.session,
+                            tag,
+                            list(active_slots),
+                        )
+
                     await self.abort_transition(
                         reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
-                        cleanup=True,
                     )
                 elif len(cl.active_slots) >= limit:
+                    for tag in self._applied_limits:
+                        cl = await concurrency_limits.read_concurrency_limit_by_tag(
+                            context.session, tag
+                        )
+                        active_slots = set(cl.active_slots)
+                        active_slots.discard(str(context.run.id))
+                        await concurrency_limits.update_concurrency_slots(
+                            context.session,
+                            tag,
+                            list(active_slots),
+                        )
+
                     await self.delay_transition(
                         30,
                         f"Concurrency limit for the {tag} tag has been reached",
-                        cleanup=True,
                     )
                 else:
                     self._applied_limits.append(tag)
