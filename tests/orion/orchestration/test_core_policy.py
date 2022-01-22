@@ -665,7 +665,7 @@ class TestTaskConcurrencyLimits:
             await ctx4.validate_proposed_state()
 
         assert ctx4.response_status == SetStateStatus.ACCEPT
-        assert (await self.count_concurrency_slots(session, "primary tag")) == 1
+        assert (await self.count_concurrency_slots(session, "primary tag")) == 0
         assert (await self.count_concurrency_slots(session, "secondary tag")) == 0
 
     async def test_concurrency_race_condition_deleted_tags_dont_impact_execution(

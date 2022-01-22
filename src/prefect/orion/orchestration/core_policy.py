@@ -89,11 +89,12 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     )
                 else:
                     self._applied_limits.append(tag)
-                    cl.active_slots.append(str(context.run.id))
+                    active_slots = set(cl.active_slots)
+                    active_slots.add(str(context.run.id))
                     await concurrency_limits.update_concurrency_slots(
                         context.session,
                         tag,
-                        cl.active_slots,
+                        list(active_slots),
                     )
 
     async def cleanup(
@@ -108,11 +109,12 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
                 context.session, tag
             )
-            cl.active_slots.remove(str(context.run.id))
+            active_slots = set(cl.active_slots)
+            active_slots.discard(str(context.run.id))
             await concurrency_limits.update_concurrency_slots(
                 context.session,
                 tag,
-                cl.active_slots,
+                list(active_slots),
             )
 
 
@@ -135,11 +137,12 @@ class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
         for tag in context.run.tags:
             cl = limit_lookup.get(tag, None)
             if cl is not None:
-                cl.active_slots.remove(str(context.run.id))
+                active_slots = set(cl.active_slots)
+                active_slots.discard(str(context.run.id))
                 await concurrency_limits.update_concurrency_slots(
                     context.session,
                     tag,
-                    cl.active_slots,
+                    list(active_slots),
                 )
 
 
