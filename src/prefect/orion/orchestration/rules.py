@@ -673,21 +673,18 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             self.to_state_type != proposed_state_type
         )
 
-    async def reject_transition(
-        self, state: states.State, reason: str, cleanup: bool = False
-    ):
+    async def reject_transition(self, state: states.State, reason: str):
         """
         Rejects a proposed transition before the transition is validated.
 
         This method will reject a proposed transition, mutating the proposed state to
         the provided `state`. A reason for rejecting the transition is also passed on
         to the `OrchestrationContext`. Rules that reject the transition will not fizzle,
-        despite the proposed state type changing unless the `cleanup` flag is True.
+        despite the proposed state type changing.
 
         Args:
             state: The new proposed state
             reason: The reason for rejecting the transition
-            cleanup: This rule will fizzle itself if True; default is False
         """
 
         # don't run if the transition is already validated
@@ -695,14 +692,15 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             raise RuntimeError("The transition is already validated")
 
         # a rule that mutates state should not fizzle itself by default
-        if cleanup is False:
-            self.to_state_type = state.type
+        self.to_state_type = state.type
         self.context.proposed_state = state
         self.context.response_status = SetStateStatus.REJECT
         self.context.response_details = StateRejectDetails(reason=reason)
 
     async def delay_transition(
-        self, delay_seconds: int, reason: str, cleanup: bool = False
+        self,
+        delay_seconds: int,
+        reason: str,
     ):
         """
         Delays a proposed transition before the transition is validated.
@@ -712,12 +710,11 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         written to the database. The number of seconds a transition should be delayed is
         passed to the `OrchestrationContext`. A reason for delaying the transition is
         also provided. Rules that delay the transition will not fizzle, despite the
-        proposed state type changing unless the `cleanup` flag is True.
+        proposed state type changing.
 
         Args:
             delay_seconds: The number of seconds the transition should be delayed
             reason: The reason for delaying the transition
-            cleanup: This rule will fizzle itself if True; default is False
         """
 
         # don't run if the transition is already validated
@@ -725,15 +722,14 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             raise RuntimeError("The transition is already validated")
 
         # a rule that mutates state should not fizzle itself by default
-        if cleanup is False:
-            self.to_state_type = None
+        self.to_state_type = None
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.WAIT
         self.context.response_details = StateWaitDetails(
             delay_seconds=delay_seconds, reason=reason
         )
 
-    async def abort_transition(self, reason: str, cleanup: bool = False):
+    async def abort_transition(self, reason: str):
         """
         Aborts a proposed transition before the transition is validated.
 
@@ -742,12 +738,10 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
         `OrchestrationContext` that no state should be written to the database. A
         reason for aborting the transition is also provided. Rules that abort the
         transition will not fizzle, despite the proposed state type changing. Rules that
-        abort the transition will not fizzle, despite the proposed state type changing
-        unless the `cleanup` flag is True.
+        abort the transition will not fizzle, despite the proposed state type changing.
 
         Args:
             reason: The reason for aborting the transition
-            cleanup: This rule will fizzle itself if True; default is False
         """
 
         # don't run if the transition is already validated
@@ -755,8 +749,7 @@ class BaseOrchestrationRule(contextlib.AbstractAsyncContextManager):
             raise RuntimeError("The transition is already validated")
 
         # a rule that mutates state should not fizzle itself by default
-        if cleanup is False:
-            self.to_state_type = None
+        self.to_state_type = None
         self.context.proposed_state = None
         self.context.response_status = SetStateStatus.ABORT
         self.context.response_details = StateAbortDetails(reason=reason)
