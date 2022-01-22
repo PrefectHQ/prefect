@@ -111,9 +111,9 @@ async def run(name: str):
     """
     async with OrionClient() as client:
         deployment = await client.read_deployment_by_name(name)
-        flow_run_id = await client.create_flow_run_from_deployment(deployment)
+        flow_run = await client.create_flow_run_from_deployment(deployment.id)
 
-    console.print(f"Created flow run '{flow_run_id}'")
+    console.print(f"Created flow run {flow_run.name!r} ({flow_run.id})")
 
 
 @deployment_app.command()

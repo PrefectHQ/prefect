@@ -34,7 +34,7 @@ class Props {
     required: false,
     type: Boolean
   })
-  target = prop<string>({ default: '.application', required: false })
+  target = prop<string>({ default: '#app', required: false })
 }
 
 @Options({

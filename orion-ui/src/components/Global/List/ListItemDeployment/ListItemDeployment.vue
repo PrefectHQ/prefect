@@ -129,12 +129,15 @@ import { secondsToString } from '@/util/util'
 import { Deployment } from '@/typings/objects'
 import { Api, Endpoints } from '@/plugins/api'
 import media from '@/utilities/media'
+import Drawer from '@/components/Global/Drawer/Drawer.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 
 class Props {
   item = prop<Deployment>({ required: true })
 }
 
 @Options({
+  components: { ListItem, Drawer },
   watch: {
     parametersDrawerActive() {
       this.search = ''
@@ -168,9 +171,9 @@ export default class ListItemDeployment extends Vue.with(Props) {
         }
       }
     })
-    this.$toast.add({
+    this.$toast({
       type: res.error ? 'error' : 'success',
-      content: res.error
+      message: res.error
         ? `Error: ${res.error}`
         : res.response.value?.name
         ? `Run created: ${res.response.value?.name}`
