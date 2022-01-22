@@ -12,7 +12,7 @@ import textwrap
 from contextlib import contextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseSettings, Field, SecretStr, root_validator
 
@@ -93,7 +93,7 @@ class DatabaseSettings(BaseSettings):
             A database connection URL in a SQLAlchemy-compatible
             format. Orion currently supports SQLite and Postgres. Note that all
             Orion engines must use an async driver - for SQLite, use
-            `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`. 
+            `sqlite+aiosqlite` and for Postgres use `postgresql+asyncpg`.
 
             SQLite in-memory databases can be used by providing the url
             `sqlite+aiosqlite:///file::memory:?cache=shared&uri=true&check_same_thread=false`,
@@ -121,6 +121,10 @@ class APISettings(BaseSettings):
     """Settings related to the Orion API. To change these settings via
     environment variable, set `PREFECT_ORION_API_{SETTING}=X`.
     """
+
+    class Config:
+        env_prefix = "PREFECT_ORION_API_"
+        frozen = True
 
     # a default limit for queries
     default_limit: int = Field(
@@ -196,8 +200,8 @@ class ServicesSettings(BaseSettings):
 
     scheduler_insert_batch_size: int = Field(
         500,
-        description="""The number of flow runs the scheduler will attempt to insert 
-        in one batch across all deployments. If the number of flow runs to 
+        description="""The number of flow runs the scheduler will attempt to insert
+        in one batch across all deployments. If the number of flow runs to
         schedule exceeds this amount, the runs will be inserted in batches of this size. Defaults to `500`.
         """,
     )
@@ -285,9 +289,10 @@ class OrionHandlerSettings(BaseSettings):
 
     enabled: bool = Field(
         True,
-        description="""Should logs be sent to Orion? If False, logs sent to the 
+        description="""Should logs be sent to Orion? If False, logs sent to the
         OrionHandler will not be sent to the API.""",
     )
+
     batch_interval: float = Field(
         2.0,
         description="""The number of seconds between batched writes of logs to Orion.""",
@@ -352,6 +357,25 @@ class LoggingSettings(BaseSettings):
         default_factory=OrionHandlerSettings,
         description="Nested [OrionHandler settings][prefect.utilities.settings.OrionHandlerSettings].",
     )
+
+    extra_loggers: str = Field(
+        "",
+        description="""Additional loggers to attach to Prefect logging at runtime.
+        Values should be comma separated. The handlers attached to the 'prefect' logger
+        will be added to these loggers. Additionally, if the level is not set, it will
+        be set to the same level as the 'prefect' logger.
+        """,
+    )
+
+    def get_extra_loggers(self) -> List[str]:
+        """
+        Parse the `extra_loggers` CSV and trim whitespace from logger names
+        """
+        return (
+            [name.strip() for name in self.extra_loggers.split(",")]
+            if self.extra_loggers
+            else []
+        )
 
 
 class AgentSettings(BaseSettings):
