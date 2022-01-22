@@ -66,13 +66,14 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     ) -> None:
         from prefect.orion.models import concurrency_limits
 
-        self.applied_limits = []
+        self._applied_limits = []
         all_limits = await concurrency_limits.read_concurrency_limits(
             context.session, limit=None, offset=None
         )
         limits_by_tag = {limit.tag: limit for limit in all_limits}
         for tag in context.run.tags:
             cl = limits_by_tag.get(tag, None)
+
             if cl is not None:
                 limit = cl.concurrency_limit
                 if limit == 0:
@@ -80,15 +81,20 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                         reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
                         cleanup=True,
                     )
-                elif cl.active_slots >= limit:
+                elif len(cl.active_slots) >= limit:
                     await self.delay_transition(
                         30,
                         f"Concurrency limit for the {tag} tag has been reached",
                         cleanup=True,
                     )
                 else:
-                    self.applied_limits.append(tag)
-                    cl.active_slots += 1
+                    self._applied_limits.append(tag)
+                    cl.active_slots.append(str(context.run.id))
+                    await concurrency_limits.update_concurrency_slots(
+                        context.session,
+                        tag,
+                        cl.active_slots,
+                    )
 
     async def cleanup(
         self,
@@ -98,11 +104,16 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
     ) -> None:
         from prefect.orion.models import concurrency_limits
 
-        for tag in self.applied_limits:
+        for tag in self._applied_limits:
             cl = await concurrency_limits.read_concurrency_limit_by_tag(
                 context.session, tag
             )
-            cl.active_slots = max(0, cl.active_slots - 1)
+            cl.active_slots.remove(str(context.run.id))
+            await concurrency_limits.update_concurrency_slots(
+                context.session,
+                tag,
+                cl.active_slots,
+            )
 
 
 class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
@@ -124,8 +135,12 @@ class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
         for tag in context.run.tags:
             cl = limit_lookup.get(tag, None)
             if cl is not None:
-                active_slots = cl.active_slots
-                cl.active_slots = max(0, active_slots - 1)
+                cl.active_slots.remove(str(context.run.id))
+                await concurrency_limits.update_concurrency_slots(
+                    context.session,
+                    tag,
+                    cl.active_slots,
+                )
 
 
 class CacheInsertion(BaseOrchestrationRule):

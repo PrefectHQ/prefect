@@ -432,6 +432,13 @@ class TestTaskConcurrencyLimits:
         await concurrency_limits.delete_concurrency_limit_by_tag(session, tag)
 
     async def count_concurrency_slots(self, session, tag):
+        return len(
+            (
+                await concurrency_limits.read_concurrency_limit_by_tag(session, tag)
+            ).active_slots
+        )
+
+    async def read_concurrency_slots(self, session, tag):
         return (
             await concurrency_limits.read_concurrency_limit_by_tag(session, tag)
         ).active_slots
