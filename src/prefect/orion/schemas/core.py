@@ -319,7 +319,10 @@ class ConcurrencyLimit(ORMBaseModel):
 
     tag: str = Field(..., description="A tag the concurrency limit is applied to.")
     concurrency_limit: int = Field(..., description="The concurrency limit.")
-    active_slots: int = Field(0, description="The number of in-use concurrency slots.")
+    active_slots: List[UUID] = Field(
+        default_factory=list,
+        description="A list of active run ids using a concurrency slot",
+    )
 
 
 class SavedSearch(ORMBaseModel):

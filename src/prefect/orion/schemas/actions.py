@@ -143,7 +143,7 @@ class SavedSearchCreate(
 class ConcurrencyLimitCreate(
     schemas.core.ConcurrencyLimit.subclass(
         name="ConcurrencyLimitCreate",
-        include_fields=["tag", "concurrency_limit", "active_slots"],
+        include_fields=["tag", "concurrency_limit"],
     )
 ):
     """Data used by the Orion API to create a concurrency limit"""

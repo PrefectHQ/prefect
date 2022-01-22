@@ -61,7 +61,7 @@ class TestConcurrencyLimits:
         )
         assert concurrency_limit.tag == "dummytag"
         assert concurrency_limit.concurrency_limit == 42
-        assert concurrency_limit.active_slots == 0
+        assert concurrency_limit.active_slots == []
 
     async def test_creating_and_reading_concurrency_limits_by_tag(
         self, session, client
@@ -81,4 +81,4 @@ class TestConcurrencyLimits:
         )
         assert str(concurrency_limit.id) == cl_id
         assert concurrency_limit.concurrency_limit == 4242
-        assert concurrency_limit.active_slots == 0
+        assert concurrency_limit.active_slots == []

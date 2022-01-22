@@ -6,7 +6,7 @@ Intended for internal use by the Orion API.
 import pendulum
 import sqlalchemy as sa
 from uuid import UUID
-from typing import Optional
+from typing import Optional, List
 
 from prefect.orion import schemas
 from prefect.orion.database.dependencies import inject_db
@@ -19,7 +19,9 @@ async def create_concurrency_limit(
     concurrency_limit: schemas.core.ConcurrencyLimit,
     db: OrionDBInterface,
 ):
-    insert_values = concurrency_limit.dict(shallow=True, exclude_unset=True)
+    insert_values = concurrency_limit.dict(shallow=True, exclude_unset=False)
+    insert_values.pop("created")
+    insert_values.pop("updated")
     concurrency_tag = insert_values["tag"]
 
     # set `updated` manually
@@ -43,6 +45,27 @@ async def create_concurrency_limit(
     query = sa.select(db.ConcurrencyLimit).where(
         db.ConcurrencyLimit.tag == concurrency_tag
     )
+
+    result = await session.execute(query)
+    return result.scalar()
+
+
+@inject_db
+async def update_concurrency_slots(
+    session: sa.orm.Session,
+    tag: str,
+    active_slots: List[str],
+    db: OrionDBInterface,
+):
+    update_stmt = (
+        sa.update(db.ConcurrencyLimit)
+        .where(db.ConcurrencyLimit.tag == tag)
+        .values(active_slots=active_slots)
+    )
+
+    await session.execute(update_stmt)
+
+    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)
     return result.scalar()
