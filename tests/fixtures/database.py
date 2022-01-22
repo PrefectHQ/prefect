@@ -242,10 +242,7 @@ async def commit_flow_run_state(
 
 
 @pytest.fixture
-def initialize_orchestration(
-    task_run,
-    flow_run,
-):
+def initialize_orchestration(flow):
     async def initializer(
         session,
         run_type,
@@ -256,6 +253,10 @@ def initialize_orchestration(
         initial_details=None,
         proposed_details=None,
     ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(flow_id=flow.id, flow_version="0.1"),
+        )
 
         if run_type == "flow":
             run = run_override if run_override is not None else flow_run
@@ -264,11 +265,19 @@ def initialize_orchestration(
             context = FlowOrchestrationContext
             state_constructor = commit_flow_run_state
         elif run_type == "task":
+            task_run = await models.task_runs.create_task_run(
+                session=session,
+                task_run=schemas.actions.TaskRunCreate(
+                    flow_run_id=flow_run.id, task_key="my-key", dynamic_key="0"
+                ),
+            )
             run = run_override if run_override is not None else task_run
             if run_tags is not None:
                 run.tags = run_tags
             context = TaskOrchestrationContext
             state_constructor = commit_task_run_state
+
+        await session.commit()
 
         initial_state = await state_constructor(
             session,
