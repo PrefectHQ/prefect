@@ -582,6 +582,52 @@ class TestTaskConcurrencyLimits:
         assert ctx1.response_status == SetStateStatus.REJECT
         assert (await self.count_concurrency_slots(session, "a nice little limit")) == 0
 
+    async def test_one_run_wont_consume_multiple_slots(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+
+        await self.create_concurrency_limit(session, "a generous limit", 10)
+
+        concurrency_policy = [
+            SecureTaskConcurrencySlots,
+            ReturnTaskConcurrencySlots,
+        ]
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["a generous limit"]
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx1 = await stack.enter_async_context(rule(ctx1, *running_transition))
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *running_transition,
+            run_override=ctx1.run,
+            run_tags=["a generous limit"],
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in concurrency_policy:
+                ctx2 = await stack.enter_async_context(rule(ctx2, *running_transition))
+            await ctx2.validate_proposed_state()
+
+        # we might want to protect against a identical transitions from the same run
+        # from being accepted, but this orchestration rule is the wrong place to do it
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+        assert (await self.count_concurrency_slots(session, "a generous limit")) == 1
+
     async def test_concurrency_race_condition_new_tags_arent_double_counted(
         self,
         session,
