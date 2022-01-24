@@ -47,7 +47,7 @@ async def setup_db(database_engine, db):
         yield
 
     finally:
-        # tear down the databse
+        # tear down the database
         await db.drop_db()
 
 

@@ -43,6 +43,7 @@ def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
 
     from alembic.script import ScriptDirectory
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -83,20 +84,7 @@ async def run_migrations_online() -> None:
     """
 
     engine = await db_interface.engine()
-
-    versions_dir = context.get_x_argument(as_dictionary=True).get("versions_dir", None)
-
-    if versions_dir is None:
-        # if version dir is not explicitly provided determine versions location from dialect
-        dialect = get_dialect(engine=engine)
-        if dialect.name == "postgresql":
-            versions_dir = Path(context.script.dir / "postgresql")
-        elif dialect.name == "sqlite":
-            versions_dir = Path(context.script.dir / "sqlite")
-        else:
-            raise ValueError(f"No versions dir exists for dialect: {dialect.name}")
-
-    context.script.version_locations = [versions_dir]
+    context.script.version_locations = [db_interface.orm.versions_dir]
 
     async with engine.connect() as connection:
         await connection.run_sync(do_run_migrations)

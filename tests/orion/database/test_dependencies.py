@@ -129,6 +129,10 @@ async def test_injecting_really_dumb_orm_configuration():
         def run_migrations(self):
             ...
 
+        @property
+        def versions_dir(self):
+            return ""
+
     class UselessBaseMixin:
         my_string_column = sa.Column(
             sa.String, nullable=False, default="Mostly harmless"

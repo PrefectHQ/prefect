@@ -296,7 +296,4 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
     def is_inmemory(self, engine):
         """Returns true if database is run in memory"""
 
-        return (
-            ":memory:" in engine.url.database
-            or "mode=memory" in engine.url.database
-        )
+        return ":memory:" in engine.url.database or "mode=memory" in engine.url.database
