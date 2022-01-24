@@ -27,9 +27,12 @@ class VaultSecret(SecretBase):
             credentials.
                 Defaults to a PrefectSecret named `VAULT_CREDENTIALS`.
                 Supported vault client authentication methods:
-                * token { 'VAULT_TOKEN: '<token>' }
-                * appRole: { 'VAULT_ROLE_ID': '<role-id>',
-                             'VAULT_SECRET_ID': '<secret-id>' }
+                * token           { 'VAULT_TOKEN: '<token>' }
+                * appRole:        { 'VAULT_ROLE_ID': '<role-id>',
+                                    'VAULT_SECRET_ID': '<secret-id>' }
+                * kubernetesRole: { 'VAULT_KUBE_AUTH_ROLE': '<>',
+                                    'VAULT_KUBE_AUTH_PATH': '<>',
+                                    'VAULT_KUBE_TOKEN_FILE': '<>' }
         - **kwargs (Any, optional): additional keyword args passed to the Task constructor
 
     Raises:
@@ -72,7 +75,10 @@ class VaultSecret(SecretBase):
         self.logger.debug(f"Vault addr set to: {client.url}")
 
         # get vault auth credentials from the PrefectSecret
+        print(self.vault_credentials_secret)
         vault_creds = PrefectSecret(self.vault_credentials_secret).run()
+        print(vault_creds)
+        print(type(vault_creds))
         if "VAULT_TOKEN" in vault_creds.keys():
             client.token = vault_creds["VAULT_TOKEN"]
         elif (
@@ -82,10 +88,27 @@ class VaultSecret(SecretBase):
             client.auth_approle(
                 vault_creds["VAULT_ROLE_ID"], vault_creds["VAULT_SECRET_ID"]
             )
+        elif ('VAULT_KUBE_AUTH_ROLE' in vault_creds.keys() and
+              'VAULT_KUBE_AUTH_PATH' in vault_creds.keys()):
+
+            token_file = ""
+            if ('VAULT_KUBE_TOKEN_FILE' in vault_creds.keys()):
+                token_file = vault_creds['VAULT_KUBE_TOKEN_FILE']
+            else:
+                token_file = '/var/run/secrets/kubernetes.io/serviceaccount/token'
+
+            with open(token_file, 'r') as f:
+                jwt = f.read()
+
+            client.auth.kubernetes.login(
+                role=vault_creds['VAULT_KUBERNETES_ROLE'],
+                jwt=jwt,
+                mount_point=vault_creds['VAULT_KUBERNETES_PATH']
+            )
         else:
             raise ValueError(
                 "Unable to authenticate with vault service.  "
-                "Supported methods: token, appRole"
+                "Supported methods: token, appRole and kubernetesRole"
             )
         if not client.is_authenticated():
             raise RuntimeError(
