@@ -1,15 +1,13 @@
-import alembic
-
+from argparse import Namespace
 from pathlib import Path
 
 import prefect
-import prefect.orion
 
 
 def alembic_config():
     from alembic.config import Config
 
-    alembic_dir = Path(prefect.__file__).parents[2]
+    alembic_dir = Path(prefect.orion.database.__file__).parent
     if not alembic_dir.joinpath("alembic.ini").exists():
         raise ValueError(f"Couldn't find alembic.ini at {alembic_dir}/alembic.ini")
 
@@ -18,13 +16,12 @@ def alembic_config():
     return alembic_cfg
 
 
-def alembic_upgrade(n: str = None, versions_dir: str = None):
+def alembic_upgrade(n: str = None):
     """
     Run alembic upgrades on Orion database
 
     Args:
         n: The argument to `alembic upgrade`. If not provided, runs all.
-        versions_dir: The path to versions directory
     """
     # lazy import for performance
     import alembic.command
@@ -35,7 +32,7 @@ def alembic_upgrade(n: str = None, versions_dir: str = None):
     )
 
 
-def alembic_downgrade(n: str = None, versions_dir: str = None):
+def alembic_downgrade(n: str = None):
     """
     Run alembic downgrades on Orion database
 
@@ -48,4 +45,20 @@ def alembic_downgrade(n: str = None, versions_dir: str = None):
     alembic.command.downgrade(
         alembic_config(),
         f"{n}" if n else "base",
+    )
+
+
+def alembic_revision(message: str = None, autogenerate: bool = False, **kwargs):
+    """
+    Create a new revision file for Orion
+
+    Args:
+        message: string message to apply to the revision
+        autogenerate: whether or not to autogenerate the script from the database
+    """
+    # lazy import for performance
+    import alembic.command
+
+    alembic.command.revision(
+        alembic_config(), message=message, autogenerate=autogenerate, **kwargs
     )
