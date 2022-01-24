@@ -44,7 +44,7 @@ Tips for debugging:
 - Check that there is a healthy agent that can pick up the flow.
 - Make sure that the RunConfig takes in a `List[str]` as opposed to just a string. Setting `labels="prod"` will be treated as four labels `(["p", "r", "o", "d"])` because strings are iterable in Python.
 - Flows with no labels are picked up by Agents with no labels only.
-- There is a [default label on the LocalAgent that contains the hostname](orchestration/agents/local.html#labels).
+- There is a [default label on the LocalAgent that contains the hostname](/orchestration/agents/local.html#labels).
 - There is a [default label on the default Local Storage](/orchestration/flow_config/storage.html#local).
 - Check if there is a Flow Concurrency Limit preventing the Flow from being picked up.
 
