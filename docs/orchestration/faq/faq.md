@@ -45,7 +45,7 @@ Tips for debugging:
 - Make sure that the RunConfig takes in a `List[str]` as opposed to just a string. Setting `labels="prod"` will be treated as four labels `(["p", "r", "o", "d"])` because strings are iterable in Python.
 - Flows with no labels are picked up by Agents with no labels only.
 - There is a [default label on the LocalAgent that contains the hostname](orchestration/agents/local.html#labels).
-- There is a [default label on the default Local Storage](orchestration/flow_config/storage.html#local).
+- There is a [default label on the default Local Storage](/orchestration/flow_config/storage.html#local).
 - Check if there is a Flow Concurrency Limit preventing the Flow from being picked up.
 
 There is an edge case where the scheduler gets overwhelmed if there are more than 750 late runs in a tenant. In this case, the late runs need to be cleared for more work to be executed.
