@@ -299,5 +299,4 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
         return (
             ":memory:" in engine.url.database
             or "mode=memory" in engine.url.database
-            or not os.path.exists(engine.url.database)
         )

@@ -47,23 +47,11 @@ class OrionDBInterface(metaclass=DBSingleton):
 
     async def create_db(self):
         """Create the database"""
-
-        engine = await self.database_config.engine()
-
-        async with engine.begin() as conn:
-            await self.database_config.create_db(conn, self.Base.metadata)
+        await self.orm.run_migration_upgrade()
 
     async def drop_db(self):
         """Drop the database"""
-
-        engine = await self.database_config.engine()
-
-        async with engine.begin() as conn:
-            await self.database_config.drop_db(conn, self.Base.metadata)
-
-    def run_migrations(self):
-        """Run database migrations"""
-        self.orm.run_migrations()
+        await self.orm.run_migration_downgrade()
 
     async def engine(
         self,

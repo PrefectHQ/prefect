@@ -22,6 +22,8 @@ from prefect.orion.utilities.database import (
     date_diff,
 )
 
+from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
+
 
 class ORMBase:
     """
@@ -746,6 +748,7 @@ class BaseORMConfiguration(ABC):
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
+        migrations_dir: str = None,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
@@ -859,10 +862,15 @@ class BaseORMConfiguration(ABC):
         self.SavedSearch = SavedSearch
         self.Log = Log
 
-    @abstractmethod
-    def run_migrations(self):
-        """Run database migrations"""
-        ...
+    async def run_migration_upgrade(self):
+        """Run database migration upgrade"""
+        from prefect.orion.database.migrations import alembic_upgrade
+        await run_sync_in_worker_thread(alembic_upgrade)
+
+    async def run_migration_downgrade(self):
+        """Run database migration downgrade"""
+        from prefect.orion.database.migrations import alembic_downgrade
+        await run_sync_in_worker_thread(alembic_downgrade)
 
     @property
     def deployment_unique_upsert_columns(self):
@@ -897,12 +905,6 @@ class BaseORMConfiguration(ABC):
 class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     """Postgres specific orm configuration"""
 
-    def run_migrations(self):
-        ...
-
 
 class AioSqliteORMConfiguration(BaseORMConfiguration):
     """SQLite specific orm configuration"""
-
-    def run_migrations(self):
-        ...
