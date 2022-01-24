@@ -225,4 +225,4 @@ You can [configure heartbeats to use threads instead of processes.](/orchestrati
 
 ### How do I attach other loggers to the Prefect logger?
 
-The logging docs show how [here](core/concepts/logging.html#extra-loggers)
+The logging docs show how [here](/core/concepts/logging.html#extra-loggers).
