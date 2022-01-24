@@ -40,7 +40,7 @@ When flows are stuck in a Scheduled state, it’s usually due to a label mismatc
 
 Tips for debugging:
 
-- Check that the Flow labels are a subset of the Agent labels.
+- Check that the flow labels are a subset of the agent labels.
 - Check that there is a healthy agent that can pick up the Flow.
 - Make sure that the RunConfig takes in a `List[str]` as opposed to just a string. Setting `labels="prod"` will be treated as four labels `(["p", "r", "o", "d"])` because strings are iterable in Python.
 - Flows with no labels are picked up by Agents with no labels only.
