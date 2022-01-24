@@ -83,7 +83,10 @@ class FlowView:
         flow_group_labels = flow_group_data["labels"]
         project_name = flow_data.pop("project")["name"]
         storage = StorageSchema().load(flow_data.pop("storage"))
-        run_config = RunConfigSchema().load(flow_data.pop("run_config"))
+        run_config_data = flow_data.pop("run_config")
+        run_config = (
+            RunConfigSchema().load(run_config_data) if run_config_data else None
+        )
 
         # Combine the data from `flow_data` with `kwargs`
         flow_args = {

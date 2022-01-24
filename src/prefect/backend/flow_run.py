@@ -99,7 +99,7 @@ def watch_flow_run(
         if total_time_elapsed > 60 * 60 * 12:
             raise RuntimeError(
                 "`watch_flow_run` timed out after 12 hours of waiting for completion. "
-                "Your flow run is still in state: {flow_run.state}"
+                f"Your flow run is still in state: {flow_run.state}"
             )
 
         if (
@@ -526,7 +526,10 @@ class FlowRunView:
 
         flow_run_id = flow_run_data.pop("id")
         state = State.deserialize(flow_run_data.pop("serialized_state"))
-        run_config = RunConfigSchema().load(flow_run_data.pop("run_config"))
+        run_config_data = flow_run_data.pop("run_config")
+        run_config = (
+            RunConfigSchema().load(run_config_data) if run_config_data else None
+        )
 
         states_data = flow_run_data.pop("states", [])
         states = list(
