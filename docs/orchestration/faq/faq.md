@@ -28,7 +28,7 @@ with Flow("example") as flow:
 
 ### Why do I get a `ModuleNotFoundError` with my home directory path?
 
-When a flow is registered, Prefect stores the location of it in [Storage](orchestration/flow_config/storage.html) (`GitHub`, `S3`, `Docker`, etc.). During a flow run execution, Prefect pulls the flow from the storage location and runs it. If users don’t specify any storage, it defaults to a `Local` storage, which is a serialized version of the flow stored in the `~/.prefect/flows` folder. At runtime, the flow is retrieved from this file.
+When a flow is registered, Prefect stores the location of it in [Storage](/orchestration/flow_config/storage.html) (`GitHub`, `S3`, `Docker`, etc.). During a flow run execution, Prefect pulls the flow from the storage location and runs it. If users don’t specify any storage, it defaults to a `Local` storage, which is a serialized version of the flow stored in the `~/.prefect/flows` folder. At runtime, the flow is retrieved from this file.
 
 The error you see usually happens when you use the default `Local` storage during the registration, and then you run the flow on a different machine (or a container) that doesn’t have the flow file.
 
