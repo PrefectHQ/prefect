@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-The questions listed here are specific to using Prefect to orchestrate Flows. The [FAQ in the core section](/core/faq.html) is for people looking to learn more about Prefec in general.
+The questions listed here are specific to using Prefect to orchestrate Flows. The [FAQ in the core section](/core/faq.html) is for people looking to learn more about Prefect in general.
 
 [[toc]]
 
