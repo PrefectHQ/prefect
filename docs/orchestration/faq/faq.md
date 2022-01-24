@@ -32,7 +32,7 @@ When a flow is registered, Prefect stores the location of it in [Storage](orches
 
 The error you see usually happens when you use the default `Local` storage during the registration, and then you run the flow on a different machine (or a container) that doesn’t have the flow file.
 
-If you are running a flow on a different machine that the one from which you registered it, you need to use a remote storage class such as one of Git storage classes (e.g. `GitHub`) or a cloud storage bucket (e.g. `S3`) so that the flow can be pulled from that location.
+If you are running a flow on a different machine than the one from which you registered it, you need to use a remote storage class such as one of the Git storage classes (for example, `GitHub`) or a cloud storage bucket (such as `S3`) so that the flow can be pulled from that location.
 
 ### Why is my Flow stuck in a Scheduled state?
 
