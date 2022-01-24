@@ -36,7 +36,7 @@ If you are running a flow on a different machine than the one from which you reg
 
 ### Why is my Flow stuck in a Scheduled state?
 
-When Flows are stuck in a Scheduled state, it’s usually due to a label mismatch between the Flow and agent. [Labels](orchestration/agents/overview.html#labels) are the mechanism that dictates which Flows an agent can pick up. If there is no agent that can pick up a Flow, the flow remains stuck in a Scheduled state.
+When flows are stuck in a Scheduled state, it’s usually due to a label mismatch between the flow and agent. [Labels](/orchestration/agents/overview.html#labels) are the mechanism that dictates which flows an agent can pick up. If there is no agent that can pick up a flow, the flow remains stuck in a Scheduled state.
 
 Tips for debugging:
 
