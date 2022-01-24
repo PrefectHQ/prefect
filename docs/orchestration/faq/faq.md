@@ -221,7 +221,7 @@ If it is working, you might need to start the Server with the expose flag as fol
 
 Prefect Flows have heartbeats that signal to Prefect Cloud that your Flow is alive. If Prefect didn’t have heartbeats, Flows that lose communication and die would permanently be shown with a Running state in the UI. Most of the time, we have seen “no heartbeat detected” to be a sign of memory issues. In version 0.15.4 and above, additional logging has been added that propagates the real error in the event this error happens. 
 
-You can [configure heartbeats to use threads instead of processes.](orchestration/concepts/services.html#heartbeat-configuration) This has proven to be more stable for a lot of users. In the event that the Flow continues to fail after switching to using threads, some users have had success in making the failing task a subflow, and then turning off heartbeats for the subflow.
+You can [configure heartbeats to use threads instead of processes.](/orchestration/concepts/services.html#heartbeat-configuration) This has proven to be more stable for many users. In the event that the flow continues to fail after switching to using threads, some users have had success in making the failing task a subflow, and then turning off heartbeats for the subflow.
 
 ### How do I attach other loggers to the Prefect logger?
 
