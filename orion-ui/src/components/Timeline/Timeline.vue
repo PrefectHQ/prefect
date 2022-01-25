@@ -10,7 +10,7 @@
     }"
     style="max-height: inherit"
   >
-    <IconButton
+    <m-icon-button
       v-if="!hideHeader"
       class="pan-button left bg--white"
       icon="pi pi-arrow-left-s-line pi-lg"
@@ -18,7 +18,7 @@
       :disabled="disableLeftScrollButton"
       @click="panLeft"
     />
-    <IconButton
+    <m-icon-button
       v-if="!hideHeader"
       class="pan-button right bg--white"
       icon="pi pi-arrow-right-s-line pi-lg"

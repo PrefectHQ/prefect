@@ -1,5 +1,5 @@
 <template>
-  <Card class="filter-menu font--primary" height="100%" tabindex="0">
+  <m-card class="filter-menu font--primary" height="100%" tabindex="0">
     <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <a
@@ -21,7 +21,7 @@
           Filters
         </h3>
 
-        <IconButton
+        <m-icon-button
           icon="pi-close-line"
           height="34px"
           width="34px"
@@ -146,7 +146,7 @@
       <CardActions
         class="pa-2 filter-menu__actions d-flex align-center justify-end"
       >
-        <Button
+        <m-button
           v-if="media.md"
           flat
           height="35px"
@@ -154,18 +154,18 @@
           @click="close"
         >
           Cancel
-        </Button>
-        <Button
+        </m-button>
+        <m-button
           color="primary"
           height="35px"
           :width="!media.md ? '100%' : 'auto'"
           @click="apply"
         >
           Apply
-        </Button>
+        </m-button>
       </CardActions>
     </template>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
