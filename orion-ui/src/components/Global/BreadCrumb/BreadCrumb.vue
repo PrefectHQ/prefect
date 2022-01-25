@@ -1,49 +1,44 @@
 <template>
   <component
-    :is="props.tag || 'h1'"
-    class="d-flex align-center"
-    style="max-width: 100%"
+    v-skeleton="!crumb.text"
+    :is="crumb.to ? 'router-link' : 'span'"
+    :to="crumb.to"
+    class="text-truncate bread-crumb"
+    :style="{
+      minWidth: !crumb.text ? '40px' : undefined,
+      maxWidth: '50%',
+      minHeight: '30px'
+    }"
   >
-    <i v-if="icon" class="pi text--grey-40 mr-2" :class="props.icon" />
-    <span
-      v-skeleton="!crumb.text"
-      v-for="(crumb, i) in props.crumbs"
-      :key="crumb.text"
-      :style="{
-        minWidth: !crumb.text ? '40px' : undefined,
-        maxWidth: '50%',
-        minHeight: '30px'
-      }"
-      class="text-truncate"
-    >
-      <component
-        :is="crumb.to ? 'router-link' : 'span'"
-        :to="crumb.to"
-        class="text-truncate"
-        :class="{ 'font-weight-semibold': i == props.crumbs.length - 1 }"
-      >
-        {{ crumb.text }}
-      </component>
-      {{ i !== props.crumbs.length - 1 ? '&nbsp;/&nbsp;' : '' }}
-    </span>
+    {{ crumb.text }}
   </component>
 </template>
 
 <script lang="ts" setup>
-import { withDefaults } from 'vue'
+import { Crumb } from '../utils'
 
-type Crumb = {
-  text: string
-  to?: string
-}
-
-interface Props {
-  crumbs: Crumb[]
-  icon?: string
-  tag?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  tag: 'h1'
-})
+defineProps<{ crumb: Crumb }>()
 </script>
+
+<style lang="scss" scoped>
+a {
+  text-decoration: none;
+
+  &:hover {
+    color: $primary;
+    text-decoration: underline;
+  }
+
+  &:active {
+    color: $primary-hover !important;
+  }
+}
+
+.bread-crumb::after {
+  content: '\00a0/\00a0';
+}
+
+.bread-crumb:last-child::after {
+  display: none;
+}
+</style>
