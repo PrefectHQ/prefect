@@ -28,7 +28,7 @@ def my_flow():
 
 Task calls return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which represents the status of a task executing in a task runner. See [Futures](#futures) for further information.
 
-When a task completes, a [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) represents the final state of the task run and its results, if any. See [States](/concepts/states/) for further information.
+The future can be used to retrieve the current [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) of the task run or wait for the task run to enter a final state. See [States](/concepts/states/) for further information.
 
 !!! note "How big should a task be?"
     Prefect encourages "small tasks" &mdash; each one should represent a single logical step of your workflow. This allows Prefect to better contain task failures.
