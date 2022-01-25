@@ -26,7 +26,7 @@ def my_flow():
     my_task()
 ```
 
-Before a task run completes, a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture) represents the status of a task executing in a task runner. See [Futures](#futures) for further information.
+Task calls return a [`PrefectFuture`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture), which represents the status of a task executing in a task runner. See [Futures](#futures) for further information.
 
 When a task completes, a [`State`](/api-ref/orion/schemas/states/#prefect.orion.schemas.states.State) represents the final state of the task run and its results, if any. See [States](/concepts/states/) for further information.
 
