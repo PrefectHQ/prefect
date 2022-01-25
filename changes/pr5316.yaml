@@ -1,2 +1,0 @@
-enhancement:
-  - "Ensure that maximum log payload sizes are not exceeded - [#5316](https://github.com/PrefectHQ/prefect/pull/5316)"
