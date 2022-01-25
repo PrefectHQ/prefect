@@ -1,4 +1,5 @@
 export * from './BreadCrumb'
+export * from './BreadCrumbs'
 export * from './ButtonCard'
 export * from './ButtonRounded'
 export * from './Drawer'

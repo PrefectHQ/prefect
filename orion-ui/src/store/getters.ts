@@ -5,6 +5,12 @@ import {
   FlowRunsFilter,
   TaskRunsFilter
 } from '@/plugins/api'
+import {
+  FlowFilter,
+  DeploymentFilter,
+  FlowRunFilter,
+  TaskRunFilter
+} from '@/typings/filters'
 import { State } from '.'
 import { GetterTree } from 'vuex'
 

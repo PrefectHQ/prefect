@@ -1,5 +1,5 @@
 <template>
-  <Card class="menu font--primary" height="100%" tabindex="0">
+  <m-card class="menu font--primary" height="100%" tabindex="0">
     <template v-if="!media.md" v-slot:header>
       <div class="pa-2 d-flex justify-center align-center">
         <h3
@@ -9,7 +9,7 @@
           Save Search
         </h3>
 
-        <IconButton
+        <m-icon-button
           icon="pi-close-line"
           height="34px"
           width="34px"
@@ -24,7 +24,7 @@
     </template>
 
     <div class="menu-content pa-2">
-      <Input label="Name" placeholder="New Filter" v-model="name" />
+      <m-input label="Name" placeholder="New Filter" v-model="name" />
 
       <div class="my-4">
         <Tag v-for="(filter, i) in filters" :key="i" class="mr--half mb--half">
@@ -36,7 +36,7 @@
 
     <template v-slot:actions>
       <CardActions class="pa-2 menu-actions d-flex align-center justify-end">
-        <Button
+        <m-button
           v-if="media.md"
           flat
           height="35px"
@@ -44,8 +44,8 @@
           @click="close"
         >
           Cancel
-        </Button>
-        <Button
+        </m-button>
+        <m-button
           color="primary"
           height="35px"
           :width="!media.md ? '100%' : 'auto'"
@@ -53,22 +53,22 @@
           @click="save"
         >
           Save
-        </Button>
+        </m-button>
       </CardActions>
     </template>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, getCurrentInstance } from 'vue'
+import { computed, ref } from 'vue'
 import { useStore } from 'vuex'
 import { parseFilters, FilterObject } from './util'
 import { Api, Endpoints } from '@/plugins/api'
+import { showToast } from '@prefecthq/miter-design'
 import Tag from './Tag.vue'
 import media from '@/utilities/media'
 
 const store = useStore()
-const instance = getCurrentInstance()
 const emit = defineEmits(['close'])
 const loading = ref(false)
 
@@ -93,9 +93,9 @@ const save = async () => {
 
   const res = await query.fetch()
 
-  instance?.appContext.config.globalProperties.$toast.add({
+  showToast({
     type: res.error ? 'error' : 'success',
-    content: res.error ? `Error: ${res.error}` : 'Filter saved!',
+    message: res.error ? `Error: ${res.error}` : 'Filter saved!',
     timeout: 10000
   })
 

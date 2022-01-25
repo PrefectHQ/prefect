@@ -1,2 +1,2 @@
 export * from './D3Base'
-export * from './Utils'
+export * from './utils'

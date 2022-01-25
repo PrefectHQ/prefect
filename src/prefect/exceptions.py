@@ -69,6 +69,15 @@ class UpstreamTaskError(PrefectException):
     pass
 
 
+class MissingContextError(PrefectException, RuntimeError):
+    """
+    Raised when a method is called that requires a task or flow run context to be
+    active but one cannot be found.
+    """
+
+    pass
+
+
 class ReservedArgumentError(PrefectException, TypeError):
     """
     Raised when a function used with Prefect has an argument with a name that is

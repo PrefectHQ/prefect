@@ -55,7 +55,7 @@
           Orion
         </span>
       </div>
-      <Button
+      <m-button
         v-if="!showResetSection"
         color="delete"
         height="36px"
@@ -65,7 +65,7 @@
         miter
       >
         Reset
-      </Button>
+      </m-button>
 
       <section v-if="showResetSection">
         <div> Are you sure you want to permanently delete your data? </div>
@@ -74,7 +74,7 @@
           proceed.
         </div>
 
-        <Input
+        <m-input
           v-model="resetDatabaseConfirmation"
           placeholder="CONFIRM"
           class="my-2"
@@ -82,7 +82,7 @@
         />
 
         <div>
-          <Button
+          <m-button
             color="delete"
             height="36px"
             :disabled="resetDatabaseConfirmation !== 'CONFIRM'"
@@ -90,9 +90,9 @@
             @click="resetDatabase"
           >
             Reset Database
-          </Button>
+          </m-button>
 
-          <Button
+          <m-button
             color="secondary"
             height="36px"
             width="100px"
@@ -101,7 +101,7 @@
             @click="showResetSection = false"
           >
             Cancel
-          </Button>
+          </m-button>
         </div>
       </section>
     </section>
@@ -161,12 +161,12 @@ export default class Settings extends Vue {
     }).fetch()
     this.showToast({
       type: query.error ? 'error' : 'success',
-      content: query.error ? query.error : 'Database reset'
+      message: query.error ? query.error : 'Database reset'
     })
   }
 
-  showToast(options: { type: string; content: string }): void {
-    this.$toast.add({ ...options, timeout: 5000 })
+  showToast(options: { type: string; message: string }): void {
+    this.$toast({ ...options, timeout: 5000 })
   }
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
