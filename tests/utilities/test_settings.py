@@ -1,8 +1,9 @@
+import pytest
 import json
 import os
 
 from prefect import settings
-from prefect.utilities.settings import Settings
+from prefect.utilities.settings import Settings, temporary_settings, LoggingSettings
 
 
 def test_settings():
@@ -30,3 +31,16 @@ def test_secret_settings_are_not_serialized():
 
     settings_json = json.loads(settings.json())
     assert settings_json["orion"]["database"]["connection_url"] == "**********"
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("foo", ["foo"]),
+        ("foo,bar", ["foo", "bar"]),
+        ("foo, bar, foobar ", ["foo", "bar", "foobar"]),
+    ],
+)
+def test_extra_loggers(value, expected):
+    settings = LoggingSettings(extra_loggers=value)
+    assert settings.get_extra_loggers() == expected
