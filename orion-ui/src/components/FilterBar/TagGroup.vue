@@ -1,13 +1,13 @@
 <template>
   <div ref="container" class="filter-tag-group d-flex">
     <template v-if="overflow">
-      <m-tag>
+      <Tag>
         <i class="pi pi-filter-3-line pi-xs mr--half" />
         {{ tags.length }} filters
-      </m-tag>
+      </Tag>
     </template>
     <template v-else>
-      <m-tag
+      <Tag
         v-for="(tag, i) in props.tags"
         :key="i"
         class="mr--half"
@@ -17,7 +17,7 @@
       >
         <i class="pi pi-xs mr--half" :class="tag.icon" />
         {{ tag.label }}
-      </m-tag>
+      </Tag>
     </template>
   </div>
 </template>
