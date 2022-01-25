@@ -169,7 +169,7 @@ Coming soon.
 
 By default, Prefect attempts to create an execution graph for the tasks in your flow based on data dependencies. You can also explicitly order task execution by using the [`wait()`](/api-ref/prefect/futures/#prefect.futures.PrefectFuture.wait) method on a task or the [`wait_for`](/api-ref/prefect/tasks/#prefect.tasks.Task.__call__) parameter, specifying upstream task dependencies.
 
-You can wait for a task to finish before continuing flow execution by using the `wait()` method on a task.
+You can wait for a task to finish before continuing flow execution by using the `wait()` method on the future returned when the task is called.
 
 ```python
 @flow
