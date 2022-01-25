@@ -17,7 +17,6 @@
         {{ toPluralString('run', taskRunCount) }}
       </ButtonRounded>
     </div>
-
     <div v-if="media.md" class="list-item-flow__chart-container">
       <RunHistoryChart
         :items="flowRunHistory"
@@ -41,6 +40,8 @@ import { Buckets } from '@/typings/run_history'
 import { useStore } from 'vuex'
 import media from '@/utilities/media'
 import { toPluralString } from '@/utilities/strings'
+import ButtonRounded from '@/components/Global/ButtonRounded/ButtonRounded.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
 
 const store = useStore()
 const props = defineProps<{ item: Flow }>()

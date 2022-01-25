@@ -506,11 +506,13 @@ class TestDaskTaskRunner:
 
     async def test_start_local_cluster(self, distributed_client_init):
         task_runner = DaskTaskRunner(cluster_kwargs={"processes": False})
-        assert task_runner.cluster_class == distributed.LocalCluster
+        assert task_runner.cluster_class == None, "Default is delayed for import"
         assert task_runner.cluster_kwargs == {"processes": False}
 
         async with task_runner.start():
             pass
+
+        assert task_runner.cluster_class == distributed.LocalCluster
 
         distributed_client_init.assert_called_with(
             task_runner._cluster, asynchronous=True, **task_runner.client_kwargs

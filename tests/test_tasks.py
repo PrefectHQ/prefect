@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from prefect import flow, tags
+from prefect import flow, tags, get_run_logger
 from prefect.orion.schemas.core import TaskRunResult
 from prefect.orion.schemas.data import DataDocument
 from prefect.orion.schemas.states import State, StateType
@@ -357,11 +357,11 @@ class TestTaskCaching:
         assert first_state.name == "Completed"
         assert second_state.name == "Completed"
 
-    def test_cache_key_fn_context(self):
-        def stringed_context(context, args):
-            return str(context.flow_run_id)
+    def test_cache_key_fn_receives_context(self):
+        def get_flow_run_id(context, args):
+            return str(context.task_run.flow_run_id)
 
-        @task(cache_key_fn=stringed_context)
+        @task(cache_key_fn=get_flow_run_id)
         def foo(x):
             return x
 
@@ -855,3 +855,78 @@ class TestTaskWaitFor:
             @task
             def foo(wait_for):
                 pass
+
+
+@pytest.mark.enable_orion_handler
+class TestTaskRunLogs:
+    async def test_user_logs_are_sent_to_orion(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" in {log.message for log in logs}
+
+    async def test_tracebacks_are_logged(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            try:
+                x + y
+            except:
+                logger.error("There was an issue", exc_info=True)
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        error_log = [log.message for log in logs if log.level == 40].pop()
+        assert "NameError" in error_log
+        assert "x + y" in error_log
+
+    async def test_opt_out_logs_are_not_sent_to_orion(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!", extra={"send_to_orion": False})
+
+        @flow
+        def my_flow():
+            my_task()
+
+        my_flow()
+
+        logs = await orion_client.read_logs()
+        assert "Hello world!" not in {log.message for log in logs}
+
+    async def test_logs_are_given_correct_ids(self, orion_client):
+        @task
+        def my_task():
+            logger = get_run_logger()
+            logger.info("Hello world!")
+
+        @flow
+        def my_flow():
+            return my_task()
+
+        state = my_flow()
+        task_state = state.result()
+        flow_run_id = state.state_details.flow_run_id
+        task_run_id = task_state.state_details.task_run_id
+
+        logs = await orion_client.read_logs()
+        assert logs, "There should be logs"
+        assert all([log.flow_run_id == flow_run_id for log in logs])
+        task_run_logs = [log for log in logs if log.task_run_id is not None]
+        assert task_run_logs, f"There should be task run logs in {logs}"
+        assert all([log.task_run_id == task_run_id for log in task_run_logs])

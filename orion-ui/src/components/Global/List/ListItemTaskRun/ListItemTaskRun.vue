@@ -8,7 +8,7 @@
 
       <div class="list-item-task-run__tag-container">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-        <Tags :tags="tags" class="caption" />
+        <m-tags :tags="tags" class="caption" />
       </div>
     </div>
 
@@ -24,6 +24,8 @@ import { Api, Query, Endpoints, TaskRunsFilter } from '@/plugins/api'
 import { TaskRun } from '@/typings/objects'
 import { secondsToApproximateString } from '@/util/util'
 import StateLabel from '@/components/Global/StateLabel/StateLabel.vue'
+import ListItem from '@/components/Global/List/ListItem/ListItem.vue'
+import BreadCrumbs from '@/components/Global/BreadCrumbs/BreadCrumbs.vue'
 
 const props = defineProps<{ item: TaskRun }>()
 
