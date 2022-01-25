@@ -55,6 +55,17 @@ class CoreTaskPolicy(BaseOrchestrationPolicy):
 
 
 class SecureTaskConcurrencySlots(BaseOrchestrationRule):
+    """
+    Checks relevant concurrency slots are available before entering a Running state.
+
+    This rule checks if concurrency limits have been set on the tags associated with a
+    TaskRun. If so, a concurrency slot will be secured against each concurrency limit
+    before being allowed to transition into a running state. If a concurrency limit has
+    been reached, the client will be instructed to delay the transition for 30 seconds
+    before trying again. If the concurrency limit set on a tag is 0, the transition will
+    be aborted to prevent deadlocks.
+    """
+
     FROM_STATES = ALL_ORCHESTRATION_STATES
     TO_STATES = [states.StateType.RUNNING]
 
@@ -141,6 +152,10 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
 
 
 class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
+    """
+    Releases any concurrency slots held by a run upon exiting a Running state.
+    """
+
     FROM_STATES = [states.StateType.RUNNING]
     TO_STATES = ALL_ORCHESTRATION_STATES
 
