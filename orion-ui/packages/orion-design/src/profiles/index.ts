@@ -3,7 +3,7 @@ import { NumberProfile } from './NumberProfile'
 import { StringProfile } from './StringProfile'
 
 export interface Profile<T> {
-  readonly generate: () => T,
+  readonly generate: (...args: any[]) => T,
 }
 
 export const profiles = {
