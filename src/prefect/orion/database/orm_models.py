@@ -887,7 +887,7 @@ class BaseORMConfiguration(ABC):
     async def run_migration_revision(
         self, message: str = None, autogenerate: bool = False
     ):
-        """Run database migration downgrade"""
+        """Create a migration revision"""
         await run_sync_in_worker_thread(
             alembic_revision, message=message, autogenerate=autogenerate
         )
@@ -928,7 +928,10 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
     @property
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
-        return Path(prefect.orion.database.migrations.__file__).parent / "postgresql"
+        return (
+            Path(prefect.orion.database.__file__).parent
+            / "migrations/versions/postgresql"
+        )
 
 
 class AioSqliteORMConfiguration(BaseORMConfiguration):
@@ -937,4 +940,6 @@ class AioSqliteORMConfiguration(BaseORMConfiguration):
     @property
     def versions_dir(self) -> Path:
         """Directory containing migrations"""
-        return Path(prefect.orion.database.migrations.__file__).parent / "sqlite"
+        return (
+            Path(prefect.orion.database.__file__).parent / "migrations/versions/sqlite"
+        )

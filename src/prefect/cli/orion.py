@@ -14,12 +14,7 @@ from anyio.streams.text import TextReceiveStream
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.database.alembic import (
-    alembic_upgrade,
-    alembic_downgrade,
-    alembic_revision,
-)
-from prefect.utilities.asyncio import sync_compatible, run_sync_in_worker_thread
+from prefect.utilities.asyncio import sync_compatible
 
 orion_app = typer.Typer(name="orion")
 database_app = typer.Typer(name="database")

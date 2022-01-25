@@ -1,12 +1,10 @@
 from logging.config import fileConfig
-from pathlib import Path
 
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from prefect.utilities.asyncio import sync_compatible
 from prefect.orion.database.dependencies import provide_database_interface
-from prefect.orion.utilities.database import get_dialect
 
 db_interface = provide_database_interface()
 
@@ -16,7 +14,7 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name)
+fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
