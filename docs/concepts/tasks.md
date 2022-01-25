@@ -10,7 +10,7 @@ Tasks are special because they receive metadata about upstream dependencies and 
 
 Tasks also take advantage of automatic Prefect [logging](/concepts/logs.md) to capture details about task runs such as runtime, tags, and final state. 
 
-Tasks may call other tasks, but all task runs occur within the context of a flow run. That said, you can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. 
+You can define your tasks within the same file as your flow definition, or you can define tasks within modules and import them for use in your flow definitions. All tasks must be called from within a flow. Tasks may not be called from other tasks.
 
 For most use cases, we recommend using the `@task` decorator to designate a function as a task. Calling the task from within a flow function creates a new task run:
 
