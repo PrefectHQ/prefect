@@ -629,7 +629,7 @@ class Client:
             headers.update(self._attached_headers)
 
         session = requests.Session()
-        retry_total = 6 if prefect.config.backend == "cloud" else 1
+        retry_total = 6
         retries = requests.packages.urllib3.util.retry.Retry(
             total=retry_total,
             backoff_factor=1,

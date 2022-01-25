@@ -180,3 +180,10 @@ def test_flow_view_handles_extra_and_missing_fields_in_serialized_flows():
     serialized.pop("parameters")  # missing data
     flow_view = FlowView._from_flow_data(flow_data)
     assert isinstance(flow_view.flow, Flow)
+
+
+def test_flow_view_handles_null_run_config():
+    flow_data = FLOW_DATA_1.copy()
+    flow_data["run_config"] = None
+    flow_view = FlowView._from_flow_data(flow_data)
+    assert flow_view.run_config is None

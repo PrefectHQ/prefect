@@ -1,0 +1,2 @@
+fix:
+  - "Raise an error when Airbyte sync job fails to mark the task run as Failed - [#5362](https://github.com/PrefectHQ/prefect/pull/5362)"

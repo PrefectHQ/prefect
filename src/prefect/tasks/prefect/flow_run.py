@@ -69,7 +69,14 @@ def create_flow_run(
     labels: Iterable[str] = None,
     run_name: str = None,
     run_config: Optional[RunConfig] = None,
-    scheduled_start_time: Optional[Union[pendulum.DateTime, datetime.datetime]] = None,
+    scheduled_start_time: Optional[
+        Union[
+            pendulum.DateTime,
+            datetime.datetime,
+            pendulum.Duration,
+            datetime.timedelta,
+        ]
+    ] = None,
     idempotency_key: str = None,
 ) -> str:
     """
@@ -135,6 +142,9 @@ def create_flow_run(
 
     if idempotency_key is None:
         idempotency_key = prefect.context.get("task_run_id", None)
+
+    if isinstance(scheduled_start_time, (pendulum.Duration, datetime.timedelta)):
+        scheduled_start_time = pendulum.now("utc") + scheduled_start_time
 
     client = Client()
     flow_run_id = client.create_flow_run(

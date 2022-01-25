@@ -231,6 +231,7 @@ class DbtCloudRunJob(Task):
         - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
             job to finish.
             Used only if wait_for_job_run_completion = True.
+        - domain (str, optional): Custom domain for API call. Defaults to `cloud.getdbt.com`.
 
     Returns:
         - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
@@ -262,6 +263,7 @@ class DbtCloudRunJob(Task):
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
         max_wait_time: int = None,
+        domain: str = "cloud.getdbt.com",
     ):
         super().__init__()
         self.token = token if token else os.environ.get(token_env_var_name, None)
@@ -275,6 +277,7 @@ class DbtCloudRunJob(Task):
         self.additional_args = additional_args
         self.wait_for_job_run_completion = wait_for_job_run_completion
         self.max_wait_time = max_wait_time
+        self.domain = domain or "cloud.getdbt.com"
 
     @defaults_from_attrs(
         "cause",
@@ -284,6 +287,7 @@ class DbtCloudRunJob(Task):
         "additional_args",
         "wait_for_job_run_completion",
         "max_wait_time",
+        "domain",
     )
     def run(
         self,
@@ -297,6 +301,7 @@ class DbtCloudRunJob(Task):
         token_env_var_name: str = "DBT_CLOUD_TOKEN",
         wait_for_job_run_completion: bool = False,
         max_wait_time: int = None,
+        domain: str = None,
     ) -> dict:
         """
         All params available to the run method can also be passed during initialization.
@@ -329,6 +334,7 @@ class DbtCloudRunJob(Task):
             - max_wait_time (int, optional): The number of seconds to wait for the dbt Cloud
                 job to finish.
                 Used only if wait_for_job_run_completion = True.
+        - domain (str, optional): Custom domain for API call. Defaults to `cloud.getdbt.com`.
 
         Returns:
             - (dict) if wait_for_job_run_completion = False, then returns the trigger run result.
@@ -378,6 +384,9 @@ class DbtCloudRunJob(Task):
                 """
             )
 
+        if domain is None:
+            domain = "cloud.getdbt.com"
+
         if token is None and token_env_var_name in os.environ:
             token = os.environ.get(token_env_var_name)
 
@@ -395,6 +404,7 @@ class DbtCloudRunJob(Task):
             cause=cause,
             additional_args=additional_args,
             token=token,
+            domain=domain,
         )
         if wait_for_job_run_completion:
             job_run_result = wait_for_job_run(
@@ -402,12 +412,13 @@ class DbtCloudRunJob(Task):
                 run_id=run["id"],
                 token=token,
                 max_wait_time=max_wait_time,
+                domain=domain,
             )
 
             artifact_links = []
             try:
                 artifact_links = list_run_artifact_links(
-                    account_id=account_id, run_id=run["id"], token=token
+                    account_id=account_id, run_id=run["id"], token=token, domain=domain
                 )
 
                 markdown = f"Artifacts for dbt Cloud run {run['id']} of job {job_id}\n"

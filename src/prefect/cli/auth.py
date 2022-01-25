@@ -120,7 +120,8 @@ def login(key):
     )
 
     # Ignore any tenant id that has been previously set via login
-    client = Client(api_key=key, tenant_id=None)
+    client = Client(api_key=key)
+    client._tenant_id = None
 
     try:
         tenant_id = client._get_auth_tenant()

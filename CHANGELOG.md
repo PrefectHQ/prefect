@@ -28,6 +28,70 @@
 <!-- config changes -->
 - The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
 
+## 0.15.12 <Badge text="beta" type="success" />
+
+Released on January 12, 2022.
+
+### Enhancements
+
+- Allow passing timedeltas to `create_flow_run` to schedule subflows at runtime - [#5303](https://github.com/PrefectHQ/prefect/pull/5303)
+- Upgrade Prefect Server Hasura image to 2.0.9 - [#5173](https://github.com/PrefectHQ/prefect/pull/5313)
+- Allow client retries on failed requests to Prefect Server - [#5292](https://github.com/PrefectHQ/prefect/pull/5292)
+
+### Task Library
+
+
+- Add authentication parameter for Snowflake query tasks - [#5173](https://github.com/PrefectHQ/prefect/pull/5173)
+- Add Mixpanel tasks - [#5276](https://github.com/PrefectHQ/prefect/pull/5276)
+- Add Zendesk Tickets Incremental Export task - [#5278](https://github.com/PrefectHQ/prefect/pull/5278)
+- Add Cube.js Query task - [#5280](https://github.com/PrefectHQ/prefect/pull/5280)
+- Add Monte Carlo lineage tasks - [#5256](https://github.com/PrefectHQ/prefect/pull/5256)
+- Add Firebolt task - [#5265](https://github.com/PrefectHQ/prefect/pull/5265)
+- Add custom domain support to dbt Cloud tasks for enterprise customers - [#5273](https://github.com/PrefectHQ/prefect/pull/5273)
+- Fix response key in Airbyte task health check - [#5314](https://github.com/PrefectHQ/prefect/pull/5314)
+- Allow all Postgres task parameters to be configured at runtime - [#4377](https://github.com/PrefectHQ/prefect/pull/5016)
+- Fix `AirbyteConnectionTask` requiring optional parameters - [#5260](https://github.com/PrefectHQ/prefect/pull/5260)
+- Allow `StepActivate` task to receive runtime parameters - [#5231](https://github.com/PrefectHQ/prefect/pull/5231)
+
+### Fixes
+
+- Fix bug where null `run_config` field caused deserialization errors in backend views  - [#1234](https://github.com/PrefectHQ/prefect/pull/1234)
+
+### Contributors
+
+- [Adam Brusselback](https://github.com/Tostino)
+- [Ahmed Ezzat](https://github.com/bitthebyte)
+- [Alessandro Lollo](https://github.com/AlessandroLollo)
+- [Connor Martin](https://github.com/cjmartian)
+- [Dennis Hinnenkamp](https://github.com/sikwel)
+- [Gaylord Cherencey](https://github.com/gcherencey)
+- [Henning Holgersen](https://github.com/radbrt)
+- [Mathijs Miermans](https://github.com/mmiermans)
+- [Michał Zawadzki](https://github.com/Trymzet)
+- [Raghav Sharma](https://github.com/raghavSharmaSigmoid)
+
+## 0.15.11 <Badge text="beta" type="success" />
+
+Released on December 22, 2021.
+
+### Enhancements
+
+- Allow passing kwargs to `Merge` task constructor via `merge()` function - [#5233](https://github.com/PrefectHQ/prefect/pull/5233)
+- Allow passing proxies to `slack_notifier` - [#5237](https://github.com/PrefectHQ/prefect/pull/5237)
+
+### Fixes
+
+- Update `RunGreatExpectationsValidation` task to work with latest version of `great_expectations` - [#5172](https://github.com/PrefectHQ/prefect/issues/5172)
+- Allow unsetting kubernetes `imagePullSecrets` with an empty string - [#5001](https://github.com/PrefectHQ/prefect/pull/5001)
+- Improve agent handling of kubernetes jobs for flow runs that have been deleted - [#5190](https://github.com/PrefectHQ/prefect/pull/5190)
+- Remove `beta1` from kubernetes agent template - [#5194](https://github.com/PrefectHQ/prefect/pull/5194)
+- Documentation improvements - [#5220](https://github.com/PrefectHQ/prefect/pull/5220), [#5232](https://github.com/PrefectHQ/prefect/pull/5232), [#5288](https://github.com/PrefectHQ/prefect/pull/5288)
+
+### Contributors
+
+- [Connor Martin](https://github.com/cjmartian)
+- [Farley Farley](https://github.com/AndrewFarley)
+- [Vincent Chéry](https://github.com/VincentAntoine)
 
 ## 0.15.10 <Badge text="beta" type="success" />
 

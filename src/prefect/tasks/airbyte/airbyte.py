@@ -21,6 +21,10 @@ class JobNotFoundException(Exception):
     pass
 
 
+class AirbyteSyncJobFailed(Exception):
+    pass
+
+
 class AirbyteConnectionTask(Task):
     """
     Task for triggering Airbyte Connections, where "A connection is
@@ -76,7 +80,8 @@ class AirbyteConnectionTask(Task):
         try:
             response = session.get(get_connection_url)
             self.logger.info(response.json())
-            health_status = response.json()["db"]
+            key = "available" if "available" in response.json() else "db"
+            health_status = response.json()[key]
             if not health_status:
                 raise AirbyteServerNotHealthyException(
                     f"Airbyte Server health status: {health_status}"
@@ -94,6 +99,8 @@ class AirbyteConnectionTask(Task):
                 get_connection_url, json={"connectionId": connection_id}
             )
             self.logger.info(response.json())
+
+            response.raise_for_status()
 
             # check whether a schedule exists ...
             schedule = response.json()["schedule"]
@@ -189,10 +196,10 @@ class AirbyteConnectionTask(Task):
     )
     def run(
         self,
-        airbyte_server_host: str,
-        airbyte_server_port: int,
-        airbyte_api_version: str,
-        connection_id: str,
+        airbyte_server_host: str = None,
+        airbyte_server_port: int = None,
+        airbyte_api_version: str = None,
+        connection_id: str = None,
         poll_interval_s: int = 15,
     ) -> dict:
         """
@@ -275,6 +282,7 @@ class AirbyteConnectionTask(Task):
                     self.logger.info(f"Job {job_id} succeeded.")
                 elif job_status == self.JOB_STATUS_FAILED:
                     self.logger.error(f"Job {job_id} failed.")
+                    raise AirbyteSyncJobFailed(f"Job {job_id} failed.")
                 else:
                     # wait for next poll interval
                     sleep(poll_interval_s)
