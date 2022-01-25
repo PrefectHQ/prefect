@@ -137,8 +137,8 @@ class TestCompressedSerializer:
         )
 
     def test_constructor_rejects_missing_format_libs(self) -> None:
-        with pytest.raises(ImportError, match="'foo' is not installed"):
-            CompressedSerializer(PickleSerializer(), format="foo")
+        with pytest.raises(ImportError, match="'foobar' is not installed"):
+            CompressedSerializer(PickleSerializer(), format="foobar")
 
     def test_constructor_rejects_format_libs_without_compression(self) -> None:
         with pytest.raises(
