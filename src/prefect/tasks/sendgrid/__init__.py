@@ -7,3 +7,5 @@ except ImportError as exc:
     raise ImportError(
         'Using `prefect.tasks.sendgrid` requires Prefect to be installed with the "sendgrid" extra.'
     ) from exc
+
+__all__ = ["SendEmail"]

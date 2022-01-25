@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.0.0
+
+### Highlights
+
+- Authentication with tokens has been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
+- Python 3.6 is no longer supported. Use Python 3.7+ instead. - [#5136](https://github.com/PrefectHQ/prefect/pull/5136)
+- Flow `Environment`s have been removed; use `RunConfig`s instead. - [#5072](https://github.com/PrefectHQ/prefect/pull/5072), [docs](https://docs.prefect.io/orchestration/flow_config/upgrade.html)
+
+### Breaking Changes
+
+<!-- agent changes -->
+- The AWS Fargate agent has been removed; use the ECS agent instead. - [#3812](https://github.com/PrefectHQ/prefect/pull/3812)
+- `DockerAgent(docker_interface=...)` will now raise an exception if passed. - [#4446](https://github.com/PrefectHQ/prefect/pull/4446)
+- Agents will no longer check for authentication at the `prefect.cloud.agent.auth_token` config key. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
+<!-- name/import changes -->
+- Executors can no longer be imported from `prefect.engine.executors`; use `prefect.executors` instead. - [#3798](https://github.com/PrefectHQ/prefect/pull/3798)
+- `Parameter` is not importable from `prefect.core.tasks` anymore; use `prefect.Parameter` instead.
+- Exceptions are no longer importable from `prefect.utilities.exceptions`; use `prefect.exceptions` instead. - [#4664](https://github.com/PrefectHQ/prefect/pull/4664)
+- `Client.login_to_tenant` has been renamed to `Client.switch_tenant`
+<!-- cli changes -->
+- The `prefect register flow` command has been removed; use `prefect register` instead. - [#4256](https://github.com/PrefectHQ/prefect/pull/4256)
+- The `prefect run flow` command has been removed; use `prefect run` instead. - [#4463](https://github.com/PrefectHQ/prefect/pull/4463)
+- Authentication token CLI commands `create-token`, `revoke-token`, `list-tokens` have been removed; use API keys instead. - [#4643](https://github.com/PrefectHQ/prefect/pull/4643)
+- `prefect auth login` no longer accepts authentication tokens. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
+- `prefect auth purge-tokens` has been added to delete the Prefect-managed tokens directory. - [#5140](https://github.com/PrefectHQ/prefect/pull/5140)
+<!-- config changes -->
+- The `log_to_cloud` setting is now ignored; use `send_flow_run_logs` instead. - [#4487](https://github.com/PrefectHQ/prefect/pull/4487)]
+
 ## 0.15.13 <Badge text="beta" type="success" />
 
 Released on January 25, 2022.

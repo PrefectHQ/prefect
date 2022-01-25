@@ -25,13 +25,13 @@ def test_multiple_agent_init_doesnt_duplicate_logs(cloud_api):
 
 
 def test_agent_config_options(cloud_api):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = Agent()
         assert agent.agent_config_id == None
         assert agent.labels == []
         assert agent.env_vars == dict()
         assert agent.max_polls is None
-        assert agent.client.get_auth_token() == "TEST_TOKEN"
+        assert agent.client.api_key == "TEST_KEY"
         assert agent.name == "agent"
         assert agent.logger
         assert agent.logger.name == "agent"
@@ -56,7 +56,7 @@ def test_agent_name_set_options(monkeypatch, cloud_api):
 
 
 def test_agent_log_level(cloud_api):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = Agent()
         assert agent.logger.level == 20
 
@@ -64,7 +64,7 @@ def test_agent_log_level(cloud_api):
 def test_agent_log_level_responds_to_config(cloud_api):
     with set_temporary_config(
         {
-            "cloud.agent.auth_token": "TEST_TOKEN",
+            "cloud.api_key": "TEST_KEY",
             "cloud.agent.level": "DEBUG",
             "cloud.agent.agent_address": "http://localhost:8000",
         }
@@ -77,7 +77,7 @@ def test_agent_log_level_responds_to_config(cloud_api):
 @pytest.mark.parametrize("toggle", [True, False])
 def test_agent_cloud_logs_responds_to_config_by_default(cloud_api, toggle):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": toggle}
+        {"cloud.api_key": "TEST_KEY", "cloud.send_flow_run_logs": toggle}
     ):
         agent = Agent()
         assert agent.log_to_cloud is toggle
@@ -87,14 +87,14 @@ def test_agent_cloud_logs_responds_to_config_by_default(cloud_api, toggle):
 def test_agent_cloud_logs_allows_explicit_override(cloud_api, toggle):
     # Set the config to the opposite so we can ensure it's ignored
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.send_flow_run_logs": not toggle}
+        {"cloud.api_key": "TEST_KEY", "cloud.send_flow_run_logs": not toggle}
     ):
         agent = Agent(no_cloud_logs=not toggle)
         assert agent.log_to_cloud is toggle
 
 
 def test_agent_env_vars(cloud_api):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = Agent(env_vars=dict(AUTH_THING="foo"))
         assert agent.env_vars == dict(AUTH_THING="foo")
 
@@ -102,7 +102,7 @@ def test_agent_env_vars(cloud_api):
 def test_agent_env_vars_from_config(cloud_api):
     with set_temporary_config(
         {
-            "cloud.agent.auth_token": "TEST_TOKEN",
+            "cloud.api_key": "TEST_KEY",
             "cloud.agent.env_vars": {"test1": "test2", "test3": "test4"},
         }
     ):
@@ -111,13 +111,13 @@ def test_agent_env_vars_from_config(cloud_api):
 
 
 def test_agent_max_polls(cloud_api):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = Agent(max_polls=10)
         assert agent.max_polls == 10
 
 
 def test_agent_labels(cloud_api):
-    with set_temporary_config({"cloud.agent.auth_token": "TEST_TOKEN"}):
+    with set_temporary_config({"cloud.api_key": "TEST_KEY"}):
         agent = Agent(labels=["test", "2"])
         assert agent.labels == ["test", "2"]
 
@@ -130,35 +130,15 @@ def test_agent_labels_from_config_var(cloud_api):
 
 def test_agent_log_level_debug(cloud_api):
     with set_temporary_config(
-        {"cloud.agent.auth_token": "TEST_TOKEN", "cloud.agent.level": "DEBUG"}
+        {"cloud.api_key": "TEST_KEY", "cloud.agent.level": "DEBUG"}
     ):
         agent = Agent()
         assert agent.logger.level == 10
 
 
-def test_agent_fails_no_auth_token(cloud_api):
-    with pytest.raises(RuntimeError, match="Error while contacting API") as err:
+def test_agent_fails_no_api_key(cloud_api):
+    with pytest.raises(ValueError, match="You have not set an API key"):
         Agent().start()
-    assert isinstance(err.value.__cause__, AuthorizationError)
-
-
-def test_agent_fails_no_runner_token(monkeypatch, cloud_api):
-    post = MagicMock(
-        return_value=MagicMock(
-            json=MagicMock(
-                return_value=dict(
-                    data=dict(auth_info=MagicMock(api_token_scope="USER"))
-                )
-            )
-        )
-    )
-    session = MagicMock()
-    session.return_value.post = post
-    monkeypatch.setattr("requests.Session", session)
-
-    with pytest.raises(RuntimeError, match="Error while contacting API") as err:
-        Agent().start()
-    assert isinstance(err.value.__cause__, AuthorizationError)
 
 
 def test_get_ready_flow_runs(monkeypatch, cloud_api):
@@ -354,8 +334,7 @@ def test_heartbeat_is_noop_by_default(cloud_api):
 def test_setup_api_connection_runs_test_query(test_query_succeeds, cloud_api):
     agent = Agent()
 
-    # Ignore the token check and registration
-    agent._verify_token = MagicMock()
+    # Ignore registration
     agent._register_agent = MagicMock()
 
     if test_query_succeeds:
@@ -549,8 +528,7 @@ def test_setup_api_connection_attaches_agent_id(cloud_api):
     # Return a fake id from the "backend"
     agent.client.register_agent = MagicMock(return_value="ID")
 
-    # Ignore the token check and test graphql query
-    agent._verify_token = MagicMock()
+    # Ignore the test graphql query
     agent.client.graphql = MagicMock()
 
     agent._setup_api_connection()
@@ -600,7 +578,7 @@ def test_agent_api_health_check(cloud_api):
     assert not agent._api_server_thread.is_alive()
 
 
-def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
+def test_agent_poke_api(monkeypatch, cloud_api):
     import threading
 
     requests = pytest.importorskip("requests")
@@ -647,6 +625,10 @@ def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
 
     agent_start_time = time.time()
     agent = Agent(agent_address=agent_address, max_polls=1)
+
+    # Ignore registration
+    agent._register_agent = MagicMock()
+
     # Override loop interval to 5 seconds.
     agent._loop_intervals = {0: 5.0}
     agent.start()
@@ -660,7 +642,7 @@ def test_agent_poke_api(monkeypatch, runner_token, cloud_api):
     assert setup_api_connection.call_count == 1
 
 
-def test_catch_errors_in_heartbeat_thread(monkeypatch, runner_token, cloud_api, caplog):
+def test_catch_errors_in_heartbeat_thread(monkeypatch, cloud_api, caplog):
     """Check that errors in the heartbeat thread are caught, logged, and the thread keeps going"""
     monkeypatch.setattr(
         "prefect.agent.agent.Agent._submit_deploy_flow_run_jobs", MagicMock()
@@ -668,9 +650,14 @@ def test_catch_errors_in_heartbeat_thread(monkeypatch, runner_token, cloud_api, 
     monkeypatch.setattr(
         "prefect.agent.agent.Agent._setup_api_connection", MagicMock(return_value="id")
     )
+
     heartbeat = MagicMock(side_effect=ValueError)
     monkeypatch.setattr("prefect.agent.agent.Agent.heartbeat", heartbeat)
     agent = Agent(max_polls=2)
+
+    # Ignore registration
+    agent._register_agent = MagicMock()
+
     agent.heartbeat_period = 0.1
     agent.start()
 

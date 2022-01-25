@@ -1,5 +1,6 @@
 import pendulum
 import pytest
+import uuid
 import os
 import sys
 from unittest.mock import MagicMock, call
@@ -19,6 +20,9 @@ from prefect.run_configs import UniversalRun
 from prefect.engine.state import Failed, Scheduled, Success, Running, Submitted
 from prefect.utilities.graphql import GraphQLResult
 from prefect.utilities.configuration import set_temporary_config
+
+
+CONFIG_TENANT_ID = str(uuid.uuid4())
 
 
 @pytest.fixture()
@@ -83,6 +87,7 @@ class TestExecuteFlowRunInSubprocess:
             "PREFECT__CLOUD__API": "https://api.prefect.io",
             "PREFECT__CLOUD__TENANT_ID": "",
             "PREFECT__CLOUD__API_KEY": cloud_mocks.Client().api_key,
+            "PREFECT__CLOUD__AUTH_TOKEN": cloud_mocks.Client().api_key,
             "PREFECT__CONTEXT__FLOW_RUN_ID": "flow-run-id",
             "PREFECT__CONTEXT__FLOW_ID": cloud_mocks.FlowRunView.from_flow_run_id().flow_id,
             "PREFECT__ENGINE__FLOW_RUNNER__DEFAULT_CLASS": "prefect.engine.cloud.CloudFlowRunner",
@@ -183,10 +188,10 @@ def test_generate_flow_run_environ():
             "cloud.send_flow_run_logs": "CONFIG_SEND_RUN_LOGS",
             "backend": "CONFIG_BACKEND",
             "cloud.api": "CONFIG_API",
-            "cloud.tenant_id": "CONFIG_TENANT_ID",
-            # Deprecated tokens are included if available but overriden by `run_api_key`
+            "cloud.tenant_id": CONFIG_TENANT_ID,
+            # Deprecated tokens are ignored _always_ since 1.0.0
             "cloud.agent.auth_token": "CONFIG_AUTH_TOKEN",
-            "cloud.auth_token": None,
+            "cloud.auth_token": "CONFIG_AUTH_TOKEN",
         }
     ):
         result = generate_flow_run_environ(
@@ -223,7 +228,7 @@ def test_generate_flow_run_environ():
         "PREFECT__CLOUD__SEND_FLOW_RUN_LOGS": "CONFIG_SEND_RUN_LOGS",
         "PREFECT__BACKEND": "CONFIG_BACKEND",
         "PREFECT__CLOUD__API": "CONFIG_API",
-        "PREFECT__CLOUD__TENANT_ID": "CONFIG_TENANT_ID",
+        "PREFECT__CLOUD__TENANT_ID": CONFIG_TENANT_ID,
         # Overridden by run config
         "A": "RUN_CONFIG",
         "B": "RUN_CONFIG",

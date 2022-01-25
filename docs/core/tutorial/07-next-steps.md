@@ -83,4 +83,4 @@ with Flow("Simple Pipeline") as flow:
 flow.run()
 ```
 
-The Task library includes integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, [and more](/core/task_library/)!
+The Task library includes integrations with Kubernetes, GitHub, Slack, Docker, AWS, GCP, [and more](/core/task_library/overview.html)!
