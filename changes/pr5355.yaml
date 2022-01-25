@@ -1,3 +1,0 @@
-
-fix:
-  - "Fix bug where logout was required before logging in with a new key if the new key does not have access to the old tenant - [#5355](https://github.com/PrefectHQ/prefect/pull/5355)"

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.15.13 <Badge text="beta" type="success" />
+
+Released on January 25, 2022.
+
+### Enhancements
+
+- Upgrade version of Hasura GraphQL engine to v2.1.1 - [#5335](https://github.com/PrefectHQ/prefect/pull/5335)
+
+### Fixes
+
+- Fix bug where logout was required before logging in with a new key if the new key does not have access to the old tenant - [#5355](https://github.com/PrefectHQ/prefect/pull/5355)
+- Raise an error when Airbyte sync job fails to mark the task run as Failed - [#5362](https://github.com/PrefectHQ/prefect/pull/5362)
+
 ## 0.15.12 <Badge text="beta" type="success" />
 
 Released on January 12, 2022.
