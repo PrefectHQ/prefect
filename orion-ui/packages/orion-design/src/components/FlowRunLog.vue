@@ -151,6 +151,7 @@
   grid-area: message;
   padding: 0 var(--p-1);
   display: flex;
+  white-space: pre-wrap;
 
   &:hover {
     background-color: #F9FAFD;
