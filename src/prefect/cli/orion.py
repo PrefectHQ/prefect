@@ -14,6 +14,7 @@ from anyio.streams.text import TextReceiveStream
 from prefect import settings
 from prefect.cli.base import app, console, exit_with_error, exit_with_success
 from prefect.orion.database.dependencies import provide_database_interface
+from prefect.orion.utilities.database import get_dialect
 from prefect.utilities.asyncio import sync_compatible
 
 orion_app = typer.Typer(name="orion")
@@ -61,10 +62,9 @@ async def start(
     ui: bool = settings.orion.ui.enabled,
 ):
     """Start an Orion server"""
-    # TODO - this logic should be abstracted in the interface
-    # create the sqlite database if it doesnt already exist
+    # Run migrations - if configured for sqlite will create the db
     db = provide_database_interface()
-    await db.engine()
+    await db.create_db()
 
     server_env = os.environ.copy()
     server_env["PREFECT_ORION_SERVICES_RUN_IN_APP"] = str(services)
@@ -132,6 +132,7 @@ async def reset_db(yes: bool = typer.Option(False, "--yes", "-y")):
 async def upgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     n: str = typer.Option(None, "-n", help="The argument passed to alembic upgrade"),
+    sql: bool = False,
 ):
     """Upgrade the Orion database"""
     if not yes:
@@ -142,7 +143,7 @@ async def upgrade(
     db = provide_database_interface()
 
     console.print("Running upgrade migrations ...")
-    await db.orm.run_migration_upgrade(n)
+    await db.orm.run_migration_upgrade(n, sql)
     console.print("Migrations succeeded!")
     exit_with_success(f"Orion database upgraded!")
 
@@ -152,6 +153,7 @@ async def upgrade(
 async def downgrade(
     yes: bool = typer.Option(False, "--yes", "-y"),
     n: str = typer.Option(None, "-n", help="The argument passed to alembic upgrade"),
+    sql: bool = False,
 ):
     """Downgrade the Orion database"""
     if not yes:
@@ -164,7 +166,7 @@ async def downgrade(
     db = provide_database_interface()
 
     console.print("Running downgrade migrations ...")
-    await db.orm.run_migration_downgrade(n)
+    await db.orm.run_migration_downgrade(n, sql)
     console.print("Migrations succeeded!")
     exit_with_success(f"Orion database downgraded!")
 

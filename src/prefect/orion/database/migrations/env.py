@@ -38,9 +38,8 @@ def run_migrations_offline() -> None:
     Calls to context.execute() here emit the given string to the
     script output.
     """
-    url = config.get_main_option("sqlalchemy.url")
-
-    from alembic.script import ScriptDirectory
+    url = db_interface.database_config.connection_url
+    context.script.version_locations = [db_interface.orm.versions_dir]
 
     context.configure(
         url=url,

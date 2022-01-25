@@ -876,20 +876,22 @@ class BaseORMConfiguration(ABC):
         """Directory containing migrations"""
         ...
 
-    async def run_migration_upgrade(self, n: str = None):
+    async def run_migration_upgrade(self, n: str = None, sql: bool = False):
         """Run database migration upgrade"""
-        await run_sync_in_worker_thread(alembic_upgrade, n=n)
+        await run_sync_in_worker_thread(alembic_upgrade, n=n, sql=sql)
 
-    async def run_migration_downgrade(self, n: str = None):
+    async def run_migration_downgrade(self, n: str = None, sql: bool = False):
         """Run database migration downgrade"""
-        await run_sync_in_worker_thread(alembic_downgrade, n=n)
+        await run_sync_in_worker_thread(alembic_downgrade, n=n, sql=sql)
 
     async def run_migration_revision(
         self, message: str = None, autogenerate: bool = False
     ):
         """Create a migration revision"""
         await run_sync_in_worker_thread(
-            alembic_revision, message=message, autogenerate=autogenerate
+            alembic_revision,
+            message=message,
+            autogenerate=autogenerate,
         )
 
     @property
