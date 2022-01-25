@@ -8,7 +8,7 @@
 
       <div class="list-item-task-run__tag-container">
         <StateLabel :name="state.name" :type="state.type" class="mr-1" />
-        <Tags :tags="tags" class="caption" />
+        <m-tags :tags="tags" class="caption" />
       </div>
     </div>
 

@@ -12,7 +12,7 @@
         :style="calculateBucketPosition(item)"
       >
         <template v-for="state in item.states" :key="state.state_type">
-          <Popover
+          <m-popover
             :placement="['bottom', 'top', 'leftTop', 'rightTop']"
             :style="calculateBarPosition(state, i)"
             :disabled="disablePopovers"
@@ -50,7 +50,7 @@
                 <td>{{ formatDateTimeNumeric(item.interval_end) }}</td>
               </tr>
             </table>
-          </Popover>
+          </m-popover>
         </template>
       </div>
     </div>
