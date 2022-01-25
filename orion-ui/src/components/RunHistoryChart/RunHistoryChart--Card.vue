@@ -1,5 +1,5 @@
 <template>
-  <Card shadow="sm">
+  <m-card shadow="sm">
     <template v-slot:header>
       <div class="subheader py-1 px-2">Run History</div>
     </template>
@@ -15,7 +15,7 @@
       />
       <div v-else class="font--secondary subheader no-data"> -- </div>
     </div>
-  </Card>
+  </m-card>
 </template>
 
 <script lang="ts" setup>
