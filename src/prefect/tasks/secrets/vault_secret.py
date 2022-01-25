@@ -75,10 +75,7 @@ class VaultSecret(SecretBase):
         self.logger.debug(f"Vault addr set to: {client.url}")
 
         # get vault auth credentials from the PrefectSecret
-        print(self.vault_credentials_secret)
         vault_creds = PrefectSecret(self.vault_credentials_secret).run()
-        print(vault_creds)
-        print(type(vault_creds))
         if "VAULT_TOKEN" in vault_creds.keys():
             client.token = vault_creds["VAULT_TOKEN"]
         elif (
@@ -101,9 +98,9 @@ class VaultSecret(SecretBase):
                 jwt = f.read()
 
             client.auth.kubernetes.login(
-                role=vault_creds['VAULT_KUBERNETES_ROLE'],
+                role=vault_creds['VAULT_KUBE_AUTH_ROLE'],
                 jwt=jwt,
-                mount_point=vault_creds['VAULT_KUBERNETES_PATH']
+                mount_point=vault_creds['VAULT_KUBE_AUTH_PATH']
             )
         else:
             raise ValueError(
