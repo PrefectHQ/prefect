@@ -12,7 +12,7 @@
     />
 
     <div class="mt-2 tag-container">
-      <m-tag
+      <Tag
         v-for="(tag, i) in tags"
         :key="tag"
         class="ma--half"
@@ -21,7 +21,7 @@
       >
         <i class="pi pi-price-tag-3-line pi-xs mr--half" />
         {{ tag }}
-      </m-tag>
+      </Tag>
     </div>
   </div>
 </template>
