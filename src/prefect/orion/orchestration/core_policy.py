@@ -94,11 +94,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                         )
                         active_slots = set(cl.active_slots)
                         active_slots.discard(str(context.run.id))
-                        await concurrency_limits.update_concurrency_slots(
-                            context.session,
-                            tag,
-                            list(active_slots),
-                        )
+                        cl.active_slots = list(active_slots)
 
                     await self.abort_transition(
                         reason=f'The concurrency limit on tag "{tag}" is 0 and will deadlock if the task tries to run again.',
@@ -110,11 +106,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                         )
                         active_slots = set(cl.active_slots)
                         active_slots.discard(str(context.run.id))
-                        await concurrency_limits.update_concurrency_slots(
-                            context.session,
-                            tag,
-                            list(active_slots),
-                        )
+                        cl.active_slots = list(active_slots)
 
                     await self.delay_transition(
                         30,
@@ -124,11 +116,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
                     self._applied_limits.append(tag)
                     active_slots = set(cl.active_slots)
                     active_slots.add(str(context.run.id))
-                    await concurrency_limits.update_concurrency_slots(
-                        context.session,
-                        tag,
-                        list(active_slots),
-                    )
+                    cl.active_slots = list(active_slots)
 
     async def cleanup(
         self,
@@ -144,11 +132,7 @@ class SecureTaskConcurrencySlots(BaseOrchestrationRule):
             )
             active_slots = set(cl.active_slots)
             active_slots.discard(str(context.run.id))
-            await concurrency_limits.update_concurrency_slots(
-                context.session,
-                tag,
-                list(active_slots),
-            )
+            cl.active_slots = list(active_slots)
 
 
 class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
@@ -176,11 +160,7 @@ class ReturnTaskConcurrencySlots(BaseOrchestrationRule):
             if cl is not None:
                 active_slots = set(cl.active_slots)
                 active_slots.discard(str(context.run.id))
-                await concurrency_limits.update_concurrency_slots(
-                    context.session,
-                    tag,
-                    list(active_slots),
-                )
+                cl.active_slots = list(active_slots)
 
 
 class CacheInsertion(BaseOrchestrationRule):

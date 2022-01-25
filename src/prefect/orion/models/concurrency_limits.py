@@ -42,30 +42,11 @@ async def create_concurrency_limit(
 
     await session.execute(insert_stmt)
 
-    query = sa.select(db.ConcurrencyLimit).where(
-        db.ConcurrencyLimit.tag == concurrency_tag
+    query = (
+        sa.select(db.ConcurrencyLimit)
+        .where(db.ConcurrencyLimit.tag == concurrency_tag)
+        .execution_options(populate_existing=True)
     )
-
-    result = await session.execute(query)
-    return result.scalar()
-
-
-@inject_db
-async def update_concurrency_slots(
-    session: sa.orm.Session,
-    tag: str,
-    active_slots: List[str],
-    db: OrionDBInterface,
-):
-    update_stmt = (
-        sa.update(db.ConcurrencyLimit)
-        .where(db.ConcurrencyLimit.tag == tag)
-        .values(active_slots=active_slots)
-    )
-
-    await session.execute(update_stmt)
-
-    query = sa.select(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
 
     result = await session.execute(query)
     return result.scalar()
