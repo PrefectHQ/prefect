@@ -1,5 +1,5 @@
 <template>
-  <button class="copy-button" @click="copy">
+  <button type="button" class="copy-button" @click="copy">
     <i class="pi pi-file-copy-line pi-sm" />
     <template v-if="label == null || $slots.default">
       <span class="copy-button__label">
@@ -10,48 +10,57 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, PropType } from 'vue'
+  import { showToast } from '@prefecthq/miter-design'
+  import { defineComponent, PropType } from 'vue'
 
-export default defineComponent({
-  props: {
-    value: {
-      type: [String, Function] as PropType<string | (() => string)>,
-      required: true
-    },
-    label: {
-      type: String,
-      default: null
-    },
-    toast: {
-      type: String,
-      default: 'Copied to Clipboard'
-    },
-    timeout: {
-      type: Number,
-      default: 5000
-    }
-  },
-  computed: {
-    labelOrDefault() {
-      return this.label ?? 'Copy'
-    }
-  },
-  methods: {
-    copy() {
-      if (typeof this.value === 'function') {
-        navigator.clipboard.writeText(this.value())
-      } else {
-        navigator.clipboard.writeText(this.value)
-      }
+  export default defineComponent({
+    name: 'CopyButton',
+    props: {
+      value: {
+        type: [String, Function] as PropType<string | (() => string)>,
+        required: true,
+      },
 
-      this.$toast({
-        type: 'success',
-        message: this.toast,
-        timeout: this.timeout
-      })
-    }
-  }
-})
+      label: {
+        type: String as PropType<string | null>,
+        default: null,
+      },
+
+      toast: {
+        type: String,
+        default: 'Copied to Clipboard',
+      },
+
+      timeout: {
+        type: Number,
+        default: 5000,
+      },
+    },
+
+    expose: [],
+
+    computed: {
+      labelOrDefault() {
+        return this.label ?? 'Copy'
+      },
+    },
+
+    methods: {
+      copy() {
+        if (typeof this.value === 'function') {
+          navigator.clipboard.writeText(this.value())
+        } else {
+          navigator.clipboard.writeText(this.value)
+        }
+
+        showToast({
+          type: 'success',
+          message: this.toast,
+          timeout: this.timeout,
+        })
+      },
+    },
+  })
 </script>
 
 <style lang="scss" scoped>
