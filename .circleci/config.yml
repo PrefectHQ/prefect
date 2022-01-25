@@ -606,7 +606,7 @@ workflows:
             branches:
               ignore: /.*/
             tags:
-              only: /^1.0rc[0-9]$/
+              only: /^1\.0rc[0-9]$/
       - build_docker_image:
           python_version: '3.8'
           extras: 'all_orchestration_extras'
@@ -614,7 +614,7 @@ workflows:
             branches:
               ignore: /.*/
             tags:
-              only: /^1.0rc[0-9]$/
+              only: /^1\.0rc[0-9]$/
       - build_docker_image:
           python_version: '3.9'
           extras: 'all_orchestration_extras'
@@ -622,17 +622,23 @@ workflows:
             branches:
               ignore: /.*/
             tags:
-              only: /^1.0rc[0-9]$/
+              only: /^1\.0rc[0-9]$/
       - release_to_pypi:
           filters:
             branches:
               ignore: /.*/
             tags:
-              only: /^1.0rc[0-9]$/
+              only: /^1\.0rc[0-9]$/
       - build_core_docker_image:
           python_version: '3.9'
           filters:
             branches:
               ignore: /.*/
             tags:
-              only: /^1.0rc[0-9]$/
+              only: /^1\.0rc[0-9]$/
+      - promote_server_artifacts:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^1\.0rc[0-9]$/
