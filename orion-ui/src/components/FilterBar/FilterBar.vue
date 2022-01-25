@@ -6,7 +6,7 @@
   >
     <div class="bar" :class="{ 'menu-opened': showFilterMenu }">
       <FilterSearch @focused="openSearchMenu">
-        <m-tag-group
+        <TagGroup
           :tags="filters"
           :clearable="false && filtersApplied"
           @click="openFilterMenu"
