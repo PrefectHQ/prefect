@@ -756,7 +756,6 @@ class BaseORMConfiguration(ABC):
         deployment_mixin=ORMDeployment,
         saved_search_mixin=ORMSavedSearch,
         log_mixin=ORMLog,
-        migrations_dir: str = None,
     ):
         self.base_metadata = base_metadata or sa.schema.MetaData(
             # define naming conventions for our Base class to use
